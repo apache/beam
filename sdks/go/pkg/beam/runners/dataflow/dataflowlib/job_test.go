@@ -21,8 +21,6 @@ import (
 	"reflect"
 	"testing"
 
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
@@ -32,7 +30,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	df "google.golang.org/api/dataflow/v1b3"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -308,9 +305,7 @@ func TestTranslate(t *testing.T) {
 		},
 	}
 
-	serializedPipeline, _ := proto.Marshal(p)
-	hash := sha256.Sum256(serializedPipeline)
-	expectedHashStr := hex.EncodeToString(hash[:])
+	expectedHashStr := "dummy-hash-12345"
 
 	job, err := Translate(context.Background(), p, opts, "worker-url", "model-url", expectedHashStr)
 	if err != nil {
