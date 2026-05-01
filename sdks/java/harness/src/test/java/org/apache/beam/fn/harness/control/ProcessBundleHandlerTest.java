@@ -2065,6 +2065,72 @@ public class ProcessBundleHandlerTest {
     assertEquals(1, finishCounterFound);
   }
 
+  @Test
+  public void testStateFlagsUpdatedOnReuse() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
+            .build();
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
+
+    List<Boolean> observedHasNoState = new ArrayList<>();
+    List<Boolean> observedOnlyBundleForKeys = new ArrayList<>();
+
+    PTransformRunnerFactory flagRecorder =
+        (context) -> {
+          Supplier<Boolean> hasNoStateSupplier = context.getHasNoStateSupplier();
+          Supplier<Boolean> onlyBundleForKeysSupplier = context.getOnlyBundleForKeysSupplier();
+          context.addStartBundleFunction(
+              () -> {
+                observedHasNoState.add(hasNoStateSupplier.get());
+                observedOnlyBundleForKeys.add(onlyBundleForKeysSupplier.get());
+              });
+        };
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null,
+            null,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(DATA_INPUT_URN, flagRecorder),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null);
+
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("100L")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorId("1L")
+                    .setHasNoState(true)
+                    .setOnlyBundleForKeys(false))
+            .build());
+
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("101L")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorId("1L")
+                    .setHasNoState(false)
+                    .setOnlyBundleForKeys(true))
+            .build());
+
+    assertThat(observedHasNoState, contains(true, false));
+    assertThat(observedOnlyBundleForKeys, contains(false, true));
+  }
+
   private static void throwException() {
     throw new IllegalStateException("TestException");
   }

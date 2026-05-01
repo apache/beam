@@ -49,7 +49,13 @@ public class BagUserStateTest {
             StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
-            Caches.noop(), fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
 
@@ -67,7 +73,14 @@ public class BagUserStateTest {
     {
       // First user state populates the cache.
       BagUserState<String> userState =
-          new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+          new BagUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              key("A"),
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
@@ -83,7 +96,9 @@ public class BagUserStateTest {
               },
               "instructionId",
               key("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
@@ -96,7 +111,13 @@ public class BagUserStateTest {
         new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1")));
     BagUserState<String> userState =
         new BagUserState<>(
-            Caches.noop(), fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     userState.append("A2");
     Iterable<String> stateBeforeA3 = userState.get();
     assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
@@ -118,7 +139,13 @@ public class BagUserStateTest {
         new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList(a1)));
     BagUserState<String> userState =
         new BagUserState<>(
-            Caches.noop(), fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     String a2 = Strings.repeat("A2", 2 * 1024 * 1024);
     userState.append(a2);
     String a3 = Strings.repeat("A3", 4 * 1024 * 1024);
@@ -155,7 +182,14 @@ public class BagUserStateTest {
     {
       // First user state populates the cache.
       BagUserState<String> userState =
-          new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+          new BagUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              key("A"),
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       userState.append("A2");
       Iterable<String> stateBeforeA3 = userState.get();
       assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(stateBeforeA3, String.class));
@@ -180,7 +214,9 @@ public class BagUserStateTest {
               },
               "instructionId",
               key("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       userState.append("A4");
       Iterable<String> stateBeforeA5 = userState.get();
       assertArrayEquals(
@@ -203,7 +239,13 @@ public class BagUserStateTest {
             StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
     BagUserState<String> userState =
         new BagUserState<>(
-            Caches.noop(), fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     assertArrayEquals(
         new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
     userState.clear();
@@ -228,7 +270,14 @@ public class BagUserStateTest {
     {
       // First user state populates the cache.
       BagUserState<String> userState =
-          new BagUserState<>(cache, fakeClient, "instructionId", key("A"), StringUtf8Coder.of());
+          new BagUserState<>(
+              cache,
+              fakeClient,
+              "instructionId",
+              key("A"),
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(
           new String[] {"A1", "A2", "A3"}, Iterables.toArray(userState.get(), String.class));
       userState.clear();
@@ -252,7 +301,9 @@ public class BagUserStateTest {
               },
               "instructionId",
               key("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(new String[] {"A4"}, Iterables.toArray(userState.get(), String.class));
       userState.clear();
       assertFalse(userState.get().iterator().hasNext());
@@ -273,7 +324,9 @@ public class BagUserStateTest {
               },
               "instructionId",
               key("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
       assertArrayEquals(new String[] {}, Iterables.toArray(userState.get(), String.class));
       userState.asyncClose();
     }
@@ -297,5 +350,61 @@ public class BagUserStateTest {
       StringUtf8Coder.of().encode(value, out);
     }
     return out.toByteString();
+  }
+
+  @Test
+  public void testHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1", "A2", "A3")));
+    BagUserState<String> userState =
+        new BagUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertFalse(userState.get().iterator().hasNext());
+
+    // We can append new values
+    userState.append("A4");
+    assertArrayEquals(new String[] {"A4"}, Iterables.toArray(userState.get(), String.class));
+    userState.asyncClose();
+
+    // The appended string will be persisted, appended to the old values (since we didn't clear)
+    assertEquals(encode("A1", "A2", "A3", "A4"), fakeClient.getData().get(key("A")));
+  }
+
+  @Test
+  public void testOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of(key("A"), asList("A1")));
+    BagUserState<String> userState =
+        new BagUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            key("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
+
+    // Reads still work
+    assertArrayEquals(new String[] {"A1"}, Iterables.toArray(userState.get(), String.class));
+
+    // Append something
+    userState.append("A2");
+
+    // We can observe the appended value locally
+    assertArrayEquals(new String[] {"A1", "A2"}, Iterables.toArray(userState.get(), String.class));
+
+    userState.asyncClose();
+
+    // But when we close, the data is NOT persisted because onlyBundleForKeys = true
+    assertEquals(encode("A1"), fakeClient.getData().get(key("A")));
   }
 }
