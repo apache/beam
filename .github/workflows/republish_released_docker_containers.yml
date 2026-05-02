@@ -38,7 +38,7 @@ env:
 jobs:
 
   build:
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
