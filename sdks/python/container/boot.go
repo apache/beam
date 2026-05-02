@@ -410,10 +410,10 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 // installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing setup packages ...")
+	bufLogger.Printf(ctx, "Installing Beam SDK and user dependencies ...")
 
-	if err := logRuntimeDependencies(ctx, bufLogger, "pre-installation"); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 
 	// Install the Dataflow Python SDK if one was staged. In released
@@ -440,11 +440,11 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger, "post-installation"); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "final runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "Failed to fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
@@ -498,14 +498,14 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version (%s):", phase)
+	bufLogger.Printf(ctx, "Python version in %s:", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies (%s):", phase)
+	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
 	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
@@ -518,7 +518,7 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Logging submission environment dependencies:")
+	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
