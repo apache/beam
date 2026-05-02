@@ -407,10 +407,10 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// installSetupPackages installs Beam SDK and user dependencies.
+// installSetupPackages installs user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing Beam SDK and user dependencies ...")
+	bufLogger.Printf(ctx, "Installing user dependencies ...")
 
 	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
 		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
