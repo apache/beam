@@ -28,7 +28,6 @@ import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -39,7 +38,6 @@ import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -156,12 +154,22 @@ public class DatadogWriteSchemaTransformProviderTest {
     SchemaTransform transform = provider.from(configuration);
 
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertEquals(1, output.getAll().size());
-    assertTrue(output.has("write_errors"));
+    assertTrue(output.getAll().isEmpty());
 
-    p.run().waitUntilFinish();
+    try {
+      p.run().waitUntilFinish();
+      fail("Expected a PipelineExecutionException due to connection refusal.");
+    } catch (PipelineExecutionException e) {
+      Throwable cause = e.getCause();
+      while (cause.getCause() != null) {
+        cause = cause.getCause();
+      }
+      assertTrue(
+          "Expected cause to be java.net.ConnectException",
+          cause instanceof java.net.ConnectException);
+    }
   }
 
   @Test
@@ -173,7 +181,7 @@ public class DatadogWriteSchemaTransformProviderTest {
             .filter(provider -> provider.getClass() == DatadogWriteSchemaTransformProvider.class)
             .collect(Collectors.toList());
     SchemaTransformProvider datadogProvider = providers.get(0);
-    assertEquals(datadogProvider.outputCollectionNames(), Lists.newArrayList("output", "errors"));
+    assertEquals(datadogProvider.outputCollectionNames(), Lists.newArrayList(OUTPUT, ERROR));
 
     assertEquals(
         Sets.newHashSet(
@@ -190,27 +198,15 @@ public class DatadogWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testRowToDatadogEventFn() throws NonDeterministicException {
-    PCollection<Row> input = p.apply(Create.of(ROWS).withRowSchema(SCHEMA));
-
-    PCollection<Row> output =
-        input.apply(
-            "RowToRowEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
-
-    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
-
-    List<Row> expectedRows =
-        events.stream()
-            .map(DatadogWriteSchemaTransformProvider::eventToRow)
-            .collect(Collectors.toList());
-
-    PAssert.that(output).containsInAnyOrder(expectedRows);
-    p.run().waitUntilFinish();
+  public void testRowToDatadogEvent() {
+    for (int i = 0; i < ROWS.size(); i++) {
+      DatadogEvent actual = DatadogWriteSchemaTransformProvider.rowToEvent(ROWS.get(i));
+      assertEquals(events.get(i), actual);
+    }
   }
 
   @Test
-  public void testRowToDatadogEventFnWithMissingOptionalFields() throws NonDeterministicException {
+  public void testRowToDatadogEventWithMissingOptionalFields() {
     Schema missingFieldsSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -232,23 +228,12 @@ public class DatadogWriteSchemaTransformProviderTest {
             .withMessage("Hello World 1")
             .build();
 
-    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(missingFieldsSchema));
-    PCollection<Row> output =
-        input.apply(
-            "RowToRowEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
-
-    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
-
-    Row expectedRow = DatadogWriteSchemaTransformProvider.eventToRow(expectedEvent);
-
-    PAssert.that(output).containsInAnyOrder(expectedRow);
-    p.run().waitUntilFinish();
+    DatadogEvent actual = DatadogWriteSchemaTransformProvider.rowToEvent(row);
+    assertEquals(expectedEvent, actual);
   }
 
   @Test
-  public void testRowToDatadogEventFnWithExtraFields_DiscardsExtraFields()
-      throws NonDeterministicException {
+  public void testRowToDatadogEventWithExtraFields_DiscardsExtraFields() {
     Schema extraFieldsSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -278,22 +263,12 @@ public class DatadogWriteSchemaTransformProviderTest {
             .withMessage("Hello World 1")
             .build();
 
-    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(extraFieldsSchema));
-    PCollection<Row> output =
-        input.apply(
-            "RowToRowEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
-
-    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
-
-    Row expectedRow = DatadogWriteSchemaTransformProvider.eventToRow(expectedEvent);
-
-    PAssert.that(output).containsInAnyOrder(expectedRow);
-    p.run().waitUntilFinish();
+    DatadogEvent actual = DatadogWriteSchemaTransformProvider.rowToEvent(row);
+    assertEquals(expectedEvent, actual);
   }
 
-  @Test
-  public void testRowToDatadogEventFnWithNullRequiredField() {
+  @Test(expected = NullPointerException.class)
+  public void testRowToDatadogEventWithNullRequiredField() {
     Schema nullSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -312,26 +287,7 @@ public class DatadogWriteSchemaTransformProviderTest {
             .withFieldValue("message", null)
             .build();
 
-    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
-    PCollection<Row> output =
-        input.apply(
-            "RowToRowEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
-
-    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
-
-    try {
-      p.run().waitUntilFinish();
-      fail("Expected a PipelineExecutionException to be thrown.");
-    } catch (PipelineExecutionException e) {
-      assertTrue(
-          "Expected cause to be of type RuntimeException",
-          e.getCause() instanceof RuntimeException);
-      assertTrue(
-          "Expected cause's cause to be of type NullPointerException",
-          e.getCause().getCause() instanceof NullPointerException);
-      assertEquals("Message is required.", e.getCause().getCause().getMessage());
-    }
+    DatadogWriteSchemaTransformProvider.rowToEvent(row);
   }
 
   @Test
@@ -349,12 +305,22 @@ public class DatadogWriteSchemaTransformProviderTest {
     SchemaTransform transform = provider.from(configuration);
 
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertEquals(1, output.getAll().size());
-    assertTrue(output.has("write_errors"));
+    assertTrue(output.getAll().isEmpty());
 
-    p.run().waitUntilFinish();
+    try {
+      p.run().waitUntilFinish();
+      fail("Expected a PipelineExecutionException due to connection refusal.");
+    } catch (PipelineExecutionException e) {
+      Throwable cause = e.getCause();
+      while (cause.getCause() != null) {
+        cause = cause.getCause();
+      }
+      assertTrue(
+          "Expected cause to be java.net.ConnectException",
+          cause instanceof java.net.ConnectException);
+    }
   }
 
   @Test(expected = IllegalStateException.class)
@@ -383,10 +349,9 @@ public class DatadogWriteSchemaTransformProviderTest {
     SchemaTransform transform = provider.from(configuration);
 
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertEquals(1, output.getAll().size());
-    assertTrue(output.has("write_errors"));
+    assertTrue(output.getAll().isEmpty());
 
     try {
       p.run().waitUntilFinish();
@@ -438,7 +403,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     Schema errorHandlingSchema = configSchema.getField("error_handling").getType().getRowSchema();
 
     Row errorHandlingRow =
-        Row.withSchema(errorHandlingSchema).withFieldValue("output", "errors").build();
+        Row.withSchema(errorHandlingSchema).withFieldValue(OUTPUT, ERROR).build();
 
     Row configRow =
         Row.withSchema(configSchema)
@@ -454,17 +419,16 @@ public class DatadogWriteSchemaTransformProviderTest {
     SchemaTransform transform = provider.from(configRow);
 
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertEquals(2, output.getAll().size());
-    assertTrue(output.has("errors"));
-    assertTrue(output.has("write_errors"));
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has(ERROR));
 
     p.run().waitUntilFinish();
   }
 
-  @Test
-  public void testRowToDatadogEventFnWithWrongType() {
+  @Test(expected = ClassCastException.class)
+  public void testRowToDatadogEventWithWrongType() {
     Schema wrongSchema =
         Schema.builder()
             .addStringField("ddsource")
@@ -481,31 +445,13 @@ public class DatadogWriteSchemaTransformProviderTest {
             .withFieldValue("message", "Hello World 1")
             .build();
 
-    PCollection<Row> input = p.apply(Create.of(row).withRowSchema(wrongSchema));
-    PCollection<Row> output =
-        input.apply(
-            "RowToRowEvent",
-            ParDo.of(new DatadogWriteSchemaTransformProvider.RowToRowEventFn(null, false)));
-
-    output.setRowSchema(DatadogWriteSchemaTransformProvider.DATADOG_EVENT_SCHEMA);
-
-    try {
-      p.run().waitUntilFinish();
-      fail("Expected a ClassCastException to be thrown.");
-    } catch (PipelineExecutionException e) {
-      assertTrue(
-          "Expected cause to be of type RuntimeException",
-          e.getCause() instanceof RuntimeException);
-      assertTrue(
-          "Expected cause's cause to be of type ClassCastException",
-          e.getCause().getCause() instanceof ClassCastException);
-    }
+    DatadogWriteSchemaTransformProvider.rowToEvent(row);
   }
 
   @Test
   public void testErrorHandling() {
     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-    ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
+    ErrorHandling errorHandling = ErrorHandling.builder().setOutput(ERROR).build();
     DatadogWriteSchemaTransformConfiguration configuration =
         DatadogWriteSchemaTransformConfiguration.builder()
             .setApiKey("test-api-key")
@@ -535,13 +481,13 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(nullSchema));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
 
     SchemaTransform transform = provider.from(configuration);
     PCollectionRowTuple outputTuple = transform.expand(inputTuple);
 
-    assertTrue(outputTuple.has("errors"));
-    PAssert.that(outputTuple.get("errors"))
+    assertTrue(outputTuple.has(ERROR));
+    PAssert.that(outputTuple.get(ERROR))
         .satisfies(
             (errors) -> {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
@@ -559,7 +505,7 @@ public class DatadogWriteSchemaTransformProviderTest {
   @Test
   public void testErrorHandlingWithMissingRequiredField() {
     DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-    ErrorHandling errorHandling = ErrorHandling.builder().setOutput("errors").build();
+    ErrorHandling errorHandling = ErrorHandling.builder().setOutput(ERROR).build();
     DatadogWriteSchemaTransformConfiguration configuration =
         DatadogWriteSchemaTransformConfiguration.builder()
             .setApiKey("test-api-key")
@@ -577,13 +523,13 @@ public class DatadogWriteSchemaTransformProviderTest {
             .build();
 
     PCollection<Row> input = p.apply(Create.of(row).withRowSchema(missingFieldSchema));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
+    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
 
     SchemaTransform transform = provider.from(configuration);
     PCollectionRowTuple outputTuple = transform.expand(inputTuple);
 
-    assertTrue(outputTuple.has("errors"));
-    PAssert.that(outputTuple.get("errors"))
+    assertTrue(outputTuple.has(ERROR));
+    PAssert.that(outputTuple.get(ERROR))
         .satisfies(
             (errors) -> {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());

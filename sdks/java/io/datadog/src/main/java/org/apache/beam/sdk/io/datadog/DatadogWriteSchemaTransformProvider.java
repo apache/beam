@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -34,8 +33,6 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
-import org.apache.beam.sdk.state.BagState;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -54,8 +51,8 @@ public class DatadogWriteSchemaTransformProvider
   static final String INPUT = "input";
   static final String OUTPUT = "output";
   static final String ERROR = "errors";
-  public static final TupleTag<Row> OUTPUT_TAG_ROW = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Void> OUTPUT_TAG = new TupleTag<Void>() {};
 
   @Override
   protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
@@ -114,91 +111,36 @@ public class DatadogWriteSchemaTransformProvider
       // Check for errors
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
 
-      // Apply row to Datadog event fn with error handling
-      PCollectionTuple pCollectionTuple =
-          inputRows.apply(
-              "RowToRowEvent",
-              ParDo.of(new RowToRowEventFn(errorSchema, handleErrors))
-                  .withOutputTags(OUTPUT_TAG_ROW, TupleTagList.of(ERROR_TAG)));
-
-      // Obtain error output
-      PCollection<Row> errorOutput = pCollectionTuple.get(ERROR_TAG).setRowSchema(errorSchema);
-
-      // Obtain events ready to be sent to Datadog (as Rows with DATADOG_EVENT_SCHEMA)
-      PCollection<Row> events =
-          pCollectionTuple.get(OUTPUT_TAG_ROW).setRowSchema(DATADOG_EVENT_SCHEMA);
-
       Integer parallelism = configuration.getParallelism();
       int calculatedParallelism = parallelism != null ? parallelism : 1;
 
-      // Inject Keys
+      // Inject Keys directly wrapping raw input rows
       PCollection<KV<Integer, Row>> keyedEvents =
-          events
+          inputRows
               .apply("InjectKeys", ParDo.of(new CreateRowKeysFn(calculatedParallelism)))
-              .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(DATADOG_EVENT_SCHEMA)));
+              .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(inputSchema)));
 
-      // Apply the write transform to events to write events to Datadog
-      PCollection<Row> writeErrorsRows =
-          keyedEvents
-              .apply(
-                  "WriteToDatadog",
-                  ParDo.of(
+      // Apply the write transform directly. All errors flow to Side Output.
+      PCollectionTuple resultTuple =
+          keyedEvents.apply(
+              "WriteToDatadog",
+              ParDo.of(
                       new RowBasedDatadogEventWriter(
                           configuration.getUrl(),
                           configuration.getApiKey(),
-                          configuration.getBatchCount(),
-                          configuration.getMaxBufferSize())))
-              .setRowSchema(WRITE_ERROR_SCHEMA);
+                          errorSchema,
+                          handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      // Error handling
+      // Obtain the single unified error output stream
+      PCollection<Row> errorOutput = resultTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+
+      // Return the unified errors stream if error handling is active
       ErrorHandling errorHandling = configuration.getErrorHandling();
       if (errorHandling != null) {
-        // Return error output for downstream further processing
-        return PCollectionRowTuple.of(errorHandling.getOutput(), errorOutput)
-            .and("write_errors", writeErrorsRows);
+        return PCollectionRowTuple.of(errorHandling.getOutput(), errorOutput);
       } else {
-        // Return empty tuple since no errors were encountered but include write errors if any (to
-        // avoid serialization issues)
-        return PCollectionRowTuple.empty(input.getPipeline()).and("write_errors", writeErrorsRows);
-      }
-    }
-  }
-
-  /**
-   * A {@link DoFn} that converts a {@link Row} into a standardized {@link Row} with EVENT_SCHEMA
-   * and emits failures to a dead-letter queue.
-   */
-  static class RowToRowEventFn extends DoFn<Row, Row> {
-    private final Schema errorSchema;
-    private final boolean handleErrors;
-
-    RowToRowEventFn(Schema errorSchema, boolean handleErrors) {
-      this.errorSchema = errorSchema;
-      this.handleErrors = handleErrors;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      Row row = c.element();
-      try {
-        Row.Builder builder = Row.withSchema(DATADOG_EVENT_SCHEMA);
-        Schema schema = row.getSchema();
-
-        builder.addValue(schema.hasField("ddsource") ? row.getString("ddsource") : null);
-        builder.addValue(schema.hasField("ddtags") ? row.getString("ddtags") : null);
-        builder.addValue(schema.hasField("hostname") ? row.getString("hostname") : null);
-        builder.addValue(schema.hasField("service") ? row.getString("service") : null);
-
-        String message = schema.hasField("message") ? row.getString("message") : null;
-        checkNotNull(message, "Message is required.");
-        builder.addValue(message);
-
-        c.output(builder.build());
-      } catch (Exception e) {
-        if (!handleErrors) {
-          throw new RuntimeException(e);
-        }
-        c.output(ERROR_TAG, ErrorHandling.errorRecord(errorSchema, row, e));
+        return PCollectionRowTuple.empty(input.getPipeline());
       }
     }
   }
@@ -231,26 +173,27 @@ public class DatadogWriteSchemaTransformProvider
 
   static DatadogEvent rowToEvent(Row row) {
     DatadogEvent.Builder builder = DatadogEvent.newBuilder();
-    String ddsource = row.getString("ddsource");
+    Schema schema = row.getSchema();
+
+    String ddsource = schema.hasField("ddsource") ? row.getString("ddsource") : null;
     if (ddsource != null) {
       builder.withSource(ddsource);
     }
-    String ddtags = row.getString("ddtags");
+    String ddtags = schema.hasField("ddtags") ? row.getString("ddtags") : null;
     if (ddtags != null) {
       builder.withTags(ddtags);
     }
-    String hostname = row.getString("hostname");
+    String hostname = schema.hasField("hostname") ? row.getString("hostname") : null;
     if (hostname != null) {
       builder.withHostname(hostname);
     }
-    String service = row.getString("service");
+    String service = schema.hasField("service") ? row.getString("service") : null;
     if (service != null) {
       builder.withService(service);
     }
-    String message = row.getString("message");
-    if (message != null) {
-      builder.withMessage(message);
-    }
+    String message = schema.hasField("message") ? row.getString("message") : null;
+    builder.withMessage(checkNotNull(message, "Message is required."));
+
     return builder.build();
   }
 
@@ -293,15 +236,19 @@ public class DatadogWriteSchemaTransformProvider
     }
   }
 
-  static class RowBasedDatadogEventWriter extends DoFn<KV<Integer, Row>, Row> {
+  static class RowBasedDatadogEventWriter extends DoFn<KV<Integer, Row>, Void> {
     private final String url;
     private final String apiKey;
+    private final Schema errorSchema;
+    private final boolean handleErrors;
     private transient @Nullable DatadogEventPublisher publisher;
 
     RowBasedDatadogEventWriter(
-        String url, String apiKey, @Nullable Integer batchCount, @Nullable Long maxBufferSize) {
+        String url, String apiKey, Schema errorSchema, boolean handleErrors) {
       this.url = url;
       this.apiKey = apiKey;
+      this.errorSchema = errorSchema;
+      this.handleErrors = handleErrors;
     }
 
     @Setup
@@ -315,33 +262,38 @@ public class DatadogWriteSchemaTransformProvider
     }
 
     @ProcessElement
-    public void processElement(@Element KV<Integer, Row> input, OutputReceiver<Row> receiver)
-        throws Exception {
-
-      Row eventRow = input.getValue();
-      DatadogEvent event = rowToEvent(eventRow);
-      List<DatadogEvent> events = Collections.singletonList(event);
-
-      HttpResponse response = null;
+    public void processElement(ProcessContext c) {
+      Row rawRow = c.element().getValue();
       try {
-        response = checkNotNull(publisher).execute(events);
-        if (!response.isSuccessStatusCode()) {
-          flushWriteFailures(
-              Collections.singletonList(eventRow),
-              response.getStatusMessage(),
-              response.getStatusCode(),
-              receiver);
-        }
-      } catch (Exception e) {
-        flushWriteFailures(Collections.singletonList(eventRow), e.getMessage(), null, receiver);
-      } finally {
-        if (response != null) {
-          try {
-            response.ignore();
-          } catch (Exception e) {
-            // ignore
+        // First: Convert to structured DatadogEvent object (performing schema validation)
+        DatadogEvent event = rowToEvent(rawRow);
+        List<DatadogEvent> events = Collections.singletonList(event);
+
+        // Second: Write to endpoint
+        HttpResponse response = null;
+        try {
+          response = checkNotNull(publisher).execute(events);
+          if (!response.isSuccessStatusCode()) {
+            throw new java.io.IOException(
+                String.format(
+                    "HTTP Write failure [Status Code %d]: %s",
+                    response.getStatusCode(), response.getStatusMessage()));
+          }
+        } finally {
+          if (response != null) {
+            try {
+              response.ignore();
+            } catch (Exception e) {
+              // ignore
+            }
           }
         }
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
+        // Emit standard serialized error record dynamically preserving input data
+        c.output(ERROR_TAG, ErrorHandling.errorRecord(errorSchema, rawRow, e));
       }
     }
 
@@ -353,66 +305,6 @@ public class DatadogWriteSchemaTransformProvider
         } catch (Exception e) {
           // ignore
         }
-      }
-    }
-
-    private void flush(
-        OutputReceiver<Row> receiver,
-        BagState<Row> bufferState,
-        ValueState<Long> countState,
-        ValueState<Long> bufferSizeState)
-        throws Exception {
-
-      if (!bufferState.isEmpty().read()) {
-        List<Row> eventRows = new ArrayList<>();
-        bufferState.read().forEach(eventRows::add);
-
-        List<DatadogEvent> events = new ArrayList<>();
-        for (Row r : eventRows) {
-          events.add(rowToEvent(r));
-        }
-
-        HttpResponse response = null;
-        try {
-          response = checkNotNull(publisher).execute(events);
-          if (!response.isSuccessStatusCode()) {
-            flushWriteFailures(
-                eventRows, response.getStatusMessage(), response.getStatusCode(), receiver);
-          }
-        } catch (Exception e) {
-          flushWriteFailures(eventRows, e.getMessage(), null, receiver);
-        } finally {
-          try {
-            if (response != null) {
-              response.ignore();
-            }
-          } catch (Exception e) {
-            // Ignore errors when ignoring response
-          }
-          bufferState.clear();
-          countState.clear();
-          bufferSizeState.clear();
-        }
-      }
-    }
-
-    private void flushWriteFailures(
-        List<Row> eventRows,
-        @Nullable String statusMessage,
-        @Nullable Integer statusCode,
-        OutputReceiver<Row> receiver) {
-
-      for (Row eventRow : eventRows) {
-        DatadogEvent event = rowToEvent(eventRow);
-        String payload = DatadogEventSerializer.getPayloadString(event);
-
-        Row errorRow =
-            Row.withSchema(WRITE_ERROR_SCHEMA)
-                .addValue(payload)
-                .addValue(statusCode)
-                .addValue(statusMessage)
-                .build();
-        receiver.output(errorRow);
       }
     }
   }
