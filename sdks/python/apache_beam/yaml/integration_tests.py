@@ -18,20 +18,20 @@
 """Runs integration tests in the tests directory."""
 
 import contextlib
-import http.server
-import json
-import gzip
-import io
-import threading
 import copy
 import glob
+import gzip
+import http.server
+import io
 import itertools
+import json
 import logging
 import os
 import random
 import secrets
 import sqlite3
 import string
+import threading
 import unittest
 import uuid
 from datetime import datetime
