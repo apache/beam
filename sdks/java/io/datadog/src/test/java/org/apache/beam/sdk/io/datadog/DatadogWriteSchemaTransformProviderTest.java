@@ -375,8 +375,6 @@ public class DatadogWriteSchemaTransformProviderTest {
 
   @Test
   public void testBuildTransformWithInvalidBatchCount() {
-    // DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-    // DatadogWriteSchemaTransformConfiguration configuration =
     DatadogWriteSchemaTransformConfiguration.builder()
         .setApiKey("test-api-key")
         .setUrl("http://localhost:8080")
@@ -384,19 +382,6 @@ public class DatadogWriteSchemaTransformProviderTest {
         .setMinBatchCount(1)
         .build()
         .validate();
-
-    // SchemaTransform transform = provider.from(configuration);
-
-    // PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    // PCollectionRowTuple inputTuple = PCollectionRowTuple.of("input", input);
-    // try {
-    //   transform.expand(inputTuple);
-    //   fail("Expected an IllegalArgumentException to be thrown.");
-    // } catch (IllegalArgumentException e) {
-    //   assertTrue(
-    //       "Expected message to contain 'inputBatchCount must be greater than or equal to 1'",
-    //       e.getMessage().contains("inputBatchCount must be greater than or equal to 1"));
-    // }
   }
 
   @Test
