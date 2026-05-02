@@ -33,8 +33,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -80,11 +78,12 @@ public class CombinePerKeyExamples {
     private final Counter smallerWords = Metrics.counter(ExtractLargeWordsFn.class, "smallerWords");
 
     @ProcessElement
-    public void processElement(@Element TableRow row, OutputReceiver<KV<String, String>> receiver) {
+    public void processElement(ProcessContext c) {
+      TableRow row = c.element();
       String playName = (String) row.get("corpus");
       String word = (String) row.get("word");
       if (word.length() >= MIN_WORD_LENGTH) {
-        receiver.output(KV.of(word, playName));
+        c.output(KV.of(word, playName));
       } else {
         // Track how many smaller words we're not including. This information will be
         // visible in the Monitoring UI.
@@ -99,11 +98,10 @@ public class CombinePerKeyExamples {
    */
   static class FormatShakespeareOutputFn extends DoFn<KV<String, String>, TableRow> {
     @ProcessElement
-    public void processElement(
-        @Element KV<String, String> element, OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext c) {
       TableRow row =
-          new TableRow().set("word", element.getKey()).set("all_plays", element.getValue());
-      receiver.output(row);
+          new TableRow().set("word", c.element().getKey()).set("all_plays", c.element().getValue());
+      c.output(row);
     }
   }
 

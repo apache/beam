@@ -93,9 +93,11 @@ import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -145,6 +147,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private final int manifestFileSize;
   private final @Nullable String locationPrefix;
   private final @Nullable List<String> partitionFields;
+  private final @Nullable List<String> sortFields;
   private final @Nullable Map<String, String> tableProps;
 
   public AddFiles(
@@ -152,12 +155,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       String tableIdentifier,
       @Nullable String locationPrefix,
       @Nullable List<String> partitionFields,
+      @Nullable List<String> sortFields,
       @Nullable Map<String, String> tableProps,
       @Nullable Integer manifestFileSize,
       @Nullable Duration intervalTrigger) {
     this.catalogConfig = catalogConfig;
     this.tableIdentifier = tableIdentifier;
     this.partitionFields = partitionFields;
+    this.sortFields = sortFields;
     this.tableProps = tableProps;
     this.intervalTrigger = intervalTrigger;
     this.manifestFileSize =
@@ -193,6 +198,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         tableIdentifier,
                         locationPrefix,
                         partitionFields,
+                        sortFields,
                         tableProps))
                 .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
     SchemaCoder<SerializableDataFile> sdfCoder;
@@ -267,6 +273,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     public static final TupleTag<SerializableDataFile> DATA_FILES = new TupleTag<>();
     private final @Nullable String prefix;
     private final @Nullable List<String> partitionFields;
+    private final @Nullable List<String> sortFields;
     private final @Nullable Map<String, String> tableProps;
     private transient @MonotonicNonNull ExecutorService executor;
     private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
@@ -281,11 +288,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         String identifier,
         @Nullable String prefix,
         @Nullable List<String> partitionFields,
+        @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
       this.prefix = prefix;
       this.partitionFields = partitionFields;
+      this.sortFields = sortFields;
       this.tableProps = tableProps;
     }
 
@@ -522,12 +531,18 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
+          SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
 
-          return tableProps == null
-              ? catalogConfig.catalog().createTable(TableIdentifier.parse(identifier), schema, spec)
-              : catalogConfig
+          Catalog.TableBuilder builder =
+              catalogConfig
                   .catalog()
-                  .createTable(TableIdentifier.parse(identifier), schema, spec, tableProps);
+                  .buildTable(tableId, schema)
+                  .withPartitionSpec(spec)
+                  .withSortOrder(sortOrder);
+          if (tableProps != null) {
+            builder.withProperties(tableProps);
+          }
+          return builder.create();
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
           return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }

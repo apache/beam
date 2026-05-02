@@ -173,6 +173,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 isPartitioned ? root : null,
                 isPartitioned ? partitionFields : null,
+                null,
                 tableProps,
                 null,
                 null));
@@ -269,6 +270,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 null, // no prefix, so determine partition from DF metrics
                 partitionFields,
+                null,
                 tableProps,
                 null,
                 null));
@@ -368,6 +370,7 @@ public class AddFilesTest {
             null,
             null,
             null,
+            null,
             10, // trigger at 10 files
             Duration.standardSeconds(5)));
     pipeline.run().waitUntilFinish();
@@ -399,7 +402,7 @@ public class AddFilesTest {
         pipeline.apply("Create Input", Create.of(txtFile.getAbsolutePath()));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null);
+        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     // Validate the file ended up in the errors PCollection with the correct schema
@@ -429,7 +432,8 @@ public class AddFilesTest {
 
     // Notice locationPrefix is "some/prefix/" but the absolute path doesn't start with it
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     PAssert.that(outputTuple.get("errors"))
@@ -472,7 +476,8 @@ public class AddFilesTest {
     assertEquals(0, (int) transformFunc.apply(10L));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, partitionFields, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), null, partitionFields, null, null, null, null);
     PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1));
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
@@ -494,7 +499,9 @@ public class AddFilesTest {
     PCollectionRowTuple outputTuple =
         pipeline
             .apply("Create Input", Create.of(file))
-            .apply(new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null));
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
 
     PAssert.that(outputTuple.get("errors"))
         .satisfies(

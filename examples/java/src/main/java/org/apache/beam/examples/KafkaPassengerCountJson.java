@@ -55,8 +55,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
@@ -111,13 +109,10 @@ public class KafkaPassengerCountJson {
             ParDo.of(
                 new DoFn<String, KV<Integer, Integer>>() {
                   @ProcessElement
-                  public void processElement(
-                      @Element String element, OutputReceiver<KV<Integer, Integer>> receiver)
-                      throws JsonProcessingException {
+                  public void processElement(ProcessContext c) throws JsonProcessingException {
                     final VendorToPassengerDTO result =
-                        om.readValue(element, new TypeReference<VendorToPassengerDTO>() {});
-                    receiver.output(
-                        KV.of(result.getVendorIdField(), result.getPassengerCountField()));
+                        om.readValue(c.element(), new TypeReference<VendorToPassengerDTO>() {});
+                    c.output(KV.of(result.getVendorIdField(), result.getPassengerCountField()));
                   }
                 }))
         .apply(
@@ -129,11 +124,11 @@ public class KafkaPassengerCountJson {
                 new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
                   @ProcessElement
                   public void processElement(
-                      OutputReceiver<KV<Integer, Integer>> out,
-                      @Element KV<Integer, Integer> element) {
+                      ProcessContext c, OutputReceiver<KV<Integer, Integer>> out) {
                     System.out.printf(
-                        "Vendor: %s, Passengers: %s%n", element.getKey(), element.getValue());
-                    out.output(element);
+                        "Vendor: %s, Passengers: %s%n",
+                        c.element().getKey(), c.element().getValue());
+                    out.output(c.element());
                   }
                 }));
     p.run().waitUntilFinish();

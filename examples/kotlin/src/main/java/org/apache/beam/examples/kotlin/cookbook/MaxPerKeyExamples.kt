@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.options.*
 import org.apache.beam.sdk.transforms.DoFn
-import org.apache.beam.sdk.transforms.DoFn.Element
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver
 import org.apache.beam.sdk.transforms.Max
 import org.apache.beam.sdk.transforms.PTransform
 import org.apache.beam.sdk.transforms.ParDo
@@ -75,21 +73,22 @@ object MaxPerKeyExamples {
      */
     internal class ExtractTempFn : DoFn<TableRow, KV<Int, Double>>() {
         @ProcessElement
-        fun processElement(@Element row: TableRow, receiver: OutputReceiver<KV<Int, Double>>) {
+        fun processElement(c: ProcessContext) {
+            val row = c.element()
             val month = Integer.parseInt(row["month"] as String)
             val meanTemp = java.lang.Double.parseDouble(row["mean_temp"].toString())
-            receiver.output(KV.of(month, meanTemp))
+            c.output(KV.of(month, meanTemp))
         }
     }
 
     /** Format the results to a TableRow, to save to BigQuery.  */
     internal class FormatMaxesFn : DoFn<KV<Int, Double>, TableRow>() {
         @ProcessElement
-        fun processElement(@Element element: KV<Int, Double>, receiver: OutputReceiver<TableRow>) {
+        fun processElement(c: ProcessContext) {
             val row = TableRow()
-                    .set("month", element.key)
-                    .set("max_mean_temp", element.value)
-            receiver.output(row)
+                    .set("month", c.element().key)
+                    .set("max_mean_temp", c.element().value)
+            c.output(row)
         }
     }
 

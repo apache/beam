@@ -105,34 +105,7 @@ task flinkValidatesRunner {
         "--runner flink",
         "--flink_job_server_jar ${project(":runners:flink:${flinkVersion}:job-server").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
-    ]
-    exec {
-      if (fork_java_home) {
-        environment "JAVA_HOME_JOB_SERVER", fork_java_home
-      }
-      executable "sh"
-      args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
-    }
-  }
-}
-
-// ValidatesRunner tests for Samza. Runs tests in the integration directory
-// with Samza to validate that the runner behaves as expected.
-task samzaValidatesRunner {
-  dependsOn ":sdks:go:test:goBuild"
-  dependsOn ":sdks:go:container:docker"
-  dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
-  dependsOn ":runners:samza:job-server:shadowJar"
-  dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
-
-  doLast {
-    def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
-        "--expansion_jar=test:${project(":sdks:java:testing:expansion-service").buildTestExpansionServiceJar.archivePath}",
-    ]
-    def options = [
-        "--runner samza",
-        "--samza_job_server_jar ${project(":runners:samza:job-server").shadowJar.archivePath}",
-        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+        "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
     exec {
       if (fork_java_home) {
@@ -150,6 +123,7 @@ task sparkValidatesRunner {
   group = "Verification"
 
   dependsOn ":sdks:go:test:goBuild"
+  dependsOn ":sdks:go:container:docker"
   dependsOn ":sdks:java:container:${project.ext.currentJavaVersion}:docker"
   dependsOn ":runners:spark:3:job-server:shadowJar"
   dependsOn ":sdks:java:testing:expansion-service:buildTestExpansionServiceJar"
@@ -161,6 +135,7 @@ task sparkValidatesRunner {
         "--runner spark",
         "--spark_job_server_jar ${project(":runners:spark:3:job-server").shadowJar.archivePath}",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+        "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
     exec {
       if (fork_java_home) {
@@ -195,6 +170,7 @@ tasks.register("ulrValidatesRunner") {
     def options = [
         "--runner portable",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+        "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
     exec {
       executable "sh"
@@ -227,6 +203,7 @@ task prismValidatesRunner {
     def options = [
         "--runner prism",
         "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+        "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
     ]
     exec {
       if (fork_java_home) {
@@ -265,11 +242,12 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
           "--expansion_jar=debeziumio:${debeziumIoExpJar}",
           "--expansion_jar=gcpio:${gcpIoExpJar}",
           "--bq_dataset=apache-beam-testing.beam_bigquery_io_test_temp",
-          "--bt_instance=projects/apache-beam-testing/instances/beam-test"
+          "--bt_instance=projects/apache-beam-testing/instances/beam-test",
       ]
       pipelineOptions.addAll(pipelineOpts)
       def options = [
           "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
+          "--prebuild_go_docker_tag ${project(":sdks:go:container").containerImageTags().first()}",
       ]
       options.addAll(scriptOpts)
       logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")

@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -51,6 +50,8 @@ import org.slf4j.LoggerFactory;
 public class LineagePluginTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(LineagePluginTest.class);
+
+  @Rule public TestPipeline testPipeline = createTestPipelineWithLineage();
 
   /**
    * TestWatcher that logs detailed lineage diagnostics only when tests fail. This keeps successful
@@ -89,13 +90,11 @@ public class LineagePluginTest {
   }
 
   /** Helper to create a TestPipeline with test lineage configured. */
-  private TestPipeline createTestPipelineWithLineage() {
-    LineageOptions options = PipelineOptionsFactory.create().as(LineageOptions.class);
+  private static TestPipeline createTestPipelineWithLineage() {
+    TestPipeline testPipeline = TestPipeline.create();
+    LineageOptions options = testPipeline.getOptions().as(LineageOptions.class);
     options.setLineageType(TestLineage.class);
-    TestPipeline pipeline = TestPipeline.fromOptions(options);
-    // Disable enforcement since we're not using @Rule
-    pipeline.enableAbandonedNodeEnforcement(false);
-    return pipeline;
+    return testPipeline;
   }
 
   @Test
@@ -120,16 +119,11 @@ public class LineagePluginTest {
   @Test
   @Category(NeedsRunner.class)
   public void testLineageIntegrationWithSimpleFQN() {
-    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
-    TestPipeline pipeline = createTestPipelineWithLineage();
-
     // Run pipeline that records lineage
-    pipeline
+    testPipeline
         .apply(Create.of("a", "b", "c"))
         .apply(ParDo.of(new RecordSourceLineageDoFn("testsystem", Arrays.asList("db", "table"))));
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    testPipeline.run();
 
     // Verify lineage was recorded
     List<String> sources = TestLineage.getRecordedSources();
@@ -139,11 +133,8 @@ public class LineagePluginTest {
   @Test
   @Category(NeedsRunner.class)
   public void testLineageIntegrationWithSubtype() {
-    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
-    TestPipeline pipeline = createTestPipelineWithLineage();
-
     // Run pipeline that records lineage with subtype
-    pipeline
+    testPipeline
         .apply(Create.of(1, 2, 3))
         .apply(
             ParDo.of(
@@ -151,9 +142,7 @@ public class LineagePluginTest {
                     "spanner",
                     "table",
                     Arrays.asList("project", "instance", "database", "table"))));
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    testPipeline.run();
 
     // Verify lineage was recorded with subtype
     List<String> sources = TestLineage.getRecordedSources();
@@ -163,19 +152,14 @@ public class LineagePluginTest {
   @Test
   @Category(NeedsRunner.class)
   public void testLineageIntegrationWithLastSegmentSeparator() {
-    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
-    TestPipeline pipeline = createTestPipelineWithLineage();
-
     // Run pipeline that records lineage with custom separator
-    pipeline
+    testPipeline
         .apply(Create.of("x", "y", "z"))
         .apply(
             ParDo.of(
                 new RecordSourceLineageWithSeparatorDoFn(
                     "gcs", Arrays.asList("bucket", "path/to/file.txt"), "/")));
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    testPipeline.run();
 
     // Verify lineage was recorded with separator
     List<String> sources = TestLineage.getRecordedSources();
@@ -185,16 +169,11 @@ public class LineagePluginTest {
   @Test
   @Category(NeedsRunner.class)
   public void testLineageIntegrationWithBothSourcesAndSinks() {
-    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
-    TestPipeline pipeline = createTestPipelineWithLineage();
-
     // Run pipeline that records both source and sink lineage
-    pipeline
+    testPipeline
         .apply(Create.of("data1", "data2"))
         .apply(ParDo.of(new RecordBothSourceAndSinkLineageDoFn()));
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    testPipeline.run();
 
     // Verify both source and sink lineage were recorded
     List<String> sources = TestLineage.getRecordedSources();
@@ -207,16 +186,11 @@ public class LineagePluginTest {
   @Test
   @Category(NeedsRunner.class)
   public void testLineageIntegrationWithMultipleElements() {
-    // Create pipeline with test lineage enabled - Lineage will be initialized during pipeline.run()
-    TestPipeline pipeline = createTestPipelineWithLineage();
-
     // Run pipeline with multiple elements to test thread safety
-    pipeline
+    testPipeline
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
         .apply(ParDo.of(new RecordSourceLineageDoFn("system", Arrays.asList("resource"))));
-
-    PipelineResult result = pipeline.run();
-    result.waitUntilFinish();
+    testPipeline.run();
 
     // Verify lineage was recorded for all elements (may have duplicates)
     List<String> sources = TestLineage.getRecordedSources();
