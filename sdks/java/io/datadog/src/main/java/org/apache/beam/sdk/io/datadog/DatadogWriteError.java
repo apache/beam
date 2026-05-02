@@ -21,11 +21,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /** A class for capturing errors writing {@link DatadogEvent}s to Datadog's Logs API. */
-@DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class DatadogWriteError {
 
