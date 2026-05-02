@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.datadog;
 
+import static org.apache.beam.sdk.io.datadog.DatadogWriteSchemaTransformProvider.ERROR;
+import static org.apache.beam.sdk.io.datadog.DatadogWriteSchemaTransformProvider.INPUT;
+import static org.apache.beam.sdk.io.datadog.DatadogWriteSchemaTransformProvider.OUTPUT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
