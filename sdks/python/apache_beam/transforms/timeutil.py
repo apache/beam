@@ -35,7 +35,6 @@ class TimeDomain(object):
   WATERMARK = 'WATERMARK'
   REAL_TIME = 'REAL_TIME'
   DEPENDENT_REAL_TIME = 'DEPENDENT_REAL_TIME'
-  SYNCHRONIZED_PROCESSING_TIME = 'SYNCHRONIZED_PROCESSING_TIME'
 
   _RUNNER_API_MAPPING = {
       WATERMARK: beam_runner_api_pb2.TimeDomain.EVENT_TIME,
@@ -46,8 +45,7 @@ class TimeDomain(object):
   def from_string(domain):
     if domain in (TimeDomain.WATERMARK,
                   TimeDomain.REAL_TIME,
-                  TimeDomain.DEPENDENT_REAL_TIME,
-                  TimeDomain.SYNCHRONIZED_PROCESSING_TIME):
+                  TimeDomain.DEPENDENT_REAL_TIME):
       return domain
     raise ValueError('Unknown time domain: %s' % domain)
 
