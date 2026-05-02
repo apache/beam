@@ -42,16 +42,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:common")
     testImplementation group: 'org.mock-server', name: 'mockserver-client-java', version: '5.10.0'
     testImplementation group: 'org.mock-server', name: 'mockserver-junit-rule', version: '5.10.0'
-    testImplementation library.java.slf4j_simple
     implementation library.java.google_http_client_apache_v2
     implementation library.java.http_client
     implementation library.java.http_core
-}
-
-sourceSets {
-    main {
-        java {
-            exclude '**/DatadogWriterFn*'
-        }
-    }
 }
