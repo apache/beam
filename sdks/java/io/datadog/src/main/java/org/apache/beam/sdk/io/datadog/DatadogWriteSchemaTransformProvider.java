@@ -102,16 +102,27 @@ public class DatadogWriteSchemaTransformProvider
       // Check for errors
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
 
+      Schema inputSchema = inputRows.getSchema();
+      Schema dynamicErrorSchema =
+          Schema.builder()
+              .addNullableRowField("failed_row", inputSchema)
+              .addNullableField("payload", Schema.FieldType.STRING)
+              .addNullableField("statusCode", Schema.FieldType.INT32)
+              .addNullableField("statusMessage", Schema.FieldType.STRING)
+              .build();
+
       PCollectionTuple convertResult =
           inputRows.apply(
               "Convert to DatadogEvent",
-              ParDo.of(new RowToEventFn(handleErrors, ERROR_TAG))
+              ParDo.of(new RowToEventFn(handleErrors, ERROR_TAG, dynamicErrorSchema))
                   .withOutputTags(EVENT_TAG, TupleTagList.of(ERROR_TAG)));
 
       PCollection<DatadogEvent> datadogEvents =
           convertResult.get(EVENT_TAG).setCoder(DatadogEventCoder.of());
       PCollection<Row> conversionErrors =
-          convertResult.get(ERROR_TAG).setRowSchema(WRITE_ERROR_SCHEMA);
+          convertResult
+              .get(ERROR_TAG)
+              .setCoder(org.apache.beam.sdk.coders.RowCoder.of(dynamicErrorSchema));
 
       // Configure DatadogIO.Write
       DatadogIO.Write.Builder builder =
@@ -146,14 +157,21 @@ public class DatadogWriteSchemaTransformProvider
                     "Convert Write Errors to Rows",
                     org.apache.beam.sdk.transforms.MapElements.into(
                             org.apache.beam.sdk.values.TypeDescriptors.rows())
-                        .via(DatadogWriteSchemaTransformProvider::errorToRow))
-                .setRowSchema(WRITE_ERROR_SCHEMA);
+                        .via(
+                            error ->
+                                Row.withSchema(dynamicErrorSchema)
+                                    .addValue(null)
+                                    .addValue(error.payload())
+                                    .addValue(error.statusCode())
+                                    .addValue(error.statusMessage())
+                                    .build()))
+                .setCoder(org.apache.beam.sdk.coders.RowCoder.of(dynamicErrorSchema));
 
         PCollection<Row> allErrors =
             org.apache.beam.sdk.values.PCollectionList.of(conversionErrors)
                 .and(writeErrorRows)
                 .apply("Flatten Errors", org.apache.beam.sdk.transforms.Flatten.pCollections())
-                .setRowSchema(WRITE_ERROR_SCHEMA);
+                .setCoder(org.apache.beam.sdk.coders.RowCoder.of(dynamicErrorSchema));
 
         return PCollectionRowTuple.of(errorHandling.getOutput(), allErrors);
       } else {
@@ -217,10 +235,12 @@ public class DatadogWriteSchemaTransformProvider
   static class RowToEventFn extends DoFn<Row, DatadogEvent> {
     private final boolean handleErrors;
     private final TupleTag<Row> errorOutputTag;
+    private final Schema errorSchema;
 
-    RowToEventFn(boolean handleErrors, TupleTag<Row> errorOutputTag) {
+    RowToEventFn(boolean handleErrors, TupleTag<Row> errorOutputTag, Schema errorSchema) {
       this.handleErrors = handleErrors;
       this.errorOutputTag = errorOutputTag;
+      this.errorSchema = errorSchema;
     }
 
     @ProcessElement
@@ -231,7 +251,8 @@ public class DatadogWriteSchemaTransformProvider
         if (handleErrors) {
           c.output(
               errorOutputTag,
-              Row.withSchema(WRITE_ERROR_SCHEMA)
+              Row.withSchema(errorSchema)
+                  .addValue(c.element())
                   .addValue(c.element().toString())
                   .addValue(java.net.HttpURLConnection.HTTP_BAD_REQUEST)
                   .addValue(e.getMessage())

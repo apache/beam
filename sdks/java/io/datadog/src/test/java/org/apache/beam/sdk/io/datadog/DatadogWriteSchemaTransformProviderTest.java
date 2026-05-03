@@ -441,7 +441,9 @@ public class DatadogWriteSchemaTransformProviderTest {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
               Row error = errors.iterator().next();
               assertEquals(row.toString(), error.getString("payload"));
-              assertEquals((Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST, error.getInt32("statusCode"));
+              assertEquals(
+                  (Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST,
+                  error.getInt32("statusCode"));
               assertTrue(
                   "Expected status message to contain 'Message is required.'",
                   error.getString("statusMessage").contains("Message is required."));
@@ -484,7 +486,9 @@ public class DatadogWriteSchemaTransformProviderTest {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
               Row error = errors.iterator().next();
               assertEquals(row.toString(), error.getString("payload"));
-              assertEquals((Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST, error.getInt32("statusCode"));
+              assertEquals(
+                  (Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST,
+                  error.getInt32("statusCode"));
               assertTrue(
                   "Expected status message to contain 'Message is required.'",
                   error.getString("statusMessage").contains("Message is required."));
