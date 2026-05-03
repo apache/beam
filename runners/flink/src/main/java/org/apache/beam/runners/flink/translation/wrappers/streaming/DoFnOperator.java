@@ -574,8 +574,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
           SimplePushbackSideInputDoFnRunner.create(
               doFnRunner,
               sideInputs,
-              sideInputHandler,
-              windowingStrategy.getWindowFn().windowCoder());
+              sideInputHandler);
     }
 
     bundleFinalizer = new InMemoryBundleFinalizer();
