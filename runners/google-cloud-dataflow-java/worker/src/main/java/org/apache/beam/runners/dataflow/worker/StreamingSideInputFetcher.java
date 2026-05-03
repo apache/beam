@@ -180,13 +180,11 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
   }
 
   public Iterable<BagState<TimerData>> prefetchTimers(
-      Iterable<W> readyWindows, boolean backCompat) {
+      Iterable<W> readyWindows) {
     List<BagState<TimerData>> timers = Lists.newArrayList();
     for (W window : readyWindows) {
       timers.add(timerBag(window).readLater());
-      if (backCompat) {
-        timers.add(timerOldBag(window).readLater());
-      }
+      timers.add(timerOldBag(window).readLater());
     }
     return timers;
   }

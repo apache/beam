@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 interface DoFnRunnerFactory<InputT, OutputT> {
-  <W extends BoundedWindow> DoFnRunner<InputT, OutputT> createRunner(
+  DoFnRunner<InputT, OutputT> createRunner(
       DoFn<InputT, OutputT> fn,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
@@ -41,7 +41,7 @@ interface DoFnRunnerFactory<InputT, OutputT> {
       SideInputReader sideInputReader,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, W> windowingStrategy,
+      WindowingStrategy<?, ?> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       WindowedValueMultiReceiver outputManager,

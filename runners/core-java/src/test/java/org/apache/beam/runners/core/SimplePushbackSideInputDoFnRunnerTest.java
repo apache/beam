@@ -330,33 +330,6 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 CausedByDrain.CAUSED_BY_DRAIN)));
   }
 
-  @Test
-  public void testOnTimerPushedBack() {
-    when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
-        .thenReturn(false);
-
-    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.of(singletonView));
-
-    String timerId = "fooTimer";
-    IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));
-    Instant timestamp = new Instant(72);
-
-    TimerData timerData =
-        TimerData.of(
-            timerId,
-            "",
-            StateNamespaces.window(IntervalWindow.IntervalWindowCoder.of(), window),
-            timestamp,
-            timestamp,
-            TimeDomain.EVENT_TIME,
-            CausedByDrain.CAUSED_BY_DRAIN);
-    Iterable<TimerData> pushedBack = runner.onTimerInReadyWindows(timerData, "", window);
-
-    assertThat(pushedBack, contains(timerData));
-    assertThat(underlying.firedTimers, emptyIterable());
-  }
-
   private static class TestDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
     List<WindowedValue<InputT>> inputElems;
     List<TimerData> firedTimers;

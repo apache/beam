@@ -207,8 +207,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   private final DirectStepContext stepContext;
 
   private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
-  private final ImmutableList.Builder<WatermarkManager.FiredTimers<AppliedPTransform<?, ?, ?>>>
-      pushedBackTimers;
 
   private ParDoEvaluator(
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
@@ -220,7 +218,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     this.outputManager = outputManager;
     this.stepContext = stepContext;
     this.unprocessedElements = ImmutableList.builder();
-    this.pushedBackTimers = ImmutableList.builder();
 
     try {
       fnRunner.startBundle();
@@ -253,16 +250,15 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public <KeyT> void onTimer(TimerData timer, KeyT key, BoundedWindow window) {
     try {
-      Iterable<TimerData> unprocessed = fnRunner.onTimerInReadyWindows(timer, key, window);
-
-      List<TimerData> unprocessedList =
-          org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList(
-              unprocessed);
-      if (!unprocessedList.isEmpty()) {
-        pushedBackTimers.add(
-            new WatermarkManager.FiredTimers<>(
-                (AppliedPTransform) transform, (StructuralKey) key, unprocessedList));
-      }
+      fnRunner.onTimer(
+        timer.getTimerId(),
+        timer.getTimerFamilyId(),
+        key,
+        window,
+        timer.getTimestamp(),
+        timer.getOutputTimestamp(),
+        timer.getDomain(),
+        timer.causedByDrain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
@@ -288,7 +284,6 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     return resultBuilder
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
-        .addUnprocessedTimers(pushedBackTimers.build())
         .addUnprocessedElements(unprocessedElements.build())
         .withBundleFinalizations(stepContext.getAndClearFinalizations())
         .build();

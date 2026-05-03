@@ -123,25 +123,6 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   @Override
-  public <KeyT> Iterable<TimerInternals.TimerData> onTimerInReadyWindows(
-      TimerInternals.TimerData timerData, KeyT key, BoundedWindow window) {
-    if (isReady(window)) {
-      underlying.onTimer(
-          timerData.getTimerId(),
-          timerData.getTimerFamilyId(),
-          key,
-          window,
-          timerData.getTimestamp(),
-          timerData.getOutputTimestamp(),
-          timerData.getDomain(),
-          timerData.causedByDrain());
-      return java.util.Collections.emptyList();
-    } else {
-      return java.util.Collections.singletonList(timerData);
-    }
-  }
-
-  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant outputTimestamp, KeyT key) {
     underlying.onWindowExpiration(window, outputTimestamp, key);
   }

@@ -87,7 +87,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
 
     Iterable<BagState<WindowedValue<InputT>>> elementsBags =
         sideInputFetcher.prefetchElements(readyWindows);
-    Iterable<BagState<TimerData>> timersBags = sideInputFetcher.prefetchTimers(readyWindows, true);
+    Iterable<BagState<TimerData>> timersBags = sideInputFetcher.prefetchTimers(readyWindows);
 
     K key = keyValue().read();
     Iterable<TimerData> timers = Iterables.concat(Iterables.transform(timersBags, BagState::read));

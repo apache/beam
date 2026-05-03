@@ -150,7 +150,7 @@ public class StreamingSideInputFetcherTest {
     assertThat(actualElements, Matchers.containsInAnyOrder(datum1, datum2));
 
     Set<TimerData> actualTimers = Sets.newHashSet();
-    for (BagState<TimerData> bag : fetcher.prefetchTimers(ImmutableList.of(readyWindow), false)) {
+    for (BagState<TimerData> bag : fetcher.prefetchTimers(ImmutableList.of(readyWindow))) {
       for (TimerData timer : bag.read()) {
         actualTimers.add(timer);
       }
@@ -174,7 +174,7 @@ public class StreamingSideInputFetcherTest {
 
     Set<TimerData> restTimers = Sets.newHashSet();
     for (BagState<TimerData> bag :
-        fetcher.prefetchTimers(ImmutableList.of(createWindow(10), createWindow(15)), false)) {
+        fetcher.prefetchTimers(ImmutableList.of(createWindow(10), createWindow(15)))) {
       for (TimerData timer : bag.read()) {
         restTimers.add(timer);
       }

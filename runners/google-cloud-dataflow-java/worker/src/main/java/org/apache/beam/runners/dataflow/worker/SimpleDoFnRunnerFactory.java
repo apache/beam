@@ -39,7 +39,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
   public static final SimpleDoFnRunnerFactory INSTANCE = new SimpleDoFnRunnerFactory();
 
   @Override
-  public <W extends BoundedWindow> DoFnRunner<InputT, OutputT> createRunner(
+  public DoFnRunner<InputT, OutputT> createRunner(
       DoFn<InputT, OutputT> fn,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
@@ -48,7 +48,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
       SideInputReader sideInputReader,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, W> windowingStrategy,
+      WindowingStrategy<?, ?> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       WindowedValueMultiReceiver outputManager,

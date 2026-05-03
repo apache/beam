@@ -73,8 +73,6 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
-    private final ImmutableList.Builder<WatermarkManager.FiredTimers<AppliedPTransform<?, ?, ?>>>
-        unprocessedTimersBuilder;
     private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
@@ -88,7 +86,6 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       this.bundlesBuilder = ImmutableList.builder();
       this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
-      this.unprocessedTimersBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
       this.metricUpdates = MetricUpdates.EMPTY;
       this.finalizations = Collections.EMPTY_LIST;
@@ -99,7 +96,6 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
           transform,
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
-          unprocessedTimersBuilder.build(),
           metricUpdates,
           watermarkHold,
           state,
@@ -137,12 +133,6 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     public Builder<InputT> addUnprocessedElements(
         Iterable<? extends WindowedValue<InputT>> unprocessed) {
       unprocessedElementsBuilder.addAll(unprocessed);
-      return this;
-    }
-
-    public Builder<InputT> addUnprocessedTimers(
-        Iterable<? extends WatermarkManager.FiredTimers<AppliedPTransform<?, ?, ?>>> unprocessed) {
-      unprocessedTimersBuilder.addAll(unprocessed);
       return this;
     }
 

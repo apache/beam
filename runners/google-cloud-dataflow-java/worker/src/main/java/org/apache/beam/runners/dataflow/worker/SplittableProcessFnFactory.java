@@ -117,7 +117,7 @@ class SplittableProcessFnFactory {
 
     @Override
     @SuppressWarnings("nullness") // nullable atomic reference guaranteed nonnull when get
-    public <W extends BoundedWindow>
+    public
         DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
             DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
             PipelineOptions options,
@@ -127,7 +127,7 @@ class SplittableProcessFnFactory {
             SideInputReader sideInputReader,
             Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
             Map<TupleTag<?>, Coder<?>> outputCoders,
-            WindowingStrategy<?, W> windowingStrategy,
+            WindowingStrategy<?, ?> windowingStrategy,
             DataflowExecutionContext.DataflowStepContext stepContext,
             DataflowExecutionContext.DataflowStepContext userStepContext,
             WindowedValueMultiReceiver outputManager,
