@@ -24,9 +24,6 @@ import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -52,6 +49,7 @@ public class DatadogWriteSchemaTransformProvider
   static final String ERROR = "errors";
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Void> OUTPUT_TAG = new TupleTag<Void>() {};
+  public static final TupleTag<DatadogEvent> EVENT_TAG = new TupleTag<DatadogEvent>() {};
 
   @Override
   protected Class<DatadogWriteSchemaTransformConfiguration> configurationClass() {
@@ -101,44 +99,63 @@ public class DatadogWriteSchemaTransformProvider
       // Obtain input rows
       PCollection<Row> inputRows = input.get(INPUT);
 
-      // Obtain input schema
-      Schema inputSchema = inputRows.getSchema();
-
-      // Create error schema based on input schema
-      Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
-
       // Check for errors
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
 
+      PCollectionTuple convertResult =
+          inputRows.apply(
+              "Convert to DatadogEvent",
+              ParDo.of(new RowToEventFn(handleErrors, ERROR_TAG))
+                  .withOutputTags(EVENT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      PCollection<DatadogEvent> datadogEvents =
+          convertResult.get(EVENT_TAG).setCoder(DatadogEventCoder.of());
+      PCollection<Row> conversionErrors =
+          convertResult.get(ERROR_TAG).setRowSchema(WRITE_ERROR_SCHEMA);
+
+      // Configure DatadogIO.Write
+      DatadogIO.Write.Builder builder =
+          DatadogIO.writeBuilder(configuration.getMinBatchCount())
+              .withUrl(configuration.getUrl())
+              .withApiKey(configuration.getApiKey());
+
+      Integer batchCount = configuration.getBatchCount();
+      if (batchCount != null) {
+        builder = builder.withBatchCount(batchCount);
+      }
+      Long maxBufferSize = configuration.getMaxBufferSize();
+      if (maxBufferSize != null) {
+        builder = builder.withMaxBufferSize(maxBufferSize);
+      }
       Integer parallelism = configuration.getParallelism();
-      int calculatedParallelism = parallelism != null ? parallelism : 1;
+      if (parallelism != null) {
+        builder = builder.withParallelism(parallelism);
+      }
 
-      // Inject Keys directly wrapping raw input rows
-      PCollection<KV<Integer, Row>> keyedEvents =
-          inputRows
-              .apply("InjectKeys", ParDo.of(new CreateRowKeysFn(calculatedParallelism)))
-              .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(inputSchema)))
-              .apply("Reshuffle", org.apache.beam.sdk.transforms.Reshuffle.of());
+      DatadogIO.Write write = builder.build();
 
-      // Apply the write transform directly. All errors flow to Side Output.
-      PCollectionTuple resultTuple =
-          keyedEvents.apply(
-              "WriteToDatadog",
-              ParDo.of(
-                      new RowBasedDatadogEventWriter(
-                          configuration.getUrl(),
-                          configuration.getApiKey(),
-                          errorSchema,
-                          handleErrors))
-                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+      // Apply DatadogIO.Write
+      PCollection<DatadogWriteError> writeErrors = datadogEvents.apply("Write To Datadog", write);
 
-      // Obtain the single unified error output stream
-      PCollection<Row> errorOutput = resultTuple.get(ERROR_TAG).setRowSchema(errorSchema);
-
-      // Return the unified errors stream if error handling is active
+      // Handle errors
       ErrorHandling errorHandling = configuration.getErrorHandling();
       if (errorHandling != null) {
-        return PCollectionRowTuple.of(errorHandling.getOutput(), errorOutput);
+        PCollection<Row> writeErrorRows =
+            writeErrors
+                .apply(
+                    "Convert Write Errors to Rows",
+                    org.apache.beam.sdk.transforms.MapElements.into(
+                            org.apache.beam.sdk.values.TypeDescriptors.rows())
+                        .via(DatadogWriteSchemaTransformProvider::errorToRow))
+                .setRowSchema(WRITE_ERROR_SCHEMA);
+
+        PCollection<Row> allErrors =
+            org.apache.beam.sdk.values.PCollectionList.of(conversionErrors)
+                .and(writeErrorRows)
+                .apply("Flatten Errors", org.apache.beam.sdk.transforms.Flatten.pCollections())
+                .setRowSchema(WRITE_ERROR_SCHEMA);
+
+        return PCollectionRowTuple.of(errorHandling.getOutput(), allErrors);
       } else {
         return PCollectionRowTuple.empty(input.getPipeline());
       }
@@ -195,6 +212,35 @@ public class DatadogWriteSchemaTransformProvider
     builder.withMessage(checkNotNull(message, "Message is required."));
 
     return builder.build();
+  }
+
+  static class RowToEventFn extends DoFn<Row, DatadogEvent> {
+    private final boolean handleErrors;
+    private final TupleTag<Row> errorOutputTag;
+
+    RowToEventFn(boolean handleErrors, TupleTag<Row> errorOutputTag) {
+      this.handleErrors = handleErrors;
+      this.errorOutputTag = errorOutputTag;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      try {
+        c.output(rowToEvent(c.element()));
+      } catch (Exception e) {
+        if (handleErrors) {
+          c.output(
+              errorOutputTag,
+              Row.withSchema(WRITE_ERROR_SCHEMA)
+                  .addValue(c.element().toString())
+                  .addValue(java.net.HttpURLConnection.HTTP_BAD_REQUEST)
+                  .addValue(e.getMessage())
+                  .build());
+        } else {
+          throw new RuntimeException(e);
+        }
+      }
+    }
   }
 
   static Row errorToRow(DatadogWriteError error) {
