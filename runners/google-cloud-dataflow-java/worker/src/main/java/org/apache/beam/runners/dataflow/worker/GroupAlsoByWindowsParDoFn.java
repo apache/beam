@@ -219,8 +219,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
                 sideInputViews,
                 inputCoder,
                 windowingStrategy,
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext),
-            windowingStrategy.getWindowFn().windowCoder());
+                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext));
       } else {
         return basicRunner;
       }

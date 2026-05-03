@@ -25,7 +25,6 @@ import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -35,8 +34,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.core.SideInputReader;
@@ -346,7 +343,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     if (state == SideInputState.CACHED_IN_WORK_ITEM) {
       throw new IllegalStateException(
-          "Expected side input to be cached. Tag: " + viewInternalTag.getId() + " Window " + sideInputWindow);
+          "Expected side input to be cached. Tag: "
+              + viewInternalTag.getId()
+              + " Window "
+              + sideInputWindow);
     }
 
     return fetchSideInputFromWindmill(
@@ -547,9 +547,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     void addBlockingSideInputs(Iterable<Windmill.GlobalDataRequest> blocked);
 
-    <W extends BoundedWindow> void addUnblockedTimers(
-        Coder<W> windowCoder, Iterable<TimerData> unblocked);
-
     StateInternals stateInternals();
 
     Iterable<Windmill.GlobalDataId> getSideInputNotifications();
@@ -677,12 +674,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     @Override
     public void addBlockingSideInputs(Iterable<GlobalDataRequest> blocked) {
       wrapped.addBlockingSideInputs(blocked);
-    }
-
-    @Override
-    public <W extends BoundedWindow> void addUnblockedTimers(
-        Coder<W> windowCoder, Iterable<TimerData> unblocked) {
-      wrapped.addUnblockedTimers(windowCoder, unblocked);
     }
 
     @Override
@@ -1080,44 +1071,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       for (Windmill.GlobalDataRequest sideInput : sideInputs) {
         addBlockingSideInput(sideInput);
       }
-    }
-
-    @Override
-    public <W extends BoundedWindow> void addUnblockedTimers(
-        Coder<W> windowCoder, Iterable<TimerData> unblockedTimers) {
-      Table<String, StateNamespace, TimerData> timersInBundleMap = HashBasedTable.create();
-      Iterable<TimerData> timersInBundle = getFiredUserTimers(windowCoder);
-      StreamSupport.stream(timersInBundle.spliterator(), false)
-          .forEach(
-              td ->
-                  timersInBundleMap.put(
-                      WindmillTimerInternals.getTimerDataKey(td), td.getNamespace(), td));
-
-      // Any buffered timer that has already been modified should be ignored, as the modified timer
-      // should win.
-      // Any timer in the input bundle is also assumed to be because previous processing overwrote
-      // the buffered timer.
-      Iterable<TimerData> unmodifiedTimers =
-          StreamSupport.stream(unblockedTimers.spliterator(), false)
-              .filter(this::isTimerUnmodified)
-              .filter(td -> !isTimerUnmodified(td, timersInBundleMap))
-              .sorted()
-              .collect(Collectors.toList());
-      // The bundle timers should already be sorted. However since the comparator we
-      // use may not be be the same as the one Windmill use (especially if the timestamps are the
-      // same), we resort
-      // to ensure that the sorted merge below works correctly.
-      Iterable<TimerData> sortedTimersInBundle =
-          StreamSupport.stream(timersInBundle.spliterator(), false)
-              .sorted()
-              .collect(Collectors.toList());
-
-      // Add the unblocked timers to the cached timers for the bundle. Merge them in sorted order.
-      List<Iterable<TimerData>> iterables =
-          ImmutableList.of(sortedTimersInBundle, unmodifiedTimers);
-      cachedFiredUserTimers =
-          Iterators.peekingIterator(
-              Iterables.mergeSorted(iterables, Comparator.naturalOrder()).iterator());
     }
 
     @Override

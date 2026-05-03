@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
+public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements ParDoFn {
 
   // TODO: Remove once Distributions has shipped.
   @VisibleForTesting
@@ -115,7 +115,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   // GroupAlsoByWindowViaWindowSetDoFn
   private @Nullable DoFnSignature fnSignature;
 
-  private @Nullable StreamingSideInputFetcher<InputT, ? extends BoundedWindow> sideInputFetcher;
+  private @Nullable StreamingSideInputFetcher<InputT, W> sideInputFetcher;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
@@ -255,86 +255,87 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
     WindowedValueMultiReceiver outputManager =
-      new WindowedValueMultiReceiver() {
-        final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
+        new WindowedValueMultiReceiver() {
+          final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
-        private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
-          Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
-          if (receiverIndex != null) {
-            return receivers[receiverIndex];
-          } else {
-            return undeclaredOutputs.get(tag);
-          }
-        }
-
-        @Override
-        public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
-          outputsPerElementTracker.onOutput();
-          Receiver receiver = getReceiverOrNull(tag);
-          if (receiver == null) {
-            // A new undeclared output.
-            // TODO: plumb through the operationName, so that we can
-            // name implicit outputs after it.
-            String outputName = "implicit-" + tag.getId();
-            // TODO: plumb through the counter prefix, so we can
-            // make it available to the OutputReceiver class in case
-            // it wants to use it in naming output counterFactory.  (It
-            // doesn't today.)
-            OutputReceiver undeclaredReceiver = new OutputReceiver();
-
-            ElementCounter outputCounter =
-              new DataflowOutputCounter(
-                outputName, counterFactory, stepContext.getNameContext());
-            undeclaredReceiver.addOutputCounter(outputCounter);
-            undeclaredOutputs.put(tag, undeclaredReceiver);
-            receiver = undeclaredReceiver;
+          private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
+            Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
+            if (receiverIndex != null) {
+              return receivers[receiverIndex];
+            } else {
+              return undeclaredOutputs.get(tag);
+            }
           }
 
-          try {
-            receiver.process(output);
-          } catch (RuntimeException | Error e) {
-            // Rethrow unchecked exceptions as-is to avoid excessive nesting
-            // via a chain of DoFn's.
-            throw e;
-          } catch (Exception e) {
-            // This should never happen in practice with DoFn's, but can happen
-            // with other Receivers.
-            throw new RuntimeException(e);
+          @Override
+          public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
+            outputsPerElementTracker.onOutput();
+            Receiver receiver = getReceiverOrNull(tag);
+            if (receiver == null) {
+              // A new undeclared output.
+              // TODO: plumb through the operationName, so that we can
+              // name implicit outputs after it.
+              String outputName = "implicit-" + tag.getId();
+              // TODO: plumb through the counter prefix, so we can
+              // make it available to the OutputReceiver class in case
+              // it wants to use it in naming output counterFactory.  (It
+              // doesn't today.)
+              OutputReceiver undeclaredReceiver = new OutputReceiver();
+
+              ElementCounter outputCounter =
+                  new DataflowOutputCounter(
+                      outputName, counterFactory, stepContext.getNameContext());
+              undeclaredReceiver.addOutputCounter(outputCounter);
+              undeclaredOutputs.put(tag, undeclaredReceiver);
+              receiver = undeclaredReceiver;
+            }
+
+            try {
+              receiver.process(output);
+            } catch (RuntimeException | Error e) {
+              // Rethrow unchecked exceptions as-is to avoid excessive nesting
+              // via a chain of DoFn's.
+              throw e;
+            } catch (Exception e) {
+              // This should never happen in practice with DoFn's, but can happen
+              // with other Receivers.
+              throw new RuntimeException(e);
+            }
           }
-        }
-      };
+        };
     fnInfo = (DoFnInfo) doFnInstanceManager.get();
     fnSignature = DoFnSignatures.getSignature(fnInfo.getDoFn().getClass());
 
     fnRunner =
-      runnerFactory.createRunner(
-        fnInfo.getDoFn(),
-        options,
-        mainOutputTag,
-        sideOutputTags,
-        fnInfo.getSideInputViews(),
-        sideInputReader,
-        fnInfo.getInputCoder(),
-        fnInfo.getOutputCoders(),
-        fnInfo.getWindowingStrategy(),
-        stepContext,
-        userStepContext,
-        outputManager,
-        doFnSchemaInformation,
-        sideInputMapping);
+        runnerFactory.createRunner(
+            fnInfo.getDoFn(),
+            options,
+            mainOutputTag,
+            sideOutputTags,
+            fnInfo.getSideInputViews(),
+            sideInputReader,
+            fnInfo.getInputCoder(),
+            fnInfo.getOutputCoders(),
+            fnInfo.getWindowingStrategy(),
+            stepContext,
+            userStepContext,
+            outputManager,
+            doFnSchemaInformation,
+            sideInputMapping);
     if (hasStreamingSideInput) {
-      sideInputFetcher = new StreamingSideInputFetcher<>(
-        fnInfo.getSideInputViews(),
-        fnInfo.getInputCoder(),
-        fnInfo.getWindowingStrategy(),
-        (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext);
+      sideInputFetcher =
+          new StreamingSideInputFetcher<InputT, W>(
+              fnInfo.getSideInputViews(),
+              fnInfo.getInputCoder(),
+              (WindowingStrategy<?, W>) fnInfo.getWindowingStrategy(),
+              (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext);
     }
 
     fnRunner.startBundle();
     if (sideInputFetcher != null) {
-      Set<? extends BoundedWindow> readyWindows = sideInputFetcher.getReadyWindows();
+      Set<W> readyWindows = sideInputFetcher.getReadyWindows();
       Iterable<BagState<WindowedValue<InputT>>> elementsBags =
-        sideInputFetcher.prefetchElements(readyWindows);
+          sideInputFetcher.prefetchElements(readyWindows);
       for (BagState<WindowedValue<InputT>> elementsBag : elementsBags) {
         Iterable<WindowedValue<InputT>> elements = elementsBag.read();
         for (WindowedValue<InputT> elem : elements) {
@@ -344,12 +345,14 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
         boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
         if (hasState) {
-          // These elements are now processed. Register cleanup timers for all the unblocked windows.
+          // These elements are now processed. Register cleanup timers for all the unblocked
+          // windows.
           registerStateCleanup(
-            (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-            (Collection<BoundedWindow>) readyWindows);
+              (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+              (Collection<W>) readyWindows);
         }
       }
+      sideInputFetcher.releaseBlockedWindows(readyWindows);
     }
   }
 
@@ -374,19 +377,20 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           fnRunner.processElement(exploded);
           if (hasState) {
             registerStateCleanup(
-              (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-              (Collection<BoundedWindow>) exploded.getWindows());
+                (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+                (Collection<W>) exploded.getWindows());
           }
         }
-        // If the element was blocked, don't register a cleanup timer. The timer will be registered when
+        // If the element was blocked, don't register a cleanup timer. The timer will be registered
+        // when
         // the window is unblocked.
       }
     } else {
       fnRunner.processElement(elem);
       if (hasState) {
         registerStateCleanup(
-          (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
-          (Collection<BoundedWindow>) elem.getWindows());
+            (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+            (Collection<W>) elem.getWindows());
       }
     }
     outputsPerElementTracker.onProcessElementSuccess();
@@ -414,6 +418,14 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
         || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
+      if (sideInputFetcher != null) {
+        // We must call this to ensure the side-input is cached for the timer. However since a user
+        // timer can only
+        // be set via element processing (or another timer) in the same window, the window should be
+        // unblocked once
+        // we get here.
+        Preconditions.checkState(!sideInputFetcher.storeIfBlocked(timer));
+      }
       fnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
@@ -427,7 +439,6 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private void processSystemTimer(TimerData timer) throws Exception {
-
     // Timer owned by this class, for cleaning up state in expired windows
     if (timer.getTimerId().equals(CLEANUP_TIMER_ID)) {
       checkState(
@@ -442,6 +453,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           this,
           WindowNamespace.class.getSimpleName(),
           timer);
+
+      if (sideInputFetcher != null) {
+        // We must call this to ensure the side-input is cached for onWindowExpiration. Since we
+        // don't set cleanup
+        // timers until we actually call processElement, the window must be unblocked here.
+        Preconditions.checkState(!sideInputFetcher.storeIfBlocked(timer));
+      }
 
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
       Instant targetTime = earliestAllowableCleanupTime(window, fnInfo.getWindowingStrategy());
@@ -483,6 +501,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   public void finishBundle() throws Exception {
     if (fnRunner != null) {
       fnRunner.finishBundle();
+      if (sideInputFetcher != null) {
+        sideInputFetcher.persist();
+      }
       doFnInstanceManager.complete(fnInfo);
       fnRunner = null;
       fnInfo = null;
@@ -537,7 +558,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     }
   }
 
-  private <W extends BoundedWindow> void registerStateCleanup(
+  private void registerStateCleanup(
       WindowingStrategy<?, W> windowingStrategy, Collection<W> windowsToCleanup) {
     Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
 

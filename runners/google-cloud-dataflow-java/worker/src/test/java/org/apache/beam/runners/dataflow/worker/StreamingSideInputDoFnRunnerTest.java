@@ -492,8 +492,7 @@ public class StreamingSideInputDoFnRunnerTest {
             WindowingStrategy.of(windowFn),
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
-    return new StreamingSideInputDoFnRunner<>(
-        simpleDoFnRunner, sideInputFetcher, windowFn.windowCoder());
+    return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
   }
 
   private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
