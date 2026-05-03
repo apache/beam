@@ -1176,8 +1176,8 @@ class WatermarkManager<ExecutableT, CollectionT> {
    * watermark but the element it produced is not yet pending. This can cause the watermark to
    * erroneously advance.
    *
-   * <p>See {@link #updateWatermarks(Bundle, TimerUpdate, Object, Bundle, Iterable, Instant)} for
-   * information about the parameters of this method.
+   * <p>See {@link #updateWatermarks(Bundle, TimerUpdate, Object, Bundle, Iterable, Iterable,
+   * Instant)} for information about the parameters of this method.
    */
   private void updatePending(
       Bundle<?, ? extends CollectionT> input,

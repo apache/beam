@@ -25,13 +25,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 interface DoFnRunnerFactory<InputT, OutputT> {
-  DoFnRunner<InputT, OutputT> createRunner(
+  <W extends BoundedWindow> DoFnRunner<InputT, OutputT> createRunner(
       DoFn<InputT, OutputT> fn,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
@@ -40,7 +41,7 @@ interface DoFnRunnerFactory<InputT, OutputT> {
       SideInputReader sideInputReader,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy,
+      WindowingStrategy<?, W> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       WindowedValueMultiReceiver outputManager,

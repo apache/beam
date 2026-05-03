@@ -114,6 +114,7 @@ import org.apache.beam.sdk.testing.UsesProcessingTimeTimers;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
+import org.apache.beam.sdk.testing.UsesSideInputsInTimer;
 import org.apache.beam.sdk.testing.UsesSideInputsWithDifferentCoders;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesStrictTimerOrdering;
@@ -3675,6 +3676,154 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97), Lists.newArrayList(0, 1, 2));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesSideInputsInTimer.class,
+      UsesTestStream.class,
+      UsesTimersInParDo.class,
+      UsesTriggeredSideInputs.class,
+      UsesOnWindowExpiration.class
+    })
+    public void testTimerSideInput() {
+      // SideInput tag id
+      final String sideInputTag1 = "tag1";
+
+      final PCollectionView<Integer> sideInput =
+          pipeline
+              .apply("CreateSideInput1", Create.of(2))
+              .apply("ViewSideInput1", View.asSingleton());
+
+      DoFn<KV<Integer, Integer>, KV<Integer, Integer>> doFn =
+          new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
+            @TimerId("timer")
+            private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("foo")
+            private final StateSpec<ValueState<Integer>> stateSpec = StateSpecs.value();
+
+            @ProcessElement
+            public void process(@Timestamp Instant ts, @TimerId("timer") Timer timer) {
+              timer.align(Duration.standardSeconds(10)).setRelative();
+            }
+
+            @OnTimer("timer")
+            public void onTimer(
+                OutputReceiver<KV<Integer, Integer>> o,
+                @DoFn.SideInput(sideInputTag1) Integer sideInput,
+                @Key Integer key) {
+              o.output(KV.of(key, sideInput));
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @DoFn.SideInput(sideInputTag1) Integer sideInput,
+                OutputReceiver<KV<Integer, Integer>> o,
+                @Key Integer key) {
+              o.output(KV.of(key, sideInput));
+            }
+          };
+
+      final int numTestElements = 10;
+      final Instant now = new Instant(0);
+      TestStream.Builder<KV<Integer, Integer>> builder =
+          TestStream.create(KvCoder.of(VarIntCoder.of(), VarIntCoder.of()))
+              .advanceWatermarkTo(new Instant(0));
+
+      for (int i = 0; i < numTestElements; i++) {
+        builder =
+            builder.addElements(
+                TimestampedValue.of(KV.of(i % 2, i), now.plus(Duration.millis(i * 1000))));
+        if ((i + 1) % 10 == 0) {
+          builder = builder.advanceWatermarkTo(now.plus(Duration.millis((i + 1) * 1000)));
+        }
+      }
+      List<KV<Integer, Integer>> expected =
+          IntStream.rangeClosed(0, 1)
+              .boxed()
+              .flatMap(i -> ImmutableList.of(KV.of(i, 2), KV.of(i, 2)).stream())
+              .collect(Collectors.toList());
+
+      PCollection<KV<Integer, Integer>> output =
+          pipeline
+              .apply(builder.advanceWatermarkToInfinity())
+              .apply(ParDo.of(doFn).withSideInput(sideInputTag1, sideInput));
+      PAssert.that(output).containsInAnyOrder(expected);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesSideInputs.class,
+      UsesSideInputsInTimer.class,
+      UsesTimersInParDo.class,
+      UsesTriggeredSideInputs.class
+    })
+    public void testSideInputNotReadyTimer() {
+      final String sideInputTag = "tag1";
+
+      // Create a side input that is delayed by 5 seconds using Thread.sleep
+      DoFn<KV<String, String>, String> delayFn =
+          new DoFn<KV<String, String>, String>() {
+            @ProcessElement
+            public void process(OutputReceiver<String> o) throws InterruptedException {
+              Thread.sleep(java.time.Duration.ofSeconds(15).toMillis());
+              o.output("side-value");
+            }
+          };
+
+      PCollectionView<String> sideInput =
+          pipeline
+              .apply("CreateSideSource", Create.of(KV.of("dummyKey", "")))
+              .apply("DelaySideInput", ParDo.of(delayFn))
+              .apply(View.asSingleton());
+
+      // Main input in global window
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+            @TimerId("timer")
+            private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @StateId("dummy")
+            private final StateSpec<ValueState<Integer>> dummy = StateSpecs.value();
+
+            @ProcessElement
+            public void process(
+                @Timestamp Instant ts,
+                @TimerId("timer") Timer timer,
+                @DoFn.SideInput(sideInputTag) String sideInputValue,
+                OutputReceiver<String> o) {
+              // Set timer to fire at current timestamp + 1 millis
+              timer.offset(Duration.millis(1)).setRelative();
+              o.output(sideInputValue);
+            }
+
+            @OnTimer("timer")
+            public void onTimer(
+                OutputReceiver<String> o, @DoFn.SideInput(sideInputTag) String sideInputValue) {
+              o.output(sideInputValue);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                OutputReceiver<String> o, @DoFn.SideInput(sideInputTag) String sideInputValue) {
+              o.output(sideInputValue);
+            }
+          };
+
+      PCollection<String> output =
+          pipeline
+              .apply("CreateMainKV", Create.of(KV.of("key", "main-elem")))
+              .apply(ParDo.of(fn).withSideInput(sideInputTag, sideInput));
+
+      PAssert.that(output).containsInAnyOrder("side-value", "side-value", "side-value");
       pipeline.run();
     }
 

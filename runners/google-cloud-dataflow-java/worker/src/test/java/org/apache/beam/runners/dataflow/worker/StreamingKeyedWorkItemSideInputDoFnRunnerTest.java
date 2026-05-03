@@ -140,7 +140,8 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
     Set<IntervalWindow> readyWindows = ImmutableSet.of(window(10, 20));
     when(sideInputFetcher.getReadyWindows()).thenReturn(readyWindows);
     when(sideInputFetcher.prefetchElements(readyWindows)).thenReturn(ImmutableList.of(elemsBag));
-    when(sideInputFetcher.prefetchTimers(readyWindows)).thenReturn(ImmutableList.of(timersBag));
+    when(sideInputFetcher.prefetchTimers(readyWindows, true))
+        .thenReturn(ImmutableList.of(timersBag));
     when(elemsBag.read()).thenReturn(ImmutableList.of(createDatum(13, 13L), createDatum(18, 18L)));
     when(timersBag.read())
         .thenReturn(

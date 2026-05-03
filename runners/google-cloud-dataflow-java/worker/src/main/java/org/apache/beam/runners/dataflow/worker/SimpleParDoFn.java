@@ -25,6 +25,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -43,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -111,6 +114,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
   private @Nullable DoFnSignature fnSignature;
+
+  private @Nullable StreamingSideInputFetcher<InputT, ? extends BoundedWindow> sideInputFetcher;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
@@ -250,75 +255,102 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
     WindowedValueMultiReceiver outputManager =
-        new WindowedValueMultiReceiver() {
-          final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
+      new WindowedValueMultiReceiver() {
+        final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
-          private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
-            Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
-            if (receiverIndex != null) {
-              return receivers[receiverIndex];
-            } else {
-              return undeclaredOutputs.get(tag);
-            }
+        private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
+          Integer receiverIndex = outputTupleTagsToReceiverIndices.get(tag);
+          if (receiverIndex != null) {
+            return receivers[receiverIndex];
+          } else {
+            return undeclaredOutputs.get(tag);
+          }
+        }
+
+        @Override
+        public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
+          outputsPerElementTracker.onOutput();
+          Receiver receiver = getReceiverOrNull(tag);
+          if (receiver == null) {
+            // A new undeclared output.
+            // TODO: plumb through the operationName, so that we can
+            // name implicit outputs after it.
+            String outputName = "implicit-" + tag.getId();
+            // TODO: plumb through the counter prefix, so we can
+            // make it available to the OutputReceiver class in case
+            // it wants to use it in naming output counterFactory.  (It
+            // doesn't today.)
+            OutputReceiver undeclaredReceiver = new OutputReceiver();
+
+            ElementCounter outputCounter =
+              new DataflowOutputCounter(
+                outputName, counterFactory, stepContext.getNameContext());
+            undeclaredReceiver.addOutputCounter(outputCounter);
+            undeclaredOutputs.put(tag, undeclaredReceiver);
+            receiver = undeclaredReceiver;
           }
 
-          @Override
-          public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
-            outputsPerElementTracker.onOutput();
-            Receiver receiver = getReceiverOrNull(tag);
-            if (receiver == null) {
-              // A new undeclared output.
-              // TODO: plumb through the operationName, so that we can
-              // name implicit outputs after it.
-              String outputName = "implicit-" + tag.getId();
-              // TODO: plumb through the counter prefix, so we can
-              // make it available to the OutputReceiver class in case
-              // it wants to use it in naming output counterFactory.  (It
-              // doesn't today.)
-              OutputReceiver undeclaredReceiver = new OutputReceiver();
-
-              ElementCounter outputCounter =
-                  new DataflowOutputCounter(
-                      outputName, counterFactory, stepContext.getNameContext());
-              undeclaredReceiver.addOutputCounter(outputCounter);
-              undeclaredOutputs.put(tag, undeclaredReceiver);
-              receiver = undeclaredReceiver;
-            }
-
-            try {
-              receiver.process(output);
-            } catch (RuntimeException | Error e) {
-              // Rethrow unchecked exceptions as-is to avoid excessive nesting
-              // via a chain of DoFn's.
-              throw e;
-            } catch (Exception e) {
-              // This should never happen in practice with DoFn's, but can happen
-              // with other Receivers.
-              throw new RuntimeException(e);
-            }
+          try {
+            receiver.process(output);
+          } catch (RuntimeException | Error e) {
+            // Rethrow unchecked exceptions as-is to avoid excessive nesting
+            // via a chain of DoFn's.
+            throw e;
+          } catch (Exception e) {
+            // This should never happen in practice with DoFn's, but can happen
+            // with other Receivers.
+            throw new RuntimeException(e);
           }
-        };
+        }
+      };
     fnInfo = (DoFnInfo) doFnInstanceManager.get();
     fnSignature = DoFnSignatures.getSignature(fnInfo.getDoFn().getClass());
 
     fnRunner =
-        runnerFactory.createRunner(
-            fnInfo.getDoFn(),
-            options,
-            mainOutputTag,
-            sideOutputTags,
-            fnInfo.getSideInputViews(),
-            sideInputReader,
-            fnInfo.getInputCoder(),
-            fnInfo.getOutputCoders(),
-            fnInfo.getWindowingStrategy(),
-            stepContext,
-            userStepContext,
-            outputManager,
-            doFnSchemaInformation,
-            sideInputMapping);
+      runnerFactory.createRunner(
+        fnInfo.getDoFn(),
+        options,
+        mainOutputTag,
+        sideOutputTags,
+        fnInfo.getSideInputViews(),
+        sideInputReader,
+        fnInfo.getInputCoder(),
+        fnInfo.getOutputCoders(),
+        fnInfo.getWindowingStrategy(),
+        stepContext,
+        userStepContext,
+        outputManager,
+        doFnSchemaInformation,
+        sideInputMapping);
+    if (hasStreamingSideInput) {
+      sideInputFetcher = new StreamingSideInputFetcher<>(
+        fnInfo.getSideInputViews(),
+        fnInfo.getInputCoder(),
+        fnInfo.getWindowingStrategy(),
+        (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext);
+    }
 
     fnRunner.startBundle();
+    if (sideInputFetcher != null) {
+      Set<? extends BoundedWindow> readyWindows = sideInputFetcher.getReadyWindows();
+      Iterable<BagState<WindowedValue<InputT>>> elementsBags =
+        sideInputFetcher.prefetchElements(readyWindows);
+      for (BagState<WindowedValue<InputT>> elementsBag : elementsBags) {
+        Iterable<WindowedValue<InputT>> elements = elementsBag.read();
+        for (WindowedValue<InputT> elem : elements) {
+          fnRunner.processElement(elem);
+        }
+        elementsBag.clear();
+
+        boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
+        if (hasState) {
+          // These elements are now processed. Register cleanup timers for all the unblocked windows.
+          registerStateCleanup(
+            (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
+            (Collection<BoundedWindow>) readyWindows);
+        }
+      }
+    }
   }
 
   @Override
@@ -334,14 +366,29 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
 
     WindowedValue<InputT> elem = (WindowedValue<InputT>) untypedElem;
 
-    if (fnSignature != null && fnSignature.stateDeclarations().size() > 0) {
-      registerStateCleanup(
+    boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
+    outputsPerElementTracker.onProcessElement();
+    if (sideInputFetcher != null) {
+      for (WindowedValue<InputT> exploded : elem.explodeWindows()) {
+        if (!sideInputFetcher.storeIfBlocked(exploded)) {
+          fnRunner.processElement(exploded);
+          if (hasState) {
+            registerStateCleanup(
+              (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
+              (Collection<BoundedWindow>) exploded.getWindows());
+          }
+        }
+        // If the element was blocked, don't register a cleanup timer. The timer will be registered when
+        // the window is unblocked.
+      }
+    } else {
+      fnRunner.processElement(elem);
+      if (hasState) {
+        registerStateCleanup(
           (WindowingStrategy<?, BoundedWindow>) getDoFnInfo().getWindowingStrategy(),
           (Collection<BoundedWindow>) elem.getWindows());
+      }
     }
-
-    outputsPerElementTracker.onProcessElement();
-    fnRunner.processElement(elem);
     outputsPerElementTracker.onProcessElementSuccess();
   }
 

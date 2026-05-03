@@ -27,6 +27,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -39,7 +40,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
   public static final SimpleDoFnRunnerFactory INSTANCE = new SimpleDoFnRunnerFactory();
 
   @Override
-  public DoFnRunner<InputT, OutputT> createRunner(
+  public <W extends BoundedWindow> DoFnRunner<InputT, OutputT> createRunner(
       DoFn<InputT, OutputT> fn,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
@@ -48,7 +49,7 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
       SideInputReader sideInputReader,
       Coder<InputT> inputCoder,
       Map<TupleTag<?>, Coder<?>> outputCoders,
-      WindowingStrategy<?, ?> windowingStrategy,
+      WindowingStrategy<?, W> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
       WindowedValueMultiReceiver outputManager,
@@ -77,7 +78,8 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
               sideInputViews,
               inputCoder,
               windowingStrategy,
-              (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext));
+              (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext),
+          windowingStrategy.getWindowFn().windowCoder());
     }
     return fnRunner;
   }

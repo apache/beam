@@ -61,16 +61,16 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
    *     ready.
    */
   default <KeyT> Iterable<TimerInternals.TimerData> onTimerInReadyWindows(
-      String timerId,
-      String timerFamilyId,
-      KeyT key,
-      BoundedWindow window,
-      Instant timestamp,
-      Instant outputTimestamp,
-      TimeDomain timeDomain,
-      CausedByDrain causedByDrain) {
+      TimerInternals.TimerData timerData, KeyT key, BoundedWindow window) {
     onTimer(
-        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
+        timerData.getTimerId(),
+        timerData.getTimerFamilyId(),
+        key,
+        window,
+        timerData.getTimestamp(),
+        timerData.getOutputTimestamp(),
+        timerData.getDomain(),
+        timerData.causedByDrain());
     return java.util.Collections.emptyList();
   }
 

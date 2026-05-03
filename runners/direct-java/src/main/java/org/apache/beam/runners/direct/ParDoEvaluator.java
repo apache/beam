@@ -122,8 +122,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
                     windowingStrategy.getWindowFn().windowCoder()),
                 true);
       }
-      return SimplePushbackSideInputDoFnRunner.create(
-          underlying, sideInputs, sideInputReader, windowingStrategy.getWindowFn().windowCoder());
+      return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
 
@@ -254,16 +253,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public <KeyT> void onTimer(TimerData timer, KeyT key, BoundedWindow window) {
     try {
-      Iterable<TimerData> unprocessed =
-          fnRunner.onTimerInReadyWindows(
-              timer.getTimerId(),
-              timer.getTimerFamilyId(),
-              key,
-              window,
-              timer.getTimestamp(),
-              timer.getOutputTimestamp(),
-              timer.getDomain(),
-              timer.causedByDrain());
+      Iterable<TimerData> unprocessed = fnRunner.onTimerInReadyWindows(timer, key, window);
 
       List<TimerData> unprocessedList =
           org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList(

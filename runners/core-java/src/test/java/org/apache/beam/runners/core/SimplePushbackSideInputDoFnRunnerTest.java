@@ -159,8 +159,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   private SimplePushbackSideInputDoFnRunner<Integer, Integer> createRunner(
       ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        SimplePushbackSideInputDoFnRunner.create(
-            underlying, views, reader, WINDOWING_STRATEGY.getWindowFn().windowCoder());
+        SimplePushbackSideInputDoFnRunner.create(underlying, views, reader);
     runner.startBundle();
     return runner;
   }
@@ -343,28 +342,18 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));
     Instant timestamp = new Instant(72);
 
-    Iterable<TimerData> pushedBack =
-        runner.onTimerInReadyWindows(
+    TimerData timerData =
+        TimerData.of(
             timerId,
             "",
-            null,
-            window,
+            StateNamespaces.window(IntervalWindow.IntervalWindowCoder.of(), window),
             timestamp,
             timestamp,
             TimeDomain.EVENT_TIME,
             CausedByDrain.CAUSED_BY_DRAIN);
+    Iterable<TimerData> pushedBack = runner.onTimerInReadyWindows(timerData, "", window);
 
-    assertThat(
-        pushedBack,
-        contains(
-            TimerData.of(
-                timerId,
-                "",
-                StateNamespaces.window(WINDOWING_STRATEGY.getWindowFn().windowCoder(), window),
-                timestamp,
-                timestamp,
-                TimeDomain.EVENT_TIME,
-                CausedByDrain.CAUSED_BY_DRAIN)));
+    assertThat(pushedBack, contains(timerData));
     assertThat(underlying.firedTimers, emptyIterable());
   }
 
@@ -425,8 +414,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       DoFnRunner<KV<String, Integer>, Integer> doFnRunner,
       ImmutableList<PCollectionView<?>> views) {
     SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> runner =
-        SimplePushbackSideInputDoFnRunner.create(
-            doFnRunner, views, reader, WINDOWING_STRATEGY.getWindowFn().windowCoder());
+        SimplePushbackSideInputDoFnRunner.create(doFnRunner, views, reader);
     runner.startBundle();
     return runner;
   }

@@ -843,8 +843,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object sideInput(String tagId) {
-      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view =
+          checkStateNotNull(sideInputMapping.get(tagId), "Side input tag %s not found", tagId);
+      return sideInput(view);
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      checkNotNull(view, "View passed to sideInput cannot be null");
+      return SimpleDoFnRunner.this.sideInput(
+          view, view.getWindowMappingFn().getSideInputWindow(window()));
     }
 
     @Override
@@ -1147,8 +1156,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public Object sideInput(String tagId) {
-      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view =
+          checkStateNotNull(sideInputMapping.get(tagId), "Side input tag %s not found", tagId);
+      return sideInput(view);
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      checkNotNull(view, "View passed to sideInput cannot be null");
+      return SimpleDoFnRunner.this.sideInput(
+          view, view.getWindowMappingFn().getSideInputWindow(window()));
     }
 
     @Override

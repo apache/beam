@@ -39,12 +39,14 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.util.ListOutputManager;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -60,6 +62,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -76,6 +79,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -148,13 +152,22 @@ public class StreamingSideInputDoFnRunnerTest {
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
         createRunner(outputManager, views, sideInputFetcher);
 
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
+    runner.onTimer(
+        "timerId",
+        "timerFamilyId",
+        "dummyKey",
+        window,
+        new Instant(5),
+        new Instant(5),
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.NORMAL);
     runner.finishBundle();
 
     assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
-
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
 
     // Verify that we added the element to an appropriate tag list, and that we buffered the element
     ValueState<Map<IntervalWindow, Set<GlobalDataRequest>>> blockedMapState =
@@ -181,6 +194,17 @@ public class StreamingSideInputDoFnRunnerTest {
         sideInputFetcher.elementBag(createWindow(0)).read(),
         Matchers.contains(createDatum("e", 0)));
     assertEquals(sideInputFetcher.watermarkHold(createWindow(0)).read(), new Instant(0));
+    assertThat(
+        sideInputFetcher.timerBag(createWindow(0)).read(),
+        Matchers.contains(
+            TimerData.of(
+                "timerId",
+                "timerFamilyId",
+                StateNamespaces.window(WINDOW_FN.windowCoder(), window),
+                new Instant(5),
+                new Instant(5),
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.NORMAL)));
   }
 
   @Test
@@ -214,6 +238,24 @@ public class StreamingSideInputDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(elem);
+    runner.onTimer(
+        "timerId1",
+        "timerFamilyId",
+        "dummyKey",
+        window1,
+        new Instant(5),
+        new Instant(5),
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.NORMAL);
+    runner.onTimer(
+        "timerId2",
+        "timerFamilyId",
+        "dummyKey",
+        window2,
+        new Instant(0),
+        new Instant(0),
+        TimeDomain.EVENT_TIME,
+        CausedByDrain.NORMAL);
     runner.finishBundle();
 
     assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
@@ -269,6 +311,30 @@ public class StreamingSideInputDoFnRunnerTest {
 
     assertEquals(sideInputFetcher.watermarkHold(window1).read(), new Instant(timestamp));
     assertEquals(sideInputFetcher.watermarkHold(window2).read(), new Instant(timestamp));
+
+    assertThat(
+        sideInputFetcher.timerBag(window1).read(),
+        Matchers.contains(
+            TimerData.of(
+                "timerId1",
+                "timerFamilyId",
+                StateNamespaces.window(WINDOW_FN.windowCoder(), window1),
+                new Instant(5),
+                new Instant(5),
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.NORMAL)));
+
+    assertThat(
+        sideInputFetcher.timerBag(window2).read(),
+        Matchers.contains(
+            TimerData.of(
+                "timerId2",
+                "timerFamilyId",
+                StateNamespaces.window(WINDOW_FN.windowCoder(), window2),
+                new Instant(0),
+                new Instant(0),
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.NORMAL)));
   }
 
   @Test
@@ -302,6 +368,16 @@ public class StreamingSideInputDoFnRunnerTest {
         createRunner(outputManager, views, sideInputFetcher);
     sideInputFetcher.watermarkHold(createWindow(0)).add(new Instant(0));
     sideInputFetcher.elementBag(createWindow(0)).add(createDatum("e", 0));
+    TimerData timerData =
+        TimerData.of(
+            "timerId",
+            "timerFamilyId",
+            StateNamespaces.window(WINDOW_FN.windowCoder(), window),
+            new Instant(5),
+            new Instant(5),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
+    sideInputFetcher.timerBag(createWindow(0)).add(timerData);
 
     when(stepContext.getSideInputNotifications()).thenReturn(Arrays.asList(id));
     when(stepContext.issueSideInputFetch(
@@ -324,6 +400,10 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(blockedMapState.read(), Matchers.nullValue());
     assertThat(sideInputFetcher.watermarkHold(createWindow(0)).read(), Matchers.nullValue());
     assertThat(sideInputFetcher.elementBag(createWindow(0)).read(), Matchers.emptyIterable());
+    assertThat(sideInputFetcher.timerBag(createWindow(0)).read(), Matchers.emptyIterable());
+    ArgumentCaptor<Iterable<TimerData>> captor = ArgumentCaptor.forClass(Iterable.class);
+    Mockito.verify(stepContext).addUnblockedTimers(eq(WINDOW_FN.windowCoder()), captor.capture());
+    assertTrue(Iterables.contains(captor.getValue(), timerData));
   }
 
   @Test
@@ -393,7 +473,7 @@ public class StreamingSideInputDoFnRunnerTest {
   }
 
   private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
-      WindowFn<?, ?> windowFn,
+      WindowFn<?, IntervalWindow> windowFn,
       WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
@@ -412,7 +492,8 @@ public class StreamingSideInputDoFnRunnerTest {
             WindowingStrategy.of(windowFn),
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
-    return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
+    return new StreamingSideInputDoFnRunner<>(
+        simpleDoFnRunner, sideInputFetcher, windowFn.windowCoder());
   }
 
   private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
