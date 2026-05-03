@@ -19,11 +19,9 @@ package org.apache.beam.sdk.io.datadog;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -31,14 +29,12 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(SchemaTransformProvider.class)
 public class DatadogWriteSchemaTransformProvider
@@ -264,14 +260,6 @@ public class DatadogWriteSchemaTransformProvider
     }
   }
 
-  static Row errorToRow(DatadogWriteError error) {
-    return Row.withSchema(WRITE_ERROR_SCHEMA)
-        .addValue(error.payload())
-        .addValue(error.statusCode())
-        .addValue(error.statusMessage())
-        .build();
-  }
-
   static DatadogWriteError rowToError(Row row) {
     DatadogWriteError.Builder builder = DatadogWriteError.newBuilder();
     String payload = row.getString("payload");
@@ -287,92 +275,5 @@ public class DatadogWriteSchemaTransformProvider
       builder.withStatusMessage(statusMessage);
     }
     return builder.build();
-  }
-
-  static class CreateRowKeysFn extends DoFn<Row, KV<Integer, Row>> {
-    private final int calculatedParallelism;
-
-    CreateRowKeysFn(int parallelism) {
-      this.calculatedParallelism = parallelism;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      context.output(
-          KV.of(ThreadLocalRandom.current().nextInt(calculatedParallelism), context.element()));
-    }
-  }
-
-  static class RowBasedDatadogEventWriter extends DoFn<KV<Integer, Row>, Void> {
-    private final String url;
-    private final String apiKey;
-    private final Schema errorSchema;
-    private final boolean handleErrors;
-    private transient @Nullable DatadogEventPublisher publisher;
-
-    RowBasedDatadogEventWriter(
-        String url, String apiKey, Schema errorSchema, boolean handleErrors) {
-      this.url = url;
-      this.apiKey = apiKey;
-      this.errorSchema = errorSchema;
-      this.handleErrors = handleErrors;
-    }
-
-    @Setup
-    public void setup() throws Exception {
-      checkNotNull(url, "url is required for writing events.");
-      checkNotNull(apiKey, "API Key is required for writing events.");
-
-      DatadogEventPublisher.Builder builder =
-          DatadogEventPublisher.newBuilder().withUrl(url).withApiKey(apiKey);
-      publisher = builder.build();
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      Row rawRow = c.element().getValue();
-      try {
-        // First: Convert to structured DatadogEvent object (performing schema validation)
-        DatadogEvent event = rowToEvent(rawRow);
-        List<DatadogEvent> events = Collections.singletonList(event);
-
-        // Second: Write to endpoint
-        HttpResponse response = null;
-        try {
-          response = checkNotNull(publisher).execute(events);
-          if (!response.isSuccessStatusCode()) {
-            throw new java.io.IOException(
-                String.format(
-                    "HTTP Write failure [Status Code %d]: %s",
-                    response.getStatusCode(), response.getStatusMessage()));
-          }
-        } finally {
-          if (response != null) {
-            try {
-              response.ignore();
-            } catch (Exception e) {
-              // ignore
-            }
-          }
-        }
-      } catch (Exception e) {
-        if (!handleErrors) {
-          throw new RuntimeException(e);
-        }
-        // Emit standard serialized error record dynamically preserving input data
-        c.output(ERROR_TAG, ErrorHandling.errorRecord(errorSchema, rawRow, e));
-      }
-    }
-
-    @Teardown
-    public void tearDown() {
-      if (this.publisher != null) {
-        try {
-          this.publisher.close();
-        } catch (Exception e) {
-          // ignore
-        }
-      }
-    }
   }
 }
