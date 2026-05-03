@@ -47,7 +47,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
@@ -117,22 +116,21 @@ class SplittableProcessFnFactory {
 
     @Override
     @SuppressWarnings("nullness") // nullable atomic reference guaranteed nonnull when get
-    public
-        DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
-            DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
-            PipelineOptions options,
-            TupleTag<OutputT> mainOutputTag,
-            List<TupleTag<?>> sideOutputTags,
-            Iterable<PCollectionView<?>> sideInputViews,
-            SideInputReader sideInputReader,
-            Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
-            Map<TupleTag<?>, Coder<?>> outputCoders,
-            WindowingStrategy<?, ?> windowingStrategy,
-            DataflowExecutionContext.DataflowStepContext stepContext,
-            DataflowExecutionContext.DataflowStepContext userStepContext,
-            WindowedValueMultiReceiver outputManager,
-            DoFnSchemaInformation doFnSchemaInformation,
-            Map<String, PCollectionView<?>> sideInputMapping) {
+    public DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
+        DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
+        PipelineOptions options,
+        TupleTag<OutputT> mainOutputTag,
+        List<TupleTag<?>> sideOutputTags,
+        Iterable<PCollectionView<?>> sideInputViews,
+        SideInputReader sideInputReader,
+        Coder<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>> inputCoder,
+        Map<TupleTag<?>, Coder<?>> outputCoders,
+        WindowingStrategy<?, ?> windowingStrategy,
+        DataflowExecutionContext.DataflowStepContext stepContext,
+        DataflowExecutionContext.DataflowStepContext userStepContext,
+        WindowedValueMultiReceiver outputManager,
+        DoFnSchemaInformation doFnSchemaInformation,
+        Map<String, PCollectionView<?>> sideInputMapping) {
       if (this.ses.get() == null) {
         this.ses.compareAndSet(
             null,

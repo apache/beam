@@ -251,14 +251,14 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   public <KeyT> void onTimer(TimerData timer, KeyT key, BoundedWindow window) {
     try {
       fnRunner.onTimer(
-        timer.getTimerId(),
-        timer.getTimerFamilyId(),
-        key,
-        window,
-        timer.getTimestamp(),
-        timer.getOutputTimestamp(),
-        timer.getDomain(),
-        timer.causedByDrain());
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          key,
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain(),
+          timer.causedByDrain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
