@@ -38,7 +38,28 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
 
   public void validate() {
     String invalidConfigMessage = "Invalid Datadog Write configuration: ";
-
+    checkArgument(
+        !Strings.isNullOrEmpty(getUrl()), invalidConfigMessage + "url must be specified.");
+    checkArgument(
+        !Strings.isNullOrEmpty(getApiKey()), invalidConfigMessage + "apiKey must be specified.");
+    Integer batchCount = getBatchCount();
+    if (batchCount != null) {
+      checkArgument(batchCount > 0, invalidConfigMessage + "batchCount must be greater than 0.");
+    }
+    Integer minBatchCount = getMinBatchCount();
+    if (minBatchCount != null) {
+      checkArgument(
+          minBatchCount > 0, invalidConfigMessage + "minBatchCount must be greater than 0.");
+    }
+    Long maxBufferSize = getMaxBufferSize();
+    if (maxBufferSize != null) {
+      checkArgument(
+          maxBufferSize > 0, invalidConfigMessage + "maxBufferSize must be greater than 0.");
+    }
+    Integer parallelism = getParallelism();
+    if (parallelism != null) {
+      checkArgument(parallelism > 0, invalidConfigMessage + "parallelism must be greater than 0.");
+    }
     ErrorHandling errorHandling = getErrorHandling();
     if (errorHandling != null) {
       checkArgument(

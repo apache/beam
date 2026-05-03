@@ -184,7 +184,7 @@ public class DatadogWriteSchemaTransformProviderTest {
             .filter(provider -> provider.getClass() == DatadogWriteSchemaTransformProvider.class)
             .collect(Collectors.toList());
     SchemaTransformProvider datadogProvider = providers.get(0);
-    assertEquals(datadogProvider.outputCollectionNames(), Lists.newArrayList(OUTPUT, ERROR));
+    assertEquals(datadogProvider.outputCollectionNames(), Lists.newArrayList(ERROR));
 
     assertEquals(
         Sets.newHashSet(
@@ -341,47 +341,31 @@ public class DatadogWriteSchemaTransformProviderTest {
 
   @Test
   public void testBuildTransformWithInvalidParallelism() {
-    DatadogWriteSchemaTransformProvider provider = new DatadogWriteSchemaTransformProvider();
-    DatadogWriteSchemaTransformConfiguration configuration =
-        DatadogWriteSchemaTransformConfiguration.builder()
-            .setApiKey("test-api-key")
-            .setUrl("http://localhost:8080")
-            .setParallelism(0)
-            .build();
-
-    SchemaTransform transform = provider.from(configuration);
-
-    PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
-    PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
-    PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
-
-    try {
-      p.run().waitUntilFinish();
-      fail("Expected a PipelineExecutionException to be thrown.");
-    } catch (PipelineExecutionException e) {
-      Throwable cause = e.getCause();
-      while (cause.getCause() != null) {
-        cause = cause.getCause();
-      }
-      assertTrue(
-          "Expected cause to be of type IllegalArgumentException",
-          cause instanceof IllegalArgumentException);
-      assertTrue(
-          "Expected message to contain 'bound must be positive'",
-          cause.getMessage().contains("bound must be positive"));
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          DatadogWriteSchemaTransformConfiguration.builder()
+              .setApiKey("test-api-key")
+              .setUrl("http://localhost:8080")
+              .setParallelism(0)
+              .build()
+              .validate();
+        });
   }
 
   @Test
   public void testBuildTransformWithInvalidBatchCount() {
-    DatadogWriteSchemaTransformConfiguration.builder()
-        .setApiKey("test-api-key")
-        .setUrl("http://localhost:8080")
-        .setBatchCount(0)
-        .setMinBatchCount(1)
-        .build()
-        .validate();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> {
+          DatadogWriteSchemaTransformConfiguration.builder()
+              .setApiKey("test-api-key")
+              .setUrl("http://localhost:8080")
+              .setBatchCount(0)
+              .setMinBatchCount(1)
+              .build()
+              .validate();
+        });
   }
 
   @Test

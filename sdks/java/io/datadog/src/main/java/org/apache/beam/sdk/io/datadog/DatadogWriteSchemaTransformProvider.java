@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.client.http.HttpResponse;
 import com.google.auto.service.AutoService;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -80,7 +79,7 @@ public class DatadogWriteSchemaTransformProvider
   /** Implementation of the {@link TypedSchemaTransformProvider} output collection names method. */
   @Override
   public List<String> outputCollectionNames() {
-    return Arrays.asList(OUTPUT, ERROR);
+    return Collections.singletonList(ERROR);
   }
 
   /**
@@ -118,7 +117,8 @@ public class DatadogWriteSchemaTransformProvider
       PCollection<KV<Integer, Row>> keyedEvents =
           inputRows
               .apply("InjectKeys", ParDo.of(new CreateRowKeysFn(calculatedParallelism)))
-              .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(inputSchema)));
+              .setCoder(KvCoder.of(VarIntCoder.of(), RowCoder.of(inputSchema)))
+              .apply("Reshuffle", org.apache.beam.sdk.transforms.Reshuffle.of());
 
       // Apply the write transform directly. All errors flow to Side Output.
       PCollectionTuple resultTuple =
