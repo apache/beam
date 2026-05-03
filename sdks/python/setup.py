@@ -426,7 +426,7 @@ if __name__ == '__main__':
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
-          'numpy>=2.1.3,<2.5.0',  # Update pyproject.toml as well.
+          'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
           'pillow>=12.1.1,<13',
