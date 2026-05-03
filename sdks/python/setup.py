@@ -499,7 +499,7 @@ if __name__ == '__main__':
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',
               'requests_mock>=1.7,<2.0',
               # google-adk 1.28+ requires tenacity>=9,<10 (conflicts with <9).
-              'tenacity>=8.0.0,<10',
+              'tenacity>=9.0.0,<10',
               'pytest>=9.0.3,<10.0',
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
@@ -657,7 +657,7 @@ if __name__ == '__main__':
           ],
           'ml_cpu': [
               'tensorflow>=2.12.0',
-              'torch==2.8.0',
+              'torch==2.8.0+cpu',
               'transformers>=4.28.0,<4.56.0',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],
