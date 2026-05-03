@@ -210,8 +210,6 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     W window = (W) Iterables.getOnlyElement(elem.getWindows());
 
     Set<Windmill.GlobalDataRequest> blocked = checkIfBlocked(window);
-    blockedMap().get(window);
-
     if (!blocked.isEmpty()) {
       elementBag(window).add(elem);
       watermarkHold(window).add(elem.getTimestamp());

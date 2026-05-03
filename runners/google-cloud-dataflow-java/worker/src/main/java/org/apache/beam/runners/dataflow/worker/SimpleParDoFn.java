@@ -342,15 +342,14 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
           fnRunner.processElement(elem);
         }
         elementsBag.clear();
+      }
 
-        boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
-        if (hasState) {
-          // These elements are now processed. Register cleanup timers for all the unblocked
-          // windows.
-          registerStateCleanup(
-              (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
-              (Collection<W>) readyWindows);
-        }
+      boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
+      if (hasState) {
+        // These elements are now processed. Register cleanup timers for all the unblocked
+        // windows.
+        registerStateCleanup(
+            (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), readyWindows);
       }
       sideInputFetcher.releaseBlockedWindows(readyWindows);
     }
@@ -508,6 +507,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
       fnRunner = null;
       fnInfo = null;
       fnSignature = null;
+      sideInputFetcher = null;
     }
   }
 

@@ -64,7 +64,6 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
       }
       elementsBag.clear();
     }
-
     sideInputFetcher.releaseBlockedWindows(readyWindows);
   }
 
