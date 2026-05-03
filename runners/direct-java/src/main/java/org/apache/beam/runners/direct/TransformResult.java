@@ -59,9 +59,10 @@ interface TransformResult<InputT> {
   Iterable<? extends UncommittedBundle<?>> getOutputBundles();
 
   /**
-   * Returns timers that were delivered to the {@link TransformEvaluator} but were not processed.
+   * Returns elements that were provided to the {@link TransformEvaluator} as input but were not
+   * processed.
    */
-  Iterable<WatermarkManager.FiredTimers<AppliedPTransform<?, ?, ?>>> getUnprocessedTimers();
+  Iterable<? extends WindowedValue<InputT>> getUnprocessedElements();
 
   /** Returns the logical metric updates. */
   MetricUpdates getLogicalMetricUpdates();

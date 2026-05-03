@@ -59,7 +59,6 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
         getTransform(),
         getOutputBundles(),
         getUnprocessedElements(),
-        getUnprocessedTimers(),
         metricUpdates,
         getWatermarkHold(),
         getState(),
