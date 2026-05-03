@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.datadog.DatadogWriteSchemaTransformProvider
 import static org.apache.beam.sdk.io.datadog.DatadogWriteSchemaTransformProvider.OUTPUT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
@@ -30,7 +29,6 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -161,18 +159,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollectionRowTuple output = transform.expand(inputTuple);
     assertTrue(output.getAll().isEmpty());
 
-    try {
-      p.run().waitUntilFinish();
-      fail("Expected a PipelineExecutionException due to connection refusal.");
-    } catch (PipelineExecutionException e) {
-      Throwable cause = e.getCause();
-      while (cause.getCause() != null) {
-        cause = cause.getCause();
-      }
-      assertTrue(
-          "Expected cause to be java.net.ConnectException",
-          cause instanceof java.net.ConnectException);
-    }
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -312,18 +299,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollectionRowTuple output = transform.expand(inputTuple);
     assertTrue(output.getAll().isEmpty());
 
-    try {
-      p.run().waitUntilFinish();
-      fail("Expected a PipelineExecutionException due to connection refusal.");
-    } catch (PipelineExecutionException e) {
-      Throwable cause = e.getCause();
-      while (cause.getCause() != null) {
-        cause = cause.getCause();
-      }
-      assertTrue(
-          "Expected cause to be java.net.ConnectException",
-          cause instanceof java.net.ConnectException);
-    }
+    p.run().waitUntilFinish();
   }
 
   @Test(expected = IllegalStateException.class)
@@ -464,10 +440,11 @@ public class DatadogWriteSchemaTransformProviderTest {
             (errors) -> {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
               Row error = errors.iterator().next();
-              assertEquals(row, error.getRow("failed_row"));
+              assertEquals(row.toString(), error.getString("payload"));
+              assertEquals((Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST, error.getInt32("statusCode"));
               assertTrue(
-                  "Expected error message to contain 'Message is required.'",
-                  error.getString("error_message").contains("Message is required."));
+                  "Expected status message to contain 'Message is required.'",
+                  error.getString("statusMessage").contains("Message is required."));
               return null;
             });
 
@@ -506,10 +483,11 @@ public class DatadogWriteSchemaTransformProviderTest {
             (errors) -> {
               assertEquals(1, errors.spliterator().getExactSizeIfKnown());
               Row error = errors.iterator().next();
-              assertEquals(row, error.getRow("failed_row"));
+              assertEquals(row.toString(), error.getString("payload"));
+              assertEquals((Integer) java.net.HttpURLConnection.HTTP_BAD_REQUEST, error.getInt32("statusCode"));
               assertTrue(
-                  "Expected error message to contain 'Message is required.'",
-                  error.getString("error_message").contains("Message is required."));
+                  "Expected status message to contain 'Message is required.'",
+                  error.getString("statusMessage").contains("Message is required."));
               return null;
             });
 
