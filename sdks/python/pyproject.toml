@@ -37,7 +37,7 @@ requires = [
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
     'pyyaml>=3.12,<7.0.0',
     # also update Jinja2 bounds in test-suites/xlang/build.gradle (look for xlangWrapperValidation task)
-    "jinja2>=2.7.1,<4.0.0",
+    "jinja2>=3.0.3,<4.0.0",
     'yapf==0.43.0'
 ]
 
