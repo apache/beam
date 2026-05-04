@@ -91,7 +91,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -132,7 +132,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Set git config
       run: |
         git config user.name $GITHUB_ACTOR
@@ -172,7 +172,7 @@ jobs:
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

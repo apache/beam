@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Python_Xlang_IO_Dataflow"]
         job_phrase: ["Run Python_Xlang_IO_Dataflow PostCommit"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -85,7 +85,7 @@ jobs:
             -PuseWheelDistribution \
             -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results
