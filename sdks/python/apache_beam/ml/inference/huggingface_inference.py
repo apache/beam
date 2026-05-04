@@ -32,6 +32,7 @@ import tensorflow as tf
 import torch
 from transformers import AutoModel
 from transformers import Pipeline
+
 try:
   from transformers import TFAutoModel
 except ImportError:
