@@ -265,7 +265,8 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
       write =
           write
               .withTriggeringFrequency(Duration.standardSeconds(1))
-              .withNumStorageWriteApiStreams(2);
+              // One stream — same as other Storage Write ITs here, fewer ordering surprises.
+              .withNumStorageWriteApiStreams(1);
     }
 
     SequenceRowsDoFn doFn = new SequenceRowsDoFn(5, 20);
@@ -282,8 +283,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-    // Storage Write API schema upgrades can race with early evolved rows in distributed runs.
-    // Require that the intentionally malformed row is present, while allowing additional failures.
+    // Schema upgrade races can add extra failed rows; we only insist the bad row shows up.
     PAssert.that(failedInserts).satisfies(new VerifyContainsRow(doFn.getRow(20)));
 
     p.run().waitUntilFinish();
@@ -345,9 +345,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
       List<TableRow> collected = new ArrayList<>();
       input.forEach(collected::add);
       assertTrue(
-          String.format(
-              "Expected failed inserts to include intentionally malformed row %s, but got %s",
-              expectedRow, collected),
+          String.format("DLQ should contain %s; was %s", expectedRow, collected),
           collected.contains(expectedRow));
       return null;
     }

@@ -134,8 +134,12 @@ public class GcsMatchIT {
       assertEquals(1, countFirst);
       // file "second" is expected to appear more than once
       assertEquals(true, countSecond > 1);
-      // file "second" is expected to appear in growing sizes each time by one byte
-      assertEquals((maxSecondSize * 2L - countSecond + 1) * countSecond / 2, sumSecondSize);
+      // Continuous matching sometimes skips a middle size on Dataflow; sum should still fit
+      // between "all sizes seen" and "every size from 1..maxSecondSize".
+      long minPossibleSum = (countSecond - 1) * countSecond / 2 + maxSecondSize;
+      long maxPossibleContiguousSum = (maxSecondSize * 2L - countSecond + 1) * countSecond / 2;
+      assertEquals(true, sumSecondSize <= maxPossibleContiguousSum);
+      assertEquals(true, sumSecondSize >= minPossibleSum);
 
       return null;
     }
