@@ -30,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/healthcare/v1"
 	"google.golang.org/api/option"
 )
 
@@ -127,12 +126,13 @@ func (c *fhirStoreClientImpl) search(storePath, resourceType string, queries map
 		queryParams = append(queryParams, googleapi.QueryParameter(pageTokenParameterKey, pageToken))
 	}
 
-	// Pass nil as the body because search parameters are passed via queryParams,
+	// Pass new reader as the body because search parameters are passed via queryParams,
 	// and the new API expects an io.Reader instead of a specific struct.
+	body := strings.NewReader("")
 	if resourceType == "" {
-		return c.fhirService().Search(storePath, nil).Do(queryParams...)
+		return c.fhirService().Search(storePath, body).Do(queryParams...)
 	}
-	return c.fhirService().SearchType(storePath, resourceType, nil).Do(queryParams...)
+	return c.fhirService().SearchType(storePath, resourceType, body).Do(queryParams...)
 }
 
 func (c *fhirStoreClientImpl) deidentify(srcStorePath, dstStorePath string, deidConfig *healthcare.DeidentifyConfig) (operationResults, error) {
