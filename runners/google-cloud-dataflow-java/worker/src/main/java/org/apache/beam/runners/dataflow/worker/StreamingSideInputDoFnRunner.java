@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -37,42 +35,30 @@ import org.joda.time.Instant;
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> simpleDoFnRunner;
-  private final StreamingSideInputFetcher<InputT, W> sideInputFetcher;
+  private final StreamingSideInputProcessor<InputT, OutputT, W> sideInputProcessor;
 
   public StreamingSideInputDoFnRunner(
       DoFnRunner<InputT, OutputT> simpleDoFnRunner,
       StreamingSideInputFetcher<InputT, W> sideInputFetcher) {
     this.simpleDoFnRunner = simpleDoFnRunner;
-    this.sideInputFetcher = sideInputFetcher;
+    this.sideInputProcessor = new StreamingSideInputProcessor<>(sideInputFetcher);
   }
 
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
-    sideInputFetcher.prefetchBlockedMap();
-
-    // Find the set of ready windows.
-    Set<W> readyWindows = sideInputFetcher.getReadyWindows();
-
-    Iterable<BagState<WindowedValue<InputT>>> elementsBags =
-        sideInputFetcher.prefetchElements(readyWindows);
-
-    for (BagState<WindowedValue<InputT>> elementsBag : elementsBags) {
-      Iterable<WindowedValue<InputT>> elements = elementsBag.read();
-      for (WindowedValue<InputT> elem : elements) {
-        simpleDoFnRunner.processElement(elem);
-      }
-      elementsBag.clear();
+    Iterable<WindowedValue<InputT>> unblocked = sideInputProcessor.tryUnblockElements();
+    for (WindowedValue<InputT> elem : unblocked) {
+      simpleDoFnRunner.processElement(elem);
     }
-    sideInputFetcher.releaseBlockedWindows(readyWindows);
   }
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
-      if (!sideInputFetcher.storeIfBlocked(elem)) {
-        simpleDoFnRunner.processElement(elem);
-      }
+    Iterable<WindowedValue<InputT>> unblocked =
+        sideInputProcessor.handleProcessElement(compressedElem);
+    for (WindowedValue<InputT> elem : unblocked) {
+      simpleDoFnRunner.processElement(elem);
     }
   }
 
@@ -93,7 +79,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
-    sideInputFetcher.persist();
+    sideInputProcessor.handleFinishBundle();
   }
 
   @Override
