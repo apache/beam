@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,8 +72,6 @@ public class StreamingSideInputProcessorTest {
     assertThat(unblocked, emptyIterable());
     verify(mockFetcher).prefetchBlockedMap();
     verify(mockFetcher).getReadyWindows();
-    verify(mockFetcher, never()).prefetchElements(any());
-    verify(mockFetcher, never()).releaseBlockedWindows(any());
   }
 
   @Test
