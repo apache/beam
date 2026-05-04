@@ -488,4 +488,3 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setPipelineProtoHash(String hash);
 }
-
