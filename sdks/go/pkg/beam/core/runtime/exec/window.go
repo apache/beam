@@ -31,6 +31,8 @@ type WindowInto struct {
 	UID UnitID
 	Fn  *window.Fn
 	Out Node
+
+	invoker *window.WindowFnInvoker // non-nil for CustomWindows
 }
 
 // ID returns the UnitID for this unit.
@@ -39,6 +41,9 @@ func (w *WindowInto) ID() UnitID {
 }
 
 func (w *WindowInto) Up(ctx context.Context) error {
+	if w.Fn.Kind == window.CustomWindows {
+		w.invoker = window.NewWindowFnInvoker(w.Fn.CustomFn)
+	}
 	return nil
 }
 
@@ -48,7 +53,7 @@ func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContex
 
 func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	windowed := &FullValue{
-		Windows:   assignWindows(w.Fn, elm.Timestamp),
+		Windows:   assignWindows(w.Fn, elm.Timestamp, elm),
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,
 		Elm2:      elm.Elm2,
@@ -57,7 +62,7 @@ func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values 
 	return w.Out.ProcessElement(ctx, windowed, values...)
 }
 
-func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
+func assignWindows(wfn *window.Fn, ts typex.EventTime, elm *FullValue) []typex.Window {
 	switch wfn.Kind {
 	case window.GlobalWindows:
 		return window.SingleGlobalWindow
@@ -81,6 +86,12 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		// future.  Overlapping windows (representing elements within Gap of
 		// each other) will be merged.
 		return []typex.Window{window.IntervalWindow{Start: ts, End: ts.Add(wfn.Gap)}}
+
+	case window.CustomWindows:
+		// Timestamp-only fast path for window mapping (side inputs).
+		// Element-aware path is handled by WindowInto.invoker.
+		inv := window.NewWindowFnInvoker(wfn.CustomFn)
+		return inv.Invoke(ts, elm)
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))
@@ -173,7 +184,7 @@ type windowMapper struct {
 }
 
 func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
-	candidates := assignWindows(f.wfn, w.MaxTimestamp())
+	candidates := assignWindows(f.wfn, w.MaxTimestamp(), nil)
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}
