@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.util.Lists;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -138,10 +138,11 @@ public class StreamingSideInputProcessorTest {
     when(mockFetcher.storeIfBlocked(any(WindowedValue.class))).thenReturn(true);
 
     // When
-    Iterable<WindowedValue<String>> unblocked = processor.handleProcessElement(compressedElement);
+    Iterator<? extends WindowedValue<String>> unblocked =
+        processor.handleProcessElement(compressedElement);
 
     // Then
-    assertThat(unblocked, emptyIterable());
+    assertFalse(unblocked.hasNext());
     for (WindowedValue<String> exploded : compressedElement.explodeWindows()) {
       verify(mockFetcher).storeIfBlocked(exploded);
     }
@@ -158,11 +159,11 @@ public class StreamingSideInputProcessorTest {
     when(mockFetcher.storeIfBlocked(any(WindowedValue.class))).thenReturn(false);
 
     // When
-    Iterable<WindowedValue<String>> unblocked = processor.handleProcessElement(compressedElement);
-
+    Iterator<? extends WindowedValue<String>> unblocked =
+        processor.handleProcessElement(compressedElement);
     // Then
     assertThat(
-        unblocked,
+        Lists.newArrayList(unblocked),
         containsInAnyOrder(
             Iterables.toArray(compressedElement.explodeWindows(), WindowedValue.class)));
     for (WindowedValue<String> exploded : compressedElement.explodeWindows()) {

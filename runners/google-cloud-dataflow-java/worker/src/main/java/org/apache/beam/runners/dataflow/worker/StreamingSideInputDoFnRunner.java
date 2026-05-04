@@ -57,9 +57,10 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    Iterable<WindowedValue<InputT>> unblocked =
-        sideInputProcessor.handleProcessElement(compressedElem);
-    for (WindowedValue<InputT> elem : unblocked) {
+    for (Iterator<? extends WindowedValue<InputT>> it =
+            sideInputProcessor.handleProcessElement(compressedElem);
+        it.hasNext(); ) {
+      WindowedValue<InputT> elem = it.next();
       simpleDoFnRunner.processElement(elem);
     }
   }

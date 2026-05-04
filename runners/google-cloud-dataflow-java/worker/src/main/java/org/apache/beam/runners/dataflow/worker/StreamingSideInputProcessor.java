@@ -18,14 +18,14 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Iterator;
-import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper class for handling elements blocked on side inputs. */
@@ -94,6 +94,9 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
 
           @Override
           public WindowedValue<InputT> next() {
+            if (!hasNext()) {
+              throw new NoSuchElementException();
+            }
             return org.apache.beam.sdk.util.Preconditions.checkStateNotNull(currentBagElements)
                 .next();
           }
@@ -111,14 +114,13 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
   Handle process element. Runs the elements that have an available side input, and buffers elements for which the
   side input is blocked. Returns the list of elements that are unblocked and should be processed.
    */
-  Iterable<WindowedValue<InputT>> handleProcessElement(WindowedValue<InputT> compressedElem) {
-    List<WindowedValue<InputT>> unblockedElements = Lists.newArrayList();
-    for (WindowedValue<InputT> exploded : compressedElem.explodeWindows()) {
-      if (!sideInputFetcher.storeIfBlocked(exploded)) {
-        unblockedElements.add(exploded);
-      }
-    }
-    return unblockedElements;
+  Iterator<? extends WindowedValue<InputT>> handleProcessElement(
+      WindowedValue<InputT> compressedElem) {
+    // Note: We could write this as a three-line stream expression, but side effects are discouraged
+    // in Java streams.
+    return Iterators.filter(
+        compressedElem.explodeWindows().iterator(),
+        (WindowedValue<InputT> e) -> !sideInputFetcher.storeIfBlocked(e));
   }
 
   void handleProcessTimer(TimerInternals.TimerData timer) {

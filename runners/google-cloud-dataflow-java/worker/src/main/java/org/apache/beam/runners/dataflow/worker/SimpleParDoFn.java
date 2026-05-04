@@ -369,9 +369,10 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     Collection<W> windowsProcessed;
     if (sideInputProcessor != null) {
       windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
-      Iterable<WindowedValue<InputT>> elementsToProcess =
-          sideInputProcessor.handleProcessElement(elem);
-      for (WindowedValue<InputT> toProcess : elementsToProcess) {
+      for (Iterator<? extends WindowedValue<InputT>> it =
+              sideInputProcessor.handleProcessElement(elem);
+          it.hasNext(); ) {
+        WindowedValue<InputT> toProcess = it.next();
         fnRunner.processElement(toProcess);
         if (hasState) {
           windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
