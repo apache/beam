@@ -481,4 +481,11 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       return GlobalOpenTelemetry.get();
     }
   }
+
+  /** The hex-encoded SHA256 hash of the staged portable pipeline proto. */
+  @Description("The hex-encoded SHA256 hash of the staged portable pipeline proto")
+  String getPipelineProtoHash();
+
+  void setPipelineProtoHash(String hash);
 }
+
