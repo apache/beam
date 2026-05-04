@@ -35,7 +35,7 @@ requires = [
     "cython>=3.0,<4",
     ## deps for generating external transform wrappers:
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
-    'pyyaml>=3.12,<7.0.0',
+    'pyyaml>=5.4.1,<7.0.0',
     # also update Jinja2 bounds in test-suites/xlang/build.gradle (look for xlangWrapperValidation task)
     "jinja2>=2.7.1,<4.0.0",
     'yapf==0.43.0'
