@@ -562,6 +562,7 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
+    distribution_mode: Optional[str] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -611,6 +612,10 @@ def write_to_iceberg(
     only: The name of exactly one field to keep as the top level record when
       writing to the destination. All other fields are dropped. This field must
       be of row type. Mutually exclusive with drop and keep.
+    distribution_mode: Defines distribution of write data. Supported
+      distributions:
+      - none: don't shuffle rows (default)
+      - hash: shuffle rows by partition key before writing data
   """
   return beam.managed.Write(
       "iceberg",
@@ -624,7 +629,8 @@ def write_to_iceberg(
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
-          only=only))
+          only=only,
+          distribution_mode=distribution_mode))
 
 
 def io_providers():
