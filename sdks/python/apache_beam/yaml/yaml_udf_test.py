@@ -396,6 +396,9 @@ class YamlUDFMappingTest(unittest.TestCase):
 
       expected_date = datetime.datetime(
           2026, 4, 17, 18, tzinfo=datetime.timezone.utc)
+      assert_that(result, equal_to([
+          beam.Row(date=expected_date),
+      ]))
 
   @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_map_to_fields_js_special_names(self):

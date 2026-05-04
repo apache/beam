@@ -257,9 +257,14 @@ class JsMapToFieldsDoFn(beam.DoFn):
       # that aren't compliant dot-access identifiers.
       if 'expression' in expr:
         e = expr['expression']
-        code = f"var func_{i} = (__row__) => {{ " + " ".join(
-            [f"const {n} = __row__['{n}'];"
-             for n in original_fields if n in e]) + f" return ({e}); }}"
+        js_identifier_pattern = re.compile(r'^[a-zA-Z_$][a-zA-Z0-9_$]*$')
+        valid_fields = [
+            n for n in original_fields
+            if n in e and js_identifier_pattern.match(n)
+        ]
+        consts = " ".join(
+            [f"const {n} = __row__['{n}'];" for n in valid_fields])
+        code = f"var func_{i} = (__row__) => {{ {consts} return ({e}); }}"
         script.append(code)
         self.field_funcs[name] = f"func_{i}"
       elif 'callable' in expr:
