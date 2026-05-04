@@ -73,7 +73,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python_Examples PreCommit')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -99,7 +99,7 @@ jobs:
             -Pposargs=apache_beam/examples/ \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results
