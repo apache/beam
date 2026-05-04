@@ -38,6 +38,26 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
+import struct
+from apache_beam.coders import Coder
+from apache_beam.coders.coder_impl import CoderImpl
+
+
+class BigEndianIntegerCoderImpl(CoderImpl):
+  def encode_to_stream(self, value, stream, nested):
+    stream.write(struct.pack('>i', value))
+
+  def decode_from_stream(self, stream, nested):
+    return struct.unpack('>i', stream.read(4))[0]
+
+
+class BigEndianIntegerCoder(Coder):
+  def get_impl(self):
+    return BigEndianIntegerCoderImpl()
+
+
+Coder.register_urn(
+    'beam:coders:javasdk:0.1', None, lambda _: BigEndianIntegerCoder())
 import psycopg2
 import pytds
 import sqlalchemy
