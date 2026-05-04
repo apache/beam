@@ -25,12 +25,6 @@ tasks.register("flinkValidatesRunner") {
   }
 }
 
-tasks.register("samzaValidatesRunner") {
-  getVersionsAsList('samza_validates_runner_postcommit_py_versions').each {
-    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:samzaValidatesRunner")
-  }
-}
-
 tasks.register("prismValidatesRunner") {
   getVersionsAsList('prism_validates_runner_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:prismValidatesRunner")

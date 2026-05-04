@@ -197,7 +197,6 @@ function list_runners() {
     echo "  dataflow         - DataflowRunner (runs on Google Cloud Dataflow)"
     echo "  flink            - FlinkRunner (runs on Apache Flink)"
     echo "  spark            - SparkRunner (runs on Apache Spark)"
-    echo "  samza            - SamzaRunner (runs on Apache Samza)"
     echo "  jet              - JetRunner (runs on Hazelcast Jet)"
     echo "  twister2         - Twister2Runner (runs on Twister2)"
     echo ""
@@ -238,10 +237,6 @@ function list_runners() {
       "spark-3")
         echo "  spark-3          - SparkRunner (Spark 3.x)"
         echo "                     Runs on Apache Spark 3.x clusters."
-        ;;
-      "samza")
-        echo "  samza            - SamzaRunner"
-        echo "                     Runs on Apache Samza."
         ;;
       "jet")
         echo "  jet              - JetRunner"

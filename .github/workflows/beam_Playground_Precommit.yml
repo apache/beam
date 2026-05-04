@@ -62,7 +62,10 @@ jobs:
 
       - name: Add GOPATH/bin to PATH
         run: echo "PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
-
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install -y wget
       - name: Install sbt for running SCIO tests
         run: |
           sudo apt-get update --yes

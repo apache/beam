@@ -27,13 +27,17 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
-import java.util.function.Consumer;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.function.ThrowingConsumer;
+import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Container class used by {@link StorageApiWritesShardedRecords} and {@link
@@ -42,6 +46,8 @@ import org.apache.beam.sdk.util.Preconditions;
  */
 @AutoValue
 abstract class AppendClientInfo {
+  private static final Logger LOG = LoggerFactory.getLogger(AppendClientInfo.class);
+
   private final Counter activeStreamAppendClients =
       Metrics.counter(AppendClientInfo.class, "activeStreamAppendClients");
 
@@ -49,7 +55,7 @@ abstract class AppendClientInfo {
 
   abstract TableSchema getTableSchema();
 
-  abstract Consumer<BigQueryServices.StreamAppendClient> getCloseAppendClient();
+  abstract ThrowingConsumer<Exception, BigQueryServices.StreamAppendClient> getCloseAppendClient();
 
   abstract com.google.api.services.bigquery.model.TableSchema getJsonTableSchema();
 
@@ -65,7 +71,8 @@ abstract class AppendClientInfo {
 
     abstract Builder setTableSchema(TableSchema value);
 
-    abstract Builder setCloseAppendClient(Consumer<BigQueryServices.StreamAppendClient> value);
+    abstract Builder setCloseAppendClient(
+        ThrowingConsumer<Exception, BigQueryServices.StreamAppendClient> value);
 
     abstract Builder setJsonTableSchema(com.google.api.services.bigquery.model.TableSchema value);
 
@@ -83,7 +90,7 @@ abstract class AppendClientInfo {
   static AppendClientInfo of(
       TableSchema tableSchema,
       DescriptorProtos.DescriptorProto descriptor,
-      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient)
+      ThrowingConsumer<Exception, BigQueryServices.StreamAppendClient> closeAppendClient)
       throws Exception {
     return new AutoValue_AppendClientInfo.Builder()
         .setTableSchema(tableSchema)
@@ -97,7 +104,7 @@ abstract class AppendClientInfo {
 
   static AppendClientInfo of(
       TableSchema tableSchema,
-      Consumer<BigQueryServices.StreamAppendClient> closeAppendClient,
+      ThrowingConsumer<Exception, BigQueryServices.StreamAppendClient> closeAppendClient,
       boolean includeCdcColumns)
       throws Exception {
     return of(
@@ -134,7 +141,12 @@ abstract class AppendClientInfo {
   public void close() {
     BigQueryServices.StreamAppendClient client = getStreamAppendClient();
     if (client != null) {
-      getCloseAppendClient().accept(client);
+      try {
+        getCloseAppendClient().accept(client);
+      } catch (Exception e) {
+        // We ignore errors when closing clients.
+        LOG.warn("Caught exception whilw trying to close append client. Ignoring", e);
+      }
       activeStreamAppendClients.dec();
     }
   }
@@ -198,5 +210,33 @@ abstract class AppendClientInfo {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void pinAppendClient() {
+    BigQueryServices.StreamAppendClient client =
+        Preconditions.checkStateNotNull(getStreamAppendClient());
+    client.pin();
+  }
+
+  public void unpinAppendClient(@Nullable ExecutorService executor) {
+    BigQueryServices.StreamAppendClient client =
+        Preconditions.checkStateNotNull(getStreamAppendClient());
+    if (executor != null) {
+      runAsyncIgnoreFailure(executor, client::unpin);
+    } else {
+      client.unpin();
+    }
+  }
+
+  @SuppressWarnings({"FutureReturnValueIgnored"})
+  private static void runAsyncIgnoreFailure(ExecutorService executor, ThrowingRunnable task) {
+    executor.submit(
+        () -> {
+          try {
+            task.run();
+          } catch (Throwable e) {
+            LOG.info("Exception happened while executing async task. Ignoring: ", e);
+          }
+        });
   }
 }
