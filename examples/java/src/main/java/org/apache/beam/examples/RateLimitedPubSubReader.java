@@ -104,8 +104,8 @@ public class RateLimitedPubSubReader {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      String element = c.element();
+    public void processElement(@Element String element, OutputReceiver<String> receiver)
+        throws Exception {
       try {
         Preconditions.checkNotNull(rateLimiter).allow(1);
       } catch (Exception e) {
@@ -115,7 +115,7 @@ public class RateLimitedPubSubReader {
       // Simulate external API call or simply log the read entry
       Thread.sleep(100);
       LOG.info("Received and rate-limited record: {}", element);
-      c.output(element);
+      receiver.output(element);
     }
   }
 
