@@ -26,7 +26,8 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
-class StreamingSideInputProcessor<InputT, OutputT, W extends BoundedWindow> {
+/** Helper class for handling elements blocked on side inputs. */
+class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
   private final StreamingSideInputFetcher<InputT, W> sideInputFetcher;
 
   public StreamingSideInputProcessor(StreamingSideInputFetcher<InputT, W> sideInputFetcher) {

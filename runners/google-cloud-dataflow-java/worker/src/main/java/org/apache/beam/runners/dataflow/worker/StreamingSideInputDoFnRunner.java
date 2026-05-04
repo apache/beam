@@ -35,7 +35,7 @@ import org.joda.time.Instant;
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> simpleDoFnRunner;
-  private final StreamingSideInputProcessor<InputT, OutputT, W> sideInputProcessor;
+  private final StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
   public StreamingSideInputDoFnRunner(
       DoFnRunner<InputT, OutputT> simpleDoFnRunner,

@@ -113,7 +113,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   // GroupAlsoByWindowViaWindowSetDoFn
   private @Nullable DoFnSignature fnSignature;
 
-  private @Nullable StreamingSideInputProcessor<InputT, OutputT, W> sideInputProcessor;
+  private @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
   /** Creates a {@link SimpleParDoFn} using basic information about the step being executed. */
   SimpleParDoFn(
