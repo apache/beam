@@ -3229,6 +3229,40 @@ public class WindmillStateInternalsTest {
   }
 
   @Test
+  public void testWatermarkClearNoOp() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+    WatermarkHoldState hold = underTestNewKey.state(NAMESPACE, addr);
+
+    hold.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTestNewKey.persist(commitBuilder);
+
+    assertEquals(0, commitBuilder.getWatermarkHoldsCount());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
+  public void testWatermarkClearWithLocalAdditionsNoop() throws Exception {
+    StateTag<WatermarkHoldState> addr =
+        StateTags.watermarkStateInternal("watermark", TimestampCombiner.EARLIEST);
+    WatermarkHoldState hold = underTestNewKey.state(NAMESPACE, addr);
+
+    hold.add(new Instant(500));
+
+    hold.clear();
+
+    Windmill.WorkItemCommitRequest.Builder commitBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    underTestNewKey.persist(commitBuilder);
+
+    assertEquals(0, commitBuilder.getWatermarkHoldsCount());
+    assertBuildable(commitBuilder);
+  }
+
+  @Test
   public void testValueSetBeforeRead() throws Exception {
     StateTag<ValueState<String>> addr = StateTags.value("value", StringUtf8Coder.of());
     ValueState<String> value = underTest.state(NAMESPACE, addr);

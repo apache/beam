@@ -2374,9 +2374,6 @@ public class StreamingDataflowWorkerTest {
             new Action(
                     buildSessionInput(
                         1, 40, 0, Collections.singletonList(1L), Collections.EMPTY_LIST))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))));
   }
 
@@ -2404,10 +2401,7 @@ public class StreamingDataflowWorkerTest {
                         0,
                         Collections.EMPTY_LIST,
                         Collections.singletonList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
-                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true)),
+                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010)),
             new Action(
                     buildSessionInput(
                         3, 30, 0, Collections.singletonList(8L), Collections.EMPTY_LIST))
@@ -2436,8 +2430,8 @@ public class StreamingDataflowWorkerTest {
                 .withHolds(
                     buildHold("/gAAAAAAAACkK/+uhold", -1, true),
                     buildHold("/gAAAAAAAACkK/+uextra", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uhold", 40, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, true)),
+                    buildHold("/gAAAAAAAAAsK/+uhold", 40, false),
+                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, false)),
             new Action(
                     buildSessionInput(
                         6,
