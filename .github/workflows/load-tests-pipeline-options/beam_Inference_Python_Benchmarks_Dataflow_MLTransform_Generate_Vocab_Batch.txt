@@ -38,7 +38,5 @@
 --vocab_size=50000
 --min_frequency=1
 --lowercase=true
---tokenizer=whitespace
---oov_token=<UNK>
 --input_expand_factor=1
 

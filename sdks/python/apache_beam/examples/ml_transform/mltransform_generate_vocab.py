@@ -22,14 +22,12 @@ This pipeline creates a vocabulary artifact from one or more input columns.
 Key properties:
 - Batch only (no streaming path).
 - Vocabulary generation via MLTransform ComputeAndApplyVocabulary.
-- Reserved OOV token is always written first.
 - Output format: one token per line.
 """
 
 import argparse
 import json
 import logging
-import re
 import tempfile
 from typing import Any
 
@@ -38,10 +36,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.options.pipeline_options import PipelineOptions
-
-SUPPORTED_TOKENIZERS = ('whitespace', 'regex')
-DEFAULT_REGEX_PATTERN = r"[A-Za-z0-9_]+"
-
 
 def parse_bool_flag(value: str) -> bool:
   value_lc = value.strip().lower()
@@ -62,21 +56,6 @@ def normalize_text(value: Any, lowercase: bool = True) -> str:
   return text
 
 
-def tokenize_text(
-    text: str,
-    tokenizer: str = 'whitespace',
-    regex_pattern: str = DEFAULT_REGEX_PATTERN) -> list[str]:
-  if not text:
-    return []
-  if tokenizer == 'whitespace':
-    return [token for token in text.split() if token]
-  if tokenizer == 'regex':
-    return re.findall(regex_pattern, text)
-  raise ValueError(
-      f'Unsupported tokenizer {tokenizer!r}. '
-      f'Supported tokenizers: {", ".join(SUPPORTED_TOKENIZERS)}')
-
-
 def _parse_json_line(line: str) -> dict[str, Any]:
   try:
     parsed = json.loads(line)
@@ -89,9 +68,8 @@ def _parse_json_line(line: str) -> dict[str, Any]:
   return parsed
 
 
-def _extract_column_values(row: dict[str, Any],
-                           columns: list[str]) -> list[Any]:
-  values = []
+def _extract_column_values(row: dict[str, Any], columns: list[str]) -> list[str]:
+  values: list[str] = []
   for col in columns:
     if col not in row:
       continue
@@ -99,22 +77,20 @@ def _extract_column_values(row: dict[str, Any],
     if val is None:
       continue
     if isinstance(val, list):
-      values.extend(val)
+      values.extend(str(item) for item in val if item is not None)
     else:
-      values.append(val)
+      values.append(str(val))
   return values
 
 
-def _tokenize_row_values(
-    values: list[Any],
-    lowercase: bool,
-    tokenizer: str,
-) -> list[str]:
-  tokens: list[str] = []
-  for value in values:
-    normalized = normalize_text(value, lowercase=lowercase)
-    tokens.extend(tokenize_text(normalized, tokenizer=tokenizer))
-  return tokens
+def _build_vocab_text(row: dict[str, Any], columns: list[str],
+                      lowercase: bool) -> str:
+  values = _extract_column_values(row, columns)
+  normalized_values = [
+      normalize_text(value, lowercase=lowercase) for value in values
+  ]
+  non_empty_values = [value for value in normalized_values if value]
+  return ' '.join(non_empty_values)
 
 
 def _resolve_vocab_asset_path(
@@ -171,15 +147,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--lowercase',
       default='true',
-      help='Whether to lowercase text before tokenization (default: true).')
-  parser.add_argument(
-      '--tokenizer',
-      default='whitespace',
-      help='Tokenizer strategy: whitespace or regex.')
-  parser.add_argument(
-      '--oov_token',
-      default='<UNK>',
-      help='Reserved out-of-vocabulary token to write first.')
+      help='Whether to lowercase text before vocabulary generation.')
   parser.add_argument(
       '--input_expand_factor',
       type=int,
@@ -211,12 +179,6 @@ def validate_args(args) -> list[str]:
     raise ValueError('--vocab_size must be > 0.')
   if args.min_frequency is None or args.min_frequency < 1:
     raise ValueError('--min_frequency must be >= 1.')
-  if args.tokenizer not in SUPPORTED_TOKENIZERS:
-    raise ValueError(
-        f'Unsupported tokenizer {args.tokenizer!r}. '
-        f'Supported tokenizers: {", ".join(SUPPORTED_TOKENIZERS)}')
-  if not args.oov_token:
-    raise ValueError('--oov_token must be non-empty.')
   if args.input_expand_factor is None or args.input_expand_factor < 1:
     raise ValueError('--input_expand_factor must be >= 1.')
   return [col.strip() for col in args.columns.split(',') if col.strip()]
@@ -246,26 +208,24 @@ def run(argv=None, test_pipeline=None):
     rows = pipeline | 'ReadInputTable' >> beam.io.ReadFromBigQuery(
         table=known_args.input_table)
 
-  token_lists = (
+  vocab_text = (
       rows
-      | 'ExtractColumnValues' >>
-      beam.Map(lambda row: _extract_column_values(row, columns))
-      | 'TokenizeRowValues' >> beam.Map(
-          lambda values: _tokenize_row_values(
-              values, lowercase=lowercase, tokenizer=known_args.tokenizer))
-      | 'DropEmptyTokenLists' >> beam.Filter(bool))
+      | 'BuildVocabText' >> beam.Map(
+          lambda row: _build_vocab_text(row, columns, lowercase))
+      | 'DropEmptyText' >> beam.Filter(bool))
 
   _ = (
-      token_lists
-      | 'MLTransformInput' >> beam.Map(lambda tokens: {'tokens': tokens})
+      vocab_text
+      | 'MLTransformInput' >> beam.Map(lambda text: {'text': text})
       | 'ApplyMLTransform' >>
       MLTransform(write_artifact_location=artifact_location).with_transform(
           ComputeAndApplyVocabulary(
-              columns=['tokens'],
+              columns=['text'],
               top_k=known_args.vocab_size,
               frequency_threshold=known_args.min_frequency,
+              split_string_by_delimiter=' ',
               vocab_filename='vocab'))
-      | 'ExtractTransformedTokens' >> beam.Map(lambda row: row.tokens)
+      | 'ExtractTransformedTokens' >> beam.Map(lambda row: row.text)
       | 'FlattenTokens' >> beam.FlatMap(list)
       | 'DropEmptyTokens' >> beam.Filter(bool))
 
@@ -276,15 +236,8 @@ def run(argv=None, test_pipeline=None):
       _resolve_vocab_asset_path(
           artifact_location=artifact_location,
           vocab_filename='vocab',
-          column_name='tokens'))
-  output_tokens = [known_args.oov_token]
-  output_tokens.extend(
-      token for token in vocab_tokens if token != known_args.oov_token)
-  if len(output_tokens) == 1:
-    logging.warning(
-        'No tokens remained after filtering; writing only reserved token %r.',
-        known_args.oov_token)
-  _write_vocab_file(known_args.output_vocab, output_tokens)
+          column_name='text'))
+  _write_vocab_file(known_args.output_vocab, vocab_tokens)
   return result
 
 

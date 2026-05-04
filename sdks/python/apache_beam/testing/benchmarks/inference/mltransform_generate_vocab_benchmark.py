@@ -44,8 +44,6 @@ class MLTransformGenerateVocabBenchmarkTest(DataflowCostBenchmark):
         'vocab_size': self.pipeline.get_option('vocab_size'),
         'min_frequency': self.pipeline.get_option('min_frequency'),
         'lowercase': self.pipeline.get_option('lowercase'),
-        'tokenizer': self.pipeline.get_option('tokenizer'),
-        'oov_token': self.pipeline.get_option('oov_token'),
         'input_expand_factor': self.pipeline.get_option('input_expand_factor'),
     }
 

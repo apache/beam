@@ -22,29 +22,24 @@ import unittest
 
 try:
   from apache_beam.examples.ml_transform import mltransform_generate_vocab
-except ImportError:  # pylint: disable=bare-except
+except ImportError:
   raise unittest.SkipTest('tensorflow_transform is not installed.')
 
 
 class MLTransformGenerateVocabUnitTest(unittest.TestCase):
-  def test_normalize_and_tokenize_whitespace(self):
+  def test_normalize_text(self):
     text = mltransform_generate_vocab.normalize_text('  Hello Beam  ', True)
     self.assertEqual(text, 'hello beam')
-    tokens = mltransform_generate_vocab.tokenize_text(text, 'whitespace')
-    self.assertEqual(tokens, ['hello', 'beam'])
-
-  def test_tokenize_regex(self):
-    tokens = mltransform_generate_vocab.tokenize_text(
-        'beam,beam! 123', tokenizer='regex')
-    self.assertEqual(tokens, ['beam', 'beam', '123'])
 
   def test_null_and_empty_handling_helpers(self):
     normalized_none = mltransform_generate_vocab.normalize_text(None, True)
     self.assertEqual(normalized_none, '')
     self.assertEqual(
-        mltransform_generate_vocab._tokenize_row_values(
-            [None, '', '   ', 'Beam'], lowercase=True, tokenizer='whitespace'),
-        ['beam'])
+        mltransform_generate_vocab._build_vocab_text(
+            {
+                'text': ['Beam', None, '  ', 'Flow']
+            }, ['text'], lowercase=True),
+        'beam flow')
 
 
 class MLTransformGenerateVocabCliValidationTest(unittest.TestCase):
@@ -62,16 +57,6 @@ class MLTransformGenerateVocabCliValidationTest(unittest.TestCase):
         '--min_frequency=0',
     ])
     with self.assertRaisesRegex(ValueError, 'vocab_size'):
-      mltransform_generate_vocab.validate_args(args)
-
-  def test_invalid_tokenizer(self):
-    args, _ = mltransform_generate_vocab.parse_known_args([
-        '--input_file=a.jsonl',
-        '--output_vocab=/tmp/vocab',
-        '--columns=text',
-        '--tokenizer=custom',
-    ])
-    with self.assertRaisesRegex(ValueError, 'Unsupported tokenizer'):
       mltransform_generate_vocab.validate_args(args)
 
   def test_invalid_input_expand_factor(self):
@@ -125,8 +110,6 @@ class MLTransformGenerateVocabIntegrationTest(unittest.TestCase):
           '--vocab_size=3',
           '--min_frequency=2',
           '--lowercase=true',
-          '--tokenizer=whitespace',
-          '--oov_token=<UNK>',
           '--runner=DirectRunner',
       ])
 
@@ -134,9 +117,8 @@ class MLTransformGenerateVocabIntegrationTest(unittest.TestCase):
       with open(output_path, 'r', encoding='utf-8') as f:
         output_tokens = [line.rstrip('\n') for line in f]
 
-      self.assertEqual(output_tokens[0], '<UNK>')
-      self.assertEqual(set(output_tokens[1:]), {'beam', 'vocab', 'ml'})
-      self.assertEqual(len(output_tokens), 4)
+      self.assertEqual(set(output_tokens), {'beam', 'vocab', 'ml'})
+      self.assertEqual(len(output_tokens), 3)
 
   def test_output_is_stable_across_runs(self):
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -166,8 +148,6 @@ class MLTransformGenerateVocabIntegrationTest(unittest.TestCase):
           '--vocab_size=4',
           '--min_frequency=2',
           '--lowercase=true',
-          '--tokenizer=whitespace',
-          '--oov_token=<UNK>',
           '--runner=DirectRunner',
       ]
 
@@ -187,7 +167,7 @@ class MLTransformGenerateVocabIntegrationTest(unittest.TestCase):
 
       self.assertEqual(first_run_tokens, second_run_tokens)
 
-  def test_empty_filtered_result_writes_only_reserved_token(self):
+  def test_empty_filtered_result_writes_empty_vocab(self):
     with tempfile.TemporaryDirectory() as tmpdir:
       input_path = os.path.join(tmpdir, 'input.jsonl')
       output_prefix = os.path.join(tmpdir, 'vocab.txt')
@@ -200,14 +180,13 @@ class MLTransformGenerateVocabIntegrationTest(unittest.TestCase):
           '--columns=text',
           '--vocab_size=10',
           '--min_frequency=2',
-          '--oov_token=<UNK>',
           '--runner=DirectRunner',
       ])
 
       output_path = output_prefix
       with open(output_path, 'r', encoding='utf-8') as f:
         output_tokens = [line.rstrip('\n') for line in f]
-      self.assertEqual(output_tokens, ['<UNK>'])
+      self.assertEqual(output_tokens, [])
 
 
 if __name__ == '__main__':

@@ -25,11 +25,10 @@ rows using `MLTransform` + `ComputeAndApplyVocabulary`.
 
 1. Reads input rows from JSONL (`--input_file`) or BigQuery (`--input_table`).
 2. Extracts specified columns (`--columns`).
-3. Normalizes text (`trim`, optional lowercasing).
-4. Tokenizes text (`whitespace` or `regex` tokenizer).
-5. Runs `ComputeAndApplyVocabulary` with top-k and min-frequency constraints.
-6. Ensures `--oov_token` is included first.
-7. Writes the vocabulary as one token per line.
+3. Normalizes and combines text values (`trim`, optional lowercasing).
+4. Runs `ComputeAndApplyVocabulary` with top-k and min-frequency constraints
+   using space-delimited token splitting.
+5. Writes the vocabulary as one token per line.
 
 ### Required arguments
 
@@ -44,8 +43,6 @@ rows using `MLTransform` + `ComputeAndApplyVocabulary`.
 - `--vocab_size` (default: `50000`)
 - `--min_frequency` (default: `1`)
 - `--lowercase` (default: `true`)
-- `--tokenizer` (`whitespace` or `regex`, default: `whitespace`)
-- `--oov_token` (default: `<UNK>`)
 - `--input_expand_factor` (default: `1`, useful for perf/load testing)
 
 ### Local batch example
@@ -58,8 +55,6 @@ python -m apache_beam.examples.ml_transform.mltransform_generate_vocab \
   --vocab_size=5 \
   --min_frequency=1 \
   --lowercase=true \
-  --tokenizer=whitespace \
-  --oov_token=<UNK> \
   --input_expand_factor=1 \
   --runner=DirectRunner
 ```
@@ -85,14 +80,11 @@ sample data programmatically.
 
 One token per line:
 
-1. `oov_token` first
-2. remaining tokens follow the vocabulary order produced by
-   `ComputeAndApplyVocabulary`.
+1. tokens follow the vocabulary order produced by `ComputeAndApplyVocabulary`.
 
 Example output:
 
 ```txt
-<UNK>
 beam
 ml
 ```
@@ -106,16 +98,10 @@ For this sample and config:
 the expected output is:
 
 ```txt
-<UNK>
 beam
 vocab
 ml
 ```
-
-### Empty vocabulary behavior
-
-If all tokens are filtered out by `--min_frequency`, the pipeline writes only
-the reserved `--oov_token` and logs a warning.
 
 ### Additional test datasets
 
