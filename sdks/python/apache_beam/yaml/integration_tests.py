@@ -31,6 +31,7 @@ import random
 import secrets
 import sqlite3
 import string
+import struct
 import threading
 import unittest
 import uuid
@@ -38,7 +39,6 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-import struct
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
 
@@ -57,7 +57,8 @@ class BigEndianIntegerCoder(Coder):
 
 
 Coder.register_urn(
-    'beam:coders:javasdk:0.1', None, lambda _: BigEndianIntegerCoder())
+    'beam:coders:javasdk:0.1',
+    None, lambda payload, components, context: BigEndianIntegerCoder())
 import psycopg2
 import pytds
 import sqlalchemy
