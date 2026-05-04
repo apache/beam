@@ -31,7 +31,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -974,10 +973,7 @@ public class SplittableDoFnTest implements Serializable {
     private static final long MAX_ATTEMPTS = 3000;
 
     private static final long FINALIZATION_CALLBACK_TIMEOUT_SECS = 300;
-    // We use the UUID to uniquely identify this DoFn in case this test is run with
-    // other tests in the same JVM.
-    private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new ConcurrentHashMap<>();
-    private final UUID uuid = UUID.randomUUID();
+    private static final Map<String, AtomicBoolean> WAS_FINALIZED = new ConcurrentHashMap<>();
 
     @NewTracker
     public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
@@ -997,9 +993,12 @@ public class SplittableDoFnTest implements Serializable {
         RestrictionTracker<OffsetRange, Long> tracker,
         BundleFinalizer bundleFinalizer)
         throws InterruptedException {
-      if (WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).get()) {
+      AtomicBoolean wasFinalized =
+          WAS_FINALIZED.computeIfAbsent(element, (unused) -> new AtomicBoolean());
+      if (wasFinalized.get()) {
         tracker.tryClaim(tracker.currentRestriction().getFrom() + 1);
         receiver.output(element);
+        WAS_FINALIZED.remove(element);
         // Claim beyond the end now that we know we have been finalized.
         tracker.tryClaim(Long.MAX_VALUE);
         return stop();
@@ -1007,13 +1006,16 @@ public class SplittableDoFnTest implements Serializable {
       if (tracker.tryClaim(tracker.currentRestriction().getFrom() + 1)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardSeconds(FINALIZATION_CALLBACK_TIMEOUT_SECS)),
-            () -> WAS_FINALIZED.computeIfAbsent(uuid, (unused) -> new AtomicBoolean()).set(true));
+            () -> wasFinalized.set(true));
         // We sleep here instead of setting a resume time since the resume time doesn't need to
         // be honored.
         sleep(100L);
         return resume();
       }
-      return stop();
+      WAS_FINALIZED.remove(element);
+      throw new RuntimeException(
+          String.format(
+              "Bundle finalization callback was not observed after %d checkpoints.", MAX_ATTEMPTS));
     }
 
     @GetInitialRestriction
@@ -1027,9 +1029,10 @@ public class SplittableDoFnTest implements Serializable {
   public void testBundleFinalizationOccursOnBoundedSplittableDoFn() throws Exception {
     @BoundedPerElement
     class BoundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
-    PCollection<String> foo = p.apply(Create.of("foo"));
+    String element = "foo-" + UUID.randomUUID();
+    PCollection<String> foo = p.apply(Create.of(element));
     PCollection<String> res = foo.apply(ParDo.of(new BoundedBundleFinalizingSplittableDoFn()));
-    PAssert.that(res).containsInAnyOrder("foo");
+    PAssert.that(res).containsInAnyOrder(element);
     p.run();
   }
 
@@ -1038,9 +1041,10 @@ public class SplittableDoFnTest implements Serializable {
   public void testBundleFinalizationOccursOnUnboundedSplittableDoFn() throws Exception {
     @UnboundedPerElement
     class UnboundedBundleFinalizingSplittableDoFn extends BundleFinalizingSplittableDoFn {}
-    PCollection<String> foo = p.apply(Create.of("foo"));
+    String element = "foo-" + UUID.randomUUID();
+    PCollection<String> foo = p.apply(Create.of(element));
     PCollection<String> res = foo.apply(ParDo.of(new UnboundedBundleFinalizingSplittableDoFn()));
-    PAssert.that(res).containsInAnyOrder("foo");
+    PAssert.that(res).containsInAnyOrder(element);
     p.run();
   }
 
