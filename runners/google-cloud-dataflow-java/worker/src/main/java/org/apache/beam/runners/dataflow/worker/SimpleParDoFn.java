@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -367,14 +368,17 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
 
     Collection<W> windowsProcessed;
     if (sideInputProcessor != null) {
-      windowsProcessed = Lists.newArrayList();
+      windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
       Iterable<WindowedValue<InputT>> elementsToProcess =
           sideInputProcessor.handleProcessElement(elem);
       for (WindowedValue<InputT> toProcess : elementsToProcess) {
         fnRunner.processElement(toProcess);
-        windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
-        // If the element was blocked, don't register a cleanup timer. The timer will be registered
-        // when the window is unblocked ensuring that it is not processed until the element is.
+        if (hasState) {
+          windowsProcessed.addAll((Collection<W>) toProcess.getWindows());
+          // If the element was blocked, don't register a cleanup timer. The timer will be
+          // registered
+          // when the window is unblocked ensuring that it is not processed until the element is.
+        }
       }
     } else {
       fnRunner.processElement(elem);
