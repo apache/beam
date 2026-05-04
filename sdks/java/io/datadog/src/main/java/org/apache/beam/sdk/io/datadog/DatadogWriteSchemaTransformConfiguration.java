@@ -38,10 +38,8 @@ public abstract class DatadogWriteSchemaTransformConfiguration {
 
   public void validate() {
     String invalidConfigMessage = "Invalid Datadog Write configuration: ";
-    checkArgument(
-        !Strings.isNullOrEmpty(getUrl()), invalidConfigMessage + "url must be specified.");
-    checkArgument(
-        !Strings.isNullOrEmpty(getApiKey()), invalidConfigMessage + "apiKey must be specified.");
+    checkArgument(!getUrl().isEmpty(), invalidConfigMessage + "url must be specified.");
+    checkArgument(!getApiKey().isEmpty(), invalidConfigMessage + "apiKey must be specified.");
     Integer batchCount = getBatchCount();
     if (batchCount != null) {
       checkArgument(batchCount > 0, invalidConfigMessage + "batchCount must be greater than 0.");
