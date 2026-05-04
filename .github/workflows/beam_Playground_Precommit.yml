@@ -69,7 +69,6 @@ jobs:
       - name: Install sbt for running SCIO tests
         run: |
           sudo apt-get update --yes
-          sudo apt-get install -y wget
           sudo apt-get install apt-transport-https curl gnupg -yqq
           echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | sudo tee /etc/apt/sources.list.d/sbt.list
           echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | sudo tee /etc/apt/sources.list.d/sbt_old.list
