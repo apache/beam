@@ -169,8 +169,9 @@ public class DatadogWriteSchemaTransformProvider
                 .apply("Flatten Errors", org.apache.beam.sdk.transforms.Flatten.pCollections())
                 .setCoder(org.apache.beam.sdk.coders.RowCoder.of(dynamicErrorSchema));
 
-        return PCollectionRowTuple.of(errorHandling.getOutput(), allErrors);
+        return PCollectionRowTuple.of(ERROR, allErrors);
       } else {
+        writeErrors.apply("Fail on Write Error", ParDo.of(new FailOnWriteErrorFn()));
         return PCollectionRowTuple.empty(input.getPipeline());
       }
     }
@@ -245,17 +246,33 @@ public class DatadogWriteSchemaTransformProvider
         c.output(rowToEvent(c.element()));
       } catch (Exception e) {
         if (handleErrors) {
+          String rowString = c.element().toString();
+          String payload = rowString.length() <= 1024 ? rowString : rowString.substring(0, 1024);
           c.output(
               errorOutputTag,
               Row.withSchema(errorSchema)
                   .addValue(c.element())
-                  .addValue(c.element().toString())
+                  .addValue(payload)
                   .addValue(java.net.HttpURLConnection.HTTP_BAD_REQUEST)
                   .addValue(e.getMessage())
                   .build());
         } else {
           throw new RuntimeException(e);
         }
+      }
+    }
+  }
+
+  static class FailOnWriteErrorFn extends DoFn<DatadogWriteError, Void> {
+    @ProcessElement
+    public void processElement(@Element DatadogWriteError error) {
+      String message = error.statusMessage();
+      if (error.statusCode() != null) {
+        throw new RuntimeException(
+            String.format(
+                "Datadog write failed with status code %d: %s", error.statusCode(), message));
+      } else {
+        throw new RuntimeException("Datadog write failed: " + message);
       }
     }
   }

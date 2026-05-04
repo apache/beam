@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -159,7 +160,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollectionRowTuple output = transform.expand(inputTuple);
     assertTrue(output.getAll().isEmpty());
 
-    p.run().waitUntilFinish();
+    assertThrows(PipelineExecutionException.class, () -> p.run().waitUntilFinish());
   }
 
   @Test
@@ -299,7 +300,7 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollectionRowTuple output = transform.expand(inputTuple);
     assertTrue(output.getAll().isEmpty());
 
-    p.run().waitUntilFinish();
+    assertThrows(PipelineExecutionException.class, () -> p.run().waitUntilFinish());
   }
 
   @Test(expected = IllegalStateException.class)
