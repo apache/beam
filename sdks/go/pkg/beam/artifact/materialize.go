@@ -238,8 +238,11 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return err
 	}
 
-	if isArtifactValidationEnabled(ctx) && a.expectedSha256 != "" && sha256Hash != a.expectedSha256 {
-		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
+	if isArtifactValidationEnabled(ctx) {
+		if a.expectedSha256 != "" && sha256Hash != a.expectedSha256 {
+			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
+		}
+		log.Printf("Sha256 validation done for file: %v, with sha256 %v", filename, a.expectedSha256)
 	}
 
 	return nil
@@ -453,8 +456,11 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 	}
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
-	if isArtifactValidationEnabled(ctx) && a.Sha256 != "" && sha256Hash != a.Sha256 {
-		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
+	if isArtifactValidationEnabled(ctx) {
+		if a.Sha256 != "" && sha256Hash != a.Sha256 {
+			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
+		}
+		log.Printf("Sha256 validation done for file: %v, with sha256 %v", filename, a.Sha256)
 	}
 	return nil
 }
