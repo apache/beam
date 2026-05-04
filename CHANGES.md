@@ -66,6 +66,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * IcebergIO: support declaring a table's sort order on dynamic table creation via the new `sort_fields` config ([#38269](https://github.com/apache/beam/issues/38269)).
+* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/pull/38061))
 
 ## New Features / Improvements
 
