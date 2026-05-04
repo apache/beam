@@ -169,7 +169,7 @@ public class DatadogWriteSchemaTransformProvider
                 .apply("Flatten Errors", org.apache.beam.sdk.transforms.Flatten.pCollections())
                 .setCoder(org.apache.beam.sdk.coders.RowCoder.of(dynamicErrorSchema));
 
-        return PCollectionRowTuple.of(ERROR, allErrors);
+        return PCollectionRowTuple.of(errorHandling.getOutput(), allErrors);
       } else {
         writeErrors.apply("Fail on Write Error", ParDo.of(new FailOnWriteErrorFn()));
         return PCollectionRowTuple.empty(input.getPipeline());
