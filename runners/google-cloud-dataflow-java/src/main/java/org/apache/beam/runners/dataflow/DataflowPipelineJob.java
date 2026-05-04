@@ -433,6 +433,7 @@ public class DataflowPipelineJob implements PipelineResult {
 
   private AtomicReference<FutureTask<State>> cancelState = new AtomicReference<>();
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public State cancel() throws IOException {
     // Enforce that a cancel() call on the job is done at most once - as

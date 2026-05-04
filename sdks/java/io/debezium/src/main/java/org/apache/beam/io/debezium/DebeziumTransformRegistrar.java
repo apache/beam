@@ -18,6 +18,7 @@
 package org.apache.beam.io.debezium;
 
 import com.google.auto.service.AutoService;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -78,6 +79,8 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
       private @Nullable List<String> connectionProperties;
       private @Nullable Long maxNumberOfRecords;
       private @Nullable Long maxTimeToRun;
+      private @Nullable List<String> startOffset;
+      private @Nullable String offsetStoragePath;
 
       public void setConnectionProperties(@Nullable List<String> connectionProperties) {
         this.connectionProperties = connectionProperties;
@@ -89,6 +92,14 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       public void setMaxTimeToRun(@Nullable Long maxTimeToRun) {
         this.maxTimeToRun = maxTimeToRun;
+      }
+
+      public void setStartOffset(@Nullable List<String> startOffset) {
+        this.startOffset = startOffset;
+      }
+
+      public void setOffsetStoragePath(@Nullable String offsetStoragePath) {
+        this.offsetStoragePath = offsetStoragePath;
       }
     }
 
@@ -121,6 +132,33 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
       if (configuration.maxTimeToRun != null) {
         readTransform = readTransform.withMaxTimeToRun(configuration.maxTimeToRun);
+      }
+
+      if (configuration.startOffset != null) {
+        Map<String, Object> startOffsetMap = new HashMap<>();
+        for (String property : configuration.startOffset) {
+          String[] parts = property.split("=", 2);
+          if (parts.length != 2) {
+            throw new IllegalArgumentException(
+                "Invalid startOffset entry: \""
+                    + property
+                    + "\". Expected format is \"key=value\".");
+          }
+          String key = parts[0];
+          String value = parts[1];
+          try {
+            startOffsetMap.put(key, Long.parseLong(value));
+          } catch (NumberFormatException e) {
+            startOffsetMap.put(key, value);
+          }
+        }
+        readTransform = readTransform.withStartOffset(startOffsetMap);
+      }
+
+      if (configuration.offsetStoragePath != null) {
+        readTransform =
+            readTransform.withOffsetRetainer(
+                FileSystemOffsetRetainer.of(configuration.offsetStoragePath));
       }
 
       return readTransform;

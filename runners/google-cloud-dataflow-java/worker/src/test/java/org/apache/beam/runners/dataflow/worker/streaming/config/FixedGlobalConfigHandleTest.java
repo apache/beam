@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.OperationalLimits;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ConnectivityType;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.UserWorkerRunnerV1Settings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
@@ -47,7 +48,7 @@ public class FixedGlobalConfigHandleTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     FixedGlobalConfigHandle globalConfigHandle = new FixedGlobalConfigHandle(config);
@@ -67,7 +68,7 @@ public class FixedGlobalConfigHandleTest {
             .setWindmillServiceEndpoints(ImmutableSet.of(HostAndPort.fromHost("windmillHost")))
             .setUserWorkerJobSettings(
                 UserWorkerRunnerV1Settings.newBuilder()
-                    .setUseSeparateWindmillHeartbeatStreams(false)
+                    .setConnectivityType(ConnectivityType.CONNECTIVITY_TYPE_CLOUDPATH)
                     .build())
             .build();
     FixedGlobalConfigHandle globalConfigHandle = new FixedGlobalConfigHandle(config);

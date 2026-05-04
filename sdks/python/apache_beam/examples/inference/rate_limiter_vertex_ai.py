@@ -52,6 +52,7 @@ def run(argv=None):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
 
+  # [START RateLimiterVertexPy]
   # Initialize the EnvoyRateLimiter
   rate_limiter = EnvoyRateLimiter(
       service_address=known_args.rls_address,
@@ -67,6 +68,7 @@ def run(argv=None):
       project=known_args.project,
       location=known_args.location,
       rate_limiter=rate_limiter)
+  # [END RateLimiterVertexPy]
 
   # Input features for the model
   features = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],

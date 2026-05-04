@@ -1065,7 +1065,7 @@ public class SpannerIOWriteTest implements Serializable {
     BatchableMutationFilterFn testFn =
         new BatchableMutationFilterFn(null, null, 10000000, 3 * CELLS_PER_KEY, 1000);
 
-    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
@@ -1195,7 +1195,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 1000, 1000, 3);
 
-    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
@@ -1246,7 +1246,7 @@ public class SpannerIOWriteTest implements Serializable {
 
     BatchableMutationFilterFn testFn = new BatchableMutationFilterFn(null, null, 0, 0, 0);
 
-    BatchableMutationFilterFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, MutationGroup>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
@@ -1280,9 +1280,9 @@ public class SpannerIOWriteTest implements Serializable {
             100, // groupingFactor
             null);
 
-    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
-    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext mockFinishBundleContext =
         Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 
@@ -1355,9 +1355,9 @@ public class SpannerIOWriteTest implements Serializable {
             3, // groupingFactor
             null);
 
-    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
-    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext mockFinishBundleContext =
         Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
     OutputReceiver<Iterable<MutationGroup>> mockOutputReceiver = mock(OutputReceiver.class);
@@ -1485,9 +1485,9 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   private void testAndVerifyBatches(GatherSortCreateBatchesFn testFn) throws Exception {
-    GatherSortCreateBatchesFn.ProcessContext mockProcessContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.ProcessContext mockProcessContext =
         Mockito.mock(ProcessContext.class);
-    GatherSortCreateBatchesFn.FinishBundleContext mockFinishBundleContext =
+    DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext mockFinishBundleContext =
         Mockito.mock(FinishBundleContext.class);
     when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
 

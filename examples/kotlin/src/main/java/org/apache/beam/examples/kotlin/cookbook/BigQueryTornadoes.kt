@@ -27,6 +27,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.options.*
 import org.apache.beam.sdk.transforms.Count
 import org.apache.beam.sdk.transforms.DoFn
+import org.apache.beam.sdk.transforms.DoFn.Element
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver
 import org.apache.beam.sdk.transforms.PTransform
 import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.KV
@@ -73,10 +75,9 @@ object BigQueryTornadoes {
      */
     internal class ExtractTornadoesFn : DoFn<TableRow, Int>() {
         @ProcessElement
-        fun processElement(c: ProcessContext) {
-            val row = c.element()
+        fun processElement(@Element row: TableRow, receiver: OutputReceiver<Int>) {
             if (row["tornado"] as Boolean) {
-                c.output(Integer.parseInt(row["month"] as String))
+                receiver.output(Integer.parseInt(row["month"] as String))
             }
         }
     }
@@ -87,11 +88,11 @@ object BigQueryTornadoes {
      */
     internal class FormatCountsFn : DoFn<KV<Int, Long>, TableRow>() {
         @ProcessElement
-        fun processElement(c: ProcessContext) {
+        fun processElement(@Element element: KV<Int, Long>, receiver: OutputReceiver<TableRow>) {
             val row = TableRow()
-                    .set("month", c.element().key)
-                    .set("tornado_count", c.element().value)
-            c.output(row)
+                    .set("month", element.key)
+                    .set("tornado_count", element.value)
+            receiver.output(row)
         }
     }
 

@@ -117,7 +117,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       String msg =
           String.format("ProcessBundleDescriptor with id %s not found", bundleDescriptorId);
       responseObserver.onError(new StatusException(Status.NOT_FOUND.withDescription(msg)));
-      LOG.error(msg);
+      LOG.error("{}", msg);
     } else {
       responseObserver.onNext(descriptor);
       responseObserver.onCompleted();

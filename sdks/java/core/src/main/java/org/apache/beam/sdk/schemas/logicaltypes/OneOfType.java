@@ -206,7 +206,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Value)) {
         return false;
       }
       Value value1 = (Value) o;

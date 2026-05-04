@@ -26,7 +26,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/mongodbio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"

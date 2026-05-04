@@ -30,7 +30,7 @@ public abstract class SplunkEventsCheck extends ConditionCheck {
 
   abstract @Nullable String query();
 
-  abstract Integer minEvents();
+  abstract int minEvents();
 
   abstract @Nullable Integer maxEvents();
 
@@ -85,7 +85,7 @@ public abstract class SplunkEventsCheck extends ConditionCheck {
 
     public abstract Builder setQuery(String query);
 
-    public abstract Builder setMinEvents(Integer minEvents);
+    public abstract Builder setMinEvents(int minEvents);
 
     public abstract Builder setMaxEvents(Integer maxEvents);
 

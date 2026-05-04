@@ -89,7 +89,7 @@ public class SerializablePipelineOptions implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SerializablePipelineOptions)) {
       return false;
     }
     SerializablePipelineOptions that = (SerializablePipelineOptions) o;

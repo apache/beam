@@ -209,6 +209,7 @@ public class BeamSqlLineIT implements Serializable {
             });
   }
 
+  @SuppressWarnings("JavaUtilDate")
   private long convertTimestampToMillis(String timestamp) throws ParseException {
     return dateFormat.parse(timestamp).getTime();
   }

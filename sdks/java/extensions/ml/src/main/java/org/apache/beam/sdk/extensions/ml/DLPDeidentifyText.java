@@ -88,7 +88,7 @@ public abstract class DLPDeidentifyText
   public abstract @Nullable String getColumnDelimiter();
 
   /** Returns size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer getBatchSizeBytes();
+  public abstract int getBatchSizeBytes();
 
   /** Returns ID of Google Cloud project to be used when deidentifying data. */
   public abstract String getProjectId();
@@ -121,7 +121,7 @@ public abstract class DLPDeidentifyText
      *
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
-    public abstract Builder setBatchSizeBytes(Integer batchSize);
+    public abstract Builder setBatchSizeBytes(int batchSize);
 
     /**
      * Sets ID of Google Cloud project to be used when deidentifying data.

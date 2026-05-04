@@ -118,7 +118,7 @@ public class GcsUtil {
     return delegate.fileSize(path);
   }
 
-  /** @deprecated use {@link #getBlob(GcsPath)}. */
+  /** @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}. */
   @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return delegate.getObject(gcsPath);

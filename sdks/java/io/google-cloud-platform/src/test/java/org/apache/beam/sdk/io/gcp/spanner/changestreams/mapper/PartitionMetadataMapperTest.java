@@ -33,6 +33,7 @@ import static org.junit.Assert.assertEquals;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import java.util.Collections;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -80,7 +81,7 @@ public class PartitionMetadataMapperTest {
 
     assertEquals(
         new PartitionMetadata(
-            "token",
+            PartitionMetadataDao.extractPartitionToken("token"),
             Sets.newHashSet("parentToken"),
             Timestamp.ofTimeMicroseconds(10L),
             Timestamp.ofTimeMicroseconds(20L),
@@ -90,7 +91,8 @@ public class PartitionMetadataMapperTest {
             Timestamp.ofTimeMicroseconds(40),
             Timestamp.ofTimeMicroseconds(50),
             Timestamp.ofTimeMicroseconds(60),
-            Timestamp.ofTimeMicroseconds(70)),
+            Timestamp.ofTimeMicroseconds(70),
+            PartitionMetadataDao.extractTvfName("token")),
         partition);
   }
 
@@ -126,7 +128,7 @@ public class PartitionMetadataMapperTest {
 
     assertEquals(
         new PartitionMetadata(
-            "token",
+            PartitionMetadataDao.extractPartitionToken("token"),
             Sets.newHashSet("parentToken"),
             Timestamp.ofTimeMicroseconds(10L),
             Timestamp.ofTimeMicroseconds(20L),
@@ -136,7 +138,8 @@ public class PartitionMetadataMapperTest {
             Timestamp.ofTimeMicroseconds(40),
             null,
             null,
-            null),
+            null,
+            PartitionMetadataDao.extractTvfName("token")),
         partition);
   }
 }

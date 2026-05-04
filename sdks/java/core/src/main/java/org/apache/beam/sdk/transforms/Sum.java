@@ -142,7 +142,7 @@ public class Sum {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(this.getClass());
+      return other instanceof SumIntegerFn;
     }
 
     @Override
@@ -165,7 +165,7 @@ public class Sum {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(this.getClass());
+      return other instanceof SumLongFn;
     }
 
     @Override
@@ -188,7 +188,7 @@ public class Sum {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(this.getClass());
+      return other instanceof SumDoubleFn;
     }
 
     @Override

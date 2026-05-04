@@ -77,7 +77,7 @@ public abstract class DLPInspectText
   public abstract @Nullable InspectConfig getInspectConfig();
 
   /** Returns size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer getBatchSizeBytes();
+  public abstract int getBatchSizeBytes();
 
   /** Returns ID of Google Cloud project to be used when deidentifying data. */
   public abstract String getProjectId();
@@ -110,7 +110,7 @@ public abstract class DLPInspectText
      *
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
-    public abstract Builder setBatchSizeBytes(Integer batchSize);
+    public abstract Builder setBatchSizeBytes(int batchSize);
 
     /**
      * Sets ID of Google Cloud project to be used when deidentifying data.

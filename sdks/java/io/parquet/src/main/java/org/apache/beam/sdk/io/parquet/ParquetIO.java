@@ -971,10 +971,10 @@ public class ParquetIO {
       }
     }
 
-    private static class BeamParquetInputFile implements InputFile {
+    public static class BeamParquetInputFile implements InputFile {
       private final SeekableByteChannel seekableByteChannel;
 
-      BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
+      public BeamParquetInputFile(SeekableByteChannel seekableByteChannel) {
         this.seekableByteChannel = seekableByteChannel;
       }
 
@@ -1010,7 +1010,6 @@ public class ParquetIO {
         .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
         .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
         .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
-        .setMinRowCountForPageSizeCheck(ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK)
         .build();
   }
 
@@ -1032,7 +1031,7 @@ public class ParquetIO {
 
     abstract boolean getEnableBloomFilter();
 
-    abstract int getMinRowCountForPageSizeCheck();
+    abstract @Nullable ValueProvider<Integer> getMinRowCountForPageSizeCheck();
 
     abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
 
@@ -1054,7 +1053,8 @@ public class ParquetIO {
 
       abstract Builder setEnableBloomFilter(boolean enableBloomFilter);
 
-      abstract Builder setMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck);
+      abstract Builder setMinRowCountForPageSizeCheck(
+          ValueProvider<Integer> minRowCountForPageSizeCheck);
 
       abstract Builder setAvroDataModelClass(Class<? extends GenericData> modelClass);
 
@@ -1109,6 +1109,24 @@ public class ParquetIO {
     public Sink withMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck) {
       checkArgument(
           minRowCountForPageSizeCheck > 0, "minRowCountForPageSizeCheck must be positive");
+      return toBuilder()
+          .setMinRowCountForPageSizeCheck(
+              ValueProvider.StaticValueProvider.of(minRowCountForPageSizeCheck))
+          .build();
+    }
+
+    /**
+     * Like {@link #withMinRowCountForPageSizeCheck(int)}, but accepts a {@link ValueProvider} so
+     * the value can be supplied at runtime (required for classic Dataflow templates).
+     */
+    public Sink withMinRowCountForPageSizeCheck(
+        ValueProvider<Integer> minRowCountForPageSizeCheck) {
+      checkNotNull(minRowCountForPageSizeCheck, "minRowCountForPageSizeCheck can not be null");
+      if (minRowCountForPageSizeCheck.isAccessible()) {
+        Integer value = minRowCountForPageSizeCheck.get();
+        checkNotNull(value, "minRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "minRowCountForPageSizeCheck must be positive");
+      }
       return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
     }
 
@@ -1141,8 +1159,16 @@ public class ParquetIO {
               .withRowGroupSize(getRowGroupSize())
               .withPageSize(getPageSize())
               .withDictionaryEncoding(getEnableDictionary())
-              .withBloomFilterEnabled(getEnableBloomFilter())
-              .withMinRowCountForPageSizeCheck(getMinRowCountForPageSizeCheck());
+              .withBloomFilterEnabled(getEnableBloomFilter());
+
+      ValueProvider<Integer> minRowCountProvider = getMinRowCountForPageSizeCheck();
+      if (minRowCountProvider != null) {
+        Integer minRowCount = minRowCountProvider.get();
+        if (minRowCount != null) {
+          checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
+          builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
+        }
+      }
 
       if (modelClass != null) {
         try {

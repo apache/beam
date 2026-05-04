@@ -1020,7 +1020,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      native
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/neo4j/Neo4jIO.html">native</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>
@@ -1127,7 +1127,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   </tr>
   <tr>
     <td>
-      Iceberg (Managed I/O)
+      Iceberg (<a href="/documentation/io/built-in/iceberg/">guide</a>)
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -1146,6 +1146,148 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>CsvIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/csv/CsvIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromcsv">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetocsv">write</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>JsonIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/json/JsonIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromjson">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetojson">write</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ContextualTextIO</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/contextualtextio/ContextualTextIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>PulsarIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/pulsar/PulsarIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>SolaceIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solace/SolaceIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DatadogIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/datadog/DatadogIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>CosmosIO (Azure Cosmos DB)</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/azure/cosmos/CosmosIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>AzureBlobStoreFileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/azure/blobstore/AzureBlobStoreFileSystemRegistrar.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
   </tr>
 </table>
 </div>
@@ -1166,23 +1308,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <th>Batch Supported</th>
     <th>Streaming Supported</th>
   </tr>
-  <tr>
-    <td>
-      <a href="https://github.com/SolaceProducts/solace-apache-beam">Solace</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="absent">✘</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td class="present">✔</td>
-    <td class="present">✔</td>
-  </tr>
+
   <tr>
     <td>
       <a href="https://github.com/google/hana-bq-beam-connector">SAP Hana to Google BigQuery</a>

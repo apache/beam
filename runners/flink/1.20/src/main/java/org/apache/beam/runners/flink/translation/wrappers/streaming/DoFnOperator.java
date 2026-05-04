@@ -596,9 +596,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   /**
-   * Retrieve a keyed state backend that should be used to buffer elements for {@link @{code @}
-   * RequiresStableInput} functionality. By default this is the default keyed backend, but can be
-   * override in @{link ExecutableStageDoFnOperator}.
+   * Retrieve a keyed state backend that should be used to buffer elements for
+   * {@code @RequiresStableInput} functionality. By default this is the default keyed backend, but
+   * can be override in {@link ExecutableStageDoFnOperator}.
    *
    * @return the keyed backend to use for element buffering
    */
@@ -1655,7 +1655,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -1672,7 +1672,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}. */
+    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {

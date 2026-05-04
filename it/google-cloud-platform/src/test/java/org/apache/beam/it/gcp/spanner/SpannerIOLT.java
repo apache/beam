@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.text.ParseException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Objects;
@@ -76,7 +76,7 @@ public class SpannerIOLT extends IOLoadTestBase {
     tableName =
         "io_spanner_"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
 

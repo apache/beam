@@ -122,6 +122,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object o) {
     if (o == null || this.getClass() != o.getClass()) {
       return false;

@@ -190,17 +190,15 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer;
-        try (FileIO io = table.io()) {
-          writer = createManifestWriter(table.location(), uuid, spec, io);
-          for (DataFile file : files) {
-            writer.add(file);
-            committedDataFileByteSize.update(file.fileSizeInBytes());
-            committedDataFileRecordCount.update(file.recordCount());
-          }
-          writer.close();
-          update.appendManifest(writer.toManifestFile());
+        FileIO io = table.io();
+        ManifestWriter<DataFile> writer = createManifestWriter(table.location(), uuid, spec, io);
+        for (DataFile file : files) {
+          writer.add(file);
+          committedDataFileByteSize.update(file.fileSizeInBytes());
+          committedDataFileRecordCount.update(file.recordCount());
         }
+        writer.close();
+        update.appendManifest(writer.toManifestFile());
       }
       update.commit();
     }

@@ -103,7 +103,7 @@ public abstract class OrderedProcessingStatus {
     if (obj == null) {
       return false;
     }
-    if (!OrderedProcessingStatus.class.isAssignableFrom(obj.getClass())) {
+    if (!(obj instanceof OrderedProcessingStatus)) {
       return false;
     }
     OrderedProcessingStatus that = (OrderedProcessingStatus) obj;

@@ -123,6 +123,10 @@ public abstract class ValueInSingleWindow<T> {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
         // todo #33176 specify additional metadata in the future
+        builder.setDrain(
+            windowedElem.getCausedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING);
         BeamFnApi.Elements.ElementMetadata metadata = builder.build();
         ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
       }

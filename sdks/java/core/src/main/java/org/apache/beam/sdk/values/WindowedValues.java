@@ -52,6 +52,7 @@ import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -77,7 +78,10 @@ public class WindowedValues {
         .setValue(template.getValue())
         .setTimestamp(template.getTimestamp())
         .setWindows(template.getWindows())
-        .setPaneInfo(template.getPaneInfo());
+        .setPaneInfo(template.getPaneInfo())
+        .setRecordOffset(template.getRecordOffset())
+        .setRecordId(template.getRecordId())
+        .setCausedByDrain(template.causedByDrain());
   }
 
   public static class Builder<T> implements OutputBuilder<T> {
@@ -145,6 +149,7 @@ public class WindowedValues {
 
     @Override
     public Builder<T> setCausedByDrain(CausedByDrain causedByDrain) {
+      checkStateNotNull(causedByDrain, "CausedByDrain is null");
       this.causedByDrain = causedByDrain;
       return this;
     }
@@ -199,6 +204,7 @@ public class WindowedValues {
 
     @Override
     public CausedByDrain causedByDrain() {
+      checkStateNotNull(causedByDrain, "CausedByDrain not set");
       return causedByDrain;
     }
 
@@ -269,9 +275,16 @@ public class WindowedValues {
       CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
-
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(
+          value,
+          timestamp,
+          windows.iterator().next(),
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
           value, timestamp, windows, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
@@ -287,7 +300,7 @@ public class WindowedValues {
       PaneInfo paneInfo,
       CausedByDrain causedByDrain) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), paneInfo, causedByDrain);
+      return of(value, timestamp, windows.iterator().next(), paneInfo, null, null, causedByDrain);
     } else {
       return new TimestampedValueInMultipleWindows<>(
           value, timestamp, windows, paneInfo, null, null, causedByDrain);
@@ -299,7 +312,7 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, CausedByDrain.NORMAL);
+    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
@@ -308,18 +321,22 @@ public class WindowedValues {
       Instant timestamp,
       BoundedWindow window,
       PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
       CausedByDrain causedByDrain) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
+    checkArgument(causedByDrain != null, "WindowedValue requires CausedByDrain, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInGlobalWindow(value, paneInfo);
+      return new ValueInGlobalWindow<>(
+          value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, paneInfo, null, null, causedByDrain);
+          value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     } else {
       return new TimestampedValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain);
+          value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
     }
   }
 
@@ -397,7 +414,7 @@ public class WindowedValues {
     // comparisons are made on their Chronology objects.
     return left.getTimestamp().isEqual(right.getTimestamp())
         && Objects.equals(left.getValue(), right.getValue())
-        && Objects.equals(left.getWindows(), right.getWindows())
+        && Iterables.elementsEqual(left.getWindows(), right.getWindows())
         && Objects.equals(left.getPaneInfo(), right.getPaneInfo());
   }
 
@@ -773,6 +790,7 @@ public class WindowedValues {
     }
 
     @Override
+    @SuppressWarnings("UndefinedEquals")
     public boolean equals(@Nullable Object o) {
       if (o instanceof TimestampedValueInMultipleWindows) {
         TimestampedValueInMultipleWindows<?> that = (TimestampedValueInMultipleWindows<?>) o;

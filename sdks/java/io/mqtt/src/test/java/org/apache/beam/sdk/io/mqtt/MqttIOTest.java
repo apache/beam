@@ -329,19 +329,19 @@ public class MqttIOTest {
     preparer.add(messages.get(4), Instant.ofEpochMilli(50));
     MqttIO.MqttCheckpointMark checkpointB = preparer.newCheckpoint();
     assertTrue(
-        Arrays.stream(messages.toArray()).allMatch((m -> ((FakeMessage) m).getAckCount() == 0)));
+        Arrays.stream(messages.toArray()).allMatch(m -> ((FakeMessage) m).getAckCount() == 0));
     checkpointA.finalizeCheckpoint();
     // only messages in finalized checkpoint acked
     assertTrue(
         Arrays.stream(messages.subList(0, 3).toArray())
-            .allMatch((m -> ((FakeMessage) m).getAckCount() == 1)));
+            .allMatch(m -> ((FakeMessage) m).getAckCount() == 1));
     assertTrue(
         Arrays.stream(messages.subList(3, 5).toArray())
-            .allMatch((m -> ((FakeMessage) m).getAckCount() == 0)));
+            .allMatch(m -> ((FakeMessage) m).getAckCount() == 0));
     checkpointB.finalizeCheckpoint();
     // all messaged acked once
     assertTrue(
-        Arrays.stream(messages.toArray()).allMatch((m -> ((FakeMessage) m).getAckCount() == 1)));
+        Arrays.stream(messages.toArray()).allMatch(m -> ((FakeMessage) m).getAckCount() == 1));
   }
 
   @Test

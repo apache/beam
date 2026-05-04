@@ -26,7 +26,7 @@ import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
-import org.apache.beam.sdk.coders.BitSetCoder;
+import org.apache.beam.runners.core.serialization.SentinelBitSetCoder;
 import org.apache.beam.sdk.state.Timers;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -59,7 +59,7 @@ import org.joda.time.Instant;
 public class TriggerStateMachineRunner<W extends BoundedWindow> {
   @VisibleForTesting
   public static final StateTag<ValueState<BitSet>> FINISHED_BITS_TAG =
-      StateTags.makeSystemTagInternal(StateTags.value("closed", BitSetCoder.of()));
+      StateTags.makeSystemTagInternal(StateTags.value("closed", SentinelBitSetCoder.of()));
 
   private final ExecutableTriggerStateMachine rootTrigger;
   private final TriggerStateMachineContextFactory<W> contextFactory;

@@ -85,7 +85,7 @@ public class CustomSources {
       try {
         metadata.setEstimatedSizeBytes(boundedSource.getEstimatedSizeBytes(options));
       } catch (Exception e) {
-        LOG.warn("Size estimation of the source failed: " + source, e);
+        LOG.warn("Size estimation of the source failed: {}", source, e);
       }
     } else if (source instanceof UnboundedSource) {
       UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) source;

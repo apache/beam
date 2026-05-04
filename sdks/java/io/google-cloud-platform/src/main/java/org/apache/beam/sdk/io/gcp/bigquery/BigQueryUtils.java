@@ -290,7 +290,7 @@ public class BigQueryUtils {
             .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
             .appendLiteral(" UTC")
             .toFormatter()
-            .withZone(java.time.ZoneId.of("UTC"));
+            .withZone(ZoneOffset.UTC);
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
@@ -449,7 +449,7 @@ public class BigQueryUtils {
    * <p>Supports both standard and legacy SQL types.
    *
    * @param schema Schema of the type returned
-   * @param nestedFields Nested fields for the given type (eg. RECORD type)
+   * @param options Options for schema conversion
    * @return Corresponding Beam {@link FieldType}
    */
   private static FieldType fromTableFieldSchemaType(

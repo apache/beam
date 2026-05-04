@@ -73,6 +73,7 @@ class TwitterConnection {
             try {
               queue.offer(status);
             } catch (Exception ignored) {
+              // Ignore exceptions during enqueueing.
             }
           }
 

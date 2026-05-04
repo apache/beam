@@ -19,8 +19,20 @@
 import groovy.json.JsonOutput
 
 apply plugin: 'org.apache.beam.module'
+
+// Numeric version comparison (lexicographic string compare was fragile — e.g. "3.10.0" < "3.5.0").
+def isSparkAtLeast = { String minVersion ->
+  def parts = spark_version.tokenize('.-').findAll { it.isInteger() }*.toInteger()
+  def minParts = minVersion.tokenize('.-').findAll { it.isInteger() }*.toInteger()
+  for (int i = 0; i < Math.min(parts.size(), minParts.size()); i++) {
+    if (parts[i] != minParts[i]) return parts[i] > minParts[i]
+  }
+  return parts.size() >= minParts.size()
+}
+
 applyJavaNature(
   enableStrictDependencies: true,
+  requireJavaVersion: (isSparkAtLeast("4.0.0") ? org.gradle.api.JavaVersion.VERSION_17 : null),
   automaticModuleName: 'org.apache.beam.runners.spark',
   archivesBaseName: (project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName),
   exportJavadoc: (project.hasProperty('exportJavadoc') ? exportJavadoc : true),
@@ -89,38 +101,102 @@ def hadoopVersions = [
 
 hadoopVersions.each { kv -> configurations.create("hadoopVersion$kv.key") }
 
-def sourceBase = "${project.projectDir}/../src"
-def sourceBaseCopy = "${project.buildDir}/sourcebase/src"
+/*
+ * Per-version source overrides (mirrors runners/flink/flink_runner.gradle).
+ *
+ * Layout:
+ *   runners/spark/src/                 -- shared base (lowest supported version uses these directly)
+ *   runners/spark/<major>/src/         -- version-specific overrides (later overrides take precedence)
+ *
+ * The lowest supported `spark_major` builds straight from the shared base.
+ * Higher versions copy <shared> + <previous majors> + <current> into a single
+ * source-overrides directory using DuplicatesStrategy.INCLUDE so the current
+ * version's files override earlier ones.
+ */
+def base_path = ".."
 
-def useCopiedSourceSet = { scope, type, trigger ->
-  def taskName = "copy${scope.capitalize()}${type.capitalize()}"
-  trigger.dependsOn tasks.register(taskName, Copy) {
-    from "$sourceBase/$scope/$type"
-    into "$sourceBaseCopy/$scope/$type"
-    duplicatesStrategy DuplicatesStrategy.INCLUDE
-  }
-  // append copied sources to srcDirs
-  sourceSets."$scope"."$type".srcDirs "$sourceBaseCopy/$scope/$type"
+def overrides = { versions, type, group = 'java' ->
+  // order matters: later entries override earlier ones during the Copy
+  ["${base_path}/src/${type}/${group}"] +
+      versions.collect { "${base_path}/${it}/src/${type}/${group}" } +
+      ["./src/${type}/${group}"]
 }
 
-if (copySourceBase) {
-  // Copy source base into build directory.
-  // While this is not necessary, having multiple source sets referencing the same shared base will typically confuse an IDE and harm developer experience.
-  // The copySourceBase flag can be swapped without any implications and allows to pick a main version that is actively worked on.
-  useCopiedSourceSet("main", "java", compileJava)
-  useCopiedSourceSet("main", "resources", processResources)
-  useCopiedSourceSet("test", "java", compileTestJava)
-  useCopiedSourceSet("test", "resources", processTestResources)
-} else {
-  // append shared base sources to srcDirs
+def all_versions = spark_versions.split(",").collect { it.trim() }
+// Determine version order by list position rather than string comparison so two-digit
+// majors (e.g. "10") still sort after single-digit ones.
+def spark_major_index = all_versions.indexOf(spark_major)
+if (spark_major_index < 0) {
+  throw new GradleException(
+      "spark_major='${spark_major}' is not listed in spark_versions='${spark_versions}' " +
+      "(see root gradle.properties).")
+}
+def previous_versions = spark_major_index > 0 ? all_versions.subList(0, spark_major_index) : []
+
+def main_source_overrides = overrides(previous_versions, "main")
+def test_source_overrides = overrides(previous_versions, "test")
+def main_resources_overrides = overrides(previous_versions, "main", "resources")
+def test_resources_overrides = overrides(previous_versions, "test", "resources")
+
+def sourceOverridesBase = project.layout.buildDirectory.dir('source-overrides/src').get()
+
+def copySourceOverrides = tasks.register('copySourceOverrides', Copy) { copyTask ->
+  copyTask.from main_source_overrides
+  copyTask.into "${sourceOverridesBase}/main/java"
+  copyTask.duplicatesStrategy DuplicatesStrategy.INCLUDE
+  if (project.ext.has('excluded_files') && project.ext.excluded_files.containsKey('main')) {
+    project.ext.excluded_files.main.each { f -> copyTask.exclude "**/${f}" }
+  }
+}
+
+def copyResourcesOverrides = tasks.register('copyResourcesOverrides', Copy) {
+  it.from main_resources_overrides
+  it.into "${sourceOverridesBase}/main/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+
+def copyTestSourceOverrides = tasks.register('copyTestSourceOverrides', Copy) { copyTask ->
+  copyTask.from test_source_overrides
+  copyTask.into "${sourceOverridesBase}/test/java"
+  copyTask.duplicatesStrategy DuplicatesStrategy.INCLUDE
+  if (project.ext.has('excluded_files') && project.ext.excluded_files.containsKey('test')) {
+    project.ext.excluded_files.test.each { f -> copyTask.exclude "**/${f}" }
+  }
+}
+
+def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Copy) {
+  it.from test_resources_overrides
+  it.into "${sourceOverridesBase}/test/resources"
+  it.duplicatesStrategy DuplicatesStrategy.INCLUDE
+}
+
+def use_override = (spark_major_index > 0)
+def sourceBase = "${project.projectDir}/../src"
+
+if (use_override) {
+  // Pin srcDirs to the Copy task providers so each higher version sees only its merged
+  // overrides tree. Passing the TaskProviders here lets Gradle auto-wire task dependencies
+  // for every consumer (compile, javadoc, sources jar, etc.) without manual dependsOn.
   sourceSets {
     main {
-      java.srcDirs "${sourceBase}/main/java"
-      resources.srcDirs "${sourceBase}/main/resources"
+      java { srcDirs = [copySourceOverrides] }
+      resources { srcDirs = [copyResourcesOverrides] }
     }
     test {
-      java.srcDirs "${sourceBase}/test/java"
-      resources.srcDirs "${sourceBase}/test/resources"
+      java { srcDirs = [copyTestSourceOverrides] }
+      resources { srcDirs = [copyTestResourcesOverrides] }
+    }
+  }
+} else {
+  // Lowest supported Spark version: build straight from the shared base, no copy step.
+  sourceSets {
+    main {
+      java { srcDirs = ["${sourceBase}/main/java"] }
+      resources { srcDirs = ["${sourceBase}/main/resources"] }
+    }
+    test {
+      java { srcDirs = ["${sourceBase}/test/java"] }
+      resources { srcDirs = ["${sourceBase}/test/resources"] }
     }
   }
 }
@@ -176,7 +252,7 @@ dependencies {
   spark.components.each { component ->
     provided "$component:$spark_version"
   }
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     implementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
     implementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
   }
@@ -206,7 +282,7 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     testImplementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
     testImplementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
   }
@@ -220,7 +296,7 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
     // Force paranamer 2.8 to avoid issues when using Scala 2.12
     "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
-    if ("$spark_version" >= "3.5.0") {
+    if (isSparkAtLeast("3.5.0")) {
       // Add log4j 2.x dependencies as Spark 3.5+ uses slf4j with log4j 2.x backend
       "hadoopVersion$kv.key" library.java.log4j2_api
       "hadoopVersion$kv.key" library.java.log4j2_core
@@ -246,7 +322,7 @@ configurations.validatesRunner {
   // Exclude to make sure log4j binding is used
   exclude group: "org.slf4j", module: "slf4j-simple"
 
-  if ("$spark_version" >= "3.5.0") {
+  if (isSparkAtLeast("3.5.0")) {
     // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
     exclude group: "log4j", module: "log4j"
   }
@@ -257,7 +333,7 @@ hadoopVersions.each { kv ->
     resolutionStrategy {
       force "org.apache.hadoop:hadoop-common:$kv.value"
     }
-    if ("$spark_version" >= "3.5.0") {
+    if (isSparkAtLeast("3.5.0")) {
       // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
       exclude group: "log4j", module: "log4j"
     }

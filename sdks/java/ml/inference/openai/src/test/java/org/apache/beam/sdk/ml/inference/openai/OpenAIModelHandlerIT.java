@@ -402,7 +402,7 @@ public class OpenAIModelHandlerIT {
                   batches) {
                 for (PredictionResult<OpenAIModelInput, OpenAIModelResponse> result : batch) {
                   String output = result.getOutput().getModelResponse();
-                  LOG.info("Structured output: " + output);
+                  LOG.info("Structured output: {}", output);
 
                   // Verify output contains expected information
                   assertTrue(

@@ -1850,7 +1850,7 @@ public class ProcessBundleHandlerTest {
                     response =
                         handler.progress(
                             BeamFnApi.InstructionRequest.newBuilder()
-                                .setInstructionId("thread-" + threadId + "-" + (++requestCount))
+                                .setInstructionId("thread-" + threadId + "-" + ++requestCount)
                                 .setProcessBundleProgress(
                                     ProcessBundleProgressRequest.newBuilder()
                                         .setInstructionId("999L")

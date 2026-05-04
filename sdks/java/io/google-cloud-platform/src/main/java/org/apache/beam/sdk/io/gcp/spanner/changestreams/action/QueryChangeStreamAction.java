@@ -91,6 +91,7 @@ public class QueryChangeStreamAction {
   private final PartitionEventRecordAction partitionEventRecordAction;
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
+  private final Duration realTimeCheckpointInterval;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -104,11 +105,12 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
-   * @param PartitionStartRecordAction action class to process {@link PartitionStartRecord}s
-   * @param PartitionEndRecordAction action class to process {@link PartitionEndRecord}s
-   * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
+   * @param partitionStartRecordAction action class to process {@link PartitionStartRecord}s
+   * @param partitionEndRecordAction action class to process {@link PartitionEndRecord}s
+   * @param partitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
    * @param isMutableChangeStream whether the change stream is mutable or not
+   * @param realTimeCheckpointInterval duration to add to current time
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -122,7 +124,8 @@ public class QueryChangeStreamAction {
       PartitionEndRecordAction partitionEndRecordAction,
       PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics,
-      boolean isMutableChangeStream) {
+      boolean isMutableChangeStream,
+      Duration realTimeCheckpointInterval) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -135,6 +138,7 @@ public class QueryChangeStreamAction {
     this.partitionEventRecordAction = partitionEventRecordAction;
     this.metrics = metrics;
     this.isMutableChangeStream = isMutableChangeStream;
+    this.realTimeCheckpointInterval = realTimeCheckpointInterval;
   }
 
   /**
@@ -181,11 +185,14 @@ public class QueryChangeStreamAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
+    final String tvfName = partition.getTvfName();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
     final PartitionMetadata updatedPartition =
-        Optional.ofNullable(partitionMetadataDao.getPartition(token))
+        Optional.ofNullable(
+                partitionMetadataDao.getPartition(
+                    PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName)))
             .map(partitionMetadataMapper::from)
             .orElseThrow(
                 () ->
@@ -219,7 +226,11 @@ public class QueryChangeStreamAction {
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
-            token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
+            token,
+            tvfName,
+            startTimestamp,
+            changeStreamQueryEndTimestamp,
+            partition.getHeartbeatMillis())) {
 
       metrics.incQueryCounter();
       while (resultSet.next()) {
@@ -244,7 +255,8 @@ public class QueryChangeStreamAction {
                     (HeartbeatRecord) record,
                     tracker,
                     interrupter,
-                    watermarkEstimator);
+                    watermarkEstimator,
+                    endTimestamp);
           } else if (record instanceof ChildPartitionsRecord) {
             maybeContinuation =
                 childPartitionsRecordAction.run(
@@ -293,7 +305,9 @@ public class QueryChangeStreamAction {
             LOG.debug("[{}] Continuation present, returning {}", token, maybeContinuation);
             bundleFinalizer.afterBundleCommit(
                 Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-                updateWatermarkCallback(token, watermarkEstimator));
+                updateWatermarkCallback(
+                    PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
+                    watermarkEstimator));
             return maybeContinuation.get();
           }
         }
@@ -336,7 +350,9 @@ public class QueryChangeStreamAction {
       }
       bundleFinalizer.afterBundleCommit(
           Instant.now().plus(BUNDLE_FINALIZER_TIMEOUT),
-          updateWatermarkCallback(token, watermarkEstimator));
+          updateWatermarkCallback(
+              PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName),
+              watermarkEstimator));
       LOG.debug("[{}] Rescheduling partition to resume reading", token);
       return ProcessContinuation.resume();
     }
@@ -356,25 +372,27 @@ public class QueryChangeStreamAction {
     LOG.debug("[{}] Finishing partition", token);
     // TODO: This should be performed after the commit succeeds.  Since bundle finalizers are not
     // guaranteed to be called, this needs to be performed in a subsequent fused stage.
-    partitionMetadataDao.updateToFinished(token);
+    partitionMetadataDao.updateToFinished(
+        PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName));
     metrics.decActivePartitionReadCounter();
     LOG.info("[{}] After attempting to finish the partition", token);
     return ProcessContinuation.stop();
   }
 
   private BundleFinalizer.Callback updateWatermarkCallback(
-      String token, WatermarkEstimator<Instant> watermarkEstimator) {
+      String composedToken, WatermarkEstimator<Instant> watermarkEstimator) {
     return () -> {
       final Instant watermark = watermarkEstimator.currentWatermark();
-      LOG.debug("[{}] Updating current watermark to {}", token, watermark);
+      LOG.debug("[{}] Updating current watermark to {}", composedToken, watermark);
       try {
         partitionMetadataDao.updateWatermark(
-            token, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
+            composedToken, Timestamp.ofTimeMicroseconds(watermark.getMillis() * 1_000L));
       } catch (SpannerException e) {
         if (e.getErrorCode() == ErrorCode.NOT_FOUND) {
-          LOG.debug("[{}] Unable to update the current watermark, partition NOT FOUND", token);
+          LOG.debug(
+              "[{}] Unable to update the current watermark, partition NOT FOUND", composedToken);
         } else {
-          LOG.error("[{}] Error updating the current watermark", token, e);
+          LOG.error("[{}] Error updating the current watermark", composedToken, e);
         }
       }
     };
@@ -387,12 +405,12 @@ public class QueryChangeStreamAction {
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
   }
 
-  // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
-  // users want to run the connector forever. If the end timestamp is reached, we will resume
-  // processing from that timestamp on a subsequent DoFn execution.
+  // Return (now + config duration) as the end timestamp for reading change streams. This is only
+  // used if  users want to run the connector forever. If the end timestamp is reached, we
+  // will resume processing from that timestamp on a subsequent DoFn execution.
   private Timestamp getNextReadChangeStreamEndTimestamp() {
-    final Timestamp current = Timestamp.now();
-    return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
+    return Timestamp.ofTimeMicroseconds(
+        Instant.now().plus(realTimeCheckpointInterval).getMillis() * 1000L);
   }
 
   // For Mutable Change Stream bounded queries, update the query end timestamp to be within 2

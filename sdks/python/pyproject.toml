@@ -21,6 +21,9 @@
 requires = [
     "setuptools",
     "wheel>=0.36.0",
+    # Note: after upgrading to grpcio-tools, we must bump protobuf to >=5.0.
+    # Currently Blocked on old dependencies of Beam tft extra:
+    # https://github.com/apache/beam/issues/37854
     "grpcio-tools==1.62.1; python_version <= '3.12'",
     "grpcio-tools==1.71.0; python_version >= '3.13'",
     "mypy-protobuf==3.5.0",

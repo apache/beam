@@ -73,7 +73,7 @@ import scala.Option;
 import scala.Tuple2;
 import scala.Tuple3;
 import scala.collection.Iterator;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import scala.runtime.AbstractFunction1;
 
@@ -238,7 +238,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // new input for key.
             try {
               final Iterable<WindowedValue<InputT>> elements =
-                  FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
+                  FluentIterable.from(JavaConverters.asJavaIterable(encodedElements))
                       .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder));
 
               LOG.trace("{}: input elements: {}", logPrefix, elements);
@@ -410,7 +410,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
       }
 
-      return scala.collection.JavaConversions.asScalaIterator(
+      return JavaConverters.asScalaIterator(
           new UpdateStateByKeyOutputIterator(input, reduceFn, droppedDueToLateness));
     }
   }

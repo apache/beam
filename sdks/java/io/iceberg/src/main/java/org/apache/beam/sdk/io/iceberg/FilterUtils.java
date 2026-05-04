@@ -400,6 +400,7 @@ public class FilterUtils {
         datetime = LocalDateTime.parse(value, formatter);
         return datetime;
       } catch (DateTimeParseException ignored) {
+        // Ignore and try the next formatter.
       }
     }
     return LocalDateTime.of(LocalDate.parse(value), LocalTime.MIN);

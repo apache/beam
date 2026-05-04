@@ -52,7 +52,7 @@ class JdbcTestHelper {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof TestDto)) {
         return false;
       }
       TestDto testDto = (TestDto) o;

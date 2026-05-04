@@ -36,18 +36,18 @@ import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 @DefaultCoder(AvroCoder.class)
 class TestRowDBWritable extends TestRow implements DBWritable, Writable {
 
-  private Integer id;
+  private int id;
   private String name;
 
   public TestRowDBWritable() {}
 
-  public TestRowDBWritable(Integer id, String name) {
+  public TestRowDBWritable(int id, String name) {
     this.id = id;
     this.name = name;
   }
 
   @Override
-  public Integer id() {
+  public int id() {
     return id;
   }
 

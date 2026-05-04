@@ -104,6 +104,7 @@ var directFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestOrderedListState",
 	"TestTimers.*", // no timer support for the go direct runner.
 
 	// no support for BundleFinalizer
@@ -135,6 +136,7 @@ var portableFilters = []string{
 	"TestMapStateClear",
 	"TestSetState",
 	"TestSetStateClear",
+	"TestOrderedListState",
 
 	// The portable runner does not uniquify timers. (data elements re-fired)
 	"TestTimers.*",
@@ -185,6 +187,7 @@ var flinkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+	"TestOrderedListState",
 
 	// With TestStream Flink adds extra length prefixs some data types, causing SDK side failures.
 	"TestTestStreamStrings",
@@ -198,51 +201,6 @@ var flinkFilters = []string{
 
 	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
 	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
-
-	// no support for BundleFinalizer
-	"TestParDoBundleFinalizer.*",
-}
-
-var samzaFilters = []string{
-	// TODO(https://github.com/apache/beam/issues/20987): Samza tests invalid encoding.
-	"TestReshuffle",
-	"TestReshuffleKV",
-	// The Samza runner does not support the TestStream primitive
-	"TestTestStream.*",
-	// The trigger and pane tests uses TestStream
-	"TestTrigger.*",
-	"TestPanes",
-	// TODO(https://github.com/apache/beam/issues/21244): Samza doesn't yet support post job metrics, used by WordCount
-	"TestWordCount.*",
-	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
-	"TestBigQueryIO.*",
-	"TestBigtableIO.*",
-	"TestSpannerIO.*",
-	// The Samza runner does not support self-checkpointing
-	"TestCheckpointing",
-	// The samza runner does not support pipeline drain for SDF.
-	"TestDrain",
-	// FhirIO currently only supports Dataflow runner
-	"TestFhirIO.*",
-	// OOMs currently only lead to heap dumps on Dataflow runner
-	"TestOomParDo",
-	// The samza runner does not support user state.
-	"TestValueState",
-	"TestValueStateWindowed",
-	"TestValueStateClear",
-	"TestBagState",
-	"TestBagStateClear",
-	"TestCombiningState",
-	"TestMapState",
-	"TestMapStateClear",
-	"TestSetState",
-	"TestSetStateClear",
-	// TODO(https://github.com/apache/beam/issues/26126): Java runner issue (AcitveBundle has no regsitered handler)
-	"TestDebeziumIO_BasicRead",
-
-	// Samza does not support state.
-	"TestTimers.*",
-	"TestBagStateBlindWrite",
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
@@ -277,6 +235,7 @@ var sparkFilters = []string{
 	"TestMapStateClear",
 	"TestSetStateClear",
 	"TestSetState",
+	"TestOrderedListState",
 
 	"TestTimers_EventTime_Unbounded",      // Side inputs in executable stage not supported.
 	"TestTimers_ProcessingTime_Infinity",  // Spark doesn't support test stream.
@@ -323,6 +282,8 @@ var dataflowFilters = []string{
 	// so no dump file is created.
 	// TODO: https://github.com/apache/beam/issues/34498
 	"TestOomParDo",
+	// Runner V2 doesn't support OrderedListState SDK feature.
+	"TestOrderedListState",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
@@ -367,8 +328,6 @@ func CheckFilters(t *testing.T) {
 		filters = portableFilters
 	case "flink", "FlinkRunner":
 		filters = flinkFilters
-	case "samza", "SamzaRunner":
-		filters = samzaFilters
 	case "spark", "SparkRunner":
 		filters = sparkFilters
 	case "dataflow", "DataflowRunner":

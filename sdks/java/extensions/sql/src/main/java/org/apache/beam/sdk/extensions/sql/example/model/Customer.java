@@ -70,7 +70,7 @@ public class Customer implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Customer)) {
       return false;
     }
     Customer customer = (Customer) o;

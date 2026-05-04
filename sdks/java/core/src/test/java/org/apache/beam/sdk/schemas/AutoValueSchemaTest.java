@@ -728,7 +728,7 @@ public class AutoValueSchemaTest {
     abstract String getStr();
 
     @SchemaFieldNumber("0")
-    abstract Long getLng();
+    abstract long getLng();
   }
 
   private static final Schema FIELD_NUMBER_SCHEMA =
@@ -866,7 +866,7 @@ public class AutoValueSchemaTest {
         "This field is a long in the row. Interestingly enough, longs are e"
             + "ncoded as int64 by Beam, while ints are encoded as int32. "
             + "Sign semantics are another thing")
-    abstract Long getLng();
+    abstract long getLng();
   }
 
   private static final Schema FIELD_DESCRIPTION_SCHEMA =

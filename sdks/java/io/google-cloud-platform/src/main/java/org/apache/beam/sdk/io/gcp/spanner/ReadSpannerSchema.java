@@ -45,7 +45,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
   private transient SpannerAccessor spannerAccessor;
 
   /**
-   * Constructor for creating an instance of the ReadSpannerSchema class. If no {@param
+   * Constructor for creating an instance of the ReadSpannerSchema class. If no {@code
    * allowedTableNames} is passed, every single table is allowed.
    *
    * @param config The SpannerConfig object that contains the configuration for accessing the

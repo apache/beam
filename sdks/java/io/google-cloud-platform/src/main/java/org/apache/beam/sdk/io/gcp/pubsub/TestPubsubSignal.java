@@ -323,6 +323,7 @@ public class TestPubsubSignal implements TestRule {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException ignored) {
+        // Ignore interrupt and continue polling.
       }
     }
 

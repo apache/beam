@@ -91,6 +91,7 @@ __all__ = [
     'Coder',
     'AvroGenericCoder',
     'BooleanCoder',
+    'ByteCoder',
     'BytesCoder',
     'CloudpickleCoder',
     'DillCoder',
@@ -683,6 +684,25 @@ class BigEndianShortCoder(FastCoder):
   """A coder used for big-endian int16 values."""
   def _create_impl(self):
     return coder_impl.BigEndianShortCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class ByteCoder(FastCoder):
+  """A coder used for single byte values"""
+  def _create_impl(self):
+    return coder_impl.ByteCoderImpl()
 
   def is_deterministic(self):
     # type: () -> bool
