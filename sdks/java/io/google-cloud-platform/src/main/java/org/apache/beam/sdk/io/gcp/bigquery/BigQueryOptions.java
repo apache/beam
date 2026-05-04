@@ -158,7 +158,7 @@ public interface BigQueryOptions
           + " mode. This is recommended if your write operation is creating 20+ connections. When using multiplexing, consider tuning "
           + "the number of connections created by the connection pool with minConnectionPoolConnections and maxConnectionPoolConnections. "
           + "For more information, see https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management")
-  @Default.Boolean(false)
+  @Default.Boolean(true)
   Boolean getUseStorageApiConnectionPool();
 
   void setUseStorageApiConnectionPool(Boolean value);
