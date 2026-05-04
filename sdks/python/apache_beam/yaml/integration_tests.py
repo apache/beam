@@ -39,6 +39,7 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
+
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
 
