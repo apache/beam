@@ -73,6 +73,7 @@ from apache_beam.utils.sentinel import Sentinel
 
 if TYPE_CHECKING:
   from google.protobuf import message
+  from grpc import ServicerContext
 
   from apache_beam.runners.portability.fn_api_runner.fn_runner import \
       ExtendedProvisionInfo  # pylint: disable=ungrouped-imports
