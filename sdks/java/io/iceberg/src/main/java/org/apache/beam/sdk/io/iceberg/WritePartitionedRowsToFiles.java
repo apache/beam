@@ -151,7 +151,7 @@ class WritePartitionedRowsToFiles
       volatile Instant lastRefreshTime;
       static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(2);
       private int specId;
-      Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
+      volatile Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
 
       LastRefreshedTable(Table table, Instant lastRefreshTime) {
         this.table = table;
