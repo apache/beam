@@ -32,7 +32,10 @@ import tensorflow as tf
 import torch
 from transformers import AutoModel
 from transformers import Pipeline
-from transformers import TFAutoModel
+try:
+  from transformers import TFAutoModel
+except ImportError:
+  TFAutoModel = Any
 from transformers import pipeline
 
 from apache_beam.ml.inference import utils

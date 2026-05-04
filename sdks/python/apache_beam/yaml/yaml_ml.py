@@ -321,8 +321,7 @@ class HuggingFacePipelineProvider(ModelHandlerProvider):
     super().__init__(_handler, preprocess, postprocess)
 
   @staticmethod
-  def validate(model_handler_spec):
-    config = model_handler_spec.get('config', {})
+  def validate(config):
     if not config.get('task') and not config.get('model'):
       raise ValueError(
           "HuggingFacePipeline requires either 'task' or "
