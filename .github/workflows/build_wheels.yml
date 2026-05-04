@@ -127,12 +127,12 @@ jobs:
         # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_zip
           path: sdks/python/dist
@@ -170,13 +170,13 @@ jobs:
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -202,7 +202,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: source_zip
           path: source/
@@ -231,13 +231,13 @@ jobs:
         py_version: ["cp310-", "cp311-", "cp312-", "cp313-", "cp314-"]
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -275,7 +275,7 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
@@ -300,7 +300,7 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
@@ -314,7 +314,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         pattern: wheelhouse-*
         merge-multiple: true

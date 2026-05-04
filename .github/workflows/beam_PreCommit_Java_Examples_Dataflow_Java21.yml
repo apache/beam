@@ -122,7 +122,7 @@ jobs:
           -Pdocker-pull-licenses \
         max-workers: 12
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: ${{ !success() }}
       with:
         name: JUnit Test Results
@@ -136,7 +136,7 @@ jobs:
         files: '**/build/test-results/**/*.xml'
         large_files: true
     - name: Archive SpotBugs Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: SpotBugs Results
         path: '**/build/reports/spotbugs/*.html'
