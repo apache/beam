@@ -39,7 +39,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"google.golang.org/protobuf/proto"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto
@@ -529,24 +528,7 @@ func queue2slice(q chan *jobpb.ArtifactMetadata) []*jobpb.ArtifactMetadata {
 	return ret
 }
 
-type contextKey string
-
-const pipelineOptionsKey contextKey = "pipeline_options"
-
-// WithPipelineOptions returns a new context carrying the full pipeline options struct.
-func WithPipelineOptions(ctx context.Context, options *structpb.Struct) context.Context {
-	return context.WithValue(ctx, pipelineOptionsKey, options)
-}
-
 // isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
 func isArtifactValidationEnabled(ctx context.Context) bool {
-	options, _ := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
-	if options != nil {
-		for _, v := range options.GetFields()["options"].GetStructValue().GetFields()["experiments"].GetListValue().GetValues() {
-			if v.GetStringValue() == "disable_staged_file_integrity_checks" {
-				return false
-			}
-		}
-	}
-	return true
+	return !HasExperiment(PipelineOptions(ctx), "disable_staged_file_integrity_checks")
 }
