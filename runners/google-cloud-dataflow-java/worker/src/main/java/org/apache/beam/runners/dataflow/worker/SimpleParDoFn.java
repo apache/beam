@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.Closeable;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -333,8 +334,9 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
     fnRunner.startBundle();
     if (sideInputProcessor != null) {
       boolean hasState = fnSignature != null && !fnSignature.stateDeclarations().isEmpty();
-      Iterable<WindowedValue<InputT>> unblockedElements = sideInputProcessor.tryUnblockElements();
-      for (WindowedValue<InputT> unblockedElement : unblockedElements) {
+      Iterator<WindowedValue<InputT>> unblockedElements = sideInputProcessor.tryUnblockElements();
+      for (Iterator<WindowedValue<InputT>> it = unblockedElements; it.hasNext(); ) {
+        WindowedValue<InputT> unblockedElement = it.next();
         fnRunner.processElement(unblockedElement);
         if (hasState) {
           // These elements are now processed. Register cleanup timers for all the unblocked

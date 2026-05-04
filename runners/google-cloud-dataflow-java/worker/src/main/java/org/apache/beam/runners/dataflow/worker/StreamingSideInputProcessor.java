@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.core.TimerInternals;
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper class for handling elements blocked on side inputs. */
 class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
@@ -38,7 +40,7 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
    * Handle's startBundle. If there are unblocked elements, process them and then return the set of
    * windows that were unblocked.
    */
-  Iterable<WindowedValue<InputT>> tryUnblockElements() {
+  Iterator<WindowedValue<InputT>> tryUnblockElements() {
     sideInputFetcher.prefetchBlockedMap();
 
     // Find the set of ready windows.
@@ -46,16 +48,59 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
 
     Iterable<BagState<WindowedValue<InputT>>> elementsBags =
         sideInputFetcher.prefetchElements(readyWindows);
-    List<WindowedValue<InputT>> releaseElements = Lists.newArrayList();
-    for (BagState<WindowedValue<InputT>> elementsBag : elementsBags) {
-      Iterable<WindowedValue<InputT>> elements = elementsBag.read();
-      for (WindowedValue<InputT> elem : elements) {
-        releaseElements.add(elem);
-      }
-      elementsBag.clear();
-    }
+
+    // Return a lazy iterator to the released elements. This is a destructive iterator - it clears
+    // the bags after reading them. Bags can be paged in from the service, so we try to avoid
+    // materializing the whole
+    // bag into memory here.
+    Iterator<WindowedValue<InputT>> releasedElements =
+        new Iterator<WindowedValue<InputT>>() {
+          Iterator<BagState<WindowedValue<InputT>>> bagsIterator = elementsBags.iterator();
+          @Nullable Iterator<WindowedValue<InputT>> currentBagElements;
+          @Nullable BagState<WindowedValue<InputT>> currentBag;
+
+          @Override
+          public boolean hasNext() {
+            do {
+              if (currentBagElements == null || !currentBagElements.hasNext()) {
+                if (!advanceBag()) {
+                  return false;
+                }
+              }
+            } while (!org.apache.beam.sdk.util.Preconditions.checkStateNotNull(currentBagElements)
+                .hasNext());
+            return true;
+          }
+
+          boolean advanceBag() {
+            // Once we finish reading a bag, clear it.
+            clearCurrentBag();
+            if (bagsIterator.hasNext()) {
+              currentBag = bagsIterator.next();
+              currentBagElements = currentBag.read().iterator();
+              return true;
+            } else {
+              return false;
+            }
+          }
+
+          void clearCurrentBag() {
+            if (currentBag != null) {
+              currentBag.clear();
+              currentBag = null;
+              currentBagElements = null;
+            }
+          }
+
+          @Override
+          public WindowedValue<InputT> next() {
+            return org.apache.beam.sdk.util.Preconditions.checkStateNotNull(currentBagElements)
+                .next();
+          }
+        };
+
     sideInputFetcher.releaseBlockedWindows(readyWindows);
-    return releaseElements;
+    return releasedElements;
   }
 
   void handleFinishBundle() {

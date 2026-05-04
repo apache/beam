@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.BagState;
@@ -66,10 +68,10 @@ public class StreamingSideInputProcessorTest {
     when(mockFetcher.getReadyWindows()).thenReturn(Collections.emptySet());
 
     // When
-    Iterable<WindowedValue<String>> unblocked = processor.tryUnblockElements();
+    Iterator<WindowedValue<String>> unblocked = processor.tryUnblockElements();
 
     // Then
-    assertThat(unblocked, emptyIterable());
+    assertFalse(unblocked.hasNext());
     verify(mockFetcher).prefetchBlockedMap();
     verify(mockFetcher).getReadyWindows();
   }
@@ -100,7 +102,7 @@ public class StreamingSideInputProcessorTest {
     doNothing().when(mockFetcher).releaseBlockedWindows(readyWindows);
 
     // When
-    Iterable<WindowedValue<String>> unblocked = processor.tryUnblockElements();
+    Iterable<WindowedValue<String>> unblocked = () -> processor.tryUnblockElements();
 
     // Then
     assertThat(unblocked, containsInAnyOrder(element1, element2));

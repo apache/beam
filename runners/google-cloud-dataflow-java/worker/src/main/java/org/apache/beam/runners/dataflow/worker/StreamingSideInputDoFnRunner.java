@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -47,8 +48,9 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
-    Iterable<WindowedValue<InputT>> unblocked = sideInputProcessor.tryUnblockElements();
-    for (WindowedValue<InputT> elem : unblocked) {
+    Iterator<WindowedValue<InputT>> unblocked = sideInputProcessor.tryUnblockElements();
+    for (Iterator<WindowedValue<InputT>> it = unblocked; it.hasNext(); ) {
+      WindowedValue<InputT> elem = it.next();
       simpleDoFnRunner.processElement(elem);
     }
   }
