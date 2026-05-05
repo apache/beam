@@ -37,6 +37,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -93,6 +94,11 @@ import org.joda.time.Instant;
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
+  // Experiments guarding optimizations in development. No backward compatibility guarantees.
+  public static final String UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION =
+      "unstable_not_update_compatible_new_window_optimization";
+  public static final String UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION =
+      "unstable_disable_watermark_known_empty_optimization";
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
    *
@@ -211,6 +217,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final NonEmptyPanes<K, W> nonEmptyPanes;
 
+  private final boolean useNewWindowOptimization;
+  private final boolean disableWatermarkKnownEmptyOptimization;
+
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
@@ -236,6 +245,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     this.windowingStrategy = objectWindowingStrategy;
 
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
+
+    this.useNewWindowOptimization =
+        windowingStrategy.getWindowFn().isNonMerging()
+            && ExperimentalOptions.hasExperiment(
+                options, UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION);
+
+    this.disableWatermarkKnownEmptyOptimization =
+        ExperimentalOptions.hasExperiment(
+            options, UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION);
 
     // Note this may incur I/O to load persisted window set data.
     this.activeWindows = createActiveWindowSet();
@@ -273,6 +291,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   @VisibleForTesting
   boolean hasNoActiveWindows() {
     return activeWindows.getActiveAndNewWindows().isEmpty();
+  }
+
+  @VisibleForTesting
+  TriggerStateMachineRunner<W> getTriggerRunner() {
+    return triggerRunner;
+  }
+
+  @VisibleForTesting
+  ReduceFnContextFactory<K, InputT, OutputT, W> getContextFactory() {
+    return contextFactory;
   }
 
   private Set<W> windowsThatAreOpen(Collection<W> windows) {
@@ -612,6 +640,18 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               value.getTimestamp(),
               StateStyle.RENAMED,
               value.causedByDrain());
+
+      // TODO: Make sure the NewWindowOptimization does not create unbounded trigger state
+      // in GlobalWindow
+      if (useNewWindowOptimization && triggerRunner.isNew(directContext.state())) {
+        // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
+        reduceFn.clearState(renamedContext);
+        paneInfoTracker.clear(directContext.state());
+        if (!disableWatermarkKnownEmptyOptimization) {
+          watermarkHold.setKnownEmpty(renamedContext);
+        }
+        nonEmptyPanes.clearPane(renamedContext.state());
+      }
 
       nonEmptyPanes.recordContent(renamedContext.state());
       scheduleGarbageCollectionTimer(directContext);

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.state;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -37,6 +39,7 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WindmillWatermarkHold extends WindmillState implements WatermarkHoldState {
+
   // The encoded size of an Instant.
   private static final int ENCODED_SIZE = 8;
 
@@ -46,6 +49,7 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
   private final String stateFamily;
 
   private boolean cleared = false;
+  private boolean knownEmpty = false;
   /**
    * If non-{@literal null}, the known current hold value, or absent if we know there are no output
    * watermark holds. If {@literal null}, the current hold value could depend on holds in Windmill
@@ -79,6 +83,17 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
     }
     cleared = true;
     cachedValue = Optional.absent();
+  }
+
+  @Override
+  public void setKnownEmpty() {
+    checkState(localAdditions == null, "setKnownEmpty called with local additions");
+    checkState(!cleared, "setKnownEmpty called after clearing");
+    checkState(
+        cachedValue == null || !cachedValue.isPresent(),
+        "setKnownEmpty called with a cached value");
+    cachedValue = Optional.absent();
+    knownEmpty = true;
   }
 
   @Override
@@ -137,48 +152,71 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
     Future<Windmill.WorkItemCommitRequest> result;
 
-    if (!cleared && localAdditions == null) {
+    if (!knownEmpty && !cleared && localAdditions == null) {
       // No changes, so no need to update Windmill and no need to cache any value.
       return Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
     }
 
-    if (cleared && localAdditions == null) {
-      // Just clearing the persisted state; blind delete
-      Windmill.WorkItemCommitRequest.Builder commitBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
-      commitBuilder
-          .addWatermarkHoldsBuilder()
-          .setTag(stateKey.byteString())
-          .setStateFamily(stateFamily)
-          .setReset(true);
+    if (knownEmpty) {
+      if (localAdditions != null) {
+        // 1. We know it's empty, so we can just update with localAdditions
+        Windmill.WorkItemCommitRequest.Builder commitBuilder =
+            Windmill.WorkItemCommitRequest.newBuilder();
+        commitBuilder
+            .addWatermarkHoldsBuilder()
+            .setTag(stateKey.byteString())
+            .setStateFamily(stateFamily)
+            .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
 
-      result = Futures.immediateFuture(commitBuilder.buildPartial());
-    } else if (cleared && localAdditions != null) {
-      // Since we cleared before adding, we can do a blind overwrite of persisted state
-      Windmill.WorkItemCommitRequest.Builder commitBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
-      commitBuilder
-          .addWatermarkHoldsBuilder()
-          .setTag(stateKey.byteString())
-          .setStateFamily(stateFamily)
-          .setReset(true)
-          .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
+        cachedValue = Optional.of(localAdditions);
+        result = Futures.immediateFuture(commitBuilder.buildPartial());
+      } else {
+        // 2. State is known to be empty and there are no local additions.
+        // Whether 'cleared' was called or not, the desired state is empty.
+        // So no need to update Windmill.
+        result =
+            Futures.immediateFuture(Windmill.WorkItemCommitRequest.newBuilder().buildPartial());
+      }
+    } else if (cleared) {
+      if (localAdditions == null) {
+        // 3. Just clearing the persisted state; blind delete
+        Windmill.WorkItemCommitRequest.Builder commitBuilder =
+            Windmill.WorkItemCommitRequest.newBuilder();
+        commitBuilder
+            .addWatermarkHoldsBuilder()
+            .setTag(stateKey.byteString())
+            .setStateFamily(stateFamily)
+            .setReset(true);
 
-      cachedValue = Optional.of(localAdditions);
+        result = Futures.immediateFuture(commitBuilder.buildPartial());
+      } else {
+        // 4. Since we cleared before adding, we can do an overwrite of persisted state
+        Windmill.WorkItemCommitRequest.Builder commitBuilder =
+            Windmill.WorkItemCommitRequest.newBuilder();
+        commitBuilder
+            .addWatermarkHoldsBuilder()
+            .setTag(stateKey.byteString())
+            .setStateFamily(stateFamily)
+            .setReset(true)
+            .addTimestamps(WindmillTimeUtils.harnessToWindmillTimestamp(localAdditions));
 
-      result = Futures.immediateFuture(commitBuilder.buildPartial());
-    } else if (!cleared && localAdditions != null) {
-      // Otherwise, we need to combine the local additions with the already persisted data
+        cachedValue = Optional.of(localAdditions);
+        result = Futures.immediateFuture(commitBuilder.buildPartial());
+      }
+    } else if (localAdditions != null) {
+      // 5. Otherwise, we need to combine the local additions with the already persisted data
       result = combineWithPersisted();
     } else {
       throw new IllegalStateException("Unreachable condition");
     }
 
     final int estimatedByteSize = ENCODED_SIZE + stateKey.byteString().size();
+
     return Futures.lazyTransform(
         result,
         result1 -> {
           cleared = false;
+          knownEmpty = false;
           localAdditions = null;
           if (cachedValue != null) {
             cache.put(namespace, stateKey, WindmillWatermarkHold.this, estimatedByteSize);
