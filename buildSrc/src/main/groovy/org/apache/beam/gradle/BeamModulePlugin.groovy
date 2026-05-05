@@ -633,7 +633,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.130.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
-    def opentelemetry_version = "1.51.0"
+    def opentelemetry_version = "1.56.0"
+    def opentelemetry_contrib_version = "1.52.0"
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
@@ -860,6 +861,11 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
         opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
+        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
+        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // google_cloud_platform_libraries_bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
