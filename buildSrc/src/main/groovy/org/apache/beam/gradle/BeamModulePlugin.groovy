@@ -928,6 +928,8 @@ class BeamModulePlugin implements Plugin<Project> {
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
+        arrow_flight_core                           : "org.apache.arrow:flight-core:$arrow_version",
+        arrow_flight_sql                            : "org.apache.arrow:flight-sql:$arrow_version",
       ],
       groovy: [
         groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
