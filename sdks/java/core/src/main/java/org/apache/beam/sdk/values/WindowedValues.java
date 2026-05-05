@@ -293,7 +293,16 @@ public class WindowedValues {
 
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
-    return of(value, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
+    return of(
+        value,
+        timestamp,
+        windows,
+        paneInfo,
+        null,
+        null,
+        CausedByDrain.NORMAL,
+        null,
+        ValueKind.INSERT);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
@@ -359,7 +368,15 @@ public class WindowedValues {
           valueKind);
     } else {
       return new TimestampedValueInMultipleWindows<>(
-          value, timestamp, windows, paneInfo, null, null, causedByDrain, openTelemetryContext, valueKind);
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
     }
   }
 
@@ -368,7 +385,16 @@ public class WindowedValues {
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
 
-    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        null,
+        null,
+        CausedByDrain.NORMAL,
+        null,
+        ValueKind.INSERT);
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
@@ -395,7 +421,7 @@ public class WindowedValues {
           currentRecordOffset,
           causedByDrain,
           openTelemetryContext,
-        valueKind);
+          valueKind);
     } else if (isGlobal) {
       return new TimestampedValueInGlobalWindow<>(
           value,
@@ -405,7 +431,7 @@ public class WindowedValues {
           currentRecordOffset,
           causedByDrain,
           openTelemetryContext,
-        valueKind);
+          valueKind);
     } else {
       return new TimestampedValueInSingleWindow<>(
           value,
@@ -416,7 +442,7 @@ public class WindowedValues {
           currentRecordOffset,
           causedByDrain,
           openTelemetryContext,
-        valueKind);
+          valueKind);
     }
   }
 
@@ -426,8 +452,7 @@ public class WindowedValues {
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value) {
     return new ValueInGlobalWindow<>(
-        value, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL, null,
-      ValueKind.INSERT);
+        value, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
   }
 
   /**
@@ -435,8 +460,8 @@ public class WindowedValues {
    * default timestamp and the specified pane.
    */
   public static <T> WindowedValue<T> valueInGlobalWindow(T value, PaneInfo paneInfo) {
-    return new ValueInGlobalWindow<>(value, paneInfo, null, null, CausedByDrain.NORMAL, null,
-      ValueKind.INSERT);
+    return new ValueInGlobalWindow<>(
+        value, paneInfo, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
   }
 
   /**
@@ -448,8 +473,14 @@ public class WindowedValues {
       return valueInGlobalWindow(value);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, PaneInfo.NO_FIRING, null, null, CausedByDrain.NORMAL, null,
-        ValueKind.INSERT);
+          value,
+          timestamp,
+          PaneInfo.NO_FIRING,
+          null,
+          null,
+          CausedByDrain.NORMAL,
+          null,
+          ValueKind.INSERT);
     }
   }
 
@@ -463,8 +494,7 @@ public class WindowedValues {
       return timestampedValueInGlobalWindow(value, timestamp);
     } else {
       return new TimestampedValueInGlobalWindow<>(
-          value, timestamp, paneInfo, null, null, CausedByDrain.NORMAL, null,
-        ValueKind.INSERT);
+          value, timestamp, paneInfo, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
     }
   }
 
@@ -483,7 +513,7 @@ public class WindowedValues {
         windowedValue.getRecordOffset(),
         windowedValue.causedByDrain(),
         windowedValue.getOpenTelemetryContext(),
-      windowedValue.getValueKind());
+        windowedValue.getValueKind());
   }
 
   public static <T> boolean equals(
@@ -650,7 +680,8 @@ public class WindowedValues {
         CausedByDrain causedByDrain,
         @Nullable Context context,
         ValueKind valueKind) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain, context, valueKind);
+      super(
+          value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain, context, valueKind);
     }
 
     @Override
@@ -672,7 +703,7 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
-        getValueKind());
+          getValueKind());
     }
 
     @Override
@@ -714,7 +745,8 @@ public class WindowedValues {
         CausedByDrain causedByDrain,
         @Nullable Context context,
         ValueKind valueKind) {
-      super(value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain, context, valueKind);
+      super(
+          value, paneInfo, currentRecordId, currentRecordOffset, causedByDrain, context, valueKind);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -741,8 +773,14 @@ public class WindowedValues {
         @Nullable Context context,
         ValueKind valueKind) {
       super(
-          value, timestamp, paneInfo, currentRecordId, currentRecordOffset, causedByDrain, context,
-        valueKind);
+          value,
+          timestamp,
+          paneInfo,
+          currentRecordId,
+          currentRecordOffset,
+          causedByDrain,
+          context,
+          valueKind);
     }
 
     @Override
@@ -765,7 +803,7 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
-        getValueKind());
+          getValueKind());
     }
 
     @Override
@@ -827,7 +865,7 @@ public class WindowedValues {
           currentRecordOffset,
           causedByDrain,
           openTelemetryContext,
-        valueKind);
+          valueKind);
       this.window = checkNotNull(window);
     }
 
@@ -842,7 +880,7 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
-        getValueKind());
+          getValueKind());
     }
 
     @Override
@@ -911,7 +949,7 @@ public class WindowedValues {
           currentRecordOffset,
           causedByDrain,
           openTelemetryContext,
-        valueKind);
+          valueKind);
       this.windows = checkNotNull(windows);
     }
 
@@ -931,7 +969,7 @@ public class WindowedValues {
           getRecordOffset(),
           causedByDrain(),
           getOpenTelemetryContext(),
-        getValueKind());
+          getValueKind());
     }
 
     @Override

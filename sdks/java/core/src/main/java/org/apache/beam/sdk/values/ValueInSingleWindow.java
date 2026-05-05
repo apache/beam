@@ -82,6 +82,27 @@ public abstract class ValueInSingleWindow<T> {
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
       CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext) {
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        openTelemetryContext,
+        ValueKind.INSERT);
+  }
+
+  public static <T> ValueInSingleWindow<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
       @Nullable Context openTelemetryContext,
       ValueKind valueKind) {
     return new AutoValue_ValueInSingleWindow<>(
@@ -98,7 +119,16 @@ public abstract class ValueInSingleWindow<T> {
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, null, ValueKind.INSERT);
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        null,
+        null,
+        CausedByDrain.NORMAL,
+        null,
+        ValueKind.INSERT);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -185,7 +215,15 @@ public abstract class ValueInSingleWindow<T> {
       T value = valueCoder.decode(inStream, context);
       // todo #33176 specify additional metadata in the future
       return new AutoValue_ValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain, openTelemetryContext, valueKind);
+          value,
+          timestamp,
+          window,
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
     }
 
     @Override
