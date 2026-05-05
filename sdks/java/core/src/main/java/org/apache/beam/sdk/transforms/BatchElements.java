@@ -30,6 +30,63 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
+/**
+ * A {@link PTransform} that batches elements for amortized processing.
+ *
+ * <p>This transform is designed to precede operations whose processing cost is of the form:
+ *
+ * <pre>
+ *   time = fixed_cost + num_elements * per_element_cost
+ * </pre>
+ *
+ * <p>When the per-element cost is significantly smaller than the fixed cost, batching multiple
+ * elements together can amortize that fixed cost and improve overall throughput.
+ *
+ * <p>The transform consumes a {@code PCollection<T>} and produces a {@code PCollection<List<T>>},
+ * where each output element is a batch of input elements.
+ *
+ * <p>This transform dynamically determines an optimal batch size between the configured minimum and
+ * maximum values by profiling the execution time of downstream (fused) operations. To enforce a
+ * fixed batch size, set {@code minBatchSize == maxBatchSize}.
+ *
+ * <p>Elements are batched per window. Each emitted batch belongs to the same window as its elements
+ * and is assigned a timestamp at the end of that window.
+ *
+ * <h3>Example</h3>
+ *
+ * <pre>{@code
+ * // With default configuration
+ * pipeline
+ *     .apply("Create", Create.of(range(200)))
+ *     .apply("Batch", BatchElements.withDefaults())
+ *     .apply(...);
+ *
+ * // With custom configuration
+ * BatchElements.BatchConfig config =
+ *     BatchElements.BatchConfig.builder()
+ *         .withMinBatchSize(1)
+ *         .withMaxBatchSize(15)
+ *         .withTargetBatchDurationSecs(10.0)
+ *         .withTargetBatchOverhead(0.05)
+ *         .withVariance(0.0)
+ *         .build();
+ *
+ * pipeline
+ *     .apply("Create", Create.of(range(200)))
+ *     .apply("Batch", BatchElements.withConfig(config))
+ *     .apply(
+ *         "Sizes",
+ *         MapElements.via(
+ *             new SimpleFunction<List<Integer>, Integer>() {
+ *               @Override
+ *               public Integer apply(List<Integer> input) {
+ *                 return input.size();
+ *               }
+ *             }));
+ * }</pre>
+ *
+ * @param <T> the type of input elements
+ */
 public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<List<T>>> {
 
   private final BatchConfig config;
@@ -38,16 +95,24 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     this.config = config;
   }
 
+  public static <T> BatchElements<T> withDefaults() {
+    return withConfig(BatchConfig.defaults());
+  }
+
   public static <T> BatchElements<T> withConfig(BatchConfig config) {
     return new BatchElements<>(config);
   }
-
+  /**
+   * Configuration for {@link BatchElements}.
+   *
+   * <p>Controls how batch sizes are selected and adapted over time.
+   */
   public static final class BatchConfig implements Serializable {
     final int minBatchSize;
     final int maxBatchSize;
     final double targetBatchOverhead;
     final double targetBatchDurationSecs;
-    final double targetBatchDurationSecsIncludingFixedCost;
+    final double targetBatchDurationSecsWithFixedCost;
     final double variance;
 
     private BatchConfig(Builder builder) {
@@ -55,12 +120,11 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       this.maxBatchSize = builder.maxBatchSize;
       this.targetBatchOverhead = builder.targetBatchOverhead;
       this.targetBatchDurationSecs = builder.targetBatchDurationSecs;
-      this.targetBatchDurationSecsIncludingFixedCost =
-          builder.targetBatchDurationSecsIncludingFixedCost;
+      this.targetBatchDurationSecsWithFixedCost = builder.targetBatchDurationSecsWithFixedCost;
       this.variance = builder.variance;
     }
 
-    public static BatchConfig defaults() {
+    static BatchConfig defaults() {
       return BatchConfig.builder()
           .withMinBatchSize(1)
           .withMaxBatchSize(10000)
@@ -70,6 +134,11 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
           .build();
     }
 
+    /**
+     * Builder for {@link BatchConfig}.
+     *
+     * <p>Allows configuring batching constraints and tuning parameters.
+     */
     public static Builder builder() {
       return new Builder();
     }
@@ -79,36 +148,79 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       private int maxBatchSize = 10_000;
       private double targetBatchOverhead = 0.05;
       private double targetBatchDurationSecs = 10.0;
-      private double targetBatchDurationSecsIncludingFixedCost = -1; // -1 = unset
+      private double targetBatchDurationSecsWithFixedCost = -1; // -1 = unset
       private double variance = 0.25;
 
       private Builder() {}
 
+      /**
+       * Sets the minimum batch size.
+       *
+       * @param minBatchSize minimum number of elements per batch
+       */
       public Builder withMinBatchSize(int minBatchSize) {
         this.minBatchSize = minBatchSize;
         return this;
       }
 
+      /**
+       * Sets the maximum batch size.
+       *
+       * @param maxBatchSize maximum number of elements per batch
+       */
       public Builder withMaxBatchSize(int maxBatchSize) {
         this.maxBatchSize = maxBatchSize;
         return this;
       }
 
+      /**
+       * Sets the target batch overhead ratio.
+       *
+       * <p>This represents the desired ratio:
+       *
+       * <p>fixed_cost / total_time
+       *
+       * <p>Lower values favor larger batches (higher throughput, higher latency).
+       *
+       * @param targetBatchOverhead value in (0, 1]
+       */
       public Builder withTargetBatchOverhead(double targetBatchOverhead) {
         this.targetBatchOverhead = targetBatchOverhead;
         return this;
       }
 
+      /**
+       * Sets the target batch duration excluding fixed cost.
+       *
+       * <p>This controls the desired time spent processing elements in a batch, ignoring fixed
+       * overhead.
+       *
+       * @param targetBatchDurationSecs target duration in seconds
+       */
       public Builder withTargetBatchDurationSecs(double targetBatchDurationSecs) {
         this.targetBatchDurationSecs = targetBatchDurationSecs;
         return this;
       }
-
-      public Builder withTargetBatchDurationSecsIncludingFixedCost(double value) {
-        this.targetBatchDurationSecsIncludingFixedCost = value;
+      /**
+       * Sets the target batch duration including fixed cost.
+       *
+       * <p>If set, this provides a stricter upper bound on total batch processing time.
+       *
+       * @param value target duration in seconds
+       */
+      public Builder withTargetBatchDurationSecsWithFixedCost(double value) {
+        this.targetBatchDurationSecsWithFixedCost = value;
         return this;
       }
 
+      /**
+       * Sets the allowed variance when selecting batch sizes.
+       *
+       * <p>This introduces controlled randomness to avoid converging to a single batch size and
+       * improves robustness of estimation.
+       *
+       * @param variance relative deviation (e.g., 0.25 for ±25%)
+       */
       public Builder withVariance(double variance) {
         this.variance = variance;
         return this;
@@ -136,12 +248,12 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
               String.format(
                   "targetBatchDurationSecs (%f) must be positive", targetBatchDurationSecs));
         }
-        if (targetBatchDurationSecsIncludingFixedCost != -1
-            && targetBatchDurationSecsIncludingFixedCost <= 0) {
+        if (targetBatchDurationSecsWithFixedCost != -1
+            && targetBatchDurationSecsWithFixedCost <= 0) {
           throw new IllegalArgumentException(
               String.format(
-                  "targetBatchDurationSecsIncludingFixedCost (%f) must be positive",
-                  targetBatchDurationSecsIncludingFixedCost));
+                  "targetBatchDurationSecsWithFixedCost (%f) must be positive",
+                  targetBatchDurationSecsWithFixedCost));
         }
       }
     }
@@ -280,8 +392,8 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       double target = config.maxBatchSize;
 
       // 1: a + b*x = targetDurationIncludingFixedCost
-      if (config.targetBatchDurationSecsIncludingFixedCost > 0) {
-        target = Math.min(target, (config.targetBatchDurationSecsIncludingFixedCost - a) / b);
+      if (config.targetBatchDurationSecsWithFixedCost > 0) {
+        target = Math.min(target, (config.targetBatchDurationSecsWithFixedCost - a) / b);
       }
 
       // 2: b*x = targetDurationSecs
@@ -325,6 +437,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     }
   }
 
+  /** A {@link DoFn} that batches elements in the global window. */
   @SuppressWarnings("initialization")
   static class GlobalWindowsBatchingDoFn<T> extends DoFn<T, List<T>> {
     private transient BatchSizeEstimator estimator;
@@ -382,6 +495,12 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     }
   }
 
+  /**
+   * A {@link DoFn} that batches elements per window.
+   *
+   * <p>Maintains separate batches for each active window and emits batches when they reach the
+   * target size or when windows are evicted.
+   */
   @SuppressWarnings("initialization")
   static class WindowAwareBatchingDoFn<T> extends DoFn<T, List<T>> {
     private transient BatchSizeEstimator estimator;

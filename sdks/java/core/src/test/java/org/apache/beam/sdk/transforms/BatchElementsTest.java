@@ -97,7 +97,7 @@ public class BatchElementsTest implements Serializable {
 
   @Test(expected = IllegalArgumentException.class)
   public void testBatchConfigNegativeFixedCostDurationThrows() {
-    BatchElements.BatchConfig.builder().withTargetBatchDurationSecsIncludingFixedCost(-5.0).build();
+    BatchElements.BatchConfig.builder().withTargetBatchDurationSecsWithFixedCost(-5.0).build();
   }
 
   //  BatchSizeEstimator unit tests
@@ -248,28 +248,6 @@ public class BatchElementsTest implements Serializable {
     PAssert.that(output).satisfies(sizes -> assertBatchSizesWithinLimitAndTotal(sizes, 10, 35));
     pipeline.run().waitUntilFinish();
   }
-
-  /*@Test
-  @Category(NeedsRunner.class)
-  public void testSingleElementBatch() {
-    // Edge case: 1 element should produce exactly 1 batch of size 1
-    PCollection<Integer> sizes =
-        pipeline
-            .apply("Create", Create.of(42))
-            .apply("Batch", BatchElements.withConfig(constantConfig(10)))
-            .apply(
-                "Sizes",
-                MapElements.via(
-                    new SimpleFunction<List<Integer>, Integer>() {
-                      @Override
-                      public Integer apply(List<Integer> input) {
-                        return input.size();
-                      }
-                    }));
-
-    PAssert.that(sizes).containsInAnyOrder(1);
-    pipeline.run().waitUntilFinish();
-  }*/
 
   @Test
   @Category(NeedsRunner.class)
