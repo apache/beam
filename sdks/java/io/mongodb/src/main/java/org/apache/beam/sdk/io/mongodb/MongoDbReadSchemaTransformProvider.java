@@ -172,22 +172,23 @@ public class MongoDbReadSchemaTransformProvider
     // For this skeleton, we assume a static schema.
     // public static final Schema OUTPUT_SCHEMA = Schema.builder()...build();
 
-    @ProcessElement
-    public void processElement(@Element Document doc, OutputReceiver<Row> out) {
-      // Here you will convert the BSON document to a Beam Row.
-      // This requires you to know the target schema.
-
-      // Example pseudo-code:
-      // Row.Builder rowBuilder = Row.withSchema(OUTPUT_SCHEMA);
-      // for (Map.Entry<String, Object> entry : doc.entrySet()) {
-      //   rowBuilder.addValue(entry.getValue());
-      // }
-      // out.output(rowBuilder.build());
-
-      // For a robust implementation, you would handle data type conversions
-      // between BSON types and Beam schema types.
-      throw new UnsupportedOperationException(
-          "MongoDocumentToRowFn must be implemented to convert MongoDB Documents to Beam Rows.");
-    }
+    //    @ProcessElement
+    //    public void processElement(@Element Document doc, OutputReceiver<Row> out) {
+    //      // Here you will convert the BSON document to a Beam Row.
+    //      // This requires you to know the target schema.
+    //
+    //      // Example pseudo-code:
+    //      // Row.Builder rowBuilder = Row.withSchema(OUTPUT_SCHEMA);
+    //      // for (Map.Entry<String, Object> entry : doc.entrySet()) {
+    //      //   rowBuilder.addValue(entry.getValue());
+    //      // }
+    //      // out.output(rowBuilder.build());
+    //
+    //      // For a robust implementation, you would handle data type conversions
+    //      // between BSON types and Beam schema types.
+    //      throw new UnsupportedOperationException(
+    //          "MongoDocumentToRowFn must be implemented to convert MongoDB Documents to Beam
+    // Rows.");
+    //    }
   }
 }
