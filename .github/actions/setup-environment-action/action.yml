@@ -48,7 +48,7 @@ runs:
   steps:
     - name: Install Python
       if: ${{ inputs.python-version != '' }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}
@@ -84,5 +84,5 @@ runs:
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v6
       with:
-        go-version: ${{ inputs.go-version == 'default' && '1.25' || inputs.go-version }} # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
         cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}

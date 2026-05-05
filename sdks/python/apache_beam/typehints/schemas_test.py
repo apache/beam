@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import dataclasses
+import datetime
 import itertools
 import pickle
 import unittest
@@ -42,6 +43,7 @@ from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints import schemas
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schemas import SchemaTypeRegistry
@@ -105,6 +107,7 @@ class ComplexSchema(NamedTuple):
   optional_array: Optional[Sequence[np.float32]]
   array_optional: Sequence[Optional[bool]]
   timestamp: Timestamp
+  date: datetime.date
 
 
 def get_test_beam_fieldtype_protos():
@@ -579,13 +582,26 @@ class SchemaTest(unittest.TestCase):
                 fieldtype_proto, schema_registry=SchemaTypeRegistry()),
             schema_registry=SchemaTypeRegistry()))
 
+  def test_any_maps_to_any(self):
+    # python_any for typing.Any logical type's representation is delibrately set
+    # absent to prevent the usage crossing language boundary, as its encoded
+    # form isn't predictable from foreign SDK.
+    self.assertEqual(
+        typing_to_runner_api(Any),
+        schemas._python_any_schema_pb2(has_repr=False))
+
   def test_unknown_primitive_maps_to_any(self):
     self.assertEqual(
         typing_to_runner_api(np.uint32),
-        schema_pb2.FieldType(
-            logical_type=schema_pb2.LogicalType(
-                urn="beam:logical:pythonsdk_any:v1"),
-            nullable=True))
+        schemas._python_any_schema_pb2(has_repr=True))
+
+  def test_unknown_user_type_maps_to_any(self):
+    class MyUnknownType:
+      pass
+
+    self.assertEqual(
+        typing_to_runner_api(MyUnknownType),
+        schemas._python_any_schema_pb2(has_repr=True))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(

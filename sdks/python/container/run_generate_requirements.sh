@@ -31,8 +31,8 @@
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# -lt 2 ]]; then
-  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
-  printf "\n\where 3.8 is the Python major.minor version."
+  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.10 <sdk_tarball>"
+  printf "\n\where 3.10 is the Python major.minor version."
   exit 1
 fi
 

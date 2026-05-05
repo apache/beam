@@ -451,7 +451,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.getPaneInfo(),
               element.getRecordId(),
               element.getRecordOffset(),
-              element.causedByDrain()));
+              element.causedByDrain(),
+              element.getOpenTelemetryContext()));
     }
 
     @Override
@@ -474,7 +475,23 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               paneInfo,
               element.getRecordId(),
               element.getRecordOffset(),
-              element.causedByDrain()));
+              element.causedByDrain(),
+              element.getOpenTelemetryContext()));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
+            .observeTimestamp(windowedValue.getTimestamp());
+      }
+      outputReceiver.output(tag, windowedValue);
     }
 
     private void noteOutput() {

@@ -196,7 +196,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      if (stream.size() != 0) {
+      if (!stream.isEmpty()) {
         throw new IllegalStateException(
             "Expected output stream to be empty but had " + stream.toByteString());
       }
@@ -250,12 +250,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Key too large: " + key.size());
         } else {
           LOG.error(
-              "Trying to output too large key with size "
-                  + key.size()
-                  + ". Limit is "
-                  + context.getMaxOutputKeyBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large key with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              key.size(),
+              context.getMaxOutputKeyBytes());
         }
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
@@ -263,12 +260,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Value too large: " + value.size());
         } else {
           LOG.error(
-              "Trying to output too large value with size "
-                  + value.size()
-                  + ". Limit is "
-                  + context.getMaxOutputValueBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large value with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              value.size(),
+              context.getMaxOutputValueBytes());
         }
       }
 

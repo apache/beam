@@ -119,14 +119,14 @@ public class DebuggingWordCount {
       if (filter.matcher(c.element().getKey()).matches()) {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline
         // these log lines will appear only if the log level is set to "DEBUG" or lower.
-        LOG.debug("Matched: " + c.element().getKey());
+        LOG.debug("Matched: {}", c.element().getKey());
         matchedWords.inc();
         c.output(c.element());
       } else {
         // Log at the "TRACE" level each element that is not matched. Different log levels
         // can be used to control the verbosity of logging providing an effective mechanism
         // to filter less important information.
-        LOG.trace("Did not match: " + c.element().getKey());
+        LOG.trace("Did not match: {}", c.element().getKey());
         unmatchedWords.inc();
       }
     }

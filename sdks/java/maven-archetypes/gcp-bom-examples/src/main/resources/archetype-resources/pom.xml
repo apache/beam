@@ -254,16 +254,6 @@
       </dependencies>
     </profile>
     <profile>
-      <id>samza-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-samza</artifactId>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>twister2-runner</id>
       <dependencies>
         <dependency>
@@ -323,6 +313,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-components</artifactId>
+      <version>${beam.version}</version>
     </dependency>
 
     <!-- Adds a dependency on the Beam Google Cloud Platform IO module. -->

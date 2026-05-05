@@ -159,7 +159,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       InputStream inputStream = message.getData().newInput();
       ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
       return WindowedValues.of(
-          value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream);
+          value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream, null);
     } catch (RuntimeException | IOException e) {
       if (!skipUndecodableElements) {
         throw new RuntimeException(e);

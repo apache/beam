@@ -1746,6 +1746,8 @@ public class SpannerIO {
 
     abstract String getChangeStreamName();
 
+    abstract @Nullable List<String> getTvfNameList();
+
     abstract @Nullable String getMetadataInstance();
 
     abstract @Nullable String getMetadataDatabase();
@@ -1782,6 +1784,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setChangeStreamName(String changeStreamName);
+
+      abstract Builder setTvfNameList(List<String> tvfNameList);
 
       abstract Builder setMetadataInstance(String metadataInstance);
 
@@ -1859,6 +1863,11 @@ public class SpannerIO {
     /** Specifies the change stream name. */
     public ReadChangeStream withChangeStreamName(String changeStreamName) {
       return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /** Specifies the list of TVF names to query and union. */
+    public ReadChangeStream withTvfNameList(List<String> tvfNameList) {
+      return toBuilder().setTvfNameList(tvfNameList).build();
     }
 
     /** Specifies the metadata database. */
@@ -2014,11 +2023,6 @@ public class SpannerIO {
               getMetadataInstance(), changeStreamDatabaseId.getInstanceId().getInstance());
       final String partitionMetadataDatabaseId =
           MoreObjects.firstNonNull(getMetadataDatabase(), changeStreamDatabaseId.getDatabase());
-      final DatabaseId fullPartitionMetadataDatabaseId =
-          DatabaseId.of(
-              getSpannerConfig().getProjectId().get(),
-              partitionMetadataInstanceId,
-              partitionMetadataDatabaseId);
 
       final SpannerConfig changeStreamSpannerConfig = buildChangeStreamSpannerConfig();
       final SpannerConfig partitionMetadataSpannerConfig =
@@ -2029,10 +2033,9 @@ public class SpannerIO {
       final Dialect metadataDatabaseDialect =
           getDialect(partitionMetadataSpannerConfig, input.getPipeline().getOptions());
       LOG.info(
-          "The Spanner database "
-              + changeStreamDatabaseId
-              + " has dialect "
-              + changeStreamDatabaseDialect);
+          "The Spanner database {} has dialect {}",
+          changeStreamDatabaseId,
+          changeStreamDatabaseDialect);
       PartitionMetadataTableNames partitionMetadataTableNames =
           Optional.ofNullable(getMetadataTable())
               .map(
@@ -2048,6 +2051,7 @@ public class SpannerIO {
           getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
               ? MAX_INCLUSIVE_END_AT
               : getInclusiveEndAt();
+      final List<String> tvfNameList = getTvfNameList();
       final MapperFactory mapperFactory = new MapperFactory(changeStreamDatabaseDialect);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
@@ -2056,11 +2060,25 @@ public class SpannerIO {
       final boolean isMutableChangeStream =
           isMutableChangeStream(
               spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
-      LOG.info("The change stream " + changeStreamName + " is mutable: " + isMutableChangeStream);
+      LOG.info("The change stream {} is mutable: {}", changeStreamName, isMutableChangeStream);
+      List<String> quoteEscapedTvfNameList = null;
+      if (tvfNameList != null && !tvfNameList.isEmpty()) {
+        if (!isMutableChangeStream) {
+          throw new IllegalArgumentException(
+              "tvfNameList is only supported for change streams with MUTABLE_KEY_RANGE mode");
+        }
+        // TODO: if !per_placement_tvf=true, throw exception.
+        quoteEscapedTvfNameList = new ArrayList<>();
+        for (String tvfName : tvfNameList) {
+          quoteEscapedTvfNameList.add(escapeQuotes(tvfName));
+        }
+        checkTvfExistence(spannerAccessor.getDatabaseClient(), quoteEscapedTvfNameList);
+      }
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
               changeStreamName,
+              quoteEscapedTvfNameList,
               partitionMetadataSpannerConfig,
               partitionMetadataTableNames,
               rpcPriority,
@@ -2095,8 +2113,8 @@ public class SpannerIO {
           new PostProcessingMetricsDoFn(metrics);
 
       LOG.info(
-          "Partition metadata table that will be used is "
-              + partitionMetadataTableNames.getTableName());
+          "Partition metadata table that will be used is {}",
+          partitionMetadataTableNames.getTableName());
 
       final PCollection<byte[]> impulseOut = input.apply(Impulse.create());
       final PCollection<PartitionMetadata> partitionsOut =
@@ -2599,7 +2617,7 @@ public class SpannerIO {
           mutationGroupsWriteSuccess.inc();
         } catch (SpannerException e) {
           mutationGroupsWriteFail.inc();
-          LOG.warn("Failed to write the mutation group: " + mg, e);
+          LOG.warn("Failed to write the mutation group: {}", mg, e);
           c.output(failedTag, mg);
         }
       }
@@ -2758,6 +2776,56 @@ public class SpannerIO {
             || config.getProjectId().get().isEmpty()
         ? SpannerOptions.getDefaultProjectId()
         : config.getProjectId().get();
+  }
+
+  @VisibleForTesting
+  static String escapeQuotes(String str) {
+    return str.replace("'", "").replace("\"", "").replace("`", "");
+  }
+
+  @VisibleForTesting
+  static void checkTvfExistence(
+      DatabaseClient databaseClient, List<String> quoteEscapedTvfNameList) {
+    if (quoteEscapedTvfNameList == null || quoteEscapedTvfNameList.isEmpty()) {
+      return;
+    }
+    Dialect dialect = databaseClient.getDialect();
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
+      StringBuilder sql =
+          new StringBuilder(
+              "SELECT routine_name FROM information_schema.routines WHERE routine_type LIKE '%FUNCTION' AND routine_name IN (");
+      for (int i = 0; i < quoteEscapedTvfNameList.size(); i++) {
+        if (dialect == Dialect.POSTGRESQL) {
+          sql.append("$").append(i + 1);
+        } else {
+          sql.append("@p").append(i);
+        }
+        if (i < quoteEscapedTvfNameList.size() - 1) {
+          sql.append(", ");
+        }
+      }
+      sql.append(")");
+      Statement.Builder builder = Statement.newBuilder(sql.toString());
+      for (int i = 0; i < quoteEscapedTvfNameList.size(); i++) {
+        if (dialect == Dialect.POSTGRESQL) {
+          builder.bind("p" + (i + 1)).to(quoteEscapedTvfNameList.get(i));
+        } else {
+          builder.bind("p" + i).to(quoteEscapedTvfNameList.get(i));
+        }
+      }
+      Statement statement = builder.build();
+      ResultSet resultSet = tx.executeQuery(statement);
+      java.util.Set<String> foundNames = new java.util.HashSet<>();
+      while (resultSet.next()) {
+        foundNames.add(resultSet.getString(0));
+      }
+      for (String tvfName : quoteEscapedTvfNameList) {
+        if (!foundNames.contains(tvfName)) {
+          throw new IllegalArgumentException(
+              "TVF specified: " + tvfName + " is not found in the existing TVF's: " + foundNames);
+        }
+      }
+    }
   }
 
   @VisibleForTesting

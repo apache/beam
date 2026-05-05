@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -252,9 +253,9 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("arrayValue", ImmutableList.of("one", "two", "red", "blue"))
           .withFieldValue("arrayNullValue", null)
           .withFieldValue("iterableValue", ImmutableList.of("blue", "red", "two", "one"))
-          .withFieldValue("sqlDateValue", LocalDate.now())
-          .withFieldValue("sqlTimeValue", LocalTime.now())
-          .withFieldValue("sqlDatetimeValue", LocalDateTime.now())
+          .withFieldValue("sqlDateValue", LocalDate.now(ZoneOffset.UTC))
+          .withFieldValue("sqlTimeValue", LocalTime.now(ZoneOffset.UTC))
+          .withFieldValue("sqlDatetimeValue", LocalDateTime.now(ZoneOffset.UTC))
           .withFieldValue("sqlTimestampValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
@@ -345,7 +346,7 @@ public class BeamRowToStorageApiProtoTest {
   public void testNestedFromSchema() {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
-            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema((NESTED_SCHEMA)), true, false);
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(NESTED_SCHEMA), true, false);
     Map<String, FieldDescriptorProto.Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
@@ -429,7 +430,7 @@ public class BeamRowToStorageApiProtoTest {
 
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
-            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema((nestedMapSchemaVariations)),
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(nestedMapSchemaVariations),
             true,
             false);
 

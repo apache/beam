@@ -625,7 +625,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       String restartReason =
           "Stream completed successfully but did not complete requested operations, "
               + "recreating";
-      logger.warn(restartReason);
+      logger.warn("{}", restartReason);
       debugMetrics.recordRestartReason(restartReason);
     } else {
       int currentErrorCount = debugMetrics.incrementAndGetErrors();

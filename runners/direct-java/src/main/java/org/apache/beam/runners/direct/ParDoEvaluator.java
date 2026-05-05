@@ -302,7 +302,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     @Override
     public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
       checkArgument(bundles.containsKey(tag), "Unknown output tag %s", tag);
-      (bundles.get(tag)).add((WindowedValue) output);
+      bundles.get(tag).add((WindowedValue) output);
     }
   }
 }

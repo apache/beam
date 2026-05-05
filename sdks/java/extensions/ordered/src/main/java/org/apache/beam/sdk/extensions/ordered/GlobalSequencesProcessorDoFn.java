@@ -146,7 +146,7 @@ class GlobalSequencesProcessorDoFn<
     long sequence = eventAndSequence.getValue().getKey();
 
     if (LOG.isTraceEnabled()) {
-      LOG.trace(key + ": " + sequence + " lastRange: " + lastContiguousRange);
+      LOG.trace("{}: {} lastRange: {}", key, sequence, lastContiguousRange);
     }
 
     ProcessingState<EventKeyT> processingState = processingStateProxy.read();
@@ -214,12 +214,10 @@ class GlobalSequencesProcessorDoFn<
 
       if (LOG.isTraceEnabled()) {
         LOG.trace(
-            "Setting batch emission timer to: "
-                + timerTime
-                + ", max time of the range: "
-                + lastCompleteGlobalSequence.getTimestamp()
-                + ", element time: "
-                + elementTimestamp);
+            "Setting batch emission timer to: {}, max time of the range: {}, element time: {}",
+            timerTime,
+            lastCompleteGlobalSequence.getTimestamp(),
+            elementTimestamp);
       }
 
       batchEmissionTimer.set(timerTime);
@@ -238,7 +236,7 @@ class GlobalSequencesProcessorDoFn<
       MultiOutputReceiver outputReceiver) {
 
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Running batch processing for: " + key);
+      LOG.trace("Running batch processing for: {}", key);
     }
 
     // At this point everything in the buffered state is ready to be processed up to the latest

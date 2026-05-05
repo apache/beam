@@ -28,9 +28,10 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -102,7 +103,9 @@ public class BigQueryHllSketchCompatibilityIT {
         TestPipeline.testingPipelineOptions().as(ApplicationNameOptions.class);
     APP_NAME = options.getAppName();
     PROJECT_ID = options.as(GcpOptions.class).getProject();
-    DATASET_ID = String.format("zetasketch_%tY_%<tm_%<td_%<tH_%<tM_%<tS_%<tL", new Date());
+    DATASET_ID =
+        String.format(
+            "zetasketch_%tY_%<tm_%<td_%<tH_%<tM_%<tS_%<tL", LocalDateTime.now(ZoneId.of("UTC")));
     BIGQUERY_CLIENT = BigqueryClient.getClient(APP_NAME);
   }
 

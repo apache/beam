@@ -130,7 +130,7 @@ public class CsvConverters {
             break;
 
           default:
-            LOG.error("Invalid data type, got: " + type);
+            LOG.error("Invalid data type, got: {}", type);
             throw new RuntimeException("Invalid data type, got: " + type);
         }
       }

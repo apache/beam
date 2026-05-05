@@ -552,7 +552,7 @@ public class GcsPath implements Path, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof GcsPath)) {
       return false;
     }
 

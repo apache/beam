@@ -144,7 +144,7 @@ public class SchemaCoderTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBean)) {
         return false;
       }
       SimpleBean that = (SimpleBean) o;
@@ -179,7 +179,7 @@ public class SchemaCoderTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimplePojo)) {
         return false;
       }
       SimplePojo that = (SimplePojo) o;

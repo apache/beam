@@ -287,7 +287,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   @Test
   public void testRepeatedCountTriggerDisablesCombinerLifting() throws IOException, Exception {
-    testTriggerCombinerLiftingDisabled(Repeatedly.forever((AfterPane.elementCountAtLeast(1))));
+    testTriggerCombinerLiftingDisabled(Repeatedly.forever(AfterPane.elementCountAtLeast(1)));
   }
 
   @Test
@@ -755,6 +755,37 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(1, job.getEnvironment().getWorkerPools().size());
     assertEquals(diskSizeGb, job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
+  }
+
+  @Test
+  public void testDiskProvisionedOptionsConfig() throws IOException {
+    final Long diskProvisionedIops = 1000L;
+    final Long diskProvisionedThroughputMibps = 100L;
+
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDiskProvisionedIops(diskProvisionedIops);
+    options.setDiskProvisionedThroughputMibps(diskProvisionedThroughputMibps);
+
+    Pipeline p = buildPipeline(options);
+    p.traverseTopologically(new RecordingPipelineVisitor());
+    SdkComponents sdkComponents = createSdkComponents(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    Job job =
+        DataflowPipelineTranslator.fromOptions(options)
+            .translate(
+                p,
+                pipelineProto,
+                sdkComponents,
+                DataflowRunner.fromOptions(options),
+                Collections.emptyList())
+            .getJob();
+
+    assertEquals(1, job.getEnvironment().getWorkerPools().size());
+    assertEquals(
+        diskProvisionedIops, job.getEnvironment().getWorkerPools().get(0).getDiskProvisionedIops());
+    assertEquals(
+        diskProvisionedThroughputMibps,
+        job.getEnvironment().getWorkerPools().get(0).getDiskProvisionedThroughputMibps());
   }
 
   /** A composite transform that returns an output that is unrelated to the input. */
@@ -1828,12 +1859,14 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   private static class TestSplittableFn extends DoFn<String, Integer> {
 
     @ProcessElement
-    public void process(ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+    public void process(
+        @SuppressWarnings("unused") ProcessContext c,
+        @SuppressWarnings("unused") RestrictionTracker<OffsetRange, Long> tracker) {
       // noop
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(@Element String element) {
+    public OffsetRange getInitialRange(@SuppressWarnings("unused") @Element String element) {
       return null;
     }
   }

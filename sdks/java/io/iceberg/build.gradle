@@ -51,6 +51,8 @@ dependencies {
     implementation library.java.joda_time
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
+    implementation "org.apache.parquet:parquet-common:$parquet_version"
+    implementation project(":sdks:java:io:parquet")
     implementation "org.apache.orc:orc-core:$orc_version"
     implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
@@ -74,11 +76,13 @@ dependencies {
     testImplementation library.java.bigdataoss_gcsio
     testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
-    testImplementation "org.apache.parquet:parquet-common:$parquet_version"
     testImplementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.junit
+    testImplementation library.java.hamcrest
+    testImplementation project(path: ":sdks:java:extensions:avro")
+    testImplementation 'org.awaitility:awaitility:4.2.0'
 
     // Hive catalog test dependencies
     testImplementation project(path: ":sdks:java:io:iceberg:hive")
@@ -95,6 +99,7 @@ dependencies {
     testImplementation project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation library.java.google_api_services_bigquery
+    testImplementation 'com.google.cloud:google-cloud-storage'
 
     testImplementation library.java.google_auth_library_oauth2_http
     testRuntimeOnly library.java.slf4j_jdk14

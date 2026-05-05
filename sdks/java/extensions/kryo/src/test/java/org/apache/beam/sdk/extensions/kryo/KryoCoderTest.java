@@ -238,7 +238,7 @@ public class KryoCoderTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ClassToBeEncoded)) {
         return false;
       }
       ClassToBeEncoded that = (ClassToBeEncoded) o;
@@ -267,7 +267,7 @@ public class KryoCoderTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof TestClass)) {
         return false;
       }
       TestClass testClass = (TestClass) o;

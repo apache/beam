@@ -47,7 +47,6 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -309,7 +308,7 @@ public class FlinkExecutionEnvironments {
 
     @Override
     public boolean equals(Object obj) {
-      if (obj == null || this.getClass() != obj.getClass()) {
+      if (!(obj instanceof GlobalJobParametersImpl)) {
         return false;
       }
 
@@ -390,7 +389,6 @@ public class FlinkExecutionEnvironments {
   }
 
   private static void configureStateBackend(FlinkPipelineOptions options, Configuration config) {
-    final StateBackend stateBackend;
     if (options.getStateBackend() != null) {
       final String storagePath = options.getStateBackendStoragePath();
       Preconditions.checkArgument(

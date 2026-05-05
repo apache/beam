@@ -41,7 +41,7 @@ public final class IORedirectUtil {
 
                 String line;
                 while ((line = bis.readLine()) != null) {
-                  log.info(line);
+                  log.info("{}", line);
                 }
               } catch (Exception e) {
                 log.error("Error redirecting stream", e);

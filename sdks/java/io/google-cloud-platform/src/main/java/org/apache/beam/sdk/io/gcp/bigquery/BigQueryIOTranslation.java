@@ -58,7 +58,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
@@ -74,7 +73,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"rawtypes", "nullness"})
+@SuppressWarnings({"rawtypes", "nullness", "AutoValueSubclassLeaked"})
 public class BigQueryIOTranslation {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslation.class);
@@ -353,7 +352,7 @@ public class BigQueryIOTranslation {
           // from older Beam versions.
           // See https://github.com/apache/beam/issues/30534.
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+          builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
           byte[] badRecordRouter = configRow.getBytes("bad_record_router");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
@@ -903,7 +902,7 @@ public class BigQueryIOTranslation {
           // from older Beam versions.
           // See https://github.com/apache/beam/issues/30534.
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+          builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
           byte[] badRecordRouter = configRow.getBytes("bad_record_router");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));

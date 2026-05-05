@@ -1207,6 +1207,22 @@ class YamlProviders:
 
     return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
+  class Reshuffle(beam.PTransform):
+    """Reshuffles the elements of a PCollection.
+
+    Redistributes the elements of a PCollection to prevent fusion or balance
+    load.
+
+    Args:
+      num_buckets: (optional) Specifies the maximum random keys that would be
+        generated. If not set, a default value is used.
+    """
+    def __init__(self, num_buckets: Optional[int] = None):
+      self.num_buckets = num_buckets
+
+    def expand(self, pcoll):
+      return pcoll | beam.Reshuffle(num_buckets=self.num_buckets)
+
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
@@ -1216,6 +1232,7 @@ class YamlProviders:
         'PyTransform': YamlProviders.fully_qualified_named_transform,
         'Flatten': YamlProviders.Flatten,
         'WindowInto': YamlProviders.WindowInto,
+        'Reshuffle': YamlProviders.Reshuffle,
     },
                           no_input_transforms=('Create', ))
 
@@ -1412,7 +1429,13 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_to_clone(cls, base_python: str) -> str:
-    if '.dev' in beam_version:
+    # For '.dev', the default clone source is the venv that owns base_python.
+    # In CI that is often the active tox/sandbox tree; clonevirtualenv can
+    # race with ephemeral paths (tmp/, caches) under that tree. Use the
+    # scratch clonable venv in CI instead. Locally, keep cloning the dev venv
+    # for speed.
+    _ci = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
+    if '.dev' in beam_version and not _ci:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
       return base_venv
@@ -1542,6 +1565,9 @@ class RenamingProvider(Provider):
     """Creates a PTransform instance for the given transform type and arguments.
     """
     mappings = self._mappings[typ]
+    # NOTE: If the `key` is not found in the mappings
+    # (e.g. standard_io.yaml), the `key` is passed down
+    # as is to the underlying transform.
     remapped_args = {
         mappings.get(key, key): value
         for key, value in args.items()

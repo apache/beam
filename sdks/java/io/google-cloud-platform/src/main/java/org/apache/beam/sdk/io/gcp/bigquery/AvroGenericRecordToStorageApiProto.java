@@ -189,13 +189,13 @@ public class AvroGenericRecordToStorageApiProto {
         Preconditions.checkArgument(
             value instanceof Long, "Expecting a value as Long type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
-            java.time.LocalTime.ofNanoOfDay((TimeUnit.MICROSECONDS.toNanos((long) value))));
+            java.time.LocalTime.ofNanoOfDay(TimeUnit.MICROSECONDS.toNanos((long) value)));
       } else {
         Preconditions.checkArgument(
             value instanceof Integer, "Expecting a value as Integer type (time).");
         return CivilTimeEncoder.encodePacked64TimeMicros(
             java.time.LocalTime.ofNanoOfDay(
-                (TimeUnit.MILLISECONDS).toNanos(((Integer) value).longValue())));
+                TimeUnit.MILLISECONDS.toNanos(((Integer) value).longValue())));
       }
     }
   }

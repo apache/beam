@@ -712,7 +712,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       TopicPartition topicPartition, List<PartitionInfo> partitionInfos) {
     // Check if the current TopicPartition still exists.
     return partitionInfos.stream()
-        .anyMatch(partitionInfo -> partitionInfo.partition() == (topicPartition.partition()));
+        .anyMatch(partitionInfo -> partitionInfo.partition() == topicPartition.partition());
   }
 
   private TimestampPolicyContext updateWatermarkManually(

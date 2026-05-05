@@ -107,7 +107,7 @@ public class IdNameReserve implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof IdNameReserve)) {
       return false;
     }
     IdNameReserve that = (IdNameReserve) o;

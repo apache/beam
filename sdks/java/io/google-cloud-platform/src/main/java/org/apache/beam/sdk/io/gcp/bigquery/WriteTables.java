@@ -102,6 +102,10 @@ class WriteTables<DestinationT extends @NonNull Object>
     abstract String getTableName();
 
     abstract boolean isFirstPane();
+
+    public static Result of(String tableName, boolean isFirstPane) {
+      return new AutoValue_WriteTables_Result(tableName, isFirstPane);
+    }
   }
 
   static class ResultCoder extends AtomicCoder<WriteTables.Result> {
@@ -178,7 +182,7 @@ class WriteTables<DestinationT extends @NonNull Object>
     private List<PendingJobData> pendingJobs = Lists.newArrayList();
 
     @StartBundle
-    public void startBundle(StartBundleContext c) {
+    public void startBundle(@SuppressWarnings("unused") StartBundleContext c) {
       // Clear the map on each bundle so we can notice side-input updates.
       // (alternative is to use a cache with a TTL).
       jsonSchemas.clear();

@@ -812,6 +812,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
     }
 
     @Override
+    @SuppressWarnings("JavaUtilDate")
     public OutputStream get() {
       try {
         String filename = filepath + "." + formatter.format(new Date()) + ".log";

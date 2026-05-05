@@ -52,7 +52,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
@@ -67,17 +67,19 @@ jobs:
           - "python:container:py311:docker"
           - "python:container:py312:docker"
           - "python:container:py313:docker"
+          - "python:container:py314:docker"
           - "python:container:distroless:py310:docker"
           - "python:container:distroless:py311:docker"
           - "python:container:distroless:py312:docker"
           - "python:container:distroless:py313:docker"
+          - "python:container:distroless:py314:docker"
           - "python:container:ml:py310:docker"
           - "python:container:ml:py311:docker"
           - "python:container:ml:py312:docker"
           - "python:container:ml:py313:docker"
           - "java:expansion-service:container:docker"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
@@ -97,14 +99,14 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
       - name: Authenticate on GCP
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
           service_account: ${{ secrets.GCP_SA_EMAIL }}
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker ${{ env.docker_registry }}

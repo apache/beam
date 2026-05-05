@@ -20,12 +20,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 type stateProvider struct {
@@ -41,6 +43,7 @@ type stateProvider struct {
 	blindBagWriteCountsByKey map[string]int // Tracks blind writes to bags before a read.
 	initialMapValuesByKey    map[string]map[string]any
 	initialMapKeysByKey      map[string][]any
+	initialOrderedListByKey  map[string][]any
 	readersByKey             map[string]io.ReadCloser
 	appendersByKey           map[string]io.Writer
 	clearersByKey            map[string]io.Writer
@@ -466,6 +469,152 @@ func (s *stateProvider) getMultiMapKeyReader(userStateID string) (io.ReadCloser,
 	return s.readersByKey[userStateID], nil
 }
 
+// ReadOrderedListState reads an ordered list state from the State API.
+// It fetches the full range on first access and caches the result.
+func (s *stateProvider) ReadOrderedListState(userStateID string) ([]any, []state.Transaction, error) {
+	initialValue, ok := s.initialOrderedListByKey[userStateID]
+	if !ok {
+		initialValue = []any{}
+		rw, err := s.getOrderedListReader(userStateID, math.MinInt64, math.MaxInt64)
+		if err != nil {
+			return nil, nil, err
+		}
+		for {
+			entry, err := decodeOrderedListEntry(rw, s.codersByKey[userStateID])
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, nil, err
+			}
+			initialValue = append(initialValue, entry)
+		}
+		s.initialOrderedListByKey[userStateID] = initialValue
+	}
+
+	transactions, ok := s.transactionsByKey[userStateID]
+	if !ok {
+		transactions = []state.Transaction{}
+	}
+
+	return initialValue, transactions, nil
+}
+
+// WriteOrderedListState writes a single entry to the ordered list state.
+// The wire format is: varint(sortKey) || coder_encoded(value).
+func (s *stateProvider) WriteOrderedListState(val state.Transaction) error {
+	ap, err := s.getOrderedListAppender(val.Key)
+	if err != nil {
+		return err
+	}
+
+	sortKey := val.MapKey.(int64)
+	if err := encodeOrderedListEntry(sortKey, val.Val, ap, s.codersByKey[val.Key]); err != nil {
+		return err
+	}
+
+	if transactions, ok := s.transactionsByKey[val.Key]; ok {
+		s.transactionsByKey[val.Key] = append(transactions, val)
+	} else {
+		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	}
+
+	return nil
+}
+
+// ClearOrderedListState clears entries in a range from the ordered list state.
+func (s *stateProvider) ClearOrderedListState(val state.Transaction) error {
+	r := val.MapKey.([2]int64)
+	cl, err := s.getOrderedListClearer(val.Key, r[0], r[1])
+	if err != nil {
+		return err
+	}
+	_, err = cl.Write([]byte{})
+	if err != nil {
+		return err
+	}
+
+	if transactions, ok := s.transactionsByKey[val.Key]; ok {
+		s.transactionsByKey[val.Key] = append(transactions, val)
+	} else {
+		s.transactionsByKey[val.Key] = []state.Transaction{val}
+	}
+
+	return nil
+}
+
+func (s *stateProvider) getOrderedListReader(userStateID string, start, end int64) (io.ReadCloser, error) {
+	r, err := s.sr.OpenOrderedListUserStateReader(s.ctx, s.SID, userStateID, s.elementKey, s.window, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
+func (s *stateProvider) getOrderedListAppender(userStateID string) (io.Writer, error) {
+	w, err := s.sr.OpenOrderedListUserStateAppender(s.ctx, s.SID, userStateID, s.elementKey, s.window)
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+func (s *stateProvider) getOrderedListClearer(userStateID string, start, end int64) (io.Writer, error) {
+	w, err := s.sr.OpenOrderedListUserStateClearer(s.ctx, s.SID, userStateID, s.elementKey, s.window, start, end)
+	if err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+// encodeOrderedListEntry writes varint(uint64(sortKey)) || coder_encoded(value) to w.
+// The entire entry is buffered before writing so that each w.Write call
+// delivers a complete entry (important when w is a stateKeyWriter that
+// sends each Write as a separate gRPC Append request).
+func encodeOrderedListEntry(sortKey int64, val any, w io.Writer, c *coder.Coder) error {
+	var buf bytes.Buffer
+	b := protowire.AppendVarint(nil, uint64(sortKey))
+	buf.Write(b)
+	fv := FullValue{Elm: val}
+	enc := MakeElementEncoder(coder.SkipW(c))
+	if err := enc.Encode(&fv, &buf); err != nil {
+		return err
+	}
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+// decodeOrderedListEntry reads varint(sortKey) || coder_encoded(value) from r.
+func decodeOrderedListEntry(r io.Reader, c *coder.Coder) (state.OrderedListEntry, error) {
+	// Read varint byte-by-byte.
+	var buf [10]byte // max varint size
+	var n int
+	for n = 0; n < len(buf); n++ {
+		_, err := r.Read(buf[n : n+1])
+		if err != nil {
+			if n == 0 {
+				return state.OrderedListEntry{}, err
+			}
+			return state.OrderedListEntry{}, fmt.Errorf("unexpected error reading varint: %w", err)
+		}
+		if buf[n]&0x80 == 0 {
+			n++
+			break
+		}
+	}
+	sortKey, consumed := protowire.ConsumeVarint(buf[:n])
+	if consumed < 0 {
+		return state.OrderedListEntry{}, fmt.Errorf("invalid varint in ordered list entry")
+	}
+
+	dec := MakeElementDecoder(coder.SkipW(c))
+	fv, err := dec.Decode(r)
+	if err != nil {
+		return state.OrderedListEntry{}, err
+	}
+	return state.OrderedListEntry{SortKey: int64(sortKey), Value: fv.Elm}, nil
+}
+
 func (s *stateProvider) encodeKey(userStateID string, key any) ([]byte, error) {
 	fv := FullValue{Elm: key}
 	enc := MakeElementEncoder(coder.SkipW(s.keyCodersByID[userStateID]))
@@ -533,6 +682,7 @@ func (s *userStateAdapter) NewStateProvider(ctx context.Context, reader StateRea
 		blindBagWriteCountsByKey: make(map[string]int),
 		initialMapValuesByKey:    make(map[string]map[string]any),
 		initialMapKeysByKey:      make(map[string][]any),
+		initialOrderedListByKey:  make(map[string][]any),
 		readersByKey:             make(map[string]io.ReadCloser),
 		appendersByKey:           make(map[string]io.Writer),
 		clearersByKey:            make(map[string]io.Writer),

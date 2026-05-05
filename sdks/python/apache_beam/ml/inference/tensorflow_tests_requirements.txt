@@ -21,3 +21,6 @@ tensorflow_hub>=0.10.0
 Pillow>=9.0.0
 typing-extensions>=4.8.0
 google-cloud-monitoring>=2.27.0
+# Pin setuptools below 82: tensorflow_hub still imports pkg_resources, which setuptools 82+ no longer provides.
+# https://github.com/tensorflow/hub/issues/934
+setuptools>=65.0.0,<82

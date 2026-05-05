@@ -209,7 +209,7 @@ public class VarIntBenchmark {
     }
     stream.write((byte) (v | 0x80));
     v >>>= 7;
-    stream.write((byte) (v));
+    stream.write((byte) v);
   }
 
   @Benchmark

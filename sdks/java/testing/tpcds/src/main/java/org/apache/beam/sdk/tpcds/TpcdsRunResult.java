@@ -48,11 +48,13 @@ public class TpcdsRunResult {
     return isSuccessful;
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public Date getStartDate() {
     Timestamp startTimeStamp = new Timestamp(startTime);
     return new Date(startTimeStamp.getTime());
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public Date getEndDate() {
     Timestamp endTimeStamp = new Timestamp(endTime);
     return new Date(endTimeStamp.getTime());

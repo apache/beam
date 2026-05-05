@@ -339,7 +339,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkBroadcastStateInternals.FlinkBroadcastValueState)) {
         return false;
       }
 
@@ -430,7 +430,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkBroadcastStateInternals.FlinkBroadcastBagState)) {
         return false;
       }
 
@@ -545,7 +545,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkBroadcastStateInternals.FlinkCombiningState)) {
         return false;
       }
 
@@ -677,7 +677,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FlinkBroadcastStateInternals.FlinkCombiningStateWithContext)) {
         return false;
       }
 

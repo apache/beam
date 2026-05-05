@@ -448,9 +448,7 @@ message WorkItem {
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
 
-  repeated int64 applied_finalize_ids = 16;
-
-  reserved 12, 13, 14, 15;
+  reserved 12, 13, 14, 15, 16;
 }
 
 message ComputationWorkItems {
@@ -474,11 +472,15 @@ message GetWorkRequest {
   optional string project_id = 7;
   optional int64 max_items = 2 [default = 0xffffffff];
   optional int64 max_bytes = 3 [default = 0x7fffffffffffffff];
+  repeated string computation_id_filter = 8;
+  optional string backend_worker_token = 9;
   reserved 6;
 }
 
 message GetWorkResponse {
   repeated ComputationWorkItems work = 1;
+  // Finalize ids associated with successfully applied work from this worker
+  repeated int64 applied_finalize_ids = 2 [packed = true];
 }
 
 // GetData

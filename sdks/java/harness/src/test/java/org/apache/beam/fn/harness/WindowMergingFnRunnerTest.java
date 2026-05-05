@@ -100,7 +100,9 @@ public class WindowMergingFnRunnerTest {
     KV<Object, KV<Iterable<BoundedWindow>, Iterable<KV<BoundedWindow, Iterable<BoundedWindow>>>>>
         output = mapFunction.apply(input);
     assertEquals(input.getKey(), output.getKey());
-    assertEquals(expectedToBeUnmerged, output.getValue().getKey());
+    assertThat(
+        output.getValue().getKey(),
+        containsInAnyOrder(Iterables.toArray(expectedToBeUnmerged, BoundedWindow.class)));
     KV<BoundedWindow, Iterable<BoundedWindow>> mergedOutput =
         Iterables.getOnlyElement(output.getValue().getValue());
     assertEquals(new IntervalWindow(new Instant(7L), new Instant(11L)), mergedOutput.getKey());
@@ -123,7 +125,9 @@ public class WindowMergingFnRunnerTest {
 
     output = mapFunction.apply(input);
     assertEquals(input.getKey(), output.getKey());
-    assertEquals(expectedToBeUnmerged, output.getValue().getKey());
+    assertThat(
+        output.getValue().getKey(),
+        containsInAnyOrder(Iterables.toArray(expectedToBeUnmerged, BoundedWindow.class)));
     mergedOutput = Iterables.getOnlyElement(output.getValue().getValue());
     assertEquals(new IntervalWindow(new Instant(15L), new Instant(18L)), mergedOutput.getKey());
     assertThat(mergedOutput.getValue(), containsInAnyOrder(expectedToBeMergedGroup2));

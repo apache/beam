@@ -181,7 +181,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               RecordIdMethod.DETERMINISTIC,
               null);
       p.apply(Create.of(ImmutableList.of(DATA)))
-          .apply(ParDo.of((new Stamp((@Nullable Map<String, String>) null /* attributes */))))
+          .apply(ParDo.of(new Stamp((@Nullable Map<String, String>) null /* attributes */)))
           .apply(sink);
       p.run();
     }
