@@ -282,8 +282,8 @@ class YamlTransformE2ETest(unittest.TestCase):
       self.assertEqual(
           len(all_output),
           1,
-          msg=f"Expected 1 shard file, but found {len(all_output)}. \
-        Files & sizes (bytes): {file_and_size}")
+          msg=f"Expected 1 shard file, but found {len(all_output)}. "
+          f"Files & sizes (bytes): {file_and_size}")
       output_shard = all_output[0]
       result = pd.read_json(
           output_shard, orient='records',
