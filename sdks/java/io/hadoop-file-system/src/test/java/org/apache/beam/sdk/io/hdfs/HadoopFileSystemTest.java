@@ -24,6 +24,9 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -37,12 +40,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -479,6 +484,21 @@ public class HadoopFileSystemTest {
     PCollection<String> pc = p.apply(TextIO.read().from(testPath("testFile*").toString()));
     PAssert.that(pc).containsInAnyOrder("testDataA", "testDataB", "testDataC");
     p.run();
+  }
+
+  @Test
+  public void testReportLineage() {
+    verifyLineage(
+        "hdfs://namenode/path/to/file.txt", ImmutableList.of("namenode", "/path/to/file.txt"));
+    verifyLineage("hdfs://namenode/", ImmutableList.of("namenode"));
+    verifyLineage("hdfs://namenode", ImmutableList.of("namenode"));
+  }
+
+  private void verifyLineage(String uri, List<String> expected) {
+    HadoopResourceId resourceId = new HadoopResourceId(URI.create(uri));
+    Lineage mockLineage = mock(Lineage.class);
+    fileSystem.reportLineage(resourceId, mockLineage, FileSystem.LineageLevel.FILE);
+    verify(mockLineage, times(1)).add("hdfs", expected, "/");
   }
 
   private void create(String relativePath, byte[] contents) throws Exception {

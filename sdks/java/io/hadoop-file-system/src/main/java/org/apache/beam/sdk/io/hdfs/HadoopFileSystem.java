@@ -38,6 +38,7 @@ import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
@@ -334,6 +335,22 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
   @Override
   protected String getScheme() {
     return scheme;
+  }
+
+  @Override
+  protected void reportLineage(HadoopResourceId resourceId, Lineage lineage, LineageLevel level) {
+    URI uri = resourceId.toPath().toUri();
+    ImmutableList.Builder<String> segments = ImmutableList.builder();
+    if (uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+      segments.add(uri.getAuthority());
+    }
+    if (level != LineageLevel.TOP_LEVEL
+        && uri.getPath() != null
+        && !uri.getPath().isEmpty()
+        && !uri.getPath().equals("/")) {
+      segments.add(uri.getPath());
+    }
+    lineage.add(scheme, segments.build(), "/");
   }
 
   /** An adapter around {@link FSDataInputStream} that implements {@link SeekableByteChannel}. */
