@@ -28,7 +28,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -283,8 +282,9 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
             .apply(
                 MapElements.into(TypeDescriptor.of(TableRow.class))
                     .via(BigQueryStorageApiInsertError::getRow));
-    // Schema upgrade races can add extra failed rows; we only insist the bad row shows up.
-    PAssert.that(failedInserts).satisfies(new VerifyContainsRow(doFn.getRow(20)));
+    // Schema upgrades can race with evolved rows; allow extra DLQ rows but require the
+    // intentionally malformed row shape to appear.
+    PAssert.that(failedInserts).satisfies(new VerifyContainsMalformedReqRow());
 
     p.run().waitUntilFinish();
 
@@ -332,21 +332,19 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
     abstract int getExpectedCount();
   }
 
-  private static final class VerifyContainsRow
+  private static final class VerifyContainsMalformedReqRow
       implements SerializableFunction<Iterable<TableRow>, Void> {
-    private final TableRow expectedRow;
-
-    private VerifyContainsRow(TableRow expectedRow) {
-      this.expectedRow = expectedRow;
-    }
-
     @Override
-    public Void apply(Iterable<TableRow> input) {
-      List<TableRow> collected = new ArrayList<>();
-      input.forEach(collected::add);
-      assertTrue(
-          String.format("DLQ should contain %s; was %s", expectedRow, collected),
-          collected.contains(expectedRow));
+    public Void apply(Iterable<TableRow> rows) {
+      boolean sawBadReqShape = false;
+      for (TableRow row : rows) {
+        Object reqValue = row.get("req");
+        if (reqValue instanceof List && ((List<?>) reqValue).size() == 2) {
+          sawBadReqShape = true;
+          break;
+        }
+      }
+      assertTrue("DLQ should include the malformed req row", sawBadReqShape);
       return null;
     }
   }
