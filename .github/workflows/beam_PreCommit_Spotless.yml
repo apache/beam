@@ -76,7 +76,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Spotless PreCommit'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -91,7 +91,7 @@ jobs:
           gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
           arguments: -PdisableSpotlessApply
       - name: Upload test report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: java-code-coverage-report
           path: "**/build/reports/checkstyle/*.xml"

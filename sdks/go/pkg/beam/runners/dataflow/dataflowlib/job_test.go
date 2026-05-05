@@ -21,6 +21,9 @@ import (
 	"reflect"
 	"testing"
 
+	"encoding/json"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -279,4 +282,80 @@ func Test_containerImages(t *testing.T) {
 
 	}
 
+}
+
+func TestTranslate(t *testing.T) {
+	ctx := context.Background()
+	p := &pipepb.Pipeline{}
+	opts := &JobOptions{
+		Project:                        "test-project",
+		Name:                           "test-job",
+		DiskProvisionedIops:            4000,
+		DiskProvisionedThroughputMibps: 200,
+	}
+	workerURL := "gs://any-location/temp"
+	modelURL := "gs://any-location/temp"
+
+	job, err := Translate(ctx, p, opts, workerURL, modelURL, "dummy-hash-12345")
+	if err != nil {
+		t.Fatalf("Translate(...) error = %v, want nil", err)
+	}
+
+	if len(job.Environment.WorkerPools) == 0 {
+		t.Fatal("Translate(...) returned job with no worker pools")
+	}
+
+	wp := job.Environment.WorkerPools[0]
+	if wp.DiskProvisionedIops != 4000 {
+		t.Errorf("DiskProvisionedIops = %v, want 4000", wp.DiskProvisionedIops)
+	}
+	if wp.DiskProvisionedThroughputMibps != 200 {
+		t.Errorf("DiskProvisionedThroughputMibps = %v, want 200", wp.DiskProvisionedThroughputMibps)
+	}
+}
+
+func TestTranslateWithPipelineHash(t *testing.T) {
+	p := &pipepb.Pipeline{
+		Components: &pipepb.Components{
+			Environments: map[string]*pipepb.Environment{
+				"env1": {
+					Payload: protox.MustEncode(&pipepb.DockerPayload{
+						ContainerImage: "dummy_image",
+					}),
+				},
+			},
+		},
+	}
+	opts := &JobOptions{
+		Name:    "test-job",
+		Project: "test-project",
+		Region:  "test-region",
+		Options: runtime.RawOptions{
+			Options: make(map[string]string),
+		},
+	}
+
+	expectedHashStr := "dummy-hash-12345"
+
+	job, err := Translate(context.Background(), p, opts, "worker-url", "model-url", expectedHashStr)
+	if err != nil {
+		t.Fatalf("Translate failed: %v", err)
+	}
+
+	// Verify PipelineProtoHash
+	var recoveredOptions struct {
+		Options struct {
+			PipelineURL       string `json:"pipelineUrl"`
+			PipelineProtoHash string `json:"pipelineProtoHash"`
+		} `json:"options"`
+	}
+
+	rawOpts := job.Environment.SdkPipelineOptions
+	if err := json.Unmarshal(rawOpts, &recoveredOptions); err != nil {
+		t.Fatalf("Failed to unmarshal SdkPipelineOptions: %v", err)
+	}
+
+	if recoveredOptions.Options.PipelineProtoHash != expectedHashStr {
+		t.Errorf("Expected PipelineProtoHash %v, got %v", expectedHashStr, recoveredOptions.Options.PipelineProtoHash)
+	}
 }

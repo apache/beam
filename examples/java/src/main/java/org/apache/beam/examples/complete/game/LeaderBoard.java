@@ -135,24 +135,25 @@ public class LeaderBoard extends HourlyTeamScore {
 
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
-        "team", new WriteToBigQuery.FieldInfo<>("STRING", (e, w, t, p) -> e.getKey()));
+        "team", new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
-        "total_score", new WriteToBigQuery.FieldInfo<>("INTEGER", (e, w, t, p) -> e.getValue()));
+        "total_score",
+        new WriteToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
         new WriteToBigQuery.FieldInfo<>(
             "STRING",
-            (e, w, t, p) -> {
+            (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
         new WriteToBigQuery.FieldInfo<>(
-            "STRING", (e, w, t, p) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     tableConfigure.put(
         "timing",
-        new WriteToBigQuery.FieldInfo<>("STRING", (e, w, t, p) -> p.getTiming().toString()));
+        new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.pane().getTiming().toString()));
     return tableConfigure;
   }
 
@@ -164,9 +165,10 @@ public class LeaderBoard extends HourlyTeamScore {
       configureBigQueryWrite() {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
-        "user", new WriteToBigQuery.FieldInfo<>("STRING", (e, w, t, p) -> e.getKey()));
+        "user", new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
-        "total_score", new WriteToBigQuery.FieldInfo<>("INTEGER", (e, w, t, p) -> e.getValue()));
+        "total_score",
+        new WriteToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     return tableConfigure;
   }
 
@@ -182,7 +184,7 @@ public class LeaderBoard extends HourlyTeamScore {
     tableConfigure.put(
         "processing_time",
         new WriteToBigQuery.FieldInfo<>(
-            "STRING", (e, w, t, p) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 

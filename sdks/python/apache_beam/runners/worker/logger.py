@@ -20,6 +20,7 @@
 # pytype: skip-file
 # mypy: disallow-untyped-defs
 
+# ruff: noqa: UP006
 import contextlib
 import json
 import logging

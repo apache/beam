@@ -757,6 +757,29 @@ message Elements {
     }
   }
 
+  // The type of change operation represented by a Change Data Capture (CDC) record
+  message ValueKind {
+    enum Enum {
+      // Unspecified ValueKind. Will be treated as an INSERT
+      VALUE_KIND_UNSPECIFIED = 0;
+
+      // Indicates a new record was created in the source system.
+      INSERT = 1;
+
+      // Indicates the state of a record immediately <b>before</b> an update occurred.
+      // This is typically used to identify the previous values of modified columns
+      // or to locate the record via its primary key.
+      UPDATE_BEFORE = 2;
+
+      // Indicates the state of a record immediately after an update occurred.
+      // Represents the current, valid state of the record following the change.
+      UPDATE_AFTER = 3;
+
+      // Indicates that an existing record was removed from the source system.
+      DELETE = 4;
+    }
+  }
+
   // Element metadata passed as part of WindowedValue to make WindowedValue
   // extensible and backward compatible
   message ElementMetadata {
@@ -770,6 +793,9 @@ message Elements {
     // across IOs - Kafka, PubSub, http.
     // Example value: congo=t61rcWkgMzE
     optional string tracestate = 3;
+    // (Optional) The kind of value for CDC metadata.
+    // If missing or unspecified, implies INSERT for backwards compatibility.
+    optional ValueKind.Enum value_kind = 4;
   }
 
   // Represent the encoded user timer for a given instruction, transform and

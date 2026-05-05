@@ -29,8 +29,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -148,8 +146,8 @@ public class TriggerExampleTest {
 
   static class FormatResults extends DoFn<TableRow, String> {
     @ProcessElement
-    public void processElement(@Element TableRow element, OutputReceiver<String> receiver)
-        throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
+      TableRow element = c.element();
       TableRow row =
           new TableRow()
               .set("trigger_type", element.get("trigger_type"))
@@ -160,7 +158,7 @@ public class TriggerExampleTest {
               .set("isLast", element.get("isLast"))
               .set("timing", element.get("timing"))
               .set("window", element.get("window"));
-      receiver.output(canonicalFormat(row));
+      c.output(canonicalFormat(row));
     }
   }
 }

@@ -17,15 +17,21 @@
 
 from __future__ import absolute_import
 
+import asyncio
+import inspect
 import logging
 import random
+import threading
 import uuid
+from collections.abc import AsyncIterable
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from math import floor
 from threading import RLock
 from time import sleep
 from time import time
 from types import GeneratorType
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import TimeDomain
@@ -60,6 +66,9 @@ class AsyncWrapper(beam.DoFn):
           [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()]))
   # The below items are one per dofn (not instance) so are maps of UUID to
   # value.
+  _event_loop: Optional[asyncio.AbstractEventLoop] = None
+  _event_loop_thread: Optional[threading.Thread] = None
+  _loop_started: Optional[threading.Event] = None
   _processing_elements = {}
   _items_in_buffer = {}
   _pool = {}
@@ -78,6 +87,7 @@ class AsyncWrapper(beam.DoFn):
       timeout=1,
       max_wait_time=0.5,
       id_fn=None,
+      use_asyncio=False,
   ):
     """Wraps the sync_fn to create an asynchronous version.
 
@@ -104,6 +114,10 @@ class AsyncWrapper(beam.DoFn):
         schedule an item.  Used in testing to ensure timeouts are met.
       id_fn: A function that returns a hashable object from an element. This
         will be used to track items instead of the element's default hash.
+      use_asyncio: If true, use asyncio and coroutines to process items. If
+        false, use ThreadPoolExecutor. Use asyncio when the work being done
+        is not CPU intensive and heavily waits on network or IO which can
+        benefit from higher parallelism.
     """
     self._sync_fn = sync_fn
     self._uuid = uuid.uuid4().hex
@@ -112,6 +126,7 @@ class AsyncWrapper(beam.DoFn):
     self._max_wait_time = max_wait_time
     self._timer_frequency = callback_frequency
     self._id_fn = id_fn or (lambda x: x)
+    self._use_asyncio = use_asyncio
     if max_items_to_buffer is None:
       self._max_items_to_buffer = max(parallelism * 2, 10)
     else:
@@ -127,10 +142,32 @@ class AsyncWrapper(beam.DoFn):
     return lambda: ThreadPoolExecutor(max_workers=parallelism)
 
   @staticmethod
+  def _run_event_loop():
+    """Sets up and runs the asyncio event loop in a background thread."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    AsyncWrapper._event_loop = loop
+    AsyncWrapper._loop_started.set()
+    loop.run_forever()
+    loop.close()
+
+  @staticmethod
   def reset_state():
-    for pool in AsyncWrapper._pool.values():
-      pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-          wait=True, cancel_futures=True)
+    with AsyncWrapper._lock:
+      if AsyncWrapper._event_loop:
+        AsyncWrapper._event_loop.call_soon_threadsafe(
+            AsyncWrapper._event_loop.stop)
+      if AsyncWrapper._event_loop_thread:
+        AsyncWrapper._event_loop_thread.join()
+
+      AsyncWrapper._event_loop = None
+      AsyncWrapper._event_loop_thread = None
+      if AsyncWrapper._loop_started is not None:
+        AsyncWrapper._loop_started.clear()
+
+      for pool in AsyncWrapper._pool.values():
+        pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
+            wait=True, cancel_futures=True)
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -140,6 +177,13 @@ class AsyncWrapper(beam.DoFn):
     """Forwards to the wrapped dofn's setup method."""
     self._sync_fn.setup()
     with AsyncWrapper._lock:
+      if self._use_asyncio and AsyncWrapper._event_loop_thread is None:
+        AsyncWrapper._loop_started = threading.Event()
+        AsyncWrapper._event_loop_thread = threading.Thread(
+            target=AsyncWrapper._run_event_loop, daemon=True)
+        AsyncWrapper._event_loop_thread.start()
+        AsyncWrapper._loop_started.wait()
+
       if not self._uuid in AsyncWrapper._pool:
         AsyncWrapper._pool[self._uuid] = Shared()
         AsyncWrapper._processing_elements[self._uuid] = {}
@@ -187,8 +231,40 @@ class AsyncWrapper(beam.DoFn):
       to_return.append(x)
     for x in bundle_result:
       to_return.append(x)
-
     return to_return
+
+  async def async_fn_process(self, element, *args, **kwargs):
+    """Makes the call to the wrapped dofn's start_bundle, process
+    and finish_bundle methods for asynchronous DoFns.
+
+    Args:
+      element: The element to process.
+      *args: Any additional arguments to pass to the wrapped dofn's process
+        method.
+      **kwargs: Any additional keyword arguments to pass to the wrapped dofn's
+        process method.
+
+    Returns:
+      A list of elements produced by the input element.
+    """
+    async def _collect(result):
+      if result is None:
+        return []
+      if inspect.isawaitable(result):
+        result = await result
+      if isinstance(result, AsyncIterable):
+        return [item async for item in result]
+      if isinstance(result,
+                    (GeneratorType, Iterable)) and not isinstance(result,
+                                                                  (str, bytes)):
+        return list(result)
+      return [result]
+
+    self._sync_fn.start_bundle()
+    process_result = await _collect(
+        self._sync_fn.process(element, *args, **kwargs))
+    bundle_result = await _collect(self._sync_fn.finish_bundle())
+    return process_result + bundle_result
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
@@ -214,10 +290,16 @@ class AsyncWrapper(beam.DoFn):
         logging.info('item %s already in processing elements', element)
         return True
       if self.accepting_items() or ignore_buffer:
-        result = AsyncWrapper._pool[self._uuid].acquire(
-            AsyncWrapper.initialize_pool(self._parallelism)).submit(
-                lambda: self.sync_fn_process(element, *args, **kwargs),
-            )
+        if self._use_asyncio:
+          result = asyncio.run_coroutine_threadsafe(
+              self.async_fn_process(element, *args, **kwargs),
+              AsyncWrapper._event_loop,
+          )
+        else:
+          result = AsyncWrapper._pool[self._uuid].acquire(
+              AsyncWrapper.initialize_pool(self._parallelism)).submit(
+                  lambda: self.sync_fn_process(element, *args, **kwargs),
+              )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element_id] = (
             element, result)

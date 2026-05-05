@@ -633,7 +633,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.130.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
-    def opentelemetry_version = "1.51.0"
+    def opentelemetry_version = "1.56.0"
+    def opentelemetry_contrib_version = "1.52.0"
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
@@ -742,7 +743,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260118-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260405-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
@@ -860,6 +861,11 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
         opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
+        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
+        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // google_cloud_platform_libraries_bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
@@ -1135,6 +1141,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.javaVersion = '17'
         } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
           project.javaVersion = '21'
+        } else if (JavaVersion.VERSION_25.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '25'
         } else {
           throw new GradleException(
           "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
@@ -1157,6 +1165,9 @@ class BeamModulePlugin implements Plugin<Project> {
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
         project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
+        project.hasProperty('java25Home')) {
+          forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
               "compile on newer Java version or pass java${project.javaVersion}Home project property")
@@ -1580,7 +1591,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
-          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
           options.compilerArgs += ['--release', compatVersion]
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
@@ -1614,7 +1625,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
+      if (['11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 

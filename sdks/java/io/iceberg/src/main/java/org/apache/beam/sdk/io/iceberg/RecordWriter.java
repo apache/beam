@@ -23,6 +23,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -56,7 +57,7 @@ class RecordWriter {
         partitionKey);
   }
 
-  RecordWriter(Table table, FileFormat fileFormat, String filename, PartitionKey partitionKey)
+  RecordWriter(Table table, FileFormat fileFormat, String filename, StructLike partitionKey)
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;

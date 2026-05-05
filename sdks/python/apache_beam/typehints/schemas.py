@@ -67,6 +67,7 @@ any backwards-compatibility guarantee.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import datetime
 import decimal
 import logging
