@@ -378,6 +378,7 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+<<<<<<< HEAD
 #IcebergCDC
 - type: renaming
   transforms:
@@ -429,3 +430,21 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+=======
+#MongoDB
+- type: renaming
+  transforms:
+    'WriteToMongoDB': 'WriteToMongoDB'
+  config:
+    mappings:
+      'WriteToMongoDB':
+        connection_uri: "connection_uri"
+        database: "database"
+        collection: "collection"
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
+      config:
+        gradle_target: ':sdks:java:io:mongodb:shadowJar'
+>>>>>>> mongoWrite
