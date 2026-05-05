@@ -60,17 +60,12 @@ func WithArtifactValidation(ctx context.Context, enabled bool) context.Context {
 	return context.WithValue(ctx, artifactValidationKey, enabled)
 }
 
-// ArtifactValidation returns the artifact validation enabled state from the context.
-func ArtifactValidation(ctx context.Context) bool {
+// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
+func isArtifactValidationEnabled(ctx context.Context) bool {
 	if val, ok := ctx.Value(artifactValidationKey).(bool); ok {
 		return val
 	}
 	return true
-}
-
-// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
-func isArtifactValidationEnabled(ctx context.Context) bool {
-	return ArtifactValidation(ctx)
 }
 
 // Materialize is a convenience helper for ensuring that all artifacts are
@@ -265,7 +260,6 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		} else if sha256Hash != a.expectedSha256 {
 			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
 		}
-		log.Printf("Sha256 validation done for file: %v, with sha256 %v", filename, a.expectedSha256)
 	}
 
 	return nil
