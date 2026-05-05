@@ -713,11 +713,14 @@ class Stager(object):
         elif urlparse(dep).scheme:
           last_component = dep.rsplit('/', 1)[-1]
           if not last_component:
-            _LOGGER.warning('Extra package %s has an unexpected format hence will not be downloaded locally.'  % dep)
+            _LOGGER.warning(
+                'Extra package %s has an unexpected format hence will not be downloaded locally.'
+                % dep)
             continue
           # Download remote package.
           _LOGGER.info(
-            'Downloading remote extra package: %s locally before staging', dep)
+              'Downloading remote extra package: %s locally before staging',
+              dep)
           local_file_path = FileSystems.join(staging_temp_dir, last_component)
           Stager._download_file(dep, local_file_path)
           local_deps.append(local_file_path)
