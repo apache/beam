@@ -20,7 +20,6 @@ import logging
 from typing import Any
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import TypeVar
 
 from apache_beam import coders
@@ -347,10 +346,10 @@ class ExecutionState:
     self._process_bundle_descriptors[
         process_bundle_descriptor.id] = process_bundle_descriptor
 
-  def get_pcollection_contents(self, pcoll_id: str) -> List[bytes]:
+  def get_pcollection_contents(self, pcoll_id: str) -> list[bytes]:
     return self._pcollections_to_encoded_chunks[pcoll_id]
 
-  def set_pcollection_contents(self, pcoll_id: str, chunks: List[bytes]):
+  def set_pcollection_contents(self, pcoll_id: str, chunks: list[bytes]):
     self._pcollections_to_encoded_chunks[pcoll_id] = chunks
 
   def new_id(self, prefix='') -> str:

@@ -31,7 +31,6 @@ import logging
 from collections import defaultdict
 from time import time
 from typing import Iterable
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -39,27 +38,27 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.tools import utils
 
 
-@beam.typehints.with_input_types(Tuple[int, ...])
+@beam.typehints.with_input_types(tuple[int, ...])
 class SimpleInput(beam.DoFn):
   def process(self, element, *args, **kwargs):
     yield element
 
 
-@beam.typehints.with_output_types(Tuple[int, ...])
+@beam.typehints.with_output_types(tuple[int, ...])
 class SimpleOutput(beam.DoFn):
   def process(self, element, *args, **kwargs):
     yield element
 
 
 @beam.typehints.with_input_types(
-    Tuple[int, str, Tuple[float, ...], Iterable[int], Union[str, int]])
+    tuple[int, str, tuple[float, ...], Iterable[int], Union[str, int]])
 class NestedInput(beam.DoFn):
   def process(self, element, *args, **kwargs):
     yield element
 
 
 @beam.typehints.with_output_types(
-    Tuple[int, str, Tuple[float, ...], Iterable[int], Union[str, int]])
+    tuple[int, str, tuple[float, ...], Iterable[int], Union[str, int]])
 class NestedOutput(beam.DoFn):
   def process(self, element, *args, **kwargs):
     yield element

@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import dataclasses
 import datetime
 import itertools

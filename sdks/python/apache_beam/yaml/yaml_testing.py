@@ -21,11 +21,8 @@ import json
 import random
 import unittest
 import uuid
-from typing import Dict
-from typing import List
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -539,11 +536,11 @@ K1 = TypeVar('K1')
 K2 = TypeVar('K2')
 V = TypeVar('V')
 
-InputsType = Dict[str, Union[str, List[str]]]
+InputsType = dict[str, Union[str, list[str]]]
 
 
 def _composite_key_to_nested(
-    d: Mapping[Tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
+    d: Mapping[tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
   nested = collections.defaultdict(dict)
   for (k1, k2), v in d.items():
     nested[k1][k2] = v

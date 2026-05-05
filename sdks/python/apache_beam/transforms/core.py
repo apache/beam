@@ -3441,8 +3441,8 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
             | CombinePerKey(PostCombineFn()))
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class GroupByKey(PTransform):
   """A group by key transform.
 

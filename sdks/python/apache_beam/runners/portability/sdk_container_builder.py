@@ -35,7 +35,6 @@ import tarfile
 import tempfile
 import time
 import uuid
-from typing import Type
 
 from google.protobuf.json_format import MessageToJson
 
@@ -139,7 +138,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
     return builder._build()
 
   @classmethod
-  def _get_subclass_by_key(cls, key: str) -> Type['SdkContainerImageBuilder']:
+  def _get_subclass_by_key(cls, key: str) -> type['SdkContainerImageBuilder']:
     available_builders = [
         subclass for subclass in cls.get_all_subclasses()
         if subclass._builder_key() == key

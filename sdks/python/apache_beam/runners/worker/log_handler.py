@@ -29,7 +29,6 @@ import time
 import traceback
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import Union
 from typing import cast
 
@@ -184,7 +183,7 @@ class FnApiLogRecordHandler(logging.Handler):
         # typing: log_entries was initialized as List[Union[..., Sentinel]],
         # but now that we've popped the sentinel out (above) we can safely cast
         yield beam_fn_api_pb2.LogEntry.List(
-            log_entries=cast(List[beam_fn_api_pb2.LogEntry], log_entries))
+            log_entries=cast(list[beam_fn_api_pb2.LogEntry], log_entries))
 
   def _read_log_control_messages(self) -> None:
     # Only reconnect when we are alive.

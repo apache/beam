@@ -24,6 +24,8 @@ package dataflow
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -40,6 +42,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
@@ -239,7 +242,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		log.Info(ctx, "Dry-run: not submitting job!")
 
 		log.Info(ctx, model.String())
-		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
+		modelBytes := protox.MustEncode(model)
+		hash := sha256.Sum256(modelBytes)
+		pipelineProtoHash := hex.EncodeToString(hash[:])
+		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL, pipelineProtoHash)
 		if err != nil {
 			return nil, err
 		}
