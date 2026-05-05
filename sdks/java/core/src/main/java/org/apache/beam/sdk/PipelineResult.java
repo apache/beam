@@ -25,6 +25,16 @@ import org.joda.time.Duration;
  * Result of {@link Pipeline#run()}.
  *
  * <p>This is often a job handle to an underlying data processing engine.
+ *
+ * <ul>
+ *   <li>Dataflow: {@code DataflowPipelineJob}
+ *   <li>Flink: {@code FlinkRunnerResult}
+ *   <li>Spark: {@code EvaluationContext}
+ *   <li>DirectRunner: {@code DirectPipelineResult}
+ * </ul>
+ *
+ * <p>All of the above represent implementations of {@link PipelineResult}, even if their names do
+ * not explicitly include "PipelineResult".
  */
 public interface PipelineResult {
 
