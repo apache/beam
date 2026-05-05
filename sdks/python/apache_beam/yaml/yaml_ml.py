@@ -311,8 +311,8 @@ class HuggingFacePipelineProvider(ModelHandlerProvider):
       handler_kwargs['inference_fn'] = inference_fn_obj
 
     _handler = HuggingFacePipelineModelHandler(
-        task=task or "",
-        model=model or "",
+        task=task,
+        model=model,
         device=device,
         load_pipeline_args=load_pipeline_args,
         **handler_kwargs,
