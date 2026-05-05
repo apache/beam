@@ -17,40 +17,37 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.bson.Document;
 
-/**
- * An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB.
- *
- * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
- * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
- * repository.
- */
+/** An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB. */
 @AutoService(SchemaTransformProvider.class)
 public class MongoDbWriteSchemaTransformProvider
-    extends TypedSchemaTransformProvider<
-        MongoDbWriteSchemaTransformProvider.MongoDbWriteSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<MongoDbWriteSchemaTransformConfiguration> {
 
   private static final String INPUT_TAG = "input";
+  public static final TupleTag<Document> OUTPUT_TAG = new TupleTag<Document>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+
+  private static final org.apache.beam.sdk.metrics.Counter errorCounter =
+      org.apache.beam.sdk.metrics.Metrics.counter(
+          MongoDbWriteSchemaTransformProvider.class, "MongoDB-write-error-counter");
 
   @Override
   protected SchemaTransform from(MongoDbWriteSchemaTransformConfiguration configuration) {
@@ -67,58 +64,6 @@ public class MongoDbWriteSchemaTransformProvider
     return Collections.singletonList(INPUT_TAG);
   }
 
-  /** Configuration class for the MongoDB Write transform. */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class MongoDbWriteSchemaTransformConfiguration implements Serializable {
-
-    @SchemaFieldDescription("The connection URI for the MongoDB server.")
-    public abstract String getUri();
-
-    @SchemaFieldDescription("The MongoDB database to write to.")
-    public abstract String getDatabase();
-
-    @SchemaFieldDescription("The MongoDB collection to write to.")
-    public abstract String getCollection();
-
-    //    @SchemaFieldDescription("The number of documents to include in each batch write.")
-    //    @Nullable
-    //    public abstract Long getBatchSize();
-    //
-    //    @SchemaFieldDescription("Whether the writes should be performed in an ordered manner.")
-    //    @Nullable
-    //    public abstract Boolean getOrdered();
-
-    public void validate() {
-      checkArgument(getUri() != null && !getUri().isEmpty(), "MongoDB URI must be specified.");
-      checkArgument(
-          getDatabase() != null && !getDatabase().isEmpty(), "MongoDB database must be specified.");
-      checkArgument(
-          getCollection() != null && !getCollection().isEmpty(),
-          "MongoDB collection must be specified.");
-    }
-
-    public static Builder builder() {
-      return new AutoValue_MongoDbWriteSchemaTransformProvider_MongoDbWriteSchemaTransformConfiguration
-          .Builder();
-    }
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setUri(String uri);
-
-      public abstract Builder setDatabase(String database);
-
-      public abstract Builder setCollection(String collection);
-
-      public abstract Builder setBatchSize(Long batchSize);
-
-      public abstract Builder setOrdered(Boolean ordered);
-
-      public abstract MongoDbWriteSchemaTransformConfiguration build();
-    }
-  }
-
   /** The {@link SchemaTransform} that performs the write operation. */
   private static class MongoDbWriteSchemaTransform extends SchemaTransform {
     private final MongoDbWriteSchemaTransformConfiguration configuration;
@@ -131,9 +76,18 @@ public class MongoDbWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
+      org.apache.beam.sdk.schemas.Schema inputSchema = rows.getSchema();
 
-      PCollection<Document> documents =
-          rows.apply("ConvertToDocument", ParDo.of(new RowToBsonDocumentFn()));
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+      org.apache.beam.sdk.schemas.Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
+
+      PCollectionTuple outputTuple =
+          rows.apply(
+              "ConvertToDocument",
+              ParDo.of(new RowToBsonDocumentFn(handleErrors, errorSchema))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      PCollection<Document> documents = outputTuple.get(OUTPUT_TAG);
 
       MongoDbIO.Write write =
           MongoDbIO.write()
@@ -141,44 +95,127 @@ public class MongoDbWriteSchemaTransformProvider
               .withDatabase(configuration.getDatabase())
               .withCollection(configuration.getCollection());
 
-      //      if (configuration.getBatchSize() != null) {
-      //        write = write.withBatchSize(configuration.getBatchSize());
-      //      }
-      //      if (configuration.getOrdered() != null) {
-      //        write = write.withOrdered(configuration.getOrdered());
-      //      }
+      Long batchSize = configuration.getBatchSize();
+      if (batchSize != null) {
+        write = write.withBatchSize(batchSize);
+      }
+      Boolean ordered = configuration.getOrdered();
+      if (ordered != null) {
+        write = write.withOrdered(ordered);
+      }
+      Integer maxIdleTime = configuration.getMaxConnectionIdleTime();
+      if (maxIdleTime != null) {
+        write = write.withMaxConnectionIdleTime(maxIdleTime);
+      }
+      Boolean sslEnabled = configuration.getSslEnabled();
+      if (sslEnabled != null) {
+        write = write.withSSLEnabled(sslEnabled);
+      }
+      Boolean sslInvalidHost = configuration.getSslInvalidHostNameAllowed();
+      if (sslInvalidHost != null) {
+        write = write.withSSLInvalidHostNameAllowed(sslInvalidHost);
+      }
+      Boolean ignoreCert = configuration.getIgnoreSSLCertificate();
+      if (ignoreCert != null) {
+        write = write.withIgnoreSSLCertificate(ignoreCert);
+      }
+
+      MongoDbUpdateConfiguration updateConfig = configuration.getUpdateConfiguration();
+      if (updateConfig != null) {
+        UpdateConfiguration targetUpdateConfig = UpdateConfiguration.create();
+
+        String findKey = updateConfig.getFindKey();
+        if (findKey != null) {
+          targetUpdateConfig = targetUpdateConfig.withFindKey(findKey);
+        }
+        String updateKey = updateConfig.getUpdateKey();
+        if (updateKey != null) {
+          targetUpdateConfig = targetUpdateConfig.withUpdateKey(updateKey);
+        }
+        Boolean isUpsert = updateConfig.getIsUpsert();
+        if (isUpsert != null) {
+          targetUpdateConfig = targetUpdateConfig.withIsUpsert(isUpsert);
+        }
+        List<MongoDbUpdateField> updateFields = updateConfig.getUpdateFields();
+        if (updateFields != null) {
+          List<UpdateField> targetUpdateFields = new ArrayList<>();
+          for (MongoDbUpdateField field : updateFields) {
+            String updateOperator = field.getUpdateOperator();
+            String destField = field.getDestField();
+            String sourceField = field.getSourceField();
+
+            if (updateOperator != null && destField != null) {
+              if (sourceField != null) {
+                targetUpdateFields.add(
+                    UpdateField.fieldUpdate(updateOperator, sourceField, destField));
+              } else {
+                targetUpdateFields.add(UpdateField.fullUpdate(updateOperator, destField));
+              }
+            }
+          }
+          targetUpdateConfig =
+              targetUpdateConfig.withUpdateFields(targetUpdateFields.toArray(new UpdateField[0]));
+        }
+
+        write = write.withUpdateConfiguration(targetUpdateConfig);
+      }
 
       documents.apply("WriteToMongo", write);
 
-      return PCollectionRowTuple.empty(input.getPipeline());
+      PCollection<Row> errorOutput =
+          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+
+      ErrorHandling errorHandling = configuration.getErrorHandling();
+      return PCollectionRowTuple.of(
+          (handleErrors && errorHandling != null) ? errorHandling.getOutput() : "errors",
+          errorOutput);
     }
   }
 
-  /** A {@link DoFn} to convert a Beam {@link Row} to a MongoDB {@link Document}. */
-  private static class RowToMongoDocumentFn extends DoFn<Row, Document> {
-    @ProcessElement
-    public void processElement(@Element Row row, OutputReceiver<Document> out) {
-      Document doc = new Document();
-      for (int i = 0; i < row.getSchema().getFieldCount(); i++) {
-        String fieldName = row.getSchema().getField(i).getName();
-        Object value = row.getValue(i);
+  /**
+   * A {@link DoFn} to convert a Beam {@link Row} to a MongoDB {@link Document} filtering out nulls.
+   */
+  // private static class RowToMongoDocumentFn extends DoFn<Row, Document> {
+  //   @ProcessElement
+  //   public void processElement(@Element Row row, OutputReceiver<Document> out) {
+  //     Document doc = new Document();
+  //     for (int i = 0; i < row.getSchema().getFieldCount(); i++) {
+  //       String fieldName = row.getSchema().getField(i).getName();
+  //       Object value = row.getValue(i);
 
-        if (value != null) {
-          doc.append(fieldName, value);
-        }
-      }
-      out.output(doc);
-    }
-  }
+  //       if (value != null) {
+  //         doc.append(fieldName, value);
+  //       }
+  //     }
+  //     out.output(doc);
+  //   }
+  // }
+
   /** Converts a Beam {@link Row} to a BSON {@link Document}. */
   static class RowToBsonDocumentFn extends DoFn<Row, Document> {
+    private final boolean handleErrors;
+    private final org.apache.beam.sdk.schemas.Schema errorSchema;
+
+    RowToBsonDocumentFn(boolean handleErrors, org.apache.beam.sdk.schemas.Schema errorSchema) {
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
+    }
+
     @ProcessElement
-    public void processElement(@Element Row row, OutputReceiver<Document> out) {
-      Document doc = new Document();
-      for (Field field : row.getSchema().getFields()) {
-        doc.append(field.getName(), row.getValue(field.getName()));
+    public void processElement(@Element Row row, MultiOutputReceiver receiver) {
+      try {
+        Document doc = new Document();
+        for (Field field : row.getSchema().getFields()) {
+          doc.append(field.getName(), row.getValue(field.getName()));
+        }
+        receiver.get(OUTPUT_TAG).output(doc);
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
+        errorCounter.inc();
+        receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
       }
-      out.output(doc);
     }
   }
 }
