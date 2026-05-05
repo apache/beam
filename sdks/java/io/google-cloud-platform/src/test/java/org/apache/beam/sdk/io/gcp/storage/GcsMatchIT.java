@@ -136,8 +136,8 @@ public class GcsMatchIT {
       assertEquals(true, countSecond > 1);
       // Continuous matching sometimes skips a middle size on Dataflow; sum should still fit
       // between "all sizes seen" and "every size from 1..maxSecondSize".
-      long minPossibleSum = (countSecond - 1) * countSecond / 2 + maxSecondSize;
-      long maxPossibleContiguousSum = (maxSecondSize * 2L - countSecond + 1) * countSecond / 2;
+      long minPossibleSum = (countSecond - 1) * countSecond / 2L + maxSecondSize;
+      long maxPossibleContiguousSum = (maxSecondSize * 2L - countSecond + 1) * countSecond / 2L;
       assertEquals(true, sumSecondSize <= maxPossibleContiguousSum);
       assertEquals(true, sumSecondSize >= minPossibleSum);
 
