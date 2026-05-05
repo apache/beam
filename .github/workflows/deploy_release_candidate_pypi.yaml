@@ -22,7 +22,7 @@ env:
 
 jobs:
   deploy_release_candidate_pypi:
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Mask PyPi id/password
       run: |
@@ -83,4 +83,4 @@ jobs:
         echo "Will upload the following files to PyPI:"
         ls
 
-        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
+        twine upload --verbose * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"

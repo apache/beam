@@ -32,13 +32,13 @@ on:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.72.0' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.73.0' }}"
   rc: "${{ github.event.inputs.RC || '5' }}"
 
 jobs:
 
   build:
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
         ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam

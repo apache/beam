@@ -182,6 +182,7 @@ public final class StreamingDataflowWorker {
   private final ComputationConfig.Fetcher configFetcher;
   private final ComputationStateCache computationStateCache;
   private final BoundedQueueExecutor workUnitExecutor;
+  private final ScheduledExecutorService commitFinalizerCleanupExecutor;
   private final AtomicReference<StreamingWorkerHarness> streamingWorkerHarness =
       new AtomicReference<>();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -208,6 +209,7 @@ public final class StreamingDataflowWorker {
       ComputationStateCache computationStateCache,
       WindmillStateCache windmillStateCache,
       BoundedQueueExecutor workUnitExecutor,
+      ScheduledExecutorService commitFinalizerCleanupExecutor,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       DataflowWorkerHarnessOptions options,
       HotKeyLogger hotKeyLogger,
@@ -232,6 +234,7 @@ public final class StreamingDataflowWorker {
             Executors.newCachedThreadPool());
     this.options = options;
     this.workUnitExecutor = workUnitExecutor;
+    this.commitFinalizerCleanupExecutor = commitFinalizerCleanupExecutor;
     this.harnessSwitchExecutor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat("HarnessSwitchExecutor").build());
@@ -252,6 +255,7 @@ public final class StreamingDataflowWorker {
             readerCache,
             mapTaskExecutorFactory,
             workUnitExecutor,
+            commitFinalizerCleanupExecutor,
             this.stateCache::forComputation,
             failureTracker,
             workFailureProcessor,
@@ -401,12 +405,14 @@ public final class StreamingDataflowWorker {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) ->
                 checkNotNull(computationStateCache)
                     .get(processingContext.computationId())
                     .ifPresent(
                         computationState -> {
                           memoryMonitor.waitForResources("GetWork");
+                          streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
                           streamingWorkScheduler.scheduleWork(
                               computationState,
                               workItem,
@@ -616,6 +622,13 @@ public final class StreamingDataflowWorker {
     StreamingCounters streamingCounters = StreamingCounters.create();
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    ScheduledExecutorService commitFinalizerCleanupExecutor =
+        Executors.newScheduledThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallbackCleanup-%d")
+                .setDaemon(true)
+                .build());
     WindmillStateCache windmillStateCache =
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
@@ -680,6 +693,7 @@ public final class StreamingDataflowWorker {
         computationStateCache,
         windmillStateCache,
         workExecutor,
+        commitFinalizerCleanupExecutor,
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         options,
         new HotKeyLogger(),
@@ -842,6 +856,13 @@ public final class StreamingDataflowWorker {
       WindmillStubFactoryFactory stubFactory) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    ScheduledExecutorService commitFinalizerCleanupExecutor =
+        Executors.newScheduledThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallbackCleanup-%d")
+                .setDaemon(true)
+                .build());
     WindmillStateCache stateCache =
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
@@ -930,6 +951,7 @@ public final class StreamingDataflowWorker {
         computationStateCache,
         stateCache,
         workExecutor,
+        commitFinalizerCleanupExecutor,
         mapTaskExecutorFactory,
         options,
         hotKeyLogger,
@@ -1121,6 +1143,7 @@ public final class StreamingDataflowWorker {
       streamingWorkerHarness.get().shutdown();
       memoryMonitor.shutdown();
       workUnitExecutor.shutdown();
+      commitFinalizerCleanupExecutor.shutdown();
       computationStateCache.closeAndInvalidateAll();
       workerStatusReporter.stop();
     } catch (Exception e) {

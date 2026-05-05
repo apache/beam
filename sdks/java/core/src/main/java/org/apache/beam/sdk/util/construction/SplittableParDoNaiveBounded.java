@@ -689,6 +689,21 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+        return outerContext.currentRecordId();
+      }
+
+      @Override
+      public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+        return outerContext.currentRecordOffset();
+      }
+
+      @Override
+      public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+        throw new IllegalStateException();
+      }
+
+      @Override
       public Object watermarkEstimatorState() {
         throw new UnsupportedOperationException(
             "@WatermarkEstimatorState parameters are not supported.");

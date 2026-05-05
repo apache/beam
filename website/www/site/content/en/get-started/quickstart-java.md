@@ -185,7 +185,6 @@ To run the WordCount pipeline:
    * [FlinkRunner](/documentation/runners/flink)
    * [SparkRunner](/documentation/runners/spark)
    * [DataflowRunner](/documentation/runners/dataflow)
-   * [SamzaRunner](/documentation/runners/samza)
    * [NemoRunner](/documentation/runners/nemo)
    * [JetRunner](/documentation/runners/jet)
 
@@ -220,10 +219,6 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
                  --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
     -Pdataflow-runner
-{{< /runner >}}
-{{< runner samza >}}
-mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-    -Dexec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -Psamza-runner
 {{< /runner >}}
 {{< runner nemo >}}
 mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
@@ -262,10 +257,6 @@ mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
  -P dataflow-runner
 {{< /runner >}}
-{{< runner samza >}}
-mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
-    -D exec.args="--inputFile=sample.txt --output=/tmp/counts --runner=SamzaRunner" -P samza-runner
-{{< /runner >}}
 {{< runner nemo >}}
 mvn package -P nemo-runner -DskipTests
 java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
@@ -299,9 +290,6 @@ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
     --args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
     --output=gs://<your-gcs-bucket>/counts --runner=DataflowRunner" -Pdataflow-runner
 {{< /runner >}}
-{{< runner samza>}}
-TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
-{{< /runner >}}
 {{< runner nemo>}}
 TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
 {{< /runner >}}
@@ -328,9 +316,6 @@ TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502
 .\gradlew clean execute -DmainClass=org.apache.beam.examples.WordCount \
     --args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
     --output=gs://<your-gcs-bucket>/counts --runner=DataflowRunner" -Pdataflow-runner
-{{< /runner >}}
-{{< runner samza>}}
-TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500
 {{< /runner >}}
 {{< runner nemo>}}
 TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503
@@ -361,9 +346,6 @@ ls counts*
    {{< runner dataflow >}}
 gsutil ls gs://<your-gcs-bucket>/counts*
    {{< /runner >}}
-   {{< runner samza >}}
-ls /tmp/counts*
-   {{< /runner >}}
    {{< runner nemo >}}
 ls counts*
    {{< /runner >}}
@@ -387,9 +369,6 @@ more counts*
    {{< /runner >}}
    {{< runner dataflow >}}
 gsutil cat gs://<your-gcs-bucket>/counts*
-   {{< /runner >}}
-   {{< runner samza >}}
-more /tmp/counts*
    {{< /runner >}}
    {{< runner nemo >}}
 more counts*

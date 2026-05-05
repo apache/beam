@@ -71,14 +71,11 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     public abstract @Nullable Map<String, String> getConfigProperties();
 
     @SchemaFieldDescription(
-        "For a streaming pipeline, sets the frequency at which incoming files are appended. Defaults to 600 (10 minutes). "
-            + "A commit is triggered when either this or append batch size is reached.")
+        "For a streaming pipeline, sets the frequency at which incoming files are appended (default 600, or 10min).")
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
-    @SchemaFieldDescription(
-        "For a streaming pipeline, sets the desired number of appended files per commit. Defaults to 100,000 files. "
-            + "A commit is triggered when either this or append triggering interval is reached.")
-    public abstract @Nullable Integer getAppendBatchSize();
+    @SchemaFieldDescription("The number of data files per manifest (default 10,000 files).")
+    public abstract @Nullable Integer getManifestFileSize();
 
     @SchemaFieldDescription(
         "The prefix shared among all partitions. For example, a data file may have the following"
@@ -109,6 +106,15 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
+    @SchemaFieldDescription(
+        "Fields used to set the table's sort order, applied when the table is created. "
+            + "Each entry has the form `<term> [asc|desc] [nulls first|nulls last]`, where `<term>` "
+            + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
+            + "Direction defaults to ascending; null order defaults to nulls-first for ascending and "
+            + "nulls-last for descending.\n"
+            + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
+    public abstract @Nullable List<String> getSortFields();
+
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     public abstract @Nullable ErrorHandling getErrorHandling();
 
@@ -122,13 +128,15 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
 
-      public abstract Builder setAppendBatchSize(Integer size);
+      public abstract Builder setManifestFileSize(Integer size);
 
       public abstract Builder setLocationPrefix(String prefix);
 
       public abstract Builder setPartitionFields(List<String> fields);
 
       public abstract Builder setTableProperties(Map<String, String> props);
+
+      public abstract Builder setSortFields(List<String> sortFields);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
@@ -175,8 +183,9 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
                       configuration.getTable(),
                       configuration.getLocationPrefix(),
                       configuration.getPartitionFields(),
+                      configuration.getSortFields(),
                       configuration.getTableProperties(),
-                      configuration.getAppendBatchSize(),
+                      configuration.getManifestFileSize(),
                       frequency != null ? Duration.standardSeconds(frequency) : null));
 
       PCollectionRowTuple output = PCollectionRowTuple.of("snapshots", result.get(OUTPUT_TAG));

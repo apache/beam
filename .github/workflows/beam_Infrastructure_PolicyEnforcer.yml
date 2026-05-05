@@ -39,10 +39,10 @@ permissions:
 jobs:
   beam_Infrastructure_PolicyEnforcer:
     name: Check and Report Infrastructure Policies Violations
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Setup Python
         uses: actions/setup-python@v4

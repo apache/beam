@@ -45,7 +45,7 @@ jobs:
   check_env_variables:
     timeout-minutes: 5
     name: "Check environment variables"
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     env:
       EVENT_NAME: ${{ github.event_name }}
       # Keep in sync with py_version matrix value below - if changed, change that as well.
@@ -55,7 +55,7 @@ jobs:
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
       py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -81,14 +81,14 @@ jobs:
           echo "py-versions-full=$PY_VERSIONS_FULL" >> $GITHUB_OUTPUT
 
   build_source:
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     name: Build python source distribution
     outputs:
       is_rc: ${{ steps.is_rc.outputs.is_rc }}
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install python
         uses: actions/setup-python@v5
         with:
@@ -127,12 +127,12 @@ jobs:
         # https://github.com/pypa/setuptools/issues/4300 changed naming. Match both old and new names.
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source
       - name: Upload source as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source
           path: sdks/python/apache-beam-source
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_zip
           path: sdks/python/dist
@@ -170,13 +170,13 @@ jobs:
         run: mv $(ls | grep "apache-beam-\|apache_beam-") apache-beam-source-rc
       - name: Upload RC source as artifact
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/apache-beam-source-rc
       - name: Upload compressed RC sources as artifacts
         if: steps.is_rc.outputs.is_rc == 1
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source_zip_rc${{ steps.get_rc_version.outputs.RC_NUM }}
           path: sdks/python/dist
@@ -187,7 +187,7 @@ jobs:
     needs:
       - build_source
       - check_env_variables
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
       - name: Remove existing files on GCS bucket
@@ -198,11 +198,11 @@ jobs:
     needs:
       - prepare_gcs
       - check_env_variables
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: source_zip
           path: source/
@@ -222,22 +222,22 @@ jobs:
       fail-fast: false
       matrix:
         os_python: [
-          {"os": "ubuntu-20.04", "runner": [self-hosted, ubuntu-20.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
+          {"os": "ubuntu-24.04", "runner": [self-hosted, ubuntu-24.04, main], "python": "${{ needs.check_env_variables.outputs.py-versions-full }}", arch: "auto" },
           {"os": "macos-15", "runner": "macos-15", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
           {"os": "windows-latest", "runner": "windows-latest", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "auto" },
-          {"os": "ubuntu-20.04", "runner": "ubuntu-22.04", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
+          {"os": "ubuntu-24.04", "runner": "ubuntu-22.04", "python": "${{ needs.check_env_variables.outputs.py-versions-test }}", arch: "aarch64" }
         ]
         # Keep in sync (remove asterisks) with PY_VERSIONS_FULL env var above - if changed, change that as well.
         py_version: ["cp310-", "cp311-", "cp312-", "cp313-", "cp314-"]
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -275,7 +275,7 @@ jobs:
       shell: bash
     - name: Upload wheels as artifacts
       if: ${{ contains(matrix.os_python.python, matrix.py_version) }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wheelhouse-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source/wheelhouse/
@@ -300,7 +300,7 @@ jobs:
       shell: bash
     - name: Upload RC wheels as artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: wheelhouse-rc${{ needs.build_source.outputs.rc_num }}-${{ matrix.py_version }}${{ matrix.os_python.os }}${{ (matrix.os_python.arch == 'aarch64' && '-aarch64') || '' }}
         path: apache-beam-source-rc/wheelhouse/
@@ -310,11 +310,11 @@ jobs:
     needs:
       - build_wheels
       - check_env_variables
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v5
+      uses: actions/download-artifact@v7
       with:
         pattern: wheelhouse-*
         merge-multiple: true
@@ -347,7 +347,7 @@ jobs:
     needs:
      - upload_wheels_to_gcs
      - check_env_variables
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: List file on Google Cloud Storage Bucket
@@ -360,12 +360,12 @@ jobs:
     needs:
       - build_source
       - build_wheels
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 60
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive

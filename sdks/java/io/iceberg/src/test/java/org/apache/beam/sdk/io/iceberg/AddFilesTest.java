@@ -54,6 +54,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Files;
+import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionData;
@@ -63,6 +64,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -71,6 +73,7 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
@@ -79,6 +82,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -169,6 +173,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 isPartitioned ? root : null,
                 isPartitioned ? partitionFields : null,
+                null,
                 tableProps,
                 null,
                 null));
@@ -217,6 +222,12 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(writtenDf1.partition(), addedDf1.partition());
     assertEquals(writtenDf2.partition(), addedDf2.partition());
+
+    // check that mapping util was added
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
@@ -259,6 +270,7 @@ public class AddFilesTest {
                 tableId.toString(),
                 null, // no prefix, so determine partition from DF metrics
                 partitionFields,
+                null,
                 tableProps,
                 null,
                 null));
@@ -317,6 +329,11 @@ public class AddFilesTest {
     // check partition metadata is preserved
     assertEquals(expectedPartition1, addedDf1.partition());
     assertEquals(expectedPartition2, addedDf2.partition());
+
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(),
+        NameMappingParser.fromJson(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING))
+            .asMappedFields());
   }
 
   @Test
@@ -335,21 +352,22 @@ public class AddFilesTest {
             TestStream.create(StringUtf8Coder.of())
                 .addElements(
                     paths.get(0),
-                    paths.subList(1, 15).toArray(new String[] {})) // should commit twice
+                    paths.subList(1, 15).toArray(new String[] {})) // should add one manifest file
                 .advanceProcessingTime(Duration.standardSeconds(10))
                 .addElements(
                     paths.get(15),
-                    paths.subList(16, 40).toArray(new String[] {})) // should commit 3 times
+                    paths.subList(16, 40).toArray(new String[] {})) // should add 3 manifest files
                 .advanceProcessingTime(Duration.standardSeconds(10))
                 .addElements(
                     paths.get(40),
-                    paths.subList(41, 45).toArray(new String[] {})) // should commit once
+                    paths.subList(41, 45).toArray(new String[] {})) // should add one manifest file
                 .advanceWatermarkToInfinity());
 
     files.apply(
         new AddFiles(
             catalogConfig,
             tableId.toString(),
+            null,
             null,
             null,
             null,
@@ -361,14 +379,16 @@ public class AddFilesTest {
 
     List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
     snapshots.sort(Comparator.comparingLong(Snapshot::timestampMillis));
+    List<ManifestFile> manifests = Iterables.getLast(snapshots).allManifests(table.io());
+    manifests.sort(Comparator.comparingLong(ManifestFile::sequenceNumber));
 
-    assertEquals(6, snapshots.size());
-    assertEquals(10, Iterables.size(snapshots.get(0).addedDataFiles(table.io())));
-    assertEquals(5, Iterables.size(snapshots.get(1).addedDataFiles(table.io())));
-    assertEquals(10, Iterables.size(snapshots.get(2).addedDataFiles(table.io())));
-    assertEquals(10, Iterables.size(snapshots.get(3).addedDataFiles(table.io())));
-    assertEquals(5, Iterables.size(snapshots.get(4).addedDataFiles(table.io())));
-    assertEquals(5, Iterables.size(snapshots.get(5).addedDataFiles(table.io())));
+    assertEquals(6, manifests.size());
+    assertEquals(10, (int) manifests.get(0).addedFilesCount());
+    assertEquals(5, (int) manifests.get(1).addedFilesCount());
+    assertEquals(10, (int) manifests.get(2).addedFilesCount());
+    assertEquals(10, (int) manifests.get(3).addedFilesCount());
+    assertEquals(5, (int) manifests.get(4).addedFilesCount());
+    assertEquals(5, (int) manifests.get(5).addedFilesCount());
   }
 
   @Test
@@ -382,7 +402,7 @@ public class AddFilesTest {
         pipeline.apply("Create Input", Create.of(txtFile.getAbsolutePath()));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null);
+        new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     // Validate the file ended up in the errors PCollection with the correct schema
@@ -412,7 +432,8 @@ public class AddFilesTest {
 
     // Notice locationPrefix is "some/prefix/" but the absolute path doesn't start with it
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), "some/prefix/", null, null, null, null, null);
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
     PAssert.that(outputTuple.get("errors"))
@@ -422,6 +443,12 @@ public class AddFilesTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /**
+   * We reverted the in-depth bucket-partition validation in
+   * https://github.com/apache/beam/pull/38039, partly because it was too resource intensive, and
+   * also because the Spark AddFiles equivalent performs zero validation.
+   */
+  @Ignore
   @Test
   public void testRecognizesBucketPartitionMismatch() throws IOException {
     String file1 = root + "data1.parquet";
@@ -449,7 +476,8 @@ public class AddFilesTest {
     assertEquals(0, (int) transformFunc.apply(10L));
 
     AddFiles addFiles =
-        new AddFiles(catalogConfig, tableId.toString(), null, partitionFields, null, null, null);
+        new AddFiles(
+            catalogConfig, tableId.toString(), null, partitionFields, null, null, null, null);
     PCollection<String> inputFiles = pipeline.apply("Create Input", Create.of(file1));
     PCollectionRowTuple outputTuple = inputFiles.apply(addFiles);
 
@@ -471,7 +499,9 @@ public class AddFilesTest {
     PCollectionRowTuple outputTuple =
         pipeline
             .apply("Create Input", Create.of(file))
-            .apply(new AddFiles(catalogConfig, tableId.toString(), null, null, null, null, null));
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
 
     PAssert.that(outputTuple.get("errors"))
         .satisfies(

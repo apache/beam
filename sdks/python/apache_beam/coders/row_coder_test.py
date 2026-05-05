@@ -60,13 +60,13 @@ NullablePerson = typing.NamedTuple(
      ("one_more_field", typing.Optional[str])])
 
 
+@coders_registry.register_row
 class People(typing.NamedTuple):
   primary: Person
   partner: typing.Optional[Person]
 
 
-coders_registry.register_coder(Person, RowCoder)
-coders_registry.register_coder(People, RowCoder)
+coders_registry.register_row(Person)
 
 
 class RowCoderTest(unittest.TestCase):

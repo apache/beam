@@ -243,8 +243,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   the desired column names.
 
   This handler queries the Cloud SQL database per element by default.
-  To enable batching, set the `min_batch_size` and `max_batch_size` parameters.
-  These values control the batching behavior in the
+  To enable batching, set the `min_batch_size`, `max_batch_size`, and
+  `max_batch_duration_secs` parameters. These values control batching behavior
+  in the
   :class:`apache_beam.transforms.utils.BatchElements` transform.
 
   NOTE: Batching is not supported when using the CustomQueryConfig.
@@ -257,6 +258,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       column_names: Optional[list[str]] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
+      max_batch_duration_secs: Optional[float] = None,
       **kwargs,
   ):
     """
@@ -290,11 +292,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         querying the database. Defaults to 1 if `query_fn` is not used.
       max_batch_size (int): Maximum number of rows to batch together. Defaults
         to 10,000 if `query_fn` is not used.
+      max_batch_duration_secs (float): Maximum amount of time in seconds to
+        buffer a batch before emitting it. If not provided, batching duration
+        is determined by `BatchElements` defaults.
       **kwargs: Additional keyword arguments for database connection or query
         handling.
 
     Note:
-      * Cannot use `min_batch_size` or `max_batch_size` with `query_fn`.
+      * `min_batch_size`, `max_batch_size`, and `max_batch_duration_secs`
+        are not used with `query_fn`.
       * Either `where_clause_fields` or `where_clause_value_fn` must be provided
         for query construction if `query_fn` is not provided.
       * Ensure that the database user has the necessary permissions to query the
@@ -313,6 +319,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
           f"WHERE {query_config.where_clause_template}")
       self._batching_kwargs['min_batch_size'] = min_batch_size
       self._batching_kwargs['max_batch_size'] = max_batch_size
+      if max_batch_duration_secs is not None:
+        self._batching_kwargs[
+            'max_batch_duration_secs'] = max_batch_duration_secs
 
   def __enter__(self):
     connector = self._connection_config.get_connector_handler()

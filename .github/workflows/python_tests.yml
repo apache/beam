@@ -41,11 +41,11 @@ jobs:
   check_gcp_variables:
     timeout-minutes: 5
     name: "Check GCP variables"
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -65,10 +65,10 @@ jobs:
       )
     needs:
       - check_gcp_variables
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -80,7 +80,7 @@ jobs:
         working-directory: ./sdks/python/dist
         run: mv $(ls | grep "apache-beam.*tar\.gz\|apache_beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -101,7 +101,7 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -121,7 +121,7 @@ jobs:
         working-directory: ./sdks/python
         run: tox -c tox.ini run -e ${{ matrix.params.tox_env }}-win
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
@@ -137,7 +137,7 @@ jobs:
         python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install python
         uses: ./.github/actions/setup-environment-action
         with:

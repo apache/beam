@@ -196,7 +196,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      if (stream.size() != 0) {
+      if (!stream.isEmpty()) {
         throw new IllegalStateException(
             "Expected output stream to be empty but had " + stream.toByteString());
       }

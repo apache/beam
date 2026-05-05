@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20260323'
-ext.dataflowFnapiContainerVersion = 'beam-master-20260323'
+ext.dataflowLegacyContainerVersion = 'beam-master-20260424'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260424'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -491,8 +491,6 @@ task validatesRunnerStreaming {
   description "Validates Dataflow runner forcing streaming mode"
   dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    // Streaming appliance currently fails bundle finalizer tests.
-    excludedCategories: validatesRunnerStreamingConfig.excludedCategories + [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ]))
 }
 

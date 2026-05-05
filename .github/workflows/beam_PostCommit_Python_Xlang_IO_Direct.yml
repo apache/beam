@@ -40,7 +40,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Python_Xlang_IO_Direct"]
         job_phrase: ["Run Python_Xlang_IO_Direct PostCommit"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -82,7 +82,7 @@ jobs:
           gradle-command: :sdks:python:test-suites:direct:ioCrossLanguagePostCommit
           arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results

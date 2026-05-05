@@ -26,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,8 +53,8 @@ env:
 jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
-    runs-on: ubuntu-22.04
-    timeout-minutes: 240
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 480
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +66,7 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
@@ -119,7 +119,7 @@ jobs:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results

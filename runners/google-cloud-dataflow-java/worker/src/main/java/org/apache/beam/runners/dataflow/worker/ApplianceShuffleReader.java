@@ -77,6 +77,7 @@ public final class ApplianceShuffleReader implements ShuffleReader, Closeable {
   }
 
   @Override
+  @SuppressWarnings("Finalize")
   protected void finalize() {
     destroySynchronized();
   }
