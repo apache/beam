@@ -79,7 +79,7 @@ tasks.register("generateExternalTransformsConfig") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install $PyYaml && " +
+      args '-c', "pip install $PyYaml && " +
               "python gen_xlang_wrappers.py --cleanup --generate-config-only"
     }
   }
@@ -96,7 +96,7 @@ tasks.register("generateManagedIOPage") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && python gen_managed_doc.py"
+      args '-c', "python gen_managed_doc.py"
     }
   }
 }
