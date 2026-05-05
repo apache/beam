@@ -156,6 +156,8 @@ import org.joda.time.ReadableInstant;
   "rawtypes"
 })
 public class AvroUtils {
+  public static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
   private static final ForLoadedType JAVA_LOCALE_DATE =

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas.utils;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -85,9 +86,6 @@ public class AvroUtilsTest {
 
   private static final org.apache.avro.Schema NULL_SCHEMA =
       org.apache.avro.Schema.create(org.apache.avro.Schema.Type.NULL);
-
-  private static final String VERSION_AVRO =
-      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
 
   private Iterable<?> randomData(org.apache.avro.Schema schema, int maxLength) throws Exception {
     Iterable<?> data;
