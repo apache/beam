@@ -283,20 +283,4 @@ public class DatadogWriteSchemaTransformProvider
     }
   }
 
-  static DatadogWriteError rowToError(Row row) {
-    DatadogWriteError.Builder builder = DatadogWriteError.newBuilder();
-    String payload = row.getString("payload");
-    if (payload != null) {
-      builder.withPayload(payload);
-    }
-    Integer statusCode = (Integer) row.getValue("statusCode");
-    if (statusCode != null) {
-      builder.withStatusCode(statusCode);
-    }
-    String statusMessage = row.getString("statusMessage");
-    if (statusMessage != null) {
-      builder.withStatusMessage(statusMessage);
-    }
-    return builder.build();
-  }
 }
