@@ -158,7 +158,8 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has(ERROR));
 
     assertThrows(PipelineExecutionException.class, () -> p.run().waitUntilFinish());
   }
@@ -298,7 +299,8 @@ public class DatadogWriteSchemaTransformProviderTest {
     PCollection<Row> input = p.apply("Create", Create.of(ROWS).withRowSchema(SCHEMA));
     PCollectionRowTuple inputTuple = PCollectionRowTuple.of(INPUT, input);
     PCollectionRowTuple output = transform.expand(inputTuple);
-    assertTrue(output.getAll().isEmpty());
+    assertEquals(1, output.getAll().size());
+    assertTrue(output.has(ERROR));
 
     assertThrows(PipelineExecutionException.class, () -> p.run().waitUntilFinish());
   }

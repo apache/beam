@@ -22,11 +22,13 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -172,7 +174,11 @@ public class DatadogWriteSchemaTransformProvider
         return PCollectionRowTuple.of(errorHandling.getOutput(), allErrors);
       } else {
         writeErrors.apply("Fail on Write Error", ParDo.of(new FailOnWriteErrorFn()));
-        return PCollectionRowTuple.empty(input.getPipeline());
+        PCollection<Row> emptyErrors =
+            input
+                .getPipeline()
+                .apply("Empty Errors Placeholder", Create.empty(RowCoder.of(dynamicErrorSchema)));
+        return PCollectionRowTuple.of(ERROR, emptyErrors);
       }
     }
   }
