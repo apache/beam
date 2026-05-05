@@ -34,7 +34,6 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	beamlog "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
@@ -261,7 +260,9 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 	}
 
 	if isArtifactValidationEnabled(ctx) {
-		if a.expectedSha256 != "" && sha256Hash != a.expectedSha256 {
+		if a.expectedSha256 == "" {
+			log.Printf("WARN: Artifact validation skipped for file: %v", filename)
+		} else if sha256Hash != a.expectedSha256 {
 			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
 		}
 		log.Printf("Sha256 validation done for file: %v, with sha256 %v", filename, a.expectedSha256)
@@ -480,7 +481,7 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
 	if isArtifactValidationEnabled(ctx) {
 		if a.Sha256 == "" {
-			beamlog.Warnf(ctx, "Artifact validation skipped for file: %v", filename)
+			log.Printf("WARN: Artifact validation skipped for file: %v", filename)
 		} else if sha256Hash != a.Sha256 {
 			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 		}
