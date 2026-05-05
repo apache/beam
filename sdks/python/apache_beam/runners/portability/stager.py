@@ -708,10 +708,11 @@ class Stager(object):
       staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
       for line in fin:
         dep = line.strip()
+        parsed_url = urlparse(dep)
         if os.path.exists(dep):
           local_deps.append(dep)
-        elif urlparse(dep).scheme:
-          last_component = dep.rsplit('/', 1)[-1]
+        elif parsed_url.scheme:
+          last_component = os.path.basename(parsed_url.path)
           if not last_component:
             _LOGGER.warning(
                 'Extra package %s has an unexpected format hence will not be downloaded locally.'
