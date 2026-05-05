@@ -563,6 +563,7 @@ def write_to_iceberg(
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
     distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -616,6 +617,11 @@ def write_to_iceberg(
       distributions:
       - none: don't shuffle rows (default)
       - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -630,7 +636,8 @@ def write_to_iceberg(
           keep=keep,
           drop=drop,
           only=only,
-          distribution_mode=distribution_mode))
+          distribution_mode=distribution_mode,
+          autosharding=autosharding))
 
 
 def io_providers():
