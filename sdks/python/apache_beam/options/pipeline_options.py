@@ -26,11 +26,8 @@ import logging
 import os
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Type
 from typing import TypeVar
 
 import apache_beam as beam
@@ -488,7 +485,7 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options=False,
       display_warnings=False,
       current_only=False,
-  ) -> Dict[str, Any]:
+  ) -> dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments into a dictionary.
@@ -629,7 +626,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
-  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
+  def view_as(self, cls: type[PipelineOptionsT]) -> PipelineOptionsT:
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -687,11 +684,11 @@ class PipelineOptions(HasDisplayData):
     v2_parts = (breaking_change_version.split('.') + ['0', '0', '0'])[:3]
     return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
 
-  def _visible_option_list(self) -> List[str]:
+  def _visible_option_list(self) -> list[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self) -> List[str]:
+  def __dir__(self) -> list[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -853,7 +850,7 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks: Dict[str, Callable[[], None]] = {
+additional_type_checks: dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
 }
 
@@ -2169,7 +2166,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides: List[Dict[str, Any]] = []
+  overrides: list[dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

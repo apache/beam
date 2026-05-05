@@ -25,8 +25,6 @@ import math
 import random
 import threading
 import time
-from typing import Dict
-from typing import List
 
 import grpc
 from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
@@ -94,7 +92,7 @@ class EnvoyRateLimiter(RateLimiter):
       self,
       service_address: str,
       domain: str,
-      descriptors: List[Dict[str, str]],
+      descriptors: list[dict[str, str]],
       timeout: float = 5.0,
       block_until_allowed: bool = True,
       retries: int = 3,

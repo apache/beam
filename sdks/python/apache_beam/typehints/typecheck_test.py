@@ -23,6 +23,7 @@ See additional runtime_type_check=True tests in ptransform_test.py.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import os
 import tempfile
 import unittest

@@ -195,18 +195,18 @@ class AutoGenerationScriptIT(unittest.TestCase):
 
   def test_pretty_types(self):
     types = [
-        typing.Optional[typing.List[str]],
+        typing.Optional[list[str]],
         numpy.int16,
         str,
-        typing.Dict[str, numpy.float64],
-        typing.Optional[typing.Dict[str, typing.List[numpy.int64]]],
-        typing.Dict[int, typing.Optional[str]]
+        dict[str, numpy.float64],
+        typing.Optional[dict[str, list[numpy.int64]]],
+        dict[int, typing.Optional[str]]
     ]
 
-    expected_type_names = [('List[str]', True), ('int16', False),
-                           ('str', False), ('Dict[str, float64]', False),
-                           ('Dict[str, List[int64]]', True),
-                           ('Dict[int, Optional[str]]', False)]
+    expected_type_names = [('list[str]', True), ('int16', False),
+                           ('str', False), ('dict[str, float64]', False),
+                           ('dict[str, list[int64]]', True),
+                           ('dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(
@@ -248,7 +248,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     return importlib.import_module(module)
 
   def write_wrappers_to_destinations_and_validate(
-      self, destinations: typing.List[str]):
+      self, destinations: list[str]):
     """
     Generate wrappers from the config path and validate all destinations are
     included.

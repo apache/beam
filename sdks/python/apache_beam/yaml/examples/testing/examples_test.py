@@ -26,8 +26,6 @@ import sys
 import unittest
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Union
 from unittest import mock
@@ -58,7 +56,7 @@ from . import input_data
 def test_enrichment(
     pcoll,
     enrichment_handler: str,
-    handler_config: Dict[str, Any],
+    handler_config: dict[str, Any],
     timeout: Optional[float] = 30):
   """
   Mocks the Enrichment transform for testing purposes.
@@ -163,7 +161,7 @@ def test_pubsub_read(
     subscription: Optional[str] = None,
     format: Optional[str] = None,
     schema: Optional[Any] = None,
-    attributes: Optional[List[str]] = None,
+    attributes: Optional[list[str]] = None,
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None):
@@ -287,7 +285,7 @@ Transforms not requiring inputs.
 INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka', 'TestReadFromPubSub']
 
 
-def check_output(expected: List[str]):
+def check_output(expected: list[str]):
   """
   Helper function to check the output of a pipeline against expected values.
 
@@ -302,7 +300,7 @@ def check_output(expected: List[str]):
     A callable that takes a list of PCollections and asserts their combined
     elements match the expected output.
   """
-  def _check_inner(actual: List[PCollection[str]]):
+  def _check_inner(actual: list[PCollection[str]]):
     formatted_actual = actual | beam.Flatten() | beam.Map(
         lambda row: str(beam.Row(**row._asdict())))
     assert_matches_stdout(formatted_actual, expected)
@@ -312,7 +310,7 @@ def check_output(expected: List[str]):
 
 def create_test_method(
     pipeline_spec_file: str,
-    custom_preprocessors: List[Callable[..., Union[Dict, List]]]):
+    custom_preprocessors: list[Callable[..., Union[dict, list]]]):
   """
   Generates a test method for a given YAML pipeline specification file.
 
@@ -426,7 +424,7 @@ class YamlExamplesTestSuite:
   files and dynamically generate a Python test method.  Additionally, it creates
   a method to complete some preprocessing for mocking IO.
   """
-  _test_preprocessor: Dict[str, List[Callable[..., Union[Dict, List]]]] = {}
+  _test_preprocessor: dict[str, list[Callable[..., Union[dict, list]]]] = {}
 
   def __init__(self, name: str, path: str):
     """
@@ -501,7 +499,7 @@ class YamlExamplesTestSuite:
         name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
-  def register_test_preprocessor(cls, test_names: Union[str, List]):
+  def register_test_preprocessor(cls, test_names: Union[str, list]):
     """Decorator to register a preprocessor function for specific tests.
 
     This decorator is used to associate a preprocessor function with one or
@@ -534,7 +532,7 @@ class YamlExamplesTestSuite:
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_wordcount_minimal_yaml'])
 def _wordcount_minimal_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for the wordcount_minimal.yaml test.
 
@@ -569,7 +567,7 @@ def _wordcount_minimal_test_preprocessor(
     'test_wordCountInheritance_yaml'
 ])
 def _wordcount_jinja_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for the wordcount Jinja tests.
 
@@ -599,7 +597,7 @@ def _wordcount_jinja_test_preprocessor(
 
 
 def _wordcount_random_shuffler(
-    test_spec: dict, all_words: List[str], env: TestEnvironment):
+    test_spec: dict, all_words: list[str], env: TestEnvironment):
   """
   Helper function to create a randomized input file for wordcount-style tests.
 
@@ -638,7 +636,7 @@ def _wordcount_random_shuffler(
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_kafka_yaml', 'test_kafka_to_iceberg_yaml'])
 def _kafka_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
 
   test_spec = replace_recursive(
       test_spec,
@@ -687,7 +685,7 @@ def _kafka_test_preprocessor(
     'test_bigquery_write_yaml'
 ])
 def _io_write_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve writing to IO.
 
@@ -724,7 +722,7 @@ def _io_write_test_preprocessor(
     'test_gcs_text_to_bigquery_yaml'
 ])
 def _file_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   This preprocessor replaces any file IO ReadFrom transform with a Create
   transform that reads from a predefined in-memory dictionary. This allows
@@ -758,7 +756,7 @@ def _file_io_read_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_iceberg_read_yaml', 'test_iceberg_to_alloydb_yaml'])
 def _iceberg_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from Iceberg.
 
@@ -804,7 +802,7 @@ def _iceberg_io_read_test_preprocessor(
     'test_spanner_to_bigquery_yaml'
 ])
 def _spanner_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from Spanner.
 
@@ -855,7 +853,7 @@ def _spanner_io_read_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor(
     ['test_bigtable_enrichment_yaml', 'test_enrich_spanner_with_bigquery_yaml'])
 def _enrichment_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve the Enrichment transform.
 
@@ -887,7 +885,7 @@ def _enrichment_test_preprocessor(
     'test_pubsub_to_iceberg_yaml'
 ])
 def _pubsub_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from Pub/Sub.
   This preprocessor replaces any ReadFromPubSub transform with a Create
@@ -908,7 +906,7 @@ def _pubsub_io_read_test_preprocessor(
     'test_jdbc_to_bigquery_yaml',
 ])
 def _jdbc_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from generic Jdbc.
   url syntax: 'jdbc:<database-type>://<host>:<port>/<database>'
@@ -921,7 +919,7 @@ def _jdbc_io_read_test_preprocessor(
     'test_sqlserver_to_bigquery_yaml',
 ])
 def __sqlserver_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from SqlServer.
   url syntax: 'jdbc:sqlserver://<host>:<port>;databaseName=<database>;
@@ -935,7 +933,7 @@ def __sqlserver_io_read_test_preprocessor(
     'test_postgres_to_bigquery_yaml',
 ])
 def __postgres_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from Postgres.
   url syntax: 'jdbc:postgresql://<host>:<port>/shipment?user=<user>&
@@ -949,7 +947,7 @@ def __postgres_io_read_test_preprocessor(
     'test_oracle_to_bigquery_yaml',
 ])
 def __oracle_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from Oracle.
   url syntax: 'jdbc:oracle:thin:system/oracle@<host>:{port}/<database>'
@@ -962,7 +960,7 @@ def __oracle_io_read_test_preprocessor(
     'test_mysql_to_bigquery_yaml',
 ])
 def __mysql_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve reading from MySql.
   url syntax: 'jdbc:mysql://<host>:<port>/<database>?user=<user>&
@@ -1014,7 +1012,7 @@ def _db_io_read_test_processor(
 @YamlExamplesTestSuite.register_test_preprocessor(
     'test_streaming_sentiment_analysis_yaml')
 def _streaming_sentiment_analysis_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve the streaming sentiment analysis example.
 
@@ -1072,7 +1070,7 @@ def _streaming_sentiment_analysis_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor(
     'test_streaming_taxifare_prediction_yaml')
 def _streaming_taxifare_prediction_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve the streaming taxi fare prediction
   example.
@@ -1158,7 +1156,7 @@ def _streaming_taxifare_prediction_test_preprocessor(
     'test_anomaly_scoring_yaml'
 ])
 def _batch_log_analysis_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
+    test_spec: dict, expected: list[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve the batch log analysis example.
 

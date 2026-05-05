@@ -32,11 +32,8 @@ from io import BytesIO
 from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import MutableMapping
 from typing import Optional
-from typing import Tuple
 from urllib.request import urlopen
 
 import grpc
@@ -97,12 +94,12 @@ class ArtifactStagingService(
     beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
   def __init__(
       self,
-      file_writer: Callable[[str, Optional[str]], Tuple[BinaryIO, str]],
+      file_writer: Callable[[str, Optional[str]], tuple[BinaryIO, str]],
   ):
     self._lock = threading.Lock()
-    self._jobs_to_stage: Dict[
+    self._jobs_to_stage: dict[
         str,
-        Tuple[Dict[Any, List[beam_runner_api_pb2.ArtifactInformation]],
+        tuple[dict[Any, list[beam_runner_api_pb2.ArtifactInformation]],
               threading.Event]] = {}
     self._file_writer = file_writer
 
@@ -110,7 +107,7 @@ class ArtifactStagingService(
       self,
       staging_token: str,
       dependency_sets: MutableMapping[
-          Any, List[beam_runner_api_pb2.ArtifactInformation]]):
+          Any, list[beam_runner_api_pb2.ArtifactInformation]]):
     if staging_token in self._jobs_to_stage:
       raise ValueError('Already staging %s' % staging_token)
     with self._lock:

@@ -43,7 +43,7 @@ Person = typing.NamedTuple(
         ("name", str),
         ("age", np.int32),
         ("address", typing.Optional[str]),
-        ("aliases", typing.List[str]),
+        ("aliases", list[str]),
         ("knows_javascript", bool),
         ("payload", typing.Optional[bytes]),
         ("custom_metadata", typing.Mapping[str, int]),
@@ -53,7 +53,7 @@ Person = typing.NamedTuple(
 NullablePerson = typing.NamedTuple(
     "NullablePerson",
     [("name", typing.Optional[str]), ("age", np.int32),
-     ("address", typing.Optional[str]), ("aliases", typing.List[str]),
+     ("address", typing.Optional[str]), ("aliases", list[str]),
      ("knows_javascript", bool), ("payload", typing.Optional[bytes]),
      ("custom_metadata", typing.Mapping[str, int]),
      ("favorite_time", typing.Optional[Timestamp]),

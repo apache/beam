@@ -66,10 +66,7 @@ See apache_beam.typehints.decorators module for more details.
 
 # pytype: skip-file
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import List
-from typing import Type
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -81,8 +78,8 @@ __all__ = ['registry']
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
   def __init__(self, fallback_coder=None):
-    self._coders: Dict[Any, Type[coders.Coder]] = {}
-    self.custom_types: List[Any] = []
+    self._coders: dict[Any, type[coders.Coder]] = {}
+    self.custom_types: list[Any] = []
     self.register_standard_coders(fallback_coder)
 
   def register_standard_coders(self, fallback_coder):
@@ -110,7 +107,7 @@ class CoderRegistry(object):
 
   def _register_coder_internal(
       self, typehint_type: Any,
-      typehint_coder_class: Type[coders.Coder]) -> None:
+      typehint_coder_class: type[coders.Coder]) -> None:
     self._coders[typehint_type] = typehint_coder_class
 
   @staticmethod
@@ -123,7 +120,7 @@ class CoderRegistry(object):
 
   def register_coder(
       self, typehint_type: Any,
-      typehint_coder_class: Type[coders.Coder]) -> None:
+      typehint_coder_class: type[coders.Coder]) -> None:
     """
     Register a user type with a coder.
 
@@ -244,7 +241,7 @@ class FirstOf(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A class used to get the first matching coder from a list of coders."""
-  def __init__(self, coders: Iterable[Type[coders.Coder]]) -> None:
+  def __init__(self, coders: Iterable[type[coders.Coder]]) -> None:
     self._coders = coders
 
   def from_type_hint(self, typehint, registry):

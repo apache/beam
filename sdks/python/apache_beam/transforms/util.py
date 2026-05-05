@@ -35,9 +35,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -586,7 +584,7 @@ class _EncryptMessage(DoFn):
     self.fernet = Fernet(self._hmac_key)
 
   def process(self,
-              element: Any) -> Iterable[Tuple[bytes, Tuple[bytes, bytes]]]:
+              element: Any) -> Iterable[tuple[bytes, tuple[bytes, bytes]]]:
     """Encrypts the key and value of an element.
 
     Args:
@@ -622,7 +620,7 @@ class _DecryptMessage(DoFn):
     hmac_key = self.hmac_key_secret.get_secret_bytes()
     self.fernet = Fernet(hmac_key)
 
-  def decode_value(self, encoded_element: Tuple[bytes, bytes]) -> Any:
+  def decode_value(self, encoded_element: tuple[bytes, bytes]) -> Any:
     encrypted_value = encoded_element[1]
     encoded_value = self.fernet.decrypt(encrypted_value)
     real_val = self.value_coder.decode(encoded_value)
@@ -631,7 +629,7 @@ class _DecryptMessage(DoFn):
   def filter_elements_by_key(
       self,
       encrypted_key: bytes,
-      encoded_elements: Iterable[Tuple[bytes, bytes]]) -> Iterable[Any]:
+      encoded_elements: Iterable[tuple[bytes, bytes]]) -> Iterable[Any]:
     for e in encoded_elements:
       if encrypted_key == self.fernet.decrypt(e[0]):
         yield self.decode_value(e)
@@ -640,8 +638,8 @@ class _DecryptMessage(DoFn):
   # here. This does mean that the whole list will be materialized every time,
   # but passing an Iterable containing an Iterable breaks when pickling happens
   def process(
-      self, element: Tuple[bytes, Iterable[Tuple[bytes, bytes]]]
-  ) -> Iterable[Tuple[Any, List[Any]]]:
+      self, element: tuple[bytes, Iterable[tuple[bytes, bytes]]]
+  ) -> Iterable[tuple[Any, list[Any]]]:
     """Decrypts the key and values of an element.
 
     Args:
@@ -669,8 +667,8 @@ class _DecryptMessage(DoFn):
           list(self.filter_elements_by_key(encoded_key, encoded_elements)))
 
 
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, Iterable[V]])
 class GroupByEncryptedKey(PTransform):
   """A PTransform that provides a secure alternative to GroupByKey.
 
@@ -727,7 +725,7 @@ class GroupByEncryptedKey(PTransform):
 
     gbk = beam.GroupByKey()
     gbk._inside_gbek = True
-    output_type = Tuple[key_type, Iterable[value_type]]
+    output_type = tuple[key_type, Iterable[value_type]]
 
     return (
         pcoll

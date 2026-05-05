@@ -117,7 +117,7 @@ coders.registry.register_row(SimpleRow)
 class CrossLanguageJdbcIOTest(unittest.TestCase):
   DbData = typing.NamedTuple(
       'DbData',
-      [('container_fn', typing.Any), ('classpath', typing.List[str]),
+      [('container_fn', typing.Any), ('classpath', list[str]),
        ('db_string', str), ('connector', str)])
   DB_CONTAINER_CLASSPATH_STRING = {
       'postgres': DbData(

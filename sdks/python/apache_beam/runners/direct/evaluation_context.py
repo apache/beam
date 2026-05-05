@@ -23,12 +23,8 @@ import collections
 import threading
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import DefaultDict
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam import pvalue
@@ -91,10 +87,10 @@ class _SideInputsContainer(object):
   """
   def __init__(self, side_inputs: Iterable['pvalue.AsSideInput']) -> None:
     self._lock = threading.Lock()
-    self._views: Dict[pvalue.AsSideInput, _SideInputView] = {}
-    self._transform_to_side_inputs: DefaultDict[
+    self._views: dict[pvalue.AsSideInput, _SideInputView] = {}
+    self._transform_to_side_inputs: collections.defaultdict[
         Optional[AppliedPTransform],
-        List[pvalue.AsSideInput]] = collections.defaultdict(list)
+        list[pvalue.AsSideInput]] = collections.defaultdict(list)
     # this appears unused:
     self._side_input_to_blocked_tasks = collections.defaultdict(list)  # type: ignore
 
@@ -139,7 +135,7 @@ class _SideInputsContainer(object):
       view.elements.extend(values)
 
   def update_watermarks_for_transform_and_unblock_tasks(
-      self, ptransform, watermark) -> List[Tuple[TransformExecutor, Timestamp]]:
+      self, ptransform, watermark) -> list[tuple[TransformExecutor, Timestamp]]:
     """Updates _SideInputsContainer after a watermark update and unbloks tasks.
 
     It traverses the list of side inputs per PTransform and calls
@@ -160,7 +156,7 @@ class _SideInputsContainer(object):
     return unblocked_tasks
 
   def _update_watermarks_for_side_input_and_unblock_tasks(
-      self, side_input, watermark) -> List[Tuple[TransformExecutor, Timestamp]]:
+      self, side_input, watermark) -> list[tuple[TransformExecutor, Timestamp]]:
     """Helps update _SideInputsContainer after a watermark update.
 
     For each view of the side input, it updates the value of the watermark
@@ -241,9 +237,9 @@ class EvaluationContext(object):
     self._value_to_consumers = value_to_consumers
     self._step_names = step_names
     self.views = views
-    self._pcollection_to_views: DefaultDict[
+    self._pcollection_to_views: collections.defaultdict[
         pvalue.PValue,
-        List[pvalue.AsSideInput]] = collections.defaultdict(list)
+        list[pvalue.AsSideInput]] = collections.defaultdict(list)
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
     self._transform_keyed_states = self._initialize_keyed_states(
@@ -254,7 +250,7 @@ class EvaluationContext(object):
         root_transforms,
         value_to_consumers,
         self._transform_keyed_states)
-    self._pending_unblocked_tasks: List[Tuple[TransformExecutor,
+    self._pending_unblocked_tasks: list[tuple[TransformExecutor,
                                               Timestamp]] = []
     self._counter_factory = counters.CounterFactory()
     self._metrics = DirectMetrics()
@@ -370,7 +366,7 @@ class EvaluationContext(object):
       self,
       uncommitted_bundles: Iterable['_Bundle'],
       unprocessed_bundles: Iterable['_Bundle']
-  ) -> Tuple[Tuple['_Bundle', ...], Tuple['_Bundle', ...]]:
+  ) -> tuple[tuple['_Bundle', ...], tuple['_Bundle', ...]]:
     """Commits bundles and returns a immutable set of committed bundles."""
     for in_progress_bundle in uncommitted_bundles:
       producing_applied_ptransform = in_progress_bundle.pcollection.producer
@@ -401,7 +397,7 @@ class EvaluationContext(object):
         output_pcollection)
 
   def extract_all_timers(
-      self) -> Tuple[List[Tuple[AppliedPTransform, List['TimerFiring']]], bool]:
+      self) -> tuple[list[tuple[AppliedPTransform, list['TimerFiring']]], bool]:
     return self._watermark_manager.extract_all_timers()
 
   def is_done(self, transform: Optional[AppliedPTransform] = None) -> bool:
