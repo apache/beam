@@ -366,10 +366,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import fastavro
@@ -638,7 +635,7 @@ def _BigQuerySource(*args, **kwargs):
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
-  paths: List[str]
+  paths: list[str]
 
 
 class _CustomBigQuerySource(BoundedSource):
@@ -975,12 +972,12 @@ class _CustomBigQueryStorageSource(BoundedSource):
       dataset: Optional[str] = None,
       project: Optional[str] = None,
       query: Optional[str] = None,
-      selected_fields: Optional[List[str]] = None,
+      selected_fields: Optional[list[str]] = None,
       row_restriction: Optional[str] = None,
       pipeline_options: Optional[GoogleCloudOptions] = None,
       unique_id: Optional[uuid.UUID] = None,
-      bigquery_job_labels: Optional[Dict] = None,
-      bigquery_dataset_labels: Optional[Dict] = None,
+      bigquery_job_labels: Optional[dict] = None,
+      bigquery_dataset_labels: Optional[dict] = None,
       job_name: Optional[str] = None,
       step_name: Optional[str] = None,
       use_standard_sql: Optional[bool] = False,
@@ -1607,7 +1604,7 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
-  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+  def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
     """Returns error string when the row estimated size is too big"""
     row_byte_size = get_deep_size(row_and_insert_id)
 
@@ -2007,7 +2004,7 @@ class WriteToBigQuery(PTransform):
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
+      primary_key: list[str] = None,
       expansion_service=None,
       big_lake_configuration=None):
     """Initialize a WriteToBigQuery transform.
@@ -2488,13 +2485,13 @@ class WriteResult:
   def __init__(
       self,
       method: str = None,
-      destination_load_jobid_pairs: PCollection[Tuple[str,
+      destination_load_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
-      destination_copy_jobid_pairs: PCollection[Tuple[str,
+      destination_file_pairs: PCollection[tuple[str, tuple[str, int]]] = None,
+      destination_copy_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      failed_rows: PCollection[Tuple[str, dict]] = None,
-      failed_rows_with_errors: PCollection[Tuple[str, dict, list]] = None):
+      failed_rows: PCollection[tuple[str, dict]] = None,
+      failed_rows_with_errors: PCollection[tuple[str, dict, list]] = None):
 
     self._method = method
     self._destination_load_jobid_pairs = destination_load_jobid_pairs
@@ -2525,7 +2522,7 @@ class WriteResult:
 
   @property
   def destination_load_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2539,7 +2536,7 @@ class WriteResult:
     return self._destination_load_jobid_pairs
 
   @property
-  def destination_file_pairs(self) -> PCollection[Tuple[str, Tuple[str, int]]]:
+  def destination_file_pairs(self) -> PCollection[tuple[str, tuple[str, int]]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations along with the
@@ -2553,7 +2550,7 @@ class WriteResult:
 
   @property
   def destination_copy_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2567,7 +2564,7 @@ class WriteResult:
     return self._destination_copy_jobid_pairs
 
   @property
-  def failed_rows(self) -> PCollection[Tuple[str, dict]]:
+  def failed_rows(self) -> PCollection[tuple[str, dict]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
@@ -2583,7 +2580,7 @@ class WriteResult:
     return self._failed_rows
 
   @property
-  def failed_rows_with_errors(self) -> PCollection[Tuple[str, dict, list]]:
+  def failed_rows_with_errors(self) -> PCollection[tuple[str, dict, list]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns:
@@ -2642,7 +2639,7 @@ class StorageWriteToBigQuery(PTransform):
       with_auto_sharding=False,
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
+      primary_key: list[str] = None,
       big_lake_configuration=None,
       expansion_service=None):
     self._table = table
@@ -3180,7 +3177,7 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None,
+      bigquery_job_labels: dict[str, str] = None,
       query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):

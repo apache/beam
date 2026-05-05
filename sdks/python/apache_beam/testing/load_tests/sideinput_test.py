@@ -58,9 +58,7 @@ or:
 
 import logging
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -112,7 +110,7 @@ class SideInputTest(LoadTest):
         self._first_n = first_n
 
       def process(
-          self, element: Any, side_input: Iterable[Tuple[bytes,
+          self, element: Any, side_input: Iterable[tuple[bytes,
                                                          bytes]]) -> None:
         i = 0
         it = iter(side_input)
@@ -130,7 +128,7 @@ class SideInputTest(LoadTest):
         self._first_n = first_n
 
       def process(
-          self, element: Any, dict_side_input: Dict[bytes, bytes]) -> None:
+          self, element: Any, dict_side_input: dict[bytes, bytes]) -> None:
         i = 0
         for key in dict_side_input:
           if i == self._first_n:
@@ -156,7 +154,7 @@ class SideInputTest(LoadTest):
         self.key_size = key_size
         self.value_size = value_size
 
-      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
+      def process(self, element: Any) -> Iterable[dict[str, Union[int, str]]]:
         yield {
             'num_records': self.elements_per_record,
             'key_size': self.key_size,

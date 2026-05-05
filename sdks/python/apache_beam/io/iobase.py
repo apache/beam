@@ -39,7 +39,6 @@ from collections import namedtuple
 from typing import Any
 from typing import Iterator
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -975,7 +974,7 @@ class Read(ptransform.PTransform):
   def to_runner_api_parameter(
       self,
       context: PipelineContext,
-  ) -> Tuple[str, Any]:
+  ) -> tuple[str, Any]:
     from apache_beam.io.gcp.pubsub import _PubSubSource
     if isinstance(self.source, _PubSubSource):
       return (
@@ -1120,7 +1119,7 @@ class Write(ptransform.PTransform):
   def to_runner_api_parameter(
       self,
       context: PipelineContext,
-  ) -> Tuple[str, Any]:
+  ) -> tuple[str, Any]:
     # TODO(BEAM-27443): Remove the need for special casing here.
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink

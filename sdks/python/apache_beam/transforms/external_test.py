@@ -131,7 +131,7 @@ class ExternalTuplePayloadTest(PayloadBase, unittest.TestCase):
             ('integer_example', int),
             ('boolean', bool),
             ('string_example', str),
-            ('list_of_strings', typing.List[str]),
+            ('list_of_strings', list[str]),
             ('mapping', typing.Mapping[str, float]),
             ('optional_integer', typing.Optional[int]),
         ])
@@ -175,8 +175,7 @@ class ExternalImplicitPayloadTest(unittest.TestCase):
 
     # Verify we have not modified a cached type (BEAM-10766)
     # TODO(BEAM-7372): Remove when bytes coercion code is removed.
-    self.assertEqual(
-        typehints.List[bytes], convert_to_beam_type(typing.List[bytes]))
+    self.assertEqual(typehints.List[bytes], convert_to_beam_type(list[bytes]))
 
 
 class ExternalTransformTest(unittest.TestCase):
@@ -417,7 +416,7 @@ class ExternalAnnotationPayloadTest(PayloadBase, unittest.TestCase):
           integer_example: int,
           boolean: bool,
           string_example: str,
-          list_of_strings: typing.List[str],
+          list_of_strings: list[str],
           mapping: typing.Mapping[str, float],
           optional_integer: typing.Optional[int] = None,
           expansion_service=None):
@@ -474,7 +473,7 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
       integer_example: int
       boolean: bool
       string_example: str
-      list_of_strings: typing.List[str]
+      list_of_strings: list[str]
       mapping: typing.Mapping[str, float] = dataclasses.field(default=dict)
       optional_integer: typing.Optional[int] = None
       expansion_service: dataclasses.InitVar[typing.Optional[str]] = None

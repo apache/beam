@@ -65,11 +65,9 @@ import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import List
 from typing import Literal
 from typing import NamedTuple
 from typing import Optional
-from typing import Type
 
 import apache_beam as beam
 from apache_beam.coders import registry
@@ -108,7 +106,7 @@ class SpannerColumnSpec:
       ... )
   """
   column_name: str
-  python_type: Type
+  python_type: type
   value_fn: Callable[[EmbeddableItem], Any]
 
 
@@ -137,7 +135,7 @@ class SpannerColumnSpecsBuilder:
       ... )
   """
   def __init__(self):
-    self._specs: List[SpannerColumnSpec] = []
+    self._specs: list[SpannerColumnSpec] = []
 
   @staticmethod
   def with_defaults() -> 'SpannerColumnSpecsBuilder':
@@ -159,7 +157,7 @@ class SpannerColumnSpecsBuilder:
   def with_id_spec(
       self,
       column_name: str = "id",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add ID column specification.
@@ -195,7 +193,7 @@ class SpannerColumnSpecsBuilder:
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      convert_fn: Optional[Callable[[List[float]], List[float]]] = None
+      convert_fn: Optional[Callable[[list[float]], list[float]]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add embedding array column (ARRAY<FLOAT32> or ARRAY<FLOAT64>).
     
@@ -221,7 +219,7 @@ class SpannerColumnSpecsBuilder:
         ...     convert_fn=lambda vec: [round(x, 4) for x in vec]
         ... )
     """
-    def extract_fn(embeddable: EmbeddableItem) -> List[float]:
+    def extract_fn(embeddable: EmbeddableItem) -> list[float]:
       if not embeddable.dense_embedding:
         raise ValueError(f'EmbeddableItem must contain embedding: {embeddable}')
       return embeddable.dense_embedding
@@ -229,7 +227,7 @@ class SpannerColumnSpecsBuilder:
     self._specs.append(
         SpannerColumnSpec(
             column_name=column_name,
-            python_type=List[float],
+            python_type=list[float],
             value_fn=functools.partial(
                 _extract_and_convert, extract_fn, convert_fn)))
     return self
@@ -237,7 +235,7 @@ class SpannerColumnSpecsBuilder:
   def with_content_spec(
       self,
       column_name: str = "content",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None
   ) -> 'SpannerColumnSpecsBuilder':
     """Add content column.
@@ -301,7 +299,7 @@ class SpannerColumnSpecsBuilder:
   def add_metadata_field(
       self,
       field: str,
-      python_type: Type,
+      python_type: type,
       column_name: Optional[str] = None,
       convert_fn: Optional[Callable[[Any], Any]] = None,
       default: Any = None) -> 'SpannerColumnSpecsBuilder':
@@ -369,7 +367,7 @@ class SpannerColumnSpecsBuilder:
   def add_column(
       self,
       column_name: str,
-      python_type: Type,
+      python_type: type,
       value_fn: Callable[[EmbeddableItem], Any]) -> 'SpannerColumnSpecsBuilder':
     """Add a custom column with full control.
     
@@ -402,7 +400,7 @@ class SpannerColumnSpecsBuilder:
             value_fn=value_fn))
     return self
 
-  def build(self) -> List[SpannerColumnSpec]:
+  def build(self) -> list[SpannerColumnSpec]:
     """Build the final list of column specifications.
     
     Returns:
@@ -417,7 +415,7 @@ class _SpannerSchemaBuilder:
   Creates a NamedTuple type from column specifications and registers it
   with Beam's RowCoder for serialization.
   """
-  def __init__(self, table_name: str, column_specs: List[SpannerColumnSpec]):
+  def __init__(self, table_name: str, column_specs: list[SpannerColumnSpec]):
     """Initialize schema builder.
     
     Args:
@@ -511,7 +509,7 @@ class SpannerVectorWriterConfig(VectorDatabaseWriteConfig):
       table_name: str,
       *,
       # Schema configuration
-      column_specs: Optional[List[SpannerColumnSpec]] = None,
+      column_specs: Optional[list[SpannerColumnSpec]] = None,
       # Write operation type
       write_mode: Literal["INSERT", "UPDATE", "REPLACE",
                           "INSERT_OR_UPDATE"] = "INSERT_OR_UPDATE",

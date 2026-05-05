@@ -23,7 +23,6 @@ import time
 import unittest
 from dataclasses import dataclass
 from typing import Any
-from typing import List
 from typing import Literal
 from typing import Optional
 
@@ -318,7 +317,7 @@ class PipelineVerificationHelper:
 
   @staticmethod
   def verify_standard_operations(
-      pipeline, jdbc_params: dict, expected_chunks: List[Chunk]):
+      pipeline, jdbc_params: dict, expected_chunks: list[Chunk]):
     num_records = len(expected_chunks)
     sample_size = min(500, num_records // 2)
 
