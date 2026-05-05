@@ -20,7 +20,7 @@ package org.apache.beam.sdk.values;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 
 /** Utility class for converting between {@link ValueKind} and {@link Elements.ValueKind.Enum}. */
-public class ValueKindUtil {
+public final class ValueKindUtil {
   public static Elements.ValueKind.Enum toProto(ValueKind valueKind) {
     switch (valueKind) {
       case INSERT:

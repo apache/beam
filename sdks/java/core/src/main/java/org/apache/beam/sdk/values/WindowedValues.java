@@ -532,7 +532,8 @@ public class WindowedValues {
     return left.getTimestamp().isEqual(right.getTimestamp())
         && Objects.equals(left.getValue(), right.getValue())
         && Iterables.elementsEqual(left.getWindows(), right.getWindows())
-        && Objects.equals(left.getPaneInfo(), right.getPaneInfo());
+        && Objects.equals(left.getPaneInfo(), right.getPaneInfo())
+        && Objects.equals(left.getValueKind(), right.getValueKind());
   }
 
   public static <T> int hashCode(WindowedValue<T> windowedValue) {
@@ -541,7 +542,8 @@ public class WindowedValues {
         windowedValue.getValue(),
         windowedValue.getTimestamp().getMillis(),
         windowedValue.getWindows(),
-        windowedValue.getPaneInfo());
+        windowedValue.getPaneInfo(),
+        windowedValue.getValueKind());
   }
 
   private static final Collection<? extends BoundedWindow> GLOBAL_WINDOWS =
