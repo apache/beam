@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.JAVA_TIME_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_COLLECTION_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
@@ -38,7 +39,11 @@ import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.JavaTimePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedCollectionPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
@@ -80,6 +85,33 @@ public class POJOUtilsTest {
         POJOUtils.schemaFromPojoClass(
             new TypeDescriptor<SimplePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertEquals(SIMPLE_POJO_SCHEMA, schema);
+  }
+
+  @Test
+  public void testJavaTimePOJO() {
+    Schema schema =
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<JavaTimePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(JAVA_TIME_POJO_SCHEMA, schema);
+  }
+
+  /**
+   * Regression test for #37524: Joda {@link Instant} must continue to map to {@link
+   * FieldType#DATETIME}, not the new {@code java.time.Instant} logical type. This guards the branch
+   * ordering in {@code StaticSchemaInference.fieldFromType}.
+   */
+  @Test
+  public void testJodaInstantStillInfersAsDatetime() {
+    FieldType jodaInferred =
+        StaticSchemaInference.fieldFromType(
+            TypeDescriptor.of(Instant.class), JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(FieldType.DATETIME, jodaInferred);
+
+    FieldType javaTimeInferred =
+        StaticSchemaInference.fieldFromType(
+            TypeDescriptor.of(java.time.Instant.class), JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(TypeName.LOGICAL_TYPE, javaTimeInferred.getTypeName());
+    assertEquals(NanosInstant.IDENTIFIER, javaTimeInferred.getLogicalType().getIdentifier());
   }
 
   @Test

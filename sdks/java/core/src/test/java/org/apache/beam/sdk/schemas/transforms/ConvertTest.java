@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas.transforms;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -24,6 +25,7 @@ import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -208,6 +210,103 @@ public class ConvertTest {
             .apply(Create.of(EXPECTED_ROW1).withRowSchema(EXPECTED_SCHEMA1))
             .apply(Convert.fromRows(POJO1.class));
     PAssert.that(pojos).containsInAnyOrder(new POJO1());
+    pipeline.run();
+  }
+
+  /** Reproducer for #37524: a Row with a logical-type DateTime field should convert to a POJO. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class TimePOJO {
+    public LocalDateTime time;
+
+    public TimePOJO() {}
+
+    public TimePOJO(LocalDateTime time) {
+      this.time = time;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof TimePOJO)) {
+        return false;
+      }
+      TimePOJO that = (TimePOJO) o;
+      return Objects.equals(time, that.time);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(time);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsWithLogicalTypeDateTime() {
+    Schema icebergStyleSchema =
+        Schema.builder().addLogicalTypeField("time", SqlTypes.DATETIME).build();
+    LocalDateTime expected = LocalDateTime.of(2024, 1, 15, 10, 30, 0);
+    Row inputRow = Row.withSchema(icebergStyleSchema).addValue(expected).build();
+
+    PCollection<TimePOJO> pojos =
+        pipeline
+            .apply(Create.of(inputRow).withRowSchema(icebergStyleSchema))
+            .apply(Convert.fromRows(TimePOJO.class));
+
+    PAssert.that(pojos).containsInAnyOrder(new TimePOJO(expected));
+    pipeline.run();
+  }
+
+  /** POJO mixing a logical-type field with a primitive field. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class MixedTimePOJO {
+    public LocalDateTime time;
+    public String name;
+
+    public MixedTimePOJO() {}
+
+    public MixedTimePOJO(LocalDateTime time, String name) {
+      this.time = time;
+      this.name = name;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof MixedTimePOJO)) {
+        return false;
+      }
+      MixedTimePOJO that = (MixedTimePOJO) o;
+      return Objects.equals(time, that.time) && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(time, name);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFromRowsWithMixedLogicalAndPrimitiveTypes() {
+    Schema mixedSchema =
+        Schema.builder()
+            .addLogicalTypeField("time", SqlTypes.DATETIME)
+            .addStringField("name")
+            .build();
+    LocalDateTime expectedTime = LocalDateTime.of(2024, 1, 15, 10, 30, 0);
+    Row inputRow = Row.withSchema(mixedSchema).addValues(expectedTime, "hello").build();
+
+    PCollection<MixedTimePOJO> pojos =
+        pipeline
+            .apply(Create.of(inputRow).withRowSchema(mixedSchema))
+            .apply(Convert.fromRows(MixedTimePOJO.class));
+
+    PAssert.that(pojos).containsInAnyOrder(new MixedTimePOJO(expectedTime, "hello"));
     pipeline.run();
   }
 

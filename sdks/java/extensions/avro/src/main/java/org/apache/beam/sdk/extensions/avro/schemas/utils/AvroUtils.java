@@ -333,15 +333,20 @@ public class AvroUtils {
     }
 
     @Override
-    protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
+    protected java.lang.reflect.Type convertLogicalType(TypeDescriptor<?> type) {
       if (type.isSubtypeOf(TypeDescriptor.of(java.time.Instant.class))
           || type.isSubtypeOf(TypeDescriptor.of(java.time.LocalDate.class))) {
         return convertDateTime(type);
-      } else if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        return byte[].class;
-      } else {
-        return super.convertDefault(type);
       }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        return byte[].class;
+      }
+      return super.convertDefault(type);
     }
   }
 
@@ -356,18 +361,8 @@ public class AvroUtils {
     }
 
     @Override
-    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // Generate the following code:
-        // return value.bytes();
-        return new Compound(
-            readValue,
-            MethodInvocation.invoke(
-                new ForLoadedType(GenericFixed.class)
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTES)))
-                    .getOnly()));
-      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+    protected StackManipulation convertLogicalType(TypeDescriptor<?> type) {
+      if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
         // Generates the following code:
         //   return Instant.ofEpochMilli(value.toEpochMilli())
         StackManipulation onNotNull =
@@ -406,6 +401,22 @@ public class AvroUtils {
                         .getOnly()));
         return shortCircuitReturnNull(readValue, onNotNull);
       }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        // return value.bytes();
+        return new Compound(
+            readValue,
+            MethodInvocation.invoke(
+                new ForLoadedType(GenericFixed.class)
+                    .getDeclaredMethods()
+                    .filter(ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTES)))
+                    .getOnly()));
+      }
       return super.convertDefault(type);
     }
   }
@@ -421,25 +432,8 @@ public class AvroUtils {
     }
 
     @Override
-    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // Generate the following code:
-        //   return new T((byte[]) value);
-        ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-        return new Compound(
-            TypeCreation.of(loadedType),
-            Duplication.SINGLE,
-            // Load the parameter and cast it to a byte[].
-            readValue,
-            TypeCasting.to(BYTES),
-            // Create a new instance that wraps this byte[].
-            MethodInvocation.invoke(
-                loadedType
-                    .getDeclaredMethods()
-                    .filter(
-                        ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(BYTES)))
-                    .getOnly()));
-      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+    protected StackManipulation convertLogicalType(TypeDescriptor<?> type) {
+      if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
         // Generates the following code:
         //   return java.time.Instant.ofEpochMilli(value.getMillis())
         StackManipulation onNotNull =
@@ -476,6 +470,29 @@ public class AvroUtils {
                         .filter(ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochDay")))
                         .getOnly()));
         return shortCircuitReturnNull(readValue, onNotNull);
+      }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        //   return new T((byte[]) value);
+        ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+        return new Compound(
+            TypeCreation.of(loadedType),
+            Duplication.SINGLE,
+            // Load the parameter and cast it to a byte[].
+            readValue,
+            TypeCasting.to(BYTES),
+            // Create a new instance that wraps this byte[].
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(BYTES)))
+                    .getOnly()));
       }
       return super.convertDefault(type);
     }

@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRA
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.CASE_FORMAT_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.FIELD_WITH_DESCRIPTION_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.JAVA_TIME_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
@@ -46,9 +47,15 @@ import java.lang.reflect.Executable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
@@ -57,6 +64,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithCaseFormat;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithNoCreateOption;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithRenamedFieldsAndSetters;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.JavaTimeBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
@@ -177,6 +185,81 @@ public class JavaBeanSchemaTest {
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testJavaTimeSchema() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(JavaTimeBean.class);
+    SchemaTestUtils.assertSchemaEquivalent(JAVA_TIME_BEAN_SCHEMA, schema);
+    Schema icebergStyleSchema =
+        Schema.builder()
+            .addLogicalTypeField("localDate", SqlTypes.DATE)
+            .addLogicalTypeField("localTime", SqlTypes.TIME)
+            .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+            .addLogicalTypeField("instant", new NanosInstant())
+            .addLogicalTypeField("uuid", SqlTypes.UUID)
+            .build();
+    assertTrue(schema.assignableToIgnoreNullable(icebergStyleSchema));
+  }
+
+  @Test
+  public void testJavaTimeToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    JavaTimeBean bean = new JavaTimeBean();
+    bean.setLocalDate(LocalDate.of(2024, 1, 15));
+    bean.setLocalTime(LocalTime.of(10, 30, 45));
+    bean.setLocalDateTime(LocalDateTime.of(2024, 1, 15, 10, 30, 45));
+    bean.setInstant(java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L));
+    bean.setUuid(UUID.fromString("11111111-2222-3333-4444-555555555555"));
+
+    Row row = registry.getToRowFunction(JavaTimeBean.class).apply(bean);
+
+    assertEquals(5, row.getFieldCount());
+    assertEquals(bean.getLocalDate(), row.getLogicalTypeValue("localDate", LocalDate.class));
+    assertEquals(bean.getLocalTime(), row.getLogicalTypeValue("localTime", LocalTime.class));
+    assertEquals(
+        bean.getLocalDateTime(), row.getLogicalTypeValue("localDateTime", LocalDateTime.class));
+    assertEquals(bean.getInstant(), row.getLogicalTypeValue("instant", java.time.Instant.class));
+    assertEquals(bean.getUuid(), row.getLogicalTypeValue("uuid", UUID.class));
+  }
+
+  @Test
+  public void testJavaTimeFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    LocalDate localDate = LocalDate.of(2024, 1, 15);
+    LocalTime localTime = LocalTime.of(10, 30, 45);
+    LocalDateTime localDateTime = LocalDateTime.of(2024, 1, 15, 10, 30, 45);
+    java.time.Instant instant = java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L);
+    UUID uuid = UUID.fromString("11111111-2222-3333-4444-555555555555");
+    Row row =
+        Row.withSchema(JAVA_TIME_BEAN_SCHEMA)
+            .addValues(localDate, localTime, localDateTime, instant, uuid)
+            .build();
+
+    JavaTimeBean bean = registry.getFromRowFunction(JavaTimeBean.class).apply(row);
+
+    assertEquals(localDate, bean.getLocalDate());
+    assertEquals(localTime, bean.getLocalTime());
+    assertEquals(localDateTime, bean.getLocalDateTime());
+    assertEquals(instant, bean.getInstant());
+    assertEquals(uuid, bean.getUuid());
+  }
+
+  @Test
+  public void testJavaTimeRoundTrip() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    JavaTimeBean original = new JavaTimeBean();
+    original.setLocalDate(LocalDate.of(2024, 1, 15));
+    original.setLocalTime(LocalTime.of(10, 30, 45));
+    original.setLocalDateTime(LocalDateTime.of(2024, 1, 15, 10, 30, 45));
+    original.setInstant(java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L));
+    original.setUuid(UUID.fromString("11111111-2222-3333-4444-555555555555"));
+
+    Row row = registry.getToRowFunction(JavaTimeBean.class).apply(original);
+    JavaTimeBean roundTripped = registry.getFromRowFunction(JavaTimeBean.class).apply(row);
+
+    assertEquals(original, roundTripped);
   }
 
   @Test
