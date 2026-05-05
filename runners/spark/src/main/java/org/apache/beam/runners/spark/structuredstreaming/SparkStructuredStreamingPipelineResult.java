@@ -18,7 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
-import static org.sparkproject.guava.base.Objects.firstNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;

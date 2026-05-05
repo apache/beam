@@ -26,8 +26,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -75,9 +73,10 @@ public class MinimalBigQueryTornadoes {
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     @ProcessElement
-    public void processElement(@Element TableRow row, OutputReceiver<Integer> receiver) {
+    public void processElement(ProcessContext c) {
+      TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
-        receiver.output(Integer.parseInt((String) row.get("month")));
+        c.output(Integer.parseInt((String) row.get("month")));
       }
     }
   }
@@ -88,9 +87,8 @@ public class MinimalBigQueryTornadoes {
    */
   static class FormatCountsFn extends DoFn<KV<Integer, Long>, String> {
     @ProcessElement
-    public void processElement(
-        @Element KV<Integer, Long> element, OutputReceiver<String> receiver) {
-      receiver.output(element.getKey() + ": " + element.getValue());
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getKey() + ": " + c.element().getValue());
     }
   }
 
@@ -136,9 +134,9 @@ public class MinimalBigQueryTornadoes {
     }
 
     @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<T> receiver) {
-      LOG.info("{}{}", prefix, element);
-      receiver.output(element);
+    public void processElement(ProcessContext c) {
+      LOG.info("{}{}", prefix, c.element());
+      c.output(c.element());
     }
   }
 }

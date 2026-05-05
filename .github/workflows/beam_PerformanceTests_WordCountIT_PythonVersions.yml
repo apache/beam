@@ -66,7 +66,7 @@ jobs:
         job_phrase_2: [WordCountIT Performance Test]
         python_version: ['3.10']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -104,7 +104,7 @@ jobs:
             -Ptest=apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it \
             "-Ptest-pipeline-options=${{ env.beam_PerformanceTests_WordCountIT_PythonVersions_test_arguments_1 }}"
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results

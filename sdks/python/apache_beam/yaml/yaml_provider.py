@@ -1207,6 +1207,22 @@ class YamlProviders:
 
     return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
+  class Reshuffle(beam.PTransform):
+    """Reshuffles the elements of a PCollection.
+
+    Redistributes the elements of a PCollection to prevent fusion or balance
+    load.
+
+    Args:
+      num_buckets: (optional) Specifies the maximum random keys that would be
+        generated. If not set, a default value is used.
+    """
+    def __init__(self, num_buckets: Optional[int] = None):
+      self.num_buckets = num_buckets
+
+    def expand(self, pcoll):
+      return pcoll | beam.Reshuffle(num_buckets=self.num_buckets)
+
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
@@ -1216,6 +1232,7 @@ class YamlProviders:
         'PyTransform': YamlProviders.fully_qualified_named_transform,
         'Flatten': YamlProviders.Flatten,
         'WindowInto': YamlProviders.WindowInto,
+        'Reshuffle': YamlProviders.Reshuffle,
     },
                           no_input_transforms=('Create', ))
 

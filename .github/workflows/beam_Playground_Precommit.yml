@@ -47,7 +47,7 @@ jobs:
       PYTHON_VERSION: '3.10'
       JAVA_VERSION: '11'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -62,7 +62,10 @@ jobs:
 
       - name: Add GOPATH/bin to PATH
         run: echo "PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
-
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install -y wget
       - name: Install sbt for running SCIO tests
         run: |
           sudo apt-get update --yes

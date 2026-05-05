@@ -37,8 +37,6 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -103,12 +101,12 @@ public class StatefulTeamScore extends LeaderBoard {
   private static Map<String, FieldInfo<KV<String, Integer>>> configureCompleteWindowedTableWrite() {
 
     Map<String, FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
-    tableConfigure.put("team", new FieldInfo<>("STRING", (e, w, t, p) -> e.getKey()));
-    tableConfigure.put("total_score", new FieldInfo<>("INTEGER", (e, w, t, p) -> e.getValue()));
+    tableConfigure.put("team", new FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put("total_score", new FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "processing_time",
         new FieldInfo<>(
-            "STRING", (e, w, t, p) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -205,11 +203,9 @@ public class StatefulTeamScore extends LeaderBoard {
      */
     @ProcessElement
     public void processElement(
-        @Element KV<String, GameActionInfo> element,
-        @StateId(TOTAL_SCORE) ValueState<Integer> totalScore,
-        OutputReceiver<KV<String, Integer>> receiver) {
-      String teamName = element.getKey();
-      GameActionInfo gInfo = element.getValue();
+        ProcessContext c, @StateId(TOTAL_SCORE) ValueState<Integer> totalScore) {
+      String teamName = c.element().getKey();
+      GameActionInfo gInfo = c.element().getValue();
 
       // ValueState cells do not contain a default value. If the state is possibly not written, make
       // sure to check for null on read.
@@ -222,7 +218,7 @@ public class StatefulTeamScore extends LeaderBoard {
       // the new total is 2002, and the threshold is 1000, 1999 / 1000 = 1, 2002 / 1000 = 2.
       // Therefore, this team passed the threshold.
       if (oldTotalScore / this.thresholdScore < totalScore.read() / this.thresholdScore) {
-        receiver.output(KV.of(teamName, totalScore.read()));
+        c.output(KV.of(teamName, totalScore.read()));
       }
     }
   }

@@ -649,6 +649,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
+    def spark4_version = "4.0.2"
     def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
@@ -658,6 +659,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
+    project.ext.spark4_version = spark4_version
     // version for BigQueryMetastore catalog (used by sdks:java:io:iceberg:bqms)
     // TODO: remove this and download the jar normally when the catalog gets
     // open-sourced (https://github.com/apache/iceberg/pull/11039)
@@ -740,7 +742,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260118-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260405-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
@@ -820,6 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_datatype_jsr310                     : "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version",
         jackson_module_scala_2_11                   : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jackson_module_scala_2_12                   : "com.fasterxml.jackson.module:jackson-module-scala_2.12:$jackson_version",
+        jackson_module_scala_2_13                   : "com.fasterxml.jackson.module:jackson-module-scala_2.13:$jackson_version",
         jamm                                        : 'com.github.jbellis:jamm:0.4.0',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
@@ -1132,6 +1135,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.javaVersion = '17'
         } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
           project.javaVersion = '21'
+        } else if (JavaVersion.VERSION_25.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '25'
         } else {
           throw new GradleException(
           "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
@@ -1154,6 +1159,9 @@ class BeamModulePlugin implements Plugin<Project> {
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
         project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
+        project.hasProperty('java25Home')) {
+          forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
               "compile on newer Java version or pass java${project.javaVersion}Home project property")
@@ -1577,7 +1585,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
-          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
           options.compilerArgs += ['--release', compatVersion]
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
@@ -1611,7 +1619,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
+      if (['11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 
