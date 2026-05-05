@@ -117,7 +117,7 @@ func containerImages(p *pipepb.Pipeline) ([]*df.SdkHarnessContainerImage, []stri
 }
 
 // Translate translates a pipeline to a Dataflow job.
-func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string) (*df.Job, error) {
+func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, workerURL, modelURL string, pipelineProtoHash string) (*df.Job, error) {
 	// (1) Translate pipeline to v1b3 speak.
 
 	jobType := "JOB_TYPE_BATCH"
@@ -181,10 +181,11 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: printOptions(opts, images),
 				Options: dataflowOptions{
-					PipelineURL:  modelURL,
-					Region:       opts.Region,
-					Experiments:  opts.Experiments,
-					TempLocation: opts.TempLocation,
+					PipelineURL:       modelURL,
+					PipelineProtoHash: pipelineProtoHash,
+					Region:            opts.Region,
+					Experiments:       opts.Experiments,
+					TempLocation:      opts.TempLocation,
 				},
 				GoOptions: opts.Options,
 			}),
@@ -359,6 +360,7 @@ func GetMetrics(ctx context.Context, client *df.Service, project, region, jobID 
 type dataflowOptions struct {
 	Experiments                    []string `json:"experiments,omitempty"`
 	PipelineURL                    string   `json:"pipelineUrl"`
+	PipelineProtoHash              string   `json:"pipelineProtoHash,omitempty"`
 	Region                         string   `json:"region"`
 	TempLocation                   string   `json:"tempLocation"`
 	DiskProvisionedIops            int64    `json:"diskProvisionedIops"`

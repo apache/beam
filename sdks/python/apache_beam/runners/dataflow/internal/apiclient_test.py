@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import hashlib
 import io
 import itertools
 import json
@@ -96,6 +97,40 @@ class UtilTest(unittest.TestCase):
       self.fail('No pipeline_url found in %s' % recovered_options)
 
     self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
+
+  def test_pipeline_proto_hash(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    proto_pipeline = beam_runner_api_pb2.Pipeline()
+    proto_pipeline.components.transforms['dummy'].unique_name = 'dummy'
+
+    expected_hash = hashlib.sha256(
+        proto_pipeline.SerializeToString()).hexdigest()
+
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL,
+                                proto_pipeline,
+                                pipeline_proto_hash=expected_hash)
+
+    recovered_options = None
+    for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
+      if additionalProperty.key == 'options':
+        recovered_options = additionalProperty.value
+        break
+    else:
+      self.fail('No pipeline options found')
+
+    pipeline_proto_hash = None
+    for property in recovered_options.object_value.properties:
+      if property.key == 'pipelineProtoHash':
+        pipeline_proto_hash = property.value
+        break
+    else:
+      self.fail('No pipelineProtoHash found')
+
+    self.assertEqual(pipeline_proto_hash.string_value, expected_hash)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions([
