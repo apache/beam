@@ -75,10 +75,8 @@ public class TokenizationBigTableIO {
 
     @ProcessElement
     public void processElement(
-        @Element Row in,
-        OutputReceiver<KV<ByteString, Iterable<Mutation>>> out,
-        PipelineOptions pipelineOptions) {
-      DataTokenizationOptions options = pipelineOptions.as(DataTokenizationOptions.class);
+        @Element Row in, OutputReceiver<KV<ByteString, Iterable<Mutation>>> out, ProcessContext c) {
+      DataTokenizationOptions options = c.getPipelineOptions().as(DataTokenizationOptions.class);
       // Mapping every field in provided Row to Mutation.SetCell, which will create/update
       // cell content with provided data
       Set<Mutation> mutations =

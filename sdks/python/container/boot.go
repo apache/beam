@@ -185,10 +185,14 @@ func launchSDKProcess() error {
 	}
 
 	experiments := getExperiments(options)
+	logger.Printf(ctx, "Experiments=%v", experiments)
+
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {
 		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -403,10 +407,14 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// installSetupPackages installs Beam SDK and user dependencies.
+// installSetupPackages installs user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing setup packages ...")
+	bufLogger.Printf(ctx, "Installing user dependencies ...")
+
+	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
+	}
 
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
@@ -432,11 +440,11 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "final runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "Failed to fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
@@ -485,20 +493,20 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, phase string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Python version in %s:", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	args = []string{"-m", "pip", "freeze"}
+	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
+	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
@@ -510,7 +518,7 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Logging submission environment dependencies:")
+	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")

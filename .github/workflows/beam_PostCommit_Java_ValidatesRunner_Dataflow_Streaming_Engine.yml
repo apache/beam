@@ -64,7 +64,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow Streaming Engine ValidatesRunner'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -81,7 +81,7 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:validatesRunnerStreamingEngine
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

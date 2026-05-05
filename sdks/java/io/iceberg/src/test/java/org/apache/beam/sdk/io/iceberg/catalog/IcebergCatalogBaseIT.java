@@ -712,6 +712,32 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
+  @Test
+  public void testWriteToPartitionedTableWithHashDistribution() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    int truncLength = "value_x".length();
+    List<String> partitionFields =
+        Arrays.asList("bool_field", "hour(datetime)", "truncate(str, " + truncLength + ")");
+    config.put("partition_fields", partitionFields);
+    config.put("distribution_mode", "hash");
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    List<Record> returnedRecords = readRecords(table);
+    PartitionSpec expectedSpec =
+        PartitionSpec.builderFor(table.schema())
+            .identity("bool_field")
+            .hour("datetime")
+            .truncate("str", truncLength)
+            .build();
+    assertEquals(expectedSpec, table.spec());
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
   private PeriodicImpulse getStreamingSource() {
     return PeriodicImpulse.create()
         .stopAfter(Duration.millis(numRecords() - 1))
@@ -824,6 +850,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     if (partitioning) {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
       writeConfig.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
+      writeConfig.put("distribution_mode", "hash");
+      writeConfig.put("autosharding", true);
     }
 
     // Write with Beam
