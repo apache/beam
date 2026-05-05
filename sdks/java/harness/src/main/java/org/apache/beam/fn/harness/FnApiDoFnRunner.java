@@ -2364,7 +2364,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 currentTimer.getPaneInfo(),
                 null,
                 null,
-                currentTimer.causedByDrain()));
+                currentTimer.causedByDrain(),
+                null));
       }
 
       @Override
