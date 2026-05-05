@@ -16,9 +16,10 @@
 
 import unittest
 
-from apache_beam.ml.rag.embeddings.base import create_rag_adapter
+from apache_beam.ml.rag.embeddings.base import create_text_adapter
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
 
 
@@ -41,7 +42,7 @@ class RAGBaseEmbeddingsTest(unittest.TestCase):
 
   def test_adapter_input_conversion(self):
     """Test the RAG type adapter converts correctly."""
-    adapter = create_rag_adapter()
+    adapter = create_text_adapter()
 
     # Test input conversion
     texts = adapter.input_fn(self.test_chunks)
@@ -49,10 +50,10 @@ class RAGBaseEmbeddingsTest(unittest.TestCase):
 
   def test_adapter_input_conversion_missing_text_content(self):
     """Test the RAG type adapter converts correctly."""
-    adapter = create_rag_adapter()
+    adapter = create_text_adapter()
 
     # Test input conversion
-    with self.assertRaisesRegex(ValueError, "Expected chunk text content"):
+    with self.assertRaisesRegex(ValueError, "Expected text content"):
       adapter.input_fn([
           Chunk(
               content=Content(),
@@ -83,10 +84,46 @@ class RAGBaseEmbeddingsTest(unittest.TestCase):
             },
             content=Content(text='Another example.')),
     ]
-    adapter = create_rag_adapter()
+    adapter = create_text_adapter()
 
     embeddings = adapter.output_fn(self.test_chunks, mock_embeddings)
     self.assertListEqual(embeddings, expected)
+
+
+class ImageEmbeddableItemTest(unittest.TestCase):
+  def test_from_image_str(self):
+    item = EmbeddableItem.from_image('gs://bucket/img.jpg', id='img1')
+    self.assertEqual(item.content.image, 'gs://bucket/img.jpg')
+    self.assertIsNone(item.content.text)
+    self.assertEqual(item.id, 'img1')
+
+  def test_from_image_bytes(self):
+    data = b'\x89PNG\r\n'
+    item = EmbeddableItem.from_image(data, id='img2')
+    self.assertEqual(item.content.image, data)
+    self.assertIsNone(item.content.text)
+
+  def test_from_image_with_metadata(self):
+    item = EmbeddableItem.from_image(
+        'path/to/img.jpg', id='img3', metadata={'source': 'camera'})
+    self.assertEqual(item.metadata, {'source': 'camera'})
+    self.assertEqual(item.content.image, 'path/to/img.jpg')
+
+
+class ContentStringTest(unittest.TestCase):
+  def test_text_content(self):
+    item = EmbeddableItem(content=Content(text="hello"), id="1")
+    self.assertEqual(item.content_string, "hello")
+
+  def test_image_uri_content(self):
+    item = EmbeddableItem.from_image('gs://bucket/img.jpg', id='img1')
+    self.assertEqual(item.content_string, 'gs://bucket/img.jpg')
+
+  def test_image_bytes_raises(self):
+    item = EmbeddableItem.from_image(b'\x89PNG\r\n', id='img2')
+    with self.assertRaisesRegex(ValueError,
+                                "EmbeddableItem does not contain.*"):
+      item.content_string
 
 
 if __name__ == '__main__':

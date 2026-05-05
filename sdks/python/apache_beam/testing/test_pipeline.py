@@ -21,6 +21,7 @@
 
 import argparse
 import shlex
+import sys
 from unittest import SkipTest
 
 from apache_beam.internal import pickler
@@ -165,6 +166,19 @@ class TestPipeline(Pipeline):
     self.not_use_test_runner_api = known.not_use_test_runner_api
     return shlex.split(test_pipeline_options) \
       if test_pipeline_options else []
+
+  @classmethod
+  def get_options_list(cls, argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--test-pipeline-options',
+        type=str,
+        action='store',
+        help='Pipeline options for the test')
+    known, _ = parser.parse_known_args(argv if argv is not None else sys.argv)
+    opts = known.test_pipeline_options or getattr(
+        cls, 'pytest_test_pipeline_options', None)
+    return shlex.split(opts) if opts else []
 
   def get_full_options_as_args(self, **extra_opts):
     """Get full pipeline options as an argument list.

@@ -135,7 +135,7 @@ public class MinimalBigQueryTornadoes {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      LOG.info(prefix + c.element());
+      LOG.info("{}{}", prefix, c.element());
       c.output(c.element());
     }
   }

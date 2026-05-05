@@ -193,10 +193,12 @@ public class DoFnSignaturesSplittableDoFnTest {
   private static class BaseFnWithoutContinuation extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return null;
     }
   }
@@ -204,12 +206,14 @@ public class DoFnSignaturesSplittableDoFnTest {
   private static class BaseFnWithContinuation extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {
       return null;
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return null;
     }
   }

@@ -167,9 +167,9 @@ public class SubProcessKernel {
     } catch (Exception ex) {
 
       LOG.error(
-          String.format(
-              "Error running process with parameters %s error was %s ",
-              createLogEntryFromInputs(builder.command()), ex.getMessage()));
+          "Error running process with parameters {}",
+          createLogEntryFromInputs(builder.command()),
+          ex);
       throw new Exception(ex);
     }
   }
@@ -190,7 +190,7 @@ public class SubProcessKernel {
 
     try {
 
-      LOG.debug(String.format("Executing process %s", createLogEntryFromInputs(builder.command())));
+      LOG.debug("Executing process {}", createLogEntryFromInputs(builder.command()));
 
       // If process exit value is not 0 then subprocess failed, record logs
       if (process.exitValue() != 0) {
@@ -237,7 +237,7 @@ public class SubProcessKernel {
 
     try {
 
-      LOG.debug(String.format("Executing process %s", createLogEntryFromInputs(builder.command())));
+      LOG.debug("Executing process {}", createLogEntryFromInputs(builder.command()));
 
       // If process exit value is not 0 then subprocess failed, record logs
       if (process.exitValue() != 0) {

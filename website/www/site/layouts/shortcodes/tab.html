@@ -33,16 +33,17 @@ limitations under the License. See accompanying LICENSE file.
 
 {{/* --- 2. Your Normal Content Box --- */}}
 {{ $content := (trim .Inner "\n\r") | htmlUnescape | safeHTML }}
+{{ $ctx := . }}
 {{ $language := .Get 0 }}
 {{ with $language }}
-<div class='{{ printf "tab-%s" . }}'
-     style="
+  <div class='{{ printf "tab-%s" . }} '
+       style="
         border-radius: 8px;
         border-top-left-radius: 0;
         border: solid 0.6px #ff6d05;
         background-color: #ffffff;
         padding: 24px;
         padding-bottom: 0px;">
-  {{ $content }}
-</div>
+      {{ $content }}
+  </div>
 {{ end }}

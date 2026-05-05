@@ -38,10 +38,10 @@ permissions:
 jobs:
   push_docker_artifacts:
     if: ${{github.event.inputs.PUSH_DOCKER_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -80,12 +80,18 @@ jobs:
           docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
         done
 
+        # Flink 2 images have different tagging, add latest tag to latest supported Flink version
+        echo "================Confirming Runner container Release and RC version==========="
+        BEAM_FLINK_REPO=apache/beam_flink_job_server
+        LATEST_FLINK_VERSION=$(wget -qO- https://raw.githubusercontent.com/apache/beam/refs/tags/v${RELEASE}-RC${RC_NUM}/gradle.properties | grep -E flink_versions |  tr ',' '\n' | tail -1)
+        docker buildx imagetools create --tag "${BEAM_FLINK_REPO}:latest" "${BEAM_FLINK_REPO}:${RELEASE}${RC_VERSION}-flink${LATEST_FLINK_VERSION}"
+
   publish_python_artifacts:
     if: ${{github.event.inputs.PUBLISH_PYTHON_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -123,10 +129,10 @@ jobs:
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
     - name: Set git config
       run: |
         git config user.name $GITHUB_ACTOR
@@ -166,7 +172,7 @@ jobs:
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

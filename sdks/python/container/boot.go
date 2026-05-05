@@ -29,7 +29,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -47,8 +46,6 @@ import (
 )
 
 var (
-	acceptableWhlSpecs []string
-
 	// SetupOnly option is used to invoke the boot sequence to only process the provided artifacts and builds new dependency pre-cached images.
 	setupOnly = flag.Bool("setup_only", false, "Execute boot program in setup only mode (optional).")
 	artifacts = flag.String("artifacts", "", "Path to artifacts metadata file used in setup only mode (optional).")
@@ -188,10 +185,14 @@ func launchSDKProcess() error {
 	}
 
 	experiments := getExperiments(options)
+	logger.Printf(ctx, "Experiments=%v", experiments)
+
 	pipNoBuildIsolation = false
 	if slices.Contains(experiments, "pip_no_build_isolation") {
 		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -259,7 +260,11 @@ func launchSDKProcess() error {
 
 	// (3) Invoke python
 
-	os.Setenv("PIPELINE_OPTIONS", options)
+	// Write the JSON string of pipeline options into a file to prevent "argument list too long" error.
+	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
+	}
+
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
@@ -402,37 +407,19 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// setupAcceptableWheelSpecs setup wheel specs according to installed python version
-func setupAcceptableWheelSpecs() error {
-	cmd := exec.Command("python", "-V")
-	stdoutStderr, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	re := regexp.MustCompile(`Python (\d)\.(\d+).*`)
-	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
-	if len(pyVersions) != 3 {
-		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
-	}
-	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
-	wheelName := fmt.Sprintf("cp%s-cp%s-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
-	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
-	return nil
-}
-
-// installSetupPackages installs Beam SDK and user dependencies.
+// installSetupPackages installs user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing setup packages ...")
+	bufLogger.Printf(ctx, "Installing user dependencies ...")
 
-	if err := setupAcceptableWheelSpecs(); err != nil {
-		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
-	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	pkgName := "apache-beam"
@@ -453,11 +440,11 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "final runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "Failed to fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
@@ -506,20 +493,20 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, phase string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Python version in %s:", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	args = []string{"-m", "pip", "freeze"}
+	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
+	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
@@ -531,7 +518,7 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Logging submission environment dependencies:")
+	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")

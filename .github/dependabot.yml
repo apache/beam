@@ -23,6 +23,8 @@ updates:
     directory: "/sdks/python" # Location of package manifests
     schedule:
       interval: "daily"
+    exclude-paths:
+    - "/sdks/python/container/**"
   - package-ecosystem: "gradle"
     directory: "/" # Location of package manifests
     schedule:

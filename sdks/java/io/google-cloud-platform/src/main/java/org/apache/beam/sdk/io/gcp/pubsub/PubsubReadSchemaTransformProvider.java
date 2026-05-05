@@ -233,7 +233,7 @@ public class PubsubReadSchemaTransformProvider
       }
 
       @FinishBundle
-      public void finish(FinishBundleContext c) {
+      public void finish(@SuppressWarnings("unused") FinishBundleContext c) {
         pubsubErrorCounter.inc(errorsInBundle);
         errorsInBundle = 0L;
       }

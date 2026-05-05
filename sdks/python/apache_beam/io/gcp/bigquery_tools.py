@@ -40,7 +40,6 @@ import uuid
 from json.decoder import JSONDecodeError
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -180,7 +179,7 @@ V = TypeVar('V')
 
 
 def to_hashable_table_ref(
-    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+    table_ref_elem_kv: tuple[Union[str, TableReference], V]) -> tuple[str, V]:
   """Turns the key of the input tuple to its string representation. The key
   should be either a string or a TableReference.
 
@@ -842,7 +841,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_dataset(
-      self, project_id, dataset_id, location=None, labels=None, kms_key=None):
+      self,
+      project_id,
+      dataset_id,
+      location=None,
+      labels=None,
+      kms_key=None,
+      default_table_expiration_ms=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(
@@ -868,6 +873,8 @@ class BigQueryWrapper(object):
         if kms_key is not None:
           dataset.defaultEncryptionConfiguration = (
               _build_dataset_encryption_config(kms_key))
+        if default_table_expiration_ms is not None:
+          dataset.defaultTableExpirationMs = default_table_expiration_ms
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)

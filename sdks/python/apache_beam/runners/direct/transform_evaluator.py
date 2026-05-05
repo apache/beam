@@ -27,10 +27,6 @@ import time
 from collections import abc
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Type
 
 from apache_beam import coders
 from apache_beam import io
@@ -89,13 +85,13 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides: Dict[Type[core.PTransform],
-                                   Type['_TransformEvaluator']] = {}
+  _test_evaluators_overrides: dict[type[core.PTransform],
+                                   type['_TransformEvaluator']] = {}
 
   def __init__(self, evaluation_context: 'EvaluationContext') -> None:
     assert evaluation_context
     self._evaluation_context = evaluation_context
-    self._evaluators: Dict[Type[core.PTransform], Type[_TransformEvaluator]] = {
+    self._evaluators: dict[type[core.PTransform], type[_TransformEvaluator]] = {
         io.Read: _BoundedReadEvaluator,
         _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
@@ -587,7 +583,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   # A mapping of transform to _PubSubSubscriptionWrapper.
   # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
   # collection of pipeline instances.
-  _subscription_cache: Dict[AppliedPTransform, str] = {}
+  _subscription_cache: dict[AppliedPTransform, str] = {}
 
   def __init__(
       self,
@@ -651,7 +647,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(
-      self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
+      self, timestamp_attribute) -> list[tuple[Timestamp, 'PubsubMessage']]:
     from google.cloud import pubsub
 
     from apache_beam.io.gcp.pubsub import PubsubMessage

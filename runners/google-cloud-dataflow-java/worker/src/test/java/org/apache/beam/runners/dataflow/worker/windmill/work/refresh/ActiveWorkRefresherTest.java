@@ -65,8 +65,10 @@ import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class ActiveWorkRefresherTest {
-  private static final Supplier<Instant> A_LONG_TIME_AGO =
-      () -> Instant.parse("1998-09-04T00:00:00Z");
+  private static Instant aLongTimeAgo() {
+    return Instant.parse("1998-09-04T00:00:00Z");
+  }
+
   private static final String COMPUTATION_ID_PREFIX = "ComputationId-";
   private final HeartbeatSender heartbeatSender = mock(HeartbeatSender.class);
 
@@ -134,7 +136,7 @@ public class ActiveWorkRefresherTest {
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
             false,
-            A_LONG_TIME_AGO),
+            ActiveWorkRefresherTest::aLongTimeAgo),
         processWork);
   }
 

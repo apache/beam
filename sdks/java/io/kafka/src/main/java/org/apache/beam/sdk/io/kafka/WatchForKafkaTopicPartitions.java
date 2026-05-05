@@ -193,10 +193,8 @@ class WatchForKafkaTopicPartitions extends PTransform<PBegin, PCollection<KafkaS
           List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
           checkState(
               partitionInfoList != null && !partitionInfoList.isEmpty(),
-              "Could not find any partitions info for topic "
-                  + topic
-                  + ". Please check Kafka configuration and make sure "
-                  + "that provided topics exist.");
+              "Could not find any partitions info for topic %s. Please check Kafka configuration and make sure that provided topics exist.",
+              topic);
           for (PartitionInfo partition : partitionInfoList) {
             current.add(new TopicPartition(topic, partition.partition()));
           }

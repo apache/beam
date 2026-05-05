@@ -195,7 +195,7 @@ public class Count {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && getClass().equals(other.getClass());
+      return other instanceof CountFn;
     }
 
     @Override

@@ -44,15 +44,15 @@ public class ToJsonTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class Person {
-    public static Person of(String name, Integer height, Boolean knowsJavascript) {
+    public static Person of(String name, int height, boolean knowsJavascript) {
       return new AutoValue_ToJsonTest_Person(name, height, knowsJavascript);
     }
 
     public abstract String getName();
 
-    public abstract Integer getHeight();
+    public abstract int getHeight();
 
-    public abstract Boolean getKnowsJavascript();
+    public abstract boolean getKnowsJavascript();
   }
 
   @Test

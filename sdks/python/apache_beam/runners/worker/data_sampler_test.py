@@ -22,7 +22,6 @@ import time
 import traceback
 import unittest
 from typing import Any
-from typing import List
 from typing import Optional
 
 from apache_beam.coders import FastPrimitivesCoder
@@ -42,8 +41,8 @@ PRIMITIVES_CODER = FastPrimitivesCoder()
 class DataSamplerTest(unittest.TestCase):
   def make_test_descriptor(
       self,
-      outputs: Optional[List[str]] = None,
-      transforms: Optional[List[str]] = None
+      outputs: Optional[list[str]] = None,
+      transforms: Optional[list[str]] = None
   ) -> beam_fn_api_pb2.ProcessBundleDescriptor:
     outputs = outputs or [MAIN_PCOLLECTION_ID]
     transforms = transforms or [MAIN_TRANSFORM_ID]

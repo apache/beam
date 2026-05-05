@@ -86,6 +86,11 @@ def word_count_jinja_template_data(test_name: str) -> list[str]:
         'apache_beam/yaml/examples/transforms/jinja/'
         'import/macros/wordCountMacros.yaml'
     ]
+  elif test_name == 'test_wordCountInheritance_yaml':
+    return [
+        'apache_beam/yaml/examples/transforms/jinja/'
+        'inheritance/base/base_pipeline.yaml'
+    ]
   return []
 
 

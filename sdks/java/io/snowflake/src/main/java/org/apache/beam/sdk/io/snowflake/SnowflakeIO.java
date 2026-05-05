@@ -27,16 +27,17 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.security.PrivateKey;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
-import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
+import net.snowflake.client.api.datasource.SnowflakeDataSource;
+import net.snowflake.client.api.datasource.SnowflakeDataSourceFactory;
 import net.snowflake.ingest.SimpleIngestManager;
 import net.snowflake.ingest.connection.HistoryResponse;
 import org.apache.beam.sdk.coders.Coder;
@@ -476,7 +477,8 @@ public class SnowflakeIO {
     private String makeTmpDirName() {
       return String.format(
           "sf_copy_csv_%s_%s",
-          new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()),
+          LocalDateTime.now(ZoneId.of("UTC"))
+              .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")),
           UUID.randomUUID().toString().subSequence(0, 8) // first 8 chars of UUID should be enough
           );
     }
@@ -1372,10 +1374,10 @@ public class SnowflakeIO {
                       trackedFilesNames.remove(responseFileName);
 
                       if (entry.getErrorsSeen() > 0) {
-                        LOG.error(String.format("Snowflake SnowPipe ERROR: %s", entry.toString()));
+                        LOG.error("Snowflake SnowPipe ERROR: {}", entry);
                       } else if (entry.getErrorsSeen() == 0
                           && debugMode.equals(StreamingLogLevel.INFO)) {
-                        LOG.info(String.format("Snowflake SnowPipe INFO: %s", entry.toString()));
+                        LOG.info("Snowflake SnowPipe INFO: {}", entry);
                       }
                     }
                   }
@@ -1383,7 +1385,7 @@ public class SnowflakeIO {
           }
         }
         trackedFilesNames.forEach(
-            file -> LOG.info(String.format("File %s was not found in ingest history", file)));
+            file -> LOG.info("File {} was not found in ingest history", file));
       }
     }
   }
@@ -1403,6 +1405,9 @@ public class SnowflakeIO {
 
     @Nullable
     public abstract ValueProvider<String> getPassword();
+
+    @Nullable
+    public abstract ValueProvider<String> getAccount();
 
     @Nullable
     public abstract PrivateKey getPrivateKey();
@@ -1455,6 +1460,8 @@ public class SnowflakeIO {
       abstract Builder setUsername(ValueProvider<String> username);
 
       abstract Builder setPassword(ValueProvider<String> password);
+
+      abstract Builder setAccount(ValueProvider<String> account);
 
       abstract Builder setPrivateKey(PrivateKey privateKey);
 
@@ -1801,7 +1808,7 @@ public class SnowflakeIO {
     }
 
     /**
-     * Sets loginTimeout that will be used in {@link SnowflakeBasicDataSource#setLoginTimeout}.
+     * Sets loginTimeout that will be used in {@link SnowflakeDataSource#setLoginTimeout}.
      *
      * @param loginTimeout Integer with timeout value.
      */
@@ -1818,59 +1825,62 @@ public class SnowflakeIO {
       }
     }
 
-    /** Builds {@link SnowflakeBasicDataSource} based on the current configuration. */
+    /** Builds {@link SnowflakeDataSource} based on the current configuration. */
     public DataSource buildDatasource() {
       if (getDataSource() == null) {
-        SnowflakeBasicDataSource basicDataSource = new SnowflakeBasicDataSource();
-        basicDataSource.setUrl(buildUrl());
+        SnowflakeDataSource dataSource = SnowflakeDataSourceFactory.createDataSource();
+        dataSource.setUrl(buildUrl());
 
         if (isNotEmpty(getOauthToken())) {
-          basicDataSource.setOauthToken(getOauthToken().get());
+          dataSource.setToken(getOauthToken().get());
         } else if (isNotEmpty(getUsername()) && getPrivateKey() != null) {
-          basicDataSource.setUser(getUsername().get());
-          basicDataSource.setPrivateKey(getPrivateKey());
+          dataSource.setUser(getUsername().get());
+          dataSource.setPrivateKey(getPrivateKey());
         } else if (isNotEmpty(getUsername()) && isNotEmpty(getRawPrivateKey())) {
           PrivateKey privateKey =
               KeyPairUtils.preparePrivateKey(
                   getRawPrivateKey().get(), getValueOrNull(getPrivateKeyPassphrase()));
-          basicDataSource.setPrivateKey(privateKey);
-          basicDataSource.setUser(getUsername().get());
+          dataSource.setPrivateKey(privateKey);
+          dataSource.setUser(getUsername().get());
         } else if (isNotEmpty(getUsername()) && isNotEmpty(getPassword())) {
-          basicDataSource.setUser(getUsername().get());
-          basicDataSource.setPassword(getPassword().get());
+          dataSource.setUser(getUsername().get());
+          dataSource.setPassword(getPassword().get());
         } else {
           throw new RuntimeException("Missing credentials values. Please check your credentials");
         }
 
+        if (isNotEmpty(getAccount())) {
+          dataSource.setAccount(getAccount().get());
+        }
         if (isNotEmpty(getDatabase())) {
-          basicDataSource.setDatabaseName(getDatabase().get());
+          dataSource.setDatabaseName(getDatabase().get());
         }
         if (isNotEmpty(getWarehouse())) {
-          basicDataSource.setWarehouse(getWarehouse().get());
+          dataSource.setWarehouse(getWarehouse().get());
         }
         if (isNotEmpty(getSchema())) {
-          basicDataSource.setSchema(getSchema().get());
+          dataSource.setSchema(getSchema().get());
         }
         if (isNotEmpty(getServerName())) {
-          basicDataSource.setServerName(getServerName().get());
+          dataSource.setServerName(getServerName().get());
         }
         if (getPortNumber() != null) {
-          basicDataSource.setPortNumber(getPortNumber());
+          dataSource.setPortNumber(getPortNumber());
         }
         if (isNotEmpty(getRole())) {
-          basicDataSource.setRole(getRole().get());
+          dataSource.setRole(getRole().get());
         }
         if (getAuthenticator() != null) {
-          basicDataSource.setAuthenticator(getAuthenticator());
+          dataSource.setAuthenticator(getAuthenticator());
         }
         if (getLoginTimeout() != null) {
           try {
-            basicDataSource.setLoginTimeout(getLoginTimeout());
+            dataSource.setLoginTimeout(getLoginTimeout());
           } catch (SQLException e) {
             throw new RuntimeException("Failed to setLoginTimeout");
           }
         }
-        return basicDataSource;
+        return dataSource;
       }
       return getDataSource();
     }

@@ -63,7 +63,9 @@ public class BigQuerySinkMetrics {
     STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
-    FINALIZE_STREAM
+    FINALIZE_STREAM,
+    PATCH_TABLE,
+    OPEN_WRITE_STREAM
   }
 
   // Status of a BigQuery row from the AppendRows RPC call.
@@ -80,13 +82,14 @@ public class BigQuerySinkMetrics {
   private static final String ROW_STATUS = "row_status";
 
   /**
+   * Returns a Counter in namespace BigQuerySink and name
+   * 'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}'. TableId label is dropped if
+   * 'supportsMetricsDeletion' is not enabled.
+   *
    * @param method StorageWriteAPI method associated with this metric.
    * @param rpcStatus RPC return status.
    * @param tableId Table pertaining to the write method. Only included in the metric key if
    *     'supportsMetricsDeletion' is enabled.
-   * @return Counter in namespace BigQuerySink and name
-   *     'RpcRequests-Method:{method}RpcStatus:{status};TableId:{tableId}' TableId label is dropped
-   *     if 'supportsMetricsDeletion' is not enabled.
    */
   @VisibleForTesting
   static Counter createRPCRequestCounter(RpcMethod method, String rpcStatus, String tableId) {
@@ -139,16 +142,17 @@ public class BigQuerySinkMetrics {
     }
     long timeElapsed = java.time.Duration.between(operationStartTime, operationEndTime).toMillis();
     if (timeElapsed > 0) {
-      BigQuerySinkMetrics.createRPCLatencyHistogram(method).update(timeElapsed);
+      BigQuerySinkMetrics.createRPCLatencyHistogram(method).update((double) timeElapsed);
     }
   }
 
   /**
+   * Returns a metric that tracks the status of BigQuery rows after making an AppendRows RPC call.
+   *
    * @param rowStatus Status of these BigQuery rows.
    * @param rpcStatus rpcStatus
    * @param tableId Table pertaining to the write method. Only included in the metric key if
    *     'supportsMetricsDeletion' is enabled.
-   * @return Metric that tracks the status of BigQuery rows after making an AppendRows RPC call.
    */
   public static Counter appendRowsRowStatusCounter(
       RowStatus rowStatus, String rpcStatus, String tableId) {
@@ -166,8 +170,9 @@ public class BigQuerySinkMetrics {
   }
 
   /**
+   * Returns a Counter that tracks throttled time due to RPC retries.
+   *
    * @param method StorageWriteAPI write method.
-   * @return Counter that tracks throttled time due to RPC retries.
    */
   public static Counter throttledTimeCounter(RpcMethod method) {
 

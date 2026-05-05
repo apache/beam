@@ -22,12 +22,6 @@ from typing import Callable
 from typing import cast
 
 import pytest
-from pymilvus import CollectionSchema
-from pymilvus import DataType
-from pymilvus import FieldSchema
-from pymilvus import MilvusClient
-from pymilvus.exceptions import MilvusException
-from pymilvus.milvus_client import IndexParams
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
@@ -41,11 +35,21 @@ from apache_beam.ml.rag.utils import retry_with_backoff
 from apache_beam.ml.rag.utils import unpack_dataclass_with_kwargs
 from apache_beam.testing.test_pipeline import TestPipeline
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  from pymilvus import CollectionSchema
+  from pymilvus import DataType
+  from pymilvus import FieldSchema
+  from pymilvus import MilvusClient
+  from pymilvus.exceptions import MilvusException
+  from pymilvus.milvus_client import IndexParams
+
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
-except ImportError as e:
-  raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
+  PYMILVUS_AVAILABLE = True
+except ImportError:
+  PYMILVUS_AVAILABLE = False
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 def _construct_index_params():
@@ -158,6 +162,7 @@ def drop_collection(client: MilvusClient, collection_name: str):
 
 
 @pytest.mark.require_docker_in_docker
+@unittest.skipIf(not PYMILVUS_AVAILABLE, 'pymilvus is not installed.')
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "
@@ -187,7 +192,6 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
 
   def setUp(self):
     self.write_test_pipeline = TestPipeline()
-    self.write_test_pipeline.not_use_test_runner_api = True
     self._collection_name = f"test_collection_{self._testMethodName}"
     self._partition_name = f"test_partition_{self._testMethodName}"
     config = unpack_dataclass_with_kwargs(self._connection_config)
@@ -199,8 +203,8 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
 
     self._test_client = retry_with_backoff(
         create_client,
-        max_retries=3,
-        retry_delay=1.0,
+        max_retries=5,
+        retry_delay=2.0,
         operation_name="Test Milvus client connection",
         exception_types=(MilvusException, ))
 
@@ -227,6 +231,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     # Write pipeline.
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
+        p.not_use_test_runner_api = True
         _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Assert on what should happen.
@@ -247,6 +252,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     # Write pipeline.
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
+        p.not_use_test_runner_api = True
         _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Assert on what should happen.
@@ -282,6 +288,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     # Write pipeline.
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
+        p.not_use_test_runner_api = True
         _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
     # Assert on what should happen.
@@ -327,6 +334,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     config = MilvusVectorWriterConfig(
         connection_params=self._connection_config, write_config=write_config)
 
+    self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
@@ -352,6 +360,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     config = MilvusVectorWriterConfig(
         connection_params=self._connection_config, write_config=write_config)
 
+    self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
@@ -417,6 +426,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
         write_config=write_config,
         column_specs=custom_column_specs)
 
+    self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 
@@ -469,6 +479,7 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
     config = MilvusVectorWriterConfig(
         connection_params=self._connection_config, write_config=write_config)
 
+    self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (p | beam.Create(test_chunks) | config.create_write_transform())
 

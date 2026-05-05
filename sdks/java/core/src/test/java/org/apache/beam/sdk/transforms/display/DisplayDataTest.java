@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CustomTypeSafeMatcher;
@@ -268,7 +269,7 @@ public class DisplayDataTest implements Serializable {
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
     assertEquals(1, map.size());
     assertThat(data, hasDisplayItem("foo", "bar"));
-    assertEquals(map.values(), data.items());
+    assertEquals(Lists.newArrayList(map.values()), Lists.newArrayList(data.items()));
   }
 
   @Test
@@ -1217,7 +1218,7 @@ public class DisplayDataTest implements Serializable {
   }
 
   private static class HoldsItemSpecReference implements Serializable {
-    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {}
+    public HoldsItemSpecReference(@SuppressWarnings("unused") DisplayData.ItemSpec<?> spec) {}
   }
 
   @Test

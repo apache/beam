@@ -204,7 +204,7 @@ public class PAssert {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PAssertionSite)) {
         return false;
       }
       PAssertionSite that = (PAssertionSite) o;

@@ -52,7 +52,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -76,7 +76,7 @@ jobs:
       github.event.comment.body == 'Run Java_Solace_IO_Direct PreCommit'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
@@ -100,7 +100,7 @@ jobs:
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: ${{ !success() }}
       with:
         name: JUnit Test Results
@@ -114,7 +114,7 @@ jobs:
         files: '**/build/test-results/**/*.xml'
         large_files: true
     - name: Archive SpotBugs Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: always()
       with:
         name: SpotBugs Results

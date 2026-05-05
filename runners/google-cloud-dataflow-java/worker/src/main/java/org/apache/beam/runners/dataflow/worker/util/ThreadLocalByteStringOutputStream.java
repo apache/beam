@@ -44,7 +44,7 @@ public class ThreadLocalByteStringOutputStream {
   // Private constructor to prevent instantiations from outside.
   private ThreadLocalByteStringOutputStream() {}
 
-  /** @return An AutoClosable StreamHandle that holds a cached ByteStringOutputStream. */
+  /** Returns an AutoClosable StreamHandle that holds a cached ByteStringOutputStream. */
   public static StreamHandle acquire() {
     StreamHandle streamHandle = getStreamHandleFromThreadLocal();
     if (streamHandle.inUse) {

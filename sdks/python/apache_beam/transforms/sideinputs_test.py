@@ -24,9 +24,7 @@ import itertools
 import logging
 import unittest
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import Tuple
 from typing import Union
 
 import pytest
@@ -39,6 +37,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms import Map
+from apache_beam.transforms import sideinputs
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.utils.timestamp import Timestamp
@@ -444,7 +443,7 @@ class SideInputsTest(unittest.TestCase):
 
     class GetSyntheticSDFOptions(beam.DoFn):
       """A DoFn that emits elements for genenrating SDF."""
-      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
+      def process(self, element: Any) -> Iterable[dict[str, Union[int, str]]]:
         yield {
             'num_records': num_records // initial_elements,
             'key_size': key_size,
@@ -463,8 +462,8 @@ class SideInputsTest(unittest.TestCase):
       """
       def process(
           self, element: Any,
-          side_input: Iterable[Tuple[bytes,
-                                     bytes]]) -> Iterable[Tuple[int, str]]:
+          side_input: Iterable[tuple[bytes,
+                                     bytes]]) -> Iterable[tuple[int, str]]:
 
         # Sort for consistent hashing.
         sorted_side_input = sorted(side_input)
@@ -488,6 +487,40 @@ class SideInputsTest(unittest.TestCase):
 
     assert_that(results, equal_to([(num_records, expected_fingerprint)]))
     pipeline.run()
+
+  def test_default_window_mapping_fn_source_window(self):
+    """Test that the default window mapping function will propagate the
+    source window when attempting to assign context.
+    """
+    class StringIDWindow(window.BoundedWindow):
+      """A window defined by an arbitrary string ID."""
+      def __init__(self, window_id: str):
+        super().__init__(self._getTimestampFromProto())
+        self.id = window_id
+
+      @staticmethod
+      def _getTimestampFromProto() -> Timestamp:
+        return Timestamp(micros=0)
+
+    class StringIDWindows(window.NonMergingWindowFn):
+      """ A windowing function that assigns each element a window with ID."""
+      def assign(
+          self, assign_context: window.WindowFn.AssignContext
+      ) -> Iterable[window.BoundedWindow]:
+        if assign_context.element is None:
+          assert assign_context.window is not None
+          return [assign_context.window]
+        return [StringIDWindow(str(assign_context.element))]
+
+      def get_window_coder(self):
+        return None
+
+    mapping_fn = sideinputs.default_window_mapping_fn(StringIDWindows())
+    source_window = StringIDWindows().assign(
+        window.WindowFn.AssignContext(Timestamp(10), element='element'))[0]
+    bounded_window = mapping_fn(source_window)
+    assert bounded_window is not None
+    assert bounded_window.id == 'element'
 
 
 if __name__ == '__main__':

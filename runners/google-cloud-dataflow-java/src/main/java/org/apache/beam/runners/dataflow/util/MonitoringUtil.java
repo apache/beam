@@ -69,6 +69,7 @@ public class MonitoringUtil {
   public static class LoggingHandler implements JobMessagesHandler {
     private static final Logger LOG = LoggerFactory.getLogger(LoggingHandler.class);
 
+    @SuppressWarnings("Slf4jFormatShouldBeConst")
     @Override
     public void process(List<JobMessage> messages) {
       for (JobMessage message : messages) {

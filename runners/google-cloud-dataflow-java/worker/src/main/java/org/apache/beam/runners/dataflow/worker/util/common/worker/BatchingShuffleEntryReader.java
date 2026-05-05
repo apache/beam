@@ -129,7 +129,7 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
         nextStartPosition = batch.nextStartPosition;
         entries = batch.entries.listIterator();
         currentBatch = batch;
-      } catch (RuntimeException e) {
+      } catch (RuntimeException | OutOfMemoryError e) {
         throw e;
       } catch (Throwable t) {
         throw new RuntimeException(t);

@@ -66,7 +66,7 @@ public class AfterWatermarkStateMachine {
     return new FromEndOfWindow();
   }
 
-  /** @see AfterWatermarkStateMachine */
+  /** See {@link AfterWatermarkStateMachine}. */
   public static class AfterWatermarkEarlyAndLate extends TriggerStateMachine {
 
     private static final int EARLY_INDEX = 0;

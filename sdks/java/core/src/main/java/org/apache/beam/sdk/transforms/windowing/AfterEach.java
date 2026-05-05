@@ -67,12 +67,17 @@ public class AfterEach extends Trigger {
 
   @Override
   public boolean mayFinish() {
-    return subTriggers.stream().allMatch(trigger -> trigger.mayFinish());
+    return subTriggers.stream().allMatch(Trigger::mayFinish);
   }
 
   @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return Repeatedly.forever(new AfterFirst(continuationTriggers));
+  }
+
+  @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
   }
 
   @Override

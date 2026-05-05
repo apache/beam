@@ -24,13 +24,10 @@ For internal use only; no backwards-compatibility guarantees.
 # mypy: disallow-untyped-defs
 
 from typing import Any
-from typing import Dict
-from typing import FrozenSet
 from typing import Generic
 from typing import Iterable
 from typing import Mapping
 from typing import Optional
-from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -72,14 +69,14 @@ class _PipelineContextMap(Generic[PortableObjectT]):
   def __init__(
       self,
       context: 'PipelineContext',
-      obj_type: Type[PortableObjectT],
+      obj_type: type[PortableObjectT],
       namespace: str,
       proto_map: Optional[Mapping[str, message.Message]] = None) -> None:
     self._pipeline_context = context
     self._obj_type = obj_type
     self._namespace = namespace
-    self._obj_to_id: Dict[Any, str] = {}
-    self._id_to_obj: Dict[str, Any] = {}
+    self._obj_to_id: dict[Any, str] = {}
+    self._id_to_obj: dict[str, Any] = {}
     self._id_to_proto = dict(proto_map) if proto_map else {}
 
   def populate_map(self, proto_map: Mapping[str, message.Message]) -> None:
@@ -131,7 +128,7 @@ class _PipelineContextMap(Generic[PortableObjectT]):
             obj=obj, obj_type=self._obj_type, label=label),
         maybe_new_proto)
 
-  def get_id_to_proto_map(self) -> Dict[str, message.Message]:
+  def get_id_to_proto_map(self) -> dict[str, message.Message]:
     return self._id_to_proto
 
   def get_proto_from_id(self, id: str) -> message.Message:
@@ -232,7 +229,7 @@ class PipelineContext(object):
   def add_requirement(self, requirement: str) -> None:
     self._requirements.add(requirement)
 
-  def requirements(self) -> FrozenSet[str]:
+  def requirements(self) -> frozenset[str]:
     return frozenset(self._requirements)
 
   # If fake coders are requested, return a pickled version of the element type
@@ -288,14 +285,14 @@ class PipelineContext(object):
     return self._default_environment_id
 
   def get_environment_id_for_resource_hints(
-      self, hints: Dict[str, bytes]) -> str:
+      self, hints: dict[str, bytes]) -> str:
     """Returns an environment id that has necessary resource hints."""
     if not hints:
       return self.default_environment_id()
 
     def get_or_create_environment_with_resource_hints(
         template_env_id: str,
-        resource_hints: Dict[str, bytes],
+        resource_hints: dict[str, bytes],
     ) -> str:
       """Creates an environment that has necessary hints and returns its id."""
       template_env = self.environments.get_proto_from_id(template_env_id)

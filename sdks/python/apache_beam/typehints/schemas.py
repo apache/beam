@@ -34,6 +34,7 @@ Imposes a mapping between common Python types and Beam portable schemas
   bytes       <-----> BYTES
   ByteString  ------> BYTES
   Timestamp   <-----> LogicalType(urn="beam:logical_type:micros_instant:v1")
+  datetime.date <---> LogicalType(urn="beam:logical_type:date:v1")
   Decimal     <-----> LogicalType(urn="beam:logical_type:fixed_decimal:v1")
   Mapping     <-----> MapType
   Sequence    <-----> ArrayType
@@ -66,6 +67,7 @@ any backwards-compatibility guarantee.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import datetime
 import decimal
 import logging
@@ -96,6 +98,7 @@ from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import convert_to_python_type
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 from apache_beam.typehints.schema_registry import SchemaTypeRegistry
@@ -104,6 +107,9 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
+_PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
+_PYTHON_ANY_FIELD_PAYLOAD = "payload"
+_SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding"
 
 # Bi-directional mappings
 _PRIMITIVES = (
@@ -253,6 +259,41 @@ def schema_field(
       description=description)
 
 
+def _python_any_schema_pb2(has_repr):
+  # A portable schema matches FastPrimitivesCoder encoded values
+  if has_repr:
+    representation = schema_pb2.FieldType(
+        nullable=False,
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name=_PYTHON_ANY_FIELD_TYPE_BYTE,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTE, nullable=False)),
+                    schema_pb2.Field(
+                        name=_PYTHON_ANY_FIELD_PAYLOAD,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES, nullable=False))
+                ],
+                options=[
+                    schema_pb2.Option(
+                        name=_SCHEMA_OPTION_STATIC_ENCODING,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BOOLEAN),
+                        value=schema_pb2.FieldValue(
+                            atomic_value=schema_pb2.AtomicTypeValue(
+                                boolean=True)))
+                ]))) if has_repr else None
+  else:
+    representation = None
+
+  return schema_pb2.FieldType(
+      logical_type=schema_pb2.LogicalType(
+          urn=PYTHON_ANY_URN, representation=representation),
+      nullable=True)
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
@@ -334,9 +375,11 @@ class SchemaTranslation(object):
                   atomic_type=PRIMITIVE_TO_ATOMIC_TYPE[int])))
 
     elif _safe_issubclass(type_, Sequence) and not _safe_issubclass(type_, str):
-      element_type = self.typing_to_runner_api(_get_args(type_)[0])
-      return schema_pb2.FieldType(
-          array_type=schema_pb2.ArrayType(element_type=element_type))
+      arg_types = _get_args(type_)
+      if len(arg_types) > 0:
+        element_type = self.typing_to_runner_api(arg_types[0])
+        return schema_pb2.FieldType(
+            array_type=schema_pb2.ArrayType(element_type=element_type))
 
     elif _safe_issubclass(type_, Mapping):
       key_type, value_type = map(self.typing_to_runner_api, _get_args(type_))
@@ -344,9 +387,14 @@ class SchemaTranslation(object):
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
 
     elif _safe_issubclass(type_, Iterable) and not _safe_issubclass(type_, str):
-      element_type = self.typing_to_runner_api(_get_args(type_)[0])
-      return schema_pb2.FieldType(
-          array_type=schema_pb2.ArrayType(element_type=element_type))
+      arg_types = _get_args(type_)
+      if len(arg_types) > 0:
+        element_type = self.typing_to_runner_api(arg_types[0])
+        return schema_pb2.FieldType(
+            array_type=schema_pb2.ArrayType(element_type=element_type))
+
+    elif type_ == Any:
+      return _python_any_schema_pb2(has_repr=False)
 
     try:
       if LogicalType.is_known_logical_type(type_):
@@ -354,10 +402,9 @@ class SchemaTranslation(object):
       else:
         logical_type = LogicalType.from_typing(type_)
     except ValueError:
-      # Unknown type, just treat it like Any
-      return schema_pb2.FieldType(
-          logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN),
-          nullable=True)
+      # Unknown type, use pythonsdk_any with a representation compatible with
+      # FastPrimitiveCoder encoded UNKNOWN type
+      return _python_any_schema_pb2(has_repr=True)
     else:
       argument_type = None
       argument = None
@@ -582,19 +629,22 @@ class SchemaTranslation(object):
       descriptions[field.name] = field.description
       subfields.append((field.name, field_py_type))
 
-    user_type = NamedTuple(type_name, subfields)
+    if schema.id in self.schema_registry.by_id:
+      user_type = self.schema_registry.by_id[schema.id][0]
+    else:
+      user_type = NamedTuple(type_name, subfields)
 
-    # Define a reduce function, otherwise these types can't be pickled
-    # (See BEAM-9574)
-    setattr(
-        user_type,
-        '__reduce__',
-        _named_tuple_reduce_method(schema.SerializeToString()))
-    setattr(user_type, "_field_descriptions", descriptions)
-    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      setattr(
+          user_type,
+          '__reduce__',
+          _named_tuple_reduce_method(schema.SerializeToString()))
+      setattr(user_type, "_field_descriptions", descriptions)
+      setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
-    self.schema_registry.add(user_type, schema)
-    coders.registry.register_coder(user_type, coders.RowCoder)
+      self.schema_registry.add(user_type, schema)
+      coders.registry.register_coder(user_type, coders.RowCoder)
 
     return user_type
 
@@ -629,8 +679,10 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
   Returns schema as a list of (name, python_type) tuples"""
   if isinstance(element_type, row_type.RowTypeConstraint):
     return named_fields_to_schema(element_type._fields)
-  elif match_is_named_tuple(element_type):
-    if hasattr(element_type, row_type._BEAM_SCHEMA_ID):
+  elif match_is_named_tuple(element_type) or match_dataclass_for_row(
+      element_type):
+    # schema id does not inherit from base classes
+    if row_type._BEAM_SCHEMA_ID in element_type.__dict__:
       # if the named tuple's schema is in registry, we just use it instead of
       # regenerating one.
       schema_id = getattr(element_type, row_type._BEAM_SCHEMA_ID)
@@ -656,8 +708,15 @@ def union_schema_type(element_types):
   element_types must be a set of schema-aware types whose fields have the
   same naming and ordering.
   """
+  named_fields_and_types = []
+  for t in element_types:
+    n = named_fields_from_element_type(t)
+    if named_fields_and_types and len(named_fields_and_types[-1]) != len(n):
+      raise TypeError("element types has different number of fields")
+    named_fields_and_types.append(n)
+
   union_fields_and_types = []
-  for field in zip(*[named_fields_from_element_type(t) for t in element_types]):
+  for field in zip(*named_fields_and_types):
     names, types = zip(*field)
     name_set = set(names)
     if len(name_set) != 1:
@@ -991,6 +1050,33 @@ class MicrosInstant(NoArgumentLogicalType[Timestamp,
 
 
 @LogicalType._register_internal
+class Date(NoArgumentLogicalType[datetime.date, np.int64]):
+  """Date logical type that handles ``datetime.date``, days since epoch."""
+  EPOCH = datetime.date(1970, 1, 1)
+
+  @classmethod
+  def urn(cls):
+    return common_urns.date.urn
+
+  @classmethod
+  def representation_type(cls):
+    # type: () -> type
+    return np.int64
+
+  @classmethod
+  def language_type(cls):
+    return datetime.date
+
+  def to_representation_type(self, value):
+    # type: (datetime.date) -> np.int64
+    return (value - self.EPOCH).days
+
+  def to_language_type(self, value):
+    # type: (np.int64) -> datetime.date
+    return self.EPOCH + datetime.timedelta(days=value)
+
+
+@LogicalType._register_internal
 class PythonCallable(NoArgumentLogicalType[PythonCallableWithSource, str]):
   """A logical type for PythonCallableSource objects."""
   @classmethod
@@ -1230,7 +1316,6 @@ class VariableString(PassThroughLogicalType[str, np.int32]):
 # TODO: A temporary fix for missing jdbc logical types.
 # See the discussion in https://github.com/apache/beam/issues/35738 for
 # more detail.
-@LogicalType._register_internal
 class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
   """
   For internal use only; no backwards-compatibility guarantees.

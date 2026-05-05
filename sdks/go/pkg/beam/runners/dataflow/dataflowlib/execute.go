@@ -19,6 +19,8 @@ package dataflowlib
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"strings"
@@ -83,14 +85,17 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	// (2) Upload model to GCS
 	log.Info(ctx, raw.String())
 
-	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(raw)); err != nil {
+	modelBytes := protox.MustEncode(raw)
+	modelHash := sha256.Sum256(modelBytes)
+	pipelineProtoHash := hex.EncodeToString(modelHash[:])
+	if err := StageModel(ctx, opts.Project, modelURL, modelBytes); err != nil {
 		return presult, err
 	}
 	log.Infof(ctx, "Staged model pipeline: %v", modelURL)
 
 	// (3) Translate to v1b3 and submit
 
-	job, err := Translate(ctx, raw, opts, workerURL, modelURL)
+	job, err := Translate(ctx, raw, opts, workerURL, modelURL, pipelineProtoHash)
 	if err != nil {
 		return presult, err
 	}

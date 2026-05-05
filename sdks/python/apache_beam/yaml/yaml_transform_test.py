@@ -122,6 +122,26 @@ class YamlTransformE2ETest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 1, 8, 27]))
 
+  def test_composite_implicit_input_chaining(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([1, 2, 3])
+      result = elements | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: PyMap
+              name: Square
+              config:
+                  fn: "lambda x: x * x"
+            - type: PyMap
+              name: Increment
+              config:
+                  fn: "lambda x: x + 1"
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([2, 5, 10]))
+
   def test_chain_with_input(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

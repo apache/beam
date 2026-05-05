@@ -46,17 +46,19 @@ import org.joda.time.Duration;
  * is likely useful.
  */
 public class Redistribute {
-  /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
+  /** Returns a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
     return new RedistributeArbitrarily<>(null, false);
   }
 
-  /** @return a {@link RedistributeByKey} transform with default configuration. */
+  /** Returns a {@link RedistributeByKey} transform with default configuration. */
   public static <K, V> RedistributeByKey<K, V> byKey() {
     return new RedistributeByKey<>(false);
   }
 
   /**
+   * A by-key redistribute transform.
+   *
    * @param <K> The type of key being reshuffled on.
    * @param <V> The type of value being reshuffled.
    */
@@ -185,6 +187,7 @@ public class Redistribute {
                       .setTimestamp(kv.getValue().getTimestamp())
                       .setWindow(kv.getValue().getWindow())
                       .setPaneInfo(kv.getValue().getPaneInfo())
+                      .setCausedByDrain(kv.getValue().getCausedByDrain())
                       .output();
                 }
               }));

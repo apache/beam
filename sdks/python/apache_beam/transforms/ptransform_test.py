@@ -1570,7 +1570,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_pardo_does_not_type_check_using_type_hint_decorators(self):
     @with_input_types(a=int)
-    @with_output_types(typing.List[str])
+    @with_output_types(list[str])
     def int_to_str(a):
       return [str(a)]
 
@@ -1585,7 +1585,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
   def test_pardo_properly_type_checks_using_type_hint_decorators(self):
     @with_input_types(a=str)
-    @with_output_types(typing.List[str])
+    @with_output_types(list[str])
     def to_all_upper_case(a):
       return [a.upper()]
 
@@ -1733,13 +1733,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def fn1(x: str) -> int:
       return 1
 
-    def fn1_flat(x: str) -> typing.List[int]:
+    def fn1_flat(x: str) -> list[int]:
       return [1]
 
     def fn2(x: int, y: str) -> str:
       return y
 
-    def fn2_flat(x: int, y: str) -> typing.List[str]:
+    def fn2_flat(x: int, y: str) -> list[str]:
       return [y]
 
     # We only need the args section of the hints.
@@ -1756,23 +1756,21 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       return sum(a)
 
     self.assertCompatible(
-        typing.Tuple[typing.TypeVar('K'), int],
-        output_hints(beam.CombinePerKey(add)))
+        tuple[typing.TypeVar('K'), int], output_hints(beam.CombinePerKey(add)))
 
   def test_group_by_key_only_output_type_deduction(self):
     d = (
         self.p
         | 'Str' >> beam.Create(['t', 'e', 's', 't']).with_output_types(str)
         | (
-            'Pair' >> beam.Map(lambda x: (x, ord(x))).with_output_types(
-                typing.Tuple[str, str]))
+            'Pair' >> beam.Map(lambda x:
+                               (x, ord(x))).with_output_types(tuple[str, str]))
         | beam.GroupByKey())
 
     # Output type should correctly be deduced.
     # GBK-only should deduce that Tuple[A, B] is turned into
     # Tuple[A, Iterable[B]].
-    self.assertCompatible(
-        typing.Tuple[str, typing.Iterable[str]], d.element_type)
+    self.assertCompatible(tuple[str, typing.Iterable[str]], d.element_type)
 
   def test_group_by_key_output_type_deduction(self):
     d = (
@@ -1780,13 +1778,12 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | 'Str' >> beam.Create(range(20)).with_output_types(int)
         | (
             'PairNegative' >> beam.Map(lambda x: (x % 5, -x)).with_output_types(
-                typing.Tuple[int, int]))
+                tuple[int, int]))
         | beam.GroupByKey())
 
     # Output type should correctly be deduced.
     # GBK should deduce that Tuple[A, B] is turned into Tuple[A, Iterable[B]].
-    self.assertCompatible(
-        typing.Tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
   def test_group_by_key_only_does_not_type_check(self):
     # GBK will be passed raw int's here instead of some form of Tuple[A, B].
@@ -1886,7 +1883,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    @with_output_types(typing.Tuple[int, str])
+    @with_output_types(tuple[int, str])
     @with_input_types(x=str)
     def group_with_upper_ord(x):
       return (ord(x.upper()) % 5, x)
@@ -1910,7 +1907,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    @with_output_types(typing.Tuple[bool, int])
+    @with_output_types(tuple[bool, int])
     @with_input_types(a=int)
     def is_even_as_key(a):
       # Simulate a programming error, should be: return (a % 2 == 0, a)
@@ -1934,7 +1931,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_pipeline_checking_satisfied_run_time_checking_satisfied(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
-    @with_output_types(typing.Tuple[bool, int])
+    @with_output_types(tuple[bool, int])
     @with_input_types(a=int)
     def is_even_as_key(a):
       # The programming error in the above test-case has now been fixed.
@@ -1982,7 +1979,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'Add' >>
               beam.FlatMap(lambda x_y: [x_y[0] + x_y[1]]).with_input_types(
-                  typing.Tuple[int, int]).with_output_types(int)))
+                  tuple[int, int]).with_output_types(int)))
       self.p.run()
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
@@ -2041,8 +2038,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'Swap' >>
               beam.FlatMap(lambda x_y1: [x_y1[0] + x_y1[1]]).with_input_types(
-                  typing.Tuple[int, float]).with_output_types(
-                      typing.Tuple[float, int])))
+                  tuple[int, float]).with_output_types(tuple[float, int])))
       self.p.run()
 
   def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
@@ -2126,7 +2122,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def sum_ints(ints):
       return sum(ints)
 
-    @with_output_types(typing.List[int])
+    @with_output_types(list[int])
     @with_input_types(n=int)
     def range_from_zero(n):
       return list(range(n + 1))
@@ -2312,10 +2308,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create(range(5)).with_output_types(int)
         | (
             'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
-                typing.Tuple[bool, int]))
+                tuple[bool, int]))
         | 'EvenMean' >> combine.Mean.PerKey())
 
-    self.assertCompatible(typing.Tuple[bool, float], d.element_type)
+    self.assertCompatible(tuple[bool, float], d.element_type)
     assert_that(d, equal_to([(False, 2.0), (True, 2.0)]))
     self.p.run()
 
@@ -2327,7 +2323,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'UpperPair' >> beam.Map(lambda x:
                                       (x.upper(), x)).with_output_types(
-                                          typing.Tuple[str, str]))
+                                          tuple[str, str]))
           | 'EvenMean' >> combine.Mean.PerKey())
       self.p.run()
     err_msg = e.exception.args[0]
@@ -2346,10 +2342,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | (
             'OddGroup' >> beam.Map(lambda x:
                                    (bool(x % 2), x)).with_output_types(
-                                       typing.Tuple[bool, int]))
+                                       tuple[bool, int]))
         | 'OddMean' >> combine.Mean.PerKey())
 
-    self.assertCompatible(typing.Tuple[bool, float], d.element_type)
+    self.assertCompatible(tuple[bool, float], d.element_type)
     assert_that(d, equal_to([(False, 2.0), (True, 2.0)]))
     self.p.run()
 
@@ -2366,7 +2362,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           | (
               'OddGroup' >> beam.Map(lambda x:
                                      (x, str(bool(x % 2)))).with_output_types(
-                                         typing.Tuple[int, str]))
+                                         tuple[int, str]))
           | 'OddMean' >> combine.Mean.PerKey())
       self.p.run()
 
@@ -2397,10 +2393,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         self.p
         | beam.Create(range(5)).with_output_types(int)
         | 'EvenGroup' >> beam.Map(lambda x: (not x % 2, x)).with_output_types(
-            typing.Tuple[bool, int])
+            tuple[bool, int])
         | 'CountInt' >> combine.Count.PerKey())
 
-    self.assertCompatible(typing.Tuple[bool, int], d.element_type)
+    self.assertCompatible(tuple[bool, int], d.element_type)
     assert_that(d, equal_to([(False, 2), (True, 3)]))
     self.p.run()
 
@@ -2420,11 +2416,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     d = (
         self.p
         | beam.Create(['t', 'e', 's', 't']).with_output_types(str)
-        | 'DupKey' >> beam.Map(lambda x: (x, x)).with_output_types(
-            typing.Tuple[str, str])
+        | 'DupKey' >> beam.Map(lambda x:
+                               (x, x)).with_output_types(tuple[str, str])
         | 'CountDups' >> combine.Count.PerKey())
 
-    self.assertCompatible(typing.Tuple[str, int], d.element_type)
+    self.assertCompatible(tuple[str, int], d.element_type)
     assert_that(d, equal_to([('e', 1), ('s', 1), ('t', 2)]))
     self.p.run()
 
@@ -2434,7 +2430,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create([1, 1, 2, 3]).with_output_types(int)
         | 'CountElems' >> combine.Count.PerElement())
 
-    self.assertCompatible(typing.Tuple[int, int], d.element_type)
+    self.assertCompatible(tuple[int, int], d.element_type)
     assert_that(d, equal_to([(1, 2), (2, 1), (3, 1)]))
     self.p.run()
 
@@ -2461,7 +2457,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create([True, True, False, True, True]).with_output_types(bool)
         | 'CountElems' >> combine.Count.PerElement())
 
-    self.assertCompatible(typing.Tuple[bool, int], d.element_type)
+    self.assertCompatible(tuple[bool, int], d.element_type)
     assert_that(d, equal_to([(False, 1), (True, 4)]))
     self.p.run()
 
@@ -2506,11 +2502,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create(range(100)).with_output_types(int)
         | (
             'GroupMod 3' >> beam.Map(lambda x: (x % 3, x)).with_output_types(
-                typing.Tuple[int, int]))
+                tuple[int, int]))
         | 'TopMod' >> combine.Top.PerKey(1))
 
-    self.assertCompatible(
-        typing.Tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
     assert_that(d, equal_to([(0, [99]), (1, [97]), (2, [98])]))
     self.p.run()
 
@@ -2522,11 +2517,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create(range(21))
         | (
             'GroupMod 3' >> beam.Map(lambda x: (x % 3, x)).with_output_types(
-                typing.Tuple[int, int]))
+                tuple[int, int]))
         | 'TopMod' >> combine.Top.PerKey(1))
 
-    self.assertCompatible(
-        typing.Tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
     assert_that(d, equal_to([(0, [18]), (1, [19]), (2, [20])]))
     self.p.run()
 
@@ -2571,11 +2565,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         self.p
         | (
             beam.Create([(1, 2), (1, 2), (2, 3),
-                         (2, 3)]).with_output_types(typing.Tuple[int, int]))
+                         (2, 3)]).with_output_types(tuple[int, int]))
         | 'Sample' >> combine.Sample.FixedSizePerKey(2))
 
-    self.assertCompatible(
-        typing.Tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
       def match(actual):
@@ -2594,11 +2587,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         self.p
         | (
             beam.Create([(1, 2), (1, 2), (2, 3),
-                         (2, 3)]).with_output_types(typing.Tuple[int, int]))
+                         (2, 3)]).with_output_types(tuple[int, int]))
         | 'Sample' >> combine.Sample.FixedSizePerKey(1))
 
-    self.assertCompatible(
-        typing.Tuple[int, typing.Iterable[int]], d.element_type)
+    self.assertCompatible(tuple[int, typing.Iterable[int]], d.element_type)
 
     def matcher(expected_len):
       def match(actual):
@@ -2616,7 +2608,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create((1, 2, 3, 4)).with_output_types(int)
         | combine.ToList())
 
-    self.assertCompatible(typing.List[int], d.element_type)
+    self.assertCompatible(list[int], d.element_type)
 
     def matcher(expected):
       def match(actual):
@@ -2635,7 +2627,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | beam.Create(list('test')).with_output_types(str)
         | combine.ToList())
 
-    self.assertCompatible(typing.List[str], d.element_type)
+    self.assertCompatible(list[str], d.element_type)
 
     def matcher(expected):
       def match(actual):
@@ -2661,11 +2653,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_to_dict_pipeline_check_satisfied(self):
     d = (
         self.p
-        | beam.Create([(1, 2),
-                       (3, 4)]).with_output_types(typing.Tuple[int, int])
+        | beam.Create([(1, 2), (3, 4)]).with_output_types(tuple[int, int])
         | combine.ToDict())
 
-    self.assertCompatible(typing.Dict[int, int], d.element_type)
+    self.assertCompatible(dict[int, int], d.element_type)
     assert_that(d, equal_to([{1: 2, 3: 4}]))
     self.p.run()
 
@@ -2674,12 +2665,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     d = (
         self.p
-        | (
-            beam.Create([('1', 2),
-                         ('3', 4)]).with_output_types(typing.Tuple[str, int]))
+        |
+        (beam.Create([('1', 2), ('3', 4)]).with_output_types(tuple[str, int]))
         | combine.ToDict())
 
-    self.assertCompatible(typing.Dict[str, int], d.element_type)
+    self.assertCompatible(dict[str, int], d.element_type)
     assert_that(d, equal_to([{'1': 2, '3': 4}]))
     self.p.run()
 

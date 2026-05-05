@@ -370,7 +370,7 @@ public class QueryablePipelineTest {
 
   private static class TestFn extends DoFn<byte[], Long> {
     @ProcessElement
-    public void process(ProcessContext ctxt) {}
+    public void process(@SuppressWarnings("unused") ProcessContext ctxt) {}
   }
 
   @Test

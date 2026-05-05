@@ -20,10 +20,12 @@ import math
 import multiprocessing
 import os
 import pickle
+import random
 import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
@@ -1156,10 +1158,9 @@ class RunInferenceBaseTest(unittest.TestCase):
               FakeModelHandler(), model_metadata_pcoll=side_input))
       test_pipeline.run()
 
-    self.assertTrue(
-        'PCollection of size 2 with more than one element accessed as a '
-        'singleton view. First two elements encountered are' in str(
-            e.exception))
+    msg = str(e.exception)
+    self.assertIn('singleton', msg, msg='Expected singleton view error')
+    self.assertIn('more than one', msg, msg='Expected multiple-elements error')
 
   def test_run_inference_with_iterable_side_input_multi_process_shared(self):
     test_pipeline = TestPipeline()
@@ -1181,10 +1182,9 @@ class RunInferenceBaseTest(unittest.TestCase):
               model_metadata_pcoll=side_input))
       test_pipeline.run()
 
-    self.assertTrue(
-        'PCollection of size 2 with more than one element accessed as a '
-        'singleton view. First two elements encountered are' in str(
-            e.exception))
+    msg = str(e.exception)
+    self.assertIn('singleton', msg, msg='Expected singleton view error')
+    self.assertIn('more than one', msg, msg='Expected multiple-elements error')
 
   def test_run_inference_empty_side_input(self):
     model_handler = FakeModelHandlerReturnsPredictionResult()
@@ -2278,6 +2278,75 @@ class ModelHandlerBatchingArgsTest(unittest.TestCase):
 
     self.assertEqual(kwargs, {'max_batch_duration_secs': 60})
 
+  def test_batch_length_fn_and_batch_bucket_boundaries(self):
+    """batch_length_fn and batch_bucket_boundaries passed through to kwargs."""
+    handler = FakeModelHandlerForBatching(
+        batch_length_fn=len, batch_bucket_boundaries=[16, 32, 64])
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertIs(kwargs['length_fn'], len)
+    self.assertEqual(kwargs['bucket_boundaries'], [16, 32, 64])
+
+  def test_batch_length_fn_only(self):
+    """batch_length_fn alone is passed through without bucket_boundaries."""
+    handler = FakeModelHandlerForBatching(batch_length_fn=len)
+    kwargs = handler.batch_elements_kwargs()
+
+    self.assertIs(kwargs['length_fn'], len)
+    self.assertNotIn('bucket_boundaries', kwargs)
+
+  def test_batch_bucket_boundaries_without_batch_length_fn(self):
+    """Passing batch_bucket_boundaries without batch_length_fn should fail in
+    BatchElements.
+
+    Note: ModelHandler.__init__ doesn't validate this; the error is raised
+    by BatchElements when batch_elements_kwargs are used."""
+    handler = FakeModelHandlerForBatching(batch_bucket_boundaries=[10, 20])
+    kwargs = handler.batch_elements_kwargs()
+    # The kwargs are stored, but BatchElements will reject them
+    self.assertEqual(kwargs['bucket_boundaries'], [10, 20])
+    self.assertNotIn('length_fn', kwargs)
+
+  def test_batching_kwargs_none_values_omitted(self):
+    """None values for batch_length_fn and batch_bucket_boundaries are not in
+    kwargs."""
+    handler = FakeModelHandlerForBatching(
+        min_batch_size=5, batch_length_fn=None, batch_bucket_boundaries=None)
+    kwargs = handler.batch_elements_kwargs()
+    self.assertNotIn('length_fn', kwargs)
+    self.assertNotIn('bucket_boundaries', kwargs)
+    self.assertEqual(kwargs['min_batch_size'], 5)
+
+
+class PaddingReportingStringModelHandler(base.ModelHandler[str, str,
+                                                           FakeModel]):
+  """Reports each element with the max length of the batch it ran in."""
+  def load_model(self):
+    return FakeModel()
+
+  def run_inference(self, batch, model, inference_args=None):
+    max_len = max(len(s) for s in batch)
+    return [f'{s}:{max_len}' for s in batch]
+
+
+class RunInferenceLengthAwareBatchingTest(unittest.TestCase):
+  """End-to-end tests for PR2 length-aware batching in RunInference."""
+  def test_run_inference_with_length_aware_batch_elements(self):
+    handler = PaddingReportingStringModelHandler(
+        min_batch_size=2,
+        max_batch_size=2,
+        max_batch_duration_secs=60,
+        batch_length_fn=len,
+        batch_bucket_boundaries=[5])
+
+    examples = ['a', 'cccccc', 'bb', 'ddddddd']
+    with TestPipeline('FnApiRunner') as p:
+      results = (
+          p
+          | beam.Create(examples, reshuffle=False)
+          | base.RunInference(handler))
+      assert_that(results, equal_to(['a:2', 'bb:2', 'cccccc:7', 'ddddddd:7']))
+
 
 class SimpleFakeModelHandler(base.ModelHandler[int, int, FakeModel]):
   def load_model(self):
@@ -2337,6 +2406,31 @@ class ModelManagerTest(unittest.TestCase):
               'smoothing_factor': 0.5
           })
       assert_that(actual, equal_to(expected), label='assert:inferences')
+
+  @unittest.skipIf(
+      not try_import_model_manager(), 'Model Manager not available')
+  def test_run_inference_impl_with_model_manager_oom(self):
+    class OOMFakeModelHandler(SimpleFakeModelHandler):
+      def run_inference(
+          self,
+          batch: Sequence[int],
+          model: FakeModel,
+          inference_args=None) -> Iterable[int]:
+        if random.random() < 0.8:
+          raise MemoryError("Simulated OOM")
+        for example in batch:
+          yield model.predict(example)
+
+      def batch_elements_kwargs(self):
+        return {'min_batch_size': 1, 'max_batch_size': 1}
+
+    with self.assertRaises(Exception):
+      with TestPipeline() as pipeline:
+        examples = [1, 5, 3, 10]
+        pcoll = pipeline | 'start' >> beam.Create(examples)
+        actual = pcoll | base.RunInference(
+            OOMFakeModelHandler(), use_model_manager=True)
+        assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
 
 
 if __name__ == '__main__':

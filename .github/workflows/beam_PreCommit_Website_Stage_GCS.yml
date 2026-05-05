@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Website Stage GCS  
+name: PreCommit Website Stage GCS
 
 on:
   push:
@@ -31,14 +31,14 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  gcsbucket: apache-beam-website-pull-requests  
+  gcsbucket: apache-beam-website-pull-requests
   ghprbPullId:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -60,7 +60,7 @@ permissions:
 jobs:
   beam_PreCommit_Website_Stage_GCS:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       matrix:
         job_name: [beam_PreCommit_Website_Stage_GCS]
@@ -73,7 +73,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -81,17 +81,23 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Echo PR number
-        run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.issue.number }}" >> $GITHUB_ENV
+        run: echo "ghprbPullId=${{ github.event.pull_request.number || github.event.pull_request.number }}" >> $GITHUB_ENV
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
           java-version: default
+      - name: Authenticate on GCP
+        id: auth-gcp
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Run website_stageWebsite script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :website:stageWebsite
-          arguments: -PwebsiteBucket=$gcsbucket
+          arguments: -PwebsiteBucket=$gcsbucket -PgcpCredsFile="${{ steps.auth-gcp.outputs.credentials_file_path }}"
       - name: Add website link to the summary if pr
         if: env.ghprbPullId != null
         run: echo "Website published to http://$gcsbucket.storage.googleapis.com/$ghprbPullId/index.html" >> $GITHUB_STEP_SUMMARY

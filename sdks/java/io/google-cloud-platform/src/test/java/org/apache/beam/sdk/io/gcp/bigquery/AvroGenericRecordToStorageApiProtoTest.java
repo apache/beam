@@ -26,7 +26,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import java.math.BigDecimal;
@@ -145,77 +144,77 @@ public class AvroGenericRecordToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("bytesvalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bytebuffervalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("intvalue")
                   .setNumber(3)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("longvalue")
                   .setNumber(4)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(5)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("doublevalue")
                   .setNumber(6)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("stringvalue")
                   .setNumber(7)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("booleanvalue")
                   .setNumber(8)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("enumvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("fixedvalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REQUIRED)
                   .build())
           .build();
@@ -226,70 +225,70 @@ public class AvroGenericRecordToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bignumericvalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(3)
-                  .setType(Type.TYPE_INT32)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timemicrosvalue")
                   .setNumber(4)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timemillisvalue")
                   .setNumber(5)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampmicrosvalue")
                   .setNumber(6)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampmillisvalue")
                   .setNumber(7)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("localtimestampmicrosvalue")
                   .setNumber(8)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("localtimestampmillisvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("uuidvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .build();
@@ -518,11 +517,11 @@ public class AvroGenericRecordToStorageApiProtoTest {
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(originalSchema),
             true,
             false);
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, Type> expectedTypes =
+    Map<String, FieldDescriptorProto.Type> expectedTypes =
         schemaProto.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -563,12 +562,12 @@ public class AvroGenericRecordToStorageApiProtoTest {
             AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(NESTED_SCHEMA),
             true,
             false);
-    Map<String, Type> expectedBaseTypes =
+    Map<String, FieldDescriptorProto.Type> expectedBaseTypes =
         BASE_SCHEMA_PROTO.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
 
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -587,19 +586,19 @@ public class AvroGenericRecordToStorageApiProtoTest {
         descriptor.getNestedTypeList().stream()
             .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
     assertEquals(2, nestedTypes.size());
-    assertEquals(Type.TYPE_MESSAGE, types.get("nested"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nested"));
     assertEquals(Label.LABEL_OPTIONAL, typeLabels.get("nested"));
     String nestedTypeName1 = typeNames.get("nested");
-    Map<String, Type> nestedTypes1 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes1 =
         nestedTypes.get(nestedTypeName1).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes1);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedarray"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedarray"));
     assertEquals(Label.LABEL_REPEATED, typeLabels.get("nestedarray"));
     String nestedTypeName2 = typeNames.get("nestedarray");
-    Map<String, Type> nestedTypes2 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes2 =
         nestedTypes.get(nestedTypeName2).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -808,7 +807,7 @@ public class AvroGenericRecordToStorageApiProtoTest {
     assertEquals(1, descriptor.getFieldCount());
     FieldDescriptorProto field = descriptor.getField(0);
     assertEquals("timestampnanosvalue", field.getName());
-    assertEquals(Type.TYPE_MESSAGE, field.getType());
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, field.getType());
     assertEquals("TimestampPicos", field.getTypeName());
 
     // Verify nested TimestampPicos type exists

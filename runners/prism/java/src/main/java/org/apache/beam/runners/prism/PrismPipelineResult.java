@@ -32,7 +32,7 @@ class PrismPipelineResult implements PipelineResult {
   private final Runnable cleanup;
 
   /**
-   * Instantiate the {@link PipelineResult} from the {@param delegate} and a {@param cancel} to be
+   * Instantiate the {@link PipelineResult} from the {@code delegate} and a {@code cancel} to be
    * called when stopping the underlying executable Job management service.
    */
   PrismPipelineResult(PipelineResult delegate, Runnable cancel) {

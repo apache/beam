@@ -60,15 +60,22 @@ async function removeSlowReviewLabel(payload: any) {
 }
 
 async function areReviewersAssigned(
-  pullNumber: number,
+  pull: any,
   stateClient: typeof PersistentState
 ): Promise<boolean> {
-  const prState = await stateClient.getPrState(pullNumber);
-  return Object.values(prState.reviewersAssignedForLabels).length > 0;
+  const prState = await stateClient.getPrState(pull.number);
+  if (Object.values(prState.reviewersAssignedForLabels).length > 0) {
+    return true;
+  }
+  if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
+    return true;
+  }
+  return false;
 }
 
 async function processPrComment(
   payload: any,
+  pull: any,
   stateClient: typeof PersistentState,
   reviewerConfig: typeof ReviewerConfig
 ) {
@@ -111,7 +118,7 @@ async function processPrComment(
     "No command to be processed, checking if we should shift attention to reviewers"
   );
   if (pullAuthor === commentAuthor) {
-    await setNextActionReviewers(payload, stateClient);
+    await setNextActionReviewers(payload, pull, stateClient);
   } else {
     console.log(
       `Comment was from ${commentAuthor}, not author: ${pullAuthor}. No action to take.`
@@ -124,18 +131,18 @@ async function processPrComment(
  */
 async function setNextActionReviewers(
   payload: any,
+  pull: any,
   stateClient: typeof PersistentState
 ) {
-  const pullNumber = getPullNumberFromPayload(payload);
-  if (!(await areReviewersAssigned(pullNumber, stateClient))) {
+  if (!(await areReviewersAssigned(pull, stateClient))) {
     console.log("No reviewers assigned, dont need to manipulate attention set");
     return;
   }
   const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
-  await nextActionReviewers(pullNumber, existingLabels);
-  let prState = await stateClient.getPrState(pullNumber);
+  await nextActionReviewers(pull.number, existingLabels);
+  let prState = await stateClient.getPrState(pull.number);
   prState.nextAction = REVIEWERS_ACTION;
-  await stateClient.writePrState(pullNumber, prState);
+  await stateClient.writePrState(pull.number, prState);
 }
 
 async function processPrUpdate() {
@@ -154,28 +161,47 @@ async function processPrUpdate() {
   const stateClient = new PersistentState();
 
   switch (github.context.eventName) {
-    case "issue_comment":
+    case "issue_comment": {
       console.log("Processing comment event");
       if (payload.action !== "created") {
         console.log("Comment wasnt just created, skipping");
         return;
       }
-      await processPrComment(payload, stateClient, reviewerConfig);
+      const pull = (
+        await getGitHubClient().rest.pulls.get({
+          owner: REPO_OWNER,
+          repo: REPO,
+          pull_number: pullNumber,
+        })
+      ).data;
+      await processPrComment(payload, pull, stateClient, reviewerConfig);
       break;
-    case "pull_request_target":
+    }
+    case "pull_request_target": {
       if (
         (await stateClient.getPrState(pullNumber)).stopReviewerNotifications
       ) {
         console.log("Notifications have been paused for this pull - skipping");
         return;
       }
+      const pull = (
+        await getGitHubClient().rest.pulls.get({
+          owner: REPO_OWNER,
+          repo: REPO,
+          pull_number: pullNumber,
+        })
+      ).data;
       if (payload.action === "synchronize") {
         console.log("Processing synchronize action");
-        await setNextActionReviewers(payload, stateClient);
+        await setNextActionReviewers(payload, pull, stateClient);
+      } else if (payload.action === "review_requested") {
+        console.log("Processing review_requested action");
+        await setNextActionReviewers(payload, pull, stateClient);
       }
       // TODO(damccorm) - it would be good to eventually handle the following events here, even though they're not part of the normal workflow
       // review requested, assigned, label added, label removed
       break;
+    }
     default:
       console.log("Not a PR comment or push, doing nothing");
   }

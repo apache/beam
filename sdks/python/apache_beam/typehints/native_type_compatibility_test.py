@@ -19,12 +19,19 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections.abc
+import dataclasses
 import enum
 import re
 import typing
 import unittest
 
+from parameterized import param
+from parameterized import parameterized
+
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import convert_builtin_to_typing
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
@@ -33,6 +40,7 @@ from apache_beam.typehints.native_type_compatibility import convert_to_python_ty
 from apache_beam.typehints.native_type_compatibility import convert_to_python_types
 from apache_beam.typehints.native_type_compatibility import convert_typing_to_builtin
 from apache_beam.typehints.native_type_compatibility import is_any
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 
 _TestNamedTuple = typing.NamedTuple(
     '_TestNamedTuple', [('age', int), ('name', bytes)])
@@ -339,6 +347,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertEqual(
         typehints.List[typehints.Any], convert_to_beam_type(list['int']))
 
+  def test_annotationlib_forward_ref(self):
+    beam_type = convert_to_beam_type(dict[str, typing.ForwardRef('foo.Bar')])
+    self.assertEqual(typehints.Dict[str, typehints.Any], beam_type)
+
   def test_convert_nested_to_beam_type(self):
     self.assertEqual(typehints.List[typing.Any], typehints.List[typehints.Any])
     self.assertEqual(
@@ -508,6 +520,58 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
     self.assertTrue(isinstance(AliasTuple, TypeAliasType))  # pylint: disable=isinstance-second-argument-not-valid-type
     self.assertEqual(
         typehints.Tuple[int, ...], convert_to_beam_type(AliasTuple))
+
+  def test_dataclass_default(self):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenDC:
+      foo: int
+
+    self.assertFalse(match_dataclass_for_row(FrozenDC))
+    self.assertTrue(match_dataclass_for_row(NonFrozenDC))
+
+  def test_dataclass_registered(self):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenRegisteredDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenRegisteredDC:
+      foo: int
+
+    # pylint: disable=wrong-import-position
+    from apache_beam.coders import RowCoder
+    from apache_beam.coders import typecoders
+    from apache_beam.coders.coders import FastPrimitivesCoder
+
+    typecoders.registry.register_coder(FrozenRegisteredDC, RowCoder)
+    typecoders.registry.register_coder(
+        NonFrozenRegisteredDC, FastPrimitivesCoder)
+
+    self.assertTrue(match_dataclass_for_row(FrozenRegisteredDC))
+    self.assertFalse(match_dataclass_for_row(NonFrozenRegisteredDC))
+
+  @parameterized.expand([
+      param(compat_version="2.72.0"),
+      param(compat_version="2.73.0"),
+  ])
+  def test_dataclass_update_compatibility(self, compat_version):
+    @dataclasses.dataclass(frozen=True)
+    class FrozenDC:
+      foo: int
+
+    @dataclasses.dataclass
+    class NonFrozenDC:
+      foo: int
+
+    with scoped_pipeline_options(
+        PipelineOptions(update_compatibility_version=compat_version)):
+      self.assertFalse(match_dataclass_for_row(FrozenDC))
+      self.assertEqual(
+          compat_version == "2.73.0", match_dataclass_for_row(NonFrozenDC))
 
 
 if __name__ == '__main__':

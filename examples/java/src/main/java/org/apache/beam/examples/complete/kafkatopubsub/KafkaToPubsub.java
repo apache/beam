@@ -199,12 +199,10 @@ public class KafkaToPubsub {
         "bootstrapServers cannot be an empty string.");
 
     LOG.info(
-        "Starting Kafka-To-PubSub pipeline with parameters bootstrap servers:"
-            + options.getBootstrapServers()
-            + " input topics: "
-            + options.getInputTopics()
-            + " output pubsub topic: "
-            + options.getOutputTopic());
+        "Starting Kafka-To-PubSub pipeline with parameters bootstrap servers:{} input topics: {} output pubsub topic: {}",
+        options.getBootstrapServers(),
+        options.getInputTopics(),
+        options.getOutputTopic());
 
     /*
      * Steps:

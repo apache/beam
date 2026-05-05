@@ -84,7 +84,9 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.10', '3.11', '3.12', '3.13']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = [
+    '3.10', '3.11', '3.12', '3.13', '3.14'
+]
 
 
 class Environment(object):
@@ -95,7 +97,8 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None):
+      proto_pipeline=None,
+      pipeline_proto_hash=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -277,6 +280,8 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      if pipeline_proto_hash:
+        options_dict["pipelineProtoHash"] = pipeline_proto_hash
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
@@ -829,10 +834,13 @@ class DataflowApplicationClient(object):
     resources = self._stage_resources(job.proto_pipeline, job.options)
 
     # Stage proto pipeline.
+    serialized_pipeline = job.proto_pipeline.SerializeToString()
+    pipeline_proto_hash = hashlib.sha256(serialized_pipeline).hexdigest()
+
     self.stage_file_with_retry(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
-        io.BytesIO(job.proto_pipeline.SerializeToString()))
+        io.BytesIO(serialized_pipeline))
 
     job.proto.environment = Environment(
         proto_pipeline_staged_url=FileSystems.join(
@@ -841,7 +849,8 @@ class DataflowApplicationClient(object):
         packages=resources,
         options=job.options,
         environment_version=self.environment_version,
-        proto_pipeline=job.proto_pipeline).proto
+        proto_pipeline=job.proto_pipeline,
+        pipeline_proto_hash=pipeline_proto_hash).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)

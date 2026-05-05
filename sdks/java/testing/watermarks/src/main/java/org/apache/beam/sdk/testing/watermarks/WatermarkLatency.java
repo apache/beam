@@ -185,7 +185,7 @@ public class WatermarkLatency {
                                       p95.getMillis(),
                                       p99.getMillis(),
                                       numElements);
-                              LOG.info(out);
+                              LOG.info("{}", out);
                             }
 
                             private void computePercentiles(Iterable<Duration> vals) {

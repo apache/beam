@@ -99,7 +99,7 @@ public abstract class Twister2TranslationContext {
 
   public Map<TupleTag<?>, Coder<?>> getOutputCoders() {
     return currentTransform.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
+        .filter(e -> e.getValue() != null)
         .collect(Collectors.toMap(Map.Entry::getKey, e -> ((PCollection) e.getValue()).getCoder()));
   }
 

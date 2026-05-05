@@ -30,6 +30,7 @@ from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam import coders
+from apache_beam.io import jdbc
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.io.jdbc import WriteToJdbc
 from apache_beam.options.pipeline_options import StandardOptions
@@ -64,7 +65,7 @@ JdbcTestRow = typing.NamedTuple(
      ("f_timestamp", Timestamp), ("f_decimal", Decimal),
      ("f_date", datetime.date), ("f_time", datetime.time)],
 )
-coders.registry.register_coder(JdbcTestRow, coders.RowCoder)
+coders.registry.register_row(JdbcTestRow)
 
 CustomSchemaRow = typing.NamedTuple(
     "CustomSchemaRow",
@@ -82,11 +83,17 @@ CustomSchemaRow = typing.NamedTuple(
         ("renamed_time", datetime.time),
     ],
 )
-coders.registry.register_coder(CustomSchemaRow, coders.RowCoder)
+
+# Need to put inside enforce_millis_instant_for_timestamp context to align
+# with the same setup in ReadFromJdbc.__init__. Remove once Beam moved to
+# micros instant for timestamp
+# Alternatively, use coders.registry.register_coder(CustomSchemaRow, RowCoder)
+with jdbc.enforce_millis_instant_for_timestamp():
+  coders.registry.register_row(CustomSchemaRow)
 
 SimpleRow = typing.NamedTuple(
     "SimpleRow", [("id", int), ("name", str), ("value", float)])
-coders.registry.register_coder(SimpleRow, coders.RowCoder)
+coders.registry.register_row(SimpleRow)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
@@ -110,7 +117,7 @@ coders.registry.register_coder(SimpleRow, coders.RowCoder)
 class CrossLanguageJdbcIOTest(unittest.TestCase):
   DbData = typing.NamedTuple(
       'DbData',
-      [('container_fn', typing.Any), ('classpath', typing.List[str]),
+      [('container_fn', typing.Any), ('classpath', list[str]),
        ('db_string', str), ('connector', str)])
   DB_CONTAINER_CLASSPATH_STRING = {
       'postgres': DbData(

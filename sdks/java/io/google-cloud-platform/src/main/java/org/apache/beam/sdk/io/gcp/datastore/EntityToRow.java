@@ -57,7 +57,7 @@ public class EntityToRow extends PTransform<PCollection<Entity>, PCollection<Row
                 + "` should of type `BYTES`. Please change the type or specify a field to"
                 + " store the KEY value.");
       }
-      LOG.info("Entity KEY will be stored under `" + keyField + "` field.");
+      LOG.info("Entity KEY will be stored under `{}` field.", keyField);
     }
   }
 

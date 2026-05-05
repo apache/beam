@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
@@ -78,7 +78,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
     kafkaTopic =
         "io-kafka-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
 
@@ -145,7 +145,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
               region,
               readInfo.jobId(),
               getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-      assertEquals(configuration.getNumRows(), numRecords, 10.0);
+      assertEquals((double) configuration.getNumRows(), numRecords, 10.0);
     } finally {
       // clean up pipelines
       if (pipelineLauncher.getJobStatus(project, region, writeInfo.jobId())
@@ -207,13 +207,13 @@ public final class KafkaIOLT extends IOLoadTestBase {
   /** Options for Kafka IO load test. */
   @AutoValue
   abstract static class Configuration {
-    abstract Long getNumRows();
+    abstract long getNumRows();
 
-    abstract Integer getPipelineTimeout();
+    abstract int getPipelineTimeout();
 
     abstract String getRunner();
 
-    abstract Integer getRowSize();
+    abstract int getRowSize();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner) {
       return new AutoValue_KafkaIOLT_Configuration.Builder()

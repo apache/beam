@@ -90,7 +90,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<TableAndQuery>
   @AutoValue
   public abstract static class TableAndQuery {
     public static TableAndQuery create(
-        String applicationName, String projectId, String query, Boolean usingStandardSql) {
+        String applicationName, String projectId, String query, boolean usingStandardSql) {
       return new AutoValue_BigqueryMatcher_TableAndQuery(
           applicationName, projectId, query, usingStandardSql);
     }
@@ -101,7 +101,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<TableAndQuery>
 
     public abstract String getQuery();
 
-    public abstract Boolean getUsingStandardSql();
+    public abstract boolean getUsingStandardSql();
   }
 
   @Override

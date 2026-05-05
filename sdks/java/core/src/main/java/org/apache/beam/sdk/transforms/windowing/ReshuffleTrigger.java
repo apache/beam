@@ -54,6 +54,11 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
   }
 
   @Override
+  public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+    return visitor.visit(this);
+  }
+
+  @Override
   public String toString() {
     return "ReshuffleTrigger()";
   }

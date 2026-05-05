@@ -219,7 +219,7 @@ public class DoFnLifecycleManagerTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) throws Exception {}
 
     @Teardown
     public void teardown() {

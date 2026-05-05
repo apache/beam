@@ -563,6 +563,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 								kcID = ms.KeyCoderId
 							} else if ss := spec.GetSetSpec(); ss != nil {
 								kcID = ss.ElementCoderId
+							} else if ols := spec.GetOrderedListSpec(); ols != nil {
+								cID = ols.ElementCoderId
 							} else {
 								return nil, errors.Errorf("Unrecognized state type %v", spec)
 							}

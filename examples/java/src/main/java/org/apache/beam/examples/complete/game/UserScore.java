@@ -121,7 +121,7 @@ public class UserScore {
       if (this == o) {
         return true;
       }
-      if (o == null || o.getClass() != this.getClass()) {
+      if (!(o instanceof GameActionInfo)) {
         return false;
       }
 
@@ -172,7 +172,7 @@ public class UserScore {
         c.output(gInfo);
       } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
         numParseErrors.inc();
-        LOG.info("Parse error on " + c.element() + ", " + e.getMessage());
+        LOG.info("Parse error on {}", c.element(), e);
       }
     }
   }

@@ -21,12 +21,13 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 
 /** Helper for creating connection and test tables on hive database via JDBC driver. */
 class HiveDatabaseTestHelper {
-  private static Connection con;
-  private static Statement stmt;
+  private static final AtomicReference<Connection> con = new AtomicReference<>();
+  private static final AtomicReference<Statement> stmt = new AtomicReference<>();
 
   HiveDatabaseTestHelper(
       String hiveHost,
@@ -36,24 +37,24 @@ class HiveDatabaseTestHelper {
       String hivePassword)
       throws Exception {
     String hiveUrl = String.format("jdbc:hive2://%s:%s/%s", hiveHost, hivePort, hiveDatabase);
-    con = DriverManager.getConnection(hiveUrl, hiveUsername, hivePassword);
-    stmt = con.createStatement();
+    con.set(DriverManager.getConnection(hiveUrl, hiveUsername, hivePassword));
+    stmt.set(con.get().createStatement());
   }
 
   /** Create hive table. */
   String createHiveTable(String testIdentifier) throws Exception {
     String tableName = DatabaseTestHelper.getTestTableName(testIdentifier);
-    stmt.execute(" CREATE TABLE IF NOT EXISTS " + tableName + " (id STRING)");
+    stmt.get().execute(" CREATE TABLE IF NOT EXISTS " + tableName + " (id STRING)");
     return tableName;
   }
 
   /** Delete hive table. */
   void dropHiveTable(String tableName) throws SQLException {
-    stmt.execute(" DROP TABLE " + tableName);
+    stmt.get().execute(" DROP TABLE " + tableName);
   }
 
   void closeConnection() throws Exception {
-    stmt.close();
-    con.close();
+    stmt.get().close();
+    con.get().close();
   }
 }

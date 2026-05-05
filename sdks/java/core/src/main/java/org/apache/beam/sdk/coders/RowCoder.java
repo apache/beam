@@ -53,6 +53,7 @@ public class RowCoder extends SchemaCoder<Row> {
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;

@@ -43,6 +43,7 @@ GROCERY_LIST = [
     beam.Row(recipe='pie', fruit='blueberry', quantity=1, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='blueberry', quantity=2, unit_price=2.00),
     beam.Row(recipe='muffin', fruit='banana', quantity=3, unit_price=1.00),
+    beam.Row(recipe='pie', fruit='strawberry', quantity=3, unit_price=1.50),
 ]
 # [END groupby_table]
 
@@ -55,12 +56,13 @@ def expr_aggregate(test=None):
         | beam.Create(GROCERY_LIST)
         | beam.GroupBy('recipe').aggregate_field(
             'quantity', sum, 'total_quantity').aggregate_field(
-                lambda x: x.quantity * x.unit_price, sum, 'price')
-        | beam.Map(print))
+                lambda x: x.quantity * x.unit_price, sum, 'price'))
     # [END expr_aggregate]
 
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
+    else:
+      _ = grouped | beam.Map(print)
 
 
 if __name__ == '__main__':

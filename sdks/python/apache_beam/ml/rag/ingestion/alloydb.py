@@ -16,8 +16,6 @@
 
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 
 from apache_beam.ml.rag.ingestion.jdbc_common import ConnectionConfig
@@ -64,11 +62,11 @@ class AlloyDBLanguageConnectorConfig:
   ip_type: str = "PRIVATE"
   enable_iam_auth: bool = False
   target_principal: Optional[str] = None
-  delegates: Optional[List[str]] = None
+  delegates: Optional[list[str]] = None
   admin_service_endpoint: Optional[str] = None
   quota_project: Optional[str] = None
-  connection_properties: Optional[Dict[str, str]] = None
-  additional_properties: Optional[Dict[str, Any]] = None
+  connection_properties: Optional[dict[str, str]] = None
+  additional_properties: Optional[dict[str, Any]] = None
 
   def to_jdbc_url(self) -> str:
     """Convert options to a properly formatted JDBC URL.
@@ -115,7 +113,7 @@ class AlloyDBLanguageConnectorConfig:
         connection_properties=self.connection_properties,
         additional_jdbc_args=self.additional_jdbc_args())
 
-  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+  def additional_jdbc_args(self) -> dict[str, list[Any]]:
     return {
         'classpath': [
             "org.postgresql:postgresql:42.2.16",
@@ -132,7 +130,7 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
+      column_specs: list[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
       ),
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):
@@ -149,7 +147,7 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
         column_specs:
             Use :class:`~.postgres_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written a database
-            schema. If None, uses default Chunk schema.
+            schema. If None, uses default EmbeddableItem schema.
         conflict_resolution: Optional
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by

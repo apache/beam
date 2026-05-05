@@ -96,7 +96,7 @@ public class SellerPrice implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SellerPrice)) {
       return false;
     }
     SellerPrice that = (SellerPrice) o;

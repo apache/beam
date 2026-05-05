@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import io.opentelemetry.context.Context;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
@@ -63,6 +64,11 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   @Override
   public CausedByDrain causedByDrain() {
     return CausedByDrain.NORMAL;
+  }
+
+  @Override
+  public @Nullable Context getOpenTelemetryContext() {
+    return null;
   }
 
   @Override

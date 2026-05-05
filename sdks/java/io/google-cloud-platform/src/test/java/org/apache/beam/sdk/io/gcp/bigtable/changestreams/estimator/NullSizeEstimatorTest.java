@@ -27,8 +27,8 @@ public class NullSizeEstimatorTest {
   @Test
   public void alwaysReturns0AsEstimatedThroughput() {
     final NullSizeEstimator<byte[]> estimator = new NullSizeEstimator<>();
-    assertEquals(estimator.sizeOf(new byte[40]), 0D, DELTA);
-    assertEquals(estimator.sizeOf(new byte[20]), 0D, DELTA);
-    assertEquals(estimator.sizeOf(new byte[10]), 0D, DELTA);
+    assertEquals((double) estimator.sizeOf(new byte[40]), 0D, DELTA);
+    assertEquals((double) estimator.sizeOf(new byte[20]), 0D, DELTA);
+    assertEquals((double) estimator.sizeOf(new byte[10]), 0D, DELTA);
   }
 }

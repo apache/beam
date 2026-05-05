@@ -19,7 +19,6 @@ import platform
 import unittest
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Dict
 
 import pytest
 
@@ -129,7 +128,7 @@ class MilvusITDataConstruct:
   tags: list[str]
   dense_embedding: list[float]
   sparse_embedding: dict
-  vocabulary: Dict[str, int] = field(default_factory=dict)
+  vocabulary: dict[str, int] = field(default_factory=dict)
 
   def __getitem__(self, key):
     return getattr(self, key)
@@ -279,6 +278,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
+        p.not_use_test_runner_api = True
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
 
     expect_err_msg_contains = "collection not found"
@@ -307,6 +307,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
+        p.not_use_test_runner_api = True
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
 
     expect_err_msg_contains = f"fieldName({non_existent_field}) not found"
@@ -330,6 +331,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     expected_chunks = []
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -458,6 +460,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -563,6 +566,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -704,6 +708,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -844,6 +849,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -909,6 +915,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(
@@ -982,6 +989,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     ]
 
     with TestPipeline() as p:
+      p.not_use_test_runner_api = True
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result, lambda actual: MilvusTestHelpers.assert_chunks_equivalent(

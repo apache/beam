@@ -93,8 +93,6 @@ abstract class HttpEventPublisher {
   private static final String CONTENT_TYPE =
       Joiner.on('/').join(MEDIA_TYPE.getType(), MEDIA_TYPE.getSubType());
 
-  private static final String AUTHORIZATION_SCHEME = "Splunk %s";
-
   private static final String HTTPS_PROTOCOL_PREFIX = "https";
 
   /** Provides a builder for creating a {@link HttpEventPublisher}. */
@@ -115,9 +113,9 @@ abstract class HttpEventPublisher {
   @SuppressWarnings("mutable")
   abstract byte @Nullable [] rootCaCertificate();
 
-  abstract Boolean disableCertificateValidation();
+  abstract @Nullable Boolean disableCertificateValidation();
 
-  abstract Boolean enableGzipHttpCompression();
+  abstract @Nullable Boolean enableGzipHttpCompression();
 
   /**
    * Executes a POST for the list of {@link SplunkEvent} objects into Splunk's Http Event Collector
@@ -184,7 +182,7 @@ abstract class HttpEventPublisher {
    * @param token Splunk's HEC authorization token
    */
   private void setHeaders(HttpRequest request, String token) {
-    request.getHeaders().setAuthorization(String.format(AUTHORIZATION_SCHEME, token));
+    request.getHeaders().setAuthorization(String.format("Splunk %s", token));
 
     if (enableGzipHttpCompression()) {
       request.getHeaders().setContentEncoding("gzip");

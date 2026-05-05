@@ -17,8 +17,10 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -26,6 +28,7 @@ from typing import Sequence
 from typing import Tuple
 
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 
@@ -56,17 +59,13 @@ class RowTypeConstraint(typehints.TypeConstraint):
     for guidance on creating PCollections with inferred schemas.
 
     Note RowTypeConstraint does not currently store arbitrary functions for
-    converting to/from the user type. Instead, we only support ``NamedTuple``
-    user types and make the follow assumptions:
+    converting to/from the user type. Instead, we support ``NamedTuple`` and
+    ``dataclasses`` user types and make the follow assumptions:
 
     - The user type can be constructed with field values as arguments in order
       (i.e. ``constructor(*field_values)``).
     - Field values can be accessed from instances of the user type by attribute
       (i.e. with ``getattr(obj, field_name)``).
-
-    In the future we will add support for dataclasses
-    ([#22085](https://github.com/apache/beam/issues/22085)) which also satisfy
-    these assumptions.
 
     The RowTypeConstraint constructor should not be called directly (even
     internally to Beam). Prefer static methods ``from_user_type`` or
@@ -93,6 +92,9 @@ class RowTypeConstraint(typehints.TypeConstraint):
     # Currently registration happens when converting to schema protos, in
     # apache_beam.typehints.schemas
     self._schema_id = getattr(self._user_type, _BEAM_SCHEMA_ID, None)
+    if self._schema_id and _BEAM_SCHEMA_ID not in self._user_type.__dict__:
+      # schema id does not inherit. Unset if schema id is from base class
+      self._schema_id = None
 
     self._schema_options = schema_options or []
     self._field_options = field_options or {}
@@ -107,27 +109,30 @@ class RowTypeConstraint(typehints.TypeConstraint):
     if match_is_named_tuple(user_type):
       fields = [(name, user_type.__annotations__[name])
                 for name in user_type._fields]
+    elif match_dataclass_for_row(user_type):
+      fields = [(field.name, field.type)
+                for field in dataclasses.fields(user_type)]
+    else:
+      return None
 
-      field_descriptions = getattr(user_type, '_field_descriptions', None)
+    field_descriptions = getattr(user_type, '_field_descriptions', None)
 
-      if _user_type_is_generated(user_type):
-        return RowTypeConstraint.from_fields(
-            fields,
-            schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
-            schema_options=schema_options,
-            field_options=field_options,
-            field_descriptions=field_descriptions)
-
-      # TODO(https://github.com/apache/beam/issues/22125): Add user API for
-      # specifying schema/field options
-      return RowTypeConstraint(
-          fields=fields,
-          user_type=user_type,
+    if _user_type_is_generated(user_type):
+      return RowTypeConstraint.from_fields(
+          fields,
+          schema_id=getattr(user_type, _BEAM_SCHEMA_ID),
           schema_options=schema_options,
           field_options=field_options,
           field_descriptions=field_descriptions)
 
-    return None
+    # TODO(https://github.com/apache/beam/issues/22125): Add user API for
+    # specifying schema/field options
+    return RowTypeConstraint(
+        fields=fields,
+        user_type=user_type,
+        schema_options=schema_options,
+        field_options=field_options,
+        field_descriptions=field_descriptions)
 
   @staticmethod
   def from_fields(

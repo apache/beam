@@ -63,7 +63,7 @@ public class ResourceHints {
     checkState(CPU_COUNT_URN.equals(getUrn(StandardResourceHints.Enum.CPU_COUNT)));
     checkState(
         MAX_ACTIVE_BUNDLES_PER_WORKER.equals(
-            (getUrn(StandardResourceHints.Enum.MAX_ACTIVE_BUNDLES_PER_WORKER))));
+            getUrn(StandardResourceHints.Enum.MAX_ACTIVE_BUNDLES_PER_WORKER)));
   }
 
   private static ImmutableMap<String, String> hintNameToUrn =

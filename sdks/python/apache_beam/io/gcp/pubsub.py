@@ -34,10 +34,8 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 
 import re
 from typing import Any
-from typing import List
 from typing import NamedTuple
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam import coders
@@ -467,7 +465,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic: str) -> Tuple[str, str]:
+def parse_topic(full_topic: str) -> tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -754,7 +752,7 @@ class MultipleReadFromPubSub(PTransform):
   """
   def __init__(
       self,
-      pubsub_source_descriptors: List[PubSubSourceDescriptor],
+      pubsub_source_descriptors: list[PubSubSourceDescriptor],
       with_attributes: bool = False,
   ):
     """Initializes ``PubSubMultipleReader``.

@@ -20,6 +20,7 @@
 
 # pytype: skip-file
 
+import bisect
 import collections
 import contextlib
 import hashlib
@@ -34,9 +35,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -47,7 +46,6 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
-from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
@@ -90,6 +88,8 @@ from apache_beam.utils.timestamp import Timestamp
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
+_LOGGER = logging.getLogger(__name__)
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
@@ -104,6 +104,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Secret',
+    'SortAndBatchElements',
     'ToString',
     'Tee',
     'Values',
@@ -499,7 +500,7 @@ class GcpHsmGeneratedSecret(Secret):
             request={"name": secret_version_path})
         return response.payload.data
       except api_exceptions.NotFound:
-        logging.info(
+        _LOGGER.info(
             "Secret version %s not found. "
             "Creating new secret and version.",
             secret_version_path)
@@ -583,7 +584,7 @@ class _EncryptMessage(DoFn):
     self.fernet = Fernet(self._hmac_key)
 
   def process(self,
-              element: Any) -> Iterable[Tuple[bytes, Tuple[bytes, bytes]]]:
+              element: Any) -> Iterable[tuple[bytes, tuple[bytes, bytes]]]:
     """Encrypts the key and value of an element.
 
     Args:
@@ -619,7 +620,7 @@ class _DecryptMessage(DoFn):
     hmac_key = self.hmac_key_secret.get_secret_bytes()
     self.fernet = Fernet(hmac_key)
 
-  def decode_value(self, encoded_element: Tuple[bytes, bytes]) -> Any:
+  def decode_value(self, encoded_element: tuple[bytes, bytes]) -> Any:
     encrypted_value = encoded_element[1]
     encoded_value = self.fernet.decrypt(encrypted_value)
     real_val = self.value_coder.decode(encoded_value)
@@ -628,7 +629,7 @@ class _DecryptMessage(DoFn):
   def filter_elements_by_key(
       self,
       encrypted_key: bytes,
-      encoded_elements: Iterable[Tuple[bytes, bytes]]) -> Iterable[Any]:
+      encoded_elements: Iterable[tuple[bytes, bytes]]) -> Iterable[Any]:
     for e in encoded_elements:
       if encrypted_key == self.fernet.decrypt(e[0]):
         yield self.decode_value(e)
@@ -637,8 +638,8 @@ class _DecryptMessage(DoFn):
   # here. This does mean that the whole list will be materialized every time,
   # but passing an Iterable containing an Iterable breaks when pickling happens
   def process(
-      self, element: Tuple[bytes, Iterable[Tuple[bytes, bytes]]]
-  ) -> Iterable[Tuple[Any, List[Any]]]:
+      self, element: tuple[bytes, Iterable[tuple[bytes, bytes]]]
+  ) -> Iterable[tuple[Any, list[Any]]]:
     """Decrypts the key and values of an element.
 
     Args:
@@ -666,8 +667,8 @@ class _DecryptMessage(DoFn):
           list(self.filter_elements_by_key(encoded_key, encoded_elements)))
 
 
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, Iterable[V]])
 class GroupByEncryptedKey(PTransform):
   """A PTransform that provides a secure alternative to GroupByKey.
 
@@ -704,7 +705,7 @@ class GroupByEncryptedKey(PTransform):
       try:
         coder = coder.as_deterministic_coder(self.label)
       except ValueError:
-        logging.warning(
+        _LOGGER.warning(
             'GroupByEncryptedKey %s: '
             'The key coder is not deterministic. This may result in incorrect '
             'pipeline output. This can be fixed by adding a type hint to the '
@@ -724,7 +725,7 @@ class GroupByEncryptedKey(PTransform):
 
     gbk = beam.GroupByKey()
     gbk._inside_gbek = True
-    output_type = Tuple[key_type, Iterable[value_type]]
+    output_type = tuple[key_type, Iterable[value_type]]
 
     return (
         pcoll
@@ -1025,7 +1026,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    logging.info(
+    _LOGGER.info(
         "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
@@ -1209,6 +1210,30 @@ class WithSharedKey(DoFn):
     yield (self.key, element)
 
 
+class WithLengthBucketKey(DoFn):
+  """Keys elements with (worker_uuid, length_bucket) for length-aware
+  stateful batching. Elements of similar length are routed to the same
+  state partition, reducing padding waste."""
+  def __init__(self, length_fn, bucket_boundaries):
+    self.shared_handle = shared.Shared()
+    self._length_fn = length_fn
+    self._bucket_boundaries = bucket_boundaries
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(
+        load_shared_key, "WithLengthBucketKey").key
+
+  def _get_bucket(self, length):
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50], buckets are (-inf, 10), [10, 50), [50, inf)
+    return bisect.bisect_right(self._bucket_boundaries, length)
+
+  def process(self, element):
+    length = self._length_fn(element)
+    bucket = self._get_bucket(length)
+    yield ((self.key, bucket), element)
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -1268,7 +1293,18 @@ class BatchElements(PTransform):
         donwstream operations (mostly for testing)
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
+    length_fn: (optional) a callable mapping an element to its length (int).
+        When set together with bucket_boundaries, enables length-aware bucketed
+        keying on the stateful path so that elements of similar length are
+        routed to the same batch, reducing padding waste.
+    bucket_boundaries: (optional) a sorted list of positive boundary values
+        for length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
+        [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
+        length_fn is set. Requires length_fn.
   """
+  _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
+
   def __init__(
       self,
       min_batch_size=1,
@@ -1281,7 +1317,17 @@ class BatchElements(PTransform):
       element_size_fn=lambda x: 1,
       variance=0.25,
       clock=time.time,
-      record_metrics=True):
+      record_metrics=True,
+      length_fn=None,
+      bucket_boundaries=None):
+    if bucket_boundaries is not None and length_fn is None:
+      raise ValueError('bucket_boundaries requires length_fn to be set.')
+    if bucket_boundaries is not None:
+      if (not bucket_boundaries or any(b <= 0 for b in bucket_boundaries) or
+          bucket_boundaries != sorted(bucket_boundaries)):
+        raise ValueError(
+            'bucket_boundaries must be a non-empty sorted list of '
+            'positive values.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -1295,13 +1341,23 @@ class BatchElements(PTransform):
     self._element_size_fn = element_size_fn
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
+    self._length_fn = length_fn
+    if length_fn is not None and bucket_boundaries is None:
+      self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
+    else:
+      self._bucket_boundaries = bucket_boundaries
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
-      return pcoll | ParDo(WithSharedKey()) | ParDo(
+      if self._length_fn is not None:
+        keying_dofn = WithLengthBucketKey(
+            self._length_fn, self._bucket_boundaries)
+      else:
+        keying_dofn = WithSharedKey()
+      return pcoll | ParDo(keying_dofn) | ParDo(
           _pardo_stateful_batch_elements(
               coder,
               self._batch_size_estimator,
@@ -1317,6 +1373,285 @@ class BatchElements(PTransform):
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
               self._batch_size_estimator, self._element_size_fn))
+
+
+class _SortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with the default (global) window. It accumulates all
+  elements in the current bundle, sorts them by size in ascending order,
+  and emits optimally-sized batches on ``finish_bundle``.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffer = []
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, element):
+    self._buffer.append(element)
+
+  def finish_bundle(self):
+    if not self._buffer:
+      return
+
+    # Sort elements by size (ascending) for optimal batching
+    # Elements of similar sizes will be grouped together
+    sorted_elements = sorted(self._buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      # Check if adding this element would exceed limits
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        # Emit current batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    # Emit remaining elements
+    if batch:
+      yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+
+    self._buffer = None
+
+
+class _WindowAwareSortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements per window.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with non-default (e.g. fixed, sliding, or session) windows.
+  Elements are buffered per window and each window is flushed independently.
+  To prevent a single bundle from retaining too many per-window buffers at
+  once, when the number of live windows exceeds ``_MAX_LIVE_WINDOWS`` the
+  largest window buffer is flushed early. This DoFn reuses
+  ``_WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS`` so it follows the same
+  existing window-aware batching behavior already used in this module.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+
+  _MAX_LIVE_WINDOWS = _WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS
+
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffers = collections.defaultdict(list)
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffers = collections.defaultdict(list)
+
+  def process(self, element, window=DoFn.WindowParam):
+    self._buffers[window].append(element)
+
+    # If we have too many live windows, flush the largest one
+    if len(self._buffers) > self._MAX_LIVE_WINDOWS:
+      largest_window = max(
+          self._buffers.keys(), key=lambda w: len(self._buffers[w]))
+      yield from self._flush_window(largest_window)
+
+  def _flush_window(self, win):
+    """Flush all elements for a given window."""
+    buffer = self._buffers.pop(win, [])
+    if not buffer:
+      return
+
+    # Sort elements by size (ascending)
+    sorted_elements = sorted(buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    if batch:
+      yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+
+  def finish_bundle(self):
+    for win in list(self._buffers.keys()):
+      yield from self._flush_window(win)
+    self._buffers = None
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(list[T])
+class SortAndBatchElements(PTransform):
+  """A Transform that sorts elements by size before batching.
+
+  This transform is designed to optimize batch processing by grouping elements
+  of similar sizes together. This is particularly useful for ML inference
+  workloads where input sequences of varying lengths need to be padded to the
+  maximum length in the batch - by sorting elements by size before batching,
+  padding overhead is minimized.
+
+  The transform consumes a PCollection of element type T and produces a
+  PCollection of element type list[T], where elements within each batch are
+  sorted by their size (as determined by element_size_fn).
+
+  Elements are batched per-window and batches emitted in the window
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  Unlike BatchElements which emits batches as soon as size limits are reached,
+  SortAndBatchElements buffers all elements in a bundle, sorts them by size,
+  and then creates optimally-sized batches. This trade-off of increased memory
+  usage for better batch homogeneity can significantly reduce padding overhead.
+
+  Args:
+    min_batch_size: The minimum number of elements in a batch. Must be >= 1.
+    max_batch_size: The maximum number of elements in a batch.
+        Must be >= min_batch_size.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by element_size_fn. Must be >= 1.
+    element_size_fn: (optional) A function mapping an element to its
+        size/weight.
+        If not provided, defaults to trying len(element) and falling back to 1
+        if the element doesn't support len(). This default allows sorting to
+        work for common types like strings, lists, and arrays.
+
+  Example usage::
+
+      # Batch strings by total character count
+      strings = ['a', 'bb', 'ccc', 'dddd', 'eeeee']
+      batched = strings | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=3,
+          max_batch_weight=10)
+      # Possible output: [['a', 'bb', 'ccc'], ['dddd', 'eeeee']]
+      # Elements are sorted by length and batched optimally
+
+      # Batch with custom size function
+      data = [{'text': 'short'}, {'text': 'medium text'},
+              {'text': 'long text here'}]
+      batched = data | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=10,
+          max_batch_weight=100,
+          element_size_fn=lambda x: len(x['text']))
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
+    if min_batch_size < 1:
+      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
+    if max_batch_size < min_batch_size:
+      raise ValueError(
+          f'max_batch_size ({max_batch_size}) must be >= '
+          f'min_batch_size ({min_batch_size})')
+    if max_batch_weight < 1:
+      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
+    if element_size_fn is not None and not callable(element_size_fn):
+      raise TypeError('element_size_fn must be callable')
+
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+
+    # None means the DoFn will use its own _default_element_size method,
+    # which tries len() and warns once on TypeError before falling back to 1.
+    self._element_size_fn = element_size_fn
+
+  def expand(self, pcoll):
+    if pcoll.windowing.is_default():
+      return pcoll | ParDo(
+          _SortAndBatchElementsDoFn(
+              self._min_batch_size,
+              self._max_batch_size,
+              self._max_batch_weight,
+              self._element_size_fn))
+    return pcoll | ParDo(
+        _WindowAwareSortAndBatchElementsDoFn(
+            self._min_batch_size,
+            self._max_batch_size,
+            self._max_batch_weight,
+            self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
@@ -1348,27 +1683,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
 
   def get_window_coder(self):
     return self._window_coder
-
-
-def is_v1_prior_to_v2(*, v1, v2):
-  if v1 is None:
-    return False
-
-  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
-  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
-  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
-
-
-def is_compat_version_prior_to(options, breaking_change_version):
-  # This function is used in a branch statement to determine whether we should
-  # keep the old behavior prior to a breaking change or use the new behavior.
-  # - If update_compatibility_version < breaking_change_version, we will return
-  #   True and keep the old behavior.
-  update_compatibility_version = options.view_as(
-      pipeline_options.StreamingOptions).update_compatibility_version
-
-  return is_v1_prior_to_v2(
-      v1=update_compatibility_version, v2=breaking_change_version)
 
 
 def reify_metadata_default_window(
@@ -1448,8 +1762,8 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1468,8 +1782,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1493,7 +1807,7 @@ class ReshufflePerKey(PTransform):
     return result
 
   def expand(self, pcoll):
-    if is_compat_version_prior_to(pcoll.pipeline.options, "2.65.0"):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.65.0"):
       return self.expand_2_64_0(pcoll)
 
     windowing_saved = pcoll.windowing
@@ -1550,8 +1864,8 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if is_compat_version_prior_to(pcoll.pipeline.options,
-                                  RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+    if pcoll.pipeline.options.is_compat_version_prior_to(
+        RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
       reshuffle_step = ReshufflePerKey()
     else:
       reshuffle_step = ReshufflePerKey().with_input_types(
@@ -1923,15 +2237,15 @@ class LogElements(PTransform):
         log_line += ', pane_info=' + repr(pane_info)
 
       if self.level == logging.DEBUG:
-        logging.debug(log_line)
+        _LOGGER.debug(log_line)
       elif self.level == logging.INFO:
-        logging.info(log_line)
+        _LOGGER.info(log_line)
       elif self.level == logging.WARNING:
-        logging.warning(log_line)
+        _LOGGER.warning(log_line)
       elif self.level == logging.ERROR:
-        logging.error(log_line)
+        _LOGGER.error(log_line)
       elif self.level == logging.CRITICAL:
-        logging.critical(log_line)
+        _LOGGER.critical(log_line)
       else:
         print(log_line)
 

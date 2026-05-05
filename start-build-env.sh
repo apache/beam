@@ -37,7 +37,7 @@ USER_ID=$(id -u "${USER_NAME}")
 
 if [ "$(uname -s)" = "Darwin" ]; then
   GROUP_ID=100
-  if (dscl . -read /Groups/docker 2>/dev/null); then 
+  if (dscl . -read /Groups/docker 2>/dev/null); then
       DOCKER_GROUP_ID=$(dscl . -read /Groups/docker| awk '($1 == "PrimaryGroupID:") { print $2 }')
     else
       # if Docker post-install steps to manage as non-root user not performed - will use dummy gid
@@ -85,7 +85,7 @@ docker build -t "beam-build-${USER_ID}" - <<UserSpecificDocker
 FROM beam-build
 RUN rm -f /var/log/faillog /var/log/lastlog
 RUN groupadd --non-unique -g ${GROUP_ID} ${USER_NAME}
-RUN groupmod -g ${DOCKER_GROUP_ID} docker
+#RUN groupmod -g ${DOCKER_GROUP_ID} docker
 RUN useradd -g ${GROUP_ID} -G docker -u ${USER_ID} -k /root -m ${USER_NAME} -d "${DOCKER_HOME_DIR}"
 RUN echo "${USER_NAME} ALL=NOPASSWD: ALL" > "/etc/sudoers.d/beam-build-${USER_ID}"
 ENV HOME "${DOCKER_HOME_DIR}"

@@ -80,15 +80,26 @@ public class KafkaConnectUtils {
   }
 
   public static Instant debeziumRecordInstant(SourceRecord record) {
-    if (!record.valueSchema().type().equals(org.apache.kafka.connect.data.Schema.Type.STRUCT)
-        || record.valueSchema().field("ts_ms") == null) {
-      throw new IllegalArgumentException(
-          "Debezium record received is not of the right kind. "
-              + String.format(
-                  "Should be STRUCT with ts_ms field. Instead it is: %s", record.valueSchema()));
+    if (record.valueSchema() != null
+        && record.valueSchema().type().equals(org.apache.kafka.connect.data.Schema.Type.STRUCT)
+        && record.valueSchema().field("ts_ms") != null
+        && record.value() != null) {
+      Struct recordValue = (Struct) record.value();
+      return Instant.ofEpochMilli(recordValue.getInt64("ts_ms"));
     }
-    Struct recordValue = (Struct) record.value();
-    return Instant.ofEpochMilli(recordValue.getInt64("ts_ms"));
+
+    if (record.sourceOffset() != null && record.sourceOffset().containsKey("ts_usec")) {
+      Object tsUsecValue = record.sourceOffset().get("ts_usec");
+      if (tsUsecValue instanceof Number) {
+        return Instant.ofEpochMilli(((Number) tsUsecValue).longValue() / 1000);
+      }
+    }
+
+    throw new IllegalArgumentException(
+        "Debezium record received is not of the right kind. "
+            + String.format(
+                "Should be STRUCT with ts_ms field or sourceOffset with ts_usec. Instead it is: %s, %s",
+                record.valueSchema(), record.sourceOffset()));
   }
 
   public static SourceRecordMapper<Row> beamRowFromSourceRecordFn(final Schema recordSchema) {

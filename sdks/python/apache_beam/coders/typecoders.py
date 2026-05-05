@@ -66,10 +66,7 @@ See apache_beam.typehints.decorators module for more details.
 
 # pytype: skip-file
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import List
-from typing import Type
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -81,10 +78,9 @@ __all__ = ['registry']
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
   def __init__(self, fallback_coder=None):
-    self._coders: Dict[Any, Type[coders.Coder]] = {}
-    self.custom_types: List[Any] = []
+    self._coders: dict[Any, type[coders.Coder]] = {}
+    self.custom_types: list[Any] = []
     self.register_standard_coders(fallback_coder)
-    self.update_compatibility_version = None
 
   def register_standard_coders(self, fallback_coder):
     """Register coders for all basic and composite types."""
@@ -111,7 +107,7 @@ class CoderRegistry(object):
 
   def _register_coder_internal(
       self, typehint_type: Any,
-      typehint_coder_class: Type[coders.Coder]) -> None:
+      typehint_coder_class: type[coders.Coder]) -> None:
     self._coders[typehint_type] = typehint_coder_class
 
   @staticmethod
@@ -124,7 +120,20 @@ class CoderRegistry(object):
 
   def register_coder(
       self, typehint_type: Any,
-      typehint_coder_class: Type[coders.Coder]) -> None:
+      typehint_coder_class: type[coders.Coder]) -> None:
+    """
+    Register a user type with a coder.
+
+    Typical usage::
+
+      class MyCustomType:
+        pass
+
+      coders.registry.register_coder(MyCustomType, MyCustomCoder)
+
+    To register a supported user type (data class or named tuple) with Beam Row,
+    use :meth:`register_row` instead, as it registers both coder and schema.
+    """
     if not isinstance(typehint_coder_class, type):
       raise TypeError(
           'Coder registration requires a coder class object. '
@@ -133,6 +142,34 @@ class CoderRegistry(object):
       self.custom_types.append(typehint_type)
     self._register_coder_internal(
         self._normalize_typehint_type(typehint_type), typehint_coder_class)
+
+  def register_row(self, typehint_type: type[Any]) -> type[Any]:
+    """
+    Register a user type with a Beam Row.
+
+    This registers the type with a RowCoder and register its schema.
+
+    Register a dataclass::
+
+      @coders.registry.register_row
+      @dataclass
+      class MyDataClass:
+        id: int
+        name: str
+
+    Register a named tuple::
+
+      coders.registry.register_row(MyNamedTuple)
+    """
+    from apache_beam.coders import RowCoder
+    from apache_beam.typehints.schemas import typing_to_runner_api
+
+    # Register with row coder
+    self.register_coder(typehint_type, RowCoder)
+    # This call generated a schema id for the type and register it with
+    # schema registry
+    typing_to_runner_api(typehint_type)
+    return typehint_type
 
   def get_coder(self, typehint: Any) -> coders.Coder:
     if typehint and typehint.__module__ == '__main__':
@@ -204,7 +241,7 @@ class FirstOf(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A class used to get the first matching coder from a list of coders."""
-  def __init__(self, coders: Iterable[Type[coders.Coder]]) -> None:
+  def __init__(self, coders: Iterable[type[coders.Coder]]) -> None:
     self._coders = coders
 
   def from_type_hint(self, typehint, registry):

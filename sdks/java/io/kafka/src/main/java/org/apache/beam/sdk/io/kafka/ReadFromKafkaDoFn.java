@@ -116,7 +116,7 @@ import org.slf4j.LoggerFactory;
  * and will only return a non-null {@link org.apache.beam.sdk.transforms.splittabledofn.SplitResult}
  * for a checkpoint. To the extent possible in the SDK, this reduces the risk of overwriting
  * committed offsets when {@code enable.auto.commit} is set and prevents concurrent use of
- * per-{@TopicPartition} cached {@link Consumer} resources.
+ * per-{@link TopicPartition} cached {@link Consumer} resources.
  *
  * <p>TODO(https://github.com/apache/beam/issues/20280): Add support for initial splitting.
  *
@@ -666,7 +666,7 @@ abstract class ReadFromKafkaDoFn<K, V>
           }
         } finally {
           if (rawSizesCount > 0L) {
-            avgRecordSize.update(rawSizesSum, rawSizesCount);
+            avgRecordSize.update((double) rawSizesSum, rawSizesCount);
             rawSizes.update(rawSizesSum, rawSizesCount, rawSizesMin, rawSizesMax);
           }
         }
@@ -712,7 +712,7 @@ abstract class ReadFromKafkaDoFn<K, V>
       TopicPartition topicPartition, List<PartitionInfo> partitionInfos) {
     // Check if the current TopicPartition still exists.
     return partitionInfos.stream()
-        .anyMatch(partitionInfo -> partitionInfo.partition() == (topicPartition.partition()));
+        .anyMatch(partitionInfo -> partitionInfo.partition() == topicPartition.partition());
   }
 
   private TimestampPolicyContext updateWatermarkManually(

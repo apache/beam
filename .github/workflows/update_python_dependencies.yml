@@ -36,22 +36,22 @@ env:
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04, highmem]
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
   update_python_dependencies:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     needs: set-properties
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -60,6 +60,7 @@ jobs:
             3.11
             3.12
             3.13
+            3.14
           java-version: default
           go-version: default
           disable-cache: true

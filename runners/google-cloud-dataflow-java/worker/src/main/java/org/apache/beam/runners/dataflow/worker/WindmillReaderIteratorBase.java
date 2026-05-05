@@ -17,27 +17,33 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.IOException;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for iterators that decode messages from bundles inside a {@link Windmill.WorkItem}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
-  private Windmill.WorkItem work;
+  private final Windmill.WorkItem work;
   private int bundleIndex = 0;
   private int messageIndex = -1;
-  private Optional<WindowedValue<T>> current;
+  private @Nullable WindowedValue<T> current = null;
+  private final ValueProvider<Boolean> skipUndecodableElements;
+  private static final Logger LOG = LoggerFactory.getLogger(WindmillReaderIteratorBase.class);
 
-  protected WindmillReaderIteratorBase(Windmill.WorkItem work) {
+  protected WindmillReaderIteratorBase(
+      Windmill.WorkItem work, ValueProvider<Boolean> skipUndecodableElements) {
+    this.skipUndecodableElements = skipUndecodableElements;
     this.work = work;
   }
 
@@ -48,30 +54,43 @@ public abstract class WindmillReaderIteratorBase<T>
 
   @Override
   public boolean advance() throws IOException {
-    if (bundleIndex == work.getMessageBundlesCount()
-        || messageIndex == work.getMessageBundles(bundleIndex).getMessagesCount()) {
-      current = Optional.absent();
-      return false;
-    }
-    ++messageIndex;
-    for (; bundleIndex < work.getMessageBundlesCount(); ++bundleIndex, messageIndex = 0) {
+    while (true) {
+      if (bundleIndex >= work.getMessageBundlesCount()) {
+        current = null;
+        return false;
+      }
       Windmill.InputMessageBundle bundle = work.getMessageBundles(bundleIndex);
-      if (messageIndex < bundle.getMessagesCount()) {
-        current = Optional.of(decodeMessage(bundle.getMessages(messageIndex)));
+      ++messageIndex;
+      if (messageIndex >= bundle.getMessagesCount()) {
+        messageIndex = -1;
+        ++bundleIndex;
+        continue;
+      }
+      try {
+        current = checkNotNull(decodeMessage(bundle.getMessages(messageIndex)));
         return true;
+      } catch (RuntimeException | IOException e) {
+        if (skipUndecodableElements.isAccessible()
+            && Boolean.TRUE.equals(skipUndecodableElements.get())) {
+          LOG.error(
+              "Skipping input element for work token {} on sharding key {} due to decoding error",
+              work.getWorkToken(),
+              work.getShardingKey(),
+              e);
+          continue;
+        }
+        throw e;
       }
     }
-    current = Optional.absent();
-    return false;
   }
 
   protected abstract WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException;
 
   @Override
   public WindowedValue<T> getCurrent() throws NoSuchElementException {
-    if (!current.isPresent()) {
+    if (current == null) {
       throw new NoSuchElementException();
     }
-    return current.get();
+    return current;
   }
 }

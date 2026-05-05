@@ -76,7 +76,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -165,9 +164,6 @@ class GcsUtilV1 {
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_ITEMS_PER_CALL = 1024;
 
-  /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
-  private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
-
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
   /** Default maximum number of requests permitted in a GCS batch request where data is copied. */
@@ -223,18 +219,6 @@ class GcsUtilV1 {
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
 
   @VisibleForTesting @Nullable AtomicInteger numRewriteTokensUsed;
-
-  /** Returns the prefix portion of the glob that doesn't contain wildcards. */
-  public static String getNonWildcardPrefix(String globExp) {
-    Matcher m = GLOB_PREFIX.matcher(globExp);
-    checkArgument(m.matches(), String.format("Glob expression: [%s] is not expandable.", globExp));
-    return m.group("PREFIX");
-  }
-
-  /** Returns true if the given {@code spec} contains wildcard. */
-  public static boolean isWildcard(GcsPath spec) {
-    return GLOB_PREFIX.matcher(spec.getObject()).matches();
-  }
 
   @VisibleForTesting
   GcsUtilV1(
@@ -333,9 +317,9 @@ class GcsUtilV1 {
   public List<GcsPath> expand(GcsPath gcsPattern) throws IOException {
     Pattern p = null;
     String prefix = null;
-    if (isWildcard(gcsPattern)) {
+    if (GcsPath.isWildcard(gcsPattern)) {
       // Part before the first wildcard character.
-      prefix = getNonWildcardPrefix(gcsPattern.getObject());
+      prefix = GcsPath.getNonWildcardPrefix(gcsPattern.getObject());
       p = Pattern.compile(wildcardToRegexp(gcsPattern.getObject()));
     } else {
       // Not a wildcard.

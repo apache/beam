@@ -63,7 +63,7 @@ public class FileUtils {
 
     ResourceId sourceFile = getFileResourceId(configuration.getWorkerPath(), fileName.toString());
 
-    LOG.info("Copying file from worker " + sourceFile);
+    LOG.info("Copying file from worker {}", sourceFile);
 
     ResourceId destinationFile =
         getFileResourceId(configuration.getSourcePath(), fileName.toString());
@@ -72,8 +72,7 @@ public class FileUtils {
     try {
       return copyFile(sourceFile, destinationFile);
     } catch (Exception ex) {
-      LOG.error(
-          String.format("Error copying file from %s  to %s", sourceFile, destinationFile), ex);
+      LOG.error("Error copying file from {}  to {}", sourceFile, destinationFile, ex);
       throw ex;
     }
   }
@@ -86,23 +85,22 @@ public class FileUtils {
         FileSystems.matchNewResource(execuableFile.getDestinationLocation(), false);
     try {
       LOG.info(
-          String.format(
-              "Moving File %s to %s ",
-              execuableFile.getSourceGCSLocation(), execuableFile.getDestinationLocation()));
+          "Moving File {} to {} ",
+          execuableFile.getSourceGCSLocation(),
+          execuableFile.getDestinationLocation());
       Path path = Paths.get(execuableFile.getDestinationLocation());
 
       if (path.toFile().exists()) {
         LOG.warn(
-            String.format(
-                "Overwriting file %s, should only see this once per worker.",
-                execuableFile.getDestinationLocation()));
+            "Overwriting file {}, should only see this once per worker.",
+            execuableFile.getDestinationLocation());
       }
       copyFile(sourceFile, destinationFile);
       path.toFile().setExecutable(true);
       return path.toString();
 
     } catch (Exception ex) {
-      LOG.error(String.format("Error moving file : %s ", execuableFile.fileName), ex);
+      LOG.error("Error moving file : {} ", execuableFile.fileName, ex);
       throw ex;
     }
   }
@@ -144,13 +142,12 @@ public class FileUtils {
 
       if (!path.toFile().exists()) {
         Files.createDirectories(path);
-        LOG.info(String.format("Created Folder %s ", path.toFile()));
+        LOG.info("Created Folder {} ", path.toFile());
       }
     } catch (FileAlreadyExistsException ex) {
       LOG.warn(
-          String.format(
-              " Tried to create folder %s which already existsed, this should not happen!",
-              configuration.getWorkerPath()),
+          " Tried to create folder {} which already existsed, this should not happen!",
+          configuration.getWorkerPath(),
           ex);
     }
   }

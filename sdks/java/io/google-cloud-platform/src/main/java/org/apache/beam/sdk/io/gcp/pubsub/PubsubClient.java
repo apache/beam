@@ -101,7 +101,7 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
-   * timestampAttribute} and {@code attriutes}.
+   * timestampAttribute} and {@code attributes}.
    *
    * <p>The message attributes must contain {@code timestampAttribute}, and the value of that
    * attribute will be taken as the timestamp.
@@ -156,7 +156,7 @@ public abstract class PubsubClient implements Closeable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ProjectPath)) {
         return false;
       }
 
@@ -270,7 +270,7 @@ public abstract class PubsubClient implements Closeable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SubscriptionPath)) {
         return false;
       }
       SubscriptionPath that = (SubscriptionPath) o;
@@ -350,7 +350,7 @@ public abstract class PubsubClient implements Closeable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof TopicPath)) {
         return false;
       }
       TopicPath topicPath = (TopicPath) o;

@@ -134,7 +134,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedMessageBun
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
@@ -149,6 +148,7 @@ import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -224,9 +224,7 @@ import org.slf4j.LoggerFactory;
 
 /** Unit tests for {@link StreamingDataflowWorker}. */
 @RunWith(Parameterized.class)
-// TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
-// released (2.11.0)
-@SuppressWarnings({"unused", "deprecation"})
+@SuppressWarnings({"deprecation", "unused"})
 public class StreamingDataflowWorkerTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingDataflowWorkerTest.class);
@@ -261,25 +259,26 @@ public class StreamingDataflowWorkerTest {
   private static final String DEFAULT_DATA_STRING = "data";
   private static final String DEFAULT_DESTINATION_STREAM_ID = "out";
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
-  private static final Function<GetDataRequest, GetDataResponse> EMPTY_DATA_RESPONDER =
-      (GetDataRequest request) -> {
-        GetDataResponse.Builder builder = GetDataResponse.newBuilder();
-        for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-          ComputationGetDataResponse.Builder compBuilder =
-              builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-          for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-            KeyedGetDataResponse.Builder keyBuilder =
-                compBuilder
-                    .addDataBuilder()
-                    .setKey(keyRequest.getKey())
-                    .setShardingKey(keyRequest.getShardingKey());
-            keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-            keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-            keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
-          }
-        }
-        return builder.build();
-      };
+
+  private static GetDataResponse emptyDataResponder(GetDataRequest request) {
+    GetDataResponse.Builder builder = GetDataResponse.newBuilder();
+    for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
+      ComputationGetDataResponse.Builder compBuilder =
+          builder.addDataBuilder().setComputationId(compRequest.getComputationId());
+      for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
+        KeyedGetDataResponse.Builder keyBuilder =
+            compBuilder
+                .addDataBuilder()
+                .setKey(keyRequest.getKey())
+                .setShardingKey(keyRequest.getShardingKey());
+        keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
+        keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
+        keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+      }
+    }
+    return builder.build();
+  }
+
   private final boolean streamingEngine;
   private final Supplier<Long> idGenerator =
       new Supplier<Long>() {
@@ -670,6 +669,45 @@ public class StreamingDataflowWorkerTest {
   }
 
   private Windmill.GetWorkResponse makeInput(
+      int index, long timestamp, String key, long shardingKey, Long finalizeId) throws Exception {
+    return buildInput(
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \""
+            + key
+            + "\""
+            + "    sharding_key: "
+            + shardingKey
+            + "    work_token: "
+            + index
+            + "    cache_token: "
+            + (index + 1)
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp
+            + "        data: \"data"
+            + index
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}"
+            + "applied_finalize_ids: "
+            + finalizeId,
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(IntervalWindow.getCoder()),
+            Collections.singletonList(DEFAULT_WINDOW)));
+  }
+
+  private Windmill.GetWorkResponse makeInput(
       int workToken, int cacheToken, long timestamp, String key, long shardingKey)
       throws Exception {
     return buildInput(
@@ -857,6 +895,7 @@ public class StreamingDataflowWorkerTest {
     if (streamingEngine) {
       argsList.add("--experiments=enable_streaming_engine");
     }
+    LOG.info("Running with args {}", argsList);
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.fromArgs(argsList.toArray(new String[0]))
             .as(DataflowWorkerHarnessOptions.class);
@@ -870,7 +909,6 @@ public class StreamingDataflowWorkerTest {
     if (options.getActiveWorkRefreshPeriodMillis() == 10000) {
       options.setActiveWorkRefreshPeriodMillis(0);
     }
-
     return options;
   }
 
@@ -1643,7 +1681,7 @@ public class StreamingDataflowWorkerTest {
     Timer.Builder builder =
         Timer.newBuilder()
             .setTag(ByteString.copyFromUtf8(tagPrefix + ":" + timestampMillis))
-            .setType(Type.WATERMARK)
+            .setType(Timer.Type.WATERMARK)
             .setStateFamily("MergeWindows");
     if (!delete) {
       builder.setTimestamp(timestampMillis * 1000);
@@ -1902,7 +1940,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
@@ -2192,7 +2230,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
@@ -2315,7 +2353,7 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     // Respond to any GetData requests with empty state.
-    server.whenGetDataCalled().answerByDefault(EMPTY_DATA_RESPONDER);
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
 
     for (int i = 0; i < actions.size(); ++i) {
       Action action = actions.get(i);
@@ -2336,9 +2374,6 @@ public class StreamingDataflowWorkerTest {
             new Action(
                     buildSessionInput(
                         1, 40, 0, Collections.singletonList(1L), Collections.EMPTY_LIST))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))));
   }
 
@@ -2366,10 +2401,7 @@ public class StreamingDataflowWorkerTest {
                         0,
                         Collections.EMPTY_LIST,
                         Collections.singletonList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
-                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true)),
+                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010)),
             new Action(
                     buildSessionInput(
                         3, 30, 0, Collections.singletonList(8L), Collections.EMPTY_LIST))
@@ -2398,8 +2430,8 @@ public class StreamingDataflowWorkerTest {
                 .withHolds(
                     buildHold("/gAAAAAAAACkK/+uhold", -1, true),
                     buildHold("/gAAAAAAAACkK/+uextra", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uhold", 40, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, true)),
+                    buildHold("/gAAAAAAAAAsK/+uhold", 40, false),
+                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, false)),
             new Action(
                     buildSessionInput(
                         6,
@@ -3463,7 +3495,7 @@ public class StreamingDataflowWorkerTest {
         makeWorker(defaultWorkerParams().setInstructions(instructions).publishCounters().build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     server.waitForAndGetCommits(0);
     worker.stop();
@@ -3485,7 +3517,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
     server.waitForAndGetCommits(1);
 
     worker.stop();
@@ -3511,17 +3543,12 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    GetWorkResponse workItem =
-        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    GetWorkResponse workItem = makeInput(0, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
     int failedWorkToken = 1;
     int failedCacheToken = 5;
     GetWorkResponse workItemToFail =
         makeInput(
-            failedWorkToken,
-            failedCacheToken,
-            TimeUnit.MILLISECONDS.toMicros(0),
-            "key",
-            DEFAULT_SHARDING_KEY);
+            failedWorkToken, failedCacheToken, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
 
     // Queue up two work items for the same key.
     server.whenGetWorkCalled().thenReturn(workItem).thenReturn(workItemToFail);
@@ -3546,7 +3573,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked calls.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());
@@ -3572,11 +3599,10 @@ public class StreamingDataflowWorkerTest {
     worker.start();
 
     GetWorkResponse workItemToFail =
-        makeInput(0, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+        makeInput(0, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
     long failedWorkToken = workItemToFail.getWork(0).getWork(0).getWorkToken();
     long failedCacheToken = workItemToFail.getWork(0).getWork(0).getCacheToken();
-    GetWorkResponse workItem =
-        makeInput(1, TimeUnit.MILLISECONDS.toMicros(0), "key", DEFAULT_SHARDING_KEY);
+    GetWorkResponse workItem = makeInput(1, 0L /* microseconds */, "key", DEFAULT_SHARDING_KEY);
 
     // Queue up the work item for the key.
     server.whenGetWorkCalled().thenReturn(workItemToFail).thenReturn(workItem);
@@ -3601,7 +3627,7 @@ public class StreamingDataflowWorkerTest {
     // Release the blocked call, there should not be a commit and the dofn should be invalidated.
     BlockingFn.blocker().countDown();
     Map<Long, Windmill.WorkItemCommitRequest> commits =
-        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds((5)));
+        server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
     assertEquals(0, BlockingFn.teardownCounter.get());
@@ -3686,7 +3712,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server
         .whenGetWorkCalled()
@@ -3723,7 +3750,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
     server.waitForAndGetCommits(1);
@@ -3760,7 +3788,7 @@ public class StreamingDataflowWorkerTest {
         new ActiveWorkRefreshSink(
             (request) -> {
               clock.sleep(Duration.millis(1000));
-              return EMPTY_DATA_RESPONDER.apply(request);
+              return emptyDataResponder(request);
             });
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0 /* timestamp */));
@@ -3801,9 +3829,10 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
-    server.whenGetWorkCalled().thenReturn(makeInput(workToken, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(workToken, 0L /* microseconds */));
     server.waitForAndGetCommits(1);
 
     worker.stop();
@@ -3834,7 +3863,8 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    ActiveWorkRefreshSink awrSink = new ActiveWorkRefreshSink(EMPTY_DATA_RESPONDER);
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
     server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
     server.whenGetWorkCalled().thenReturn(makeInput(workToken, 1 /* timestamp */));
     Map<Long, WorkItemCommitRequest> workItemCommitRequest = server.waitForAndGetCommits(1);
@@ -3882,7 +3912,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
     Windmill.WorkItemCommitRequest commit = result.get(0L);
@@ -3921,7 +3951,7 @@ public class StreamingDataflowWorkerTest {
                 .build());
     worker.start();
 
-    server.whenGetWorkCalled().thenReturn(makeInput(0, TimeUnit.MILLISECONDS.toMicros(0)));
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L /* microseconds */));
 
     Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
 
@@ -4280,6 +4310,39 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
+  @Test
+  public void testBundleFinalizersAreCalled() throws Exception {
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(new BundleFinalizerFn(), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--activeWorkRefreshPeriodMillis=10")
+                .setInstructions(instructions)
+                .build());
+    worker.start();
+
+    server.whenGetWorkCalled().thenReturn(makeInput(0, 0L, "key", DEFAULT_SHARDING_KEY));
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    List<Long> finalizeIds = new ArrayList<>();
+    for (Windmill.WorkItemCommitRequest commit : result.values()) {
+      finalizeIds.addAll(commit.getFinalizeIdsList());
+    }
+    assertEquals(1, finalizeIds.size());
+    server
+        .whenGetWorkCalled()
+        .thenReturn(makeInput(1, 0L, "key", DEFAULT_SHARDING_KEY, finalizeIds.get(0)));
+    server.waitForAndGetCommits(1);
+    assertThat(
+        "At least one commit finalizer called", BundleFinalizerFn.bundleFinalizerCount.get() > 0);
+
+    worker.stop();
+  }
+
   private void runNumCommitThreadsTest(int configNumCommitThreads, int expectedNumCommitThreads) {
     List<ParallelInstruction> instructions =
         Arrays.asList(
@@ -4312,6 +4375,67 @@ public class StreamingDataflowWorkerTest {
       runNumCommitThreadsTest(0, 1);
       runNumCommitThreadsTest(-1, 1);
     }
+  }
+
+  @Test
+  public void testSkipInputElementsWithDecodingExceptions() throws Exception {
+    KvCoder<String, Integer> kvCoder = KvCoder.of(StringUtf8Coder.of(), TextualIntegerCoder.of());
+    List<ParallelInstruction> instructions =
+        Arrays.asList(makeSourceInstruction(kvCoder), makeSinkInstruction(kvCoder, 0));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams("--skipInputElementsWithDecodingExceptions=true")
+                .setInstructions(instructions)
+                .publishCounters()
+                .build());
+    worker.start();
+
+    // Create a work item with one valid message and one corrupted message.
+    Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
+    Windmill.ComputationWorkItems.Builder computationBuilder =
+        builder.addWorkBuilder().setComputationId(DEFAULT_COMPUTATION_ID).setInputDataWatermark(1);
+    Windmill.WorkItem.Builder workItemBuilder =
+        computationBuilder
+            .addWorkBuilder()
+            .setKey(DEFAULT_KEY_BYTES)
+            .setShardingKey(DEFAULT_SHARDING_KEY)
+            .setWorkToken(1)
+            .setCacheToken(2);
+
+    Windmill.InputMessageBundle.Builder bundleBuilder =
+        workItemBuilder
+            .addMessageBundlesBuilder()
+            .setSourceComputationId(DEFAULT_SOURCE_COMPUTATION_ID);
+
+    // Valid message
+    bundleBuilder
+        .addMessagesBuilder()
+        .setTimestamp(0)
+        .setData(ByteString.copyFromUtf8("12345"))
+        .setMetadata(addPaneTag(PaneInfo.NO_FIRING, intervalWindowBytes(DEFAULT_WINDOW)));
+
+    // Corrupted message (invalid data for kvCoder)
+    bundleBuilder
+        .addMessagesBuilder()
+        .setTimestamp(1000)
+        .setData(ByteString.copyFromUtf8("54321corrupted data"))
+        .setMetadata(addPaneTag(PaneInfo.NO_FIRING, intervalWindowBytes(DEFAULT_WINDOW)));
+
+    server.whenGetWorkCalled().thenReturn(builder.build());
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    worker.stop();
+
+    assertTrue(result.containsKey(1L));
+    Windmill.WorkItemCommitRequest commit = result.get(1L);
+
+    // Verify that only the valid message was processed and output.
+    assertEquals(1, commit.getOutputMessagesCount());
+    assertEquals(1, commit.getOutputMessages(0).getBundles(0).getMessagesCount());
+    assertEquals("key", commit.getOutputMessages(0).getBundles(0).getKey().toStringUtf8());
+    assertEquals(
+        "12345", commit.getOutputMessages(0).getBundles(0).getMessages(0).getData().toStringUtf8());
   }
 
   static class BlockingFn extends DoFn<String, String> implements TestRule {
@@ -4563,6 +4687,18 @@ public class StreamingDataflowWorkerTest {
     }
   }
 
+  private static class BundleFinalizerFn extends DoFn<String, String> {
+    public static AtomicInteger bundleFinalizerCount = new AtomicInteger();
+
+    @ProcessElement
+    public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
+      c.output(c.element());
+      bundleFinalizer.afterBundleCommit(
+          Instant.now().plus(Duration.standardMinutes(5)),
+          () -> bundleFinalizerCount.incrementAndGet());
+    }
+  }
+
   static class FakeClock implements Supplier<Instant> {
 
     private final PriorityQueue<Job> jobs = new PriorityQueue<>();
@@ -4732,17 +4868,18 @@ public class StreamingDataflowWorkerTest {
 
   private static class FakeSlowDoFn extends DoFn<String, String> {
 
-    private static FakeClock clock; // A static variable keeps this DoFn serializable.
+    private static final AtomicReference<FakeClock> clock =
+        new AtomicReference<>(); // A static variable keeps this DoFn serializable.
     private final Duration sleep;
 
     FakeSlowDoFn(FakeClock clock, Duration sleep) {
-      FakeSlowDoFn.clock = clock;
+      FakeSlowDoFn.clock.set(clock);
       this.sleep = sleep;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      clock.sleep(sleep);
+      clock.get().sleep(sleep);
       c.output(c.element());
     }
   }
@@ -4818,7 +4955,7 @@ public class StreamingDataflowWorkerTest {
           }
         }
       }
-      return EMPTY_DATA_RESPONDER.apply(request);
+      return emptyDataResponder(request);
     }
   }
 

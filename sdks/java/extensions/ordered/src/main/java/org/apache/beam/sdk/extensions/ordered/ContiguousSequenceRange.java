@@ -41,13 +41,13 @@ public abstract class ContiguousSequenceRange
       ContiguousSequenceRange.of(
           Long.MIN_VALUE, Long.MIN_VALUE, Instant.ofEpochMilli(Long.MIN_VALUE));
 
-  /** @return inclusive starting sequence */
+  /** Returns inclusive starting sequence. */
   public abstract long getStart();
 
-  /** @return exclusive end sequence */
+  /** Returns exclusive end sequence. */
   public abstract long getEnd();
 
-  /** @return latest timestamp of all events in the range */
+  /** Returns latest timestamp of all events in the range. */
   public abstract Instant getTimestamp();
 
   @Override

@@ -26,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,7 +53,7 @@ env:
 jobs:
   beam_PostCommit_Java_Examples_Dataflow_V2_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -61,7 +61,7 @@ jobs:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_V2_Java]
         job_phrase_1: [Run Java ]
         job_phrase_2: [Examples on Dataflow Runner V2]
-        java_version: ['8', '17', '21', '25']
+        java_version: ['17', '21', '25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
@@ -69,7 +69,7 @@ jobs:
       (contains(github.event.comment.body, 'Run Java') &&
          contains(github.event.comment.body, 'Examples on Dataflow Runner V2'))
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -93,7 +93,7 @@ jobs:
             -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

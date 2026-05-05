@@ -529,7 +529,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
 
     // Clearing this list should "release" some memory that will be needed to dump the heap.
     // We could try to reallocate it again if we later notice memory pressure has subsided,
-    // but that is risk. Further, leaving this released may help with the memory pressure.
+    // but that is risky. Further, leaving this released may help with the memory pressure.
     reservedForDumpingHeap = null;
 
     try {

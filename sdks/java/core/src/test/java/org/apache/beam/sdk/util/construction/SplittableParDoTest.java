@@ -106,10 +106,12 @@ public class SplittableParDoTest {
   private static class BoundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {}
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {}
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return null;
     }
   }
@@ -117,12 +119,14 @@ public class SplittableParDoTest {
   private static class UnboundedFakeFn extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context, RestrictionTracker<SomeRestriction, Void> tracker) {
+        @SuppressWarnings("unused") ProcessContext context,
+        @SuppressWarnings("unused") RestrictionTracker<SomeRestriction, Void> tracker) {
       return stop();
     }
 
     @GetInitialRestriction
-    public SomeRestriction getInitialRestriction(@Element Integer element) {
+    public SomeRestriction getInitialRestriction(
+        @SuppressWarnings("unused") @Element Integer element) {
       return null;
     }
   }
