@@ -162,11 +162,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
+      Catalog.TableBuilder builder =
+          catalog().buildTable(icebergIdentifier, icebergSchema).withPartitionSpec(icebergSpec);
       if (properties != null) {
-        catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec, properties);
-      } else {
-        catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
+        builder = builder.withProperties(properties);
       }
+      builder.create();
+
       LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);

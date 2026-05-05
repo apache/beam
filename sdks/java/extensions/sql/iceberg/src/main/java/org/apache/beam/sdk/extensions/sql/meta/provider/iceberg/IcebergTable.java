@@ -75,10 +75,10 @@ class IcebergTable extends SchemaBaseBeamTable {
     this.catalogConfig = catalogConfig;
     ObjectNode properties = table.getProperties();
     for (Map.Entry<String, JsonNode> property : properties.properties()) {
-      String name = property.getKey();
+      String name = property.getKey().toLowerCase();
       if (name.startsWith(BEAM_WRITE_PROPERTY)) {
         String prop = name.substring(BEAM_WRITE_PROPERTY.length());
-        if (prop.equals(TRIGGERING_FREQUENCY_FIELD)) {
+        if (prop.equalsIgnoreCase(TRIGGERING_FREQUENCY_FIELD)) {
           this.triggeringFrequency = property.getValue().asInt();
         } else {
           throw new IllegalArgumentException("Unknown Beam write property: " + name);
