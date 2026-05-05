@@ -184,8 +184,8 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
-	// Inject pipeline options into context
-	ctx = artifact.WithPipelineOptions(ctx, info.GetPipelineOptions())
+	// Inject artifact validation enabled state into context
+	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
 
 	experiments := getExperiments(options)
 	pipNoBuildIsolation = false

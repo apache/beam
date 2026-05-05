@@ -16,29 +16,10 @@
 package artifact
 
 import (
-	"context"
 	"testing"
 
 	structpb "google.golang.org/protobuf/types/known/structpb"
 )
-
-func TestPipelineOptionsContext(t *testing.T) {
-	ctx := context.Background()
-	if PipelineOptions(ctx) != nil {
-		t.Errorf("empty context should have nil pipeline options")
-	}
-
-	options, _ := structpb.NewStruct(map[string]interface{}{
-		"options": map[string]interface{}{
-			"experiments": []interface{}{"exp1"},
-		},
-	})
-	ctxWithOpts := WithPipelineOptions(ctx, options)
-	got := PipelineOptions(ctxWithOpts)
-	if got == nil {
-		t.Errorf("context should have pipeline options")
-	}
-}
 
 func TestGetExperiments_Nil(t *testing.T) {
 	if got := GetExperiments(nil); got != nil {
@@ -80,5 +61,18 @@ func TestHasExperiment(t *testing.T) {
 	}
 	if HasExperiment(options, "exp3") {
 		t.Errorf("HasExperiment(exp3) = true, want false")
+	}
+}
+
+func TestGetExperiments_Combined(t *testing.T) {
+	options, _ := structpb.NewStruct(map[string]interface{}{
+		"options": map[string]interface{}{
+			"experiments": []interface{}{"exp1", "exp2"},
+		},
+		"beam:option:experiments:v1": []interface{}{"expA", "expB"},
+	})
+	exps := GetExperiments(options)
+	if len(exps) != 4 || exps[0] != "exp1" || exps[1] != "exp2" || exps[2] != "expA" || exps[3] != "expB" {
+		t.Errorf("GetExperiments() = %v, want [exp1 exp2 expA expB]", exps)
 	}
 }

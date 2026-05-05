@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // TestRetrieve tests that we can successfully retrieve fresh files.
@@ -108,12 +107,7 @@ func TestRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
 
-	options, _ := structpb.NewStruct(map[string]interface{}{
-		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
-		},
-	})
-	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "idA"), options)
+	ctx := WithArtifactValidation(grpcx.WriteWorkerID(context.Background(), "idA"), false)
 	keys := []string{"foo"}
 	st := "whatever"
 	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
@@ -324,14 +318,9 @@ func TestIsArtifactValidationEnabled(t *testing.T) {
 		t.Errorf("empty context should have validation enabled")
 	}
 
-	options, _ := structpb.NewStruct(map[string]interface{}{
-		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
-		},
-	})
-	ctx2 := WithPipelineOptions(ctx, options)
+	ctx2 := WithArtifactValidation(ctx, false)
 	if isArtifactValidationEnabled(ctx2) {
-		t.Errorf("populated context should have validation disabled")
+		t.Errorf("context with validation disabled should have validation disabled")
 	}
 }
 
@@ -354,12 +343,7 @@ func TestNewRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
 	dest := makeTempDir(t)
 	defer os.RemoveAll(dest)
 
-	options, _ := structpb.NewStruct(map[string]interface{}{
-		"options": map[string]interface{}{
-			"experiments": []interface{}{"disable_staged_file_integrity_checks"},
-		},
-	})
-	ctx := WithPipelineOptions(grpcx.WriteWorkerID(context.Background(), "worker"), options)
+	ctx := WithArtifactValidation(grpcx.WriteWorkerID(context.Background(), "worker"), false)
 
 	mds, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithBadSha(), dest)
 	if err != nil {

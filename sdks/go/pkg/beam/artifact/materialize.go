@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
+	beamlog "github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
@@ -50,6 +51,28 @@ const (
 	URNStagingTo           = "beam:artifact:role:staging_to:v1"
 	NoArtifactsStaged      = "__no_artifacts_staged__"
 )
+
+type validationKey string
+
+const artifactValidationKey validationKey = "artifact_validation_enabled"
+
+// WithArtifactValidation returns a new context carrying the artifact validation enabled state.
+func WithArtifactValidation(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, artifactValidationKey, enabled)
+}
+
+// ArtifactValidation returns the artifact validation enabled state from the context.
+func ArtifactValidation(ctx context.Context) bool {
+	if val, ok := ctx.Value(artifactValidationKey).(bool); ok {
+		return val
+	}
+	return true
+}
+
+// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
+func isArtifactValidationEnabled(ctx context.Context) bool {
+	return ArtifactValidation(ctx)
+}
 
 // Materialize is a convenience helper for ensuring that all artifacts are
 // present and uncorrupted. It interprets each artifact name as a relative
@@ -456,10 +479,11 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
 	if isArtifactValidationEnabled(ctx) {
-		if a.Sha256 != "" && sha256Hash != a.Sha256 {
+		if a.Sha256 == "" {
+			beamlog.Warnf(ctx, "Artifact validation skipped for file: %v", filename)
+		} else if sha256Hash != a.Sha256 {
 			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
 		}
-		log.Printf("Sha256 validation done for file: %v, with sha256 %v", filename, a.Sha256)
 	}
 	return nil
 }
@@ -526,9 +550,4 @@ func queue2slice(q chan *jobpb.ArtifactMetadata) []*jobpb.ArtifactMetadata {
 		ret = append(ret, elm)
 	}
 	return ret
-}
-
-// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
-func isArtifactValidationEnabled(ctx context.Context) bool {
-	return !HasExperiment(PipelineOptions(ctx), "disable_staged_file_integrity_checks")
 }

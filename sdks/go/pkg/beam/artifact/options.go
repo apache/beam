@@ -16,25 +16,8 @@
 package artifact
 
 import (
-	"context"
-
 	structpb "google.golang.org/protobuf/types/known/structpb"
 )
-
-type contextKey string
-
-const pipelineOptionsKey contextKey = "pipeline_options"
-
-// WithPipelineOptions returns a new context carrying the full pipeline options struct.
-func WithPipelineOptions(ctx context.Context, options *structpb.Struct) context.Context {
-	return context.WithValue(ctx, pipelineOptionsKey, options)
-}
-
-// PipelineOptions returns the pipeline options from the context if present.
-func PipelineOptions(ctx context.Context) *structpb.Struct {
-	options, _ := ctx.Value(pipelineOptionsKey).(*structpb.Struct)
-	return options
-}
 
 // GetExperiments extracts a list of experiments from the pipeline options.
 func GetExperiments(options *structpb.Struct) []string {
@@ -42,15 +25,11 @@ func GetExperiments(options *structpb.Struct) []string {
 		return nil
 	}
 
-	// Try legacy style first
 	var exps []string
+	// Try legacy style
 	for _, v := range options.GetFields()["options"].GetStructValue().GetFields()["experiments"].GetListValue().GetValues() {
 		exps = append(exps, v.GetStringValue())
 	}
-	if len(exps) > 0 {
-		return exps
-	}
-
 	// Try URN style
 	for _, v := range options.GetFields()["beam:option:experiments:v1"].GetListValue().GetValues() {
 		exps = append(exps, v.GetStringValue())
