@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -589,7 +590,9 @@ public class BatchElementsTest implements Serializable {
 
   private static List<Integer> range(int n) {
     List<Integer> list = new ArrayList<>(n);
-    for (int i = 0; i < n; i++) list.add(i);
+    for (int i = 0; i < n; i++) {
+      list.add(i);
+    }
     return list;
   }
 }
