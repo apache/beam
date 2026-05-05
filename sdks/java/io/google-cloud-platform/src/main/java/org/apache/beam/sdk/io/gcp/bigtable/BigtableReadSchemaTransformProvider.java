@@ -69,7 +69,7 @@ public class BigtableReadSchemaTransformProvider
               "column_families",
               Schema.FieldType.STRING,
               Schema.FieldType.map(
-                  Schema.FieldType.BYTES,
+                  Schema.FieldType.STRING,
                   Schema.FieldType.array(Schema.FieldType.row(CELL_SCHEMA))))
           .build();
   public static final Schema FLATTENED_ROW_SCHEMA =
