@@ -38,6 +38,7 @@ public class ValueKindUtil {
 
   public static ValueKind fromProto(Elements.ValueKind.Enum proto) {
     switch (proto) {
+      case VALUE_KIND_UNSPECIFIED:
       case INSERT:
         return ValueKind.INSERT;
       case UPDATE_BEFORE:

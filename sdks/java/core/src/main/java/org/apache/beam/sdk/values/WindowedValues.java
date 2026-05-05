@@ -270,6 +270,7 @@ public class WindowedValues {
           .add("windows", getWindows())
           .add("paneInfo", getPaneInfo())
           .add("causedByDrain", causedByDrain())
+          .add("valueKind", getValueKind())
           .add("receiver", receiver)
           .toString();
     }
@@ -371,6 +372,7 @@ public class WindowedValues {
         value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, ValueKind.INSERT);
   }
 
+  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
       T value,
       Instant timestamp,
@@ -1077,12 +1079,14 @@ public class WindowedValues {
       if (metadataSupported) {
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
-        builder.setDrain(
-            windowedElem.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
-                ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
-                : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING);
-        builder.setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()));
-        BeamFnApi.Elements.ElementMetadata em = builder.build();
+        BeamFnApi.Elements.ElementMetadata em =
+            builder
+                .setDrain(
+                    windowedElem.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                        ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                        : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+                .setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()))
+                .build();
 
         ByteArrayCoder.of().encode(em.toByteArray(), outStream);
       }
@@ -1109,9 +1113,7 @@ public class WindowedValues {
             elementMetadata.getDrain().equals(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
-        if (elementMetadata.hasValueKind()) {
-          valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
-        }
+        valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
       }
       T value = valueCoder.decode(inStream, context);
 
