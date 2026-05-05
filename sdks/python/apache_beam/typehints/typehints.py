@@ -65,6 +65,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import copy
 import logging
 import types

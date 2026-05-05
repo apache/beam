@@ -31,10 +31,7 @@ import typing
 import unittest
 import uuid
 from typing import Any
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Tuple
 from typing import no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -945,7 +942,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(
               window.FixedWindows(1) if windowed else window.GlobalWindows())
           | beam.Map(lambda x: (key, x)).with_output_types(
-              Tuple[key_type if key_type else type(key), Any])
+              tuple[key_type if key_type else type(key), Any])
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
@@ -2440,7 +2437,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name, )
 
 
-_pickled_element_counters: Dict[str, ElementCounter] = {}
+_pickled_element_counters: dict[str, ElementCounter] = {}
 
 
 def _unpickle_element_counter(name):
@@ -2679,8 +2676,8 @@ class ArrayMultiplyDoFn(beam.DoFn):
 
 
 class ListPlusOneDoFn(beam.DoFn):
-  def process_batch(self, batch: List[np.int64], *unused_args,
-                    **unused_kwargs) -> Iterator[List[np.int64]]:
+  def process_batch(self, batch: list[np.int64], *unused_args,
+                    **unused_kwargs) -> Iterator[list[np.int64]]:
     assert isinstance(batch, list)
     yield [element + 1 for element in batch]
 

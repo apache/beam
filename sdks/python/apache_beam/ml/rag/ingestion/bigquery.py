@@ -17,7 +17,6 @@
 import warnings
 from collections.abc import Callable
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import apache_beam as beam
@@ -27,7 +26,7 @@ from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.typehints.row_type import RowTypeConstraint
 
-EmbeddableToDictFn = Callable[[EmbeddableItem], Dict[str, any]]
+EmbeddableToDictFn = Callable[[EmbeddableItem], dict[str, any]]
 # Backward compatibility alias.
 ChunkToDictFn = EmbeddableToDictFn
 
@@ -35,7 +34,7 @@ ChunkToDictFn = EmbeddableToDictFn
 class SchemaConfig:
   def __init__(
       self,
-      schema: Dict,
+      schema: dict,
       embeddable_to_dict_fn: Optional[EmbeddableToDictFn] = None,
       **kwargs):
     """Configuration for custom BigQuery schema and row conversion.
@@ -83,7 +82,7 @@ class SchemaConfig:
 class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
   def __init__(
       self,
-      write_config: Dict[str, Any],
+      write_config: dict[str, Any],
       *,  # Force keyword arguments
       schema_config: Optional[SchemaConfig] = None):
     """Configuration for writing vectors to BigQuery using managed transforms.

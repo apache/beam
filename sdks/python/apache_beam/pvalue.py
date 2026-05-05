@@ -30,7 +30,6 @@ import collections
 import itertools
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Generic
 from typing import Iterator
 from typing import NamedTuple
@@ -255,7 +254,7 @@ class DoOutputsTuple(object):
     # gets applied.
     self.producer: Optional[AppliedPTransform] = None
     # Dictionary of PCollections already associated with tags.
-    self._pcolls: Dict[Optional[str], PCollection] = {}
+    self._pcolls: dict[Optional[str], PCollection] = {}
 
   def __str__(self):
     return '<%s>' % self._str_internal()

@@ -40,7 +40,6 @@ import uuid
 from json.decoder import JSONDecodeError
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -180,7 +179,7 @@ V = TypeVar('V')
 
 
 def to_hashable_table_ref(
-    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+    table_ref_elem_kv: tuple[Union[str, TableReference], V]) -> tuple[str, V]:
   """Turns the key of the input tuple to its string representation. The key
   should be either a string or a TableReference.
 

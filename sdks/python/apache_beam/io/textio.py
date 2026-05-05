@@ -24,7 +24,6 @@ import os
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Optional
 from typing import Union
 
@@ -1041,7 +1040,7 @@ try:
       *,
       orient: str = 'records',
       lines: bool = True,
-      dtype: Union[bool, Dict[str, Any]] = False,
+      dtype: Union[bool, dict[str, Any]] = False,
       **kwargs):
     """A PTransform for reading json values from files into a PCollection.
 
