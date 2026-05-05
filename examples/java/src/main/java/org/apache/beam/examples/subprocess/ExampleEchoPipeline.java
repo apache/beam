@@ -28,8 +28,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
@@ -86,13 +84,11 @@ public class ExampleEchoPipeline {
     }
 
     @ProcessElement
-    public void processElement(
-        @Element KV<String, String> element, OutputReceiver<KV<String, String>> receiver)
-        throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
       try {
         // Our Library takes a single command in position 0 which it will echo back in the result
         SubProcessCommandLineArgs commands = new SubProcessCommandLineArgs();
-        Command command = new Command(0, String.valueOf(element.getValue()));
+        Command command = new Command(0, String.valueOf(c.element().getValue()));
         commands.putCommand(command);
 
         // The ProcessingKernel deals with the execution of the process
@@ -101,7 +97,7 @@ public class ExampleEchoPipeline {
         // Run the command and work through the results
         List<String> results = kernel.exec(commands);
         for (String s : results) {
-          receiver.output(KV.of(element.getKey(), s));
+          c.output(KV.of(c.element().getKey(), s));
         }
       } catch (Exception ex) {
         LOG.error("Error processing element ", ex);

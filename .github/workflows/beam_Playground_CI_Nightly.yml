@@ -61,12 +61,12 @@ jobs:
         sdk: ["python", "java", "go"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-          go-version: '1.25'
+          go-version: '1.26'
       - name: Install requirements
         run: |
           cd $BEAM_ROOT_DIR/playground/infrastructure

@@ -60,14 +60,14 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_Java]
         job_phrase: [Run Java examples on Dataflow Java]
-        java_version: ['8','17','21', '25']
+        java_version: ['17', '21', '25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Java examples on Dataflow Java')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -86,7 +86,7 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java${{ matrix.java_version }}PostCommit
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

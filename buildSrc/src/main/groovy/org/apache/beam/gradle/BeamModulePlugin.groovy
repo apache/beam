@@ -1135,6 +1135,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.javaVersion = '17'
         } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
           project.javaVersion = '21'
+        } else if (JavaVersion.VERSION_25.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '25'
         } else {
           throw new GradleException(
           "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
@@ -1157,6 +1159,9 @@ class BeamModulePlugin implements Plugin<Project> {
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
         project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
+        project.hasProperty('java25Home')) {
+          forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
               "compile on newer Java version or pass java${project.javaVersion}Home project property")
@@ -1580,7 +1585,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
-          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
           options.compilerArgs += ['--release', compatVersion]
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
@@ -1614,7 +1619,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
+      if (['11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
         def testJavaHome = project.getProperty("java${ver}Home")
 

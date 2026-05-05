@@ -29,9 +29,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -46,7 +43,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -127,17 +123,16 @@ public class ErrorConverters {
     }
 
     @ProcessElement
-    public void processElement(
-        @Element FailsafeElement<String, String> failsafeElement,
-        @Timestamp Instant timestamp,
-        OutputReceiver<String> receiver) {
+    public void processElement(ProcessContext context) {
+      FailsafeElement<String, String> failsafeElement = context.element();
       ArrayList<String> outputRow = new ArrayList<>();
       final String message = failsafeElement.getOriginalPayload();
 
       // Format the timestamp for insertion
-      String timestampStr = TIMESTAMP_FORMATTER.print(timestamp.toDateTime(DateTimeZone.UTC));
+      String timestamp =
+          TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
 
-      outputRow.add(timestampStr);
+      outputRow.add(timestamp);
       outputRow.add(MoreObjects.firstNonNull(failsafeElement.getErrorMessage(), ""));
 
       // Only set the payload if it's populated on the message.
@@ -145,7 +140,7 @@ public class ErrorConverters {
         outputRow.add(message);
       }
 
-      receiver.output(String.join(csvDelimiter, outputRow));
+      context.output(String.join(csvDelimiter, outputRow));
     }
   }
 
@@ -203,20 +198,19 @@ public class ErrorConverters {
         DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
     @ProcessElement
-    public void processElement(
-        @Timestamp Instant timestamp,
-        @Element FailsafeElement<String, String> failsafeElement,
-        OutputReceiver<TableRow> receiver) {
+    public void processElement(ProcessContext context) {
+      FailsafeElement<String, String> failsafeElement = context.element();
       final String message = failsafeElement.getOriginalPayload();
 
       // Format the timestamp for insertion
-      String timestampStr = TIMESTAMP_FORMATTER.print(timestamp.toDateTime(DateTimeZone.UTC));
+      String timestamp =
+          TIMESTAMP_FORMATTER.print(context.timestamp().toDateTime(DateTimeZone.UTC));
 
       // Build the table row
       @SuppressWarnings("nullness") // TableRow.set not annotated but does accept nulls
       final TableRow failedRow =
           new TableRow()
-              .set("timestamp", timestampStr)
+              .set("timestamp", timestamp)
               .set("errorMessage", failsafeElement.getErrorMessage())
               .set("stacktrace", failsafeElement.getStacktrace());
 
@@ -227,7 +221,7 @@ public class ErrorConverters {
             .set("payloadBytes", message.getBytes(StandardCharsets.UTF_8));
       }
 
-      receiver.output(failedRow);
+      context.output(failedRow);
     }
   }
 
