@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.beam.sdk.transforms.DoFn.Element;
 
 /**
  * A starter example for writing Beam programs.
@@ -54,13 +55,14 @@ public class StarterPipeline {
     .apply(
       MapElements.via(
         new SimpleFunction<String, String>() {
-            @Override
-            public String apply(String input) 
-            {
-                 return input.toUpperCase();
-            }
-         }))
-    .apply(ParDo.of(new DoFn<String, Void>() {
+         @Override
+         public String apply(String input) {
+             return input.toUpperCase();
+         }
+      }))
+    .apply(
+      ParDo.of(
+       new DoFn<String, Void>() {
       @ProcessElement
       public void processElement(@Element String element)  {
         LOG.info(element);
