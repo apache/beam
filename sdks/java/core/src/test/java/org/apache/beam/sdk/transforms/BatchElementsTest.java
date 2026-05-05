@@ -26,8 +26,11 @@ import java.util.List;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -414,6 +417,55 @@ public class BatchElementsTest implements Serializable {
     PAssert.that(sizes).satisfies(s -> assertBatchSizesWithinLimitAndTotal(s, 30, numElements));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testEvictionPreservesWindowMetadata() {
+    // 1. Use 12 windows to trigger the MAX_LIVE_WINDOWS (10) eviction
+    List<TimestampedValue<Integer>> elements = new ArrayList<>();
+    for (int w = 0; w < 12; w++) {
+      long timestamp = w * 10000L; // Distinct windows
+      elements.add(TimestampedValue.of(w, new Instant(timestamp)));
+    }
+
+    PCollection<List<Integer>> batched =
+        pipeline
+            .apply(Create.timestamped(elements))
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply(
+                BatchElements.withConfig(
+                    constantConfig(10))); // Large size so they don't flush naturally
+
+    // 2. Use ParDo to capture the ACTUAL window from the context
+    PCollection<KV<IntervalWindow, List<Integer>>> windowCaptured =
+        batched.apply(
+            ParDo.of(
+                new DoFn<List<Integer>, KV<IntervalWindow, List<Integer>>>() {
+                  @ProcessElement
+                  public void process(
+                      @Element List<Integer> e,
+                      BoundedWindow w,
+                      OutputReceiver<KV<IntervalWindow, List<Integer>>> r) {
+                    r.output(KV.of((IntervalWindow) w, e));
+                  }
+                }));
+
+    // 3. Assert that the value inside the batch matches the window it was found in
+    PAssert.that(windowCaptured)
+        .satisfies(
+            items -> {
+              for (KV<IntervalWindow, List<Integer>> item : items) {
+                int windowIndex = (int) (item.getKey().start().getMillis() / 10000L);
+                for (Integer val : item.getValue()) {
+                  assertEquals(
+                      "Element " + val + " found in wrong window!", (Integer) windowIndex, val);
+                }
+              }
+              return null;
+            });
+
+    pipeline.run();
   }
 
   @Test

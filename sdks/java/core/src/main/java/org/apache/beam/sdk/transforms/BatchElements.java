@@ -391,14 +391,18 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
       double target = config.maxBatchSize;
 
+      // convert to mills
+      double targetDurationMs = config.targetBatchDurationSecs * 1000.0;
+      double targetDurationWithFixedMs = config.targetBatchDurationSecsWithFixedCost * 1000.0;
+
       // 1: a + b*x = targetDurationIncludingFixedCost
       if (config.targetBatchDurationSecsWithFixedCost > 0) {
-        target = Math.min(target, (config.targetBatchDurationSecsWithFixedCost - a) / b);
+        target = Math.min(target, (targetDurationWithFixedMs - a) / b);
       }
 
       // 2: b*x = targetDurationSecs
       if (config.targetBatchDurationSecs > 0) {
-        target = Math.min(target, config.targetBatchDurationSecs / b);
+        target = Math.min(target, targetDurationMs / b);
       }
 
       // 3: a / (a + b*x) = targetOverhead
@@ -409,7 +413,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
       // add jitter to avoid any single batch size
       int jitter = data.size() % 2;
       if (data.size() > 10) {
-        target += (int) (target * config.variance * 2 * (Math.random() - 0.5));
+        target += (int) (target * config.variance * 2 * (random.nextDouble() - 0.5));
       }
 
       return (int) Math.max(config.minBatchSize + jitter, Math.min(target, cap));
@@ -558,10 +562,15 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         Map.Entry<BoundedWindow, SizedBatch<T>> largest =
             batches.entrySet().stream().max(Comparator.comparingInt(e -> e.getValue().size)).get();
 
-        try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(largest.getValue().size)) {
-          receiver.output(largest.getValue().elements);
+        BoundedWindow targetWindow = largest.getKey();
+        SizedBatch<T> targetBatch = largest.getValue();
+
+        try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(targetBatch.size)) {
+
+          receiver.outputWithTimestamp(targetBatch.elements, targetWindow.maxTimestamp());
         }
-        batches.remove(largest.getKey());
+
+        batches.remove(targetWindow);
         targetBatchSize = estimator.nextBatchSize();
       }
     }
