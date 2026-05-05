@@ -61,6 +61,7 @@ except ImportError:
 
 _JS_DATE_ISO_REGEX = re.compile(
     r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$')
+_JS_IDENTIFIER_PATTERN = re.compile(r'^[a-zA-Z_$][a-zA-Z0-9_$]*$')
 
 _str_expression_fields = {
     'AssignTimestamps': 'timestamp',
@@ -257,10 +258,9 @@ class JsMapToFieldsDoFn(beam.DoFn):
       # that aren't compliant dot-access identifiers.
       if 'expression' in expr:
         e = expr['expression']
-        js_identifier_pattern = re.compile(r'^[a-zA-Z_$][a-zA-Z0-9_$]*$')
         valid_fields = [
             n for n in original_fields
-            if n in e and js_identifier_pattern.match(n)
+            if n in e and _JS_IDENTIFIER_PATTERN.match(n)
         ]
         consts = " ".join(
             [f"const {n} = __row__['{n}'];" for n in valid_fields])
@@ -775,6 +775,10 @@ def _PyJsMapToFields(
 
   if language == 'javascript':
     options.YamlOptions.check_enabled(pcoll.pipeline, 'javascript')
+    if MiniRacer is None:
+      raise ValueError(
+          "JavaScript mapping functions require the 'py-mini-racer' package to be installed."
+      )
     return pcoll | beam.ParDo(
         JsMapToFieldsDoFn(fields, original_fields, input_schema))
 
