@@ -119,12 +119,14 @@ public abstract class ValueInSingleWindow<T> {
     @Override
     public void encode(ValueInSingleWindow<T> windowedElem, OutputStream outStream)
         throws IOException {
-      encode(windowedElem, outStream, Coder.Context.NESTED);
+      encode(windowedElem, outStream, org.apache.beam.sdk.coders.Coder.Context.NESTED);
     }
 
     @Override
     public void encode(
-        ValueInSingleWindow<T> windowedElem, OutputStream outStream, Coder.Context context)
+        ValueInSingleWindow<T> windowedElem,
+        OutputStream outStream,
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
@@ -154,13 +156,13 @@ public abstract class ValueInSingleWindow<T> {
 
     @Override
     public ValueInSingleWindow<T> decode(InputStream inStream) throws IOException {
-      return decode(inStream, Coder.Context.NESTED);
+      return decode(inStream, org.apache.beam.sdk.coders.Coder.Context.NESTED);
     }
 
     @Override
     @SuppressWarnings("IgnoredPureGetter")
-    public ValueInSingleWindow<T> decode(InputStream inStream, Coder.Context context)
-        throws IOException {
+    public ValueInSingleWindow<T> decode(
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context) throws IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
