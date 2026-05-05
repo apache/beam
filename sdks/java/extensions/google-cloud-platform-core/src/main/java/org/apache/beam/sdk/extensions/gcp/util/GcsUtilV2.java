@@ -42,6 +42,7 @@ import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
+import com.google.cloud.storage.StorageChannelUtils;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
@@ -508,7 +509,7 @@ class GcsUtilV2 {
 
     @Override
     public int read(ByteBuffer dst) throws IOException {
-      int count = reader.read(dst);
+      int count = StorageChannelUtils.blockingFillFrom(dst, reader);
       if (count > 0) {
         this.position += count;
       }
@@ -561,8 +562,10 @@ class GcsUtilV2 {
   public SeekableByteChannel open(GcsPath path, BlobSourceOption... sourceOptions)
       throws IOException {
     Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
-    return new GcsSeekableByteChannel(
-        blob.getStorage().reader(blob.getBlobId(), sourceOptions), blob.getSize());
+    ReadChannel reader = blob.getStorage().reader(blob.getBlobId(), sourceOptions);
+    // disable internal buffering, and make the channel non-blocking
+    reader.setChunkSize(0);
+    return new GcsSeekableByteChannel(reader, blob.getSize());
   }
 
   /** A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel. */
@@ -611,6 +614,15 @@ class GcsUtilV2 {
       List<BlobWriteOption> writeOptionList = new ArrayList<>(Arrays.asList(writeOptions));
       if (options.getExpectFileToNotExist()) {
         writeOptionList.add(BlobWriteOption.doesNotExist());
+      } else {
+        // We do not merge this check with the getExpectFileToNotExist() branch above
+        // because we don't want to always make the storage.get() RPC call.
+        Blob blob = storage.get(path.getBucket(), path.getObject());
+        if (blob == null) {
+          writeOptionList.add(BlobWriteOption.doesNotExist());
+        } else {
+          writeOptionList.add(BlobWriteOption.generationMatch(blob.getGeneration()));
+        }
       }
       // Open a WriteChannel from the storage service
       WriteChannel writer =

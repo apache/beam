@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
@@ -28,6 +29,8 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.StorageChannelUtils;
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -605,6 +608,19 @@ public class GcsUtilParameterizedIT {
     }
   }
 
+  String computeHash(ByteBuffer buffer) throws NoSuchAlgorithmException {
+    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    digest.update(buffer);
+    byte[] hashBytes = digest.digest();
+
+    // Convert bytes to Hex String
+    StringBuilder sb = new StringBuilder();
+    for (byte b : hashBytes) {
+      sb.append(String.format("%02x", b));
+    }
+    return sb.toString();
+  }
+
   @Test
   public void testRead() throws IOException, NoSuchAlgorithmException {
     final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-samples/shakespeare/kinglear.txt");
@@ -616,16 +632,10 @@ public class GcsUtilParameterizedIT {
       assertEquals(expectedSize, channel.size());
       assertEquals(0, channel.position());
 
-      // Read content into ByteBuffer
-      ByteBuffer buffer = ByteBuffer.allocate((int) expectedSize);
-      int bytesRead = 0;
-      while (buffer.hasRemaining()) {
-        int read = channel.read(buffer);
-        if (read == -1) {
-          break;
-        }
-        bytesRead += read;
-      }
+      // Read content into ByteBuffer.
+      // Allocate a larger buffer to ensure we receive the EOF at the expected place.
+      ByteBuffer buffer = ByteBuffer.allocate((int) expectedSize + 1024);
+      int bytesRead = StorageChannelUtils.blockingFillFrom(buffer, channel);
 
       // Verify total bytes read and position
       assertEquals(expectedSize, bytesRead);
@@ -635,17 +645,7 @@ public class GcsUtilParameterizedIT {
       buffer.flip();
 
       // Verify hash
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      digest.update(buffer);
-      byte[] hashBytes = digest.digest();
-
-      // Convert bytes to Hex String
-      StringBuilder sb = new StringBuilder();
-      for (byte b : hashBytes) {
-        sb.append(String.format("%02x", b));
-      }
-      String actualHash = sb.toString();
-
+      String actualHash = computeHash(buffer);
       assertEquals("Content hash should match", expectedHash, actualHash);
     }
   }
@@ -653,8 +653,9 @@ public class GcsUtilParameterizedIT {
   @Test
   public void testWriteAndRead() throws IOException {
     final String bucketName = "apache-beam-temp-bucket-12345";
-    final GcsPath targetPath = GcsPath.fromComponents(bucketName, "test-object.txt");
-    final String content = "Hello, GCS!";
+    final GcsPath targetPath =
+        GcsPath.fromComponents(bucketName, "test-object-" + java.util.UUID.randomUUID() + ".txt");
+    final byte[] content = "Hello, GCS!".getBytes(StandardCharsets.UTF_8);
 
     try {
       createTestBucketHelper(bucketName, false);
@@ -662,22 +663,22 @@ public class GcsUtilParameterizedIT {
       // Write content to a GCS file
       CreateOptions options = CreateOptions.builder().setExpectFileToNotExist(true).build();
       try (WritableByteChannel writer = gcsUtil.create(targetPath, options)) {
-        writer.write(ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)));
+        writer.write(ByteBuffer.wrap(content));
       }
 
       // Read content into a buffer
-      StringBuilder readContent = new StringBuilder();
+      ByteArrayOutputStream readContent = new ByteArrayOutputStream();
       try (ReadableByteChannel reader = gcsUtil.open(targetPath)) {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         while (reader.read(buffer) != -1) {
           buffer.flip();
-          readContent.append(StandardCharsets.UTF_8.decode(buffer));
+          readContent.write(buffer.array(), 0, buffer.limit());
           buffer.clear();
         }
       }
 
       // Verify content
-      assertEquals(content, readContent.toString());
+      assertArrayEquals(content, readContent.toByteArray());
     } finally {
       tearDownTestBucketHelper(bucketName);
     }
