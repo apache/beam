@@ -36,9 +36,7 @@ class MLTransformGenerateVocabUnitTest(unittest.TestCase):
     self.assertEqual(normalized_none, '')
     self.assertEqual(
         mltransform_generate_vocab._build_vocab_text(
-            {
-                'text': ['Beam', None, '  ', 'Flow']
-            }, ['text'], lowercase=True),
+            {'text': ['Beam', None, '  ', 'Flow']}, ['text'], lowercase=True),
         'beam flow')
 
 

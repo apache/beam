@@ -37,6 +37,7 @@ from apache_beam.ml.transforms.base import MLTransform
 from apache_beam.ml.transforms.tft import ComputeAndApplyVocabulary
 from apache_beam.options.pipeline_options import PipelineOptions
 
+
 def parse_bool_flag(value: str) -> bool:
   value_lc = value.strip().lower()
   if value_lc in ('1', 'true', 't', 'yes', 'y'):
@@ -68,7 +69,8 @@ def _parse_json_line(line: str) -> dict[str, Any]:
   return parsed
 
 
-def _extract_column_values(row: dict[str, Any], columns: list[str]) -> list[str]:
+def _extract_column_values(row: dict[str, Any],
+                           columns: list[str]) -> list[str]:
   values: list[str] = []
   for col in columns:
     if col not in row:
@@ -83,8 +85,8 @@ def _extract_column_values(row: dict[str, Any], columns: list[str]) -> list[str]
   return values
 
 
-def _build_vocab_text(row: dict[str, Any], columns: list[str],
-                      lowercase: bool) -> str:
+def _build_vocab_text(
+    row: dict[str, Any], columns: list[str], lowercase: bool) -> str:
   values = _extract_column_values(row, columns)
   normalized_values = [
       normalize_text(value, lowercase=lowercase) for value in values
@@ -210,8 +212,8 @@ def run(argv=None, test_pipeline=None):
 
   vocab_text = (
       rows
-      | 'BuildVocabText' >> beam.Map(
-          lambda row: _build_vocab_text(row, columns, lowercase))
+      | 'BuildVocabText' >>
+      beam.Map(lambda row: _build_vocab_text(row, columns, lowercase))
       | 'DropEmptyText' >> beam.Filter(bool))
 
   _ = (
