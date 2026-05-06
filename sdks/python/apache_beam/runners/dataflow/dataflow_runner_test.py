@@ -624,7 +624,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
-                     'use_portable_job_submission']:
+                     'use_portable_job_submission',
+                     'enable_portable_runner']:
       self.assertTrue(
           options.view_as(DebugOptions).lookup_experiment(expected, False),
           expected)
@@ -636,6 +637,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
+                     'enable_portable_runner',
                      'use_portable_job_submission',
                      'enable_windmill_service',
                      'enable_streaming_engine']:
@@ -653,6 +655,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     for expected in ['beam_fn_api',
                      'use_unified_worker',
                      'use_runner_v2',
+                     'enable_portable_runner',
                      'use_portable_job_submission']:
       self.assertTrue(
           options.view_as(DebugOptions).lookup_experiment(expected, False),
@@ -669,6 +672,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                      'use_unified_worker',
                      'use_runner_v2',
                      'use_portable_job_submission',
+                     'enable_portable_runner',
                      'enable_windmill_service',
                      'enable_streaming_engine']:
       self.assertTrue(

@@ -591,6 +591,7 @@ def _add_runner_v2_missing_options(options):
   debug_options.add_experiment('use_unified_worker')
   debug_options.add_experiment('use_runner_v2')
   debug_options.add_experiment('use_portable_job_submission')
+  debug_options.add_experiment('enable_portable_runner')
 
 
 def _check_and_add_missing_options(options):
@@ -662,6 +663,8 @@ def _is_runner_v2_disabled(options):
   """Returns true if runner v2 is disabled."""
   debug_options = options.view_as(DebugOptions)
   return (
+      debug_options.lookup_experiment('disable_portable_runner') or
+      debug_options.lookup_experiment('enable_streaming_java_runner') or
       debug_options.lookup_experiment('disable_runner_v2') or
       debug_options.lookup_experiment('disable_runner_v2_until_2023') or
       debug_options.lookup_experiment('disable_runner_v2_until_v2.50') or
