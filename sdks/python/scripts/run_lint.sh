@@ -16,10 +16,10 @@
 #    limitations under the License.
 #
 
-# This script will run pylint and pep8 on all module files.
+# This script will run ruff and isort on all module files.
 #
-# Use "pylint apache_beam" to run pylint all files.
-# Use "pep8 apache_beam" to run pep8 all files.
+# Use "ruff check apache_beam" to run ruff all files.
+# Use "isort apache_beam" to run isort all files.
 #
 # The exit-code of the script indicates success or a failure.
 
