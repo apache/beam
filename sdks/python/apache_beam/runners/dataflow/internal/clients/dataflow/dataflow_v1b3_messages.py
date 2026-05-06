@@ -2634,8 +2634,8 @@ class FlexTemplateRuntimeEnvironment(_messages.Message):
     ipConfiguration: Configuration for VM IPs.
     kmsKeyName: Name for the Cloud KMS key for the job. Key format is:
       projects//locations//keyRings//cryptoKeys/
-    launcherMachineType: The machine type to use for launching the job. The
-      default is n1-standard-1.
+    launcherMachineType: The machine type to use for launching the job. If not
+      set, Dataflow will select a default machine type.
     machineType: The machine type to use for the job. Defaults to the value
       from the template if not specified.
     maxWorkers: The maximum number of Google Compute Engine instances to be
@@ -4475,10 +4475,15 @@ class Package(_messages.Message):
       type is: Google Cloud Storage: storage.googleapis.com/{bucket}
       bucket.storage.googleapis.com/
     name: The name of the package.
+    sha256: Optional. The hex-encoded SHA256 checksum of the package. If the
+      checksum is provided, the worker will verify the checksum of the package
+      before using it. If the checksum does not match, the worker will fail to
+      start.
   """
 
   location = _messages.StringField(1)
   name = _messages.StringField(2)
+  sha256 = _messages.StringField(3)
 
 
 class ParDoInstruction(_messages.Message):
@@ -7825,6 +7830,9 @@ class WorkerPool(_messages.Message):
       sdk_harness_container_images instead.
     zone: Zone to run the worker pools in. If empty or unspecified, the
       service will attempt to choose a reasonable default.
+    diskProvisionedIops: Optional. IOPS provisioned for the root disk for VMs.
+    diskProvisionedThroughputMibps: Optional. Throughput provisioned for the
+      root disk for VMs.
   """
 
   class DefaultPackageSetValueValuesEnum(_messages.Enum):
@@ -7957,6 +7965,8 @@ class WorkerPool(_messages.Message):
   teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
   workerHarnessContainerImage = _messages.StringField(21)
   zone = _messages.StringField(22)
+  diskProvisionedIops = _messages.IntegerField(23, variant=_messages.Variant.INT64)
+  diskProvisionedThroughputMibps = _messages.IntegerField(24, variant=_messages.Variant.INT64)
 
 
 class WorkerSettings(_messages.Message):
