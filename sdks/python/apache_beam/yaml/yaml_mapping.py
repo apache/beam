@@ -30,6 +30,7 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
+import jinja2
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
@@ -68,6 +69,25 @@ _str_expression_fields = {
     'Filter': 'keep',
     'Partition': 'by',
 }
+
+JS_EXPR_TEMPLATE = jinja2.Template(
+    """
+var {{ func_id }} = (__row__) => {
+  {% for field in valid_fields %}
+  const {{ field }} = __row__['{{ field }}'];
+  {% endfor %}
+  return ({{ expr }});
+};
+""")
+
+JS_AGGREGATOR_TEMPLATE = jinja2.Template(
+    """
+var __aggregate_fn__ = (__row__) => ({
+  {% for name, func_name in field_funcs.items() %}
+  "{{ name }}": {{ func_name }}(__row__){% if not loop.last %},{% endif %}
+  {% endfor %}
+});
+""")
 
 
 def normalize_mapping(spec):
@@ -262,10 +282,9 @@ class JsMapToFieldsDoFn(beam.DoFn):
             n for n in original_fields
             if n in e and _JS_IDENTIFIER_PATTERN.match(n)
         ]
-        consts = " ".join(
-            [f"const {n} = __row__['{n}'];" for n in valid_fields])
-        code = f"var func_{i} = (__row__) => {{ {consts} return ({e}); }}"
-        script.append(code)
+        code = JS_EXPR_TEMPLATE.render(
+            func_id=f"func_{i}", valid_fields=valid_fields, expr=e)
+        script.append(code.strip())
         self.field_funcs[name] = f"func_{i}"
       elif 'callable' in expr:
         code = f"var func_{i} = {expr['callable']}"
@@ -279,12 +298,8 @@ class JsMapToFieldsDoFn(beam.DoFn):
         self.field_funcs[name] = func_name
 
     if self.field_funcs:
-      aggregator_entries = ", ".join([
-          f'"{name}": {func_name}(__row__)'
-          for name, func_name in self.field_funcs.items()
-      ])
-      script.append(
-          f"var __aggregate_fn__ = (__row__) => ({{ {aggregator_entries} }});")
+      code = JS_AGGREGATOR_TEMPLATE.render(field_funcs=self.field_funcs)
+      script.append(code.strip())
 
     self.script = "\n".join(script) if script else None
 
