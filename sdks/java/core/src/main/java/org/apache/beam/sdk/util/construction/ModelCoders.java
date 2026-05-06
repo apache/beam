@@ -61,6 +61,7 @@ public class ModelCoders {
       getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
+  public static final String SCHEMA_CODER_URN = getUrn(StandardCoders.Enum.SCHEMA);
 
   public static final String STATE_BACKED_ITERABLE_CODER_URN =
       "beam:coder:state_backed_iterable:v1";
@@ -90,6 +91,7 @@ public class ModelCoders {
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
+          SCHEMA_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
           STATE_BACKED_ITERABLE_CODER_URN,
           SHARDED_KEY_CODER_URN,

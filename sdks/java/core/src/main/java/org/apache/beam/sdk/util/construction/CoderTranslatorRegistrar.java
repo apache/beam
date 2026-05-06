@@ -19,6 +19,8 @@ package org.apache.beam.sdk.util.construction;
 
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
 @SuppressWarnings({
@@ -34,4 +36,18 @@ public interface CoderTranslatorRegistrar {
 
   /** Returns a mapping of URN to {@link CoderTranslator}. */
   Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators();
+
+  /**
+   * Returns whether the given Coder is known to this CoderTranslatorRegistrar. If the Coder is
+   * known, then getCoderTranslator() will return a non-null CoderTranslator.
+   */
+  boolean isKnownCoder(Coder<?> coder, PipelineOptions options);
+
+  /** Returns the CoderTranslator to use for this Coder, or null if the Coder is not known. */
+  @Nullable
+  CoderTranslator<? extends Coder> getCoderTranslator(Class<? extends Coder> coderClass);
+
+  /** Returns the Coder to use for the given Urn, or null if the Urn is for an unknown Coder. */
+  @Nullable
+  Class<? extends Coder> getCoderForUrn(String coderUrn);
 }
