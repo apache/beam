@@ -649,20 +649,30 @@ public class BigQueryHelpers {
   }
 
   static String getDatasetLocation(
-      DatasetService datasetService, String projectId, String datasetId) {
-    Dataset dataset;
+      DatasetService datasetService, String projectId, String datasetId)
+      throws IOException, InterruptedException {
     try {
-      dataset = datasetService.getDataset(projectId, datasetId);
-    } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
+      Dataset dataset = datasetService.getDataset(projectId, datasetId);
+      return dataset.getLocation();
+    } catch (IOException e) {
+      ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+      if (errorExtractor.itemNotFound(e)
+          || e instanceof BigQueryServicesImpl.RetryExhaustedException) {
+        LOG.error(
+            "Terminal failure obtaining dataset {} in project {}. Resource missing or retries exhausted.",
+            datasetId,
+            projectId);
+        throw new IllegalStateException(
+            String.format(
+                "Dataset %s not found or inaccessible in project %s. Please ensure the dataset exists before running the pipeline.",
+                datasetId, projectId),
+            e);
       }
-      throw new RuntimeException(
-          String.format(
-              "unable to obtain dataset for dataset %s in project %s", datasetId, projectId),
-          e);
+      throw e;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw e;
     }
-    return dataset.getLocation();
   }
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
