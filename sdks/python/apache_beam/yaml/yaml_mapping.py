@@ -31,6 +31,7 @@ from typing import TypeVar
 from typing import Union
 
 import jinja2
+
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
