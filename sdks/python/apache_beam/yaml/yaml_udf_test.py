@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
 import logging
 import os
 import shutil
@@ -32,10 +33,10 @@ from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
-  import js2py
+  from py_mini_racer import MiniRacer
 except ImportError:
-  js2py = None
-  logging.warning('js2py is not installed; some tests will be skipped.')
+  MiniRacer = None
+  logging.warning('py_mini_racer is not installed; some tests will be skipped.')
 
 
 def as_rows():
@@ -63,7 +64,7 @@ class YamlUDFMappingTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_map_to_fields_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -197,7 +198,7 @@ class YamlUDFMappingTest(unittest.TestCase):
               beam.Row(label='389a', timestamp=2, label_copy="389a"),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -252,7 +253,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_filter_expression_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -296,7 +297,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
   def test_filter_inline_js_file(self):
     data = '''
     function f(x) {
@@ -373,6 +374,63 @@ class YamlUDFMappingTest(unittest.TestCase):
                   conductor=389,
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
+
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
+  def test_map_to_fields_js_date(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create([beam.Row(label='11a')])
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          date:
+            callable: |
+              function get_date(x) {
+                return new Date('2026-04-17T18:00:00Z')
+              }
+      ''')
+
+      expected_date = datetime.datetime(
+          2026, 4, 17, 18, tzinfo=datetime.timezone.utc)
+      assert_that(result, equal_to([
+          beam.Row(date=expected_date),
+      ]))
+
+  @unittest.skipIf(MiniRacer is None, 'py_mini_racer not installed.')
+  def test_map_to_fields_js_special_names(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create([beam.Row(label='test')])
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          'weird output-name':
+            expression: "label + '-ok'"
+      ''')
+
+      # Verify that it yields a single row with the transformed output.
+      # We use as_dict here because comparing typed Row with spaces can fail
+      # downstream assertions if mapped back to a python tuple.
+      def row_to_dict(r):
+        return {
+            k: getattr(r, k)
+            for k in dir(r)
+            if not k.startswith('_') and not callable(getattr(r, k))
+        }
+
+      assert_that(
+          result | beam.Map(lambda r: dict(r._asdict())),
+          equal_to([{
+              'weird output-name': 'test-ok'
+          }]))
 
 
 if __name__ == '__main__':
