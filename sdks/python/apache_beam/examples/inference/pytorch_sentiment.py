@@ -90,6 +90,21 @@ class RateLimitDoFn(beam.DoFn):
     yield element
 
 
+def _ensure_transformers_config_compat(config: DistilBertConfig) -> DistilBertConfig:
+  """Adds missing config attributes for cross-version transformers compatibility.
+
+  The benchmark can run with container images whose transformers version differs
+  from the launcher environment. Some versions assume these attributes exist.
+  """
+  if not hasattr(config, 'pruned_heads'):
+    config.pruned_heads = {}
+  if not hasattr(config, 'torchscript'):
+    config.torchscript = False
+  if not hasattr(config, 'return_dict'):
+    config.return_dict = True
+  return config
+
+
 def parse_known_args(argv):
   """Parses command-line arguments for pipeline execution."""
   parser = argparse.ArgumentParser()
@@ -241,11 +256,8 @@ def run(
     method = beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
     pipeline_options.view_as(StandardOptions).streaming = True
 
-  model_config = DistilBertConfig.from_pretrained(
-      known_args.model_path, num_labels=2)
-  # Some transformers versions may not initialize this field on config objects.
-  if not hasattr(model_config, 'pruned_heads'):
-    model_config.pruned_heads = {}
+  model_config = _ensure_transformers_config_compat(
+      DistilBertConfig.from_pretrained(known_args.model_path, num_labels=2))
 
   model_handler = PytorchModelHandlerKeyedTensor(
       model_class=DistilBertForSequenceClassification,
