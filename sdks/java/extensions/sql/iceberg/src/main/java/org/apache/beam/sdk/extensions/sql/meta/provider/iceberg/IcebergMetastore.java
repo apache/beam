@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -60,12 +61,14 @@ public class IcebergMetastore extends InMemoryMetaStore {
       getProvider(table.getType()).createTable(table);
     } else {
       String identifier = getIdentifier(table);
+      Map<String, String> props =
+          TableUtils.getObjectMapper()
+              .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {})
+              .entrySet().stream()
+              .filter(p -> !p.getKey().startsWith("beam."))
+              .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       try {
-        Map<String, String> properties =
-            TableUtils.getObjectMapper()
-                .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {});
-        catalogConfig.createTable(
-            identifier, table.getSchema(), table.getPartitionFields(), properties);
+        catalogConfig.createTable(identifier, table.getSchema(), table.getPartitionFields(), props);
       } catch (TableAlreadyExistsException e) {
         LOG.info(
             "Iceberg table '{}' already exists at location '{}'.", table.getName(), identifier);

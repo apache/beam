@@ -290,5 +290,6 @@ $(document).ready(function() {
     Switcher({"name": "runner", "default": "direct"}).render();
     Switcher({"name": "tab"}).render();
     Switcher({"name": "shell", "default": "unix"}).render();
+    Switcher({"name": "tab"}).render();
     Switcher({"name": "version"}).render();
 });
