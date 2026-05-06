@@ -124,10 +124,20 @@ tasks.register("generateYamlDocs") {
   outputs.file "${buildDir}/yaml-examples.html"
 }
 
+tasks.register("installYamlIntegrationTestDeps") {
+  dependsOn installGcpTest
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install --pre --retries 10 ${buildDir}/apache-beam.tar.gz[ml_test,yaml,transformers]"
+    }
+  }
+}
+
 tasks.register("yamlIntegrationTests") {
   description "Runs precommit integration tests for yaml pipelines."
 
-  dependsOn installGcpTest
+  dependsOn installYamlIntegrationTestDeps
   // Need to build all expansion services referenced in apache_beam/yaml/*.*
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
@@ -146,7 +156,7 @@ tasks.register("yamlIntegrationTests") {
 tasks.register("postCommitYamlIntegrationTests") {
   description "Runs postcommit integration tests for yaml pipelines - parameterized by yamlTestSet."
 
-  dependsOn installGcpTest
+  dependsOn installYamlIntegrationTestDeps
   // Need to build all expansion services referenced in apache_beam/yaml/*.*
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
