@@ -578,6 +578,72 @@ func TestNewNullable(t *testing.T) {
 	}
 }
 
+func TestCoder_IsDeterministic(t *testing.T) {
+	ints := NewVarInt()
+	bytes := NewBytes()
+	bools := NewBool()
+	doubles := NewDouble()
+	strs := NewString()
+
+	enc := func(string) []byte { return nil }
+	dec := func([]byte) string { return "" }
+
+	nonDetCustom, err := NewCustomCoder("nonDet", reflectx.String, enc, dec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nonDetC := &Coder{Kind: Custom, Custom: nonDetCustom, T: typex.New(reflectx.String)}
+
+	// Register a deterministic custom coder for a dedicated type.
+	type detType struct{}
+	detT := reflect.TypeOf((*detType)(nil)).Elem()
+	detEnc := func(detType) []byte { return nil }
+	detDec := func([]byte) detType { return detType{} }
+	RegisterDeterministicCoder(detT, detEnc, detDec)
+	detCustom, err := NewCustomCoder("det", detT, detEnc, detDec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	detC := &Coder{Kind: Custom, Custom: detCustom, T: typex.New(detT)}
+
+	tests := []struct {
+		name string
+		c    *Coder
+		want bool
+	}{
+		{"nil", nil, false},
+		{"bytes", bytes, true},
+		{"bool", bools, true},
+		{"varint", ints, true},
+		{"double", doubles, true},
+		{"string", strs, true},
+		{"nonDetCustom", nonDetC, false},
+		{"detCustom", detC, true},
+		{"KV_bytes_varint", NewKV([]*Coder{bytes, ints}), true},
+		{"KV_bytes_nonDet", NewKV([]*Coder{bytes, nonDetC}), false},
+		{"KV_nonDet_bytes", NewKV([]*Coder{nonDetC, bytes}), false},
+		{"iterable_varint", NewI(ints), true},
+		{"iterable_nonDet", NewI(nonDetC), false},
+		{"nullable_string", NewN(strs), true},
+		{"nullable_nonDet", NewN(nonDetC), false},
+		{"CoGBK_bytes_varint", NewCoGBK([]*Coder{bytes, ints}), true},
+		{"CoGBK_nonDet_varint", NewCoGBK([]*Coder{nonDetC, ints}), false},
+		{"WindowedValue_varint", NewW(ints, NewGlobalWindow()), true},
+		{"WindowedValue_nonDet", NewW(nonDetC, NewGlobalWindow()), false},
+		{"Row", NewR(typex.New(reflect.TypeOf((*namedTypeForTest)(nil)))), false},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			got := test.c.IsDeterministic()
+			if got != test.want {
+				t.Errorf("IsDeterministic(%v) = %v, want %v", test.c, got, test.want)
+			}
+		})
+	}
+}
+
 func TestNewCoGBK(t *testing.T) {
 	bytes := NewBytes()
 	ints := NewVarInt()

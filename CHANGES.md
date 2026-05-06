@@ -72,6 +72,11 @@
 
 * Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go) ([#38349](https://github.com/apache/beam/issues/38349)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added `GroupIntoBatches` transform and the standard
+  `beam:coder:sharded_key:v1` coder to the Go SDK, along with
+  `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,
+  and `coder.RegisterDeterministicCoder` for opt-in deterministic
+  custom coders (Go) ([#19868](https://github.com/apache/beam/issues/19868)).
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
   encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
   compatible. Both coders can decode encoded bytes from the other coder

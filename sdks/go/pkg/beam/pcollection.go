@@ -17,6 +17,7 @@ package beam
 
 import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -78,6 +79,21 @@ func (p PCollection) SetCoder(c Coder) error {
 	}
 	p.n.Coder = c.coder
 	return nil
+}
+
+// WindowingStrategy returns the windowing strategy of the PCollection. It
+// describes how elements are assigned to windows and — for transforms that
+// honor it — the allowed lateness after which windows are closed.
+//
+// Transforms that use state and timers keyed by window, such as
+// GroupIntoBatches, consult this strategy to compute end-of-window
+// event-time timers and to bound partial-batch flushes by the pipeline's
+// allowed lateness.
+func (p PCollection) WindowingStrategy() *window.WindowingStrategy {
+	if !p.IsValid() {
+		panic("Invalid PCollection")
+	}
+	return p.n.WindowingStrategy()
 }
 
 func (p PCollection) String() string {

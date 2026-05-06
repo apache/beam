@@ -18,12 +18,14 @@ package coder
 import (
 	"reflect"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 var (
-	coderRegistry     = make(map[reflect.Type]func(reflect.Type) *CustomCoder)
-	interfaceOrdering []reflect.Type
+	coderRegistry         = make(map[reflect.Type]func(reflect.Type) *CustomCoder)
+	interfaceOrdering     []reflect.Type
+	deterministicRegistry = make(map[reflect.Type]bool)
 )
 
 // RegisterCoder registers a user defined coder for a given type, and will
@@ -74,6 +76,60 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 		}
 		return cc
 	}
+}
+
+// RegisterDeterministicCoder is the deterministic-affirming counterpart to
+// RegisterCoder: it registers the (enc, dec) pair for t AND records that the
+// resulting CustomCoder produces a deterministic encoding. The caller asserts
+// by calling this function that enc produces byte-identical output for any
+// two equal input values of type t.
+//
+// Deterministic coders are required for any type used as a state key in a
+// stateful DoFn, as the key of a KV consumed by GroupByKey / GroupIntoBatches,
+// or as a grouping key for CoGroupByKey.
+//
+// Prefer this over RegisterCoder whenever the encoded type may be used as a
+// key. For types that cannot guarantee determinism (e.g. encodings backed by
+// map[K]V iteration order), use the plain RegisterCoder.
+// RegisterDeterministicCoderWithFuncs is like RegisterDeterministicCoder
+// but accepts pre-wrapped reflectx.Func values (typically built via
+// reflectx.MakeFuncWithName) so the caller controls the function name
+// used during cross-worker serialization. This is required for
+// closures inside Go generic functions where different type
+// instantiations produce closures with the same compiler name.
+func RegisterDeterministicCoderWithFuncs(t reflect.Type, encFn, decFn *funcx.Fn) {
+	name := t.String()
+	coderRegistry[t] = func(rt reflect.Type) *CustomCoder {
+		return NewCustomCoderWithFuncs(name, rt, encFn, decFn)
+	}
+	deterministicRegistry[t] = true
+}
+
+func RegisterDeterministicCoder(t reflect.Type, enc, dec any) {
+	RegisterCoder(t, enc, dec)
+	deterministicRegistry[t] = true
+}
+
+// isCustomCoderDeterministic returns true iff t has been registered via
+// RegisterDeterministicCoder.
+func isCustomCoderDeterministic(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+	if ok, present := deterministicRegistry[t]; present {
+		return ok
+	}
+	// Also match against interface registrations: if the type implements a
+	// registered-deterministic interface, honor that.
+	for rt, det := range deterministicRegistry {
+		if !det {
+			continue
+		}
+		if rt.Kind() == reflect.Interface && t.Implements(rt) {
+			return true
+		}
+	}
+	return false
 }
 
 // LookupCustomCoder returns the custom coder for the type if any,

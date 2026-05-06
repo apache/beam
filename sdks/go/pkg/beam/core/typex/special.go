@@ -44,6 +44,7 @@ var (
 	CoGBKType              = reflect.TypeOf((*CoGBK)(nil)).Elem()
 	WindowedValueType      = reflect.TypeOf((*WindowedValue)(nil)).Elem()
 	BundleFinalizationType = reflect.TypeOf((*BundleFinalization)(nil)).Elem()
+	ShardedKeyType         = reflect.TypeOf((*ShardedKey)(nil)).Elem()
 )
 
 // T, U, V, W, X, Y, Z are universal types. They play the role of generic
@@ -128,8 +129,10 @@ type Timers struct {
 	Pane                         PaneInfo
 }
 
-// KV, Nullable, CoGBK, WindowedValue represent composite generic types. They are not used
-// directly in user code signatures, but only in FullTypes.
+// KV, Nullable, CoGBK, WindowedValue, ShardedKey represent composite
+// generic types. They are not used directly in user code signatures, but
+// only in FullTypes — each appears as the root of a FullType tree whose
+// component list holds the concrete sub-types.
 
 type KV struct{}
 
@@ -138,3 +141,14 @@ type Nullable struct{}
 type CoGBK struct{}
 
 type WindowedValue struct{}
+
+// ShardedKey is the composite marker for sharded-key encoded pairs
+// (user key + opaque shard identifier). It is never constructed by user
+// code; it appears only as the root of a FullType tree whose single
+// component is the key's FullType.
+//
+// Runtime values are carried through FullValue.Elm (user key) and
+// FullValue.Elm2 ([]byte shardID). The corresponding wire encoding is
+// URN beam:coder:sharded_key:v1, byte-identical to the Java and Python
+// sharded_key encodings.
+type ShardedKey struct{}
