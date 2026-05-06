@@ -234,9 +234,15 @@ def run(
     method = beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
     pipeline_options.view_as(StandardOptions).streaming = True
 
+  model_config = DistilBertConfig.from_pretrained(
+      known_args.model_path, num_labels=2)
+  # Some transformers versions may not initialize this field on config objects.
+  if not hasattr(model_config, 'pruned_heads'):
+    model_config.pruned_heads = {}
+
   model_handler = PytorchModelHandlerKeyedTensor(
       model_class=DistilBertForSequenceClassification,
-      model_params={'config': DistilBertConfig(num_labels=2)},
+      model_params={'config': model_config},
       state_dict_path=known_args.model_state_dict_path,
       device='GPU')
 
