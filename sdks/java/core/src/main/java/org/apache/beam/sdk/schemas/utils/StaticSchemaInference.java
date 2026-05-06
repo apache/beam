@@ -22,17 +22,23 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
@@ -127,7 +133,8 @@ public class StaticSchemaInference {
     return fieldFromType(type, fieldValueTypeSupplier, new HashMap<>());
   }
 
-  // TODO(https://github.com/apache/beam/issues/21567): support type inference for logical types
+  // TODO(https://github.com/apache/beam/issues/21567): support inference for additional/custom
+  // logical types
   private static Schema.FieldType fieldFromType(
       TypeDescriptor type,
       FieldValueTypeSupplier fieldValueTypeSupplier,
@@ -177,6 +184,16 @@ public class StaticSchemaInference {
       return FieldType.STRING;
     } else if (type.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
       return FieldType.DATETIME;
+    } else if (type.getRawType().equals(LocalDate.class)) {
+      return FieldType.logicalType(SqlTypes.DATE);
+    } else if (type.getRawType().equals(LocalTime.class)) {
+      return FieldType.logicalType(SqlTypes.TIME);
+    } else if (type.getRawType().equals(LocalDateTime.class)) {
+      return FieldType.logicalType(SqlTypes.DATETIME);
+    } else if (type.getRawType().equals(java.time.Instant.class)) {
+      return FieldType.logicalType(new NanosInstant());
+    } else if (type.getRawType().equals(UUID.class)) {
+      return FieldType.logicalType(SqlTypes.UUID);
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
     } else if (type.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {
