@@ -157,6 +157,7 @@ class SplittableProcessFnFactory {
               10000,
               Duration.standardSeconds(10),
               stepContext::bundleFinalizer));
+      processFn.setBacklogBytesCallback(userStepContext::setBacklogBytes);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,

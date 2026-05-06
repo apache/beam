@@ -278,8 +278,109 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     if (residual == null) {
       return new Result(null, cont, null, null);
     }
+    final KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residualForGetSize = residual;
+    // For a list of all DoFnInvoker arguments, see DoFn.java.
+    double backlogBytes =
+        invoker.invokeGetSize(
+            new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+              @Override
+              public String getErrorContext() {
+                return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName()
+                    + "/GetSize";
+              }
+
+              @Override
+              public InputT element(DoFn<InputT, OutputT> doFn) {
+                return element.getValue();
+              }
+
+              @Override
+              public Object restriction() {
+                return residualForGetSize.getKey();
+              }
+
+              @Override
+              public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                return element.getTimestamp();
+              }
+
+              @Override
+              public RestrictionTracker<?, ?> restrictionTracker() {
+                return invoker.invokeNewTracker(
+                    new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+                      @Override
+                      public String getErrorContext() {
+                        return OutputAndTimeBoundedSplittableProcessElementInvoker.class
+                                .getSimpleName()
+                            + "/NewTracker";
+                      }
+
+                      @Override
+                      public InputT element(DoFn<InputT, OutputT> doFn) {
+                        return element.getValue();
+                      }
+
+                      @Override
+                      public Object restriction() {
+                        return residualForGetSize.getKey();
+                      }
+
+                      @Override
+                      public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                        return element.getTimestamp();
+                      }
+
+                      @Override
+                      public BoundedWindow window() {
+                        throw new IllegalStateException(
+                            "Attempting to access window outside of a windowed context");
+                      }
+
+                      @Override
+                      public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                        throw new IllegalStateException(
+                            "Attempting to access PaneInfo outside of a windowed context");
+                      }
+
+                      @Override
+                      public PipelineOptions pipelineOptions() {
+                        return pipelineOptions;
+                      }
+                    });
+              }
+
+              @Override
+              public BoundedWindow window() {
+                throw new IllegalStateException(
+                    "Attempting to access window outside of a windowed context");
+              }
+
+              @Override
+              public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                throw new IllegalStateException(
+                    "Attempting to access PaneInfo outside of a windowed context");
+              }
+
+              @Override
+              public PipelineOptions pipelineOptions() {
+                return pipelineOptions;
+              }
+
+              @Override
+              public Object sideInput(String tagId) {
+                PCollectionView<?> view = sideInputMapping.get(tagId);
+                if (view == null) {
+                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
+                }
+                return processContext.sideInput(view);
+              }
+            });
     return new Result(
-        residual.getKey(), cont, residual.getValue().getKey(), residual.getValue().getValue());
+        residual.getKey(),
+        cont,
+        residual.getValue().getKey(),
+        residual.getValue().getValue(),
+        backlogBytes);
   }
 
   private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext
