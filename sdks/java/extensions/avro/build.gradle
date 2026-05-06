@@ -40,7 +40,7 @@ def avroVersions = [
     '182' : "1.8.2",
     '192' : "1.9.2",
     '1102': "1.10.2",
-    '1120': "1.12.0",
+    '1113': "1.11.3",
 ]
 
 avroVersions.each { k, v ->
@@ -73,7 +73,7 @@ dependencies {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
-  testImplementation project(path: ":sdks:java:extensions:avro:vendored-test", configuration: "shadowTest")
+  testImplementation(library.java.avro + ':tests')
   testImplementation library.java.junit
   testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testImplementation "com.esotericsoftware:kryo:5.6.2" // Used by Avro coder test

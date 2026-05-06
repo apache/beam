@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.pubsub.v1.Schema;
 import java.util.Map;
+import org.apache.avro.AvroTypeException;
 import org.apache.avro.SchemaParseException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
@@ -262,7 +263,7 @@ public class PubsubClientTest {
 
     assertThrows(
         "'notatype' Avro type should throw an exception",
-        SchemaParseException.class,
+        AvroTypeException.class,
         () ->
             PubsubClient.fromPubsubSchema(
                 new com.google.api.services.pubsub.model.Schema()
