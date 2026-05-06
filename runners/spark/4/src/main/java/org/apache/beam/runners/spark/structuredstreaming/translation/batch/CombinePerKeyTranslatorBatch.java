@@ -46,7 +46,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.expressions.Aggregator;
 import scala.Tuple2;
-import scala.collection.TraversableOnce;
+import scala.collection.IterableOnce;
 
 /**
  * Translator for {@link Combine.PerKey} using {@link Dataset#groupByKey} with a Spark {@link
@@ -140,7 +140,7 @@ class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
   }
 
   private static <K, V>
-      Fun1<Tuple2<K, Collection<WindowedValue<V>>>, TraversableOnce<WindowedValue<KV<K, V>>>>
+      Fun1<Tuple2<K, Collection<WindowedValue<V>>>, IterableOnce<WindowedValue<KV<K, V>>>>
           explodeWindows() {
     return t ->
         ScalaInterop.scalaIterator(t._2).map(wv -> wv.withValue(KV.of(t._1, wv.getValue())));

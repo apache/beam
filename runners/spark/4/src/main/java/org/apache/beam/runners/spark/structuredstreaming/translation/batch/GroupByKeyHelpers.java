@@ -31,7 +31,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import scala.Tuple2;
-import scala.collection.TraversableOnce;
+import scala.collection.IterableOnce;
 
 /**
  * Package private helpers to support translating grouping transforms using `groupByKey` such as
@@ -74,7 +74,7 @@ class GroupByKeyHelpers {
    * traversable of composite keys {@code (BoundedWindow, Key)} and value.
    */
   static <K, V, T>
-      Fun1<WindowedValue<KV<K, V>>, TraversableOnce<Tuple2<Tuple2<BoundedWindow, K>, T>>>
+      Fun1<WindowedValue<KV<K, V>>, IterableOnce<Tuple2<Tuple2<BoundedWindow, K>, T>>>
           explodeWindowedKey(Fun1<WindowedValue<KV<K, V>>, T> valueFn) {
     return v -> {
       T value = valueFn.apply(v);

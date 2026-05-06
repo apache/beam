@@ -33,7 +33,6 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.util
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun1;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.fun2;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.javaIterator;
-import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.listOf;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.seqOf;
 import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -67,17 +66,12 @@ import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.TypedColumn;
-import org.apache.spark.sql.catalyst.expressions.CreateArray;
-import org.apache.spark.sql.catalyst.expressions.CreateNamedStruct;
-import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.sql.catalyst.expressions.Literal;
-import org.apache.spark.sql.catalyst.expressions.Literal$;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import scala.Tuple2;
 import scala.collection.Iterator;
-import scala.collection.Seq;
+import scala.collection.JavaConverters;
 import scala.collection.immutable.List;
 
 /**
@@ -106,10 +100,10 @@ class GroupByKeyTranslatorBatch<K, V>
         PCollection<KV<K, V>>, PCollection<KV<K, Iterable<V>>>, GroupByKey<K, V>> {
 
   /** Literal of binary encoded Pane info. */
-  private static final Expression PANE_NO_FIRING = lit(toByteArray(NO_FIRING, PaneInfoCoder.of()));
+  private static final Column PANE_NO_FIRING = lit(toByteArray(NO_FIRING, PaneInfoCoder.of()));
 
   /** Defaults for value in single global window. */
-  private static final List<Expression> GLOBAL_WINDOW_DETAILS =
+  private static final List<Column> GLOBAL_WINDOW_DETAILS =
       windowDetails(lit(new byte[][] {EMPTY_BYTE_ARRAY}));
 
   GroupByKeyTranslatorBatch() {
@@ -137,7 +131,8 @@ class GroupByKeyTranslatorBatch<K, V>
             .as(SparkCommonPipelineOptions.class)
             .getPreferGroupByKeyToHandleHugeValues();
     if (useCollectList && eligibleForGlobalGroupBy(windowing, false)) {
-      // Collects all values per key in memory. This might be problematic if there's few keys only
+      // Collects all values per key in memory. This might be problematic if there's
+      // few keys only
       // or some highly skewed distribution.
       result =
           input
@@ -149,7 +144,8 @@ class GroupByKeyTranslatorBatch<K, V>
                       windowTimestamp(tsCombiner)));
 
     } else if (eligibleForGlobalGroupBy(windowing, true)) {
-      // Produces an iterable that can be traversed exactly once. However, on the plus side, data is
+      // Produces an iterable that can be traversed exactly once. However, on the plus
+      // side, data is
       // not collected in memory until serialized or done by the user.
       result =
           cxt.getDataset(cxt.getInput())
@@ -161,8 +157,10 @@ class GroupByKeyTranslatorBatch<K, V>
     } else if (useCollectList
         && eligibleForGroupByWindow(windowing, false)
         && (windowing.getWindowFn().assignsToOneWindow() || transform.fewKeys())) {
-      // Using the window as part of the key should help to better distribute the data. However, if
-      // values are assigned to multiple windows, more data would be shuffled around. If there's few
+      // Using the window as part of the key should help to better distribute the
+      // data. However, if
+      // values are assigned to multiple windows, more data would be shuffled around.
+      // If there's few
       // keys only, this is still valuable.
       // Collects all values per key & window in memory.
       result =
@@ -178,24 +176,28 @@ class GroupByKeyTranslatorBatch<K, V>
 
     } else if (eligibleForGroupByWindow(windowing, true)
         && (windowing.getWindowFn().assignsToOneWindow() || transform.fewKeys())) {
-      // Using the window as part of the key should help to better distribute the data. However, if
-      // values are assigned to multiple windows, more data would be shuffled around. If there's few
+      // Using the window as part of the key should help to better distribute the
+      // data. However, if
+      // values are assigned to multiple windows, more data would be shuffled around.
+      // If there's few
       // keys only, this is still valuable.
-      // Produces an iterable that can be traversed exactly once. However, on the plus side, data is
+      // Produces an iterable that can be traversed exactly once. However, on the plus
+      // side, data is
       // not collected in memory until serialized or done by the user.
       Encoder<Tuple2<BoundedWindow, K>> windowedKeyEnc =
           cxt.tupleEncoder(cxt.windowEncoder(), keyEnc);
       result =
           cxt.getDataset(cxt.getInput())
               .flatMap(explodeWindowedKey(valueValue()), cxt.tupleEncoder(windowedKeyEnc, valueEnc))
-              .groupByKey(fun1(Tuple2::_1), windowedKeyEnc)
-              .mapValues(fun1(Tuple2::_2), valueEnc)
+              .groupByKey(fun1(t -> t._1()), windowedKeyEnc)
+              .mapValues(fun1(t -> t._2()), valueEnc)
               .mapGroups(
                   fun2((wKey, it) -> windowedKV(wKey, iterableOnce(it))),
                   cxt.windowedEncoder(outputCoder));
 
     } else {
-      // Collects all values per key in memory. This might be problematic if there's few keys only
+      // Collects all values per key in memory. This might be problematic if there's
+      // few keys only
       // or some highly skewed distribution.
 
       // FIXME Revisit this case, implementation is far from ideal:
@@ -236,12 +238,12 @@ class GroupByKeyTranslatorBatch<K, V>
     return new Column[] {agg.as("timestamp")};
   }
 
-  private static Expression windowTimestamp(TimestampCombiner tsCombiner) {
+  private static Column windowTimestamp(TimestampCombiner tsCombiner) {
     if (tsCombiner.equals(TimestampCombiner.END_OF_WINDOW)) {
       // null will be set to END_OF_WINDOW by the respective deserializer
       return litNull(DataTypes.LongType);
     }
-    return col("timestamp").expr();
+    return col("timestamp");
   }
 
   /**
@@ -260,35 +262,37 @@ class GroupByKeyTranslatorBatch<K, V>
   }
 
   private static <InT, T> TypedColumn<InT, WindowedValue<T>> inGlobalWindow(
-      TypedColumn<?, T> value, Expression ts) {
-    List<Expression> fields = concat(timestampedValue(value, ts), GLOBAL_WINDOW_DETAILS);
+      TypedColumn<?, T> value, Column ts) {
+    List<Column> fields = concat(timestampedValue(value, ts), GLOBAL_WINDOW_DETAILS);
     Encoder<WindowedValue<T>> enc =
         windowedValueEncoder(value.encoder(), encoderOf(GlobalWindow.class));
-    return (TypedColumn<InT, WindowedValue<T>>) new Column(new CreateNamedStruct(fields)).as(enc);
+    return (TypedColumn<InT, WindowedValue<T>>)
+        struct(JavaConverters.asJavaCollection(fields).toArray(new Column[0])).as(enc);
   }
 
   public static <InT, T> TypedColumn<InT, WindowedValue<T>> inSingleWindow(
-      TypedColumn<?, T> value, TypedColumn<?, ? extends BoundedWindow> window, Expression ts) {
-    Expression windows = new CreateArray(listOf(window.expr()));
-    Seq<Expression> fields = concat(timestampedValue(value, ts), windowDetails(windows));
+      TypedColumn<?, T> value, TypedColumn<?, ? extends BoundedWindow> window, Column ts) {
+    Column windows = org.apache.spark.sql.functions.array(window);
+    List<Column> fields = concat(timestampedValue(value, ts), windowDetails(windows));
     Encoder<WindowedValue<T>> enc = windowedValueEncoder(value.encoder(), window.encoder());
-    return (TypedColumn<InT, WindowedValue<T>>) new Column(new CreateNamedStruct(fields)).as(enc);
+    return (TypedColumn<InT, WindowedValue<T>>)
+        struct(JavaConverters.asJavaCollection(fields).toArray(new Column[0])).as(enc);
   }
 
-  private static List<Expression> timestampedValue(Column value, Expression ts) {
-    return seqOf(lit("value"), value.expr(), lit("timestamp"), ts).toList();
+  private static List<Column> timestampedValue(Column value, Column ts) {
+    return seqOf(value.as("value"), ts.as("timestamp")).toList();
   }
 
-  private static List<Expression> windowDetails(Expression windows) {
-    return seqOf(lit("windows"), windows, lit("paneInfo"), PANE_NO_FIRING).toList();
+  private static List<Column> windowDetails(Column windows) {
+    return seqOf(windows.as("windows"), PANE_NO_FIRING.as("paneInfo")).toList();
   }
 
-  private static <T extends @NonNull Object> Expression lit(T t) {
-    return Literal$.MODULE$.apply(t);
+  private static <T extends @NonNull Object> Column lit(T t) {
+    return org.apache.spark.sql.functions.lit(t);
   }
 
   @SuppressWarnings("nullness") // NULL literal
-  private static Expression litNull(DataType dataType) {
-    return new Literal(null, dataType);
+  private static Column litNull(DataType dataType) {
+    return org.apache.spark.sql.functions.lit(null).cast(dataType);
   }
 }

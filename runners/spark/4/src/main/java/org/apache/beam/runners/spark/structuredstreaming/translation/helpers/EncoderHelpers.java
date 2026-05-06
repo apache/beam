@@ -54,6 +54,7 @@ import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.catalyst.SerializerBuildHelper;
 import org.apache.spark.sql.catalyst.SerializerBuildHelper.MapElementInformation;
 import org.apache.spark.sql.catalyst.analysis.GetColumnByOrdinal;
+import org.apache.spark.sql.catalyst.encoders.AgnosticEncoder;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.expressions.BoundReference;
 import org.apache.spark.sql.catalyst.expressions.Coalesce;
@@ -491,20 +492,35 @@ public class EncoderHelpers {
     return deserializer(enc).transformUp(replace(GetColumnByOrdinal.class, input));
   }
 
+  /**
+   * Wraps an {@link Encoder} as an {@link ExpressionEncoder}. In Spark 4.x, built-in encoders (e.g.
+   * {@code Encoders.INT()}) are {@link AgnosticEncoder} subclasses rather than {@link
+   * ExpressionEncoder}s, so we convert them on demand.
+   */
+  @SuppressWarnings("unchecked")
+  private static <T> ExpressionEncoder<T> toExpressionEncoder(Encoder<T> enc) {
+    if (enc instanceof ExpressionEncoder) {
+      return (ExpressionEncoder<T>) enc;
+    } else if (enc instanceof AgnosticEncoder) {
+      return ExpressionEncoder.apply((AgnosticEncoder<T>) enc);
+    }
+    throw new IllegalArgumentException("Unsupported encoder type: " + enc.getClass());
+  }
+
   private static <T> Expression serializer(Encoder<T> enc) {
-    return ((ExpressionEncoder<T>) enc).objSerializer();
+    return toExpressionEncoder(enc).objSerializer();
   }
 
   private static <T> Expression deserializer(Encoder<T> enc) {
-    return ((ExpressionEncoder<T>) enc).objDeserializer();
+    return toExpressionEncoder(enc).objDeserializer();
   }
 
   private static <T> DataType serializedType(Encoder<T> enc) {
-    return ((ExpressionEncoder<T>) enc).objSerializer().dataType();
+    return toExpressionEncoder(enc).objSerializer().dataType();
   }
 
   private static <T> DataType deserializedType(Encoder<T> enc) {
-    return ((ExpressionEncoder<T>) enc).objDeserializer().dataType();
+    return toExpressionEncoder(enc).objDeserializer().dataType();
   }
 
   private static Expression rootRef(DataType dt, boolean nullable) {

@@ -113,6 +113,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State cancel() throws IOException {
+    pipelineExecution.cancel(true);
     offerNewState(PipelineResult.State.CANCELLED);
     return state;
   }
