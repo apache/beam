@@ -74,6 +74,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -1413,6 +1414,11 @@ class BatchViewOverrides {
     @Override
     public @Nullable Long getRecordOffset() {
       return null;
+    }
+
+    @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
     }
 
     @Override

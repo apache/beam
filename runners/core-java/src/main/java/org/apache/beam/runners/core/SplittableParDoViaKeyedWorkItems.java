@@ -473,7 +473,8 @@ public class SplittableParDoViaKeyedWorkItems {
                   read.getRecordId(),
                   read.getRecordOffset(),
                   CausedByDrain.CAUSED_BY_DRAIN,
-                  read.getOpenTelemetryContext());
+                  read.getOpenTelemetryContext(),
+                  read.getValueKind());
         }
         elementAndRestriction = KV.of(read, restrictionState.read());
         watermarkEstimatorStateT = watermarkEstimatorState.read();
