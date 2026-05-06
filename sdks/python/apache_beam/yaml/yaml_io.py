@@ -741,16 +741,19 @@ def write_to_mongodb(
   """
   from apache_beam.io import mongodbio
 
-  def row_to_dict(row):
-    if hasattr(row, '_asdict'):
-      return dict(row._asdict())
-    elif hasattr(row, 'as_dict'):
-      return row.as_dict()
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
     else:
-      try:
-        return dict(row)
-      except:
-        raise ValueError(f"Cannot convert {row} to dict for MongoDB write.")
+      return value
 
   return (
       pcoll

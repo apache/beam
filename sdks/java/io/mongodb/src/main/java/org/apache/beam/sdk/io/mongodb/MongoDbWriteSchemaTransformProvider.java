@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import com.google.auto.service.AutoService;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.bson.Document;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB. */
 @AutoService(SchemaTransformProvider.class)
@@ -107,8 +110,7 @@ public class MongoDbWriteSchemaTransformProvider
       documents.apply("WriteToMongo", write);
 
       // Extract and format the error collection.
-      PCollection<Row> errorOutput =
-          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
 
       // Return the error collection as specified by the configuration.
       ErrorHandling errorHandling = configuration.getErrorHandling();
@@ -131,11 +133,14 @@ public class MongoDbWriteSchemaTransformProvider
     @ProcessElement
     public void processElement(@Element Row row, MultiOutputReceiver receiver) {
       try {
-        Document doc = new Document();
-        for (Field field : row.getSchema().getFields()) {
-          doc.append(field.getName(), row.getValue(field.getName()));
+        Object converted = convertToBsonValue(row);
+        if (converted instanceof Document) {
+          receiver.get(OUTPUT_TAG).output((Document) converted);
+        } else {
+          throw new IllegalStateException(
+              "Expected Document but got "
+                  + (converted != null ? converted.getClass().getName() : "null"));
         }
-        receiver.get(OUTPUT_TAG).output(doc);
       } catch (Exception e) {
         if (!handleErrors) {
           throw new RuntimeException(e);
@@ -144,5 +149,53 @@ public class MongoDbWriteSchemaTransformProvider
         receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
       }
     }
+  }
+
+  private static @Nullable Object convertToBsonValue(@Nullable Object value) {
+    if (value == null) {
+      return null;
+    }
+    if (value instanceof Row) {
+      Row row = (Row) value;
+      Document doc = new Document();
+      for (Field field : row.getSchema().getFields()) {
+        Object fieldValue = row.getValue(field.getName());
+        Object convertedValue = convertToBsonValue(fieldValue);
+        if (convertedValue != null) {
+          doc.append(field.getName(), convertedValue);
+        }
+      }
+      return doc;
+    } else if (value instanceof List) {
+      List<?> list = (List<?>) value;
+      List<Object> bsonList = new ArrayList<>(list.size());
+      for (Object item : list) {
+        Object convertedItem = convertToBsonValue(item);
+        if (convertedItem != null) {
+          bsonList.add(convertedItem);
+        }
+      }
+      return bsonList;
+    } else if (value instanceof Iterable) {
+      List<Object> bsonList = new ArrayList<>();
+      for (Object item : (Iterable<?>) value) {
+        Object convertedItem = convertToBsonValue(item);
+        if (convertedItem != null) {
+          bsonList.add(convertedItem);
+        }
+      }
+      return bsonList;
+    } else if (value instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) value;
+      Document doc = new Document();
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        Object convertedValue = convertToBsonValue(entry.getValue());
+        if (convertedValue != null) {
+          doc.append(String.valueOf(entry.getKey()), convertedValue);
+        }
+      }
+      return doc;
+    }
+    return value;
   }
 }
