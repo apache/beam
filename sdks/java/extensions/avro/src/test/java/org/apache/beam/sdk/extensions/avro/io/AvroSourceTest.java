@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -74,9 +75,6 @@ import org.junit.runners.JUnit4;
 /** Tests for AvroSource. */
 @RunWith(JUnit4.class)
 public class AvroSourceTest {
-  private static final String VERSION_AVRO =
-      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
-
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -560,10 +558,11 @@ public class AvroSourceTest {
 
     AvroSource.DatumReaderFactory<GenericRecord> factory =
         (writer, reader) ->
-            new GenericDatumReader<GenericRecord>(writer, reader) {
+            new GenericDatumReader<>(writer, reader) {
               @Override
-              protected Object readString(Object old, Decoder in) throws IOException {
-                return super.readString(old, in) + "_custom";
+              protected Object readString(Object old, Schema schema, Decoder in)
+                  throws IOException {
+                return super.readString(old, schema, in) + "_custom";
               }
             };
 

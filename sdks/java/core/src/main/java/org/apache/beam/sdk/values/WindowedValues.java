@@ -1051,6 +1051,10 @@ public class WindowedValues {
       metadataSupported = true;
     }
 
+    public static void setMetadataNotSupported() {
+      metadataSupported = false;
+    }
+
     public static boolean isMetadataSupported() {
       return metadataSupported;
     }

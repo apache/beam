@@ -23,6 +23,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.api.gax.paging.Page;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.ReadChannel;
+import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -33,21 +35,29 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobField;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
+import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
+import com.google.cloud.storage.StorageChannelUtils;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -70,6 +80,8 @@ class GcsUtilV2 {
 
   private Storage storage;
 
+  private final @Nullable Integer uploadBufferSizeBytes;
+
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_BLOBS_PER_CALL = 1024;
 
@@ -85,13 +97,14 @@ class GcsUtilV2 {
   GcsUtilV2(PipelineOptions options) {
     String projectId = options.as(GcpOptions.class).getProject();
     storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+    uploadBufferSizeBytes = options.as(GcsOptions.class).getGcsUploadBufferSizeBytes();
   }
 
   @SuppressWarnings({
     "nullness" // For Creating AccessDeniedException FileNotFoundException, and
     // FileAlreadyExistsException with null.
   })
-  private IOException translateStorageException(GcsPath gcsPath, StorageException e) {
+  private static IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:
         return new AccessDeniedException(gcsPath.toString(), null, e.getMessage());
@@ -479,6 +492,154 @@ class GcsUtilV2 {
       }
     } catch (StorageException e) {
       throw translateStorageException(bucketInfo.getName(), null, e);
+    }
+  }
+
+  /** A bridge that allows a GCS ReadChannel to behave as a SeekableByteChannel. */
+  private static class GcsSeekableByteChannel implements SeekableByteChannel {
+    private final ReadChannel reader;
+    private final long size;
+    private long position = 0;
+
+    GcsSeekableByteChannel(ReadChannel reader, long size) {
+      this.reader = reader;
+      this.size = size;
+      this.position = 0;
+    }
+
+    @Override
+    public int read(ByteBuffer dst) throws IOException {
+      int count = StorageChannelUtils.blockingFillFrom(dst, reader);
+      if (count > 0) {
+        this.position += count;
+      }
+      return count;
+    }
+
+    @Override
+    public SeekableByteChannel position(long newPosition) throws IOException {
+      checkArgument(newPosition >= 0, "Position must be non-negative: %s", newPosition);
+      reader.seek(newPosition);
+      this.position = newPosition;
+      return this;
+    }
+
+    @Override
+    public long position() throws IOException {
+      return this.position;
+    }
+
+    @Override
+    public long size() throws IOException {
+      return size;
+    }
+
+    @Override
+    public SeekableByteChannel truncate(long size) throws IOException {
+      throw new UnsupportedOperationException(
+          "GcsSeekableByteChannels are read-only and cannot be truncated.");
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      throw new UnsupportedOperationException(
+          "GcsSeekableByteChannel are read-only and does not support writing.");
+    }
+
+    @Override
+    public boolean isOpen() {
+      return reader.isOpen();
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (isOpen()) {
+        reader.close();
+      }
+    }
+  }
+
+  public SeekableByteChannel open(GcsPath path, BlobSourceOption... sourceOptions)
+      throws IOException {
+    Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
+    ReadChannel reader = blob.getStorage().reader(blob.getBlobId(), sourceOptions);
+    // disable internal buffering, and make the channel non-blocking
+    reader.setChunkSize(0);
+    return new GcsSeekableByteChannel(reader, blob.getSize());
+  }
+
+  /** A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel. */
+  private static class GcsWritableByteChannel implements WritableByteChannel {
+    private final WriteChannel writer;
+    private final GcsPath gcsPath;
+
+    GcsWritableByteChannel(WriteChannel writer, GcsPath gcsPath) {
+      this.writer = writer;
+      this.gcsPath = gcsPath;
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      try {
+        return writer.write(src);
+      } catch (StorageException e) {
+        throw translateStorageException(gcsPath, e);
+      }
+    }
+
+    @Override
+    public boolean isOpen() {
+      return writer.isOpen();
+    }
+
+    @Override
+    public void close() throws IOException {
+      writer.close();
+    }
+  }
+
+  public WritableByteChannel create(
+      GcsPath path, GcsUtilV1.CreateOptions options, BlobWriteOption... writeOptions)
+      throws IOException {
+    try {
+      // Define the metadata for the new object
+      BlobInfo.Builder builder = BlobInfo.newBuilder(path.getBucket(), path.getObject());
+      String type = options.getContentType();
+      if (type != null) {
+        builder.setContentType(type);
+      }
+
+      BlobInfo blobInfo = builder.build();
+
+      List<BlobWriteOption> writeOptionList = new ArrayList<>(Arrays.asList(writeOptions));
+      if (options.getExpectFileToNotExist()) {
+        writeOptionList.add(BlobWriteOption.doesNotExist());
+      } else {
+        // We do not merge this check with the getExpectFileToNotExist() branch above
+        // because we don't want to always make the storage.get() RPC call.
+        Blob blob = storage.get(path.getBucket(), path.getObject());
+        if (blob == null) {
+          writeOptionList.add(BlobWriteOption.doesNotExist());
+        } else {
+          writeOptionList.add(BlobWriteOption.generationMatch(blob.getGeneration()));
+        }
+      }
+      // Open a WriteChannel from the storage service
+      WriteChannel writer =
+          storage.writer(blobInfo, writeOptionList.toArray(new BlobWriteOption[0]));
+      Integer uploadBufferSizeBytes =
+          options.getUploadBufferSizeBytes() != null
+              ? options.getUploadBufferSizeBytes()
+              : this.uploadBufferSizeBytes;
+      if (uploadBufferSizeBytes != null) {
+        writer.setChunkSize(uploadBufferSizeBytes);
+      }
+
+      // Return the bridge wrapper
+      return new GcsWritableByteChannel(writer, path);
+
+    } catch (StorageException e) {
+      throw translateStorageException(path, e);
     }
   }
 }

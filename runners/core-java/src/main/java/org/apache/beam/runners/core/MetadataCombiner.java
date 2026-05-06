@@ -15,24 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.avro;
+package org.apache.beam.runners.core;
 
-import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
-import static org.junit.Assert.assertEquals;
+/** Interface for combining pipeline metadata. */
+interface MetadataCombiner<T> {
+  T createAccumulator();
 
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.Assume;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
-@RunWith(JUnit4.class)
-public class AvroVersionVerificationTest {
-  @Test
-  public void testAvroVersion() {
-    @Nullable String targetVer = System.getProperty("beam.target.avro.version");
-    Assume.assumeTrue(!Strings.isNullOrEmpty(targetVer));
-    assertEquals(targetVer, VERSION_AVRO);
-  }
+  T addInput(T accumulator, T input);
 }
