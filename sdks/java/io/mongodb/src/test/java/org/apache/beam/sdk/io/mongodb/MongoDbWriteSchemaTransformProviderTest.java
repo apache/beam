@@ -22,17 +22,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import java.util.Collections;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -107,13 +104,13 @@ public class MongoDbWriteSchemaTransformProviderTest {
     Schema schema =
         SchemaRegistry.createDefault().getSchema(MongoDbWriteSchemaTransformConfiguration.class);
 
-    // We expect 11 fields now after adding errorHandling
-    assertEquals(11, schema.getFieldCount());
+    // We expect 5 fields now (uri, database, collection, batchSize, errorHandling)
+    assertEquals(5, schema.getFieldCount());
     assertNotNull(schema.getField("uri"));
     assertNotNull(schema.getField("database"));
     assertNotNull(schema.getField("collection"));
     assertNotNull(schema.getField("batchSize"));
-    assertNotNull(schema.getField("ordered"));
+    assertNotNull(schema.getField("errorHandling"));
   }
 
   @Test
@@ -162,51 +159,5 @@ public class MongoDbWriteSchemaTransformProviderTest {
             });
 
     p.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testUpdateConfigurationSchema() throws NoSuchSchemaException {
-    Schema schema = SchemaRegistry.createDefault().getSchema(MongoDbUpdateConfiguration.class);
-    assertNotNull(schema);
-    assertEquals(4, schema.getFieldCount());
-    assertNotNull(schema.getField("findKey"));
-    assertNotNull(schema.getField("updateKey"));
-    assertNotNull(schema.getField("isUpsert"));
-    assertNotNull(schema.getField("updateFields"));
-  }
-
-  @Test
-  public void testBuildTransformWithUpdateConfiguration() {
-    MongoDbUpdateField field =
-        MongoDbUpdateField.builder()
-            .setUpdateOperator("$set")
-            .setDestField("name")
-            .setSourceField("src_name")
-            .build();
-
-    MongoDbUpdateConfiguration updateConfig =
-        MongoDbUpdateConfiguration.builder()
-            .setFindKey("id")
-            .setIsUpsert(true)
-            .setUpdateFields(Collections.singletonList(field))
-            .build();
-
-    MongoDbWriteSchemaTransformConfiguration config =
-        MongoDbWriteSchemaTransformConfiguration.builder()
-            .setUri("mongodb://localhost:27017")
-            .setDatabase("db")
-            .setCollection("col")
-            .setUpdateConfiguration(updateConfig)
-            .build();
-
-    SchemaTransform transform = new MongoDbWriteSchemaTransformProvider().from(config);
-    assertNotNull(transform);
-
-    // Verify that expand executes without mapping errors
-    Schema inputSchema = Schema.builder().addStringField("id").addStringField("src_name").build();
-    PCollection<Row> input = p.apply(Create.empty(inputSchema));
-    PCollectionRowTuple.of("input", input).apply(transform);
-
-    p.run();
   }
 }

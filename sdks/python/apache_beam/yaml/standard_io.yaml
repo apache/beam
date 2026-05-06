@@ -115,6 +115,7 @@
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
+    'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
 
 
 # General File Formats
@@ -439,6 +440,8 @@
         connection_uri: "uri"
         database: "database"
         collection: "collection"
+        batch_size: "batch_size"
+        error_handling: "error_handling"
     underlying_provider:
       type: beamJar
       transforms:
