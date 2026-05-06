@@ -83,6 +83,7 @@
 
 ## Breaking Changes
 
+* (Python) Made Beartype the default fallback type checking tool. This can be disabled with the `--disable_beartype` pipeline option. ([#38275](https://github.com/apache/beam/issues/38275))
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
