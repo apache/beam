@@ -31,5 +31,7 @@
 --device=CPU
 --input_file=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --runner=DataflowRunner
+--sdk_location=container
+--sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt@sha256:884d67e96d9a3c22fb21fcd412c10a012d4c82a7c723f1c1ffe41fca609b5a6a
 --model_path=distilbert-base-uncased-finetuned-sst-2-english
 --model_state_dict_path=gs://apache-beam-ml/models/huggingface.sentiment.distilbert-base-uncased.pth
