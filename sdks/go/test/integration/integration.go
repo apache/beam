@@ -199,7 +199,7 @@ var flinkFilters = []string{
 	"TestTestStreamToGBK",
 	"TestTestStreamTimersEventTime",
 
-	"TestTimers_EventTime_Unbounded", // (failure when comparing on side inputs (NPE on window lookup))
+	"TestTimers_EventTime_WithNoOutputTimestamp", // Encounter error: TimestampCombiner moved element from TIMESTAMP_MAX_VALUE to earlier time (end of global window) for window GlobalWindow
 	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
 
 	// no support for BundleFinalizer

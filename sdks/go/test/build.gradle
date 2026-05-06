@@ -79,8 +79,7 @@ task dataflowValidatesRunnerARM64() {
 task flinkValidatesRunner {
   group = "Verification"
 
-  // TODO(https://github.com/apache/beam/issues/37600) use project.ext.latestFlinkVersion after resolved
-  def flinkVersion = '1.20'
+  def flinkVersion = project.ext.latestFlinkVersion
 
   dependsOn ":sdks:go:test:goBuild"
   dependsOn ":sdks:go:container:docker"
