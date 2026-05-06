@@ -7775,9 +7775,6 @@ class WorkerPool(_messages.Message):
     defaultPackageSet: The default package set to install. This allows the
       service to select a default set of packages which are useful to worker
       harnesses written in a particular language.
-    diskProvisionedIops: Optional. IOPS provisioned for the root disk for VMs.
-    diskProvisionedThroughputMibps: Optional. Throughput provisioned for the
-      root disk for VMs.
     diskSizeGb: Size of root disk for VMs, in GB. If zero or unspecified, the
       service will attempt to choose a reasonable default.
     diskSourceImage: Fully qualified source image for disks.
@@ -7960,8 +7957,6 @@ class WorkerPool(_messages.Message):
   teardownPolicy = _messages.EnumField('TeardownPolicyValueValuesEnum', 20)
   workerHarnessContainerImage = _messages.StringField(21)
   zone = _messages.StringField(22)
-  diskProvisionedIops = _messages.IntegerField(23)
-  diskProvisionedThroughputMibps = _messages.IntegerField(24)
 
 
 class WorkerSettings(_messages.Message):
