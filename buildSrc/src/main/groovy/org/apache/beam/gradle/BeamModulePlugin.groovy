@@ -682,8 +682,8 @@ class BeamModulePlugin implements Plugin<Project> {
         aircompressor                               : "io.airlift:aircompressor:2.0.3",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
-        avro                                        : "org.apache.avro:avro:1.11.4",
+        // TODO: upgrade post 1.12.1 once https://issues.apache.org/jira/browse/AVRO-4209 resolved
+        avro                                        : "org.apache.avro:avro:1.12.0",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
