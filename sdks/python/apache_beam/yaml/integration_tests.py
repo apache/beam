@@ -222,17 +222,11 @@ def temp_mongodb_table():
   - collection: ${mongo_vars.COLLECTION}
   """
   _LOGGER.info("Setting up MongoDB fixture...")
-  # Initialize and start the MongoDB container.
-  # This will pull the 'mongo:7.0.7' image if it's not available locally.
   mongo_container = MongoDbContainer("mongo:7.0.7")
   try:
     mongo_container.start()
-
-    # Get the dynamically generated connection URI.
     mongo_uri = mongo_container.get_connection_url()
 
-    # Generate a unique database and collection name for this test run to ensure
-    # isolation between different test files.
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
 
@@ -249,7 +243,6 @@ def temp_mongodb_table():
     }
 
   finally:
-    # This block executes after the test suite finishes.
     _LOGGER.info("Tearing down MongoDB fixture...")
     mongo_container.stop()
     _LOGGER.info("MongoDB container stopped.")
