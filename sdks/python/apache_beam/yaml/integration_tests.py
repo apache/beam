@@ -45,6 +45,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
 from testcontainers.kafka import KafkaContainer
+from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -198,6 +199,53 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     instanceT.delete()
   except HttpError:
     _LOGGER.warning("Failed to clean up instance")
+
+
+@contextlib.contextmanager
+def temp_mongodb_table():
+  """
+  provides a temporary MongoDB instance.
+
+  starts a MongoDB container, creates a unique database
+  and collection name for test isolation, and yields them as a dictionary.
+
+  This allows YAML test files to get connection details without hardcoding them.
+  Example usage in a YAML test file's fixture section:
+
+  fixtures:
+    - name: mongo_vars
+      type: path.to.this.file.mongodb_fixture
+
+  Then, in the pipeline definition, you can use placeholders like:
+  - uri: ${mongo_vars.URI}
+  - database: ${mongo_vars.DATABASE}
+  - collection: ${mongo_vars.COLLECTION}
+  """
+  _LOGGER.info("Setting up MongoDB fixture...")
+  mongo_container = MongoDbContainer("mongo:7.0.7")
+  try:
+    mongo_container.start()
+    mongo_uri = mongo_container.get_connection_url()
+
+    db_name = f'db_{uuid.uuid4().hex}'
+    collection_name = f'collection_{uuid.uuid4().hex}'
+
+    _LOGGER.info(
+        "MongoDB container started. URI: [%s], DB: [%s], Collection: [%s]",
+        mongo_uri,
+        db_name,
+        collection_name)
+
+    yield {
+        'URI': mongo_uri,
+        'DATABASE': db_name,
+        'COLLECTION': collection_name,
+    }
+
+  finally:
+    _LOGGER.info("Tearing down MongoDB fixture...")
+    mongo_container.stop()
+    _LOGGER.info("MongoDB container stopped.")
 
 
 @contextlib.contextmanager

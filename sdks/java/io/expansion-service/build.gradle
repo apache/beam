@@ -90,6 +90,7 @@ dependencies {
     runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
   }
 
+  runtimeOnly project(":sdks:java:io:mongodb")
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 
