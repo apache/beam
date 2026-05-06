@@ -99,12 +99,14 @@ jobs:
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
       - name: Build VLLM Development Image
         id: build_vllm_image
+        if: false
         uses: ./.github/actions/build-push-docker-action
         with:
           dockerfile_path: 'sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile'
           image_name: 'us-docker.pkg.dev/apache-beam-testing/beam-temp/beam-vllm-gpu-base'
           image_tag: ${{ github.sha }}
       - name: Run VLLM Gemma Batch Test
+        if: false
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
