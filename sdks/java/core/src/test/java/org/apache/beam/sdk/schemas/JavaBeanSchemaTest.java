@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.assertSchemaEquivalent;
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ANNOTATED_SIMPLE_BEAN_SCHEMA;
@@ -32,6 +33,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PARAMETER_NULLABLE
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.genericBeanSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -56,6 +58,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithCaseFormat;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithNoCreateOption;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithRenamedFieldsAndSetters;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.GenericBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
@@ -68,9 +71,11 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.junit.Ignore;
@@ -131,6 +136,16 @@ public class JavaBeanSchemaTest {
         .build();
   }
 
+  private <T> GenericBean<T> createGeneric(T t) {
+    GenericBean<T> genericBean = new GenericBean<>();
+    genericBean.setT(t);
+    return genericBean;
+  }
+
+  private Row createGenericRow(Schema.FieldType tFieldType, Object tFieldValue) {
+    return Row.withSchema(genericBeanSchema(tFieldType)).withFieldValue("t", tFieldValue).build();
+  }
+
   @Test
   public void testSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
@@ -138,14 +153,9 @@ public class JavaBeanSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
   }
 
-  @Test
-  public void testToRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    SimpleBean bean = createSimple("string");
-    Row row = registry.getToRowFunction(SimpleBean.class).apply(bean);
-
+  private static void verifyRow(String expectedStrField, Row row) {
     assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString("str"));
+    assertEquals(expectedStrField, row.getString("str"));
     assertEquals((byte) 1, (Object) row.getByte("aByte"));
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
@@ -159,13 +169,8 @@ public class JavaBeanSchemaTest {
     assertEquals("stringbuilder", row.getString("stringBuilder"));
   }
 
-  @Test
-  public void testFromRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    Row row = createSimpleRow("string");
-
-    SimpleBean bean = registry.getFromRowFunction(SimpleBean.class).apply(row);
-    assertEquals("string", bean.getStr());
+  private static void verifySimpleBean(String expectedStrField, SimpleBean bean) {
+    assertEquals(expectedStrField, bean.getStr());
     assertEquals((byte) 1, bean.getaByte());
     assertEquals((short) 2, bean.getaShort());
     assertEquals((int) 3, bean.getAnInt());
@@ -177,6 +182,23 @@ public class JavaBeanSchemaTest {
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimpleBean bean = createSimple("string");
+    Row row = registry.getToRowFunction(SimpleBean.class).apply(bean);
+    verifyRow("string", row);
+  }
+
+  @Test
+  public void testFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+
+    SimpleBean bean = registry.getFromRowFunction(SimpleBean.class).apply(row);
+    verifySimpleBean("string", bean);
   }
 
   @Test
@@ -624,5 +646,122 @@ public class JavaBeanSchemaTest {
     assertEquals(output, row);
     assertEquals(
         registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
+  }
+
+  @Test
+  public void testGenericBeamSchema() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema actual = registry.getSchema(new TypeDescriptor<GenericBean<SimpleBean>>() {});
+    Schema expected = genericBeanSchema(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA));
+
+    assertSchemaEquivalent(expected, actual);
+  }
+
+  @Test
+  public void testGenericBeamSchemaToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    GenericBean<GenericBean<SimpleBean>> genericBean =
+        createGeneric(createGeneric(createSimple("string")));
+
+    Row row =
+        registry
+            .getToRowFunction(new TypeDescriptor<GenericBean<GenericBean<SimpleBean>>>() {})
+            .apply(genericBean);
+
+    verifyRow("string", row.getRow("t").getRow("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema nestedSchema = genericBeanSchema(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA));
+    Row row =
+        createGenericRow(
+            Schema.FieldType.row(nestedSchema),
+            createGenericRow(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA), createSimpleRow("string")));
+    GenericBean<GenericBean<SimpleBean>> actual =
+        registry
+            .getFromRowFunction(new TypeDescriptor<GenericBean<GenericBean<SimpleBean>>>() {})
+            .apply(row);
+
+    verifySimpleBean("string", actual.getT().getT());
+  }
+
+  @Test
+  public void testGenericBeamSchemaMapToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(
+                new TypeDescriptor<GenericBean<Map<String, GenericBean<String>>>>() {})
+            .apply(
+                createGeneric(
+                    ImmutableMap.<String, GenericBean<String>>builder()
+                        .put("k1", createGeneric("v1"))
+                        .put("k2", createGeneric("v2"))
+                        .build()));
+
+    assertEquals("v1", row.<String, Row>getMap("t").get("k1").getString("t"));
+    assertEquals("v2", row.<String, Row>getMap("t").get("k2").getString("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaMapFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType mapValueFieldType =
+        Schema.FieldType.row(genericBeanSchema(Schema.FieldType.STRING));
+    GenericBean<Map<String, GenericBean<String>>> actual =
+        registry
+            .getFromRowFunction(
+                new TypeDescriptor<GenericBean<Map<String, GenericBean<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.map(Schema.FieldType.STRING, mapValueFieldType),
+                    ImmutableMap.<String, Row>builder()
+                        .put("k1", createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .put("k2", createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+
+    assertEquals("v1", actual.getT().get("k1").getT());
+    assertEquals("v2", actual.getT().get("k2").getT());
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(new TypeDescriptor<GenericBean<Iterable<GenericBean<String>>>>() {})
+            .apply(
+                createGeneric(
+                    ImmutableList.<GenericBean<String>>builder()
+                        .add(createGeneric("v1"))
+                        .add(createGeneric("v2"))
+                        .build()));
+
+    Row[] rows = Streams.stream(row.<Row>getIterable("t")).toArray(Row[]::new);
+
+    assertEquals("v1", rows[0].getString("t"));
+    assertEquals("v2", rows[1].getString("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType elementFieldType =
+        Schema.FieldType.row(genericBeanSchema(Schema.FieldType.STRING));
+    GenericBean<Iterable<GenericBean<String>>> actual =
+        registry
+            .getFromRowFunction(new TypeDescriptor<GenericBean<Iterable<GenericBean<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.array(elementFieldType),
+                    ImmutableList.<Row>builder()
+                        .add(createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .add(createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+    GenericBean<String>[] beans = Streams.stream(actual.getT()).toArray(GenericBean[]::new);
+    assertEquals("v1", beans[0].getT());
+    assertEquals("v2", beans[1].getT());
   }
 }
