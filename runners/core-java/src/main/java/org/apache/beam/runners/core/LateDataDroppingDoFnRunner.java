@@ -151,7 +151,9 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
                     element.getPaneInfo(),
                     element.getRecordId(),
                     element.getRecordOffset(),
-                    element.causedByDrain()));
+                    element.causedByDrain(),
+                    element.getOpenTelemetryContext(),
+                    element.getValueKind()));
           }
         }
       }
