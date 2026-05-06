@@ -29,6 +29,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import fastavro
 
@@ -716,3 +717,47 @@ def write_to_tfrecord(
           num_shards=num_shards,
           shard_name_template=shard_name_template,
           compression_type=getattr(CompressionTypes, compression_type))
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def write_to_mongodb(
+    pcoll,
+    *,
+    database: str,
+    collection: str,
+    connection_uri: str = "mongodb://localhost:27017",
+    batch_size: int = 100,
+    extra_client_params: Optional[Mapping[str, Any]] = None):
+  """Writes data to MongoDB.
+
+  Args:
+    pcoll: The input PCollection of Beam Rows.
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    connection_uri: The MongoDB connection string.
+    batch_size: Number of documents per bulk_write to MongoDB.
+    extra_client_params: Optional MongoClient parameters.
+  """
+  from apache_beam.io import mongodbio
+
+  def row_to_dict(row):
+    if hasattr(row, '_asdict'):
+      return dict(row._asdict())
+    elif hasattr(row, 'as_dict'):
+      return row.as_dict()
+    else:
+      try:
+        return dict(row)
+      except:
+        raise ValueError(f"Cannot convert {row} to dict for MongoDB write.")
+
+  return (
+      pcoll
+      | beam.Map(row_to_dict)
+      | mongodbio.WriteToMongoDB(
+          uri=connection_uri,
+          db=database,
+          coll=collection,
+          batch_size=batch_size,
+          extra_client_params=extra_client_params))

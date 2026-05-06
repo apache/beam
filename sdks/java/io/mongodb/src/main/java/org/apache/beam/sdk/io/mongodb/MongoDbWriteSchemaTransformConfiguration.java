@@ -45,30 +45,6 @@ public abstract class MongoDbWriteSchemaTransformConfiguration implements Serial
   @Nullable
   public abstract Long getBatchSize();
 
-  @SchemaFieldDescription("Whether the writes should be performed in an ordered manner.")
-  @Nullable
-  public abstract Boolean getOrdered();
-
-  @SchemaFieldDescription("Maximum connection idle time in milliseconds.")
-  @Nullable
-  public abstract Integer getMaxConnectionIdleTime();
-
-  @SchemaFieldDescription("Enable SSL for the connection.")
-  @Nullable
-  public abstract Boolean getSslEnabled();
-
-  @SchemaFieldDescription("Allow invalid hostnames for SSL connections.")
-  @Nullable
-  public abstract Boolean getSslInvalidHostNameAllowed();
-
-  @SchemaFieldDescription("Ignore SSL certificate validation.")
-  @Nullable
-  public abstract Boolean getIgnoreSSLCertificate();
-
-  @SchemaFieldDescription("Configuration for Update and Upsert operations.")
-  @Nullable
-  public abstract MongoDbUpdateConfiguration getUpdateConfiguration();
-
   @SchemaFieldDescription(
       "This option specifies whether and where to output unwritable rows. Note: Error handling is currently limited to data conversion failures before sending to the MongoDB driver, as the underlying MongoDbIO does not yet support dead-letter queues for write failures.")
   @Nullable
@@ -101,18 +77,6 @@ public abstract class MongoDbWriteSchemaTransformConfiguration implements Serial
     public abstract Builder setCollection(String collection);
 
     public abstract Builder setBatchSize(Long batchSize);
-
-    public abstract Builder setOrdered(Boolean ordered);
-
-    public abstract Builder setMaxConnectionIdleTime(Integer maxConnectionIdleTime);
-
-    public abstract Builder setSslEnabled(Boolean sslEnabled);
-
-    public abstract Builder setSslInvalidHostNameAllowed(Boolean sslInvalidHostNameAllowed);
-
-    public abstract Builder setIgnoreSSLCertificate(Boolean ignoreSSLCertificate);
-
-    public abstract Builder setUpdateConfiguration(MongoDbUpdateConfiguration updateConfiguration);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import com.google.auto.service.AutoService;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -99,66 +98,6 @@ public class MongoDbWriteSchemaTransformProvider
       if (batchSize != null) {
         write = write.withBatchSize(batchSize);
       }
-      Boolean ordered = configuration.getOrdered();
-      if (ordered != null) {
-        write = write.withOrdered(ordered);
-      }
-      Integer maxIdleTime = configuration.getMaxConnectionIdleTime();
-      if (maxIdleTime != null) {
-        write = write.withMaxConnectionIdleTime(maxIdleTime);
-      }
-      Boolean sslEnabled = configuration.getSslEnabled();
-      if (sslEnabled != null) {
-        write = write.withSSLEnabled(sslEnabled);
-      }
-      Boolean sslInvalidHost = configuration.getSslInvalidHostNameAllowed();
-      if (sslInvalidHost != null) {
-        write = write.withSSLInvalidHostNameAllowed(sslInvalidHost);
-      }
-      Boolean ignoreCert = configuration.getIgnoreSSLCertificate();
-      if (ignoreCert != null) {
-        write = write.withIgnoreSSLCertificate(ignoreCert);
-      }
-
-      MongoDbUpdateConfiguration updateConfig = configuration.getUpdateConfiguration();
-      if (updateConfig != null) {
-        UpdateConfiguration targetUpdateConfig = UpdateConfiguration.create();
-
-        String findKey = updateConfig.getFindKey();
-        if (findKey != null) {
-          targetUpdateConfig = targetUpdateConfig.withFindKey(findKey);
-        }
-        String updateKey = updateConfig.getUpdateKey();
-        if (updateKey != null) {
-          targetUpdateConfig = targetUpdateConfig.withUpdateKey(updateKey);
-        }
-        Boolean isUpsert = updateConfig.getIsUpsert();
-        if (isUpsert != null) {
-          targetUpdateConfig = targetUpdateConfig.withIsUpsert(isUpsert);
-        }
-        List<MongoDbUpdateField> updateFields = updateConfig.getUpdateFields();
-        if (updateFields != null) {
-          List<UpdateField> targetUpdateFields = new ArrayList<>();
-          for (MongoDbUpdateField field : updateFields) {
-            String updateOperator = field.getUpdateOperator();
-            String destField = field.getDestField();
-            String sourceField = field.getSourceField();
-
-            if (updateOperator != null && destField != null) {
-              if (sourceField != null) {
-                targetUpdateFields.add(
-                    UpdateField.fieldUpdate(updateOperator, sourceField, destField));
-              } else {
-                targetUpdateFields.add(UpdateField.fullUpdate(updateOperator, destField));
-              }
-            }
-          }
-          targetUpdateConfig =
-              targetUpdateConfig.withUpdateFields(targetUpdateFields.toArray(new UpdateField[0]));
-        }
-
-        write = write.withUpdateConfiguration(targetUpdateConfig);
-      }
 
       documents.apply("WriteToMongo", write);
 
@@ -171,25 +110,6 @@ public class MongoDbWriteSchemaTransformProvider
           errorOutput);
     }
   }
-
-  /**
-   * A {@link DoFn} to convert a Beam {@link Row} to a MongoDB {@link Document} filtering out nulls.
-   */
-  // private static class RowToMongoDocumentFn extends DoFn<Row, Document> {
-  //   @ProcessElement
-  //   public void processElement(@Element Row row, OutputReceiver<Document> out) {
-  //     Document doc = new Document();
-  //     for (int i = 0; i < row.getSchema().getFieldCount(); i++) {
-  //       String fieldName = row.getSchema().getField(i).getName();
-  //       Object value = row.getValue(i);
-
-  //       if (value != null) {
-  //         doc.append(fieldName, value);
-  //       }
-  //     }
-  //     out.output(doc);
-  //   }
-  // }
 
   /** Converts a Beam {@link Row} to a BSON {@link Document}. */
   static class RowToBsonDocumentFn extends DoFn<Row, Document> {
