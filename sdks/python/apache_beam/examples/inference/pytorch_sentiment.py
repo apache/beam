@@ -47,9 +47,6 @@ from transformers import DistilBertTokenizerFast
 
 class SentimentPostProcessor(beam.DoFn):
   """Processes PredictionResult to extract sentiment label and confidence."""
-  def __init__(self, tokenizer: DistilBertTokenizerFast):
-    self.tokenizer = tokenizer
-
   def process(self, element: tuple[str, PredictionResult]) -> Iterable[dict]:
     text, prediction_result = element
     logits = prediction_result.inference['logits']
@@ -62,16 +59,26 @@ class SentimentPostProcessor(beam.DoFn):
     }
 
 
-def tokenize_text(text: str,
-                  tokenizer: DistilBertTokenizerFast) -> tuple[str, dict]:
-  """Tokenizes input text using the specified tokenizer."""
-  tokenized = tokenizer(
-      text,
-      padding='max_length',
-      truncation=True,
-      max_length=128,
-      return_tensors="pt")
-  return text, {k: torch.squeeze(v) for k, v in tokenized.items()}
+class TokenizeTextDoFn(beam.DoFn):
+  """Initializes tokenizer per worker and tokenizes input text."""
+  def __init__(self, model_path: str):
+    self.model_path = model_path
+    self.tokenizer = None
+
+  def setup(self):
+    self.tokenizer = DistilBertTokenizerFast.from_pretrained(self.model_path)
+    # Some transformers builds expose pad token through legacy attributes.
+    if not hasattr(self.tokenizer, '_pad_token'):
+      self.tokenizer._pad_token = '[PAD]'
+
+  def process(self, text: str) -> Iterable[tuple[str, dict]]:
+    tokenized = self.tokenizer(
+        text,
+        padding='max_length',
+        truncation=True,
+        max_length=128,
+        return_tensors="pt")
+    yield text, {k: torch.squeeze(v) for k, v in tokenized.items()}
 
 
 class RateLimitDoFn(beam.DoFn):
@@ -246,8 +253,6 @@ def run(
       state_dict_path=known_args.model_state_dict_path,
       device='GPU')
 
-  tokenizer = DistilBertTokenizerFast.from_pretrained(known_args.model_path)
-
   pipeline = test_pipeline or beam.Pipeline(options=pipeline_options)
 
   # Main pipeline: read, process, write result to BigQuery output table
@@ -270,9 +275,9 @@ def run(
 
   _ = (
       input
-      | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
+      | 'Tokenize' >> beam.ParDo(TokenizeTextDoFn(known_args.model_path))
       | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
-      | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
+      | 'PostProcess' >> beam.ParDo(SentimentPostProcessor())
       | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
           known_args.output_table,
           schema='text:STRING, sentiment:STRING, confidence:FLOAT',
