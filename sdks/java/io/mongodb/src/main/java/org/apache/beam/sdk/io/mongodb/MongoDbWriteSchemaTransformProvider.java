@@ -74,12 +74,15 @@ public class MongoDbWriteSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
+      // Retrieve the input PCollection of Rows and its schema.
       PCollection<Row> rows = input.get(INPUT_TAG);
       org.apache.beam.sdk.schemas.Schema inputSchema = rows.getSchema();
 
+      // Determine if error handling is enabled and set up the error schema.
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       org.apache.beam.sdk.schemas.Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
 
+      // Convert Beam Rows to BSON Documents, emitting errors to a separate tag if enabled.
       PCollectionTuple outputTuple =
           rows.apply(
               "ConvertToDocument",
@@ -88,6 +91,7 @@ public class MongoDbWriteSchemaTransformProvider
 
       PCollection<Document> documents = outputTuple.get(OUTPUT_TAG);
 
+      // Configure the MongoDB write operation.
       MongoDbIO.Write write =
           MongoDbIO.write()
               .withUri(configuration.getUri())
@@ -99,11 +103,14 @@ public class MongoDbWriteSchemaTransformProvider
         write = write.withBatchSize(batchSize);
       }
 
+      // Apply the MongoDB write transform.
       documents.apply("WriteToMongo", write);
 
+      // Extract and format the error collection.
       PCollection<Row> errorOutput =
           outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
 
+      // Return the error collection as specified by the configuration.
       ErrorHandling errorHandling = configuration.getErrorHandling();
       return PCollectionRowTuple.of(
           (handleErrors && errorHandling != null) ? errorHandling.getOutput() : "errors",
