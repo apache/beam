@@ -191,12 +191,12 @@ func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
-	if got, want := len(opts.Experiments), 4; got != want {
+	if got, want := len(opts.Experiments), 5; got != want {
 		t.Fatalf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	}
 	sort.Strings(opts.Experiments)
-	expectedExperiments := []string{"beam_fn_api", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
-	for i := 0; i < 2; i++ {
+	expectedExperiments := []string{"beam_fn_api", "enable_portable_runner", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
+	for i := 0; i < 5; i++ {
 		if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
 			t.Errorf("getJobOptions().Experiments[%d] = %q, want %q", i, got, want)
 		}
@@ -219,7 +219,7 @@ func TestGetJobOptions_NoExperimentsSetStreaming(t *testing.T) {
 		t.Fatalf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	}
 	sort.Strings(opts.Experiments)
-	expectedExperiments := []string{"beam_fn_api", "enable_streaming_engine", "enable_windmill_service", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
+	expectedExperiments := []string{"beam_fn_api", "enable_portable_runner", "enable_streaming_engine", "enable_windmill_service", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
 	for i := 0; i < 2; i++ {
 		if got, want := opts.Experiments[i], expectedExperiments[i]; got != want {
 			t.Errorf("getJobOptions().Experiments[%d] = %q, want %q", i, got, want)
@@ -233,6 +233,40 @@ func TestGetJobOptions_DisableRunnerV2ExperimentsSet(t *testing.T) {
 	*gcpopts.Project = "testProject"
 	*gcpopts.Region = "testRegion"
 	*jobopts.Experiments = "disable_runner_v2"
+
+	opts, err := getJobOptions(context.Background(), false)
+
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_DisablePortableRunnerExperimentsSet(t *testing.T) {
+	resetGlobals()
+	*stagingLocation = "gs://testStagingLocation"
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+	*jobopts.Experiments = "disable_portable_runner"
+
+	opts, err := getJobOptions(context.Background(), false)
+
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_EnableStreamingJavaRunnerExperimentsSet(t *testing.T) {
+	resetGlobals()
+	*stagingLocation = "gs://testStagingLocation"
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+	*jobopts.Experiments = "enable_streaming_java_runner"
 
 	opts, err := getJobOptions(context.Background(), false)
 
