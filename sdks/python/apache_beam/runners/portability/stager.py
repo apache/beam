@@ -228,7 +228,7 @@ class Stager(object):
               '--requirements_file command line option.' %
               setup_options.requirements_file)
         extra_packages, thinned_requirements_file = (
-            Stager._extract_local_packages(setup_options.requirements_file))
+            Stager._extract_local_packages(setup_options.requirements_file, temp_dir))
         if extra_packages:
           setup_options.extra_packages = (
               setup_options.extra_packages or []) + extra_packages
@@ -699,14 +699,30 @@ class Stager(object):
     return tmp_requirements_filename
 
   @staticmethod
-  def _extract_local_packages(requirements_file):
+  def _extract_local_packages(requirements_file, temp_dir):
     local_deps = []
     pypi_deps = []
     with open(requirements_file, 'r') as fin:
+      staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
       for line in fin:
         dep = line.strip()
+        parsed_url = urlparse(dep)
         if os.path.exists(dep):
           local_deps.append(dep)
+        elif parsed_url.scheme:
+          last_component = os.path.basename(parsed_url.path)
+          if not last_component:
+            _LOGGER.warning(
+                'Extra package %s has an unexpected format hence will not be downloaded locally.'
+                % dep)
+            continue
+          # Download remote package.
+          _LOGGER.info(
+              'Downloading remote extra package: %s locally before staging',
+              dep)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
+          Stager._download_file(dep, local_file_path)
+          local_deps.append(local_file_path)
         else:
           pypi_deps.append(dep)
     if local_deps:

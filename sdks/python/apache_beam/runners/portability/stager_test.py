@@ -155,6 +155,39 @@ class StagerTest(unittest.TestCase):
       self.stager._download_file(from_url, to_path)
       assert mock_mkdir.called
 
+  @mock.patch('apache_beam.runners.portability.stager.Stager._download_file')
+  def test_extract_local_packages(self, mock_download):
+    temp_dir = self.make_temp_dir()
+    req_file = os.path.join(temp_dir, 'requirements.txt')
+
+    local_file = os.path.join(temp_dir, 'local.tar.gz')
+    self.create_temp_file(local_file, 'nothing')
+
+    url = 'http://example.com/remote.tar.gz'
+    invalid_url = 'http://example.com/'
+    pypi_dep = 'pytest'
+
+    contents = '\n'.join([local_file, url, invalid_url, pypi_dep])
+    self.create_temp_file(req_file, contents)
+
+    def fake_download(src, dst):
+      with open(dst, 'w') as f:
+        f.write('downloaded')
+
+    mock_download.side_effect = fake_download
+
+    local_deps, thinned_req = stager.Stager._extract_local_packages(req_file, temp_dir)
+
+    self.assertEqual(len(local_deps), 2)
+    self.assertEqual(local_deps[0], local_file)
+    self.assertTrue(local_deps[1].endswith('remote.tar.gz'))
+
+    mock_download.assert_called_once_with(url, mock.ANY)
+
+    with open(thinned_req, 'r') as f:
+      lines = f.read().splitlines()
+    self.assertEqual(lines, [pypi_dep])
+
   def test_no_staging_location(self):
     with self.assertRaises(RuntimeError) as cm:
       self.stager.stage_job_resources([], staging_location=None)
