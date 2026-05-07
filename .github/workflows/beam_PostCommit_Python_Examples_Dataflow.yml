@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Python_Examples_Dataflow"]
         job_phrase: ["Run Python Examples_Dataflow"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -83,7 +83,7 @@ jobs:
             -PuseWheelDistribution \
             -PpythonVersion=3.14 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results

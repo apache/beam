@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_PortableJar_Spark"]
         job_phrase: ["Run PortableJar_Spark PostCommit"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -83,7 +83,7 @@ jobs:
           arguments: |
             -PpythonVersion=3.10 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results

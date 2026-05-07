@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.values;
 
 import com.google.auto.value.AutoValue;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -68,6 +69,8 @@ public abstract class ValueInSingleWindow<T> {
 
   public abstract CausedByDrain getCausedByDrain();
 
+  public abstract @Nullable Context getOpenTelemetryContext();
+
   // todo #33176 specify additional metadata in the future
   public static <T> ValueInSingleWindow<T> of(
       T value,
@@ -76,14 +79,22 @@ public abstract class ValueInSingleWindow<T> {
       PaneInfo paneInfo,
       @Nullable String currentRecordId,
       @Nullable Long currentRecordOffset,
-      CausedByDrain causedByDrain) {
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext) {
     return new AutoValue_ValueInSingleWindow<>(
-        value, timestamp, window, paneInfo, currentRecordId, currentRecordOffset, causedByDrain);
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        openTelemetryContext);
   }
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL);
+    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, null);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -108,11 +119,14 @@ public abstract class ValueInSingleWindow<T> {
     @Override
     public void encode(ValueInSingleWindow<T> windowedElem, OutputStream outStream)
         throws IOException {
-      encode(windowedElem, outStream, Context.NESTED);
+      encode(windowedElem, outStream, org.apache.beam.sdk.coders.Coder.Context.NESTED);
     }
 
     @Override
-    public void encode(ValueInSingleWindow<T> windowedElem, OutputStream outStream, Context context)
+    public void encode(
+        ValueInSingleWindow<T> windowedElem,
+        OutputStream outStream,
+        org.apache.beam.sdk.coders.Coder.Context context)
         throws IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowCoder.encode(windowedElem.getWindow(), outStream);
@@ -127,6 +141,12 @@ public abstract class ValueInSingleWindow<T> {
             windowedElem.getCausedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
                 ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING);
+        io.opentelemetry.context.Context openTelemetryContext =
+            windowedElem.getOpenTelemetryContext();
+        if (openTelemetryContext != null) {
+
+          OpenTelemetryContextPropagator.set(openTelemetryContext, builder);
+        }
         BeamFnApi.Elements.ElementMetadata metadata = builder.build();
         ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
       }
@@ -136,16 +156,18 @@ public abstract class ValueInSingleWindow<T> {
 
     @Override
     public ValueInSingleWindow<T> decode(InputStream inStream) throws IOException {
-      return decode(inStream, Context.NESTED);
+      return decode(inStream, org.apache.beam.sdk.coders.Coder.Context.NESTED);
     }
 
     @Override
     @SuppressWarnings("IgnoredPureGetter")
-    public ValueInSingleWindow<T> decode(InputStream inStream, Context context) throws IOException {
+    public ValueInSingleWindow<T> decode(
+        InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context) throws IOException {
       Instant timestamp = InstantCoder.of().decode(inStream);
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       CausedByDrain causedByDrain = CausedByDrain.NORMAL;
+      io.opentelemetry.context.@Nullable Context openTelemetryContext = null;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
@@ -153,12 +175,13 @@ public abstract class ValueInSingleWindow<T> {
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
+        openTelemetryContext = OpenTelemetryContextPropagator.read(elementMetadata);
       }
 
       T value = valueCoder.decode(inStream, context);
       // todo #33176 specify additional metadata in the future
       return new AutoValue_ValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain);
+          value, timestamp, window, paneInfo, null, null, causedByDrain, openTelemetryContext);
     }
 
     @Override

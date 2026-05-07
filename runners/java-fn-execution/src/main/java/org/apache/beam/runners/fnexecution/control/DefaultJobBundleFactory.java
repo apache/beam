@@ -734,6 +734,10 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     abstract Builder toBuilder();
 
+    public static Builder builder() {
+      return new AutoValue_DefaultJobBundleFactory_ServerInfo.Builder();
+    }
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setControlServer(GrpcFnServer<FnApiControlClientPoolService> server);

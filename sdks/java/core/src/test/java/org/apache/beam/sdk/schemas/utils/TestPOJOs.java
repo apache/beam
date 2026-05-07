@@ -891,7 +891,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PojoWithNestedArray)) {
+      if (!(o instanceof PojoWithIterable)) {
         return false;
       }
       PojoWithIterable that = (PojoWithIterable) o;

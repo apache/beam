@@ -40,7 +40,7 @@ If you're new to Apache Beam, start here:
 
 ## Status
 
-[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
+[![Maven Central](https://img.shields.io/maven-central/v/org.apache.beam/beam-sdks-java-core.svg)](https://search.maven.org/artifact/org.apache.beam/beam-sdks-java-core)
 [![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Go version](https://pkg.go.dev/badge/github.com/apache/beam/sdks/v2/go.svg)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go)
 [![Python coverage](https://codecov.io/gh/apache/beam/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/beam)

@@ -32,7 +32,6 @@ import threading
 import time
 import zipfile
 from typing import Any
-from typing import Set
 from urllib.error import URLError
 from urllib.request import Request
 from urllib.request import urlopen
@@ -49,7 +48,7 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass
 class _SharedCacheEntry:
   obj: Any
-  owners: Set[str]
+  owners: set[str]
 
 
 class _SharedCache:

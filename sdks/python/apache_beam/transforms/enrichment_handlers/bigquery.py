@@ -73,8 +73,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
   names to fetch.
 
   This handler pulls data from BigQuery per element by default. To change this
-  behavior, set the `min_batch_size` and `max_batch_size` parameters.
-  These min and max values for batch size are sent to the
+  behavior, set the `min_batch_size`, `max_batch_size`, and
+  `max_batch_duration_secs` parameters.
+  These batching values are sent to the
   :class:`apache_beam.transforms.utils.BatchElements` transform.
 
   NOTE: Elements cannot be batched when using the `query_fn` parameter.
@@ -91,6 +92,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query_fn: Optional[QueryFn] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
+      max_batch_duration_secs: Optional[float] = None,
       throw_exception_on_empty_results: bool = True,
       **kwargs,
   ):
@@ -124,11 +126,14 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         querying BigQuery. Defaults to 1 if `query_fn` is not specified.
       max_batch_size (int): Maximum number of rows to batch together.
         Defaults to 10,000 if `query_fn` is not specified.
+      max_batch_duration_secs (float): Maximum amount of time in seconds to
+        buffer a batch before emitting it. If not provided, batching duration
+        is determined by `BatchElements` defaults.
       **kwargs: Additional keyword arguments to pass to `bigquery.Client`.
 
     Note:
-      * `min_batch_size` and `max_batch_size` cannot be defined if the
-        `query_fn` is provided.
+      * `min_batch_size`, `max_batch_size`, and `max_batch_duration_secs`
+        are not used if `query_fn` is provided.
       * Either `fields` or `condition_value_fn` must be provided for query
         construction if `query_fn` is not provided.
       * Ensure appropriate permissions are granted for BigQuery access.
@@ -156,6 +161,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     if not query_fn:
       self._batching_kwargs['min_batch_size'] = min_batch_size
       self._batching_kwargs['max_batch_size'] = max_batch_size
+      if max_batch_duration_secs is not None:
+        self._batching_kwargs[
+            'max_batch_duration_secs'] = max_batch_duration_secs
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)

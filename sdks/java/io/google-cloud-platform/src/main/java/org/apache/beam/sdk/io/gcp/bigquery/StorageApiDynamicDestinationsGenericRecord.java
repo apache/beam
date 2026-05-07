@@ -22,9 +22,11 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -54,7 +56,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new GenericRecordConverter(destination);
   }
 
@@ -69,6 +75,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       avroSchema = schemaFactory.apply(getSchema(destination));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
+
       descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, false);
       if (usesCdc) {
@@ -80,9 +87,15 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     }
 
     @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
+    @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       String changeType = null;
       String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;

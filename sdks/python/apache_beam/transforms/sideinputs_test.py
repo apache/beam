@@ -24,9 +24,7 @@ import itertools
 import logging
 import unittest
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import Tuple
 from typing import Union
 
 import pytest
@@ -445,7 +443,7 @@ class SideInputsTest(unittest.TestCase):
 
     class GetSyntheticSDFOptions(beam.DoFn):
       """A DoFn that emits elements for genenrating SDF."""
-      def process(self, element: Any) -> Iterable[Dict[str, Union[int, str]]]:
+      def process(self, element: Any) -> Iterable[dict[str, Union[int, str]]]:
         yield {
             'num_records': num_records // initial_elements,
             'key_size': key_size,
@@ -464,8 +462,8 @@ class SideInputsTest(unittest.TestCase):
       """
       def process(
           self, element: Any,
-          side_input: Iterable[Tuple[bytes,
-                                     bytes]]) -> Iterable[Tuple[int, str]]:
+          side_input: Iterable[tuple[bytes,
+                                     bytes]]) -> Iterable[tuple[int, str]]:
 
         # Sort for consistent hashing.
         sorted_side_input = sorted(side_input)
