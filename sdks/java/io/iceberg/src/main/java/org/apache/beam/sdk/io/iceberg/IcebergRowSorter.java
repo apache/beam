@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sorter.BufferedExternalSorter;
 import org.apache.beam.sdk.values.KV;
@@ -35,7 +36,6 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortDirection;
 import org.apache.iceberg.SortField;
 import org.apache.iceberg.SortOrder;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.ReadableInstant;
 
 /**
@@ -58,9 +58,15 @@ class IcebergRowSorter implements Serializable {
     BufferedExternalSorter sorter = BufferedExternalSorter.create(sorterOptions);
     RowCoder rowCoder = RowCoder.of(beamSchema);
 
+    List<SortField> fields = sortOrder.fields();
+    String[] columnNames = new String[fields.size()];
+    for (int i = 0; i < fields.size(); i++) {
+      columnNames[i] = icebergSchema.findColumnName(fields.get(i).sourceId());
+    }
+
     try {
       for (Row row : rows) {
-        byte[] keyBytes = encodeSortKey(row, sortOrder, icebergSchema, beamSchema);
+        byte[] keyBytes = encodeSortKey(row, sortOrder, columnNames, icebergSchema, beamSchema);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         rowCoder.encode(row, baos);
         byte[] valBytes = baos.toByteArray();
@@ -97,6 +103,7 @@ class IcebergRowSorter implements Serializable {
     }
   }
 
+  @Deprecated
   @SuppressWarnings("nullness")
   public static byte[] encodeSortKey(
       Row row,
@@ -104,16 +111,37 @@ class IcebergRowSorter implements Serializable {
       Schema icebergSchema,
       org.apache.beam.sdk.schemas.Schema beamSchema)
       throws IOException {
+    List<SortField> fields = sortOrder.fields();
+    String[] columnNames = new String[fields.size()];
+    for (int i = 0; i < fields.size(); i++) {
+      columnNames[i] = icebergSchema.findColumnName(fields.get(i).sourceId());
+    }
+    return encodeSortKey(row, sortOrder, columnNames, icebergSchema, beamSchema);
+  }
+
+  @SuppressWarnings("nullness")
+  public static byte[] encodeSortKey(
+      Row row,
+      SortOrder sortOrder,
+      String[] columnNames,
+      Schema icebergSchema,
+      org.apache.beam.sdk.schemas.Schema beamSchema)
+      throws IOException {
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    List<SortField> fields = sortOrder.fields();
+    org.apache.iceberg.data.Record icebergRecord = null;
 
-    for (SortField field : sortOrder.fields()) {
-      String colName = icebergSchema.findColumnName(field.sourceId());
+    for (int i = 0; i < fields.size(); i++) {
+      SortField field = fields.get(i);
+      String colName = columnNames[i];
       Object val = row.getValue(colName);
 
       if (!field.transform().isIdentity()) {
-        Object icebergVal =
-            IcebergUtils.beamRowToIcebergRecord(icebergSchema, row).getField(colName);
+        if (icebergRecord == null) {
+          icebergRecord = IcebergUtils.beamRowToIcebergRecord(icebergSchema, row);
+        }
+        Object icebergVal = icebergRecord.getField(colName);
         if (icebergVal != null) {
           val = field.transform().apply(icebergVal);
         } else {
@@ -128,107 +156,127 @@ class IcebergRowSorter implements Serializable {
       // Determine correct header prefix to fulfill the NullOrder contracts
       byte prefixByte;
       if (isNull) {
-        if (isDesc) {
-          // Descending: High byte keys sort first.
-          // If Nulls First -> Null gets highest byte (0xFF)
-          // If Nulls Last -> Null gets lowest byte (0x00)
-          prefixByte = nullsFirst ? (byte) 0xFF : (byte) 0x00;
-        } else {
-          // Ascending: Low byte keys sort first.
-          // If Nulls First -> Null gets lowest byte (0x00)
-          // If Nulls Last -> Null gets highest byte (0xFF)
-          prefixByte = nullsFirst ? (byte) 0x00 : (byte) 0xFF;
-        }
+        prefixByte = nullsFirst ? (byte) 0x00 : (byte) 0xFF;
       } else {
-        if (isDesc) {
-          // If non-null and Descending, use a neutral value that sits opposite to the null byte
-          prefixByte = nullsFirst ? (byte) 0xFE : (byte) 0x01;
-        } else {
-          prefixByte = nullsFirst ? (byte) 0x01 : (byte) 0x00;
-        }
+        prefixByte = nullsFirst ? (byte) 0x01 : (byte) 0x00;
       }
 
       baos.write(prefixByte);
 
       if (!isNull) {
-        byte[] valBytes = encodeValue(val);
-        // Bitwise invert non-null bytes to sort descending lexicographically
-        if (isDesc) {
-          for (int i = 0; i < valBytes.length; i++) {
-            valBytes[i] = (byte) ~valBytes[i];
-          }
-        }
-        baos.write(valBytes);
+        writeValue(val, baos, isDesc);
       }
     }
 
     return baos.toByteArray();
+  }
+
+  private static void writeInt(int v, ByteArrayOutputStream baos, boolean invert) {
+    byte b3 = (byte) (v >>> 24);
+    byte b2 = (byte) (v >>> 16);
+    byte b1 = (byte) (v >>> 8);
+    byte b0 = (byte) v;
+    if (invert) {
+      baos.write(~b3);
+      baos.write(~b2);
+      baos.write(~b1);
+      baos.write(~b0);
+    } else {
+      baos.write(b3);
+      baos.write(b2);
+      baos.write(b1);
+      baos.write(b0);
+    }
+  }
+
+  private static void writeLong(long v, ByteArrayOutputStream baos, boolean invert) {
+    byte b7 = (byte) (v >>> 56);
+    byte b6 = (byte) (v >>> 48);
+    byte b5 = (byte) (v >>> 40);
+    byte b4 = (byte) (v >>> 32);
+    byte b3 = (byte) (v >>> 24);
+    byte b2 = (byte) (v >>> 16);
+    byte b1 = (byte) (v >>> 8);
+    byte b0 = (byte) v;
+    if (invert) {
+      baos.write(~b7);
+      baos.write(~b6);
+      baos.write(~b5);
+      baos.write(~b4);
+      baos.write(~b3);
+      baos.write(~b2);
+      baos.write(~b1);
+      baos.write(~b0);
+    } else {
+      baos.write(b7);
+      baos.write(b6);
+      baos.write(b5);
+      baos.write(b4);
+      baos.write(b3);
+      baos.write(b2);
+      baos.write(b1);
+      baos.write(b0);
+    }
   }
 
   @SuppressWarnings("JavaUtilDate")
-  private static byte[] encodeValue(@Nullable Object val) throws IOException {
-    if (val == null) {
-      return new byte[0];
-    }
+  private static void writeValue(Object val, ByteArrayOutputStream baos, boolean invert)
+      throws IOException {
     if (val instanceof String) {
-      return encodeString((String) val);
+      writeString((String) val, baos, invert);
     } else if (val instanceof Integer) {
       int v = (Integer) val;
-      return ByteBuffer.allocate(4).putInt(v ^ Integer.MIN_VALUE).array();
+      writeInt(v ^ Integer.MIN_VALUE, baos, invert);
     } else if (val instanceof Long) {
       long v = (Long) val;
-      return ByteBuffer.allocate(8).putLong(v ^ Long.MIN_VALUE).array();
+      writeLong(v ^ Long.MIN_VALUE, baos, invert);
     } else if (val instanceof Float) {
       int bits = Float.floatToIntBits((Float) val);
       bits = (bits >= 0) ? (bits ^ Integer.MIN_VALUE) : ~bits;
-      return ByteBuffer.allocate(4).putInt(bits).array();
+      writeInt(bits, baos, invert);
     } else if (val instanceof Double) {
       long bits = Double.doubleToLongBits((Double) val);
       bits = (bits >= 0) ? (bits ^ Long.MIN_VALUE) : ~bits;
-      return ByteBuffer.allocate(8).putLong(bits).array();
+      writeLong(bits, baos, invert);
     } else if (val instanceof Boolean) {
-      return new byte[] {((Boolean) val) ? (byte) 0x01 : (byte) 0x00};
+      byte b = ((Boolean) val) ? (byte) 0x01 : (byte) 0x00;
+      baos.write(invert ? ~b : b);
     } else if (val instanceof byte[]) {
-      return encodeByteArray((byte[]) val);
+      writeByteArray((byte[]) val, baos, invert);
     } else if (val instanceof ByteBuffer) {
-      return encodeByteArray(((ByteBuffer) val).array());
+      writeByteArray(((ByteBuffer) val).array(), baos, invert);
     } else if (val instanceof ReadableInstant) {
       long enc = ((ReadableInstant) val).getMillis() ^ Long.MIN_VALUE;
-      return ByteBuffer.allocate(8).putLong(enc).array();
+      writeLong(enc, baos, invert);
     } else if (val instanceof Instant) {
       long enc = ((Instant) val).toEpochMilli() ^ Long.MIN_VALUE;
-      return ByteBuffer.allocate(8).putLong(enc).array();
+      writeLong(enc, baos, invert);
     } else if (val instanceof Date) {
       long enc = ((Date) val).getTime() ^ Long.MIN_VALUE;
-      return ByteBuffer.allocate(8).putLong(enc).array();
+      writeLong(enc, baos, invert);
+    } else {
+      writeString(val.toString(), baos, invert);
     }
-
-    return encodeString(val.toString());
   }
 
-  private static byte[] encodeString(String s) throws IOException {
+  private static void writeString(String s, ByteArrayOutputStream baos, boolean invert)
+      throws IOException {
     byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-    return encodeByteArray(bytes);
+    writeByteArray(bytes, baos, invert);
   }
 
-  /**
-   * Escape protocol to cleanly prevent collisions. Maps 0x00 -> [0x01, 0x01] Maps 0x01 -> [0x01,
-   * 0x02] Safely terminates sequence with 0x00.
-   */
-  private static byte[] encodeByteArray(byte[] bytes) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(bytes.length + 2);
+  private static void writeByteArray(byte[] bytes, ByteArrayOutputStream baos, boolean invert) {
     for (byte b : bytes) {
       if (b == 0x00) {
-        baos.write(0x01);
-        baos.write(0x01);
+        baos.write(invert ? ~(byte) 0x01 : (byte) 0x01);
+        baos.write(invert ? ~(byte) 0x01 : (byte) 0x01);
       } else if (b == 0x01) {
-        baos.write(0x01);
-        baos.write(0x02);
+        baos.write(invert ? ~(byte) 0x01 : (byte) 0x01);
+        baos.write(invert ? ~(byte) 0x02 : (byte) 0x02);
       } else {
-        baos.write(b);
+        baos.write(invert ? ~b : b);
       }
     }
-    baos.write(0x00); // Safe boundary delimiter
-    return baos.toByteArray();
+    baos.write(invert ? ~(byte) 0x00 : (byte) 0x00);
   }
 }

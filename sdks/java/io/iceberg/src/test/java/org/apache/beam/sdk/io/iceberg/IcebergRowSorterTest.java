@@ -58,6 +58,15 @@ public class IcebergRowSorterTest {
       org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes
           .lexicographicalComparator();
 
+  private static byte[] encodeSortKeyHelper(Row row, SortOrder sortOrder) throws Exception {
+    java.util.List<org.apache.iceberg.SortField> fields = sortOrder.fields();
+    String[] columnNames = new String[fields.size()];
+    for (int i = 0; i < fields.size(); i++) {
+      columnNames[i] = ICEBERG_SCHEMA.findColumnName(fields.get(i).sourceId());
+    }
+    return IcebergRowSorter.encodeSortKey(row, sortOrder, columnNames, ICEBERG_SCHEMA, BEAM_SCHEMA);
+  }
+
   @Test
   public void testStringKeyEncodingOrder() throws Exception {
     SortOrder sortOrder = SortOrder.builderFor(ICEBERG_SCHEMA).asc("name").build();
@@ -66,9 +75,9 @@ public class IcebergRowSorterTest {
     Row r2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "banana", 2.0, true).build();
     Row r3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "apricot", 3.0, false).build();
 
-    byte[] k1 = IcebergRowSorter.encodeSortKey(r1, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] k2 = IcebergRowSorter.encodeSortKey(r2, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] k3 = IcebergRowSorter.encodeSortKey(r3, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] k1 = encodeSortKeyHelper(r1, sortOrder);
+    byte[] k2 = encodeSortKeyHelper(r2, sortOrder);
+    byte[] k3 = encodeSortKeyHelper(r3, sortOrder);
 
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1, k2) < 0); // apple < banana
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1, k3) < 0); // apple < apricot
@@ -86,8 +95,8 @@ public class IcebergRowSorterTest {
     Row r1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "abc", 1.0, true).build();
     Row r2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "abcdef", null, true).build();
 
-    byte[] k1 = IcebergRowSorter.encodeSortKey(r1, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] k2 = IcebergRowSorter.encodeSortKey(r2, sortOrder, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] k1 = encodeSortKeyHelper(r1, sortOrder);
+    byte[] k2 = encodeSortKeyHelper(r2, sortOrder);
 
     // "abc" must sort lexicographically before "abcdef"
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1, k2) < 0);
@@ -101,11 +110,11 @@ public class IcebergRowSorterTest {
     Row r1 = Row.withSchema(BEAM_SCHEMA).addValues(10, "test", 1.5, true).build();
     Row r2 = Row.withSchema(BEAM_SCHEMA).addValues(20, "test", 2.0, true).build();
 
-    byte[] k1Asc = IcebergRowSorter.encodeSortKey(r1, sortOrderAsc, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] k2Asc = IcebergRowSorter.encodeSortKey(r2, sortOrderAsc, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] k1Asc = encodeSortKeyHelper(r1, sortOrderAsc);
+    byte[] k2Asc = encodeSortKeyHelper(r2, sortOrderAsc);
 
-    byte[] k1Desc = IcebergRowSorter.encodeSortKey(r1, sortOrderDesc, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] k2Desc = IcebergRowSorter.encodeSortKey(r2, sortOrderDesc, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] k1Desc = encodeSortKeyHelper(r1, sortOrderDesc);
+    byte[] k2Desc = encodeSortKeyHelper(r2, sortOrderDesc);
 
     // Ascending: 10 < 20
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1Asc, k2Asc) < 0);
@@ -122,10 +131,8 @@ public class IcebergRowSorterTest {
     // 1. ASC, NULLS_FIRST
     SortOrder ascFirst =
         SortOrder.builderFor(ICEBERG_SCHEMA).asc("name", NullOrder.NULLS_FIRST).build();
-    byte[] kNonNullAscFirst =
-        IcebergRowSorter.encodeSortKey(rNonNull, ascFirst, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] kNullAscFirst =
-        IcebergRowSorter.encodeSortKey(rNull, ascFirst, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] kNonNullAscFirst = encodeSortKeyHelper(rNonNull, ascFirst);
+    byte[] kNullAscFirst = encodeSortKeyHelper(rNull, ascFirst);
     assertTrue(
         "ASC NULLS_FIRST failed: null should sort before non-null",
         BYTE_ARR_COMPARATOR.compare(kNullAscFirst, kNonNullAscFirst) < 0);
@@ -133,10 +140,8 @@ public class IcebergRowSorterTest {
     // 2. ASC, NULLS_LAST
     SortOrder ascLast =
         SortOrder.builderFor(ICEBERG_SCHEMA).asc("name", NullOrder.NULLS_LAST).build();
-    byte[] kNonNullAscLast =
-        IcebergRowSorter.encodeSortKey(rNonNull, ascLast, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] kNullAscLast =
-        IcebergRowSorter.encodeSortKey(rNull, ascLast, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] kNonNullAscLast = encodeSortKeyHelper(rNonNull, ascLast);
+    byte[] kNullAscLast = encodeSortKeyHelper(rNull, ascLast);
     assertTrue(
         "ASC NULLS_LAST failed: null should sort after non-null",
         BYTE_ARR_COMPARATOR.compare(kNullAscLast, kNonNullAscLast) > 0);
@@ -144,24 +149,20 @@ public class IcebergRowSorterTest {
     // 3. DESC, NULLS_FIRST
     SortOrder descFirst =
         SortOrder.builderFor(ICEBERG_SCHEMA).desc("name", NullOrder.NULLS_FIRST).build();
-    byte[] kNonNullDescFirst =
-        IcebergRowSorter.encodeSortKey(rNonNull, descFirst, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] kNullDescFirst =
-        IcebergRowSorter.encodeSortKey(rNull, descFirst, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] kNonNullDescFirst = encodeSortKeyHelper(rNonNull, descFirst);
+    byte[] kNullDescFirst = encodeSortKeyHelper(rNull, descFirst);
     assertTrue(
         "DESC NULLS_FIRST failed: null should sort before non-null",
-        BYTE_ARR_COMPARATOR.compare(kNullDescFirst, kNonNullDescFirst) > 0);
+        BYTE_ARR_COMPARATOR.compare(kNullDescFirst, kNonNullDescFirst) < 0);
 
     // 4. DESC, NULLS_LAST
     SortOrder descLast =
         SortOrder.builderFor(ICEBERG_SCHEMA).desc("name", NullOrder.NULLS_LAST).build();
-    byte[] kNonNullDescLast =
-        IcebergRowSorter.encodeSortKey(rNonNull, descLast, ICEBERG_SCHEMA, BEAM_SCHEMA);
-    byte[] kNullDescLast =
-        IcebergRowSorter.encodeSortKey(rNull, descLast, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    byte[] kNonNullDescLast = encodeSortKeyHelper(rNonNull, descLast);
+    byte[] kNullDescLast = encodeSortKeyHelper(rNull, descLast);
     assertTrue(
         "DESC NULLS_LAST failed: null should sort after non-null",
-        BYTE_ARR_COMPARATOR.compare(kNullDescLast, kNonNullDescLast) < 0);
+        BYTE_ARR_COMPARATOR.compare(kNullDescLast, kNonNullDescLast) > 0);
   }
 
   @Test
