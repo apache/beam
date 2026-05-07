@@ -99,7 +99,7 @@ jobs:
             -PdisableCheckStyle=true \
             -PenableJacocoReport
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -113,7 +113,7 @@ jobs:
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: SpotBugs Results
@@ -125,7 +125,7 @@ jobs:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
       - name: Archive Jacoco Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Jacoco Results
           path: '**/build/jacoco/report/**'
