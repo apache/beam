@@ -31,14 +31,14 @@ description: Guides YAML SDK development in Apache Beam, including environment s
 - `standard_io.yaml` - Declarations of standard IO transforms and their mappings to providers.
 - `standard_providers.yaml` - Configuration for standard providers (e.g., Java expansion services).
 - `yaml_combine.py` - Implementations for aggregation and combining operations.
-- `yaml_io.py` - Python implementations for builtin IOs (PubSub, BigQuery, Iceberg, etc.).
+- `yaml_io.py` - Mappings and logic for IO transforms (e.g., PubSub, BigQuery, Iceberg).
 - `yaml_join.py` - Implementations for join operations.
 - `yaml_mapping.py` - Implementations for mapping operations (e.g., `MapToFields`).
 - `yaml_provider.py` - Manages providers (Python, Java cross-language) that implement transforms.
 - `yaml_transform.py` - Core YAML expansion logic, parsing, and translation to Beam pipelines.
 
 ## Environment Setup
-Since Beam YAML is implemented within the Python SDK, the environment setup is identical to Python development. Refer to the `python-development` skill for details on using `pyenv` and installing in editable mode (`pip install -e .[gcp,test]`).
+Since Beam YAML is implemented within the Python SDK, the environment setup is identical to Python development. Refer to the `python-development` skill for details on using `pyenv` and installing in editable mode (e.g., use `pip install -e sdks/python[gcp,test]` from the root directory).
 
 ## Running YAML Pipelines
 
