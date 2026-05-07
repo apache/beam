@@ -244,6 +244,40 @@ func TestGetJobOptions_DisableRunnerV2ExperimentsSet(t *testing.T) {
 	}
 }
 
+func TestGetJobOptions_DisablePortableRunnerExperimentsSet(t *testing.T) {
+	resetGlobals()
+	*stagingLocation = "gs://testStagingLocation"
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+	*jobopts.Experiments = "disable_portable_runner"
+
+	opts, err := getJobOptions(context.Background(), false)
+
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
+func TestGetJobOptions_EnableStreamingJavaRunnerExperimentsSet(t *testing.T) {
+	resetGlobals()
+	*stagingLocation = "gs://testStagingLocation"
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+	*jobopts.Experiments = "enable_streaming_java_runner"
+
+	opts, err := getJobOptions(context.Background(), false)
+
+	if err == nil {
+		t.Error("getJobOptions() returned error nil, want an error")
+	}
+	if opts != nil {
+		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
+	}
+}
+
 func TestGetJobOptions_NoStagingLocation(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = ""
