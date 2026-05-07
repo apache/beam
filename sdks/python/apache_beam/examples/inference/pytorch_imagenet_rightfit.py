@@ -240,9 +240,9 @@ def parse_known_args(argv):
       type=int,
       default=900,
       help=(
-        'Delay before starting the feeder pipeline that reads URIs from GCS '
-        'and publishes them to Pub/Sub. This delay allows the main streaming '
-        'pipeline workers to start and scale before data ingestion begins.'),
+          'Delay before starting the feeder pipeline that reads URIs from GCS '
+          'and publishes them to Pub/Sub. This delay allows the main streaming '
+          'pipeline workers to start and scale before data ingestion begins.'),
   )
 
   # Model & inference
