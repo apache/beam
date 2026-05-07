@@ -155,33 +155,21 @@ class BlipCaptionModelHandler(ModelHandler):
     self.max_new_tokens = max_new_tokens
     self.num_beams = num_beams
 
-    self._model = None
-    self._processor = None
-
   def load_model(self):
     from transformers import BlipForConditionalGeneration, BlipProcessor
-    self._processor = BlipProcessor.from_pretrained(self.model_name)
-    self._model = BlipForConditionalGeneration.from_pretrained(self.model_name)
-    self._model.eval()
-    self._model.to(self.device)
-    return self._model
+    processor = BlipProcessor.from_pretrained(self.model_name)
+    model = BlipForConditionalGeneration.from_pretrained(self.model_name)
+    return (model, processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
 
   def run_inference(
-      self, batch: List[Dict[str, Any]], model, inference_args=None):
+      self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    if model is not None:
-      self._model = model
-      self._model.to(self.device)
-      self._model.eval()
-    if self._processor is None:
-      from transformers import BlipProcessor
-      self._processor = BlipProcessor.from_pretrained(self.model_name)
-    if self._model is None:
-      self._model = self.load_model()
-
+    model, processor = model_bundle
+    model.to(self.device)
+    model.eval()
     start = now_millis()
 
     images = []
@@ -199,14 +187,14 @@ class BlipCaptionModelHandler(ModelHandler):
         images.append(PILImage.new("RGB", (224, 224), color=(0, 0, 0)))
 
     # Processor makes pixel_values
-    inputs = self._processor(images=images, return_tensors="pt")
+    inputs = processor(images=images, return_tensors="pt")
     pixel_values = inputs["pixel_values"].to(self.device)
 
     # Generate captions
     # We use num_return_sequences to generate multiple candidates per image.
     # Note: this will produce (B * num_captions) sequences.
     with torch.no_grad():
-      generated_ids = self._model.generate(
+      generated_ids = model.generate(
           pixel_values=pixel_values,
           max_new_tokens=self.max_new_tokens,
           num_beams=max(self.num_beams, self.num_captions),
@@ -214,7 +202,7 @@ class BlipCaptionModelHandler(ModelHandler):
           do_sample=False,
       )
 
-    captions_all = self._processor.batch_decode(
+    captions_all = processor.batch_decode(
         generated_ids, skip_special_tokens=True)
 
     # Group candidates per image
@@ -252,33 +240,21 @@ class ClipRankModelHandler(ModelHandler):
     self.batch_size = batch_size
     self.score_normalize = score_normalize
 
-    self._model = None
-    self._processor = None
-
   def load_model(self):
     from transformers import CLIPModel, CLIPProcessor
-    self._processor = CLIPProcessor.from_pretrained(self.model_name)
-    self._model = CLIPModel.from_pretrained(self.model_name)
-    self._model.eval()
-    self._model.to(self.device)
-    return self._model
+    processor = CLIPProcessor.from_pretrained(self.model_name)
+    model = CLIPModel.from_pretrained(self.model_name)
+    return (model, processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
 
   def run_inference(
-      self, batch: List[Dict[str, Any]], model, inference_args=None):
+      self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    if model is not None:
-      self._model = model
-      self._model.to(self.device)
-      self._model.eval()
-    if self._processor is None:
-      from transformers import CLIPProcessor
-      self._processor = CLIPProcessor.from_pretrained(self.model_name)
-    if self._model is None:
-      self._model = self.load_model()
-
+    model, processor = model_bundle
+    model.to(self.device)
+    model.eval()
     start_batch = now_millis()
 
     # Flat lists for a single batched CLIP forward pass
@@ -326,7 +302,7 @@ class ClipRankModelHandler(ModelHandler):
       return results
 
     with torch.no_grad():
-      inputs = self._processor(
+      inputs = processor(
           text=texts,
           images=images,
           return_tensors="pt",
@@ -339,9 +315,9 @@ class ClipRankModelHandler(ModelHandler):
       }
 
       # avoid NxN logits inside CLIPModel.forward()
-      img = self._model.get_image_features(
+      img = model.get_image_features(
           pixel_values=inputs["pixel_values"])  # [N, D]
-      txt = self._model.get_text_features(
+      txt = model.get_text_features(
           input_ids=inputs["input_ids"],
           attention_mask=inputs.get("attention_mask"),
       )  # [N, D]
@@ -349,7 +325,7 @@ class ClipRankModelHandler(ModelHandler):
       img = img / img.norm(dim=-1, keepdim=True)
       txt = txt / txt.norm(dim=-1, keepdim=True)
 
-      logit_scale = self._model.logit_scale.exp()  # scalar tensor
+      logit_scale = model.logit_scale.exp()  # scalar tensor
       pair_scores = (img * txt).sum(dim=-1) * logit_scale  # [N]
       pair_scores_cpu = pair_scores.detach().cpu().tolist()
 
@@ -431,9 +407,9 @@ def parse_known_args(argv):
       type=int,
       default=900,
       help=(
-        'Delay before starting the feeder pipeline that reads URIs from GCS '
-        'and publishes them to Pub/Sub. This delay allows the main streaming '
-        'pipeline workers to start and scale before data ingestion begins.'),
+          'Delay before starting the feeder pipeline that reads URIs from GCS '
+          'and publishes them to Pub/Sub. This delay allows the main streaming '
+          'pipeline workers to start and scale before data ingestion begins.'),
   )
 
   # Device
