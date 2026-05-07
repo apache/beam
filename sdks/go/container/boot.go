@@ -149,6 +149,7 @@ func main() {
 		log.Fatalf("Endpoint not set: %v", err)
 	}
 	logger := &tools.Logger{Endpoint: *loggingEndpoint}
+	log.SetOutput(tools.NewBufferedLoggerWithFlushInterval(ctx, logger, 0))
 	logger.Printf(ctx, "Initializing Go harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
@@ -157,6 +158,9 @@ func main() {
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
+
+	// Inject artifact validation enabled state into context
+	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
 
 	// (2) Retrieve the staged files.
 	//
