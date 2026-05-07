@@ -103,6 +103,10 @@ class IcebergRowSorter implements Serializable {
     }
   }
 
+  /**
+   * @deprecated Use {@link #encodeSortKey(Row, SortOrder, String[], Schema,
+   *     org.apache.beam.sdk.schemas.Schema)} instead.
+   */
   @Deprecated
   @SuppressWarnings("nullness")
   public static byte[] encodeSortKey(
