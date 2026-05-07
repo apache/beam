@@ -103,26 +103,6 @@ class IcebergRowSorter implements Serializable {
     }
   }
 
-  /**
-   * @deprecated Use {@link #encodeSortKey(Row, SortOrder, String[], Schema,
-   *     org.apache.beam.sdk.schemas.Schema)} instead.
-   */
-  @Deprecated
-  @SuppressWarnings("nullness")
-  public static byte[] encodeSortKey(
-      Row row,
-      SortOrder sortOrder,
-      Schema icebergSchema,
-      org.apache.beam.sdk.schemas.Schema beamSchema)
-      throws IOException {
-    List<SortField> fields = sortOrder.fields();
-    String[] columnNames = new String[fields.size()];
-    for (int i = 0; i < fields.size(); i++) {
-      columnNames[i] = icebergSchema.findColumnName(fields.get(i).sourceId());
-    }
-    return encodeSortKey(row, sortOrder, columnNames, icebergSchema, beamSchema);
-  }
-
   @SuppressWarnings("nullness")
   public static byte[] encodeSortKey(
       Row row,
