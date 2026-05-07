@@ -103,15 +103,6 @@ def sha1_hex(s: str) -> str:
 # ============ DoFns ============
 
 
-class RateLimitDoFn(beam.DoFn):
-  def __init__(self, rate_per_sec: float):
-    self.delay = 1.0 / rate_per_sec
-
-  def process(self, element):
-    time.sleep(self.delay)
-    yield element
-
-
 class MakeKeyDoFn(beam.DoFn):
   """Produce (image_id, uri) where image_id is stable for dedup and keys."""
   def process(self, element: str):
@@ -282,11 +273,6 @@ def parse_known_args(argv):
       '--pubsub_subscription',
       default='projects/apache-beam-testing/subscriptions/images_subscription')
   parser.add_argument(
-      '--rate_limit',
-      type=float,
-      default=None,
-      help='Elements per second for load pipeline')
-  parser.add_argument(
       '--feeder_start_delay_sec',
       type=int,
       default=900,
@@ -426,16 +412,10 @@ def run_load_pipeline(known_args, pipeline_args):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline = beam.Pipeline(options=pipeline_options)
 
-  lines = (
+  _ = (
       pipeline
       | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip()))
-  if known_args.rate_limit:
-    lines = lines | 'RateLimit' >> beam.ParDo(
-        RateLimitDoFn(rate_per_sec=known_args.rate_limit))
-
-  _ = (
-      lines
+      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip())
       | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
       | 'ToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
   return pipeline.run()

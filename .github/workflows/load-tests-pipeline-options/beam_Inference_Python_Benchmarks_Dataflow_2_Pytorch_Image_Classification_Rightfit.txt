@@ -34,7 +34,6 @@
 --pubsub_topic=projects/apache-beam-testing/topics/images_topic
 --pubsub_subscription=projects/apache-beam-testing/subscriptions/images_subscription
 --model_state_dict_path=gs://apache-beam-ml/models/efficientnet_b0_state_dict.pth
---rate_limit=250
 --image_size=224
 --top_k=5
 --inference_batch_size=auto
