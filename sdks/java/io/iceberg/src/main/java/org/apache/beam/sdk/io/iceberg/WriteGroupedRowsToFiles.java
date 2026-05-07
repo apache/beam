@@ -122,12 +122,10 @@ class WriteGroupedRowsToFiles
           new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
         writer = openWriter;
         Table table = openWriter.getOrCreateTable(destination, dataSchema);
-        Iterable<Row> rowsToWrite = element.getValue();
-        if (table.sortOrder().isSorted()) {
-          rowsToWrite =
-              IcebergRowSorter.sortRows(rowsToWrite, table.sortOrder(), table.schema(), dataSchema);
-        }
-        for (Row e : rowsToWrite) {
+        Iterable<Row> rows =
+            IcebergRowSorter.sortRows(
+                element.getValue(), table.sortOrder(), table.schema(), dataSchema);
+        for (Row e : rows) {
           writer.write(windowedDestination, e);
         }
       }
