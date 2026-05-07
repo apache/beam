@@ -117,22 +117,22 @@ class UtilTest(unittest.TestCase):
                                 pipeline_proto_hash=expected_hash)
 
     recovered_options = None
-    for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
-      if additionalProperty.key == 'options':
-        recovered_options = additionalProperty.value
+    for key in env.proto.sdk_pipeline_options.keys():
+      if key == 'options':
+        recovered_options = env.proto.sdk_pipeline_options[key]
         break
     else:
       self.fail('No pipeline options found')
 
     pipeline_proto_hash = None
-    for property in recovered_options.object_value.properties:
-      if property.key == 'pipelineProtoHash':
-        pipeline_proto_hash = property.value
+    for key in recovered_options.keys():
+      if key == 'pipelineProtoHash':
+        pipeline_proto_hash = recovered_options[key]
         break
     else:
       self.fail('No pipelineProtoHash found')
 
-    self.assertEqual(pipeline_proto_hash.string_value, expected_hash)
+    self.assertEqual(pipeline_proto_hash, expected_hash)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions([

@@ -273,7 +273,6 @@ class Environment(object):
 
     sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
-
       options_dict = {
           k: v
           for k, v in sdk_pipeline_options.items() if v is not None
