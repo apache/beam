@@ -67,9 +67,8 @@ class TokenizeTextDoFn(beam.DoFn):
 
   def setup(self):
     self.tokenizer = DistilBertTokenizerFast.from_pretrained(self.model_path)
-    # Some transformers builds expose pad token through legacy attributes.
-    if not hasattr(self.tokenizer, '_pad_token'):
-      self.tokenizer._pad_token = '[PAD]'
+    if self.tokenizer.pad_token is None:
+      self.tokenizer.pad_token = '[PAD]'
 
   def process(self, text: str) -> Iterable[tuple[str, dict]]:
     tokenized = self.tokenizer(
@@ -78,7 +77,7 @@ class TokenizeTextDoFn(beam.DoFn):
         truncation=True,
         max_length=128,
         return_tensors="pt")
-    yield text, {k: torch.squeeze(v) for k, v in tokenized.items()}
+    yield text, {k: torch.squeeze(v, 0) for k, v in tokenized.items()}
 
 
 class DistilBertForSequenceClassificationCompat(
