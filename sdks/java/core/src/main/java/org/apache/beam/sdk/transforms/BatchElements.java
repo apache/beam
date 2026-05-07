@@ -95,6 +95,7 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
     this.config = config;
   }
 
+  /** Batch Elements with default configuration */
   public static <T> BatchElements<T> withDefaults() {
     return withConfig(BatchConfig.defaults());
   }

@@ -74,6 +74,7 @@
   compatible. Both coders can decode encoded bytes from the other coder
   ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
+* (Java) BatchElements transform for Java SDK ([#38369](https://github.com/apache/beam/pull/38369))
 
 ## Breaking Changes
 
