@@ -139,7 +139,7 @@ jobs:
         git config user.email actions@"$RUNNER_NAME".local
     - name: Import GPG key
       id: import_gpg
-      uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+      uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
       with:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
     - name: Push tags

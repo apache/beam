@@ -74,7 +74,7 @@ jobs:
             11
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
       - name: Auth for nexus
@@ -126,7 +126,7 @@ jobs:
           java-version: '11'
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
       - name: stage source
@@ -193,7 +193,7 @@ jobs:
           disable-cache: true
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
       - name: Install dependencies
@@ -455,7 +455,7 @@ jobs:
           go-version: '1.26'
       - name: Import GPG key
         id: import_gpg
-        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
       - name: Build prism artifacts
