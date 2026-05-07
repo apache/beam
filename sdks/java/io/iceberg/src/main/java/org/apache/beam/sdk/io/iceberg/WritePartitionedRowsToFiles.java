@@ -130,10 +130,12 @@ class WritePartitionedRowsToFiles
       RecordWriter writer =
           new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
       try {
-        Iterable<Row> sortedRows =
-            IcebergRowSorter.sortRows(
-                element.getValue(), table.sortOrder(), table.schema(), dataSchema);
-        for (Row row : sortedRows) {
+        Iterable<Row> rowsToWrite = element.getValue();
+        if (table.sortOrder().isSorted()) {
+          rowsToWrite =
+              IcebergRowSorter.sortRows(rowsToWrite, table.sortOrder(), table.schema(), dataSchema);
+        }
+        for (Row row : rowsToWrite) {
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
           writer.write(record);
         }
