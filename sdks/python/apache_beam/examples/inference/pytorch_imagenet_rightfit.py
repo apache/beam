@@ -111,8 +111,9 @@ class MakeKeyDoFn(beam.DoFn):
       # element is bytes message, assume it includes
       # {"image_id": "...", "bytes": base64?} or just raw bytes.
       import hashlib
-      b = element if isinstance(
-          element, (bytes, bytearray)) else element.encode('utf-8')
+      b = element if isinstance(element,
+                                (bytes,
+                                 bytearray)) else element.encode('utf-8')
       image_id = hashlib.sha1(b).hexdigest()
       yield image_id, b
     else:
@@ -183,8 +184,7 @@ class PostProcessDoFn(beam.DoFn):
           logits = next(iter(inference_obj.values()))
           logging.warning(
               'Could not find <logits> key in model output.'
-              'Falling back to first value in dict.'
-          )
+              'Falling back to first value in dict.')
         except Exception:
           logging.warning('Could not find <logits> key in dict.')
     else:
@@ -256,8 +256,7 @@ def parse_known_args(argv):
       help=(
         'Delay before starting the feeder pipeline that reads URIs from GCS '
         'and publishes them to Pub/Sub. This delay allows the main streaming '
-        'pipeline workers to start and scale before data ingestion begins.'
-      ),
+        'pipeline workers to start and scale before data ingestion begins.'),
   )
 
   # Model & inference
@@ -420,8 +419,8 @@ def run(
     # and autoscale before the feeder pipeline begins publishing messages.
     threading.Thread(
         target=lambda: (
-            time.sleep(known_args.feeder_start_delay_sec),
-            run_load_pipeline(known_args, pipeline_args)),
+            time.sleep(known_args.feeder_start_delay_sec), run_load_pipeline(
+                known_args, pipeline_args)),
         daemon=True).start()
 
   # StandardOptions

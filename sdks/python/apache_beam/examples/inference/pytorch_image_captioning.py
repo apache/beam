@@ -447,8 +447,7 @@ def parse_known_args(argv):
       help=(
         'Delay before starting the feeder pipeline that reads URIs from GCS '
         'and publishes them to Pub/Sub. This delay allows the main streaming '
-        'pipeline workers to start and scale before data ingestion begins.'
-      ),
+        'pipeline workers to start and scale before data ingestion begins.'),
   )
 
   # Device
@@ -588,8 +587,8 @@ def run(
     # and autoscale before the feeder pipeline begins publishing messages.
     threading.Thread(
         target=lambda: (
-            time.sleep(known_args.feeder_start_delay_sec),
-            run_load_pipeline(known_args, pipeline_args)),
+            time.sleep(known_args.feeder_start_delay_sec), run_load_pipeline(
+                known_args, pipeline_args)),
         daemon=True).start()
 
   pipeline_options = PipelineOptions(pipeline_args)
