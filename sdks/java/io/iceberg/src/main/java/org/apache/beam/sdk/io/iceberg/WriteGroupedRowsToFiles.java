@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,6 +32,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
@@ -101,11 +104,22 @@ class WriteGroupedRowsToFiles
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
+      Iterator<Row> rowIt = element.getValue().iterator();
+      if (!rowIt.hasNext()) {
+        return;
+      }
+      Row firstRow = rowIt.next();
+      Schema dataSchema = firstRow.getSchema();
+
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
           new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {
         writer = openWriter;
-        for (Row e : element.getValue()) {
+        Table table = openWriter.getOrCreateTable(destination, dataSchema);
+        Iterable<Row> sortedRows =
+            IcebergRowSorter.sortRows(
+                element.getValue(), table.sortOrder(), table.schema(), dataSchema);
+        for (Row e : sortedRows) {
           writer.write(windowedDestination, e);
         }
       }

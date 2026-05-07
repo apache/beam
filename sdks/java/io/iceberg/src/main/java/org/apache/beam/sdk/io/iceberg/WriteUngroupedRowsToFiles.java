@@ -47,6 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -238,11 +239,16 @@ class WriteUngroupedRowsToFiles
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
 
       // Attempt to write record. If the writer is saturated and cannot accept
-      // the record, spill it over to WriteGroupedRowsToFiles
-      boolean writeSuccess;
+      // the record, or if the target table is sorted, spill it over to WriteGroupedRowsToFiles
+      boolean writeSuccess = false;
       try {
-        writeSuccess =
-            Preconditions.checkNotNull(recordWriterManager).write(windowedDestination, data);
+        Table table =
+            Preconditions.checkNotNull(recordWriterManager)
+                .getOrCreateTable(destination, data.getSchema());
+        if (!table.sortOrder().isSorted()) {
+          writeSuccess =
+              Preconditions.checkNotNull(recordWriterManager).write(windowedDestination, data);
+        }
       } catch (Exception e) {
         try {
           Preconditions.checkNotNull(recordWriterManager).close();

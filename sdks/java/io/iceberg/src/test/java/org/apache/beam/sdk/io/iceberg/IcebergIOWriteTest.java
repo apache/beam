@@ -77,6 +77,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
@@ -773,5 +774,92 @@ public class IcebergIOWriteTest implements Serializable {
             .next()
             .getCommitted();
     assertEquals(5L, numWaves);
+  }
+
+  @Test
+  public void testSortedWrite() {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "sorted_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    Schema schema = Schema.builder().addInt64Field("id").addStringField("name").build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+
+    catalog
+        .catalog()
+        .buildTable(tableId, icebergSchema)
+        .withPartitionSpec(PartitionSpec.unpartitioned())
+        .withSortOrder(SortOrder.builderFor(icebergSchema).asc("name").desc("id").build())
+        .create();
+
+    List<Row> inputRows =
+        Arrays.asList(
+            Row.withSchema(schema).addValues(2L, "banana").build(),
+            Row.withSchema(schema).addValues(1L, "banana").build(),
+            Row.withSchema(schema).addValues(5L, "apple").build(),
+            Row.withSchema(schema).addValues(10L, "cherry").build());
+
+    testPipeline
+        .apply("Scrambled Input", Create.of(inputRows))
+        .setRowSchema(schema)
+        .apply("Append Sorted To Table", writeTransform(catalog, tableId));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+
+    assertEquals(4, writtenRecords.size());
+
+    try {
+      assertFilesAreInternallySorted(table);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private void assertFilesAreInternallySorted(Table table) throws Exception {
+    for (org.apache.iceberg.FileScanTask task : table.newScan().planFiles()) {
+      String path = task.file().path().toString();
+      try (org.apache.iceberg.io.CloseableIterable<Record> reader =
+          org.apache.iceberg.parquet.Parquet.read(table.io().newInputFile(path))
+              .project(table.schema())
+              .createReaderFunc(org.apache.iceberg.data.parquet.GenericParquetReaders::buildReader)
+              .build()) {
+        List<Record> records =
+            org.apache.commons.compress.utils.Lists.newArrayList(reader.iterator());
+        assertTrue("File must have at least one record", records.size() > 0);
+
+        for (int i = 1; i < records.size(); i++) {
+          Record prev = records.get(i - 1);
+          Record curr = records.get(i);
+
+          String prevName = (String) prev.getField("name");
+          String currName = (String) curr.getField("name");
+
+          int cmpName = prevName.compareTo(currName);
+          if (cmpName > 0) {
+            throw new AssertionError("File not sorted by name ASC: " + prevName + " > " + currName);
+          } else if (cmpName == 0) {
+            long prevId = (Long) prev.getField("id");
+            long currId = (Long) curr.getField("id");
+            if (prevId < currId) {
+              throw new AssertionError("File not sorted by id DESC: " + prevId + " < " + currId);
+            }
+          }
+        }
+      }
+    }
   }
 }
