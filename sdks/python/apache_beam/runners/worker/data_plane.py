@@ -49,6 +49,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.utils.byte_limited_queue import ByteLimitedQueue
 
 if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
@@ -455,10 +456,20 @@ class _GrpcDataChannel(DataChannel):
 
   def __init__(self, data_buffer_time_limit_ms=0):
     # type: (int) -> None
+    def _element_weight(element):
+      if isinstance(element, beam_fn_api_pb2.Elements.Data):
+        return len(element.data)
+      elif isinstance(element, beam_fn_api_pb2.Elements.Timers):
+        return len(element.timers)
+      return 0
+
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
-    self._to_send = queue.Queue()  # type: queue.Queue[DataOrTimers]
+    self._to_send = ByteLimitedQueue(
+        maxsize=10000, maxweight=100 << 20,
+        weighing_fn=_element_weight)  # type: queue.Queue[DataOrTimers]
     self._received = collections.defaultdict(
-        lambda: queue.Queue(maxsize=5)
+        lambda: ByteLimitedQueue(
+            maxsize=5, maxweight=100 << 20, weighing_fn=_element_weight)
     )  # type: DefaultDict[str, queue.Queue[DataOrTimers]]
 
     # Keep a cache of completed instructions. Data for completed instructions
