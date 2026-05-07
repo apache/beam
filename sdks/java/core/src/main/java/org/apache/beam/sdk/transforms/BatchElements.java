@@ -509,12 +509,12 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
   static class WindowAwareBatchingDoFn<T> extends DoFn<T, List<T>> {
     private transient BatchSizeEstimator estimator;
     private final BatchConfig config;
-    private Map<BoundedWindow, SizedBatch<T>> batches;
+    private transient Map<BoundedWindow, SizedBatch<T>> batches;
     private int targetBatchSize;
 
     private static final int MAX_LIVE_WINDOWS = 10;
 
-    private static class SizedBatch<T> {
+    private static class SizedBatch<T> implements Serializable {
       List<T> elements = new ArrayList<>();
       int size = 0;
     }
