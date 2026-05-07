@@ -143,7 +143,9 @@ public class MongoDbWriteSchemaTransformProviderTest {
                     TupleTagList.of(MongoDbWriteSchemaTransformProvider.ERROR_TAG)));
 
     PCollection<Document> bsonDocuments =
-        outputTuple.get(MongoDbWriteSchemaTransformProvider.OUTPUT_TAG);
+        outputTuple
+            .get(MongoDbWriteSchemaTransformProvider.OUTPUT_TAG)
+            .setCoder(MongoDbWriteSchemaTransformProvider.DocumentCoder.of());
 
     outputTuple.get(MongoDbWriteSchemaTransformProvider.ERROR_TAG).setRowSchema(errorSchema);
 
@@ -154,6 +156,7 @@ public class MongoDbWriteSchemaTransformProviderTest {
               assertEquals("John", doc.get("name"));
               assertEquals(30, doc.get("age"));
               // The RowToBsonDocumentFn retains nulls explicitly in the BSON document
+              assertEquals(true, doc.containsKey("country"));
               assertEquals(null, doc.get("country"));
               return null;
             });

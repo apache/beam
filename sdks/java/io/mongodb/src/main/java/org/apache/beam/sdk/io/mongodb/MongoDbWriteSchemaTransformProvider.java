@@ -18,10 +18,15 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import com.google.auto.service.AutoService;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -35,6 +40,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.bson.BsonNull;
 import org.bson.Document;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -42,6 +48,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoService(SchemaTransformProvider.class)
 public class MongoDbWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<MongoDbWriteSchemaTransformConfiguration> {
+
+  public static class DocumentCoder extends AtomicCoder<Document> implements Serializable {
+    private static final DocumentCoder INSTANCE = new DocumentCoder();
+
+    private DocumentCoder() {}
+
+    public static DocumentCoder of() {
+      return INSTANCE;
+    }
+
+    @Override
+    public void encode(Document value, OutputStream outStream) throws java.io.IOException {
+      StringUtf8Coder.of().encode(value.toJson(), outStream);
+    }
+
+    @Override
+    public Document decode(InputStream inStream) throws java.io.IOException {
+      String json = StringUtf8Coder.of().decode(inStream);
+      return Document.parse(json);
+    }
+  }
 
   private static final String INPUT_TAG = "input";
   public static final TupleTag<Document> OUTPUT_TAG = new TupleTag<Document>() {};
@@ -92,7 +119,7 @@ public class MongoDbWriteSchemaTransformProvider
               ParDo.of(new RowToBsonDocumentFn(handleErrors, errorSchema))
                   .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
-      PCollection<Document> documents = outputTuple.get(OUTPUT_TAG);
+      PCollection<Document> documents = outputTuple.get(OUTPUT_TAG).setCoder(DocumentCoder.of());
 
       // Configure the MongoDB write operation.
       MongoDbIO.Write write =
@@ -151,48 +178,32 @@ public class MongoDbWriteSchemaTransformProvider
     }
   }
 
-  private static @Nullable Object convertToBsonValue(@Nullable Object value) {
+  private static Object convertToBsonValue(@Nullable Object value) {
     if (value == null) {
-      return null;
+      return new BsonNull();
     }
     if (value instanceof Row) {
       Row row = (Row) value;
       Document doc = new Document();
       for (Field field : row.getSchema().getFields()) {
         Object fieldValue = row.getValue(field.getName());
-        Object convertedValue = convertToBsonValue(fieldValue);
-        if (convertedValue != null) {
-          doc.append(field.getName(), convertedValue);
-        }
+        Object converted = convertToBsonValue(fieldValue);
+        doc.append(field.getName(), converted != null ? converted : new BsonNull());
       }
       return doc;
-    } else if (value instanceof List) {
-      List<?> list = (List<?>) value;
-      List<Object> bsonList = new ArrayList<>(list.size());
-      for (Object item : list) {
-        Object convertedItem = convertToBsonValue(item);
-        if (convertedItem != null) {
-          bsonList.add(convertedItem);
-        }
-      }
-      return bsonList;
     } else if (value instanceof Iterable) {
       List<Object> bsonList = new ArrayList<>();
       for (Object item : (Iterable<?>) value) {
-        Object convertedItem = convertToBsonValue(item);
-        if (convertedItem != null) {
-          bsonList.add(convertedItem);
-        }
+        Object converted = convertToBsonValue(item);
+        bsonList.add(converted != null ? converted : new BsonNull());
       }
       return bsonList;
     } else if (value instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) value;
       Document doc = new Document();
       for (Map.Entry<?, ?> entry : map.entrySet()) {
-        Object convertedValue = convertToBsonValue(entry.getValue());
-        if (convertedValue != null) {
-          doc.append(String.valueOf(entry.getKey()), convertedValue);
-        }
+        Object converted = convertToBsonValue(entry.getValue());
+        doc.append(String.valueOf(entry.getKey()), converted != null ? converted : new BsonNull());
       }
       return doc;
     }
