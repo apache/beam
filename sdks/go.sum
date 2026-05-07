@@ -58,8 +58,8 @@ cloud.google.com/go/datacatalog v1.27.0 h1:AnghhtHKCqYIe62gTPHcn9nJr5jtxjZHV4D/F
 cloud.google.com/go/datacatalog v1.27.0/go.mod h1:YTI11pFlC5HCj4CphEf+qWCy/z9udd7o0HVN6c2Povg=
 cloud.google.com/go/datastore v1.0.0/go.mod h1:LXYbyblFSglQ5pkeyhO+Qmw7ukd3C+pD7TKLgZqpHYE=
 cloud.google.com/go/datastore v1.1.0/go.mod h1:umbIZjpQpHh4hmRpGhH4tLFup+FVzqBi1b3c64qFpCk=
-cloud.google.com/go/datastore v1.22.0 h1:FOyx2Ag6ibD2wFkz9S8EiNrmBugia8pQOfpyJxi2yqA=
-cloud.google.com/go/datastore v1.22.0/go.mod h1:aopSX+Whx0lHspWWBj+AjWt68/zjYsPfDe3LjWtqZg8=
+cloud.google.com/go/datastore v1.23.0 h1:mAlWN3tnQe1OqVM3UtYBIbWTz9aU83RgW4hXOrfm9P8=
+cloud.google.com/go/datastore v1.23.0/go.mod h1:bOvQQekv4VACRJmH/MBy12MT6M3udfTuCyxw+tzY+8s=
 cloud.google.com/go/firestore v1.6.1/go.mod h1:asNXNOzBdyVQmEU+ggO8UPodTkEVFW5Qx+rwHnAz+EY=
 cloud.google.com/go/iam v0.1.0/go.mod h1:vcUNEa0pEm0qRVpmWepWaFMIAI8/hjB9mO8rNCJtF6c=
 cloud.google.com/go/iam v0.1.1/go.mod h1:CKqrcnI/suGpybEHxZ7BMehL0oA4LpdyJdUlTl9jVMw=
