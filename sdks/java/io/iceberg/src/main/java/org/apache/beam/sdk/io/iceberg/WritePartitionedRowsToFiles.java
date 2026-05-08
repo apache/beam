@@ -44,6 +44,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -243,14 +244,23 @@ class WritePartitionedRowsToFiles
         } catch (NoSuchTableException e) { // Otherwise, create the table
           org.apache.iceberg.Schema tableSchema =
               IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+          SortOrder sortOrder =
+              createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
           try {
-            table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+            table =
+                catalog
+                    .buildTable(identifier, tableSchema)
+                    .withPartitionSpec(partitionSpec)
+                    .withSortOrder(sortOrder)
+                    .withProperties(tableProperties)
+                    .create();
             LOG.info(
                 "Created Iceberg table '{}' with schema: {}\n"
-                    + ", partition spec: {}, table properties: {}",
+                    + ", partition spec: {}, sort order: {}, table properties: {}",
                 identifier,
                 tableSchema,
                 partitionSpec,
+                sortOrder,
                 tableProperties);
           } catch (AlreadyExistsException ignored) {
             // race condition: another worker already created this table
