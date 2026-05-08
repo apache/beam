@@ -83,6 +83,7 @@ public class MetadataPropagationTest {
   @Test
   @Category({ValidatesRunner.class, NeedsRunner.class})
   public void testMetadataPropagationParameter() {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
     PCollection<String> results =
         pipeline
             .apply(Create.of(true))
