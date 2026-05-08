@@ -1244,8 +1244,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Runner v2.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
-      if (!experiments.contains("use_runner_v2")) {
+      if (!useUnifiedWorker(options)) {
+        List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
         LOG.info(
             "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
@@ -1256,7 +1256,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (useUnifiedWorker(options)) {
       if (hasExperiment(options, "disable_runner_v2")
           || hasExperiment(options, "disable_runner_v2_until_2023")
-          || hasExperiment(options, "disable_prime_runner_v2")) {
+          || hasExperiment(options, "disable_prime_runner_v2")
+          || hasExperiment(options, "disable_portable_runner")
+          || hasExperiment(options, "enable_streaming_java_runner")) {
         throw new IllegalArgumentException(
             "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
       }
@@ -2729,7 +2731,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
         || hasExperiment(options, "use_unified_worker")
-        || hasExperiment(options, "use_portable_job_submission");
+        || hasExperiment(options, "use_portable_job_submission")
+        || hasExperiment(options, "enable_portable_runner");
   }
 
   static void verifyDoFnSupported(
