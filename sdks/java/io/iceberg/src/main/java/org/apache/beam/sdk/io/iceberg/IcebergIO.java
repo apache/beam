@@ -496,6 +496,82 @@ public class IcebergIO {
      *   </tr>
      * </table>
      *
+     * <h3>Recommendation Matrix (Sorting &amp; Partitioning vs. Scale):</h3>
+     *
+     * <table border="1">
+     *   <caption>Recommendation Matrix</caption>
+     *   <tr>
+     *     <td><b>Partitioning</b></td>
+     *     <td><b>Sorting</b></td>
+     *     <td><b>Scale / Volume</b></td>
+     *     <td><b>Latency Priority</b></td>
+     *     <td><b>Recommended Mode</b></td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Write Latency</td>
+     *     <td>{@link DistributionMode#NONE} (requires post-fact compaction)</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Read Latency</td>
+     *     <td>{@link DistributionMode#HASH} with auto-sharding OR {@link DistributionMode#RANGE}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH} with auto-sharding</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Write Latency</td>
+     *     <td>{@link DistributionMode#NONE} (requires post-fact compaction)</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Read Latency</td>
+     *     <td>{@link DistributionMode#RANGE} (with custom sharding function)</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Any</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *   </tr>
+     * </table>
+     *
      * <h3>Code Samples:</h3>
      *
      * <pre>{@code
