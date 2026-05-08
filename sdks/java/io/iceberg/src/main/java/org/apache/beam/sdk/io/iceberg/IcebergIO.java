@@ -480,7 +480,7 @@ public class IcebergIO {
      *     <td>{@link DistributionMode#NONE}</td>
      *     <td>No network shuffle is performed. Records are sorted locally on workers prior to writing.</td>
      *     <td>Highly lightweight with zero shuffle/network overhead. Best for smaller data volumes.</td>
-     *     <td>Writers on different workers can write to overlapping min/max key ranges across multiple files. Relies heavily on post-fact compaction.</td>
+     *     <td>Writers on different workers can write to overlapping min/max key ranges across multiple files. Relies heavily on post-fact compaction or query time merges.</td>
      *   </tr>
      *   <tr>
      *     <td>{@link DistributionMode#HASH}</td>
@@ -539,6 +539,18 @@ public class IcebergIO {
       return toBuilder().setDistributionFunction(shardFn).build();
     }
 
+    /**
+     * Enables Beam's dynamic auto-sharding when using {@link DistributionMode#HASH}.
+     *
+     * <p>When enabled, the pipeline uses {@link
+     * org.apache.beam.sdk.transforms.GroupIntoBatches#withShardedKey()} under the hood. The runner
+     * (such as Dataflow) dynamically monitors throughput per partition key. If a partition is
+     * extremely hot, the runner automatically splits it into parallel sub-shards distributed across
+     * multiple workers to prevent single-worker bottlenecks and out-of-memory (OOM) errors, while
+     * keeping the number of data files for cold partitions minimal.
+     *
+     * <p>Only applicable when using {@link DistributionMode#HASH}.
+     */
     public WriteRows withAutosharding() {
       return toBuilder().setAutoSharding(true).build();
     }
