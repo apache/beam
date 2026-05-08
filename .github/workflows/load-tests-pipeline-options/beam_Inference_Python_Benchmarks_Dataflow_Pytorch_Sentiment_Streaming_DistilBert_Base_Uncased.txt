@@ -18,6 +18,7 @@
 --machine_type=n1-standard-2
 --num_workers=20
 --max_num_workers=250
+--timeout_ms=600000
 --disk_size_gb=50
 --autoscaling_algorithm=THROUGHPUT_BASED
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
