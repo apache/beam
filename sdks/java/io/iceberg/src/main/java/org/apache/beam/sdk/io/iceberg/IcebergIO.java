@@ -519,9 +519,9 @@ public class IcebergIO {
      *         .to(tableId)
      *         .withDistributionMode(DistributionMode.RANGE)
      *         .withDistributionFunction(row -> {
-     *             // Group timestamps or continuous IDs into 16 parallel, non-overlapping shards
-     *             long timestamp = row.getDateTime("timestamp").getMillis();
-     *             return (int) (Math.abs(timestamp) % 16);
+     *             // Group continuous IDs into 16 parallel, non-overlapping shards
+     *             long id = row.getInt64("id");
+     *             return (int) (id / 10000);
      *         }));
      * }</pre>
      */
@@ -548,6 +548,11 @@ public class IcebergIO {
      * extremely hot, the runner automatically splits it into parallel sub-shards distributed across
      * multiple workers to prevent single-worker bottlenecks and out-of-memory (OOM) errors, while
      * keeping the number of data files for cold partitions minimal.
+     *
+     * <p>Note that because auto-sharding distributes hot-partition data randomly across worker
+     * shards, the written data files cannot guarantee non-overlapping key ranges. Downstream
+     * queries may require read-time sort merges for overlapping file segments until an Iceberg
+     * compaction job (e.g., `rewriteDataFiles`) is executed.
      *
      * <p>Only applicable when using {@link DistributionMode#HASH}.
      */
