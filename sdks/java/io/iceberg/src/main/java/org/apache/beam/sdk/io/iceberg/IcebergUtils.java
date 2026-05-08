@@ -390,7 +390,10 @@ public class IcebergUtils {
         rec.setField(name, getIcebergTimestampValue(val, ts.shouldAdjustToUTC()));
         break;
       case STRING:
-        Optional.ofNullable(value.getString(name)).ifPresent(v -> rec.setField(name, v));
+        Object strVal = value.getValue(name);
+        if (strVal != null) {
+          rec.setField(name, strVal.toString());
+        }
         break;
       case UUID:
         Optional.ofNullable(value.getBytes(name))
