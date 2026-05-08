@@ -506,6 +506,7 @@ public class IcebergIO {
      *     <td><b>Scale / Volume</b></td>
      *     <td><b>Latency Priority</b></td>
      *     <td><b>Recommended Mode</b></td>
+     *     <td><b>Operational Impact</b></td>
      *   </tr>
      *   <tr>
      *     <td>Partitioned</td>
@@ -513,13 +514,15 @@ public class IcebergIO {
      *     <td>Small</td>
      *     <td>Any</td>
      *     <td>{@link DistributionMode#HASH}</td>
+     *     <td>Consolidates partition files and sorts them locally. Avoids file overlaps for small volumes.</td>
      *   </tr>
      *   <tr>
      *     <td>Partitioned</td>
      *     <td>Sorted</td>
      *     <td>Medium / Large</td>
      *     <td>Low Write Latency</td>
-     *     <td>{@link DistributionMode#NONE} (requires post-fact compaction)</td>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>Eliminates shuffle overhead for maximum write speed. Results in overlapping key ranges across files, which requires downstream compaction.</td>
      *   </tr>
      *   <tr>
      *     <td>Partitioned</td>
@@ -527,6 +530,7 @@ public class IcebergIO {
      *     <td>Medium / Large</td>
      *     <td>Low Read Latency</td>
      *     <td>{@link DistributionMode#HASH} with auto-sharding OR {@link DistributionMode#RANGE}</td>
+     *     <td>HASH with auto-sharding scales writes for hot partitions but can result in overlapping file ranges requiring query-time sort merges. RANGE sharding distributes hot partitions into sequential, non-overlapping files to optimize reads.</td>
      *   </tr>
      *   <tr>
      *     <td>Partitioned</td>
@@ -534,6 +538,7 @@ public class IcebergIO {
      *     <td>Small</td>
      *     <td>Any</td>
      *     <td>{@link DistributionMode#HASH}</td>
+     *     <td>Consolidates data files into single partition directories to prevent file fragmentation.</td>
      *   </tr>
      *   <tr>
      *     <td>Partitioned</td>
@@ -541,6 +546,7 @@ public class IcebergIO {
      *     <td>Medium / Large</td>
      *     <td>Any</td>
      *     <td>{@link DistributionMode#HASH} with auto-sharding</td>
+     *     <td>Consolidates partition files while dynamically balancing hot partition writes across parallel workers.</td>
      *   </tr>
      *   <tr>
      *     <td>Unpartitioned</td>
@@ -548,13 +554,15 @@ public class IcebergIO {
      *     <td>Small</td>
      *     <td>Any</td>
      *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>Bypasses network shuffle for fast, low-volume local sorting.</td>
      *   </tr>
      *   <tr>
      *     <td>Unpartitioned</td>
      *     <td>Sorted</td>
      *     <td>Medium / Large</td>
      *     <td>Low Write Latency</td>
-     *     <td>{@link DistributionMode#NONE} (requires post-fact compaction)</td>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>Bypasses network shuffle for parallel worker writes. Requires downstream compaction to resolve overlapping file ranges.</td>
      *   </tr>
      *   <tr>
      *     <td>Unpartitioned</td>
@@ -562,6 +570,7 @@ public class IcebergIO {
      *     <td>Medium / Large</td>
      *     <td>Low Read Latency</td>
      *     <td>{@link DistributionMode#RANGE} (with custom sharding function)</td>
+     *     <td>Shards continuous keys into non-overlapping worker ranges. Eliminates single-worker bottlenecks and guarantees zero file overlap for fast queries.</td>
      *   </tr>
      *   <tr>
      *     <td>Unpartitioned</td>
@@ -569,6 +578,7 @@ public class IcebergIO {
      *     <td>Any</td>
      *     <td>Any</td>
      *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>Direct, parallel worker writes with maximum throughput and zero network shuffle overhead.</td>
      *   </tr>
      * </table>
      *
