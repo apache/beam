@@ -1245,6 +1245,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // to Runner v2.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
       if (!useUnifiedWorker(options)) {
+        List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
         LOG.info(
             "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
