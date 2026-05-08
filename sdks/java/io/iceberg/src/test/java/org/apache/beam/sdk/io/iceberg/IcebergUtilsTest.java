@@ -269,6 +269,18 @@ public class IcebergUtilsTest {
           IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
       assertEquals(RECORD_MAP_OF_RECORDS, actual);
     }
+
+    @Test
+    public void testBigDecimalToStringConversion() {
+      BigDecimal num = new BigDecimal("987654321.123456789");
+      checkRowValueToRecordValue(
+          Schema.FieldType.DECIMAL, num, Types.StringType.get(), "987654321.123456789");
+    }
+
+    @Test
+    public void testIntegerToStringConversion() {
+      checkRowValueToRecordValue(Schema.FieldType.INT32, 42, Types.StringType.get(), "42");
+    }
   }
 
   @RunWith(JUnit4.class)
