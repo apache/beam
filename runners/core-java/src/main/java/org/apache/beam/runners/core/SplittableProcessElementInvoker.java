@@ -44,6 +44,9 @@ public abstract class SplittableProcessElementInvoker<
     private final @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState;
     private final double backlogBytes;
 
+    /* Constant representing an unknown amount of backlog. */
+    public static final double BACKLOG_UNKNOWN = -1.0;
+
     @SuppressFBWarnings(
         value = "NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE",
         justification = "Spotbugs incorrectly thinks continuation is marked @Nullable")
@@ -71,7 +74,7 @@ public abstract class SplittableProcessElementInvoker<
           continuation,
           futureOutputWatermark,
           futureWatermarkEstimatorState,
-          -1.0);
+          BACKLOG_UNKNOWN);
     }
 
     /**
