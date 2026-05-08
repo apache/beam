@@ -777,6 +777,51 @@ public class IcebergIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testRangeDistribution() {
+    assumeTrue(distributionMode.equals(HASH_WITH_AUTOSHARDING));
+
+    Schema schema = Schema.builder().addInt64Field("id").addStringField("name").build();
+
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "range_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    catalog.catalog().createTable(tableId, icebergSchema, PartitionSpec.unpartitioned());
+
+    PCollection<Row> rows =
+        testPipeline
+            .apply(GenerateSequence.from(0).to(100))
+            .apply(
+                "Make rows",
+                MapElements.into(TypeDescriptors.rows())
+                    .via(i -> Row.withSchema(schema).addValues(i, "name_" + i).build()))
+            .setRowSchema(schema);
+
+    rows.apply(
+        "range distribution write",
+        IcebergIO.writeRows(catalog)
+            .to(tableId)
+            .withDistributionMode(DistributionMode.RANGE)
+            .withDistributionFunction(row -> (int) (row.getInt64("id") % 5)));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertEquals(100, writtenRecords.size());
+  }
+
+  @Test
   public void testSortedWrite() {
     TableIdentifier tableId =
         TableIdentifier.of("default", "sorted_" + Long.toString(UUID.randomUUID().hashCode(), 16));
