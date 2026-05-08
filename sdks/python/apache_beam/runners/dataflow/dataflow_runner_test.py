@@ -734,9 +734,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         p.result.job.proto.type,
         apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
 
-
-class DataflowRunnerV2DisabledTest(unittest.TestCase):
-
   def test_runner_v2_disabled_experiments_raise(self):
     disable_experiments = [
         'disable_portable_runner',
