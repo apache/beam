@@ -44,8 +44,8 @@ class TableRowInferenceOptions(
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--mode', default='batch')
-    parser.add_argument('--input_subscription')
-    parser.add_argument('--input_file')
+    parser.add_argument('--input_subscription', default='')
+    parser.add_argument('--input_file', default='')
     parser.add_argument('--output_table')
     parser.add_argument('--model_path')
     parser.add_argument('--feature_columns')
