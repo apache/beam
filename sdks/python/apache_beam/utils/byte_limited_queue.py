@@ -27,6 +27,7 @@ class ByteLimitedQueue(queue.Queue):
   """A queue.Queue that limits by both element count and total weight.
 
   A single element is allowed to exceed the maxweight to avoid deadlock.
+  Note that shutdown is only supported after there are no more put calls.
   """
   def __init__(
       self,
@@ -72,9 +73,9 @@ class ByteLimitedQueue(queue.Queue):
       elif timeout < 0:
         raise ValueError("'timeout' must be a non-negative number")
       else:
-        endtime = time.time() + timeout
+        endtime = time.monotonic() + timeout
         while self._is_full(item_size):
-          remaining = endtime - time.time()
+          remaining = endtime - time.monotonic()
           if remaining <= 0.0:
             raise queue.Full
           self.not_full.wait(remaining)
