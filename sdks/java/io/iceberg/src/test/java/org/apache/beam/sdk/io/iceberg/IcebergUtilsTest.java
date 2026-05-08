@@ -281,6 +281,30 @@ public class IcebergUtilsTest {
     public void testIntegerToStringConversion() {
       checkRowValueToRecordValue(Schema.FieldType.INT32, 42, Types.StringType.get(), "42");
     }
+
+    @Test
+    public void testDoubleToStringConversion() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.DOUBLE, 3.14159, Types.StringType.get(), "3.14159");
+    }
+
+    @Test
+    public void testBooleanToStringConversion() {
+      checkRowValueToRecordValue(Schema.FieldType.BOOLEAN, true, Types.StringType.get(), "true");
+    }
+
+    @Test
+    public void testNullStringConversion() {
+      Schema beamSchema =
+          Schema.of(Schema.Field.of("v", Schema.FieldType.STRING).withNullable(true));
+      Row row = Row.withSchema(beamSchema).addValue(null).build();
+
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(optional(0, "v", Types.StringType.get()));
+      Record record = IcebergUtils.beamRowToIcebergRecord(icebergSchema, row);
+
+      assertEquals(null, record.getField("v"));
+    }
   }
 
   @RunWith(JUnit4.class)
