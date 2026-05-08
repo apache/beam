@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import atexit
 import glob
 import os
 import random
@@ -29,7 +30,9 @@ import subprocess
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
+from apache_beam.runners.portability import job_server
 from apache_beam.utils import subprocess_server
 
 
@@ -345,9 +348,6 @@ class CacheTest(unittest.TestCase):
   def test_duplicate_atexit_registration_on_restart(self):
     # Make sure we don't have duplicate atexit registration when reusing a
     # StopOnExistJobServer instance.
-    from unittest.mock import patch
-    import atexit
-    from apache_beam.runners.portability import job_server
 
     class DummyJobServer(job_server.JobServer):
       def start(self):
