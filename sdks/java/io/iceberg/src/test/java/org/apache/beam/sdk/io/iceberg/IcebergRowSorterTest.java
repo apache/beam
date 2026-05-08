@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -64,7 +66,9 @@ public class IcebergRowSorterTest {
     for (int i = 0; i < fields.size(); i++) {
       columnNames[i] = ICEBERG_SCHEMA.findColumnName(fields.get(i).sourceId());
     }
-    return IcebergRowSorter.encodeSortKey(row, sortOrder, columnNames, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    IcebergRowSorter.encodeSortKey(row, sortOrder, columnNames, baos, ICEBERG_SCHEMA, BEAM_SCHEMA);
+    return baos.toByteArray();
   }
 
   @Test
@@ -86,10 +90,6 @@ public class IcebergRowSorterTest {
 
   @Test
   public void testStringCollisionProofing() throws Exception {
-    // Tests that secondary columns don't bleed into primary columns.
-    // Row 1: Primary="abc", Secondary="def"
-    // Row 2: Primary="abcdef", Secondary=null
-    // In raw byte concatenation, both could equal "abcdef\0" if delimiters or escaping fail.
     SortOrder sortOrder = SortOrder.builderFor(ICEBERG_SCHEMA).asc("name").asc("value").build();
 
     Row r1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "abc", 1.0, true).build();
@@ -98,7 +98,6 @@ public class IcebergRowSorterTest {
     byte[] k1 = encodeSortKeyHelper(r1, sortOrder);
     byte[] k2 = encodeSortKeyHelper(r2, sortOrder);
 
-    // "abc" must sort lexicographically before "abcdef"
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1, k2) < 0);
   }
 
@@ -116,10 +115,7 @@ public class IcebergRowSorterTest {
     byte[] k1Desc = encodeSortKeyHelper(r1, sortOrderDesc);
     byte[] k2Desc = encodeSortKeyHelper(r2, sortOrderDesc);
 
-    // Ascending: 10 < 20
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1Asc, k2Asc) < 0);
-
-    // Descending: 10 > 20 (inverted bytes)
     assertTrue(BYTE_ARR_COMPARATOR.compare(k1Desc, k2Desc) > 0);
   }
 
@@ -182,7 +178,6 @@ public class IcebergRowSorterTest {
 
     assertEquals(4, sortedList.size());
 
-    // Expected: apple (5) -> banana (2) -> banana (1) -> cherry (10)
     assertEquals("apple", sortedList.get(0).getString("name"));
     assertEquals(Integer.valueOf(5), sortedList.get(0).getInt32("id"));
 
@@ -198,8 +193,6 @@ public class IcebergRowSorterTest {
 
   @Test
   public void testScaleAndExternalDiskSpill() {
-    // Verifies sorting operates correctly with thousands of elements,
-    // proving that BufferedExternalSorter handles memory constraints correctly.
     SortOrder sortOrder = SortOrder.builderFor(ICEBERG_SCHEMA).asc("id").build();
 
     int count = 5000;
@@ -207,7 +200,6 @@ public class IcebergRowSorterTest {
     Random rand = new Random(42);
 
     for (int i = 0; i < count; i++) {
-      // Intentionally insert random IDs to enforce complex sorting
       int randomId = rand.nextInt(100_000);
       input.add(Row.withSchema(BEAM_SCHEMA).addValues(randomId, "item" + i, 1.0, true).build());
     }
@@ -218,13 +210,27 @@ public class IcebergRowSorterTest {
 
     assertEquals(count, sortedList.size());
 
-    // Validate that the returned dataset is in strictly non-decreasing order of 'id'
     for (int i = 0; i < sortedList.size() - 1; i++) {
       int idCurrent = sortedList.get(i).getInt32("id");
       int idNext = sortedList.get(i + 1).getInt32("id");
       assertTrue(
-          String.format("Sort violation detected at index %d: %d > %d", i, idCurrent, idNext),
+          String.format("Sort violation at index %d: %d > %d", i, idCurrent, idNext),
           idCurrent <= idNext);
     }
+  }
+
+  @Test
+  public void testUnsupportedComplexTypeSorting() {
+    org.apache.iceberg.Schema mapSchema =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.optional(
+                2,
+                "attributes",
+                Types.MapType.ofOptional(3, 4, Types.StringType.get(), Types.StringType.get())));
+
+    assertThrows(
+        org.apache.iceberg.exceptions.ValidationException.class,
+        () -> SortOrder.builderFor(mapSchema).asc("attributes").build());
   }
 }

@@ -64,12 +64,19 @@ class IcebergRowSorter implements Serializable {
       columnNames[i] = icebergSchema.findColumnName(fields.get(i).sourceId());
     }
 
+    // Create reusable ByteArrayOutputStreams for key and value encoding
+    ByteArrayOutputStream keyBaos = new ByteArrayOutputStream();
+    ByteArrayOutputStream valBaos = new ByteArrayOutputStream();
+
     try {
       for (Row row : rows) {
-        byte[] keyBytes = encodeSortKey(row, sortOrder, columnNames, icebergSchema, beamSchema);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        rowCoder.encode(row, baos);
-        byte[] valBytes = baos.toByteArray();
+        keyBaos.reset();
+        valBaos.reset();
+        encodeSortKey(row, sortOrder, columnNames, keyBaos, icebergSchema, beamSchema);
+        byte[] keyBytes = keyBaos.toByteArray();
+
+        rowCoder.encode(row, valBaos);
+        byte[] valBytes = valBaos.toByteArray();
         sorter.add(KV.of(keyBytes, valBytes));
       }
 
@@ -104,17 +111,16 @@ class IcebergRowSorter implements Serializable {
   }
 
   @SuppressWarnings("nullness")
-  public static byte[] encodeSortKey(
+  public static void encodeSortKey(
       Row row,
       SortOrder sortOrder,
       String[] columnNames,
+      ByteArrayOutputStream baos,
       Schema icebergSchema,
       org.apache.beam.sdk.schemas.Schema beamSchema)
       throws IOException {
 
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
     List<SortField> fields = sortOrder.fields();
-    org.apache.iceberg.data.Record icebergRecord = null;
 
     for (int i = 0; i < fields.size(); i++) {
       SortField field = fields.get(i);
@@ -122,10 +128,8 @@ class IcebergRowSorter implements Serializable {
       Object val = row.getValue(colName);
 
       if (!field.transform().isIdentity()) {
-        if (icebergRecord == null) {
-          icebergRecord = IcebergUtils.beamRowToIcebergRecord(icebergSchema, row);
-        }
-        Object icebergVal = icebergRecord.getField(colName);
+        Object icebergVal =
+            IcebergUtils.beamValueToIcebergValue(icebergSchema.findType(field.sourceId()), val);
         if (icebergVal != null) {
           val = field.transform().apply(icebergVal);
         } else {
@@ -151,8 +155,6 @@ class IcebergRowSorter implements Serializable {
         writeValue(val, baos, isDesc);
       }
     }
-
-    return baos.toByteArray();
   }
 
   private static void writeInt(int v, ByteArrayOutputStream baos, boolean invert) {
@@ -239,7 +241,8 @@ class IcebergRowSorter implements Serializable {
       long enc = ((Date) val).getTime() ^ Long.MIN_VALUE;
       writeLong(enc, baos, invert);
     } else {
-      writeString(val.toString(), baos, invert);
+      throw new UnsupportedOperationException(
+          "Unsupported type for sorting: " + val.getClass().getName());
     }
   }
 

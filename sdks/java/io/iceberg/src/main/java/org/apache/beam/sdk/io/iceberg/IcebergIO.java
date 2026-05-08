@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -404,6 +405,8 @@ public class IcebergIO {
 
     abstract DistributionMode getDistributionMode();
 
+    abstract @Nullable SerializableFunction<Row, Integer> getDistributionFunction();
+
     abstract boolean getAutoSharding();
 
     abstract Builder toBuilder();
@@ -421,6 +424,8 @@ public class IcebergIO {
       abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
 
       abstract Builder setDistributionMode(DistributionMode mode);
+
+      abstract Builder setDistributionFunction(SerializableFunction<Row, Integer> shardFn);
 
       abstract Builder setAutoSharding(boolean autoSharding);
 
@@ -462,12 +467,15 @@ public class IcebergIO {
      * <ol>
      *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
      *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     *   <li>{@link DistributionMode.RANGE}: shuffle rows based on range-partitioning function
      * </ol>
-     *
-     * {@link DistributionMode.RANGE} is not supported yet
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
+    }
+
+    public WriteRows withDistributionFunction(SerializableFunction<Row, Integer> shardFn) {
+      return toBuilder().setDistributionFunction(shardFn).build();
     }
 
     public WriteRows withAutosharding() {
@@ -514,7 +522,30 @@ public class IcebergIO {
           return input
               .apply(
                   "AssignDestinationAndPartition",
-                  new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+                  new AssignDestinationsAndPartitions(
+                      destinations,
+                      getCatalogConfig(),
+                      getDistributionMode(),
+                      getDistributionFunction()))
+              .apply(
+                  "Write Rows to Partitions",
+                  new WriteToPartitions(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getAutoSharding()));
+        case RANGE:
+          Preconditions.checkArgument(
+              getDistributionFunction() != null,
+              "Must provide a distribution function when using RANGE distribution mode.");
+          return input
+              .apply(
+                  "AssignDestinationAndPartitionWithRange",
+                  new AssignDestinationsAndPartitions(
+                      destinations,
+                      getCatalogConfig(),
+                      getDistributionMode(),
+                      getDistributionFunction()))
               .apply(
                   "Write Rows to Partitions",
                   new WriteToPartitions(

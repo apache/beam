@@ -296,6 +296,45 @@ public class IcebergUtils {
     return new org.apache.iceberg.Schema(fields.toArray(new Types.NestedField[fields.size()]));
   }
 
+  /**
+   * Converts a Beam field value to its Iceberg-compatible equivalent based on the Iceberg {@link
+   * Type}.
+   */
+  public static @Nullable Object beamValueToIcebergValue(Type type, @Nullable Object value) {
+    if (value == null) {
+      return null;
+    }
+    switch (type.typeId()) {
+      case BOOLEAN:
+      case INTEGER:
+      case LONG:
+      case FLOAT:
+      case DOUBLE:
+      case DATE:
+      case TIME:
+      case DECIMAL:
+      case STRING:
+        return value;
+      case TIMESTAMP:
+        Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
+        return getIcebergTimestampValue(value, ts.shouldAdjustToUTC());
+      case UUID:
+        if (value instanceof byte[]) {
+          return UUID.nameUUIDFromBytes((byte[]) value);
+        }
+        return value;
+      case BINARY:
+        if (value instanceof byte[]) {
+          return ByteBuffer.wrap((byte[]) value);
+        }
+        return value;
+      case FIXED:
+        throw new UnsupportedOperationException("Fixed-precision fields are not yet supported.");
+      default:
+        return value;
+    }
+  }
+
   /** Converts a Beam {@link Row} to an Iceberg {@link Record}. */
   public static Record beamRowToIcebergRecord(org.apache.iceberg.Schema schema, Row row) {
     if (row.getSchema().getFieldCount() != schema.columns().size()) {

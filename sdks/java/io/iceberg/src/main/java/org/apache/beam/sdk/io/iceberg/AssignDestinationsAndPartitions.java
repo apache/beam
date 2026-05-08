@@ -26,12 +26,14 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -51,38 +53,65 @@ class AssignDestinationsAndPartitions
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
+  private final DistributionMode distributionMode;
+  private final @Nullable SerializableFunction<Row, Integer> distributionFunction;
+
   static final String DESTINATION = "destination";
   static final String PARTITION = "partition";
+  static final String SHARD = "shard";
   static final org.apache.beam.sdk.schemas.Schema OUTPUT_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
           .addStringField(DESTINATION)
           .addStringField(PARTITION)
+          .addNullableField(SHARD, org.apache.beam.sdk.schemas.Schema.FieldType.INT32)
           .build();
 
   public AssignDestinationsAndPartitions(
       DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
+    this(dynamicDestinations, catalogConfig, DistributionMode.HASH, null);
+  }
+
+  public AssignDestinationsAndPartitions(
+      DynamicDestinations dynamicDestinations,
+      IcebergCatalogConfig catalogConfig,
+      DistributionMode distributionMode,
+      @Nullable SerializableFunction<Row, Integer> distributionFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
+    this.distributionMode = distributionMode;
+    this.distributionFunction = distributionFunction;
   }
 
   @Override
   public PCollection<KV<Row, Row>> expand(PCollection<Row> input) {
     return input
-        .apply(ParDo.of(new AssignDoFn(dynamicDestinations, catalogConfig)))
+        .apply(
+            ParDo.of(
+                new AssignDoFn(
+                    dynamicDestinations, catalogConfig, distributionMode, distributionFunction)))
         .setCoder(
             KvCoder.of(
                 RowCoder.of(OUTPUT_SCHEMA), RowCoder.of(dynamicDestinations.getDataSchema())));
   }
 
+  @SuppressWarnings("nullness")
   static class AssignDoFn extends DoFn<Row, KV<Row, Row>> {
     private transient @MonotonicNonNull Map<String, PartitionKey> partitionKeys;
     private transient @MonotonicNonNull Map<String, BeamRowWrapper> wrappers;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
+    private final DistributionMode distributionMode;
+    private final @Nullable SerializableFunction<Row, Integer> distributionFunction;
 
-    AssignDoFn(DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
+    AssignDoFn(
+        DynamicDestinations dynamicDestinations,
+        IcebergCatalogConfig catalogConfig,
+        DistributionMode distributionMode,
+        @Nullable SerializableFunction<Row, Integer> distributionFunction) {
       this.dynamicDestinations = dynamicDestinations;
       this.catalogConfig = catalogConfig;
+      this.distributionMode = distributionMode;
+      this.distributionFunction = distributionFunction;
     }
 
     @Setup
@@ -132,8 +161,17 @@ class AssignDestinationsAndPartitions
       partitionKey.partition(wrapper.wrap(data));
       String partitionPath = partitionKey.toPath();
 
+      Integer shardId = null;
+      if (distributionMode == DistributionMode.RANGE && distributionFunction != null) {
+        shardId = distributionFunction.apply(data);
+      }
+
       Row destAndPartition =
-          Row.withSchema(OUTPUT_SCHEMA).addValues(tableIdentifier, partitionPath).build();
+          Row.withSchema(OUTPUT_SCHEMA)
+              .withFieldValue(DESTINATION, tableIdentifier)
+              .withFieldValue(PARTITION, partitionPath)
+              .withFieldValue(SHARD, shardId)
+              .build();
       out.output(KV.of(destAndPartition, data));
     }
   }
