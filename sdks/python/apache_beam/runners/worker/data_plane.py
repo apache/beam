@@ -359,6 +359,11 @@ class DataChannel(metaclass=abc.ABCMeta):
     """
     raise NotImplementedError(type(self))
 
+  def is_backpressured(self):
+    # type: () -> bool
+    """Returns True if the channel has exceeded its buffering limits."""
+    return False
+
 
 class InMemoryDataChannel(DataChannel):
   """An in-memory implementation of a DataChannel.
@@ -453,9 +458,15 @@ class _GrpcDataChannel(DataChannel):
 
   _WRITES_FINISHED = beam_fn_api_pb2.Elements.Data()
 
-  def __init__(self, data_buffer_time_limit_ms=0):
-    # type: (int) -> None
+  def __init__(self, data_buffer_time_limit_ms=0, max_queued_bytes=256 << 20):
+    # type: (int, int) -> None
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
+    self._max_queued_bytes = max_queued_bytes
+    self._queued_bytes = 0
+    self._to_send_lock = threading.Lock()
+    assert self._WRITES_FINISHED.ByteSize() == 0, (
+        "WRITES_FINISHED sentinel must have a byte size of 0 to avoid "
+        "measurement drift in outbound queue size tracking.")
     self._to_send = queue.Queue()  # type: queue.Queue[DataOrTimers]
     self._received = collections.defaultdict(
         lambda: queue.Queue(maxsize=5)
@@ -471,6 +482,18 @@ class _GrpcDataChannel(DataChannel):
     self._reads_finished = threading.Event()
     self._closed = False
     self._exception = None  # type: Optional[Exception]
+
+  def is_backpressured(self):
+    # type: () -> bool
+    with self._to_send_lock:
+      return self._queued_bytes > self._max_queued_bytes
+
+  def _put_to_send_queue(self, element):
+    # type: (Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]) -> None
+    element_size = element.ByteSize()
+    with self._to_send_lock:
+      self._queued_bytes += element_size
+    self._to_send.put(element)
 
   def close(self):
     # type: () -> None
@@ -585,7 +608,7 @@ class _GrpcDataChannel(DataChannel):
     def add_to_send_queue(data):
       # type: (bytes) -> None
       if data:
-        self._to_send.put(
+        self._put_to_send_queue(
             beam_fn_api_pb2.Elements.Data(
                 instruction_id=instruction_id,
                 transform_id=transform_id,
@@ -595,7 +618,7 @@ class _GrpcDataChannel(DataChannel):
       # type: (bytes) -> None
       add_to_send_queue(data)
       # End of stream marker.
-      self._to_send.put(
+      self._put_to_send_queue(
           beam_fn_api_pb2.Elements.Data(
               instruction_id=instruction_id,
               transform_id=transform_id,
@@ -614,7 +637,7 @@ class _GrpcDataChannel(DataChannel):
     def add_to_send_queue(timer):
       # type: (bytes) -> None
       if timer:
-        self._to_send.put(
+        self._put_to_send_queue(
             beam_fn_api_pb2.Elements.Timers(
                 instruction_id=instruction_id,
                 transform_id=transform_id,
@@ -625,7 +648,7 @@ class _GrpcDataChannel(DataChannel):
     def close_callback(timer):
       # type: (bytes) -> None
       add_to_send_queue(timer)
-      self._to_send.put(
+      self._put_to_send_queue(
           beam_fn_api_pb2.Elements.Timers(
               instruction_id=instruction_id,
               transform_id=transform_id,
@@ -640,12 +663,16 @@ class _GrpcDataChannel(DataChannel):
     stream_done = False
     while not stream_done:
       streams = [self._to_send.get()]
+      with self._to_send_lock:
+        self._queued_bytes -= streams[0].ByteSize()
       try:
         # Coalesce up to 100 other items.
         total_size_bytes = streams[0].ByteSize()
         while (total_size_bytes < _DEFAULT_SIZE_FLUSH_THRESHOLD and
                len(streams) <= 100):
           data_or_timer = self._to_send.get_nowait()
+          with self._to_send_lock:
+            self._queued_bytes -= data_or_timer.ByteSize()
           total_size_bytes += data_or_timer.ByteSize()
           streams.append(data_or_timer)
       except queue.Empty:

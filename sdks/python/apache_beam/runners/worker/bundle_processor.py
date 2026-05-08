@@ -32,6 +32,7 @@ import json
 import logging
 import random
 import threading
+import time
 from dataclasses import dataclass
 from dataclasses import field
 from itertools import chain
@@ -1162,6 +1163,10 @@ class BundleProcessor(object):
     for op in reversed(self.ops.values()):
       op.setup(self.data_sampler)
     self.splitting_lock = threading.Lock()
+    self.output_data_channels = list({
+        op.data_channel for op in self.ops.values()
+        if isinstance(op, DataOutputOperation)
+    })
 
   def create_execution_tree(
       self, descriptor: beam_fn_api_pb2.ProcessBundleDescriptor
@@ -1288,6 +1293,22 @@ class BundleProcessor(object):
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
+          # Cooperative backpressure throttling
+          backpressure_sleep = 0.001
+          next_log_time = 0.0
+          while any(
+              channel.is_backpressured()
+              for channel in self.output_data_channels):
+            current_time = time.time()
+            if current_time >= next_log_time:
+              _LOGGER.warning(
+                  "Outgoing data channel backpressured. "
+                  "Throttling input reading for instruction: %s",
+                  instruction_id)
+              next_log_time = current_time + 300.0
+            time.sleep(backpressure_sleep)
+            backpressure_sleep = min(backpressure_sleep * 2, 0.1)
+
           # Since we have received a set of elements and are consuming it.
           self.consuming_received_data = True
           if isinstance(element, beam_fn_api_pb2.Elements.Timers):
