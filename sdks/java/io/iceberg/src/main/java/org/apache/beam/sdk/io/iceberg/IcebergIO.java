@@ -385,7 +385,7 @@ public class IcebergIO {
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
     return new AutoValue_IcebergIO_WriteRows.Builder()
         .setCatalogConfig(catalog)
-        .setDistributionMode(DistributionMode.NONE)
+        .setDistributionMode(DistributionMode.HASH)
         .setAutoSharding(false)
         .build();
   }
@@ -462,18 +462,79 @@ public class IcebergIO {
     }
 
     /**
-     * Defines distribution of write data. Supported distributions:
+     * Defines the distribution mode of write data prior to writing.
      *
-     * <ol>
-     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
-     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
-     *   <li>{@link DistributionMode.RANGE}: shuffle rows based on range-partitioning function
-     * </ol>
+     * <p>The default distribution mode is {@link DistributionMode#HASH}.
+     *
+     * <h3>Comparison of Distribution Modes:</h3>
+     *
+     * <table border="1">
+     *   <caption>Comparison of Distribution Modes</caption>
+     *   <tr>
+     *     <td><b>Mode</b></td>
+     *     <td><b>Description</b></td>
+     *     <td><b>Pros</b></td>
+     *     <td><b>Cons</b></td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>No network shuffle is performed. Records are sorted locally on workers prior to writing.</td>
+     *     <td>Highly lightweight with zero shuffle/network overhead. Best for smaller data volumes.</td>
+     *     <td>Writers on different workers can write to overlapping min/max key ranges across multiple files. Relies heavily on post-fact compaction.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#HASH}</td>
+     *     <td>Data is shuffled and consolidated by partition key. All records for a partition are routed to a single worker.</td>
+     *     <td>Consolidates partition files, eliminating cross-worker file overlapping for partition keys. Excellent worker stability.</td>
+     *     <td>Can suffer from severe data skew if a single partition contains significantly more data than others (hot partitions).</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#RANGE}</td>
+     *     <td>Data is shuffled based on a user-provided shard/bucket function (e.g., hashing/binning continuous keys).</td>
+     *     <td>Distributes writes for hot partitions across multiple workers. Eliminates skew while keeping file min/max key ranges tight and non-overlapping.</td>
+     *     <td>Requires providing a custom {@link SerializableFunction} mapping rows to integer shard/bucket IDs.</td>
+     *   </tr>
+     * </table>
+     *
+     * <h3>Code Samples:</h3>
+     *
+     * <pre>{@code
+     * // 1. Using default HASH distribution mode (Consolidates by partition key)
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId));
+     *
+     * // 2. Using NONE distribution mode (No shuffle, local sorting only)
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId)
+     *         .withDistributionMode(DistributionMode.NONE));
+     *
+     * // 3. Using RANGE distribution mode with a custom shard/bucket function to avoid data skew
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId)
+     *         .withDistributionMode(DistributionMode.RANGE)
+     *         .withDistributionFunction(row -> {
+     *             // Group timestamps or continuous IDs into 16 parallel, non-overlapping shards
+     *             long timestamp = row.getDateTime("timestamp").getMillis();
+     *             return (int) (Math.abs(timestamp) % 16);
+     *         }));
+     * }</pre>
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
     }
 
+    /**
+     * Sets the custom range-distribution function.
+     *
+     * <p>Only applicable when the distribution mode is set to {@link DistributionMode#RANGE}. The
+     * function maps a Beam {@link Row} to an Integer representing a shard/bucket ID.
+     */
     public WriteRows withDistributionFunction(SerializableFunction<Row, Integer> shardFn) {
       return toBuilder().setDistributionFunction(shardFn).build();
     }
