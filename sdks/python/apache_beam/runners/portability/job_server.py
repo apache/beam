@@ -100,8 +100,7 @@ class StopOnExitJobServer(JobServer):
           self._started = False
           # Unregister the atexit handler to prevent duplicate
           # registrations when the server is restarted/reused.
-          if hasattr(atexit, 'unregister'):
-            atexit.unregister(self.stop)
+          atexit.unregister(self.stop)
 
 
 class SubprocessJobServer(JobServer):
