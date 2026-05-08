@@ -17,7 +17,7 @@
 
 fixtures:
   - name: DATADOG_AGENT
-    type: "apache_beam.yaml.integration_tests.temp_datadog_agent"
+    type: "apache_beam.yaml.test_utils.datadog_test_utils.temp_datadog_agent"
     config:
       expected_records:
         - { ddsource: "apache-beam1", ddtags: "test-tags1", hostname: "test-host", service: "test-service", message: "Event for label 11a" }
