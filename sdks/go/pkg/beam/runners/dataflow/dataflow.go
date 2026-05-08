@@ -335,7 +335,7 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	experiments := jobopts.GetExperiments()
 	// Ensure that we enable the same set of experiments across all SDKs
 	// for runner v2.
-	var fnApiSet, v2set, uwSet, portableRunnerSet, portaSubmission, seSet, wsSet bool
+	var fnApiSet, v2set, uwSet, portaSubmission, seSet, wsSet bool
 	for _, e := range experiments {
 		if strings.Contains(e, "beam_fn_api") {
 			fnApiSet = true
@@ -349,9 +349,7 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 		if strings.Contains(e, "use_portable_job_submission") {
 			portaSubmission = true
 		}
-		if strings.Contains(e, "enable_portable_runner") {
-			portableRunnerSet = true
-		}
+		// enable_portable_runner is not documented and hence wont be set by default. This will be fixed in later versions.
 		if strings.Contains(e, "disable_runner_v2") || strings.Contains(e, "disable_runner_v2_until_2023") || strings.Contains(e, "disable_prime_runner_v2") || strings.Contains(e, "disable_portable_runner") || strings.Contains(e, "enable_streaming_java_runner") {
 			return nil, errors.New("detected one of the following experiments: disable_runner_v2 | disable_runner_v2_until_2023 | disable_prime_runner_v2. Disabling runner v2 is no longer supported as of Beam version 2.45.0+")
 		}
@@ -369,7 +367,6 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if !portaSubmission {
 		experiments = append(experiments, "use_portable_job_submission")
 	}
-	// As portable_runner is not documented, we do not set it by default. This behavior will be fixed in later versions.
 
 	// Ensure that streaming specific experiments are set for streaming pipelines
 	// since runner v2 only supports using streaming engine.
