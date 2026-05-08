@@ -369,9 +369,7 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if !portaSubmission {
 		experiments = append(experiments, "use_portable_job_submission")
 	}
-	if !portableRunnerSet {
-		// As this option is not documented, we do not set it by default. This behavior will be fixed in later versions.
-	}
+	// As portable_runner is not documented, we do not set it by default. This behavior will be fixed in later versions.
 
 	// Ensure that streaming specific experiments are set for streaming pipelines
 	// since runner v2 only supports using streaming engine.
