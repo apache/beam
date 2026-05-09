@@ -16,8 +16,8 @@
 #
 
 fixtures:
-  - name: DATADOG_AGENT
-    type: "apache_beam.yaml.test_utils.datadog_test_utils.temp_datadog_agent"
+  - name: FAKE_DATADOG_SERVER
+    type: "apache_beam.yaml.test_utils.datadog_test_utils.temp_fake_datadog_server"
     config:
       expected_records:
         - { ddsource: "apache-beam1", ddtags: "test-tags1", hostname: "test-host", service: "test-service", message: "Event for label 11a" }
@@ -40,8 +40,8 @@ pipelines:
         - type: WriteToDatadog
           input: Create
           config:
-            url: "{DATADOG_AGENT.url}"
-            api_key: "{DATADOG_AGENT.api_key}"
+            url: "{FAKE_DATADOG_SERVER.url}"
+            api_key: "{FAKE_DATADOG_SERVER.api_key}"
             min_batch_count: 1
             batch_count: 2
             max_buffer_size: 1000

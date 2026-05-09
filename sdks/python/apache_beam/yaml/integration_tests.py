@@ -38,7 +38,7 @@ import mock
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
-from apache_beam.yaml.test_utils.datadog_test_utils import temp_datadog_agent
+from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
 
 
 class BigEndianIntegerCoderImpl(CoderImpl):

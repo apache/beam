@@ -102,8 +102,8 @@ def temp_datadog_mock_server(received_records):
 
 
 @contextlib.contextmanager
-def temp_datadog_agent(expected_records=None):
-  """Context manager to provide a temporary Datadog Agent mock for testing.
+def temp_fake_datadog_server(expected_records=None):
+  """Context manager to provide a temporary fake Datadog server for testing.
   """
   received = []
   with temp_datadog_mock_server(received) as mock_url:
@@ -113,7 +113,7 @@ def temp_datadog_agent(expected_records=None):
           api_key="dummy_key_for_testing",
       )
     except Exception as err:
-      logging.error("Error interacting with temporary Datadog Agent: %s", err)
+      logging.error("Error interacting with temporary fake Datadog server: %s", err)
       raise err
     finally:
       if expected_records is not None:
