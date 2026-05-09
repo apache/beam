@@ -316,6 +316,31 @@ A     B
     handle.flush()
     handle.close()
 
+  def test_truncating_filehandle_exception_suppression(self):
+    class FaultyStream(StringIO):
+      @property
+      def closed(self):
+        return False
+
+      def flush(self):
+        raise ValueError("Simulated flush error")
+
+      def close(self):
+        raise OSError("Simulated close error")
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = FaultyStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that ValueError raised during flush() is safely suppressed.
+    handle.flush()
+
+    # Verify that OSError raised during close() is safely suppressed.
+    handle.close()
+
   @parameterized.expand([
       ('defaults', {}),
       ('header', dict(header=1)),
