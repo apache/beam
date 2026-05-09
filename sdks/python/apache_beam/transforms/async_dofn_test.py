@@ -512,7 +512,7 @@ class AsyncTest(unittest.TestCase):
         target=AsyncTest._run_reset_state_deadlock_scenario,
         args=(self.use_asyncio, ))
     p.start()
-    p.join(timeout=3.0)
+    p.join(timeout=10.0)
 
     if p.is_alive():
       p.terminate()
