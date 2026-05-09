@@ -462,9 +462,16 @@ public class IcebergIO {
     }
 
     /**
-     * Defines the distribution mode of write data prior to writing.
+     * The default distribution mode is {@link DistributionMode#HASH}.
      *
-     * <p>The default distribution mode is {@link DistributionMode#HASH}.
+     * <p><b>Warning on HASH mode:</b> Utilizing {@code HASH} distribution mode (with or without
+     * auto-sharding) can suffer from large unpartitioned or skewed writes if key spaces are
+     * not uniformly distributed. This can bottleneck workers and produce fragmented layout files.
+     *
+     * <p><b>Note on RANGE mode:</b> When utilizing {@code RANGE} distribution mode, it is
+     * recommended that the custom distribution function is designed to produce adequately sized and
+     * strictly non-overlapping ranges of the sorting column to optimize downstream read
+     * performance.
      *
      * <h3>Comparison of Distribution Modes:</h3>
      *
