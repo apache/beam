@@ -62,7 +62,7 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 				// Check if followed by / (e.g., "**/" matches zero or more path segments)
 				if i+2 < len(pattern) && pattern[i+2] == '/' {
 					// **/ matches "" or "something/" or "a/b/c/"
-					result.WriteString("(.*/)?")
+					result.WriteString("(?:.*/)?")
 					i += 2 // Skip the second * and the /
 				} else {
 					// ** at end or before non-slash matches any characters
