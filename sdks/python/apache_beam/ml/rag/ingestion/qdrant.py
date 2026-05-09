@@ -86,6 +86,79 @@ class QdrantConnectionParameters:
       raise ValueError(
           "One of location, url, host, or path must be provided for Qdrant")
 
+  @classmethod
+  def for_cloud(
+      cls,
+      url: str,
+      api_key: str,
+      *,
+      prefer_grpc: bool = False,
+      timeout: Optional[int] = None,
+      **kwargs: Any,
+  ) -> "QdrantConnectionParameters":
+    """Connect to Qdrant Cloud. Requires the cluster URL and an API key."""
+    return cls(
+        url=url,
+        api_key=api_key,
+        https=True,
+        prefer_grpc=prefer_grpc,
+        timeout=timeout,
+        kwargs=kwargs,
+    )
+
+  @classmethod
+  def for_host(
+      cls,
+      host: str,
+      port: int = 6333,
+      *,
+      grpc_port: int = 6334,
+      prefer_grpc: bool = False,
+      https: bool = False,
+      api_key: Optional[str] = None,
+      timeout: Optional[int] = None,
+      **kwargs: Any,
+  ) -> "QdrantConnectionParameters":
+    """Connect to a self-hosted Qdrant instance by host and port."""
+    return cls(
+        host=host,
+        port=port,
+        grpc_port=grpc_port,
+        prefer_grpc=prefer_grpc,
+        https=https,
+        api_key=api_key,
+        timeout=timeout,
+        kwargs=kwargs,
+    )
+
+  @classmethod
+  def for_url(
+      cls,
+      url: str,
+      *,
+      api_key: Optional[str] = None,
+      prefer_grpc: bool = False,
+      timeout: Optional[int] = None,
+      **kwargs: Any,
+  ) -> "QdrantConnectionParameters":
+    """Connect using a full URL like 'https://my-qdrant.example.com:6333'."""
+    return cls(
+        url=url,
+        api_key=api_key,
+        prefer_grpc=prefer_grpc,
+        timeout=timeout,
+        kwargs=kwargs)
+
+  @classmethod
+  def local(cls, path: str) -> "QdrantConnectionParameters":
+    """Use an embedded Qdrant instance persisted to the given path."""
+    return cls(path=path)
+
+  @classmethod
+  def in_memory(cls) -> "QdrantConnectionParameters":
+    """Use an embedded in-memory Qdrant instance. Useful for tests."""
+    return cls(location=":memory:")
+
 
 @dataclass
 class QdrantWriteConfig(VectorDatabaseWriteConfig):
