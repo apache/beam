@@ -15,14 +15,18 @@
 # limitations under the License.
 
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+import grpc
 from objsize import get_deep_size
 
 try:
   from qdrant_client import QdrantClient, models
+  from qdrant_client.common.client_exceptions import ResourceExhaustedResponse
+  from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 except ImportError:
   logging.warning("Qdrant client library is not installed.")
 
@@ -285,12 +289,28 @@ class _QdrantWriteFn(beam.DoFn):
       return
     if not self._client:
       raise RuntimeError("Qdrant client is not initialized")
-    self._client.upsert(
-        collection_name=self.config.collection_name,
-        points=self._batch,
-        timeout=self.config.timeout,
-        **self.config.kwargs,
-    )
+
+    max_retries = 3
+    attempt = 1
+    while True:
+      try:
+        self._client.upsert(
+            collection_name=self.config.collection_name,
+            points=self._batch,
+            timeout=self.config.timeout,
+            **self.config.kwargs,
+        )
+        break
+      except ResourceExhaustedResponse as e:
+        time.sleep(e.retry_after_s)
+        # don't count rate-limit against max_retries
+        continue
+      except (UnexpectedResponse, ResponseHandlingException,
+              grpc.RpcError) as e:
+        if attempt > max_retries:
+          raise
+        time.sleep(2**attempt)
+        attempt += 1
     self._batch = []
     self._batch_byte_size = 0
 
