@@ -518,11 +518,11 @@ class AsyncTest(unittest.TestCase):
       p.terminate()
       p.join()
       self.fail(
-          "reset_state() deadlocked/hung waiting for active threads/tasks to finish")
+          "reset_state() deadlocked/hung waiting for active threads/tasks to finish"
+      )
     else:
       self.assertEqual(p.exitcode, 0)
 
 
 if __name__ == '__main__':
   unittest.main()
-
