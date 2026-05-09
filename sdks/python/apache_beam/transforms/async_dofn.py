@@ -165,10 +165,11 @@ class AsyncWrapper(beam.DoFn):
       if AsyncWrapper._loop_started is not None:
         AsyncWrapper._loop_started.clear()
 
-      pools_to_shutdown = [
-          pool.acquire(AsyncWrapper.initialize_pool(1))
-          for pool in AsyncWrapper._pool.values()
-      ]
+      pools = list(AsyncWrapper._pool.values())
+
+    pools_to_shutdown = [
+        pool.acquire(AsyncWrapper.initialize_pool(1)) for pool in pools
+    ]
 
     for pool in pools_to_shutdown:
       pool.shutdown(wait=True, cancel_futures=True)
