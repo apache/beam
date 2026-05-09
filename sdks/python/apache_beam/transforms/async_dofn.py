@@ -153,12 +153,13 @@ class AsyncWrapper(beam.DoFn):
 
   @staticmethod
   def reset_state():
+    event_loop_thread_to_join = None
     with AsyncWrapper._lock:
       if AsyncWrapper._event_loop:
         AsyncWrapper._event_loop.call_soon_threadsafe(
             AsyncWrapper._event_loop.stop)
       if AsyncWrapper._event_loop_thread:
-        AsyncWrapper._event_loop_thread.join()
+        event_loop_thread_to_join = AsyncWrapper._event_loop_thread
 
       AsyncWrapper._event_loop = None
       AsyncWrapper._event_loop_thread = None
@@ -167,6 +168,17 @@ class AsyncWrapper(beam.DoFn):
 
       pools = list(AsyncWrapper._pool.values())
 
+    # We must join the asyncio event loop thread outside of the lock block.
+    # If joined inside the lock, the waiting thread holds the lock while blocking,
+    # preventing active coroutines' done callbacks from acquiring the lock on the
+    # event loop thread, resulting in a deadlock.
+    if event_loop_thread_to_join:
+      event_loop_thread_to_join.join()
+
+    # We must acquire and shut down the thread pools outside of the lock block.
+    # If shutdown(wait=True) is called inside the lock, the caller blocks holding
+    # the lock, preventing active worker threads from acquiring the lock to run
+    # their done callbacks, resulting in a deadlock.
     pools_to_shutdown = [
         pool.acquire(AsyncWrapper.initialize_pool(1)) for pool in pools
     ]
