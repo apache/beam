@@ -490,30 +490,24 @@ class AsyncTest(unittest.TestCase):
 
   @staticmethod
   def _run_reset_state_deadlock_scenario(use_asyncio):
-    if use_asyncio:
-      return
-
     dofn = BasicDofn(sleep_time=0.5)
-    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=False)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
 
-    # Start processing an item. This starts a worker thread sleeping for 0.5s.
+    # Start processing an item. This starts a worker thread/coroutine sleeping for 0.5s.
     async_dofn.process(('key1', 1), to_process=fake_bag_state, timer=fake_timer)
     time.sleep(0.05)
 
     # Attempt to call reset_state(). If the fix is NOT applied, this will deadlock
-    # forever because reset_state() holds the lock while calling shutdown(wait=True),
+    # forever because reset_state() holds the lock while waiting for active tasks/threads,
     # blocking the future's done callback from acquiring the lock.
     async_lib.AsyncWrapper.reset_state()
 
   def test_reset_state_hang_reproduction(self):
     # Run the deadlock scenario in a separate process so that if it hangs,
     # we can terminate it without causing the main pytest process to hang at exit.
-    if self.use_asyncio:
-      return
-
     p = multiprocessing.Process(
         target=AsyncTest._run_reset_state_deadlock_scenario,
         args=(self.use_asyncio, ))
@@ -524,7 +518,7 @@ class AsyncTest(unittest.TestCase):
       p.terminate()
       p.join()
       self.fail(
-          "reset_state() deadlocked/hung waiting for active threads to finish")
+          "reset_state() deadlocked/hung waiting for active threads/tasks to finish")
     else:
       self.assertEqual(p.exitcode, 0)
 
