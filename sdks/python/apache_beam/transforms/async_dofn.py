@@ -165,9 +165,14 @@ class AsyncWrapper(beam.DoFn):
       if AsyncWrapper._loop_started is not None:
         AsyncWrapper._loop_started.clear()
 
-      for pool in AsyncWrapper._pool.values():
-        pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-            wait=True, cancel_futures=True)
+      pools_to_shutdown = [
+          pool.acquire(AsyncWrapper.initialize_pool(1))
+          for pool in AsyncWrapper._pool.values()
+      ]
+
+    for pool in pools_to_shutdown:
+      pool.shutdown(wait=True, cancel_futures=True)
+
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -268,7 +273,8 @@ class AsyncWrapper(beam.DoFn):
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
-      AsyncWrapper._items_in_buffer[self._uuid] -= 1
+      if self._uuid in AsyncWrapper._items_in_buffer:
+        AsyncWrapper._items_in_buffer[self._uuid] -= 1
 
   def schedule_if_room(self, element, ignore_buffer=False, *args, **kwargs):
     """Schedules an item to be processed asynchronously if there is room.
