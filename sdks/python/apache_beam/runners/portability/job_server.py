@@ -94,8 +94,13 @@ class StopOnExitJobServer(JobServer):
   def stop(self):
     with self._lock:
       if self._started:
-        self._job_server.stop()
-        self._started = False
+        try:
+          self._job_server.stop()
+        finally:
+          self._started = False
+          # Unregister the atexit handler to prevent duplicate
+          # registrations when the server is restarted/reused.
+          atexit.unregister(self.stop)
 
 
 class SubprocessJobServer(JobServer):
