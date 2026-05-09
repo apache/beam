@@ -516,14 +516,15 @@ class AsyncTest(unittest.TestCase):
 
     p = multiprocessing.Process(
         target=AsyncTest._run_reset_state_deadlock_scenario,
-        args=(self.use_asyncio,))
+        args=(self.use_asyncio, ))
     p.start()
     p.join(timeout=3.0)
 
     if p.is_alive():
       p.terminate()
       p.join()
-      self.fail("reset_state() deadlocked/hung waiting for active threads to finish")
+      self.fail(
+          "reset_state() deadlocked/hung waiting for active threads to finish")
     else:
       self.assertEqual(p.exitcode, 0)
 
