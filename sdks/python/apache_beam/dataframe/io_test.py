@@ -296,6 +296,27 @@ A     B
     self._run_truncating_file_handle_iter_test('aaa b cccccccccccccccccccc')
     self._run_truncating_file_handle_iter_test('aaa b ccccccccccccccccc ')
 
+  def test_truncating_filehandle_flush_on_closed_stream(self):
+    class ClosedFlushingStream(StringIO):
+      def flush(self):
+        if self.closed:
+          raise ValueError("I/O operation on closed file.")
+        super().flush()
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = ClosedFlushingStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that calling flush() when the underlying stream is closed
+    # succeeds without raising ValueError.
+    underlying.close()
+    handle.flush()
+
+
+
   @parameterized.expand([
       ('defaults', {}),
       ('header', dict(header=1)),
