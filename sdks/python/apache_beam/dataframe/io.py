@@ -591,11 +591,10 @@ class _TruncatingFileHandle(object):
         pass
 
   def close(self):
-    if not self.closed:
+    if not self.closed and hasattr(self._underlying, 'close'):
       try:
-        if hasattr(self._underlying, 'close'):
-          self._underlying.close()
-      except Exception:
+        self._underlying.close()
+      except (OSError, ValueError):
         pass
 
 

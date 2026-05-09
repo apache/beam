@@ -314,8 +314,7 @@ A     B
     # succeeds without raising ValueError.
     underlying.close()
     handle.flush()
-
-
+    handle.close()
 
   @parameterized.expand([
       ('defaults', {}),
