@@ -113,7 +113,8 @@ def temp_fake_datadog_server(expected_records=None):
           api_key="dummy_key_for_testing",
       )
     except Exception as err:
-      logging.error("Error interacting with temporary fake Datadog server: %s", err)
+      logging.error(
+          "Error interacting with temporary fake Datadog server: %s", err)
       raise err
     finally:
       if expected_records is not None:
