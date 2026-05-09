@@ -19,6 +19,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from objsize import get_deep_size
+
 try:
   from qdrant_client import QdrantClient, models
 except ImportError:
@@ -29,6 +31,7 @@ from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import EmbeddableItem
 
 DEFAULT_WRITE_BATCH_SIZE = 1000
+DEFAULT_MAX_BATCH_BYTE_SIZE = 4 << 20
 
 
 @dataclass
@@ -103,8 +106,9 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
 
   connection_params: QdrantConnectionParameters
   collection_name: str
-  timeout: Optional[float] = None
+  timeout: Optional[int] = None
   batch_size: int = DEFAULT_WRITE_BATCH_SIZE
+  max_batch_byte_size: int = DEFAULT_MAX_BATCH_BYTE_SIZE
   kwargs: dict[str, Any] = field(default_factory=dict)
   dense_embedding_key: str = "dense"
   sparse_embedding_key: str = "sparse"
@@ -162,11 +166,18 @@ class _QdrantWriteFn(beam.DoFn):
 
   def start_bundle(self):
     self._batch = []
+    self._batch_byte_size = 0
 
   def process(self, element, *args, **kwargs):
-    self._batch.append(element)
-    if len(self._batch) >= self.config.batch_size:
+    element_byte_size = get_deep_size(element)
+    new_batch_byte_size = self._batch_byte_size + element_byte_size
+
+    is_batch_full = len(self._batch) >= self.config.batch_size
+    is_batch_too_large = new_batch_byte_size > self.config.max_batch_byte_size
+    if (is_batch_full or is_batch_too_large):
       self._flush()
+    self._batch.append(element)
+    self._batch_byte_size += element_byte_size
 
   def setup(self):
     params = self.config.connection_params
@@ -195,7 +206,7 @@ class _QdrantWriteFn(beam.DoFn):
     self._flush()
 
   def _flush(self):
-    if len(self._batch) == 0:
+    if not self._batch:
       return
     if not self._client:
       raise RuntimeError("Qdrant client is not initialized")
@@ -206,9 +217,11 @@ class _QdrantWriteFn(beam.DoFn):
         **self.config.kwargs,
     )
     self._batch = []
+    self._batch_byte_size = 0
 
   def display_data(self):
     res = super().display_data()
     res["collection"] = self.config.collection_name
     res["batch_size"] = self.config.batch_size
+    res["max_batch_byte_size"] = self.config.max_batch_byte_size
     return res

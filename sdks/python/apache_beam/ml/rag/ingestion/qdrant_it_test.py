@@ -274,6 +274,51 @@ class TestQdrantIngestion(unittest.TestCase):
       )
       self.assertEqual(expected_record, points_by_id[int(item.id)])
 
+  def test_write_with_byte_size_limit(self):
+    byte_size_corpus = [
+        EmbeddableItem(
+            id=str(i),
+            content=Content(text=f"Byte size doc {i}"),
+            metadata={"data": "x" * 9000},
+            embedding=Embedding(dense_embedding=[1.0, 0.0]),
+        ) for i in range(5)
+    ]
+
+    write_config = QdrantWriteConfig(
+        connection_params=self._connection_params,
+        collection_name=self._collection_name,
+        batch_size=100,
+        max_batch_byte_size=15_000,
+    )
+
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.Create(byte_size_corpus)
+          | write_config.create_write_transform())
+
+    with self.qdrant_client() as client:
+      count_result = client.count(collection_name=self._collection_name)
+      self.assertEqual(count_result.count, len(byte_size_corpus))
+
+      points, _ = client.scroll(
+        collection_name=self._collection_name,
+        limit=100,
+        with_payload=True,
+        with_vectors=True,
+      )
+    points_by_id = {p.id: p for p in points}
+
+    for item in byte_size_corpus:
+      expected_record = models.Record(
+          id=int(item.id),
+          vector={
+              "dense": item.dense_embedding,
+          },
+          payload=item.metadata,
+      )
+      self.assertEqual(expected_record, points_by_id[int(item.id)])
+
 
 if __name__ == "__main__":
   unittest.main()
