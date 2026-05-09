@@ -116,6 +116,8 @@ class QdrantWriteConfig(VectorDatabaseWriteConfig):
   def __post_init__(self):
     if not self.collection_name:
       raise ValueError("Collection name must be provided")
+    if self.batch_size <= 0:
+      raise ValueError("Batch size must be a positive integer")
 
   def create_write_transform(self) -> beam.PTransform[EmbeddableItem, Any]:
     return _QdrantWriteTransform(self)
