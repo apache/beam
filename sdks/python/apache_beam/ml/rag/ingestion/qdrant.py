@@ -158,8 +158,10 @@ class _QdrantWriteTransform(beam.PTransform):
 class _QdrantWriteFn(beam.DoFn):
   def __init__(self, config: QdrantWriteConfig):
     self.config = config
-    self._batch = []
     self._client: "Optional[QdrantClient]" = None
+
+  def start_bundle(self):
+    self._batch = []
 
   def process(self, element, *args, **kwargs):
     self._batch.append(element)
