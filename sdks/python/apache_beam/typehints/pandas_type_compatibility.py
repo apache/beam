@@ -223,8 +223,11 @@ class DataFrameBatchConverterDropIndex(DataFrameBatchConverter):
   def produce_batch(self, elements):
     batch = pd.DataFrame.from_records(elements, columns=self._columns)
 
-    for column, typehint in self._element_type._fields:
-      batch[column] = batch[column].astype(dtype_from_typehint(typehint))
+    dtypes = {
+        column: dtype_from_typehint(typehint)
+        for column, typehint in self._element_type._fields
+    }
+    batch = batch.astype(dtypes)
 
     return batch
 
@@ -249,8 +252,11 @@ class DataFrameBatchConverterKeepIndex(DataFrameBatchConverter):
     # Note from_records has an index= parameter
     batch = pd.DataFrame.from_records(elements, columns=self._columns)
 
-    for column, typehint in self._element_type._fields:
-      batch[column] = batch[column].astype(dtype_from_typehint(typehint))
+    dtypes = {
+        column: dtype_from_typehint(typehint)
+        for column, typehint in self._element_type._fields
+    }
+    batch = batch.astype(dtypes)
 
     return batch.set_index(self._index_columns)
 
