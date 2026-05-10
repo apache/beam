@@ -56,6 +56,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -157,6 +158,8 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable UnboundedReader<?> activeReader;
 
+  private @Nullable WorkExecutor workExecutor;
+
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
       String computationId,
@@ -240,9 +243,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor) {
     this.key = key;
     this.work = work;
+    this.workExecutor = workExecutor;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
@@ -268,6 +273,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
       }
     }
+  }
+
+  public void finishKey() throws Exception {
+    checkNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
+    workExecutor.finishKey();
   }
 
   /**

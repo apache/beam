@@ -62,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -99,6 +100,7 @@ public class StreamingModeExecutionContextTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
+  @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
 
@@ -168,7 +170,8 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        workExecutor);
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
@@ -218,7 +221,8 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        workExecutor);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
   }
@@ -427,7 +431,8 @@ public class StreamingModeExecutionContextTest {
               Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
           stateReader,
           sideInputStateFetcher,
-          outputBuilder);
+          outputBuilder,
+          workExecutor);
       assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
     }
   }
