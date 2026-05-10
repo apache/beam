@@ -150,6 +150,7 @@ cdef class _OutputHandler(OutputHandler):
   cdef object output_batch_converter
   cdef bint _process_batch_yields_elements
   cdef bint _process_yields_batches
+  cdef bint _check_user_dofn_output
 
   @cython.locals(windowed_value=WindowedValue,
                  windowed_batch=WindowedBatch,
