@@ -494,19 +494,24 @@ class ApproximateQuantilesTest(unittest.TestCase):
               3, input_batched=True))
       with_key = (
           pc | 'Globally with key' >> beam.ApproximateQuantiles.Globally(
-              3, key=ApproximateQuantilesTest._sum_and_second, input_batched=True))
+              3,
+              key=ApproximateQuantilesTest._sum_and_second,
+              input_batched=True))
       key_with_reversed = (
           pc | 'Globally with key and reversed' >>
           beam.ApproximateQuantiles.Globally(
-              3, key=ApproximateQuantilesTest._sum_and_second, reverse=True, input_batched=True))
+              3,
+              key=ApproximateQuantilesTest._sum_and_second,
+              reverse=True,
+              input_batched=True))
       assert_that(
           globally,
           equal_to([[(0.0, 500), (49.9, 1), (99.9, 499)]]),
           label='checkGlobally')
-      # When key is present, both (72.5, 225) and (22.5, 275) produce the exact same 
-      # sum (297.5). If we just use key=sum, tie-breaking is sensitive to bundle merging 
+      # When key is present, both (72.5, 225) and (22.5, 275) produce the exact same
+      # sum (297.5). If we just use key=sum, tie-breaking is sensitive to bundle merging
       # order and shared class-level jitter state, leading to flaky test failures.
-      # With the secondary key (defined in _sum_and_second), we can break ties 
+      # With the secondary key (defined in _sum_and_second), we can break ties
       # deterministically.
       assert_that(
           with_key,
