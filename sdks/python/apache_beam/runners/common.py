@@ -1680,7 +1680,7 @@ class _OutputHandler(OutputHandler):
       object_type = type(results).__name__
       raise TypeError(
           'Returning a %s from a ParDo or FlatMap is discouraged. '
-          'Please use list("%s") if you really want this behavior.' %
+          'Please use list(%r) if you really want this behavior.' %
           (object_type, results))
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the

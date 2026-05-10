@@ -164,6 +164,10 @@ class DoFnProcessTest(unittest.TestCase):
       def process(self, element):
         return 'hello'
 
+    # Use base Exception (matching existing convention in
+    # typecheck_test.py::test_do_fn_returning_non_iterable_throws_error)
+    # because the runner's _reraise_augmented wraps the TypeError before
+    # it surfaces to the test framework.
     with self.assertRaisesRegex(
         Exception, 'Returning a str from a ParDo or FlatMap is discouraged'):
       with TestPipeline() as p:
