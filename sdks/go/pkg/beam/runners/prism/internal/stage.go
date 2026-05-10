@@ -240,7 +240,7 @@ progress:
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
-					if b.BundleErr != nil {
+					if b.BundleErr == nil {
 						b.BundleErr = err
 					}
 					return b.BundleErr

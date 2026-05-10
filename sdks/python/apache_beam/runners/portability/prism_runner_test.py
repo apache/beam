@@ -295,6 +295,98 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                   ('B-3', {10, 15, 16}),
               ])))
 
+  def test_sdf_split_exception(self):
+    from apache_beam.io.iobase import RestrictionTracker
+
+    class SimpleTracker(RestrictionTracker):
+      def __init__(self, rest):
+        self._rest = rest
+      def current_restriction(self):
+        return self._rest
+      def try_claim(self, position):
+        return True
+      def check_done(self):
+        pass
+      def is_bounded(self):
+        return True
+
+    class FailingSplitProvider(beam.RestrictionProvider):
+      def initial_restriction(self, element):
+        return (0, 10)
+      def create_tracker(self, restriction):
+        return SimpleTracker(restriction)
+      def restriction_size(self, element, restriction):
+        return 10
+      def split_and_size(self, element, restriction):
+        raise RuntimeError("400 invalid split")
+
+    class SplittableFn(beam.DoFn):
+      def process(self, element, restriction=beam.DoFn.RestrictionParam(FailingSplitProvider())):
+        yield element
+
+    try:
+      with self.create_pipeline() as p:
+        _ = p | beam.Create([1]) | beam.ParDo(SplittableFn())
+    except Exception as e:
+      print("\n[ACTUAL EXCEPTION RAISED IN STATIC SPLIT]:\n%s" % e)
+      self.assertRegex(str(e), "invalid split")
+    else:
+      self.fail("Exception not raised")
+
+  def test_sdf_dynamic_split_exception(self):
+    from apache_beam.io.iobase import RestrictionTracker
+    from apache_beam.io.iobase import RestrictionProgress
+    import time
+
+    class DynamicSplitTracker(RestrictionTracker):
+      def __init__(self, rest):
+        self._rest = rest
+
+      def current_restriction(self):
+        return self._rest
+
+      def current_progress(self):
+        return RestrictionProgress(fraction=0.5)
+
+      def try_claim(self, position):
+        return True
+
+      def check_done(self):
+        pass
+
+      def is_bounded(self):
+        return True
+
+      def try_split(self, fraction_of_remainder):
+        # Raised when the runner sends a dynamic runtime splitting request
+        raise RuntimeError("dynamic runtime split failed")
+
+    class DynamicSplitProvider(beam.RestrictionProvider):
+      def initial_restriction(self, element):
+        return (0, 100)
+
+      def create_tracker(self, restriction):
+        return DynamicSplitTracker(restriction)
+
+      def restriction_size(self, element, restriction):
+        return 100
+
+    class SleepingSDF(beam.DoFn):
+      def process(self, element, restriction=beam.DoFn.RestrictionParam(DynamicSplitProvider())):
+        # Sleep enough to guarantee that Prism sends a dynamic split request due to slow progress
+        for i in range(10):
+          time.sleep(0.5)
+          yield element + i
+
+    try:
+      with self.create_pipeline() as p:
+        _ = p | beam.Create([1]) | beam.ParDo(SleepingSDF())
+    except Exception as e:
+      print("\n[ACTUAL EXCEPTION RAISED IN DYNAMIC SPLIT]:\n%s" % e)
+      self.assertRegex(str(e), "dynamic runtime split failed")
+    else:
+      self.fail("Exception not raised")
+
 
 class PrismJobServerTest(unittest.TestCase):
   def setUp(self) -> None:
