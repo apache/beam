@@ -510,6 +510,14 @@ class PrismRunnerSingletonTest(unittest.TestCase):
       mock_responses.get()
       active_workers.remove(self_worker)
 
+    def wait_for_workers(expected_count, timeout=5.0):
+      start = time.time()
+      while time.time() - start < timeout:
+        if len(active_workers) == expected_count:
+          return
+        time.sleep(0.01)
+      self.assertEqual(len(active_workers), expected_count)
+
     with mock.patch(
         'apache_beam.runners.worker.sdk_worker.SdkHarness') as mock_harness:
       mock_harness.return_value._responses = mock_responses
@@ -520,31 +528,27 @@ class PrismRunnerSingletonTest(unittest.TestCase):
       req1.control_endpoint.url = "localhost:12345"
       servicer.StartWorker(req1, None)
 
-      time.sleep(0.05)
-      self.assertEqual(len(active_workers), 1)
+      wait_for_workers(1)
 
       # Simulate stopping Worker 1 at the end of Pipeline 1
       stop_req1 = beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_1")
       servicer.StopWorker(stop_req1, None)
 
-      time.sleep(0.05)
       # Verify the fix: StopWorker successfully tells the thread harness to shut down,
       # completely resolving the thread leak!
-      self.assertEqual(len(active_workers), 0)
+      wait_for_workers(0)
 
       # Simulate starting Worker 2 for Pipeline 2
       req2 = beam_fn_api_pb2.StartWorkerRequest(worker_id="worker_2")
       req2.control_endpoint.url = "localhost:12345"
       servicer.StartWorker(req2, None)
 
-      time.sleep(0.05)
-      self.assertEqual(len(active_workers), 1)
+      wait_for_workers(1)
 
       # Clean up the second worker
       servicer.StopWorker(
           beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_2"), None)
-      time.sleep(0.05)
-      self.assertEqual(len(active_workers), 0)
+      wait_for_workers(0)
 
 
 if __name__ == '__main__':

@@ -45,6 +45,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.utils import thread_pool_executor
+from apache_beam.utils.sentinel import Sentinel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -196,7 +197,6 @@ class BeamFnExternalWorkerPoolServicer(
         stop_worker_request.worker_id, None)
     if worker_thread_harness:
       _LOGGER.info("Stopping thread worker %s" % stop_worker_request.worker_id)
-      from apache_beam.utils.sentinel import Sentinel
       worker_thread_harness._responses.put(Sentinel.sentinel)
 
     return beam_fn_api_pb2.StopWorkerResponse()
