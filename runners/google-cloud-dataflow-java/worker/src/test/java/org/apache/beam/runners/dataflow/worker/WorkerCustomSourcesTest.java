@@ -680,6 +680,7 @@ public class WorkerCustomSourcesTest {
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
+      context.finishKey();
       context.flushState();
       state = context.getOutputBuilder().getSourceStateUpdates().getState();
       // CountingSource's watermark is the last record + 1.  i is now one past the last record,

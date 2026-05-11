@@ -154,7 +154,7 @@ public class StreamingModeExecutionContextTest {
   }
 
   @Test
-  public void testTimerInternalsSetTimer() {
+  public void testTimerInternalsSetTimer() throws Exception {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     NameContext nameContext = NameContextsForTests.nameContextForTest();
@@ -182,6 +182,7 @@ public class StreamingModeExecutionContextTest {
             new Instant(5000),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
+    executionContext.finishKey();
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
