@@ -30,7 +30,7 @@ require (
 	cloud.google.com/go/datastore v1.23.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.50.2
-	cloud.google.com/go/spanner v1.88.0
+	cloud.google.com/go/spanner v1.91.0
 	cloud.google.com/go/storage v1.62.1
 	github.com/aws/aws-sdk-go-v2 v1.41.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.7
