@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.artifact;
 import static org.junit.Assert.assertEquals;
 
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -168,7 +167,7 @@ public class ArtifactStagingServiceTest {
   }
 
   private void checkArtifacts(
-      Collection<String> expectedContents, List<RunnerApi.ArtifactInformation> staged) {
+      List<String> expectedContents, List<RunnerApi.ArtifactInformation> staged) {
     assertEquals(
         expectedContents, Lists.transform(staged, RunnerApi.ArtifactInformation::getRoleUrn));
     assertEquals(expectedContents, Lists.transform(staged, this::getArtifact));

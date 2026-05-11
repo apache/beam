@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -45,7 +46,6 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.types.Type;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogConfig.class);
-  private transient @MonotonicNonNull Catalog cachedCatalog;
+  private static final ConcurrentHashMap<IcebergCatalogConfig, Catalog> CATALOG_CACHE =
+      new ConcurrentHashMap<>();
 
   @Pure
   @Nullable
@@ -75,27 +76,28 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public abstract Builder toBuilder();
 
-  public org.apache.iceberg.catalog.Catalog catalog() {
-    if (cachedCatalog == null) {
-      String catalogName = getCatalogName();
-      if (catalogName == null) {
-        catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-      }
-      Map<String, String> catalogProps = getCatalogProperties();
-      if (catalogProps == null) {
-        catalogProps = Maps.newHashMap();
-      }
-      Map<String, String> confProps = getConfigProperties();
-      if (confProps == null) {
-        confProps = Maps.newHashMap();
-      }
-      Configuration config = new Configuration();
-      for (Map.Entry<String, String> prop : confProps.entrySet()) {
-        config.set(prop.getKey(), prop.getValue());
-      }
-      cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+  public Catalog catalog() {
+    return CATALOG_CACHE.computeIfAbsent(this, IcebergCatalogConfig::buildCatalog);
+  }
+
+  private static Catalog buildCatalog(IcebergCatalogConfig catalogConfig) {
+    String catalogName = catalogConfig.getCatalogName();
+    if (catalogName == null) {
+      catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
     }
-    return cachedCatalog;
+    Map<String, String> catalogProps = catalogConfig.getCatalogProperties();
+    if (catalogProps == null) {
+      catalogProps = Maps.newHashMap();
+    }
+    Map<String, String> confProps = catalogConfig.getConfigProperties();
+    if (confProps == null) {
+      confProps = Maps.newHashMap();
+    }
+    Configuration config = new Configuration();
+    for (Map.Entry<String, String> prop : confProps.entrySet()) {
+      config.set(prop.getKey(), prop.getValue());
+    }
+    return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
   }
 
   private void checkSupportsNamespaces() {

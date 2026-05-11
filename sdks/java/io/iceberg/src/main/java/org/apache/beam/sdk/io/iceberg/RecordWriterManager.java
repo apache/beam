@@ -29,10 +29,8 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
@@ -51,6 +49,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -60,7 +59,6 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -332,6 +330,7 @@ class RecordWriterManager implements AutoCloseable {
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    SortOrder sortOrder = createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
     Map<String, String> tableProperties =
         createConfig != null && createConfig.getTableProperties() != null
             ? createConfig.getTableProperties()
@@ -360,13 +359,20 @@ class RecordWriterManager implements AutoCloseable {
       } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
-          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          table =
+              catalog
+                  .buildTable(identifier, tableSchema)
+                  .withPartitionSpec(partitionSpec)
+                  .withSortOrder(sortOrder)
+                  .withProperties(tableProperties)
+                  .create();
           LOG.info(
               "Created Iceberg table '{}' with schema: {}\n"
-                  + ", partition spec: {}, table properties: {}",
+                  + ", partition spec: {}, sort order: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
+              sortOrder,
               tableProperties);
         } catch (AlreadyExistsException ignored) {
           // race condition: another worker already created this table
@@ -434,20 +440,6 @@ class RecordWriterManager implements AutoCloseable {
         state.dataFiles.clear();
       }
     } finally {
-      // Close unique FileIO instances now that all writers are done.
-      // table.io() may return a shared FileIO; we deduplicate by identity
-      // so we close each underlying connection pool exactly once.
-      Set<FileIO> closedIOs = new HashSet<>();
-      for (DestinationState state : destinations.values()) {
-        FileIO io = state.table.io();
-        if (io != null && closedIOs.add(io)) {
-          try {
-            io.close();
-          } catch (Exception e) {
-            LOG.warn("Failed to close FileIO for table '{}'", state.table.name(), e);
-          }
-        }
-      }
       destinations.clear();
     }
     checkArgument(

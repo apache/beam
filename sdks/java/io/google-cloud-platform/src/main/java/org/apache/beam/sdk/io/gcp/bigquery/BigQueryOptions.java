@@ -245,4 +245,12 @@ public interface BigQueryOptions
   Boolean getGroupFilesFileLoad();
 
   void setGroupFilesFileLoad(Boolean value);
+
+  @Hidden
+  @Description(
+      "The number of parallelization to use for buffering elements when upgrading table schemas.")
+  @Default.Integer(50)
+  Integer getSchemaUpgradeBufferingShards();
+
+  void setSchemaUpgradeBufferingShards(Integer value);
 }

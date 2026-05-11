@@ -51,6 +51,23 @@ const (
 	NoArtifactsStaged      = "__no_artifacts_staged__"
 )
 
+type validationKey string
+
+const artifactValidationKey validationKey = "artifact_validation_enabled"
+
+// WithArtifactValidation returns a new context carrying the artifact validation enabled state.
+func WithArtifactValidation(ctx context.Context, enabled bool) context.Context {
+	return context.WithValue(ctx, artifactValidationKey, enabled)
+}
+
+// isArtifactValidationEnabled parses pipeline options to check if "disable_integrity_checks" is enabled.
+func isArtifactValidationEnabled(ctx context.Context) bool {
+	if val, ok := ctx.Value(artifactValidationKey).(bool); ok {
+		return val
+	}
+	return true
+}
+
 // Materialize is a convenience helper for ensuring that all artifacts are
 // present and uncorrupted. It interprets each artifact name as a relative
 // path under the dest directory. It does not retrieve valid artifacts already
@@ -131,6 +148,7 @@ func newMaterializeWithClient(ctx context.Context, client jobpb.ArtifactRetrieva
 				RoleUrn:     URNStagingTo,
 				RolePayload: rolePayload,
 			},
+			expectedSha256: filePayload.Sha256,
 		})
 	}
 
@@ -183,8 +201,9 @@ func MustExtractFilePayload(artifact *pipepb.ArtifactInformation) (string, strin
 }
 
 type artifact struct {
-	client jobpb.ArtifactRetrievalServiceClient
-	dep    *pipepb.ArtifactInformation
+	client         jobpb.ArtifactRetrievalServiceClient
+	dep            *pipepb.ArtifactInformation
+	expectedSha256 string
 }
 
 func (a artifact) retrieve(ctx context.Context, dest string) error {
@@ -231,7 +250,19 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 	stat, _ := fd.Stat()
 	log.Printf("Downloaded: %v (sha256: %v, size: %v)", filename, sha256Hash, stat.Size())
 
-	return fd.Close()
+	if err := fd.Close(); err != nil {
+		return err
+	}
+
+	if isArtifactValidationEnabled(ctx) {
+		if a.expectedSha256 == "" {
+			log.Printf("WARN: Artifact validation skipped for file: %v", filename)
+		} else if sha256Hash != a.expectedSha256 {
+			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.expectedSha256)
+		}
+	}
+
+	return nil
 }
 
 func writeChunks(stream jobpb.ArtifactRetrievalService_GetArtifactClient, w io.Writer) (string, error) {
@@ -442,8 +473,12 @@ func retrieve(ctx context.Context, client jobpb.LegacyArtifactRetrievalServiceCl
 	}
 
 	// Artifact Sha256 hash is an optional field in metadata so we should only validate when its present.
-	if a.Sha256 != "" && sha256Hash != a.Sha256 {
-		return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
+	if isArtifactValidationEnabled(ctx) {
+		if a.Sha256 == "" {
+			log.Printf("WARN: Artifact validation skipped for file: %v", filename)
+		} else if sha256Hash != a.Sha256 {
+			return errors.Errorf("bad SHA256 for %v: %v, want %v", filename, sha256Hash, a.Sha256)
+		}
 	}
 	return nil
 }

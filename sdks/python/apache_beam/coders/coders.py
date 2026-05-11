@@ -43,13 +43,9 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import overload
 
@@ -68,7 +64,6 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
-  from apache_beam.coders.typecoders import CoderRegistry
   from apache_beam.runners.pipeline_context import PipelineContext
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -91,6 +86,7 @@ __all__ = [
     'Coder',
     'AvroGenericCoder',
     'BooleanCoder',
+    'ByteCoder',
     'BytesCoder',
     'CloudpickleCoder',
     'DillCoder',
@@ -121,7 +117,7 @@ __all__ = [
 T = TypeVar('T')
 CoderT = TypeVar('CoderT', bound='Coder')
 ProtoCoderT = TypeVar('ProtoCoderT', bound='ProtoCoder')
-ConstructorFn = Callable[[Optional[Any], List['Coder'], 'PipelineContext'], Any]
+ConstructorFn = Callable[[Optional[Any], list['Coder'], 'PipelineContext'], Any]
 
 
 def serialize_coder(coder):
@@ -683,6 +679,25 @@ class BigEndianShortCoder(FastCoder):
   """A coder used for big-endian int16 values."""
   def _create_impl(self):
     return coder_impl.BigEndianShortCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class ByteCoder(FastCoder):
+  """A coder used for single byte values"""
+  def _create_impl(self):
+    return coder_impl.ByteCoderImpl()
 
   def is_deterministic(self):
     # type: () -> bool
@@ -1488,7 +1503,7 @@ Coder.register_structured_urn(
 
 class _OrderedUnionCoder(FastCoder):
   def __init__(
-      self, *coder_types: Tuple[type, Coder], fallback_coder: Optional[Coder]):
+      self, *coder_types: tuple[type, Coder], fallback_coder: Optional[Coder]):
     self._coder_types = coder_types
     self._fallback_coder = fallback_coder
 
@@ -1796,7 +1811,7 @@ class TimestampPrefixingWindowCoder(FastCoder):
   def to_type_hint(self):
     return self._window_coder.to_type_hint()
 
-  def _get_component_coders(self) -> List[Coder]:
+  def _get_component_coders(self) -> list[Coder]:
     return [self._window_coder]
 
   def is_deterministic(self) -> bool:

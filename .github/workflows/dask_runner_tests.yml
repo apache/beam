@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install python
         uses: actions/setup-python@v5
         with:
@@ -52,7 +52,7 @@ jobs:
         working-directory: ./sdks/python/dist
         run: mv $(ls | grep "apache-beam.*tar\.gz\|apache_beam.*tar\.gz") apache-beam-source.tar.gz
       - name: Upload compressed sources as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: python_sdk_source
           path: sdks/python/dist/apache-beam-source.tar.gz
@@ -69,7 +69,7 @@ jobs:
         ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install python
         uses: actions/setup-python@v5
         with:
@@ -88,7 +88,7 @@ jobs:
         working-directory: ./sdks/python
         run: tox -c tox.ini -e ${{ matrix.params.tox_env }}-win-dask
       - name: Upload test logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -664,7 +665,10 @@ public class TestPOJOs {
       }
       NestedCollectionPOJO that = (NestedCollectionPOJO) o;
       return Objects.equals(simples, that.simples)
-          && Objects.equals(iterableSimples, that.iterableSimples);
+          && (iterableSimples == that.iterableSimples
+              || (iterableSimples != null
+                  && that.iterableSimples != null
+                  && Iterables.elementsEqual(iterableSimples, that.iterableSimples)));
     }
 
     @Override
@@ -887,11 +891,14 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PojoWithNestedArray)) {
+      if (!(o instanceof PojoWithIterable)) {
         return false;
       }
       PojoWithIterable that = (PojoWithIterable) o;
-      return Objects.equals(strings, that.strings);
+      return strings == that.strings
+          || (strings != null
+              && that.strings != null
+              && Iterables.elementsEqual(strings, that.strings));
     }
 
     @Override

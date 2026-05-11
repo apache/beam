@@ -16,8 +16,6 @@
 
 import logging
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Union
@@ -36,7 +34,7 @@ from apache_beam.ml.rag.types import EmbeddableItem
 
 _LOGGER = logging.getLogger(__name__)
 
-MetadataSpec = Union[ColumnSpec, Dict[str, ColumnSpec]]
+MetadataSpec = Union[ColumnSpec, dict[str, ColumnSpec]]
 
 
 class _PostgresQueryBuilder:
@@ -44,7 +42,7 @@ class _PostgresQueryBuilder:
       self,
       table_name: str,
       *,
-      column_specs: List[ColumnSpec],
+      column_specs: list[ColumnSpec],
       conflict_resolution: Optional[ConflictResolution] = None):
     """Builds SQL queries for writing EmbeddableItems to Postgres.
     """
@@ -111,7 +109,7 @@ class PostgresVectorWriterConfig(VectorDatabaseWriteConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
+      column_specs: list[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
       ),
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):

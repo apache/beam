@@ -32,7 +32,6 @@ import threading
 import time
 import zipfile
 from typing import Any
-from typing import Set
 from urllib.error import URLError
 from urllib.request import Request
 from urllib.request import urlopen
@@ -49,7 +48,7 @@ _LOGGER = logging.getLogger(__name__)
 @dataclasses.dataclass
 class _SharedCacheEntry:
   obj: Any
-  owners: Set[str]
+  owners: set[str]
 
 
 class _SharedCache:
@@ -89,11 +88,11 @@ class _SharedCache:
     return owner
 
   def purge(self, owner):
-    if owner not in self._live_owners:
-      raise ValueError(f"{owner} not in {self._live_owners}")
-    self._live_owners.remove(owner)
     to_delete = []
     with self._lock:
+      if owner not in self._live_owners:
+        raise ValueError(f"{owner} not in {self._live_owners}")
+      self._live_owners.remove(owner)
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
           entry.owners.remove(owner)
@@ -256,15 +255,17 @@ class SubprocessServer(object):
 
   def stop_process(self):
     if self._owner_id is not None:
-      self._cache.purge(self._owner_id)
-      self._owner_id = None
+      try:
+        self._cache.purge(self._owner_id)
+      finally:
+        # Make sure _owner_id is set to None even if purge fails.
+        self._owner_id = None
     if self._grpc_channel:
       try:
         self._grpc_channel.close()
       except:  # pylint: disable=bare-except
         _LOGGER.error(
-            "Could not close the gRPC channel started for the "
-            "expansion service")
+            "Could not close the gRPC channel started with cmd %s", self._cmd)
       finally:
         self._grpc_channel = None
 

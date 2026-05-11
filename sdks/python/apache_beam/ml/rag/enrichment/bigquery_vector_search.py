@@ -20,10 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from google.cloud import bigquery
@@ -166,13 +163,13 @@ class BigQueryVectorSearchParameters:
   project: str
   table_name: str
   embedding_column: str
-  columns: List[str]
+  columns: list[str]
   neighbor_count: int
   metadata_restriction_template: Optional[Union[str,
                                                 Callable[[EmbeddableItem],
                                                          str]]] = None
   distance_type: Optional[str] = None
-  options: Optional[Dict[str, Any]] = None
+  options: Optional[dict[str, Any]] = None
   include_distance: bool = False
 
   def _format_restrict(self, item: EmbeddableItem) -> str:
@@ -185,7 +182,7 @@ class BigQueryVectorSearchParameters:
       return self.metadata_restriction_template(item)
     return self.metadata_restriction_template.format(**item.metadata)
 
-  def format_query(self, items: List[EmbeddableItem]) -> str:
+  def format_query(self, items: list[EmbeddableItem]) -> str:
     """Format the vector search query template."""
     base_columns_str = ", ".join(f"base.{col}" for col in self.columns)
     columns_str = ", ".join(self.columns)
@@ -267,8 +264,8 @@ class BigQueryVectorSearchParameters:
 
 
 class BigQueryVectorSearchEnrichmentHandler(
-    EnrichmentSourceHandler[Union[EmbeddableItem, List[EmbeddableItem]],
-                            List[Tuple[EmbeddableItem, Dict[str, Any]]]]):
+    EnrichmentSourceHandler[Union[EmbeddableItem, list[EmbeddableItem]],
+                            list[tuple[EmbeddableItem, dict[str, Any]]]]):
   """Enrichment handler that performs vector similarity search using BigQuery.
   
   This handler enriches EmbeddableItems by finding similar vectors in a
@@ -348,9 +345,9 @@ class BigQueryVectorSearchEnrichmentHandler(
 
   def __call__(
       self,
-      request: Union[EmbeddableItem, List[EmbeddableItem]],
+      request: Union[EmbeddableItem, list[EmbeddableItem]],
       *args,
-      **kwargs) -> List[Tuple[EmbeddableItem, Dict[str, Any]]]:
+      **kwargs) -> list[tuple[EmbeddableItem, dict[str, Any]]]:
     """Process request(s) using BigQuery vector search.
         
         Args:
@@ -389,11 +386,11 @@ class BigQueryVectorSearchEnrichmentHandler(
   def __exit__(self, exc_type, exc_val, exc_tb):
     self.client.close()
 
-  def batch_elements_kwargs(self) -> Dict[str, int]:
+  def batch_elements_kwargs(self) -> dict[str, int]:
     """Returns kwargs for beam.BatchElements."""
     return self._batching_kwargs
 
 
-def join_fn(left: Embedding, right: Dict[str, Any]) -> Embedding:
+def join_fn(left: Embedding, right: dict[str, Any]) -> Embedding:
   left.metadata['enrichment_data'] = right
   return left

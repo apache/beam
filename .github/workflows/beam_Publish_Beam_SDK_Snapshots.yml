@@ -52,7 +52,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: ubuntu-22.04
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 300
     name: ${{ matrix.job_name }} (${{ matrix.container_task }})
     strategy:
@@ -79,7 +79,7 @@ jobs:
           - "python:container:ml:py313:docker"
           - "java:expansion-service:container:docker"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository

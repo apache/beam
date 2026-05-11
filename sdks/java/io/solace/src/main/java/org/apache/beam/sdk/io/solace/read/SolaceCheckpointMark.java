@@ -25,6 +25,7 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,7 +81,10 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       return false;
     }
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
-    return Objects.equals(safeToAck, that.safeToAck);
+    return safeToAck == that.safeToAck
+        || (safeToAck != null
+            && that.safeToAck != null
+            && Iterables.elementsEqual(safeToAck, that.safeToAck));
   }
 
   @Override

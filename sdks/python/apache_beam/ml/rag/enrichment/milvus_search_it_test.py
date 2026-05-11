@@ -19,7 +19,6 @@ import platform
 import unittest
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Dict
 
 import pytest
 
@@ -129,7 +128,7 @@ class MilvusITDataConstruct:
   tags: list[str]
   dense_embedding: list[float]
   sparse_embedding: dict
-  vocabulary: Dict[str, int] = field(default_factory=dict)
+  vocabulary: dict[str, int] = field(default_factory=dict)
 
   def __getitem__(self, key):
     return getattr(self, key)

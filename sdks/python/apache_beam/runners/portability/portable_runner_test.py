@@ -230,7 +230,6 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'PortableRunnerTestWithExternalEnv',
         'PortableRunnerTestWithLocalDocker',
         'PortableRunnerOptimizedWithoutFusion',
-        'SamzaRunnerTest',
         'SparkRunnerTest'
     }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
@@ -244,7 +243,6 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
         'PortableRunnerTestWithExternalEnv',
         'PortableRunnerTestWithLocalDocker',
         'PortableRunnerOptimizedWithoutFusion',
-        'SamzaRunnerTest',
         'SparkRunnerTest'
     }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
@@ -458,6 +456,104 @@ class PortableRunnerTestWithLocalDocker(PortableRunnerTest):
     options = super().create_options()
     options.view_as(PortableOptions).job_endpoint = 'embed'
     return options
+
+
+class PortableRunnerOptimizationTest(unittest.TestCase):
+  """Tests for PortableRunner._optimize_pipeline."""
+  @staticmethod
+  def _transform_urns(proto, options):
+    optimized = PortableRunner._optimize_pipeline(proto, options)
+    return {
+        t.spec.urn
+        for t in optimized.components.transforms.values() if t.spec.urn
+    }
+
+  def test_custom_optimize_expand_sdf(self):
+    """Verify that expand_sdf can be requested explicitly.
+
+    See https://github.com/apache/beam/issues/24422.
+    """
+    from apache_beam.io import restriction_trackers
+    from apache_beam.portability import common_urns
+
+    class ExpandStringsProvider(beam.transforms.core.RestrictionProvider):
+      def initial_restriction(self, element):
+        return restriction_trackers.OffsetRange(0, len(element))
+
+      def create_tracker(self, restriction):
+        return restriction_trackers.OffsetRestrictionTracker(restriction)
+
+      def restriction_size(self, element, restriction):
+        return restriction.size()
+
+    class ExpandingStringsDoFn(beam.DoFn):
+      def process(
+          self,
+          element,
+          restriction_tracker=beam.DoFn.RestrictionParam(
+              ExpandStringsProvider())):
+        cur = restriction_tracker.current_restriction().start
+        while restriction_tracker.try_claim(cur):
+          yield element[cur]
+          cur += 1
+
+    p = beam.Pipeline()
+    _ = (p | beam.Create(['abc']) | beam.ParDo(ExpandingStringsDoFn()))
+    proto = p.to_runner_api()
+
+    transform_urns = self._transform_urns(
+        proto, PipelineOptions(['--experiments=pre_optimize=expand_sdf']))
+
+    self.assertIn(
+        common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn, transform_urns)
+    self.assertIn(
+        common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+        transform_urns)
+    self.assertIn(
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        transform_urns)
+
+  def test_custom_optimize_expands_bounded_read(self):
+    """Verify that iobase.Read(BoundedSource) expands with explicit expand_sdf.
+
+    This is the end-to-end scenario from
+    https://github.com/apache/beam/issues/24422: Read transforms like
+    ReadFromParquet use SDFs internally. With explicit expand_sdf, these are
+    expanded before reaching the Spark job server as a single ParDo,
+    executing on one partition with no parallelization.
+    """
+    from apache_beam.io import iobase
+    from apache_beam.portability import common_urns
+
+    class _FakeBoundedSource(iobase.BoundedSource):
+      def get_range_tracker(self, start_position, stop_position):
+        return None
+
+      def read(self, range_tracker):
+        return iter([])
+
+      def estimate_size(self):
+        return 0
+
+    p = beam.Pipeline()
+    _ = p | beam.io.Read(_FakeBoundedSource())
+    proto = p.to_runner_api()
+
+    transform_urns = self._transform_urns(
+        proto, PipelineOptions(['--experiments=pre_optimize=expand_sdf']))
+
+    # The SDFBoundedSourceReader DoFn should have been expanded into
+    # SDF component stages.
+    self.assertIn(
+        common_urns.sdf_components.PAIR_WITH_RESTRICTION.urn, transform_urns)
+    self.assertIn(
+        common_urns.sdf_components.SPLIT_AND_SIZE_RESTRICTIONS.urn,
+        transform_urns)
+    self.assertIn(
+        common_urns.sdf_components.PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS.urn,
+        transform_urns)
+    # Reshuffle should be present to enable parallelization.
+    self.assertIn(common_urns.composites.RESHUFFLE.urn, transform_urns)
 
 
 if __name__ == '__main__':

@@ -184,8 +184,8 @@ import org.slf4j.LoggerFactory;
  * available for value class hence value translation is required.).
  *
  * <pre>{@code
- * SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt; myOutputValueType =
- *      new SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt;() {
+ * SimpleFunction<InputFormatValueClass, MyValueClass> myOutputValueType =
+ *      new SimpleFunction<InputFormatValueClass, MyValueClass>() {
  *          public MyValueClass apply(InputFormatValueClass input) {
  *            // ...logic to transform InputFormatValueClass to MyValueClass
  *          }
@@ -257,15 +257,15 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * Configuration myHadoopConfiguration = new Configuration(false);
  * // Set Hadoop OutputFormat, key and value class in configuration
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.outputformat.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.outputformat.class",
  *    MyDbOutputFormatClass, OutputFormat.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.key.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.output.key.class",
  *    MyDbOutputFormatKeyClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.output.value.class",
  *    MyDbOutputFormatValueClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.partitioner.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.partitioner.class",
  *    MyPartitionerClass, Object.class);
- * myHadoopConfiguration.setInt(&quot;mapreduce.job.reduces&quot;, 2);
+ * myHadoopConfiguration.setInt("mapreduce.job.reduces", 2);
  * }</pre>
  *
  * <p>You will need to set OutputFormat key and value class (i.e. "mapreduce.job.output.key.class"

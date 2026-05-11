@@ -30,13 +30,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -59,10 +60,19 @@ public class TableSchemaCache {
   abstract static class Refresh {
     abstract DatasetService getDatasetService();
 
+    abstract BigQueryServices.WriteStreamService getWriteStreamService();
+
+    abstract BigQueryOptions getOptions();
+
     abstract int getTargetVersion();
 
-    static Refresh of(DatasetService datasetService, int targetVersion) {
-      return new AutoValue_TableSchemaCache_Refresh(datasetService, targetVersion);
+    static Refresh of(
+        DatasetService datasetService,
+        BigQueryServices.WriteStreamService writeStreamService,
+        BigQueryOptions options,
+        int targetVersion) {
+      return new AutoValue_TableSchemaCache_Refresh(
+          datasetService, writeStreamService, options, targetVersion);
     }
   }
 
@@ -156,19 +166,18 @@ public class TableSchemaCache {
     return BigQueryHelpers.stripPartitionDecorator(BigQueryHelpers.toTableSpec(tableReference));
   }
 
-  @Nullable
-  public TableSchema getSchema(TableReference tableReference, DatasetService datasetService) {
+  public @Nullable TableSchema getSchema(
+      TableReference tableReference, DatasetService datasetService) {
     Optional<SchemaHolder> schemaHolder;
     // We don't use computeIfAbsent here, as we want to avoid calling into datasetService (which can
-    // be an RPC
-    // with the monitor locked).
+    // be an RPC with the monitor locked).
     final String key = tableKey(tableReference);
     schemaHolder = runUnderMonitor(() -> Optional.ofNullable(cachedSchemas.get(key)));
     if (!schemaHolder.isPresent()) {
       // Not initialized. Query the new schema with the monitor released and then update the cache.
       try {
         // requesting the BASIC view will prevent BQ backend to run calculations
-        // related with storage stats that are not needed here
+        // related with storage stats that are not needed here.
         @Nullable
         Table table =
             datasetService.getTable(
@@ -189,8 +198,8 @@ public class TableSchemaCache {
    * Registers schema for a table if one is not already present. If a schema is already in the
    * cache, returns the existing schema, otherwise returns null.
    */
-  @Nullable
-  public TableSchema putSchemaIfAbsent(TableReference tableReference, TableSchema tableSchema) {
+  public @Nullable TableSchema putSchemaIfAbsent(
+      TableReference tableReference, TableSchema tableSchema) {
     final String key = tableKey(tableReference);
     Optional<SchemaHolder> existing =
         runUnderMonitor(
@@ -200,7 +209,11 @@ public class TableSchemaCache {
     return existing.map(SchemaHolder::getTableSchema).orElse(null);
   }
 
-  public void refreshSchema(TableReference tableReference, DatasetService datasetService) {
+  public void refreshSchema(
+      TableReference tableReference,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService,
+      BigQueryOptions options) {
     int targetVersion =
         runUnderMonitor(
             () -> {
@@ -211,9 +224,12 @@ public class TableSchemaCache {
               String key = tableKey(tableReference);
               @Nullable SchemaHolder schemaHolder = cachedSchemas.get(key);
               int nextVersion = schemaHolder != null ? schemaHolder.getVersion() + 1 : 0;
-              tablesToRefresh.put(key, Refresh.of(datasetService, nextVersion));
+              @Nullable
+              Refresh existing =
+                  tablesToRefresh.putIfAbsent(
+                      key, Refresh.of(datasetService, writeStreamService, options, nextVersion));
               // Wait at least until the next version.
-              return nextVersion;
+              return (existing == null) ? nextVersion : existing.getTargetVersion();
             });
     waitForRefresh(tableReference, targetVersion);
   }
@@ -267,19 +283,31 @@ public class TableSchemaCache {
       }
 
       // Query all the tables for their schema.
-      final Map<String, TableSchema> schemas = refreshAll(localTablesToRefresh);
+      final Map<String, @Nullable TableSchema> schemas = refreshAll(localTablesToRefresh);
 
       runUnderMonitor(
           () -> {
             // Update the cache schemas.
-            for (Map.Entry<String, TableSchema> entry : schemas.entrySet()) {
+            for (Map.Entry<String, @Nullable TableSchema> entry : schemas.entrySet()) {
               SchemaHolder schemaHolder = cachedSchemas.get(entry.getKey());
               if (schemaHolder == null) {
                 throw new RuntimeException("Unexpected null schema for " + entry.getKey());
               }
-              SchemaHolder newSchema =
-                  SchemaHolder.of(entry.getValue(), schemaHolder.getVersion() + 1);
-              cachedSchemas.put(entry.getKey(), newSchema);
+
+              if (entry.getValue() == null) {
+                // There was an error fetching the schema. Reschedule it.
+                Refresh oldRefresh =
+                    Preconditions.checkStateNotNull(localTablesToRefresh.get(entry.getKey()));
+                Refresh existingRefresh = this.tablesToRefresh.get(entry.getKey());
+                if (existingRefresh == null
+                    || oldRefresh.getTargetVersion() > existingRefresh.getTargetVersion()) {
+                  this.tablesToRefresh.put(entry.getKey(), oldRefresh);
+                }
+              } else {
+                SchemaHolder newSchema =
+                    SchemaHolder.of(entry.getValue(), schemaHolder.getVersion() + 1);
+                cachedSchemas.put(entry.getKey(), newSchema);
+              }
             }
           });
 
@@ -299,22 +327,51 @@ public class TableSchemaCache {
     this.refreshExecutor.submit(this::refreshThread);
   }
 
-  private Map<String, TableSchema> refreshAll(Map<String, Refresh> tables)
+  private @Nullable TableSchema optimizedGetSchema(
+      String tableSpec,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService,
+      BigQueryOptions options)
       throws IOException, InterruptedException {
-    Map<String, TableSchema> schemas = Maps.newHashMapWithExpectedSize(tables.size());
-    for (Map.Entry<String, Refresh> entry : tables.entrySet()) {
-      TableReference tableReference = BigQueryHelpers.parseTableSpec(entry.getKey());
+    // Instead of querying BT metadata for the table schema, we first query Vortex. Vortex has much
+    // higher quotas for
+    // querying, however the result may be slightly out of date (usually seconds).
+    TableDestination tableDestination = new TableDestination(tableSpec, null);
+    String defaultStreamName =
+        BigQueryHelpers.stripPartitionDecorator(
+            tableDestination.getTableUrn(options) + "/streams/_default");
+    com.google.cloud.bigquery.storage.v1.TableSchema schema =
+        writeStreamService.getWriteStreamSchema(defaultStreamName);
+    if (schema != null) {
+      return TableRowToStorageApiProto.protoSchemaToTableSchema(schema);
+    } else {
+      TableReference tableReference = BigQueryHelpers.parseTableSpec(tableSpec);
       Table table =
-          entry
-              .getValue()
-              .getDatasetService()
-              .getTable(
-                  tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
-      if (table == null) {
-        throw new RuntimeException("Did not get value for table " + tableReference);
+          datasetService.getTable(
+              tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
+      return (table == null) ? null : table.getSchema();
+    }
+  }
+
+  private Map<String, @Nullable TableSchema> refreshAll(Map<String, Refresh> tables)
+      throws IOException, InterruptedException {
+    Map<String, @Nullable TableSchema> schemas = Maps.newHashMapWithExpectedSize(tables.size());
+    for (Map.Entry<String, Refresh> entry : tables.entrySet()) {
+      Refresh refresh = entry.getValue();
+      @Nullable
+      TableSchema tableSchema =
+          optimizedGetSchema(
+              entry.getKey(),
+              refresh.getDatasetService(),
+              refresh.getWriteStreamService(),
+              refresh.getOptions());
+      if (tableSchema == null) {
+        LOG.info("Did not get a value for table {}", entry.getKey());
+        schemas.put(entry.getKey(), null);
+      } else {
+        LOG.info("Refreshed BigQuery schema for {}", entry.getKey());
+        schemas.put(entry.getKey(), tableSchema);
       }
-      LOG.info("Refreshed BigQuery schema for {}", entry.getKey());
-      schemas.put(entry.getKey(), table.getSchema());
     }
     return schemas;
   }
