@@ -81,7 +81,7 @@ public class MetadataPropagationTest {
   }
 
   @Test
-  @Category({ValidatesRunner.class, NeedsRunner.class})
+  @Category(NeedsRunner.class)
   public void testMetadataPropagationParameter() {
     WindowedValues.WindowedValueCoder.setMetadataSupported();
     PCollection<String> results =
