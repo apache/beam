@@ -522,7 +522,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
         firedStream =
             pairDStream.updateStateByKey(
-                updateFunc,
+                // Raw cast to AbstractFunction1 suppresses Scala 2.12 (collection.Seq) vs
+                // Scala 2.13 (immutable.Seq) type difference — safe at runtime due to erasure.
+                (scala.runtime.AbstractFunction1) updateFunc,
                 pairDStream.defaultPartitioner(pairDStream.defaultPartitioner$default$1()),
                 true,
                 JavaSparkContext$.MODULE$.fakeClassTag());

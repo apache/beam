@@ -51,6 +51,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder;
 import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder.Serializer;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.classic.Dataset$;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableCapability;
@@ -85,7 +86,14 @@ public class BoundedDatasetFactory {
     Params<T> params = new Params<>(encoder, options, session.sparkContext().defaultParallelism());
     BeamTable<T> table = new BeamTable<>(source, params);
     LogicalPlan logicalPlan = DataSourceV2Relation.create(table, Option.empty(), Option.empty());
-    return Dataset.ofRows(session, logicalPlan).as(encoder);
+    // In Spark 4.0+, Dataset$ moved to org.apache.spark.sql.classic and its ofRows() now
+    // takes the classic SparkSession subclass. The runtime instance returned by
+    // SparkSession.builder() is always a classic.SparkSession, so the downcast is safe and
+    // avoids reflection.
+    return (Dataset<WindowedValue<T>>)
+        Dataset$.MODULE$
+            .ofRows((org.apache.spark.sql.classic.SparkSession) session, logicalPlan)
+            .as(encoder);
   }
 
   /**
@@ -279,7 +287,6 @@ public class BoundedDatasetFactory {
     @SuppressWarnings("nullness") // ok, reader not used any longer
     public void close() throws IOException {
       if (reader != null) {
-        endOfData();
         try {
           reader.close();
         } finally {
