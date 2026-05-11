@@ -22,7 +22,6 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -82,8 +81,8 @@ public class MetadataPropagationTest {
 
   /**
    * Tests metadata propagation for a parameter. Note: PAssert internally introduces a GroupByKey.
-   * This test works only with DirectRunner and runners that support metadata propagation.
-   * See {@link #testMetadataPropagationAcrossGBK} for more information.
+   * This test works only with DirectRunner and runners that support metadata propagation across
+   * GroupByKey. See {@link #testMetadataPropagationAcrossGBK} for more information.
    */
   @Test
   @Category(NeedsRunner.class)
