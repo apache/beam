@@ -30,6 +30,7 @@ public abstract class Failure {
   /** Bytes containing the payload which has failed. */
   @SuppressWarnings("mutable")
   public abstract byte[] getPayload();
+
   /** Information about the cause of the failure. */
   public abstract String getError();
 

@@ -185,6 +185,7 @@ public class CreateTest {
 
     p.run();
   }
+
   /** An unserializable class to demonstrate encoding of elements. */
   private static class UnserializableRecord {
     private final String myString;

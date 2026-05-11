@@ -73,6 +73,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
   public static EnumerationType create(String... enumValues) {
     return create(Arrays.asList(enumValues));
   }
+
   /** Return an {@link Value} corresponding to one of the enumeration strings. */
   public Value valueOf(String stringValue) {
     return new Value(

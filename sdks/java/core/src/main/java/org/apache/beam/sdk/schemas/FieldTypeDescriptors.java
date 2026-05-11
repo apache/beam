@@ -54,6 +54,7 @@ public class FieldTypeDescriptors {
           .put(TypeName.BOOLEAN, TypeDescriptors.booleans())
           .put(TypeName.BYTES, TypeDescriptor.of(byte[].class))
           .build();
+
   /** Get a {@link TypeDescriptor} from a {@link FieldType}. */
   public static TypeDescriptor javaTypeForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -75,6 +76,7 @@ public class FieldTypeDescriptors {
         return PRIMITIVE_MAPPING.get(fieldType.getTypeName());
     }
   }
+
   /** Get a {@link FieldType} from a {@link TypeDescriptor}. */
   public static FieldType fieldTypeForJavaType(TypeDescriptor typeDescriptor) {
     // TODO: Convert for registered logical types.

@@ -127,7 +127,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
   static final String TEMP_DIRECTORY_PREFIX = ".temp-beam";
 
-  /** @deprecated use {@link Compression}. */
+  /**
+   * @deprecated use {@link Compression}.
+   */
   @Deprecated
   public enum CompressionType implements WritableByteChannelFactory {
     /** See {@link Compression#UNCOMPRESSED}. */
@@ -339,8 +341,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         return destinationCoder;
       }
       // If dynamicDestinations doesn't provide a coder, try to find it in the coder registry.
-      @Nullable
-      TypeDescriptor<DestinationT> descriptor =
+      @Nullable TypeDescriptor<DestinationT> descriptor =
           extractFromTypeParameters(
               this,
               DynamicDestinations.class,
@@ -1248,12 +1249,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * @see <a href=
      *     'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
      */
-    @Nullable
-    String getMimeType();
+    @Nullable String getMimeType();
 
     /** Returns an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP}. */
-    @Nullable
-    String getSuggestedFilenameSuffix();
+    @Nullable String getSuggestedFilenameSuffix();
   }
 
   /**

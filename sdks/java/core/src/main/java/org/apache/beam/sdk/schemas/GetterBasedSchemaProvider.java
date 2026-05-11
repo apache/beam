@@ -173,8 +173,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
     // important to capture the schema once here, so all invocations of the toRowFunction see the
     // same version of the schema. If schemaFor were to be called inside the lambda below, different
     // workers would see different versions of the schema.
-    @NonNull
-    Schema schema =
+    @NonNull Schema schema =
         Verify.verifyNotNull(
             schemaFor(typeDescriptor), "can't create a ToRowFunction with null schema");
 
@@ -456,8 +455,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
       Object convert(OneOfType.Value value) {
         EnumerationType.Value caseType = value.getCaseType();
 
-        @NonNull
-        FieldValueGetter<@NonNull Object, Object> converter =
+        @NonNull FieldValueGetter<@NonNull Object, Object> converter =
             checkStateNotNull(
                 converters.get(caseType.getValue()),
                 "Missing OneOf converter for case %s.",
