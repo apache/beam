@@ -169,15 +169,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private SdkComponents createSdkComponents(PipelineOptions options) {
-    SdkComponents sdkComponents = SdkComponents.create(options);
-
     String containerImageURL =
         DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(containerImageURL);
-
-    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
-    return sdkComponents;
+    return SdkComponents.create(options, defaultEnvironmentForDataflow);
   }
 
   // A Custom Mockito matcher for an initial Job that checks that all
@@ -1266,15 +1262,16 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     file1.deleteOnExit();
     File file2 = File.createTempFile("file2-", ".txt");
     file2.deleteOnExit();
-    SdkComponents sdkComponents = SdkComponents.create(options);
-    sdkComponents.registerEnvironment(
-        Environments.createDockerEnvironment(DataflowRunner.getContainerImageForJob(options))
-            .toBuilder()
-            .addAllDependencies(
-                Environments.getArtifacts(
-                    ImmutableList.of("file1.txt=" + file1, "file2.txt=" + file2)))
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    SdkComponents sdkComponents =
+        SdkComponents.create(
+            options,
+            Environments.createDockerEnvironment(DataflowRunner.getContainerImageForJob(options))
+                .toBuilder()
+                .addAllDependencies(
+                    Environments.getArtifacts(
+                        ImmutableList.of("file1.txt=" + file1, "file2.txt=" + file2)))
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
 
