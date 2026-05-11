@@ -452,7 +452,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.getRecordId(),
               element.getRecordOffset(),
               element.causedByDrain(),
-              element.getOpenTelemetryContext()));
+              element.getOpenTelemetryContext(),
+              element.getValueKind()));
     }
 
     @Override
@@ -476,7 +477,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
               element.getRecordId(),
               element.getRecordOffset(),
               element.causedByDrain(),
-              element.getOpenTelemetryContext()));
+              element.getOpenTelemetryContext(),
+              element.getValueKind()));
     }
 
     @Override

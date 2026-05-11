@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -110,7 +111,8 @@ public class WindowedValueTest {
             null,
             null,
             CausedByDrain.CAUSED_BY_DRAIN,
-            context); // drain is persisted as part of metadata
+            context,
+            ValueKind.DELETE); // drain is persisted as part of metadata
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
@@ -125,6 +127,7 @@ public class WindowedValueTest {
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
     Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, value.causedByDrain());
     Assert.assertNotNull(value.getOpenTelemetryContext());
+    Assert.assertEquals(ValueKind.DELETE, value.getValueKind());
   }
 
   @Test
