@@ -18,6 +18,10 @@
 
 apply plugin: 'com.diffplug.spotless'
 
+repositories {
+  mavenCentral()
+}
+
 /*
  * This build.gradle file is empty except to configure the spotless task on the java sources.
  * These java sources are included in the subproject's sources in order to compile against the different versions.
