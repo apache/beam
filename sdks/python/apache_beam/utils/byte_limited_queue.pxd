@@ -18,13 +18,13 @@
 # cython: overflowcheck=True
 
 cdef class ByteLimitedQueue(object):
-  cdef readonly int max_elements
-  cdef readonly int max_bytes
-  cdef readonly int _byte_size
+  cdef readonly Py_ssize_t max_elements
+  cdef readonly Py_ssize_t max_bytes
+  cdef readonly Py_ssize_t _byte_size
   cdef readonly object _mutex
   cdef readonly object _not_empty
   cdef readonly object _waiting_writers
   cdef readonly object _queue
-  cdef readonly int _blocked_bytes
+  cdef readonly Py_ssize_t _blocked_bytes
 
-  cpdef bint _is_full_locked(self, int item_bytes) except -1
+  cpdef bint _is_full_locked(self, Py_ssize_t item_bytes) except -1

@@ -462,9 +462,7 @@ class _GrpcDataChannel(DataChannel):
         maxsize=10000,
         maxbytes=100 << 20)  # type: ByteLimitedQueue[DataOrTimers]
     self._received = collections.defaultdict(
-        lambda: ByteLimitedQueue(
-            maxsize=5,
-            maxbytes=100 << 20)
+        lambda: ByteLimitedQueue(maxsize=5, maxbytes=100 << 20)
     )  # type: DefaultDict[str, ByteLimitedQueue[DataOrTimers]]
 
     # Keep a cache of completed instructions. Data for completed instructions
