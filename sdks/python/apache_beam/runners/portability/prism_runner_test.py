@@ -19,7 +19,10 @@
 import argparse
 import logging
 import os.path
+import queue
 import shlex
+import threading
+import time
 import typing
 import unittest
 import zipfile
@@ -37,8 +40,10 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
+from apache_beam.runners.worker import worker_pool_main
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
@@ -494,12 +499,6 @@ class PrismRunnerSingletonTest(unittest.TestCase):
     StopWorker via sentinel messages. This prevents background daemon threads from
     accumulating across sequential pipeline executions and leaking resources.
     """
-    import queue
-    import threading
-    import time
-    from apache_beam.portability.api import beam_fn_api_pb2
-    from apache_beam.runners.worker import worker_pool_main
-
     servicer = worker_pool_main.BeamFnExternalWorkerPoolServicer(
         use_process=False, state_cache_size=0, data_buffer_time_limit_ms=0)
 
