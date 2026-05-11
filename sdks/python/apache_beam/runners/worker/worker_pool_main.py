@@ -190,6 +190,8 @@ class BeamFnExternalWorkerPoolServicer(
       _LOGGER.info("Stopping worker %s" % stop_worker_request.worker_id)
       kill_process_gracefully(worker_process)
 
+    # applicable for thread mode to ensure thread cleanup by
+    # unblocking the harness request stream.
     worker_thread_harness = self._worker_threads.pop(
         stop_worker_request.worker_id, None)
     if worker_thread_harness:
