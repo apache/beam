@@ -80,6 +80,11 @@ public class MetadataPropagationTest {
     pipeline.run();
   }
 
+  /**
+   * Tests metadata propagation for a parameter. Note: PAssert internally introduces a GroupByKey.
+   * This test works only with DirectRunner and runners that support metadata propagation.
+   * See {@link #testMetadataPropagationAcrossGBK} for more information.
+   */
   @Test
   @Category(NeedsRunner.class)
   public void testMetadataPropagationParameter() {
