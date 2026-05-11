@@ -123,7 +123,7 @@ class ByteLimitedQueueTest(unittest.TestCase):
 
     # The put should succeed once the consumer runs, use a high timeout to
     # flakiness.
-    bq.put('item', timeout=60)
+    bq.put('item', 5, timeout=60)
     t.join()
 
   def test_negative_timeout(self):
@@ -139,20 +139,6 @@ class ByteLimitedQueueTest(unittest.TestCase):
     bq.put('50', 50, block=False)
     self.assertEqual(bq.qsize(), 1)
     self.assertEqual(bq.byte_size(), 50)
-
-  def test_inconsistent_weighing_fn(self):
-    # Return a different weight for the same item.
-    weights = [10, 5]
-    bq = ByteLimitedQueue(lambda x: weights.pop(0), maxweight=100)
-
-    bq.put(1)
-    self.assertEqual(bq.byte_size(), 10)
-
-    # Upon popping, the weighing function (if called) would have returned 5,
-    # but the stored weight prevents corruption and cleanly reduces the size to
-    # 0.
-    bq.get()
-    self.assertEqual(bq.byte_size(), 0)
 
   def test_fairness(self):
     bq = ByteLimitedQueue(maxbytes=10)
