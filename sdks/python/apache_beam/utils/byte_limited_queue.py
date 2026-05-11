@@ -21,13 +21,16 @@ import collections
 import queue
 import threading
 import time
+import types
 
 
 class ByteLimitedQueue(object):
-  """A fair queue that limits by both element count and total weight.
+  """A fair queue that limits by both element count and total byte size.
 
-  A single element is allowed to exceed the maxweight to avoid deadlock.
+  A single element is allowed to exceed the maxbytes to avoid deadlock.
   """
+  __class_getitem__ = classmethod(types.GenericAlias)
+
   def __init__(
       self,
       maxsize=0,  # type: int
@@ -40,8 +43,8 @@ class ByteLimitedQueue(object):
     Args:
       maxsize: The maximum number of items allowed in the queue. If 0 or
         negative, there is no limit on the number of elements.
-      maxweight: The maximum accumulated weight allowed in the queue. If 0 or
-        negative, there is no limit on the total size of the elements.
+      maxbytes: The maximum accumulated bytes allowed in the queue. If 0 or
+        negative, there is no limit on the total bytes of the elements.
     """
     self.max_elements = maxsize
     self.max_bytes = maxbytes
@@ -60,25 +63,23 @@ class ByteLimitedQueue(object):
 
     Args:
       item: The item to put into the queue.
-      item_size: The size of the item.
+      item_bytes: The size of the item.
       block: If True, block until space is available. If False, raise queue.Full
         immediately if the queue is full.
       timeout: If block is True, wait for at most `timeout` seconds. If None,
         block indefinitely.
 
     Raises:
-      ValueError: If timeout or item_size is negative.
+      ValueError: If timeout or item_bytes is negative.
       queue.Full: If the queue is full and block is False or the timeout occurs.
     """
     if timeout is not None and timeout < 0:
       raise ValueError("'timeout' must be a non-negative number")
     if item_bytes < 0:
-      raise ValueError("'item_bytes' must be a positive number")
+      raise ValueError("'item_bytes' must be a non-negative number")
 
     with self._mutex:
-      if not self._waiting_writers and not self._is_full_locked(
-          item_bytes
-      ):
+      if not self._waiting_writers and not self._is_full_locked(item_bytes):
         self._queue.append((item, item_bytes))
         self._byte_size += item_bytes
         self._not_empty.notify()
@@ -102,8 +103,7 @@ class ByteLimitedQueue(object):
             my_cond.wait(remaining)
 
           if self._waiting_writers[0] is my_cond and not self._is_full_locked(
-              item_bytes
-          ):
+              item_bytes):
             break
 
         self._queue.append((item, item_bytes))
@@ -171,12 +171,12 @@ class ByteLimitedQueue(object):
     return self.get(block=False)
 
   def byte_size(self):
-    """Return the total byte weight of elements in the queue."""
+    """Return the total byte size of elements in the queue."""
     with self._mutex:
       return self._byte_size
 
   def blocked_byte_size(self):
-    """Return the total byte weight of elements in the queue that are blocked."""
+    """Return the total byte size of elements in the queue that are blocked."""
     with self._mutex:
       return self._blocked_bytes
 
@@ -185,12 +185,12 @@ class ByteLimitedQueue(object):
     with self._mutex:
       return len(self._queue)
 
-  def _is_full_locked(self, item_size):
+  def _is_full_locked(self, item_bytes):
     # Always let in a single element, regardless of size.
     if not self._queue:
       return False
     if self.max_elements > 0 and len(self._queue) >= self.max_elements:
       return True
-    if self.max_bytes > 0 and self._byte_size + item_size > self.max_bytes:
+    if self.max_bytes > 0 and self._byte_size + item_bytes > self.max_bytes:
       return True
     return False

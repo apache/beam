@@ -123,7 +123,7 @@ class ByteLimitedQueueTest(unittest.TestCase):
 
     # The put should succeed once the consumer runs, use a high timeout to
     # flakiness.
-    bq.put(FakeItem(5), timeout=60)
+    bq.put('item', timeout=60)
     t.join()
 
   def test_negative_timeout(self):

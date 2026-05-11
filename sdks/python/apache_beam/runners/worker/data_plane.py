@@ -459,13 +459,15 @@ class _GrpcDataChannel(DataChannel):
 
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
     self._to_send = ByteLimitedQueue(
-        maxsize=10000, maxbytes=100 << 20,
-    )  # type: queue.Queue[DataOrTimers]
+        maxsize=10000,
+        maxbytes=100 << 20
+    )  # type: ByteLimitedQueue[DataOrTimers]
     self._received = collections.defaultdict(
         lambda: ByteLimitedQueue(
-            maxsize=5, maxbytes=100 << 20,
+            maxsize=5,
+            maxbytes=100 << 20,
         )
-    )  # type: DefaultDict[str, queue.Queue[DataOrTimers]]
+    )  # type: DefaultDict[str, ByteLimitedQueue[DataOrTimers]]
 
     # Keep a cache of completed instructions. Data for completed instructions
     # must be discarded. See input_elements() and _clean_receiving_queue().
@@ -480,7 +482,7 @@ class _GrpcDataChannel(DataChannel):
 
   def close(self):
     # type: () -> None
-    self._to_send.put(self._WRITES_FINISHED)
+    self._to_send.put(self._WRITES_FINISHED, 0)
     self._closed = True
 
   def wait(self, timeout=None):
@@ -488,7 +490,7 @@ class _GrpcDataChannel(DataChannel):
     self._reads_finished.wait(timeout)
 
   def _receiving_queue(self, instruction_id):
-    # type: (str) -> Optional[queue.Queue[DataOrTimers]]
+    # type: (str) -> Optional[ByteLimitedQueue[DataOrTimers]]
 
     """
     Gets or creates queue for a instruction_id. Or, returns None if the
@@ -592,9 +594,7 @@ class _GrpcDataChannel(DataChannel):
       # type: (bytes) -> None
       if data:
         elem = beam_fn_api_pb2.Elements.Data(
-            instruction_id=instruction_id,
-            transform_id=transform_id,
-            data=data)
+            instruction_id=instruction_id, transform_id=transform_id, data=data)
         self._to_send.put(elem, self._get_element_bytes(elem))
 
     def close_callback(data):
