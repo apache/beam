@@ -7516,7 +7516,7 @@ public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<St
         @Element KV<String, Integer> element,
         @TimerId("loopingTimer") Timer timer,
         OutputReceiver<KV<String, Integer>> output) {
-      
+
       // Set initial timer
       timer.offset(Duration.standardMinutes(1)).setRelative();
       output.output(element);
