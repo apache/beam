@@ -360,23 +360,31 @@ class PubSubIntegrationTest(unittest.TestCase):
 
       time.sleep(10)
 
-      response = self.sub_client.pull(
-          request={
-              'subscription': ordering_sub.name,
-              'max_messages': 10,
-          })
+      # Retry pulling to handle PubSub delivery delays
+      received_messages = []
+      deadline = time.time() + 60  # wait up to 60 seconds
+      while time.time() < deadline:
+        response = self.sub_client.pull(
+            request={
+                'subscription': ordering_sub.name,
+                'max_messages': 10,
+            })
+        received_messages.extend(response.received_messages)
+        if len(received_messages) >= len(test_messages):
+          break
+        time.sleep(5)
 
-      self.assertEqual(len(response.received_messages), len(test_messages))
+      self.assertEqual(len(received_messages), len(test_messages))
 
       received_map = {
           msg.message.data: msg.message
-          for msg in response.received_messages
+          for msg in received_messages
       }
       self.assertEqual(received_map[b'order_data001'].ordering_key, 'key1')
       self.assertEqual(received_map[b'order_data002'].ordering_key, 'key1')
       self.assertEqual(received_map[b'order_data003'].ordering_key, 'key2')
 
-      ack_ids = [msg.ack_id for msg in response.received_messages]
+      ack_ids = [msg.ack_id for msg in received_messages]
       self.sub_client.acknowledge(
           request={
               'subscription': ordering_sub.name,
