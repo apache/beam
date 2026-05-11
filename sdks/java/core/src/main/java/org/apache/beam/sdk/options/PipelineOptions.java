@@ -448,8 +448,7 @@ public interface PipelineOptions extends HasDisplayData {
           + " --gbek=type:<secret_type>;<secret_param>:<value>, for example "
           + " --gbek=type:GcpSecret;version_name:my_secret/versions/latest. All variables "
           + " should use snake case to allow consistency across languages.")
-  @Nullable
-  String getGbek();
+  @Nullable String getGbek();
 
   void setGbek(String gbek);
 

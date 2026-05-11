@@ -70,6 +70,7 @@ import org.joda.time.Duration;
 public final class Deduplicate {
   /** The default is the {@link TimeDomain#PROCESSING_TIME processing time domain}. */
   public static final TimeDomain DEFAULT_TIME_DOMAIN = TimeDomain.PROCESSING_TIME;
+
   /** The default duration is 10 mins. */
   public static final Duration DEFAULT_DURATION = Duration.standardMinutes(10);
 

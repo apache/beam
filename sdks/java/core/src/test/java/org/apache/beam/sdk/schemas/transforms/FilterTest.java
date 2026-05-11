@@ -49,7 +49,8 @@ public class FilterTest {
     abstract int getField2();
 
     abstract int getField3();
-  };
+  }
+  ;
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue

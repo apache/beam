@@ -65,7 +65,8 @@ public class SelectTest {
     static Schema1 create() {
       return new AutoValue_SelectTest_Schema1("field1", 42, 3.14);
     }
-  };
+  }
+  ;
 
   /** A class matching the schema resulting from selection field1, field3. */
   @DefaultSchema(AutoValueSchema.class)

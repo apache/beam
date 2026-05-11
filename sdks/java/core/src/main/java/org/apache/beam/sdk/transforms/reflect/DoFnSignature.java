@@ -137,8 +137,8 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
   @Pure
-  public abstract @Nullable GetInitialWatermarkEstimatorStateMethod
-      getInitialWatermarkEstimatorState();
+  public abstract @Nullable
+      GetInitialWatermarkEstimatorStateMethod getInitialWatermarkEstimatorState();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
   @Pure
@@ -160,7 +160,9 @@ public abstract class DoFnSignature {
   @Pure
   public abstract @Nullable Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
 
-  /** @deprecated use {@link #usesState()}, it's cleaner */
+  /**
+   * @deprecated use {@link #usesState()}, it's cleaner
+   */
   @Deprecated
   @Pure
   public boolean isStateful() {
@@ -279,8 +281,7 @@ public abstract class DoFnSignature {
     }
 
     /** The type of window expected by this method, if any. */
-    @Nullable
-    TypeDescriptor<? extends BoundedWindow> windowT();
+    @Nullable TypeDescriptor<? extends BoundedWindow> windowT();
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */

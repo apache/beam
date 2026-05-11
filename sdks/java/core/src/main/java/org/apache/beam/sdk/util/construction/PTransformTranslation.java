@@ -150,6 +150,7 @@ public class PTransformTranslation {
       "beam:transform:sdf_pair_with_restriction:v1";
   public static final String SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN =
       "beam:transform:sdf_truncate_sized_restrictions:v1";
+
   /**
    * @deprecated runners should move away from using `SplittableProcessKeyedElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -157,6 +158,7 @@ public class PTransformTranslation {
   @Deprecated
   public static final String SPLITTABLE_PROCESS_KEYED_URN =
       "beam:transform:sdf_process_keyed_elements:v1";
+
   /**
    * @deprecated runners should move away from using `SplittableProcessElements` and prefer to
    *     internalize any necessary SplittableDoFn expansion.
@@ -329,8 +331,7 @@ public class PTransformTranslation {
    * the Java representation while registering components that transform references.
    */
   public interface TransformTranslator<T extends PTransform<?, ?>> {
-    @Nullable
-    String getUrn(T transform);
+    @Nullable String getUrn(T transform);
 
     boolean canTranslate(PTransform<?, ?> pTransform);
 
@@ -656,9 +657,8 @@ public class PTransformTranslation {
      *     value is null, transform should include an empty spec.
      * @throws IOException
      */
-    @Nullable
-    FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
-        throws IOException;
+    @Nullable FunctionSpec translate(
+        AppliedPTransform<?, ?, T> application, SdkComponents components) throws IOException;
 
     /**
      * Generates a Row-based construction configuration for the provided transform.

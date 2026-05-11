@@ -318,7 +318,9 @@ public class Lineage {
     return result;
   }
 
-  /** @return {@link MetricQueryResults} containing lineage metrics. */
+  /**
+   * @return {@link MetricQueryResults} containing lineage metrics.
+   */
   private static MetricQueryResults getLineageQueryResults(MetricResults results, Type type) {
     MetricsFilter filter =
         MetricsFilter.builder()

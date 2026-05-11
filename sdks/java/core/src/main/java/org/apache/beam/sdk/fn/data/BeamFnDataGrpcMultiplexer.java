@@ -58,15 +58,17 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentHashMap<
-          /*instructionId=*/ String, CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
+          /* instructionId= */ String,
+          CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
       receivers;
-  private final Cache</*instructionId=*/ String, /*unused=*/ Boolean> poisonedInstructionIds;
+  private final Cache</* instructionId= */ String, /* unused= */ Boolean> poisonedInstructionIds;
 
   private static class PoisonedException extends RuntimeException {
     public PoisonedException() {
       super("Instruction poisoned");
     }
-  };
+  }
+  ;
 
   public BeamFnDataGrpcMultiplexer(
       Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
@@ -130,8 +132,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
 
   /** Unregisters a previously registered consumer. */
   public void unregisterConsumer(String instructionId) {
-    @Nullable
-    CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
+    @Nullable CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
         receivers.remove(instructionId);
     if (receiverFuture != null && !receiverFuture.isDone()) {
       // The future must have been inserted by the inbound observer since registerConsumer completes
@@ -148,8 +149,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
    */
   public void poisonInstructionId(String instructionId) {
     poisonedInstructionIds.put(instructionId, Boolean.TRUE);
-    @Nullable
-    CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
+    @Nullable CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>> receiverFuture =
         receivers.remove(instructionId);
     if (receiverFuture != null) {
       // Completing exceptionally has no effect if the future was already notified. In that case

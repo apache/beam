@@ -194,8 +194,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * <p>{@code null} is allowed because user keys may be null. This method may <i>not</i> return
      * null for any other reason.
      */
-    @Nullable
-    Object key();
+    @Nullable Object key();
 
     /**
      * Provide a reference to the input sideInput with the specified tag.
@@ -203,8 +202,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * <p>{@code null} is allowed because side input values may be null. This method may <i>not</i>
      * return null for any other reason.
      */
-    @Nullable
-    Object sideInput(String tagId);
+    @Nullable Object sideInput(String tagId);
 
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
@@ -213,19 +211,16 @@ public interface DoFnInvoker<InputT, OutputT> {
      * <p>{@code null} is allowed because element fields may be null. This method may <i>not</i>
      * return null for any other reason.
      */
-    @Nullable
-    Object schemaElement(int index);
+    @Nullable Object schemaElement(int index);
 
     /** Provide a reference to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the record id of the current element. */
-    @Nullable
-    String currentRecordId(DoFn<InputT, OutputT> doFn);
+    @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the record offset of the current element. */
-    @Nullable
-    Long currentRecordOffset(DoFn<InputT, OutputT> doFn);
+    @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the firing timestamp of the current timer. */
     Instant fireTimestamp(DoFn<InputT, OutputT> doFn);
