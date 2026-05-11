@@ -488,6 +488,63 @@ class PrismRunnerSingletonTest(unittest.TestCase):
       else:
         mock_prism_server.assert_called_once()
 
+  def test_loopback_worker_daemon_thread_accumulation(self):
+    """Verifies that in LOOPBACK mode, the external worker pool servicer properly
+    tracks active thread-based SdkHarness workers and cleanly shuts them down in
+    StopWorker via sentinel messages. This prevents background daemon threads from
+    accumulating across sequential pipeline executions and leaking resources.
+    """
+    import queue
+    import threading
+    import time
+    from apache_beam.portability.api import beam_fn_api_pb2
+    from apache_beam.runners.worker import worker_pool_main
+
+    servicer = worker_pool_main.BeamFnExternalWorkerPoolServicer(
+        use_process=False, state_cache_size=0, data_buffer_time_limit_ms=0)
+
+    active_workers = []
+    mock_responses = queue.Queue()
+
+    def mock_run(self_worker):
+      active_workers.append(self_worker)
+      mock_responses.get()
+      active_workers.remove(self_worker)
+
+    with mock.patch('apache_beam.runners.worker.sdk_worker.SdkHarness') as mock_harness:
+      mock_harness.return_value._responses = mock_responses
+      mock_harness.return_value.run = lambda: mock_run(mock_harness)
+
+      # Simulate starting Worker 1 for Pipeline 1
+      req1 = beam_fn_api_pb2.StartWorkerRequest(worker_id="worker_1")
+      req1.control_endpoint.url = "localhost:12345"
+      servicer.StartWorker(req1, None)
+
+      time.sleep(0.05)
+      self.assertEqual(len(active_workers), 1)
+
+      # Simulate stopping Worker 1 at the end of Pipeline 1
+      stop_req1 = beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_1")
+      servicer.StopWorker(stop_req1, None)
+
+      time.sleep(0.05)
+      # Verify the fix: StopWorker successfully tells the thread harness to shut down,
+      # completely resolving the thread leak!
+      self.assertEqual(len(active_workers), 0)
+
+      # Simulate starting Worker 2 for Pipeline 2
+      req2 = beam_fn_api_pb2.StartWorkerRequest(worker_id="worker_2")
+      req2.control_endpoint.url = "localhost:12345"
+      servicer.StartWorker(req2, None)
+
+      time.sleep(0.05)
+      self.assertEqual(len(active_workers), 1)
+
+      # Clean up the second worker
+      servicer.StopWorker(beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_2"), None)
+      time.sleep(0.05)
+      self.assertEqual(len(active_workers), 0)
+
 
 if __name__ == '__main__':
   # Run the tests.
