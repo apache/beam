@@ -159,6 +159,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private @Nullable UnboundedReader<?> activeReader;
 
   private @Nullable WorkExecutor workExecutor;
+  private boolean finishKeyCalled = false;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -248,6 +249,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.key = key;
     this.work = work;
     this.workExecutor = workExecutor;
+    this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
@@ -276,8 +278,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public void finishKey() throws Exception {
+    checkState(!finishKeyCalled, "finishKey was already called");
     checkNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     workExecutor.finishKey();
+    this.finishKeyCalled = true;
   }
 
   /**
@@ -461,6 +465,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Map<Long, Pair<Instant, Runnable>> flushState() {
+    checkState(finishKeyCalled, "finishKey must be called before flushState");
     Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
     for (StepContext stepContext : getAllStepContexts()) {
