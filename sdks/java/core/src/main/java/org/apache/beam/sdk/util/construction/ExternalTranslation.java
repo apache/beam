@@ -118,9 +118,7 @@ public class ExternalTranslation {
           String coderId = entry.getValue().getCoderId();
           mergingComponentsBuilder.putPcollections(
               entry.getKey(),
-              entry
-                  .getValue()
-                  .toBuilder()
+              entry.getValue().toBuilder()
                   .setCoderId(
                       Preconditions.checkNotNull(coderRenameMap.getOrDefault(coderId, coderId)))
                   .build());

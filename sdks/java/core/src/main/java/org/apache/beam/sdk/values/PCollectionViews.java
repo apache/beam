@@ -768,6 +768,7 @@ public class PCollectionViews {
      */
     private static class ListOverMultimapView<T> extends AbstractList<T> implements RandomAccess {
       private final MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView;
+
       /**
        * A mapping from non over-lapping ranges to the number of elements at each position within
        * that range. Ranges not specified in the mapping implicitly have 0 elements at those

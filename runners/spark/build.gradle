@@ -26,7 +26,7 @@ apply plugin: 'com.diffplug.spotless'
 spotless {
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
-    googleJavaFormat('1.7')
+    googleJavaFormat('1.17.0')
     target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
   }
 }

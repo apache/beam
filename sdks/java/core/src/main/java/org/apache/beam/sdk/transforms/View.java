@@ -697,7 +697,9 @@ public class View {
       return new AsMap<>(inMemory);
     }
 
-    /** @deprecated this method simply returns this AsMap unmodified */
+    /**
+     * @deprecated this method simply returns this AsMap unmodified
+     */
     @Deprecated()
     public AsMap<K, V> withSingletonValues() {
       return this;

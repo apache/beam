@@ -74,7 +74,9 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel) throws IOException;
   }
 
-  /** @deprecated Use {@link Compression} instead */
+  /**
+   * @deprecated Use {@link Compression} instead
+   */
   @Deprecated
   public enum CompressionMode implements DecompressingChannelFactory {
     /** See {@link Compression#UNCOMPRESSED}. */
