@@ -680,7 +680,6 @@ public class WorkerCustomSourcesTest {
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
-      context.finishKey();
       context.flushState();
       state = context.getOutputBuilder().getSourceStateUpdates().getState();
       // CountingSource's watermark is the last record + 1.  i is now one past the last record,
@@ -1042,14 +1041,19 @@ public class WorkerCustomSourcesTest {
     NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator =
         reader.iterator();
     int numReads = 0;
-    while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
-      WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();
-      assertEquals(KV.of(0, numReads), value.getValue().getValue());
-      numReads++;
-      // Fail the work item after reading two elements.
-      if (numReads == 2) {
-        dummyWork.setFailed();
+    try {
+      while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
+        WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();
+        assertEquals(KV.of(0, numReads), value.getValue().getValue());
+        numReads++;
+        // Fail the work item after reading two elements.
+        if (numReads == 2) {
+          dummyWork.setFailed();
+        }
       }
+      fail("Expected WorkItemCancelledException");
+    } catch (WorkItemCancelledException e) {
+      // Expected
     }
     assertThat(numReads, equalTo(2));
   }
