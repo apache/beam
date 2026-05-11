@@ -63,11 +63,7 @@ public abstract class WindmillReaderIteratorBase<T>
     while (true) {
       if (bundleIndex >= work.getMessageBundlesCount()) {
         current = null;
-        try {
-          context.finishKey();
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
+        context.finishKey();
         return false;
       }
       Windmill.InputMessageBundle bundle = work.getMessageBundles(bundleIndex);
