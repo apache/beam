@@ -35,8 +35,6 @@ applyJavaNature(
 configurations.runtimeClasspath {
   // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
   resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
-  // iceberg needs avro:1.12.0
-  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
   // force parquet-avro:1.15.2 to fix CVE-2025-46762
   resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.15.2'
 
@@ -56,6 +54,9 @@ configurations.runtimeClasspath {
 
   // Pin zookeeper to 3.8.6 to fix CVE in transitive 3.8.4 from hadoop/hbase
   resolutionStrategy.force 'org.apache.zookeeper:zookeeper:3.8.6'
+
+  // Pin nimbus-jose-jwt to 9.37.4 to fix CVE-2025-53864 (transitive via hadoop-auth)
+  resolutionStrategy.force 'com.nimbusds:nimbus-jose-jwt:9.37.4'
 }
 
 shadowJar {
@@ -91,6 +92,12 @@ dependencies {
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
+
+  // Force log4j-core version in shadow jar to fix CVE-2026-34477 in the shaded jar
+  // `org.apache.beam:beam-sdks-java-io-expansion-service`
+  // Currently, it has a transitive dependency of `org.apache.iceberg:iceberg-aws-bundle:1.10.0`,
+  // which includes a vulnerable log4j-core (2.20.0).
+  runtimeOnly library.java.log4j2_core
 }
 
 task runExpansionService (type: JavaExec) {

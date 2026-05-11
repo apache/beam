@@ -28,7 +28,10 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
+def sparkVersion = project.findProperty('spark_version') ?: ''
+
 applyJavaNature(
+  requireJavaVersion: (sparkVersion.startsWith("4") ? org.gradle.api.JavaVersion.VERSION_17 : null),
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,

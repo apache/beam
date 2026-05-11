@@ -226,12 +226,15 @@ final class GrpcGetDataStream
 
     @Override
     public boolean hasPendingRequests() {
+      // Note the batchesSizeSupplier may reflect batches that could be sent on another physical
+      // stream. However we treat them as possibly pending on all physical streams to ensure that we
+      // recreate streams to send them.
       return !pending.isEmpty() || batchesSizeSupplier.get() > 0;
     }
 
     @Override
     public void onDone(Status status) {
-      if (status.isOk() && hasPendingRequests()) {
+      if (status.isOk() && !pending.isEmpty()) {
         LOG.warn("Pending requests not expected on successful GetData stream flushing.");
       }
       for (AppendableInputStream responseStream : pending.values()) {

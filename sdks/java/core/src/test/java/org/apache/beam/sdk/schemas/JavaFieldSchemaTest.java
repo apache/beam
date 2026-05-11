@@ -355,9 +355,9 @@ public class JavaFieldSchemaTest {
     Long[] longArray = {42L, 43L, 44L};
     PrimitiveArrayPOJO pojo = new PrimitiveArrayPOJO(strList, intArray, longArray);
     Row row = registry.getToRowFunction(PrimitiveArrayPOJO.class).apply(pojo);
-    assertEquals(strList, row.getArray("strings"));
-    assertEquals(Ints.asList(intArray), row.getArray("integers"));
-    assertEquals(Arrays.asList(longArray), row.getArray("longs"));
+    assertEquals(strList, (List) row.getArray("strings"));
+    assertEquals(Ints.asList(intArray), (List) row.getArray("integers"));
+    assertEquals(Arrays.asList(longArray), (List) row.getArray("longs"));
 
     // Ensure that list caching works.
     assertSame(row.getArray("strings"), row.getArray("strings"));
@@ -375,9 +375,9 @@ public class JavaFieldSchemaTest {
             .addArray(42L, 43L, 44L, 45L)
             .build();
     PrimitiveArrayPOJO pojo = registry.getFromRowFunction(PrimitiveArrayPOJO.class).apply(row);
-    assertEquals(row.getArray("strings"), pojo.strings);
-    assertEquals(row.getArray("integers"), Ints.asList(pojo.integers));
-    assertEquals(row.getArray("longs"), Arrays.asList(pojo.longs));
+    assertEquals((List) row.getArray("strings"), pojo.strings);
+    assertEquals((List) row.getArray("integers"), Ints.asList(pojo.integers));
+    assertEquals((List) row.getArray("longs"), Arrays.asList(pojo.longs));
   }
 
   @Test
@@ -428,7 +428,7 @@ public class JavaFieldSchemaTest {
             Lists.newArrayList("g", "h", "i"));
     NestedArraysPOJO pojo = new NestedArraysPOJO(listOfLists);
     Row row = registry.getToRowFunction(NestedArraysPOJO.class).apply(pojo);
-    assertEquals(listOfLists, row.getArray("lists"));
+    assertEquals(listOfLists, (List) row.getArray("lists"));
   }
 
   @Test

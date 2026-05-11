@@ -61,7 +61,7 @@ jobs:
       )
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -75,7 +75,7 @@ jobs:
           INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
           INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
       - name: Archive Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Metrics Report
           path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"

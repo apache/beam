@@ -45,6 +45,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -121,7 +122,7 @@ public class SerializableCoderTest implements Serializable {
     byte[] encoded = CoderUtils.encodeToByteArray(coder, records);
     Iterable<MyRecord> decoded = CoderUtils.decodeFromByteArray(coder, encoded);
 
-    assertEquals(records, decoded);
+    assertEquals(records, Lists.newArrayList(decoded));
   }
 
   @Test

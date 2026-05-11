@@ -37,9 +37,7 @@ import sys
 import threading
 import time
 import traceback
-from typing import Dict
 from typing import Optional
-from typing import Tuple
 
 import grpc
 
@@ -83,7 +81,7 @@ class BeamFnExternalWorkerPoolServicer(
     self._container_executable = container_executable
     self._state_cache_size = state_cache_size
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
-    self._worker_processes: Dict[str, subprocess.Popen] = {}
+    self._worker_processes: dict[str, subprocess.Popen] = {}
 
   @classmethod
   def start(
@@ -92,7 +90,7 @@ class BeamFnExternalWorkerPoolServicer(
       port=0,
       state_cache_size=0,
       data_buffer_time_limit_ms=-1,
-      container_executable: Optional[str] = None) -> Tuple[str, grpc.Server]:
+      container_executable: Optional[str] = None) -> tuple[str, grpc.Server]:
     options = [("grpc.http2.max_pings_without_data", 0),
                ("grpc.http2.max_ping_strikes", 0)]
     worker_server = grpc.server(

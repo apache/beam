@@ -39,6 +39,7 @@ import com.google.cloud.spanner.Value;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -120,7 +121,12 @@ public class PartitionMetadataDaoTest {
     Map<String, Value> mutationValueMap = mutations.getValue().iterator().next().asMap();
     assertEquals(
         ROW.getPartitionToken(),
-        mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString());
+        PartitionMetadataDao.extractPartitionToken(
+            mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
+    assertEquals(
+        "",
+        PartitionMetadataDao.extractTvfName(
+            mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
     assertEquals(
         ImmutableList.of(PARENT_TOKEN),
         mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS).getStringArray());
@@ -139,6 +145,88 @@ public class PartitionMetadataDaoTest {
     assertEquals(
         ROW.getWatermark(),
         mutationValueMap.get(PartitionMetadataAdminDao.COLUMN_WATERMARK).getTimestamp());
+  }
+
+  @Test
+  public void testInsertBatch() {
+    when(databaseClient.readWriteTransaction(any())).thenReturn(readWriteTransactionRunner);
+    when(databaseClient.readWriteTransaction()).thenReturn(readWriteTransactionRunner);
+    when(readWriteTransactionRunner.run(any())).thenReturn(null);
+    when(readWriteTransactionRunner.getCommitTimestamp())
+        .thenReturn(Timestamp.ofTimeMicroseconds(1L));
+    PartitionMetadata row1 = ROW.toBuilder().setTvfName("tvf1").build();
+    PartitionMetadata row2 = ROW.toBuilder().setTvfName("tvf2").build();
+    Timestamp commitTimestamp = partitionMetadataDao.insert(ImmutableList.of(row1, row2));
+    verify(databaseClient, times(1)).readWriteTransaction(any());
+    verify(readWriteTransactionRunner, times(1)).run(any());
+    verify(readWriteTransactionRunner, times(1)).getCommitTimestamp();
+    assertEquals(Timestamp.ofTimeMicroseconds(1L), commitTimestamp);
+  }
+
+  @Test
+  public void testInTransactionContextInsertBatch() {
+    ArgumentCaptor<Iterable<Mutation>> mutationsCaptor = ArgumentCaptor.forClass(Iterable.class);
+    doNothing().when(transaction).buffer(mutationsCaptor.capture());
+    PartitionMetadata row1 = ROW.toBuilder().setTvfName("tvf1").build();
+    PartitionMetadata row2 = ROW.toBuilder().setTvfName("tvf2").build();
+    assertNull(inTransactionContext.insert(ImmutableList.of(row1, row2)));
+
+    List<Mutation> mutations = ImmutableList.copyOf(mutationsCaptor.getValue());
+    assertEquals(2, mutations.size());
+    Map<String, Value> mutationValueMap1 = mutations.get(0).asMap();
+    assertEquals(
+        ROW.getPartitionToken(),
+        PartitionMetadataDao.extractPartitionToken(
+            mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
+    assertEquals(
+        "tvf1",
+        PartitionMetadataDao.extractTvfName(
+            mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
+    assertEquals(
+        ImmutableList.of(PARENT_TOKEN),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS).getStringArray());
+    assertEquals(
+        ROW.getStartTimestamp(),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP).getTimestamp());
+    assertEquals(
+        ROW.getEndTimestamp(),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP).getTimestamp());
+    assertEquals(
+        ROW.getHeartbeatMillis(),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS).getInt64());
+    assertEquals(
+        ROW.getState().toString(),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+    assertEquals(
+        ROW.getWatermark(),
+        mutationValueMap1.get(PartitionMetadataAdminDao.COLUMN_WATERMARK).getTimestamp());
+    Map<String, Value> mutationValueMap2 = mutations.get(1).asMap();
+    assertEquals(
+        ROW.getPartitionToken(),
+        PartitionMetadataDao.extractPartitionToken(
+            mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
+    assertEquals(
+        "tvf2",
+        PartitionMetadataDao.extractTvfName(
+            mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_PARTITION_TOKEN).getString()));
+    assertEquals(
+        ImmutableList.of(PARENT_TOKEN),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_PARENT_TOKENS).getStringArray());
+    assertEquals(
+        ROW.getStartTimestamp(),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_START_TIMESTAMP).getTimestamp());
+    assertEquals(
+        ROW.getEndTimestamp(),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP).getTimestamp());
+    assertEquals(
+        ROW.getHeartbeatMillis(),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_HEARTBEAT_MILLIS).getInt64());
+    assertEquals(
+        ROW.getState().toString(),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_STATE).getString());
+    assertEquals(
+        ROW.getWatermark(),
+        mutationValueMap2.get(PartitionMetadataAdminDao.COLUMN_WATERMARK).getTimestamp());
   }
 
   @Test
@@ -290,5 +378,32 @@ public class PartitionMetadataDaoTest {
     when(resultSet.next()).thenReturn(true);
     when(resultSet.getCurrentRowAsStruct()).thenReturn(Struct.newBuilder().build());
     assertNotNull(inTransactionContext.getPartition(PARTITION_TOKEN));
+  }
+
+  @Test
+  public void testComposePartitionTokenWithTvfName() {
+    assertEquals(
+        "partitionToken123#tvf",
+        PartitionMetadataDao.composePartitionTokenWithTvfName("partitionToken123", "tvf"));
+    assertEquals(
+        "partitionToken123",
+        PartitionMetadataDao.composePartitionTokenWithTvfName("partitionToken123", ""));
+    assertEquals(
+        "partitionToken123",
+        PartitionMetadataDao.composePartitionTokenWithTvfName("partitionToken123", null));
+  }
+
+  @Test
+  public void testExtractPartitionToken() {
+    assertEquals(
+        "partitionToken123", PartitionMetadataDao.extractPartitionToken("partitionToken123#tvf"));
+    assertEquals(
+        "partitionToken123", PartitionMetadataDao.extractPartitionToken("partitionToken123"));
+  }
+
+  @Test
+  public void testExtractTvfName() {
+    assertEquals("tvf", PartitionMetadataDao.extractTvfName("partitionToken123#tvf"));
+    assertEquals("", PartitionMetadataDao.extractTvfName("partitionToken123"));
   }
 }

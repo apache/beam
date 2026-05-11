@@ -323,7 +323,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
 
 
 @with_input_types(ReadOperation, _SPANNER_TRANSACTION)
-@with_output_types(typing.List[typing.Any])
+@with_output_types(list[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
   def __init__(self, spanner_configuration):
     """
@@ -439,7 +439,7 @@ class _NaiveSpannerReadDoFn(DoFn):
 
 
 @with_input_types(ReadOperation)
-@with_output_types(typing.Dict[typing.Any, typing.Any])
+@with_output_types(dict[typing.Any, typing.Any])
 class _CreateReadPartitions(DoFn):
   """
   A DoFn to create partitions. Uses the Partitioning API (PartitionRead /
@@ -584,8 +584,8 @@ def create_transaction(
               exact_staleness)))
 
 
-@with_input_types(typing.Dict[typing.Any, typing.Any])
-@with_output_types(typing.List[typing.Any])
+@with_input_types(dict[typing.Any, typing.Any])
+@with_output_types(list[typing.Any])
 class _ReadFromPartitionFn(DoFn):
   """
   A DoFn to perform reads from the partition.

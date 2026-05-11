@@ -24,7 +24,6 @@ This can only be used with the flink runner.
 
 import json
 from typing import Any
-from typing import Dict
 
 from apache_beam import PTransform
 from apache_beam import Windowing
@@ -35,7 +34,7 @@ from apache_beam.transforms.window import GlobalWindows
 class FlinkStreamingImpulseSource(PTransform):
   URN = "flink:transform:streaming_impulse:v1"
 
-  config: Dict[str, Any] = {}
+  config: dict[str, Any] = {}
 
   def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin), (

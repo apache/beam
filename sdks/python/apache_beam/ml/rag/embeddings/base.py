@@ -22,7 +22,6 @@ are used by EmbeddingsManager to support various input types.
 """
 
 from collections.abc import Sequence
-from typing import List
 
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.types import Embedding
@@ -48,7 +47,7 @@ def create_text_adapter(
 create_rag_adapter = create_text_adapter
 
 
-def _extract_text(items: Sequence[EmbeddableItem]) -> List[str]:
+def _extract_text(items: Sequence[EmbeddableItem]) -> list[str]:
   """Extract text from items for embedding."""
   texts = []
   for item in items:
@@ -62,7 +61,7 @@ def _extract_text(items: Sequence[EmbeddableItem]) -> List[str]:
 
 def _add_embedding_fn(
     items: Sequence[EmbeddableItem],
-    embeddings: Sequence[List[float]]) -> List[EmbeddableItem]:
+    embeddings: Sequence[list[float]]) -> list[EmbeddableItem]:
   """Create Embeddings from items and embedding vectors."""
   for item, embedding in zip(items, embeddings):
     item.embedding = Embedding(dense_embedding=embedding)

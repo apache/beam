@@ -33,8 +33,10 @@ class RowTypeTest(unittest.TestCase):
   @staticmethod
   def _check_key_type_and_count(x) -> int:
     key_type = type(x[0])
-    if not row_type._user_type_is_generated(key_type):
-      raise RuntimeError("Expect type after GBK to be generated user type")
+    if row_type._user_type_is_generated(key_type):
+      raise RuntimeError("Type after GBK not preserved, get generated type")
+    if not hasattr(key_type, row_type._BEAM_SCHEMA_ID):
+      raise RuntimeError("Type after GBK missing Beam schema ID")
 
     return len(x[1])
 
@@ -42,8 +44,7 @@ class RowTypeTest(unittest.TestCase):
     MyNamedTuple = typing.NamedTuple(
         "MyNamedTuple", [("id", int), ("name", str)])
 
-    beam.coders.typecoders.registry.register_coder(
-        MyNamedTuple, beam.coders.RowCoder)
+    beam.coders.typecoders.registry.register_row(MyNamedTuple)
 
     def generate(num: int):
       for i in range(100):
@@ -67,8 +68,7 @@ class RowTypeTest(unittest.TestCase):
       id: int
       name: str
 
-    beam.coders.typecoders.registry.register_coder(
-        MyDataClass, beam.coders.RowCoder)
+    beam.coders.typecoders.registry.register_row(MyDataClass)
 
     def generate(num: int):
       for i in range(100):
@@ -120,10 +120,8 @@ class RowTypeTest(unittest.TestCase):
     class DataClassStr(DataClassInt):
       name: str
 
-    beam.coders.typecoders.registry.register_coder(
-        DataClassInt, beam.coders.RowCoder)
-    beam.coders.typecoders.registry.register_coder(
-        DataClassStr, beam.coders.RowCoder)
+    beam.coders.typecoders.registry.register_row(DataClassInt)
+    beam.coders.typecoders.registry.register_row(DataClassStr)
 
     def generate(num: int):
       for i in range(10):

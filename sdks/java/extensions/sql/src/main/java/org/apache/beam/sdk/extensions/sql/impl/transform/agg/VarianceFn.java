@@ -142,7 +142,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
         this.isSample ? variance.count().subtract(BigDecimal.ONE) : variance.count();
 
     // Avoid ArithmeticException: Division is undefined when adjustedCount is 0
-    if (adjustedCount.equals(BigDecimal.ZERO)) {
+    if (adjustedCount.compareTo(BigDecimal.ZERO) == 0) {
       return BigDecimal.ZERO;
     }
 

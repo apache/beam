@@ -330,9 +330,9 @@ public class JavaBeanSchemaTest {
     Long[] longArray = {42L, 43L, 44L};
     PrimitiveArrayBean bean = new PrimitiveArrayBean(strList, intArray, longArray);
     Row row = registry.getToRowFunction(PrimitiveArrayBean.class).apply(bean);
-    assertEquals(strList, row.getArray("strings"));
-    assertEquals(Ints.asList(intArray), row.getArray("integers"));
-    assertEquals(Arrays.asList(longArray), row.getArray("longs"));
+    assertEquals(strList, (List) row.getArray("strings"));
+    assertEquals(Ints.asList(intArray), (List) row.getArray("integers"));
+    assertEquals(Arrays.asList(longArray), (List) row.getArray("longs"));
 
     // Ensure that list caching works.
     assertSame(row.getArray("strings"), row.getArray("strings"));
@@ -350,9 +350,9 @@ public class JavaBeanSchemaTest {
             .addArray(42L, 43L, 44L, 45L)
             .build();
     PrimitiveArrayBean bean = registry.getFromRowFunction(PrimitiveArrayBean.class).apply(row);
-    assertEquals(row.getArray("strings"), bean.getStrings());
-    assertEquals(row.getArray("integers"), Ints.asList(bean.getIntegers()));
-    assertEquals(row.getArray("longs"), Arrays.asList(bean.getLongs()));
+    assertEquals((List) row.getArray("strings"), bean.getStrings());
+    assertEquals((List) row.getArray("integers"), Ints.asList(bean.getIntegers()));
+    assertEquals((List) row.getArray("longs"), Arrays.asList(bean.getLongs()));
   }
 
   @Test
@@ -402,7 +402,7 @@ public class JavaBeanSchemaTest {
             Lists.newArrayList("g", "h", "i"));
     NestedArraysBean bean = new NestedArraysBean(listOfLists);
     Row row = registry.getToRowFunction(NestedArraysBean.class).apply(bean);
-    assertEquals(listOfLists, row.getArray("lists"));
+    assertEquals(listOfLists, (List) row.getArray("lists"));
   }
 
   @Test

@@ -16,8 +16,6 @@
 #
 
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 
 import apache_beam as beam
@@ -37,7 +35,7 @@ class LangChainChunker(ChunkingTransformProvider):
       self,
       text_splitter: TextSplitter,
       document_field: str,
-      metadata_fields: List[str],
+      metadata_fields: list[str],
       chunk_id_fn: Optional[ChunkIdFn] = None):
     """A ChunkingTransformProvider that uses LangChain text splitters.
   
@@ -94,7 +92,7 @@ class LangChainChunker(ChunkingTransformProvider):
 
   def get_splitter_transform(
       self
-  ) -> beam.PTransform[beam.PCollection[Dict[str, Any]],
+  ) -> beam.PTransform[beam.PCollection[dict[str, Any]],
                        beam.PCollection[Chunk]]:
     return "Langchain text split" >> beam.ParDo(
         _LangChainTextSplitter(
@@ -108,7 +106,7 @@ class _LangChainTextSplitter(beam.DoFn):
       self,
       text_splitter: TextSplitter,
       document_field: str,
-      metadata_fields: List[str]):
+      metadata_fields: list[str]):
     self.text_splitter = text_splitter
     self.document_field = document_field
     self.metadata_fields = metadata_fields

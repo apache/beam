@@ -1807,6 +1807,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -1836,10 +1837,10 @@ public class StreamingDataflowWorkerTest {
 
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
-
+    // no combined metadata as it's default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -1915,6 +1916,13 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        // 0x02: Protobuf Delimited Length (Payload is 2 bytes), 0x08: Protobuf Tag
+        // (Field #1), 0x01: Protobuf Value (Enum 1 = NOT_DRAINING).
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -1940,7 +1948,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
@@ -1960,10 +1968,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));
@@ -2097,6 +2111,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -2127,9 +2142,10 @@ public class StreamingDataflowWorkerTest {
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
 
+    // no combinedMetadataTag as it is default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -2205,6 +2221,11 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -2230,7 +2251,7 @@ public class StreamingDataflowWorkerTest {
         PaneInfo.createPane(true, true, Timing.ON_TIME), PaneInfoCoder.INSTANCE.decode(inStream));
     assertEquals(
         Collections.singletonList(WINDOW_AT_ZERO),
-        DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER));
+        Lists.newArrayList(DEFAULT_WINDOW_COLLECTION_CODER.decode(inStream, Coder.Context.OUTER)));
 
     // Data was deleted
     assertThat(
@@ -2250,10 +2271,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));
@@ -2374,9 +2401,6 @@ public class StreamingDataflowWorkerTest {
             new Action(
                     buildSessionInput(
                         1, 40, 0, Collections.singletonList(1L), Collections.EMPTY_LIST))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))));
   }
 
@@ -2404,10 +2428,7 @@ public class StreamingDataflowWorkerTest {
                         0,
                         Collections.EMPTY_LIST,
                         Collections.singletonList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
-                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true)),
+                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010)),
             new Action(
                     buildSessionInput(
                         3, 30, 0, Collections.singletonList(8L), Collections.EMPTY_LIST))
@@ -2436,8 +2457,8 @@ public class StreamingDataflowWorkerTest {
                 .withHolds(
                     buildHold("/gAAAAAAAACkK/+uhold", -1, true),
                     buildHold("/gAAAAAAAACkK/+uextra", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uhold", 40, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, true)),
+                    buildHold("/gAAAAAAAAAsK/+uhold", 40, false),
+                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, false)),
             new Action(
                     buildSessionInput(
                         6,

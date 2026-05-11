@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.data;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.util.Weighted;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath;
 
 /** Facade for a {@link List<T>} that keeps track of weight, for cache limit reasons. */
 public class WeightedList<T> implements Weighted {
@@ -71,14 +72,6 @@ public class WeightedList<T> implements Weighted {
   }
 
   public void accumulateWeight(long weight) {
-    this.weight.accumulateAndGet(
-        weight,
-        (first, second) -> {
-          try {
-            return Math.addExact(first, second);
-          } catch (ArithmeticException e) {
-            return Long.MAX_VALUE;
-          }
-        });
+    this.weight.accumulateAndGet(weight, LongMath::saturatedAdd);
   }
 }
