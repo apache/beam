@@ -1337,13 +1337,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // The SdkComponents for portable and non-portable job submission must be kept distinct. Both
     // need the default environment.
-    SdkComponents portableComponents = SdkComponents.create(options);
-    portableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    SdkComponents portableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
 
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
@@ -1377,13 +1378,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       replaceV1Transforms(pipeline);
     }
     // Capture the SdkComponents for look up during step translations.
-    SdkComponents dataflowNonPortableComponents = SdkComponents.create(options);
-    dataflowNonPortableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    SdkComponents dataflowNonPortableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
     // No need to perform transform upgrading for the non-portable runner proto.
     RunnerApi.Pipeline dataflowNonPortablePipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowNonPortableComponents, true, false);

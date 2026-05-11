@@ -63,7 +63,7 @@ public class SdkComponents {
   private final BiMap<Environment, String> environmentIds = HashBiMap.create();
   private final BiMap<RunnerApi.Coder, String> coderProtoToId = HashBiMap.create();
   private final Set<String> requirements;
-  private PipelineOptions pipelineOptions;
+  private final PipelineOptions pipelineOptions;
 
   private final Set<String> reservedIds = new HashSet<>();
 
@@ -90,7 +90,6 @@ public class SdkComponents {
     sdkComponents.windowingStrategyIds.inverse().putAll(windowingStrategies);
     sdkComponents.coderIds.inverse().putAll(coders);
     sdkComponents.environmentIds.inverse().putAll(environments);
-    sdkComponents.pipelineOptions = pipelineOptions;
     return sdkComponents;
   }
 
@@ -100,7 +99,13 @@ public class SdkComponents {
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(portablePipelineOptions));
-    sdkComponents.pipelineOptions = options;
+    return sdkComponents;
+  }
+
+  public static SdkComponents create(PipelineOptions options, Environment environment) {
+    SdkComponents sdkComponents =
+        new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "", options);
+    sdkComponents.registerEnvironment(environment);
     return sdkComponents;
   }
 
