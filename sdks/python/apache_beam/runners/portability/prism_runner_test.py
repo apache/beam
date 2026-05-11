@@ -511,7 +511,8 @@ class PrismRunnerSingletonTest(unittest.TestCase):
       mock_responses.get()
       active_workers.remove(self_worker)
 
-    with mock.patch('apache_beam.runners.worker.sdk_worker.SdkHarness') as mock_harness:
+    with mock.patch(
+        'apache_beam.runners.worker.sdk_worker.SdkHarness') as mock_harness:
       mock_harness.return_value._responses = mock_responses
       mock_harness.return_value.run = lambda: mock_run(mock_harness)
 
@@ -541,7 +542,8 @@ class PrismRunnerSingletonTest(unittest.TestCase):
       self.assertEqual(len(active_workers), 1)
 
       # Clean up the second worker
-      servicer.StopWorker(beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_2"), None)
+      servicer.StopWorker(
+          beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_2"), None)
       time.sleep(0.05)
       self.assertEqual(len(active_workers), 0)
 
