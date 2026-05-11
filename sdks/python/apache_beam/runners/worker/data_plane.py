@@ -456,20 +456,15 @@ class _GrpcDataChannel(DataChannel):
 
   def __init__(self, data_buffer_time_limit_ms=0):
     # type: (int) -> None
-    def _element_weight(element):
-      if isinstance(element, beam_fn_api_pb2.Elements.Data):
-        return len(element.data)
-      elif isinstance(element, beam_fn_api_pb2.Elements.Timers):
-        return len(element.timers)
-      return 0
 
     self._data_buffer_time_limit_ms = data_buffer_time_limit_ms
     self._to_send = ByteLimitedQueue(
-        maxsize=10000, maxweight=100 << 20,
-        weighing_fn=_element_weight)  # type: queue.Queue[DataOrTimers]
+        maxsize=10000, maxbytes=100 << 20,
+    )  # type: queue.Queue[DataOrTimers]
     self._received = collections.defaultdict(
         lambda: ByteLimitedQueue(
-            maxsize=5, maxweight=100 << 20, weighing_fn=_element_weight)
+            maxsize=5, maxbytes=100 << 20,
+        )
     )  # type: DefaultDict[str, queue.Queue[DataOrTimers]]
 
     # Keep a cache of completed instructions. Data for completed instructions
@@ -596,21 +591,21 @@ class _GrpcDataChannel(DataChannel):
     def add_to_send_queue(data):
       # type: (bytes) -> None
       if data:
-        self._to_send.put(
-            beam_fn_api_pb2.Elements.Data(
-                instruction_id=instruction_id,
-                transform_id=transform_id,
-                data=data))
+        elem = beam_fn_api_pb2.Elements.Data(
+            instruction_id=instruction_id,
+            transform_id=transform_id,
+            data=data)
+        self._to_send.put(elem, self._get_element_bytes(elem))
 
     def close_callback(data):
       # type: (bytes) -> None
       add_to_send_queue(data)
       # End of stream marker.
-      self._to_send.put(
-          beam_fn_api_pb2.Elements.Data(
-              instruction_id=instruction_id,
-              transform_id=transform_id,
-              is_last=True))
+      elem = beam_fn_api_pb2.Elements.Data(
+          instruction_id=instruction_id,
+          transform_id=transform_id,
+          is_last=True)
+      self._to_send.put(elem, self._get_element_bytes(elem))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
@@ -625,23 +620,23 @@ class _GrpcDataChannel(DataChannel):
     def add_to_send_queue(timer):
       # type: (bytes) -> None
       if timer:
-        self._to_send.put(
-            beam_fn_api_pb2.Elements.Timers(
-                instruction_id=instruction_id,
-                transform_id=transform_id,
-                timer_family_id=timer_family_id,
-                timers=timer,
-                is_last=False))
+        elem = beam_fn_api_pb2.Elements.Timers(
+            instruction_id=instruction_id,
+            transform_id=transform_id,
+            timer_family_id=timer_family_id,
+            timers=timer,
+            is_last=False)
+        self._to_send.put(elem, self._get_element_bytes(elem))
 
     def close_callback(timer):
       # type: (bytes) -> None
       add_to_send_queue(timer)
-      self._to_send.put(
-          beam_fn_api_pb2.Elements.Timers(
-              instruction_id=instruction_id,
-              transform_id=transform_id,
-              timer_family_id=timer_family_id,
-              is_last=True))
+      elem = beam_fn_api_pb2.Elements.Timers(
+          instruction_id=instruction_id,
+          transform_id=transform_id,
+          timer_family_id=timer_family_id,
+          is_last=True)
+      self._to_send.put(elem, self._get_element_bytes(elem))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
@@ -676,6 +671,15 @@ class _GrpcDataChannel(DataChannel):
             raise ValueError('Unexpected output element type %s' % type(stream))
         yield beam_fn_api_pb2.Elements(data=data_stream, timers=timer_stream)
 
+  def _get_element_bytes(self, element):
+    # type: (Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]) -> int
+    if isinstance(element, beam_fn_api_pb2.Elements.Data):
+      return len(element.data)
+    elif isinstance(element, beam_fn_api_pb2.Elements.Timers):
+      return len(element.timers)
+    else:
+      return 0
+
   def _read_inputs(self, elements_iterator):
     # type: (Iterable[beam_fn_api_pb2.Elements]) -> None
 
@@ -702,7 +706,7 @@ class _GrpcDataChannel(DataChannel):
             next_discard_log_time = current_time + 10
           return
         try:
-          input_queue.put(element, timeout=1)
+          input_queue.put(element, self._get_element_bytes(element), timeout=1)
           return
         except queue.Full:
           current_time = time.time()
