@@ -153,21 +153,39 @@ class AsyncWrapper(beam.DoFn):
 
   @staticmethod
   def reset_state():
+    event_loop_thread_to_join = None
     with AsyncWrapper._lock:
       if AsyncWrapper._event_loop:
         AsyncWrapper._event_loop.call_soon_threadsafe(
             AsyncWrapper._event_loop.stop)
       if AsyncWrapper._event_loop_thread:
-        AsyncWrapper._event_loop_thread.join()
+        event_loop_thread_to_join = AsyncWrapper._event_loop_thread
 
       AsyncWrapper._event_loop = None
       AsyncWrapper._event_loop_thread = None
       if AsyncWrapper._loop_started is not None:
         AsyncWrapper._loop_started.clear()
 
-      for pool in AsyncWrapper._pool.values():
-        pool.acquire(AsyncWrapper.initialize_pool(1)).shutdown(
-            wait=True, cancel_futures=True)
+      pools = list(AsyncWrapper._pool.values())
+
+    # We must join the asyncio event loop thread outside of the lock block.
+    # If joined inside the lock, the waiting thread holds the lock while blocking,
+    # preventing active coroutines' done callbacks from acquiring the lock on the
+    # event loop thread, resulting in a deadlock.
+    if event_loop_thread_to_join:
+      event_loop_thread_to_join.join()
+
+    # We must acquire and shut down the thread pools outside of the lock block.
+    # If shutdown(wait=True) is called inside the lock, the caller blocks holding
+    # the lock, preventing active worker threads from acquiring the lock to run
+    # their done callbacks, resulting in a deadlock.
+    pools_to_shutdown = [
+        pool.acquire(AsyncWrapper.initialize_pool(1)) for pool in pools
+    ]
+
+    for pool in pools_to_shutdown:
+      pool.shutdown(wait=True, cancel_futures=True)
+
     with AsyncWrapper._lock:
       AsyncWrapper._pool = {}
       AsyncWrapper._processing_elements = {}
@@ -268,7 +286,8 @@ class AsyncWrapper(beam.DoFn):
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
-      AsyncWrapper._items_in_buffer[self._uuid] -= 1
+      if self._uuid in AsyncWrapper._items_in_buffer:
+        AsyncWrapper._items_in_buffer[self._uuid] -= 1
 
   def schedule_if_room(self, element, ignore_buffer=False, *args, **kwargs):
     """Schedules an item to be processed asynchronously if there is room.
