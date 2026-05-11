@@ -130,114 +130,114 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final Map<String, PCollectionView<?>> sideInputMapping) {
     final ProcessContext processContext = new ProcessContext(element, tracker, watermarkEstimator);
 
-    DoFn.ProcessContinuation cont =
-        invoker.invokeProcessElement(
-            new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
-              @Override
-              public String getErrorContext() {
-                return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName();
-              }
+    DoFnInvoker.BaseArgumentProvider<InputT, OutputT> invokerArgumentProvider =
+        new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
+          @Override
+          public String getErrorContext() {
+            return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName();
+          }
 
-              @Override
-              public DoFn<InputT, OutputT>.ProcessContext processContext(
-                  DoFn<InputT, OutputT> doFn) {
-                return processContext;
-              }
+          @Override
+          public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+            return processContext;
+          }
 
-              @Override
-              public Object sideInput(String tagId) {
-                PCollectionView<?> view = sideInputMapping.get(tagId);
-                if (view == null) {
-                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
-                }
-                return processContext.sideInput(view);
-              }
+          @Override
+          public Object sideInput(String tagId) {
+            PCollectionView<?> view = sideInputMapping.get(tagId);
+            if (view == null) {
+              throw new IllegalArgumentException("calling getSideInput() with unknown view");
+            }
+            return processContext.sideInput(view);
+          }
 
-              @Override
-              public Object restriction() {
-                return tracker.currentRestriction();
-              }
+          @Override
+          public Object restriction() {
+            return tracker.currentRestriction();
+          }
 
-              @Override
-              public InputT element(DoFn<InputT, OutputT> doFn) {
-                return processContext.element();
-              }
+          @Override
+          public InputT element(DoFn<InputT, OutputT> doFn) {
+            return processContext.element();
+          }
 
-              @Override
-              public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                return processContext.timestamp();
-              }
+          @Override
+          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+            return processContext.timestamp();
+          }
 
-              @Override
-              public String timerId(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Cannot access timerId as parameter outside of @OnTimer method.");
-              }
+          @Override
+          public String timerId(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Cannot access timerId as parameter outside of @OnTimer method.");
+          }
 
-              @Override
-              public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException(
-                    "Access to time domain not supported in ProcessElement");
-              }
+          @Override
+          public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to time domain not supported in ProcessElement");
+          }
 
-              @Override
-              public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedReceiver(
-                    processContext, OutputBuilderSuppliers.supplierForElement(element), null);
-              }
+          @Override
+          public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+            return DoFnOutputReceivers.windowedReceiver(
+                processContext, OutputBuilderSuppliers.supplierForElement(element), null);
+          }
 
-              @Override
-              public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-                throw new UnsupportedOperationException("Not supported in SplittableDoFn");
-              }
+          @Override
+          public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException("Not supported in SplittableDoFn");
+          }
 
-              @Override
-              public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedMultiReceiver(
-                    processContext, OutputBuilderSuppliers.supplierForElement(element));
-              }
+          @Override
+          public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+            return DoFnOutputReceivers.windowedMultiReceiver(
+                processContext, OutputBuilderSuppliers.supplierForElement(element));
+          }
 
-              @Override
-              public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
-                return processContext.causedByDrain();
-              }
+          @Override
+          public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+            return processContext.causedByDrain();
+          }
 
-              @Override
-              public RestrictionTracker<?, ?> restrictionTracker() {
-                return processContext.tracker;
-              }
+          @Override
+          public RestrictionTracker<?, ?> restrictionTracker() {
+            return processContext.tracker;
+          }
 
-              @Override
-              public WatermarkEstimator<?> watermarkEstimator() {
-                return processContext.watermarkEstimator;
-              }
+          @Override
+          public WatermarkEstimator<?> watermarkEstimator() {
+            return processContext.watermarkEstimator;
+          }
 
-              @Override
-              public PipelineOptions pipelineOptions() {
-                return pipelineOptions;
-              }
+          @Override
+          public PipelineOptions pipelineOptions() {
+            return pipelineOptions;
+          }
 
-              @Override
-              public BundleFinalizer bundleFinalizer() {
-                return bundleFinalizer.get();
-              }
+          @Override
+          public BundleFinalizer bundleFinalizer() {
+            return bundleFinalizer.get();
+          }
 
-              // Unsupported methods below.
+          // Unsupported methods below.
 
-              @Override
-              public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-                throw new IllegalStateException(
-                    "Should not access startBundleContext() from @"
-                        + DoFn.ProcessElement.class.getSimpleName());
-              }
+          @Override
+          public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+            throw new IllegalStateException(
+                "Should not access startBundleContext() from @"
+                    + DoFn.ProcessElement.class.getSimpleName());
+          }
 
-              @Override
-              public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
-                throw new IllegalStateException(
-                    "Should not access finishBundleContext() from @"
-                        + DoFn.ProcessElement.class.getSimpleName());
-              }
-            });
+          @Override
+          public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
+            throw new IllegalStateException(
+                "Should not access finishBundleContext() from @"
+                    + DoFn.ProcessElement.class.getSimpleName());
+          }
+        };
+
+    DoFn.ProcessContinuation cont = invoker.invokeProcessElement(invokerArgumentProvider);
     processContext.cancelScheduledCheckpoint();
     @Nullable
     KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
@@ -282,97 +282,25 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // For a list of all DoFnInvoker arguments, see DoFn.java.
     double backlogBytes =
         invoker.invokeGetSize(
-            new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
-              @Override
-              public String getErrorContext() {
-                return OutputAndTimeBoundedSplittableProcessElementInvoker.class.getSimpleName()
-                    + "/GetSize";
-              }
-
-              @Override
-              public InputT element(DoFn<InputT, OutputT> doFn) {
-                return element.getValue();
-              }
-
+            new DoFnInvoker.DelegatingArgumentProvider<InputT, OutputT>(
+                invokerArgumentProvider, invokerArgumentProvider.getErrorContext() + "/GetSize") {
               @Override
               public Object restriction() {
                 return residualForGetSize.getKey();
               }
 
               @Override
-              public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                return element.getTimestamp();
-              }
-
-              @Override
               public RestrictionTracker<?, ?> restrictionTracker() {
                 return invoker.invokeNewTracker(
-                    new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
-                      @Override
-                      public String getErrorContext() {
-                        return OutputAndTimeBoundedSplittableProcessElementInvoker.class
-                                .getSimpleName()
-                            + "/NewTracker";
-                      }
-
-                      @Override
-                      public InputT element(DoFn<InputT, OutputT> doFn) {
-                        return element.getValue();
-                      }
+                    new DoFnInvoker.DelegatingArgumentProvider<InputT, OutputT>(
+                        invokerArgumentProvider,
+                        invokerArgumentProvider.getErrorContext() + "/NewTracker") {
 
                       @Override
                       public Object restriction() {
                         return residualForGetSize.getKey();
                       }
-
-                      @Override
-                      public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                        return element.getTimestamp();
-                      }
-
-                      @Override
-                      public BoundedWindow window() {
-                        throw new IllegalStateException(
-                            "Attempting to access window outside of a windowed context");
-                      }
-
-                      @Override
-                      public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                        throw new IllegalStateException(
-                            "Attempting to access PaneInfo outside of a windowed context");
-                      }
-
-                      @Override
-                      public PipelineOptions pipelineOptions() {
-                        return pipelineOptions;
-                      }
                     });
-              }
-
-              @Override
-              public BoundedWindow window() {
-                throw new IllegalStateException(
-                    "Attempting to access window outside of a windowed context");
-              }
-
-              @Override
-              public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                throw new IllegalStateException(
-                    "Attempting to access PaneInfo outside of a windowed context");
-              }
-
-              @Override
-              public PipelineOptions pipelineOptions() {
-                return pipelineOptions;
-              }
-
-              @Override
-              public Object sideInput(String tagId) {
-                PCollectionView<?> view = sideInputMapping.get(tagId);
-                if (view == null) {
-                  throw new IllegalArgumentException("calling getSideInput() with unknown view");
-                }
-                return processContext.sideInput(view);
               }
             });
     return new Result(
