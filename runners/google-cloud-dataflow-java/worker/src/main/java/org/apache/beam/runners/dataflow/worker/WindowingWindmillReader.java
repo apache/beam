@@ -156,6 +156,11 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
       return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
         @Override
         public boolean start() throws IOException {
+          try {
+            context.finishKey();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
           return false;
         }
 
