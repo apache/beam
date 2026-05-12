@@ -285,6 +285,9 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
       }
 
       @Override
+      public void finishKey() {}
+
+      @Override
       public DoFn<InT, T> getFn() {
         throw new UnsupportedOperationException();
       }

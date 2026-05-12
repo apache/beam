@@ -105,6 +105,9 @@ class DoFnRunnerWithMetrics<InT, OutT> implements DoFnRunnerWithTeardown<InT, Ou
   }
 
   @Override
+  public void finishKey() {}
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     delegate.onWindowExpiration(window, timestamp, key);
   }

@@ -40,9 +40,7 @@ public class SimplePartialGroupByKeyParDoFn<K, InputT, AccumT> implements ParDoF
   public void processTimers() {}
 
   @Override
-  public void finishKey() throws Exception {
-    // Nothing.
-  }
+  public void finishKey() throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {

@@ -1065,6 +1065,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     }
 
     @Override
+    public void finishKey() {}
+
+    @Override
     public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
     boolean isBundleInProgress() {

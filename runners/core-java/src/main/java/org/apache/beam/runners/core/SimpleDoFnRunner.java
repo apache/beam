@@ -230,9 +230,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
-  public void finishKey() {
-    // Do nothing by default.
-  }
+  public void finishKey() {}
 
   @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {

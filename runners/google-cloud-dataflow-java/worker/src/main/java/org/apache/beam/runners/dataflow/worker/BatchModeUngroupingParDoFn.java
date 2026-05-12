@@ -74,9 +74,7 @@ class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
   }
 
   @Override
-  public void finishKey() throws Exception {
-    // Nothing.
-  }
+  public void finishKey() throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {

@@ -87,9 +87,7 @@ class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
     public void processTimers() {}
 
     @Override
-    public void finishKey() throws Exception {
-      // Nothing.
-    }
+    public void finishKey() throws Exception {}
 
     @Override
     public void finishBundle() throws Exception {

@@ -256,6 +256,9 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   }
 
   @Override
+  public void finishKey() {}
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
   @Override
