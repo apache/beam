@@ -27,4 +27,4 @@ cdef class ByteLimitedQueue(object):
   cdef readonly object _queue
   cdef readonly Py_ssize_t _blocked_bytes
 
-  cpdef bint _is_full_locked(self, Py_ssize_t item_bytes) except -1
+  cpdef bint _can_fit(self, Py_ssize_t item_bytes) except -1

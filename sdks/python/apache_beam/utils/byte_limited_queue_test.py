@@ -105,7 +105,7 @@ class ByteLimitedQueueTest(unittest.TestCase):
     self.assertEqual(len(received), 202)
     self.assertEqual(sum(received), 2 * sum(range(101)))
 
-  def test_multithreading_timeout(self):
+  def test_put_timeout(self):
     bq = ByteLimitedQueue(maxsize=0, maxbytes=10)
     bq.put('10', 10)
 
@@ -126,11 +126,41 @@ class ByteLimitedQueueTest(unittest.TestCase):
     bq.put('item', 5, timeout=60)
     t.join()
 
+  def test_get_timeout(self):
+    bq = ByteLimitedQueue(maxsize=0, maxbytes=100)
+    with self.assertRaises(queue.Empty):
+      bq.get(block=False)
+    with self.assertRaises(queue.Empty):
+      bq.get(timeout=0.0)
+    with self.assertRaises(queue.Empty):
+      bq.get(timeout=.01)
+
+    bq.put('1', 1)
+    self.assertEqual('1', bq.get(timeout=0))
+
+    bq.put('2', 2)
+    self.assertEqual('2', bq.get(timeout=0.1))
+
+    def delayed_producer():
+      time.sleep(0.05)
+      bq.put('3', 3)
+
+    # Start a thread that will produce soon
+    t = threading.Thread(target=delayed_producer)
+    t.start()
+
+    # The get should succeed once the produer runs, use a high timeout to
+    # flakiness.
+    self.assertEqual('3', bq.get(timeout=60))
+    t.join()
+
   def test_negative_timeout(self):
     bq = ByteLimitedQueue()
     # Putting an item with a negative timeout should raise ValueError.
     with self.assertRaises(ValueError):
       bq.put('5', 5, timeout=-1)
+    with self.assertRaises(ValueError):
+      bq.get(timeout=-1)
 
   def test_single_element_override(self):
     bq = ByteLimitedQueue(maxbytes=10)

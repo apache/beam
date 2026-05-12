@@ -368,6 +368,7 @@ if __name__ == '__main__':
         'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/transforms/stats.py',
+        'apache_beam/utils/byte_limited_queue.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ])

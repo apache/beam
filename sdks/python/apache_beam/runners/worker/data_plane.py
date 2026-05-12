@@ -591,7 +591,7 @@ class _GrpcDataChannel(DataChannel):
       if data:
         elem = beam_fn_api_pb2.Elements.Data(
             instruction_id=instruction_id, transform_id=transform_id, data=data)
-        self._to_send.put(elem, self._get_element_bytes(elem))
+        self._to_send.put(elem, self._get_element_size_bytes(elem))
 
     def close_callback(data):
       # type: (bytes) -> None
@@ -601,7 +601,7 @@ class _GrpcDataChannel(DataChannel):
           instruction_id=instruction_id,
           transform_id=transform_id,
           is_last=True)
-      self._to_send.put(elem, self._get_element_bytes(elem))
+      self._to_send.put(elem, self._get_element_size_bytes(elem))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
@@ -622,7 +622,7 @@ class _GrpcDataChannel(DataChannel):
             timer_family_id=timer_family_id,
             timers=timer,
             is_last=False)
-        self._to_send.put(elem, self._get_element_bytes(elem))
+        self._to_send.put(elem, self._get_element_size_bytes(elem))
 
     def close_callback(timer):
       # type: (bytes) -> None
@@ -632,7 +632,7 @@ class _GrpcDataChannel(DataChannel):
           transform_id=transform_id,
           timer_family_id=timer_family_id,
           is_last=True)
-      self._to_send.put(elem, self._get_element_bytes(elem))
+      self._to_send.put(elem, self._get_element_size_bytes(elem))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)
@@ -667,7 +667,7 @@ class _GrpcDataChannel(DataChannel):
             raise ValueError('Unexpected output element type %s' % type(stream))
         yield beam_fn_api_pb2.Elements(data=data_stream, timers=timer_stream)
 
-  def _get_element_bytes(self, element):
+  def _get_element_size_bytes(self, element):
     # type: (Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]) -> int
     if isinstance(element, beam_fn_api_pb2.Elements.Data):
       return len(element.data)
@@ -702,7 +702,8 @@ class _GrpcDataChannel(DataChannel):
             next_discard_log_time = current_time + 10
           return
         try:
-          input_queue.put(element, self._get_element_bytes(element), timeout=1)
+          input_queue.put(
+              element, self._get_element_size_bytes(element), timeout=1)
           return
         except queue.Full:
           current_time = time.time()

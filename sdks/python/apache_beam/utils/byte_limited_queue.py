@@ -55,7 +55,7 @@ class ByteLimitedQueue(object):
     self._waiting_writers = collections.deque()
     self._queue = collections.deque()
 
-  def put(self, item, item_bytes, block=True, timeout=None):
+  def put(self, item, item_bytes, *, block=True, timeout=None):
     """Put an item into the queue.
 
     If the queue is full, block until a free slot is available, unless `block`
@@ -79,7 +79,7 @@ class ByteLimitedQueue(object):
       raise ValueError("'item_bytes' must be a non-negative number")
 
     with self._mutex:
-      if not self._waiting_writers and not self._is_full_locked(item_bytes):
+      if not self._waiting_writers and self._can_fit(item_bytes):
         self._queue.append((item, item_bytes))
         self._byte_size += item_bytes
         self._not_empty.notify()
@@ -102,8 +102,7 @@ class ByteLimitedQueue(object):
               raise queue.Full
             my_cond.wait(remaining)
 
-          if self._waiting_writers[0] is my_cond and not self._is_full_locked(
-              item_bytes):
+          if self._waiting_writers[0] is my_cond and self._can_fit(item_bytes):
             break
 
         self._queue.append((item, item_bytes))
@@ -120,7 +119,7 @@ class ByteLimitedQueue(object):
           if was_first and self._waiting_writers:
             self._waiting_writers[0].notify()
 
-  def get(self, block=True, timeout=None):
+  def get(self, *, block=True, timeout=None):
     """Remove and return an item from the queue.
 
     If the queue is empty, block until an item is available, unless `block`
@@ -143,7 +142,7 @@ class ByteLimitedQueue(object):
     if timeout is not None and timeout < 0:
       raise ValueError("'timeout' must be a non-negative number")
 
-    with self._not_empty:
+    with self._mutex:
       if not block:
         if not self._queue:
           raise queue.Empty
@@ -185,12 +184,12 @@ class ByteLimitedQueue(object):
     with self._mutex:
       return len(self._queue)
 
-  def _is_full_locked(self, item_bytes):
+  def _can_fit(self, item_bytes):
     # Always let in a single element, regardless of size.
     if not self._queue:
-      return False
+      return True
     if self.max_elements > 0 and len(self._queue) >= self.max_elements:
-      return True
+      return False
     if self.max_bytes > 0 and self._byte_size + item_bytes > self.max_bytes:
-      return True
-    return False
+      return False
+    return True
