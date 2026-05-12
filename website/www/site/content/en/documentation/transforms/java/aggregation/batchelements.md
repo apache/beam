@@ -21,7 +21,7 @@ BatchElements transform groups individual elements into batches before processin
 The transform takes a `PCollection<T>` as input and produces a `PCollection<List<T>>`, where each output element is a batch containing multiple input elements.
 Batch sizes are chosen dynamically between the configured minimum and maximum values by measuring the execution time of downstream operations.
 
-Batching is performed per window. Each emitted batch belongs to the same window as its input elements
+Batching is performed per window. Each emitted batch belongs to the same window as its input elements.
 
 ## Examples
 
