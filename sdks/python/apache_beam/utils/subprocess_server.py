@@ -91,7 +91,11 @@ class _SharedCache:
     to_delete = []
     with self._lock:
       if owner not in self._live_owners:
-        raise ValueError(f"{owner} not in {self._live_owners}")
+        _LOGGER.warning(
+            "Subprocess owner %s already purged. If this occurs during atexit "
+            "shutdown, the subprocess was already cleaned up earlier.",
+            owner)
+        return
       self._live_owners.remove(owner)
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
