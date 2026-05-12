@@ -288,7 +288,7 @@ class Environment(object):
       dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
 
-      self.proto.sdk_pipeline_options.update = Struct(
+      self.proto.sdk_pipeline_options = Struct(
           fields={
               'options': Value(struct_value=options_dict),
               'display_data': Value(list_value=items)
