@@ -20,6 +20,7 @@ import argparse
 import logging
 import os.path
 import shlex
+import time
 import typing
 import unittest
 import zipfile
@@ -459,7 +460,6 @@ class PrismJobServerTest(unittest.TestCase):
 
 class PrismRunnerExecutionTest(unittest.TestCase):
   def test_dofn_failure_clean_exit(self):
-    import time
     class FailDoFn(beam.DoFn):
       def process(self, element):
         raise ValueError("Failing as intended")
