@@ -643,9 +643,9 @@ class UtilTest(unittest.TestCase):
                                 pipeline_options,
                                 '2.0.0',
                                 FAKE_PIPELINE_URL)
-    self.assertEqual(env.proto.workerPools[0].diskProvisionedIops, 4000)
+    self.assertEqual(env.proto.worker_pools[0].disk_provisioned_iops, 4000)
     self.assertEqual(
-        env.proto.workerPools[0].diskProvisionedThroughputMibps, 200)
+        env.proto.worker_pools[0].disk_provisioned_throughput_mibps, 200)
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
