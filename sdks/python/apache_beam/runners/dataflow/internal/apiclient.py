@@ -288,10 +288,11 @@ class Environment(object):
       dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
 
-      self.proto.sdk_pipeline_options.update({
-          'options': Value(struct_value=options_dict),
-          'display_data': Value(list_value=items)
-      })
+      self.proto.sdk_pipeline_options.update = Struct(
+          fields={
+              'options': Value(struct_value=options_dict),
+              'display_data': Value(list_value=items)
+          })
 
     if self.google_cloud_options.dataflow_service_options:
       for option in self.google_cloud_options.dataflow_service_options:
