@@ -505,6 +505,9 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       credentials = get_service_credentials(options)
+      if credentials is None:
+        raise ValueError('Unable to find default credentials.')
+      credentials = credentials.get_google_auth_credentials()
 
     self._jobs_client = dataflow.JobsV1Beta3Client(credentials=credentials)
     self._messages_client = dataflow.MessagesV1Beta3Client(
