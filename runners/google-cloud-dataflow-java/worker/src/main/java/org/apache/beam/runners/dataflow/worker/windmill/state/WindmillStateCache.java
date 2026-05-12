@@ -75,9 +75,12 @@ public class WindmillStateCache implements StatusDataProvider {
   private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex;
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
   private final boolean supportMapViaMultimap;
+  private final long defaultMaxCachedValueBytes;
+  private volatile long maxCachedValueBytesOverride = -1L;
 
-  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
+  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap, long maxCachedValueBytes) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
+    this.defaultMaxCachedValueBytes = maxCachedValueBytes;
     int stateCacheConcurrencyLevel =
         Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
@@ -99,11 +102,19 @@ public class WindmillStateCache implements StatusDataProvider {
 
     Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
 
+    Builder setMaxCachedValueBytes(long maxCachedValueBytes);
+
     WindmillStateCache build();
   }
 
   public static Builder builder() {
-    return new AutoBuilder_WindmillStateCache_Builder().setSupportMapViaMultimap(false);
+    return new AutoBuilder_WindmillStateCache_Builder()
+        .setSupportMapViaMultimap(false)
+        .setMaxCachedValueBytes(Long.MAX_VALUE);
+  }
+
+  public void setMaxCachedValueBytesOverride(long limit) {
+    this.maxCachedValueBytesOverride = limit;
   }
 
   private EntryStats calculateEntryStats() {
@@ -413,7 +424,16 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public void persist() {
-      localCache.forEach(stateCache::put);
+      long override = WindmillStateCache.this.maxCachedValueBytesOverride;
+      long limit = override >= 0 ? override : WindmillStateCache.this.defaultMaxCachedValueBytes;
+      localCache.forEach(
+          (id, entry) -> {
+            if (entry.getWeight() <= limit) {
+              stateCache.put(id, entry);
+            } else {
+              stateCache.invalidate(id);
+            }
+          });
     }
   }
 }

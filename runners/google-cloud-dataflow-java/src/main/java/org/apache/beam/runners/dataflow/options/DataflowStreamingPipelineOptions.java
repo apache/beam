@@ -250,6 +250,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
 
   /**
+   * The maximum size of cached values in bytes. Values larger than this limit will not be cached by
+   * the windmill state cache
+   */
+  @Description("The maximum size of cached values in bytes.")
+  @Default.Long(Long.MAX_VALUE)
+  Long getMaxWindmillStateCacheValueBytes();
+
+  void setMaxWindmillStateCacheValueBytes(Long value);
+
+  /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
    * backwards compatibility.
    */

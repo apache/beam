@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig.Fetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
@@ -633,6 +634,7 @@ public final class StreamingDataflowWorker {
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .setMaxCachedValueBytes(options.getMaxWindmillStateCacheValueBytes())
             .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
@@ -650,6 +652,17 @@ public final class StreamingDataflowWorker {
                         workExecutor,
                         windmillStateCache::forComputation,
                         ID_GENERATOR));
+
+    Fetcher configedFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
+    configedFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config -> {
+              if (config.userWorkerJobSettings().hasMaxCachedValueBytes()) {
+                windmillStateCache.setMaxCachedValueBytesOverride(
+                    config.userWorkerJobSettings().getMaxCachedValueBytes());
+              }
+            });
 
     ComputationStateCache computationStateCache =
         configFetcherComputationStateCacheAndWindmillClient.computationStateCache();
@@ -689,7 +702,7 @@ public final class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        configFetcherComputationStateCacheAndWindmillClient.configFetcher(),
+        configedFetcher,
         computationStateCache,
         windmillStateCache,
         workExecutor,
