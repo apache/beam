@@ -48,11 +48,14 @@ class ByteLimitedQueue(object):
     """
     self.max_elements = maxsize
     self.max_bytes = maxbytes
+
     self._byte_size = 0
     self._blocked_bytes = 0
     self._mutex = threading.Lock()
     self._not_empty = threading.Condition(self._mutex)
+
     self._waiting_writers = collections.deque()
+    self._condition_pool = []
     self._queue = collections.deque()
 
   def put(self, item, item_bytes, *, block=True, timeout=None):
@@ -88,8 +91,13 @@ class ByteLimitedQueue(object):
       if not block:
         raise queue.Full
 
-      my_cond = threading.Condition(self._mutex)
+      # Reuse or create a condition
+      my_cond = (
+          self._condition_pool.pop()
+          if self._condition_pool else threading.Condition(self._mutex))
+
       endtime = time.monotonic() + timeout if timeout is not None else None
+
       try:
         self._blocked_bytes += item_bytes
         self._waiting_writers.append(my_cond)
@@ -116,6 +124,7 @@ class ByteLimitedQueue(object):
             self._waiting_writers.popleft()
           else:
             self._waiting_writers.remove(my_cond)
+          self._condition_pool.append(my_cond)
           if was_first and self._waiting_writers:
             self._waiting_writers[0].notify()
 

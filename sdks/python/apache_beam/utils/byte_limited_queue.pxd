@@ -24,6 +24,7 @@ cdef class ByteLimitedQueue(object):
   cdef readonly object _mutex
   cdef readonly object _not_empty
   cdef readonly object _waiting_writers
+  cdef readonly list _condition_pool
   cdef readonly object _queue
   cdef readonly Py_ssize_t _blocked_bytes
 
