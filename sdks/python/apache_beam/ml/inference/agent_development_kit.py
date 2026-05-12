@@ -229,17 +229,6 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     for element in batch:
       session_id: str = inference_args.get("session_id", str(uuid.uuid4()))
 
-      # Ensure a session exists for this invocation
-      try:
-        model.session_service.create_session(
-            app_name=self._app_name,
-            user_id=user_id,
-            session_id=session_id,
-        )
-      except sessions.SessionExistsError:
-        # It's okay if the session already exists for shared session IDs.
-        pass
-
       # Wrap plain strings in a Content object
       if isinstance(element, str):
         # pyrefly: ignore[bad-instantiation]
@@ -288,6 +277,16 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       The text of the agent's final response, or ``None`` if the agent
       produced no final text response.
     """
+    # Ensure a session exists for this invocation
+    try:
+      await model.session_service.create_session(
+          app_name=self._app_name,
+          user_id=user_id,
+          session_id=session_id,
+      )
+    except sessions.SessionExistsError:
+      # It's okay if the session already exists for shared session IDs.
+      pass
     async for event in runner.run_async(
         user_id=user_id,
         session_id=session_id,
