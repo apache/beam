@@ -21,7 +21,6 @@ import logging
 import os.path
 import queue
 import shlex
-import threading
 import time
 import typing
 import unittest
@@ -189,6 +188,7 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(StandardOptions).streaming = self.streaming
     options.view_as(
         TypeOptions).allow_unsafe_triggers = self.allow_unsafe_triggers
+    options.view_as(PortableOptions).job_server_timeout = 10
     return options
 
   # Can't read host files from within docker, read a "local" file there.
@@ -299,6 +299,81 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                   ('B-1', {9}),
                   ('B-3', {10, 15, 16}),
               ])))
+
+  def test_dofn_failure_clean_exit(self):
+    class FailDoFn(beam.DoFn):
+      def process(self, element):
+        raise ValueError("Failing as intended")
+
+    class BlockDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(1000)
+        yield element
+
+    with self.assertRaisesRegex(Exception, "Failing as intended"):
+      with self.create_pipeline() as p:
+        imp = p | beam.Create([1, 2])
+        # Ensure the steps are not fused (otherwise siblings are run sequentially
+        # in a single thread, making execution order dependent on internal map
+        # traversal). Reshuffle acts as a fusion break so they run in parallel.
+        _ = imp | 'ReshuffleBlock' >> beam.Reshuffle() | 'Block' >> beam.ParDo(BlockDoFn())
+        _ = imp | 'ReshuffleFail' >> beam.Reshuffle() | 'Fail' >> beam.ParDo(FailDoFn())
+
+  def test_dofn_failure_delayed_worker_shutdown(self):
+    """Simulates a scenario where a DoFn failure causes pipeline abortion, but the Python
+    SDK worker takes a longer time to shut down before Prism closes the gRPC channel.
+    Verifies both Option 1 (graceful handling of RpcError) and Option 2 (Prism runner grace period).
+    """
+    from apache_beam.runners.worker.data_plane import GrpcClientDataChannel
+
+    orig_close = GrpcClientDataChannel.close
+
+    def delayed_close(self_channel):
+      time.sleep(0.5)
+      orig_close(self_channel)
+
+    class FailDoFn(beam.DoFn):
+      def process(self, element):
+        raise ValueError("Delayed shutdown fail as intended")
+
+    class BlockDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(1000)
+        yield element
+
+    with mock.patch.object(GrpcClientDataChannel, 'close', new=delayed_close):
+      with self.assertLogs('apache_beam.runners.worker.data_plane', level='DEBUG') as log_cm:
+        with self.assertRaisesRegex(Exception, "Delayed shutdown fail as intended"):
+          with self.create_pipeline() as p:
+            imp = p | beam.Create([1, 2])
+            _ = imp | 'ReshuffleBlock' >> beam.Reshuffle() | 'Block' >> beam.ParDo(BlockDoFn())
+            _ = imp | 'ReshuffleFail' >> beam.Reshuffle() | 'Fail' >> beam.ParDo(FailDoFn())
+
+      # Ensure no ERROR logs were emitted by data_plane during the delayed shutdown
+      self.assertFalse(any("Failed to read inputs in the data plane." in log for log in log_cm.output))
+
+  def test_dofn_deadline_exceeded(self):
+    """Simulates a scenario where a pipeline running on Prism exceeds its configured
+    deadline, triggering DEADLINE_EXCEEDED on the job message, data, and control streams.
+    Verifies that all stream closures are handled cleanly without unhandled thread crashes.
+    """
+    from apache_beam.runners.portability.portable_runner import JobServiceHandle
+
+    orig_init = JobServiceHandle.__init__
+
+    def custom_init(self_handle, job_service, options, retain_unknown_options=False):
+      orig_init(self_handle, job_service, options, retain_unknown_options)
+      self_handle.timeout = 2
+
+    class BlockDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(1000)
+        yield element
+
+    with mock.patch.object(JobServiceHandle, '__init__', new=custom_init):
+      with self.assertRaisesRegex(Exception, "Deadline Exceeded"):
+        with self.create_pipeline() as p:
+          _ = p | beam.Create([1, 2]) | beam.Reshuffle() | beam.ParDo(BlockDoFn())
 
 
 class PrismJobServerTest(unittest.TestCase):
@@ -554,4 +629,4 @@ class PrismRunnerSingletonTest(unittest.TestCase):
 if __name__ == '__main__':
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+
