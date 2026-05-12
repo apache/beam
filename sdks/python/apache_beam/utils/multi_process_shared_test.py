@@ -22,8 +22,8 @@ import os
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
 from typing import Any
+from unittest.mock import patch
 
 from apache_beam.utils import multi_process_shared
 
