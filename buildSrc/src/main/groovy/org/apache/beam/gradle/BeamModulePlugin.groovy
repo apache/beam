@@ -1516,72 +1516,66 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.analyzeDependencies.enabled = false
       }
 
-      // errorprone requires java9+ compiler. It can be used with Java8 but then sets a java9+ errorproneJavac.
-      // However, the redirect ignores any task that forks and defines either a javaHome or an executable,
-      // see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-      // which means errorprone cannot run when gradle runs on Java11+ but serve `-testJavaVersion=8 -Pjava8Home` options
-      if (!(project.findProperty('testJavaVersion') == '8')) {
-        // Enable errorprone static analysis
-        project.apply plugin: 'net.ltgt.errorprone'
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
 
-        project.dependencies {
-          errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
+      project.dependencies {
+        errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
+        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
+      }
+
+      project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
+
+      project.tasks.withType(JavaCompile) {
+        options.errorprone.disableWarningsInGeneratedCode = true
+        options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+
+        // Error Prone requires some packages to be exported/opened on Java versions that support modules,
+        // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
+        // The -J prefix is not needed if forkOptions.javaHome is unset,
+        // see http://github.com/gradle/gradle/issues/22747
+        if (options.forkOptions.javaHome == null) {
+          options.fork = true
+          options.forkOptions.jvmArgs += errorProneAddModuleOpts
         }
-
-        project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
-
-        project.tasks.withType(JavaCompile) {
-          options.errorprone.disableWarningsInGeneratedCode = true
-          options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-
-          // Error Prone requires some packages to be exported/opened on Java versions that support modules,
-          // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
-          // The -J prefix is not needed if forkOptions.javaHome is unset,
-          // see http://github.com/gradle/gradle/issues/22747
-          if (options.forkOptions.javaHome == null) {
-            options.fork = true
-            options.forkOptions.jvmArgs += errorProneAddModuleOpts
-          }
-          def disabledChecks = [
-            // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-            "AutoValueImmutableFields",
-            "ComparableType",
-            "DoNotMockAutoValue",
-            "EmptyBlockTag",
-            "ExtendsAutoValue",
-            "InlineMeSuggester",
-            "InvalidBlockTag",
-            "JodaConstructors",
-            "MixedMutabilityReturnType",
-            "PreferJavaTimeOverload",
-            "Slf4jSignOnlyFormat",
-            "UnrecognisedJavadocTag",
-            // errorprone 3.2.0+ checks
-            "DirectInvocationOnMock",
-            "MockNotUsedInProduction",
-            "NullableWildcard",
-            "SuperCallToObjectMethod",
-            // Intended suppressions with justifications
-            // for encoding efficiency and backward compatibility
-            "EnumOrdinal",
-            // widely used in non-public methods
-            "NotJavadoc",
-            // return values used for assignments widely, and for backward compatibility.
-            "NonApiType",
-            // Used to test self equal
-            "SelfAssertion",
-            // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
-            // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-            "Slf4jLoggerShouldBeNonStatic",
-            // allow implicit Locale.Default
-            "StringCaseLocaleUsage",
-            // DoFn methods are executed reflectively at pipeline runtime
-            "UnusedMethod",
-          ]
-          disabledChecks.each {
-            options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
-          }
+        def disabledChecks = [
+          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+          "AutoValueImmutableFields",
+          "ComparableType",
+          "DoNotMockAutoValue",
+          "EmptyBlockTag",
+          "ExtendsAutoValue",
+          "InlineMeSuggester",
+          "InvalidBlockTag",
+          "JodaConstructors",
+          "MixedMutabilityReturnType",
+          "PreferJavaTimeOverload",
+          "Slf4jSignOnlyFormat",
+          "UnrecognisedJavadocTag",
+          // errorprone 3.2.0+ checks
+          "DirectInvocationOnMock",
+          "MockNotUsedInProduction",
+          "NullableWildcard",
+          "SuperCallToObjectMethod",
+          // Intended suppressions with justifications
+          // for encoding efficiency and backward compatibility
+          "EnumOrdinal",
+          // widely used in non-public methods
+          "NotJavadoc",
+          // return values used for assignments widely, and for backward compatibility.
+          "NonApiType",
+          // Used to test self equal
+          "SelfAssertion",
+          // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
+          // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+          "Slf4jLoggerShouldBeNonStatic",
+          // allow implicit Locale.Default
+          "StringCaseLocaleUsage",
+          // DoFn methods are executed reflectively at pipeline runtime
+          "UnusedMethod",
+        ]
+        disabledChecks.each {
+          options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
         }
       }
 
@@ -1624,16 +1618,19 @@ class BeamModulePlugin implements Plugin<Project> {
         preserveFileTimestamps(false)
       }
 
+      String testJavaVersion = project.findProperty('testJavaVersion')
+      if (!testJavaVersion && forkJavaVersion) {
+        testJavaVersion = forkJavaVersion
+      }
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
-        String ver = project.getProperty('testJavaVersion')
-        def testJavaHome = project.getProperty("java${ver}Home")
+      if (['11', '17', '21', '25'].contains(testJavaVersion)) {
+        def testJavaHome = project.getProperty("java${testJavaVersion}Home")
 
         // redirect java compiler to specified version for compileTestJava only
         project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
-          project.ext.setJavaVerOptions(options, ver)
-          if (ver == '25') {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, testJavaVersion)
+          project.ext.setJavaVerOptions(options, testJavaVersion)
+          if (testJavaVersion == '25') {
             // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
             //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
             //  'com.sun.tools.javac.code.TypeTag UNKNOWN'
