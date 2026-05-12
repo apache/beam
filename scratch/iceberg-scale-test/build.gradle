@@ -1,0 +1,43 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        url "https://repository.apache.org/snapshots/"
+    }
+}
+
+dependencies {
+    implementation "org.apache.beam:beam-sdks-java-core:2.74.0-SNAPSHOT"
+    implementation "org.apache.beam:beam-sdks-java-io-google-cloud-platform:2.74.0-SNAPSHOT"
+    implementation "org.apache.beam:beam-sdks-java-io-iceberg:2.74.0-SNAPSHOT"
+    implementation "org.apache.beam:beam-sdks-java-extensions-sorter:2.74.0-SNAPSHOT"
+    implementation "org.apache.beam:beam-runners-google-cloud-dataflow-java:2.74.0-SNAPSHOT"
+    
+    implementation "org.apache.iceberg:iceberg-core:1.4.3"
+    implementation "org.apache.iceberg:iceberg-api:1.4.3"
+    implementation "org.apache.iceberg:iceberg-data:1.4.3"
+    implementation "org.apache.iceberg:iceberg-gcp:1.4.3"
+    implementation "com.google.cloud.bigdataoss:gcs-connector:hadoop2-2.2.26"
+    implementation "org.apache.hadoop:hadoop-client:3.4.2"
+    implementation "org.apache.hadoop:hadoop-common:3.4.2"
+    
+    implementation "org.slf4j:slf4j-api:1.7.30"
+    implementation "org.slf4j:slf4j-jdk14:1.7.30"
+    
+    annotationProcessor "com.google.auto.value:auto-value:1.9"
+    compileOnly "com.google.auto.value:auto-value-annotations:1.9"
+}
+
+application {
+    mainClass = 'org.apache.beam.sdk.io.iceberg.test.IcebergBigQueryScaleTest'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
