@@ -421,10 +421,31 @@ class CacheTest(unittest.TestCase):
     t1.join()
     t2.join()
 
-    # Exactly one thread should raise the expected ValueError because they are cleanly serialized
-    self.assertEqual(len(exceptions), 1)
-    self.assertIsInstance(exceptions[0], ValueError)
-    self.assertNotIsInstance(exceptions[0], KeyError)
+    # Both threads should succeed cleanly without raising an exception under idempotent purging.
+    self.assertEqual(len(exceptions), 0)
+
+  def test_stop_process_after_cache_purged(self):
+    # Reproduce the ValueError when stop_process() (called by atexit)
+    # runs after the cache/owner was already purged during test teardown.
+    cache = subprocess_server._SharedCache(
+        lambda *args: "dummy_process", lambda obj: None)
+
+    class DummySubprocessServer(subprocess_server.SubprocessServer):
+      _cache = cache
+
+      def __init__(self):
+        super().__init__(lambda channel: None, ["dummy_cmd"], port=12345)
+
+    server = DummySubprocessServer()
+    server.start_process()
+    owner_id = server._owner_id
+
+    # Simulate pipeline context exit or test teardown purging the cache directly
+    cache.purge(owner_id)
+
+    # Calling stop_process() (which happens during atexit) should succeed cleanly
+    # without raising ValueError.
+    server.stop_process()
 
 
 if __name__ == '__main__':
