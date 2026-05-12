@@ -199,6 +199,7 @@ public class BeamSqlEnv {
       this.ruleSets = ruleSets;
       return this;
     }
+
     /** Register a UDF function which can be used in SQL expression. */
     public BeamSqlEnvBuilder addUdf(String functionName, Class<?> clazz, String method) {
       functionSet.add(new SimpleEntry<>(functionName, UdfImpl.create(clazz, method)));

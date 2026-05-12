@@ -272,6 +272,7 @@ class EFOShardSubscriber {
       implements Subscriber<SubscribeToShardEventStream>, SubscribeToShardResponseHandler.Visitor {
     /** Tracks continuation sequence number. */
     @Nullable String sequenceNumber;
+
     /** Current active subscription to request more events or cancel it. */
     @Nullable Subscription subscription;
 

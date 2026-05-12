@@ -66,7 +66,8 @@ class FakeWindmillGrpcService
     public final StreamObserver<ResponseT> responseObserver;
     public final BlockingQueue<RequestT> requests = new LinkedBlockingQueue<>(1000);
     public final CompletableFuture<Throwable> onDone = new CompletableFuture<>();
-  };
+  }
+  ;
 
   private final BlockingQueue<CommitStreamInfo> commitStreams = new LinkedBlockingQueue<>(1000);
   private final BlockingQueue<GetDataStreamInfo> getDataStreams = new LinkedBlockingQueue<>(1000);

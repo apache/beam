@@ -134,7 +134,7 @@ public class BoundedQueueExecutorTest {
                 .setDaemon(true)
                 .build(),
             useFairMonitor,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useKeyGroupWorkQueue= */ false);
   }
 
   @Test
@@ -444,7 +444,7 @@ public class BoundedQueueExecutorTest {
             10000000,
             new ThreadFactoryBuilder().setNameFormat("testStealing-%d").setDaemon(true).build(),
             useFairMonitor,
-            /*useKeyGroupWorkQueue=*/ true);
+            /* useKeyGroupWorkQueue= */ true);
 
     // 1. Create blocker task to occupy the worker thread
     CountDownLatch blockerStart = new CountDownLatch(1);

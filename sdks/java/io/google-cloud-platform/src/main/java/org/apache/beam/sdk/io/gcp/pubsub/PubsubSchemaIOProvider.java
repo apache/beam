@@ -235,8 +235,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
 
     @Override
     public PTransform<PCollection<Row>, POutput> buildWriter() {
-      @Nullable
-      PayloadSerializer serializer =
+      @Nullable PayloadSerializer serializer =
           needsSerializer() ? config.serializer(stripFromTimestampField(dataSchema)) : null;
 
       return new PTransform<PCollection<Row>, POutput>() {

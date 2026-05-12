@@ -36,6 +36,7 @@ public class ShuffleReadCounter {
   public CounterSet counterSet;
 
   private Counter<Long, Long> currentCounter;
+
   /**
    * Counter to increment with the bytes read from the underlying shuffle iterator, or null if no
    * counting is needed.

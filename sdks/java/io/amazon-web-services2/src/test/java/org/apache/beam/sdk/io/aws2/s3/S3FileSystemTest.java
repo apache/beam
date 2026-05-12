@@ -376,8 +376,7 @@ public class S3FileSystemTest {
             .build();
 
     UploadPartCopyRequest uploadPartCopyRequest2 =
-        uploadPartCopyRequest1
-            .toBuilder()
+        uploadPartCopyRequest1.toBuilder()
             .partNumber(2)
             .copySourceRange(
                 String.format(

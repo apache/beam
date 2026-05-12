@@ -264,8 +264,8 @@ public class SequenceRangeAccumulator {
     @Override
     public void encode(
         SequenceRangeAccumulator value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       numberOfRangesCoder.encode(value.numberOfRanges(), outStream);
       initialSequenceCoder.encode(value.initialSequence, outStream);
       for (Entry<Long, Pair<Long, Instant>> entry : value.data.entrySet()) {
@@ -278,8 +278,8 @@ public class SequenceRangeAccumulator {
     @Override
     public SequenceRangeAccumulator decode(
         @UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       SequenceRangeAccumulator result = new SequenceRangeAccumulator();
       int numberOfRanges = numberOfRangesCoder.decode(inStream);
       result.initialSequence = initialSequenceCoder.decode(inStream);

@@ -58,6 +58,7 @@ class BigQueryAvroUtils {
           .map(Package::getImplementationVersion)
           .orElse("");
   private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
+
   // org.apache.avro.LogicalType
   static class DateTimeLogicalType extends LogicalType {
     public DateTimeLogicalType() {

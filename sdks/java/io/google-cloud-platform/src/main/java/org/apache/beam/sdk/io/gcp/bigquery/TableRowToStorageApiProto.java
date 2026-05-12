@@ -880,8 +880,7 @@ public class TableRowToStorageApiProto {
           BigQuerySchemaUtil.isProtoCompatible(key)
               ? key
               : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
-      @Nullable
-      FieldDescriptor fieldDescriptor =
+      @Nullable FieldDescriptor fieldDescriptor =
           (descriptor == null) ? null : descriptor.findFieldByName(protoFieldName);
 
       if (fieldDescriptor == null) {
@@ -976,8 +975,7 @@ public class TableRowToStorageApiProto {
               return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
             };
 
-        @Nullable
-        Object value =
+        @Nullable Object value =
             messageValueFromFieldValue(
                 fieldSchemaInformation,
                 fieldDescriptor,
@@ -1141,8 +1139,8 @@ public class TableRowToStorageApiProto {
                   return null;
                 }
                 TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
-                @Nullable
-                TableRow nested = (TableRow) localUnknownFields.getF().get(finalIndex).getV();
+                @Nullable TableRow nested =
+                    (TableRow) localUnknownFields.getF().get(finalIndex).getV();
                 if (nested == null) {
                   nested = new TableRow();
                   localUnknownFields.getF().set(finalIndex, new TableCell().setV(nested));
@@ -1150,8 +1148,7 @@ public class TableRowToStorageApiProto {
                 return nested;
               };
 
-          @Nullable
-          Object value =
+          @Nullable Object value =
               messageValueFromFieldValue(
                   fieldSchemaInformation,
                   fieldDescriptor,
@@ -1547,9 +1544,8 @@ public class TableRowToStorageApiProto {
 
   private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
-      @Nullable
-          FieldDescriptor
-              fieldDescriptor, // Null in the case of recursively finding missing fields.
+      @Nullable FieldDescriptor
+          fieldDescriptor, // Null in the case of recursively finding missing fields.
       @Nullable Object bqValue,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
@@ -1674,8 +1670,7 @@ public class TableRowToStorageApiProto {
               .build();
 
     } else {
-      @Nullable
-      ThrowingBiFunction<String, Object, @Nullable Object> converter =
+      @Nullable ThrowingBiFunction<String, Object, @Nullable Object> converter =
           TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType());
       if (converter == null) {
         throw new RuntimeException("Unknown type " + schemaInformation.getType());

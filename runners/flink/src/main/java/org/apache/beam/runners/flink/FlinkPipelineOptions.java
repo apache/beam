@@ -209,7 +209,9 @@ public interface FlinkPipelineOptions
           + "Defaults to the flink cluster's state.backend configuration.")
   Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
 
-  /** @deprecated Please use setStateBackend below. */
+  /**
+   * @deprecated Please use setStateBackend below.
+   */
   @Deprecated
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 

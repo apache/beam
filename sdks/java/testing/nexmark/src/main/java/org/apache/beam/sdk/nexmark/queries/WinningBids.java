@@ -350,8 +350,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    @Nullable
-                    Auction auction =
+                    @Nullable Auction auction =
                         c.element().getValue().getOnly(NexmarkQueryUtil.AUCTION_TAG, null);
                     if (auction == null) {
                       // We have bids without a matching auction. Give up.

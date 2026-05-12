@@ -203,15 +203,27 @@ public class GcpAuthAutoConfigurationCustomizerProvider
     if (exporter instanceof OtlpHttpSpanExporter) {
       OtlpHttpSpanExporterBuilder builder =
           ((OtlpHttpSpanExporter) exporter)
+<<<<<<< HEAD
               .toBuilder()
               .setHeaders(() -> getRequiredHeaderMap(credentials, configProperties));
       return builder.build();
+=======
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
+      exporter.shutdown();
+      return result;
+>>>>>>> 47ebe266106 (exclude hadoop and cassandra and run spotless again)
     } else if (exporter instanceof OtlpGrpcSpanExporter) {
       OtlpGrpcSpanExporterBuilder builder =
           ((OtlpGrpcSpanExporter) exporter)
+<<<<<<< HEAD
               .toBuilder()
               .setHeaders(() -> getRequiredHeaderMap(credentials, configProperties));
       return builder.build();
+=======
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
+      exporter.shutdown();
+      return result;
+>>>>>>> 47ebe266106 (exclude hadoop and cassandra and run spotless again)
     }
     return exporter;
   }
@@ -223,15 +235,27 @@ public class GcpAuthAutoConfigurationCustomizerProvider
     if (exporter instanceof OtlpHttpMetricExporter) {
       OtlpHttpMetricExporterBuilder builder =
           ((OtlpHttpMetricExporter) exporter)
+<<<<<<< HEAD
               .toBuilder()
               .setHeaders(() -> getRequiredHeaderMap(credentials, configProperties));
       return builder.build();
+=======
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
+      exporter.shutdown();
+      return result;
+>>>>>>> 47ebe266106 (exclude hadoop and cassandra and run spotless again)
     } else if (exporter instanceof OtlpGrpcMetricExporter) {
       OtlpGrpcMetricExporterBuilder builder =
           ((OtlpGrpcMetricExporter) exporter)
+<<<<<<< HEAD
               .toBuilder()
               .setHeaders(() -> getRequiredHeaderMap(credentials, configProperties));
       return builder.build();
+=======
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
+      exporter.shutdown();
+      return result;
+>>>>>>> 47ebe266106 (exclude hadoop and cassandra and run spotless again)
     }
     return exporter;
   }

@@ -193,7 +193,9 @@ public class SempBasicAuthClientExecutor implements Serializable {
 
   private void setCookiesFromCookieManager(HttpHeaders httpHeaders) {
     httpHeaders.setCookie(
-        checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey)).getCookieStore().getCookies()
+        checkStateNotNull(COOKIE_MANAGER_MAP.get(cookieManagerKey))
+            .getCookieStore()
+            .getCookies()
             .stream()
             .map(s -> s.getName() + "=" + s.getValue())
             .collect(Collectors.joining(";")));

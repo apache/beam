@@ -33,6 +33,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 public class RemoveSafeDeltaCounterCell implements Counter, MetricCell<Long> {
 
   private final MetricName metricName;
+
   /**
    * This class does not own {@code countersMap} and only operates on a single key in the map
    * specified by {@code metricName}. These opeations include the {@link Counter} interface along

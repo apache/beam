@@ -434,6 +434,7 @@ public class ClickHouseIO {
       merged.putAll(properties);
       return toBuilder().properties(merged).build();
     }
+
     /** Builder for {@link Write}. */
     @AutoValue.Builder
     abstract static class Builder<T> {

@@ -226,8 +226,11 @@ public class MongoDBIOIT {
   }
 
   private double getCollectionSizeInBytes(final String collectionName) {
-    return mongoClient.getDatabase(options.getMongoDBDatabaseName())
-        .runCommand(new Document("collStats", collectionName)).entrySet().stream()
+    return mongoClient
+        .getDatabase(options.getMongoDBDatabaseName())
+        .runCommand(new Document("collStats", collectionName))
+        .entrySet()
+        .stream()
         .filter(entry -> entry.getKey().equals("size"))
         .map(entry -> Double.parseDouble(String.valueOf(entry.getValue())))
         .findFirst()

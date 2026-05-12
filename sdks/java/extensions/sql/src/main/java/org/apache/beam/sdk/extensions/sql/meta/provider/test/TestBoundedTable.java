@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.Row;
 public class TestBoundedTable extends TestTable {
   /** rows written to this table. */
   private static final ConcurrentLinkedQueue<Row> CONTENT = new ConcurrentLinkedQueue<>();
+
   /** rows flow out from this table. */
   private final List<Row> rows = new ArrayList<>();
 

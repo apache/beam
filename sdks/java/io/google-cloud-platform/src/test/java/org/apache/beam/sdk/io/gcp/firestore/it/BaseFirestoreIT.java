@@ -86,8 +86,7 @@ abstract class BaseFirestoreIT {
   public final TestPipeline testPipeline2 = TestPipeline.create();
 
   protected static final RpcQosOptions RPC_QOS_OPTIONS =
-      RpcQosOptions.defaultOptions()
-          .toBuilder()
+      RpcQosOptions.defaultOptions().toBuilder()
           .withMaxAttempts(1)
           .withHintMaxNumWorkers(1)
           .build();
@@ -250,7 +249,7 @@ abstract class BaseFirestoreIT {
   public final void runQuery() throws Exception {
     String collectionId = "a";
     DocumentGenerator documentGenerator =
-        helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId, /* addBazDoc = */ true);
+        helper.documentGenerator(NUM_ITEMS_TO_GENERATE, collectionId, /* addBazDoc= */ true);
     Instant readTime =
         toMaxWriteTime(documentGenerator.generateDocuments().get(10, TimeUnit.SECONDS));
     Thread.sleep(5);

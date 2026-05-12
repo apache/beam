@@ -1903,8 +1903,7 @@ public class KafkaIO {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
-                kafkaRead
-                    .toBuilder()
+                kafkaRead.toBuilder()
                     .setKeyCoder(keyCoder)
                     .setValueCoder(valueCoder)
                     .build()
@@ -2315,8 +2314,7 @@ public class KafkaIO {
     byte @Nullable [] value;
 
     @SchemaFieldNumber("6")
-    @Nullable
-    List<KafkaHeader> headers;
+    @Nullable List<KafkaHeader> headers;
 
     @SchemaFieldNumber("7")
     int timestampTypeId;
@@ -2488,12 +2486,12 @@ public class KafkaIO {
     abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
-        getExtractOutputTimestampFn();
+    abstract @Nullable
+        SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
-        getCreateWatermarkEstimatorFn();
+    abstract @Nullable
+        SerializableFunction<Instant, WatermarkEstimator<Instant>> getCreateWatermarkEstimatorFn();
 
     @Pure
     abstract boolean isCommitOffsetEnabled();
@@ -3169,8 +3167,8 @@ public class KafkaIO {
     public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
-        getProducerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
     @Pure
     public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
@@ -3179,8 +3177,8 @@ public class KafkaIO {
     public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
-        getPublishTimestampFunction();
+    public abstract @Nullable
+        KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
@@ -3197,8 +3195,8 @@ public class KafkaIO {
     public abstract int getNumShards();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
-        getConsumerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
 
     @Pure
     public abstract BadRecordRouter getBadRecordRouter();

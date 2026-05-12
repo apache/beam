@@ -104,7 +104,7 @@ public class AdaptiveThrottlerTest {
         assertThat(
             String.format("for i=%d", i),
             throttler.throttlingProbability(START_TIME_MS + i),
-            closeTo(0.33, /*error=*/ 0.1));
+            closeTo(0.33, /* error= */ 0.1));
         // Requests 10..13 should be throttled, 14..19 not throttled given the mocked random numbers
         // that we fed to throttler.
         assertThat(String.format("for i=%d", i), throttled, equalTo(i < 14));

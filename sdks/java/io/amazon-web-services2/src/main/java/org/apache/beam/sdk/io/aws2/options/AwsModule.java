@@ -341,7 +341,6 @@ public class AwsModule extends SimpleModule {
   }
 
   private interface Instantiator<T> {
-    @NonNull
-    T create();
+    @NonNull T create();
   }
 }

@@ -209,8 +209,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
 
-      @Nullable
-      List<StorageObject> objects =
+      @Nullable List<StorageObject> objects =
           gcsUtil
               .listObjects(
                   path.getBucket(),

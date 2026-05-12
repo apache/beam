@@ -531,6 +531,7 @@ public class ExecutionStateSampler {
 
       @GuardedBy("this")
       private long lastReportedValue;
+
       // Read and written by the bundle processing thread frequently.
       private @Nullable ExecutionStateImpl previousState;
 

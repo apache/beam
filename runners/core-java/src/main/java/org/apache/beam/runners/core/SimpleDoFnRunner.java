@@ -90,6 +90,7 @@ import org.joda.time.format.PeriodFormat;
 public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   private final PipelineOptions options;
+
   /** The {@link DoFn} being run. */
   private final DoFn<InputT, OutputT> fn;
 
@@ -100,6 +101,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private final WindowedValueMultiReceiver outputManager;
 
   private final TupleTag<OutputT> mainOutputTag;
+
   /** The set of known output tags. */
   private final Set<TupleTag<?>> outputTags;
 
@@ -379,6 +381,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private class DoFnProcessContext extends DoFn<InputT, OutputT>.ProcessContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     final WindowedValue<InputT> elem;
+
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -1005,8 +1008,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
                 stateDeclaration.field(),
                 stateId);
 
-        @NonNull
-        State state =
+        @NonNull State state =
             stepContext
                 .stateInternals()
                 .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));

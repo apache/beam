@@ -184,7 +184,8 @@ public class BigQueryManagedIT {
       long mod = i;
       String dest = destinations.get(i);
       List<Row> writtenRows =
-          BQ_CLIENT.queryUnflattened(String.format("SELECT * FROM `%s`", dest), PROJECT, true, true)
+          BQ_CLIENT
+              .queryUnflattened(String.format("SELECT * FROM `%s`", dest), PROJECT, true, true)
               .stream()
               .map(tableRow -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tableRow))
               .collect(Collectors.toList());

@@ -161,6 +161,7 @@ public class RemoteInference {
           throw new RuntimeException("Failed to instantiate handler: " + handlerClass.getName(), e);
         }
       }
+
       /** Perform Inference. */
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {

@@ -2603,9 +2603,7 @@ public class DataflowRunnerTest implements Serializable {
               ExpansionApi.ExpansionResponse.newBuilder()
                   .setComponents(components)
                   .setTransform(
-                      components
-                          .getTransformsOrThrow(transformId)
-                          .toBuilder()
+                      components.getTransformsOrThrow(transformId).toBuilder()
                           .setUniqueName(transformId))
                   .addAllRequirements(requirementsBuilder.build())
                   .build();
@@ -2793,8 +2791,7 @@ public class DataflowRunnerTest implements Serializable {
   @Category({ValidatesRunner.class})
   public void testValueKindParameterAndOutputWithKind() {
     boolean isRunnerV2 = false;
-    @Nullable
-    List<String> experiments =
+    @Nullable List<String> experiments =
         pipeline.getOptions().as(DataflowPipelineOptions.class).getExperiments();
     if (experiments != null
         && (experiments.contains("use_unified_worker") || experiments.contains("use_runner_v2"))) {

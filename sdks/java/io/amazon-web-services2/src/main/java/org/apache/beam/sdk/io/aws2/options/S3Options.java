@@ -49,8 +49,7 @@ public interface S3Options extends AwsOptions {
   void setS3ThreadPoolSize(int value);
 
   @Description("Algorithm for SSE-S3 encryption, e.g. AES256.")
-  @Nullable
-  String getSSEAlgorithm();
+  @Nullable String getSSEAlgorithm();
 
   void setSSEAlgorithm(String value);
 
@@ -64,8 +63,7 @@ public interface S3Options extends AwsOptions {
   void setSSECustomerKey(SSECustomerKey sseCustomerKey);
 
   @Description("KMS key id for SSE-KMS encryption, e.g. arn:aws:kms:....")
-  @Nullable
-  String getSSEKMSKeyId();
+  @Nullable String getSSEKMSKeyId();
 
   void setSSEKMSKeyId(String value);
 

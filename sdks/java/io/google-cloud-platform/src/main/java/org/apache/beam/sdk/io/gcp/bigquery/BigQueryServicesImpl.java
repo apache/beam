@@ -459,8 +459,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    @Nullable
-    Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    @Nullable Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
       do {
         try {
           Job job =
@@ -672,8 +672,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    @Nullable
-    Table getTable(
+    @Nullable Table getTable(
         TableReference ref,
         List<String> selectedFields,
         TableMetadataView view,
@@ -747,8 +746,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    @Nullable
-    Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper) throws IOException {
+    @Nullable Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper)
+        throws IOException {
       boolean retry = false;
       while (true) {
         try {
@@ -1539,8 +1538,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public @Nullable TableSchema getWriteStreamSchema(String writeStream) {
-      @Nullable
-      WriteStream stream =
+      @Nullable WriteStream stream =
           newWriteClient.getWriteStream(
               GetWriteStreamRequest.newBuilder()
                   .setView(WriteStreamView.FULL)
@@ -1916,9 +1914,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();
 
       createReadSessionSettings.setRetrySettings(
-          createReadSessionSettings
-              .getRetrySettings()
-              .toBuilder()
+          createReadSessionSettings.getRetrySettings().toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setTotalTimeout(org.threeten.bp.Duration.ofHours(2))
@@ -1929,9 +1925,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               settingsBuilder.getStubSettingsBuilder().splitReadStreamSettings();
 
       splitReadStreamSettings.setRetrySettings(
-          splitReadStreamSettings
-              .getRetrySettings()
-              .toBuilder()
+          splitReadStreamSettings.getRetrySettings().toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
               .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(30))

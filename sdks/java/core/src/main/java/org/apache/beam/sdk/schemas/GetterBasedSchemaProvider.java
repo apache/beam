@@ -273,8 +273,7 @@ public abstract class GetterBasedSchemaProvider implements SchemaProvider {
           return new GetIterable(base, converter(elementType, elementTypeDescriptor));
         }
       } else if (typeName.equals(TypeName.MAP)) {
-        @Nullable
-        TypeDescriptor[] resolvedKeyValueTypes =
+        @Nullable TypeDescriptor[] resolvedKeyValueTypes =
             Optional.ofNullable(getterReturnType)
                 .<@Nullable TypeDescriptor[]>map(
                     getterType ->

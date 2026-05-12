@@ -89,8 +89,8 @@ public class InMemoryMetaStore implements MetaStore {
       return;
     }
     // check if there is a nested metastore that supports this table
-    @Nullable
-    InMemoryMetaStore nestedMemoryMetastore = (InMemoryMetaStore) providers.get(getTableType());
+    @Nullable InMemoryMetaStore nestedMemoryMetastore =
+        (InMemoryMetaStore) providers.get(getTableType());
     if (nestedMemoryMetastore != null) {
       nestedMemoryMetastore.validateTableType(table);
     } else {

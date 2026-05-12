@@ -38,8 +38,8 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     extends StorageApiDynamicDestinations<T, DestinationT> {
   private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
-  private final @Nullable SerializableBiFunction<
-          TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
+  private final @Nullable
+      SerializableBiFunction<TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
       formatRecordOnFailureFunction;
 
   private final boolean usesCdc;
@@ -50,7 +50,7 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       SerializableFunction<T, Row> toRow,
       @Nullable
           SerializableBiFunction<TableRowToStorageApiProto.@Nullable SchemaInformation, T, TableRow>
-              formatRecordOnFailureFunction,
+          formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.tableSchema = BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(schema);
@@ -130,5 +130,6 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
         return BigQueryUtils.toTableRow(toRow.apply(element));
       }
     }
-  };
+  }
+  ;
 }

@@ -80,16 +80,20 @@ public final class FailoverChannel extends ManagedChannel {
     // Set when primary's connection state has been unavailable for too long.
     @GuardedBy("this")
     boolean useFallbackDueToState;
+
     // Set when an RPC on primary fails with an error.
     @GuardedBy("this")
     boolean useFallbackDueToRPC;
+
     // Timestamp when RPC-based fallback was triggered. Only meaningful when useFallbackDueToRPC
     // is true.
     @GuardedBy("this")
     long lastRPCFallbackTimeNanos;
+
     // Time when primary first became not-ready. -1 when primary is currently READY.
     @GuardedBy("this")
     long primaryNotReadySinceNanos = -1;
+
     // Time when the first consecutive RPC failure was observed. -1 when no failure streak.
     @GuardedBy("this")
     long firstRPCFailureSinceNanos = -1;

@@ -165,8 +165,10 @@ class GcsUtilV1 {
 
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
+
   /** Default maximum number of requests permitted in a GCS batch request where data is copied. */
   private static final int MAX_REQUESTS_PER_COPY_BATCH = 10;
+
   /** Maximum number of concurrent batches of requests executing on GCS. */
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
@@ -195,6 +197,7 @@ class GcsUtilV1 {
   private Supplier<BatchInterface> batchRequestSupplier;
 
   private final HttpRequestInitializer httpRequestInitializer;
+
   /** Buffer size for GCS uploads (in bytes). */
   private final @Nullable Integer uploadBufferSizeBytes;
 
@@ -368,8 +371,7 @@ class GcsUtilV1 {
   }
 
   @VisibleForTesting
-  @Nullable
-  Integer getUploadBufferSizeBytes() {
+  @Nullable Integer getUploadBufferSizeBytes() {
     return uploadBufferSizeBytes;
   }
 
@@ -615,14 +617,18 @@ class GcsUtilV1 {
     }
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
     CreateOptions.Builder builder = CreateOptions.builder().setContentType(type);
     return create(path, builder.build());
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
@@ -675,8 +681,7 @@ class GcsUtilV1 {
    */
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
-    @Nullable
-    Integer uploadBufferSizeBytes =
+    @Nullable Integer uploadBufferSizeBytes =
         options.getUploadBufferSizeBytes() != null
             ? options.getUploadBufferSizeBytes()
             : getUploadBufferSizeBytes();
@@ -813,8 +818,7 @@ class GcsUtilV1 {
   }
 
   @VisibleForTesting
-  @Nullable
-  Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  @Nullable Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
 
     try {
@@ -1160,9 +1164,9 @@ class GcsUtilV1 {
     rewriteHelper(
         srcFilenames,
         destFilenames,
-        /*deleteSource=*/ false,
-        /*ignoreMissingSource=*/ false,
-        /*ignoreExistingDest=*/ false);
+        /* deleteSource= */ false,
+        /* ignoreMissingSource= */ false,
+        /* ignoreExistingDest= */ false);
   }
 
   public void rename(
@@ -1176,7 +1180,11 @@ class GcsUtilV1 {
     final boolean ignoreExistingDest =
         moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
     rewriteHelper(
-        srcFilenames, destFilenames, /*deleteSource=*/ true, ignoreMissingSrc, ignoreExistingDest);
+        srcFilenames,
+        destFilenames,
+        /* deleteSource= */ true,
+        ignoreMissingSrc,
+        ignoreExistingDest);
   }
 
   private void rewriteHelper(

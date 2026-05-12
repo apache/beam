@@ -180,8 +180,7 @@ class KafkaIOReadImplementationCompatibility {
      * This method can be used to provide that value.
      */
     @VisibleForTesting
-    @Nullable
-    Object getDefaultValue() {
+    @Nullable Object getDefaultValue() {
       return null;
     }
   }

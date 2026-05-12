@@ -96,7 +96,10 @@ public class HttpEventPublisherTest {
 
   @Test
   public void stringPayloadTest()
-      throws IOException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException,
+      throws IOException,
+          NoSuchAlgorithmException,
+          KeyStoreException,
+          KeyManagementException,
           CertificateException {
 
     HttpEventPublisher publisher =
@@ -121,7 +124,10 @@ public class HttpEventPublisherTest {
 
   @Test
   public void contentTest()
-      throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException, IOException,
+      throws NoSuchAlgorithmException,
+          KeyStoreException,
+          KeyManagementException,
+          IOException,
           CertificateException {
 
     HttpEventPublisher publisher =
@@ -166,7 +172,10 @@ public class HttpEventPublisherTest {
 
   @Test
   public void configureBackOffDefaultTest()
-      throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException, IOException,
+      throws NoSuchAlgorithmException,
+          KeyStoreException,
+          KeyManagementException,
+          IOException,
           CertificateException {
 
     HttpEventPublisher publisherDefaultBackOff =
@@ -184,7 +193,10 @@ public class HttpEventPublisherTest {
 
   @Test
   public void configureBackOffCustomTest()
-      throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException, IOException,
+      throws NoSuchAlgorithmException,
+          KeyStoreException,
+          KeyManagementException,
+          IOException,
           CertificateException {
 
     int timeoutInMillis = 600000; // 10 minutes

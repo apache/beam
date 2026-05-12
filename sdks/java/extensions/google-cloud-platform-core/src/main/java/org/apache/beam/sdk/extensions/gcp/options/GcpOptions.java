@@ -109,7 +109,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           + "This option is deprecated, and will be replaced by workerZone.")
   String getZone();
 
-  /** @deprecated Use {@link #setWorkerZone} instead. */
+  /**
+   * @deprecated Use {@link #setWorkerZone} instead.
+   */
   @Deprecated
   void setZone(String value);
 
@@ -223,15 +225,16 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           + " either a single service account as the impersonator, or a"
           + " comma-separated list of service accounts to create an"
           + " impersonation delegation chain.")
-  @Nullable
-  String getImpersonateServiceAccount();
+  @Nullable String getImpersonateServiceAccount();
 
   void setImpersonateServiceAccount(String impersonateServiceAccount);
 
   /** Experiment to turn on the Streaming Engine experiment. */
   String STREAMING_ENGINE_EXPERIMENT = "enable_streaming_engine";
 
-  /** @deprecated Use STREAMING_ENGINE_EXPERIMENT instead. */
+  /**
+   * @deprecated Use STREAMING_ENGINE_EXPERIMENT instead.
+   */
   @Deprecated String WINDMILL_SERVICE_EXPERIMENT = "enable_windmill_service";
 
   @Description(
@@ -357,8 +360,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    */
   @Description("A GCS path for storing temporary files in GCP.")
   @Default.InstanceFactory(GcpTempLocationFactory.class)
-  @Nullable
-  String getGcpTempLocation();
+  @Nullable String getGcpTempLocation();
 
   void setGcpTempLocation(String value);
 
@@ -592,8 +594,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       "GCP Cloud KMS key for Dataflow pipelines. Also used by gcpTempLocation as the default key "
           + "for new buckets. Key format is: "
           + "projects/<project>/locations/<location>/keyRings/<keyring>/cryptoKeys/<key>")
-  @Nullable
-  String getDataflowKmsKey();
+  @Nullable String getDataflowKmsKey();
 
   void setDataflowKmsKey(String dataflowKmsKey);
 }
