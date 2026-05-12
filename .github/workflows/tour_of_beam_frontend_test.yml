@@ -38,6 +38,9 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
+permissions:
+  contents: read
+
 jobs:
   tour_of_beam_test:
     name: Tour of Beam Frontend Test

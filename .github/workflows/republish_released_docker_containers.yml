@@ -35,6 +35,9 @@ env:
   release: "${{ github.event.inputs.RELEASE || '2.73.0' }}"
   rc: "${{ github.event.inputs.RC || '5' }}"
 
+permissions:
+  contents: read
+
 jobs:
 
   build:
@@ -100,4 +103,3 @@ jobs:
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \
           --no-parallel
-

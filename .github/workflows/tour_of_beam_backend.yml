@@ -34,6 +34,9 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -62,4 +65,3 @@ jobs:
         with:
           version: v1.49.0
           working-directory: learning/tour-of-beam/backend
-

@@ -27,6 +27,9 @@ env:
   LOOKERSDK_CLIENT_SECRET: ${{ secrets.LOOKERSDK_CLIENT_SECRET }}
   GCS_BUCKET: 'public_looker_explores_us_a3853f40'
 
+permissions:
+  contents: read
+
 jobs:
   refresh_looker_metrics:
     runs-on: [self-hosted, ubuntu-24.04, main]
