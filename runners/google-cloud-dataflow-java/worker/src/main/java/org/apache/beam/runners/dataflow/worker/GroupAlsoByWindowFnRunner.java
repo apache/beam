@@ -103,6 +103,9 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   public void finishBundle() {}
 
   @Override
+  public void finishKey() {}
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
   @Override

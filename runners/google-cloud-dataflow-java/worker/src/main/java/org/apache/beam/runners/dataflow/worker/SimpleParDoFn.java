@@ -363,6 +363,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
     processTimers(TimerType.SYSTEM, stepContext, windowCoder);
   }
 
+  @Override
+  public void finishKey() throws Exception {
+    if (fnRunner != null) {
+      fnRunner.finishKey();
+    }
+  }
+
   private void processUserTimer(TimerData timer) throws Exception {
     if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
         || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {

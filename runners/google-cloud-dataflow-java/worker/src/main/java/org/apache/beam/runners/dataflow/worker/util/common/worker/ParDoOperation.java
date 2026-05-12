@@ -52,6 +52,7 @@ public class ParDoOperation extends ReceivingOperation {
     try (Closeable scope = context.enterProcessTimers()) {
       checkStarted();
       fn.processTimers();
+      fn.finishKey();
     }
   }
 

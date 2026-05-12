@@ -64,6 +64,12 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
+   * Performs per-key cleanup or processing after all elements and timers for a key have been
+   * processed.
+   */
+  void finishKey();
+
+  /**
    * Returns the underlying fn instance.
    *
    * @since 2.5.0

@@ -102,6 +102,11 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
+  public void finishKey() {
+    doFnRunner.finishKey();
+  }
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     doFnRunner.onWindowExpiration(window, timestamp, key);
   }

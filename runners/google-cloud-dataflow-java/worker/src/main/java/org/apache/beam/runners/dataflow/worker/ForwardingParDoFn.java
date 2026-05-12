@@ -48,6 +48,11 @@ public abstract class ForwardingParDoFn implements ParDoFn {
   }
 
   @Override
+  public void finishKey() throws Exception {
+    delegate.finishKey();
+  }
+
+  @Override
   public void finishBundle() throws Exception {
     delegate.finishBundle();
   }

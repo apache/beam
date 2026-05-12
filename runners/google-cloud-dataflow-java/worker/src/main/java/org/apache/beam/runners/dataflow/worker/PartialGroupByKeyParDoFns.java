@@ -318,6 +318,11 @@ public class PartialGroupByKeyParDoFns {
     public void processTimers() {}
 
     @Override
+    public void finishKey() throws Exception {
+      // Nothing.
+    }
+
+    @Override
     public void finishBundle() throws Exception {
       groupingTable.flush(receiver);
     }
@@ -378,9 +383,13 @@ public class PartialGroupByKeyParDoFns {
     public void processTimers() {}
 
     @Override
+    public void finishKey() throws Exception {
+      sideInputFetcher.persist();
+    }
+
+    @Override
     public void finishBundle() throws Exception {
       groupingTable.flush(receiver);
-      sideInputFetcher.persist();
     }
 
     @Override

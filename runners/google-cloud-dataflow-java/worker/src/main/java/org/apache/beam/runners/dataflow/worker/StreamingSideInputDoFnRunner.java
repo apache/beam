@@ -94,6 +94,11 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
+  }
+
+  @Override
+  public void finishKey() {
+    simpleDoFnRunner.finishKey();
     sideInputFetcher.persist();
   }
 

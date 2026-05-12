@@ -132,6 +132,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
+  public void finishKey() {
+    doFnRunner.finishKey();
+  }
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     doFnRunner.onWindowExpiration(window, timestamp, key);
   }

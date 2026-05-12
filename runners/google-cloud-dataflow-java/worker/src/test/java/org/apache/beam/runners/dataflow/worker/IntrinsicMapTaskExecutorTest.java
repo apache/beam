@@ -220,6 +220,9 @@ public class IntrinsicMapTaskExecutorTest {
 
     @Override
     public void abort() {}
+
+    @Override
+    public void finishKey() throws Exception {}
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */

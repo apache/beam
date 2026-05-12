@@ -30,6 +30,8 @@ public interface ParDoFn {
 
   void processTimers() throws Exception;
 
+  void finishKey() throws Exception;
+
   void finishBundle() throws Exception;
 
   void abort() throws Exception;

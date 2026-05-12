@@ -85,6 +85,9 @@ public class ParDoOperationTest {
     public void abort() throws Exception {
       outputReceiver.process("a-aborted");
     }
+
+    @Override
+    public void finishKey() throws Exception {}
   }
 
   @Test

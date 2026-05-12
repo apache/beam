@@ -40,6 +40,11 @@ public class SimplePartialGroupByKeyParDoFn<K, InputT, AccumT> implements ParDoF
   public void processTimers() {}
 
   @Override
+  public void finishKey() throws Exception {
+    // Nothing.
+  }
+
+  @Override
   public void finishBundle() throws Exception {
     groupingTable.flush(receiver);
   }

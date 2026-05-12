@@ -230,6 +230,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
+  public void finishKey() {
+    // Do nothing by default.
+  }
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     invoker.invokeOnWindowExpiration(
         new OnWindowExpirationArgumentProvider<>(window, timestamp, key));

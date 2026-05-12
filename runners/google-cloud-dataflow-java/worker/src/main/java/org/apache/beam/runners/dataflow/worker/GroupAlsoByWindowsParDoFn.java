@@ -143,6 +143,13 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
   }
 
   @Override
+  public void finishKey() throws Exception {
+    if (fnRunner != null) {
+      fnRunner.finishKey();
+    }
+  }
+
+  @Override
   public void finishBundle() throws Exception {
     checkState(fnRunner != null);
     fnRunner.finishBundle();
