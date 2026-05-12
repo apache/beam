@@ -163,7 +163,8 @@ class DataflowRunner(PipelineRunner):
             state_update_callback(current_state)
           _LOGGER.info('Job %s is in state %s', job_id, current_state)
           last_job_state = current_state
-        if str(current_state) not in ('JOB_STATE_RUNNING'):
+        if str(current_state) not in (
+            'JOB_STATE_RUNNING', 'JOB_STATE_PAUSED', 'JOB_STATE_PAUSING'):
           # Stop checking for new messages on timeout, explanatory
           # message received, success, or a terminal job state caused
           # by the user that therefore doesn't require explanation.

@@ -111,9 +111,7 @@ class DataflowMetrics(MetricResults):
       try:
         step = _get_match(
             self._job_graph.proto.steps, lambda x: x.name == internal_name)
-        user_step_name = _get_match(
-            step.properties.properties,
-            lambda x: x.key == 'user_name').value.string_value
+        user_step_name = step.properties.get('user_name')
       except ValueError:
         pass  # Exception is handled below.
     if not user_step_name:
