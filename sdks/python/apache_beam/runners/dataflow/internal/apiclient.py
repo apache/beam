@@ -208,6 +208,11 @@ class Environment(object):
       pool.diskSizeGb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
       pool.diskType = self.worker_options.disk_type
+    if self.worker_options.disk_provisioned_iops is not None:
+      pool.diskProvisionedIops = self.worker_options.disk_provisioned_iops
+    if self.worker_options.disk_provisioned_throughput_mibps is not None:
+      pool.diskProvisionedThroughputMibps = (
+          self.worker_options.disk_provisioned_throughput_mibps)
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
@@ -600,8 +605,9 @@ class DataflowApplicationClient(object):
         else:
           remote_name = os.path.basename(type_payload.path)
           is_staged_role = False
-
-        if self._enable_caching and not type_payload.sha256:
+        # compute sha256 even if caching is disabled.
+        # This is used to check the payload integrity along with caching.
+        if not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:

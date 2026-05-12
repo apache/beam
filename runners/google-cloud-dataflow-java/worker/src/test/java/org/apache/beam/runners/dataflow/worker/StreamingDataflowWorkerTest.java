@@ -1807,6 +1807,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -1836,10 +1837,10 @@ public class StreamingDataflowWorkerTest {
 
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
-
+    // no combined metadata as it's default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -1915,6 +1916,13 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        // 0x02: Protobuf Delimited Length (Payload is 2 bytes), 0x08: Protobuf Tag
+        // (Field #1), 0x01: Protobuf Value (Enum 1 = NOT_DRAINING).
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -1960,10 +1968,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));
@@ -2097,6 +2111,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -2127,9 +2142,10 @@ public class StreamingDataflowWorkerTest {
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
 
+    // no combinedMetadataTag as it is default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -2205,6 +2221,11 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -2250,10 +2271,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));

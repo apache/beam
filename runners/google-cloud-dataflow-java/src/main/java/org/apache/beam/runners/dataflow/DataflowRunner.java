@@ -1244,8 +1244,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
     // to Runner v2.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
-      if (!experiments.contains("use_runner_v2")) {
+      if (!useUnifiedWorker(options)) {
+        List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
         LOG.info(
             "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
@@ -1256,7 +1256,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (useUnifiedWorker(options)) {
       if (hasExperiment(options, "disable_runner_v2")
           || hasExperiment(options, "disable_runner_v2_until_2023")
-          || hasExperiment(options, "disable_prime_runner_v2")) {
+          || hasExperiment(options, "disable_prime_runner_v2")
+          || hasExperiment(options, "disable_portable_runner")
+          || hasExperiment(options, "enable_streaming_java_runner")) {
         throw new IllegalArgumentException(
             "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
       }
@@ -1331,19 +1333,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // with the SDK harness image (which implements Fn API).
     //
     // The same Environment is used in different and contradictory ways, depending on whether
-    // it is a v1 or v2 job submission.
+    // it is a portable or non-portable job submission.
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(workerHarnessContainerImageURL);
 
-    // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
+    // The SdkComponents for portable and non-portable job submission must be kept distinct. Both
     // need the default environment.
-    SdkComponents portableComponents = SdkComponents.create();
-    portableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    SdkComponents portableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
 
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
@@ -1372,28 +1375,30 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     options.as(SdkHarnessOptions.class).setPipelineProtoHash(pipelineProtoHash);
 
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+      LOG.info(
+          "Skipping non-portable transform replacements since job will run on portable worker.");
     } else {
-      // Now rewrite things to be as needed for v1 (mutates the pipeline)
-      // This way the job submitted is valid for v1 and v2, simultaneously
+      // Now rewrite things to be as needed for non-portable (mutates the pipeline).
+      // This way the job submitted is valid for portable and non-portable, simultaneously.
       replaceV1Transforms(pipeline);
     }
-    // Capture the SdkComponents for look up during step translations
-    SdkComponents dataflowV1Components = SdkComponents.create();
-    dataflowV1Components.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
-    // No need to perform transform upgrading for the Runner v1 proto.
-    RunnerApi.Pipeline dataflowV1PipelineProto =
-        PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
+    // Capture the SdkComponents for look up during step translations.
+    SdkComponents dataflowNonPortableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
+    // No need to perform transform upgrading for the non-portable runner proto.
+    RunnerApi.Pipeline dataflowNonPortablePipelineProto =
+        PipelineTranslation.toProto(pipeline, dataflowNonPortableComponents, true, false);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(
-          "Dataflow v1 pipeline proto:\n{}",
-          TextFormat.printer().printToString(dataflowV1PipelineProto));
+          "Dataflow non-portable worker pipeline proto:\n{}",
+          TextFormat.printer().printToString(dataflowNonPortablePipelineProto));
     }
 
     // Set a unique client_request_id in the CreateJob request.
@@ -1413,7 +1418,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     JobSpecification jobSpecification =
         translator.translate(
-            pipeline, dataflowV1PipelineProto, dataflowV1Components, this, packages);
+            pipeline,
+            dataflowNonPortablePipelineProto,
+            dataflowNonPortableComponents,
+            this,
+            packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =
@@ -2729,7 +2738,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
         || hasExperiment(options, "use_unified_worker")
-        || hasExperiment(options, "use_portable_job_submission");
+        || hasExperiment(options, "use_portable_job_submission")
+        || hasExperiment(options, "enable_portable_runner");
   }
 
   static void verifyDoFnSupported(

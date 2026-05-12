@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.spark.coders;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -70,6 +73,52 @@ public class SparkRunnerKryoRegistratorTest {
       TestKryoRegistrator.wasInitiated = false;
       runSimplePipelineWithSparkContextOptions(contextRule);
       assertFalse(TestKryoRegistrator.wasInitiated);
+    }
+  }
+
+  /** Unit tests for the {@link SparkRunnerKryoRegistrator#findFirstAvailableClass} helper. */
+  public static class FindFirstAvailableClassTest {
+
+    @Test
+    public void returnsFirstWhenAvailable() {
+      Class<?> result =
+          SparkRunnerKryoRegistrator.findFirstAvailableClass(
+              "java.lang.String", "java.lang.Integer");
+      assertSame(String.class, result);
+    }
+
+    @Test
+    public void fallsBackWhenFirstMissing() {
+      Class<?> result =
+          SparkRunnerKryoRegistrator.findFirstAvailableClass("does.not.Exist", "java.lang.Integer");
+      assertSame(Integer.class, result);
+    }
+
+    @Test
+    public void returnsNullWhenNoneAvailable() {
+      Class<?> result =
+          SparkRunnerKryoRegistrator.findFirstAvailableClass("does.not.Exist1", "does.not.Exist2");
+      assertNull(result);
+    }
+
+    @Test
+    public void returnsNullForEmptyInput() {
+      assertNull(SparkRunnerKryoRegistrator.findFirstAvailableClass());
+    }
+
+    @Test
+    public void resolvesScalaWrappedArrayClassOnRealClasspath() {
+      // On any supported Scala version (2.12 ArraySeq$ofRef does not exist; 2.13 it does), at
+      // least one of the two wrapped-array class names must resolve. This is the production call
+      // the registrator makes.
+      Class<?> result =
+          SparkRunnerKryoRegistrator.findFirstAvailableClass(
+              "scala.collection.mutable.ArraySeq$ofRef",
+              "scala.collection.mutable.WrappedArray$ofRef");
+      assertEquals(
+          "expected one of the Scala wrapped-array classes to be on the classpath",
+          true,
+          result != null);
     }
   }
 

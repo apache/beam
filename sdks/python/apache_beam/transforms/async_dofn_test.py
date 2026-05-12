@@ -16,6 +16,7 @@
 #
 
 import logging
+import multiprocessing
 import random
 import time
 import unittest
@@ -486,6 +487,40 @@ class AsyncTest(unittest.TestCase):
     for i in range(0, 10):
       self.check_output(results[i], expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
+
+  @staticmethod
+  def _run_reset_state_concurrent_teardown(use_asyncio):
+    dofn = BasicDofn(sleep_time=0.5)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=use_asyncio)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+
+    # Start processing an item. This starts a worker thread/coroutine sleeping for 0.5s.
+    async_dofn.process(('key1', 1), to_process=fake_bag_state, timer=fake_timer)
+    time.sleep(0.05)
+
+    # Verify that calling reset_state() while background tasks are actively running
+    # completes cleanly without causing lock-ordering deadlocks.
+    async_lib.AsyncWrapper.reset_state()
+
+  def test_reset_state_concurrent_teardown(self):
+    # Verify concurrent teardown safety in a separate process to prevent any potential
+    # regressions from freezing the main pytest process at exit.
+    p = multiprocessing.Process(
+        target=AsyncTest._run_reset_state_concurrent_teardown,
+        args=(self.use_asyncio, ))
+    p.start()
+    p.join(timeout=10.0)
+
+    if p.is_alive():
+      p.terminate()
+      p.join()
+      self.fail(
+          "reset_state() deadlocked/hung waiting for active threads/tasks to finish"
+      )
+    else:
+      self.assertEqual(p.exitcode, 0)
 
 
 if __name__ == '__main__':

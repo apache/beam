@@ -230,6 +230,13 @@ dependencies {
   // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
   permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
 
+  // align with Flink's kryo version (groupId changed)
+  if (flink_major.startsWith('2')) {
+    implementation "com.esotericsoftware:kryo:5.6.2"
+  } else {
+    implementation "com.esotericsoftware.kryo:kryo:2.24.0"
+  }
+
   implementation "org.apache.flink:flink-streaming-java:$flink_version"
   testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"
   testImplementation "org.apache.flink:flink-streaming-java:$flink_version:tests"
