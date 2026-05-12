@@ -28,6 +28,7 @@ import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext
  * additional payload, which is not currently supported. This exists as a temporary measure.
  */
 public interface CoderTranslator<T extends Coder<?>> {
+
   /** Extract all component {@link Coder coders} within a coder. */
   List<? extends Coder<?>> getComponents(T from);
 
