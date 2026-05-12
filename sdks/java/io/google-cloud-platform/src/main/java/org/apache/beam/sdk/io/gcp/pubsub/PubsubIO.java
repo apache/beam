@@ -1134,13 +1134,11 @@ public class PubsubIO {
             "PubSubIO cannot be configured with both a dead letter topic and a bad record router");
       }
 
-      @Nullable
-      ValueProvider<TopicPath> topicPath =
+      @Nullable ValueProvider<TopicPath> topicPath =
           getTopicProvider() == null
               ? null
               : NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator());
-      @Nullable
-      ValueProvider<SubscriptionPath> subscriptionPath =
+      @Nullable ValueProvider<SubscriptionPath> subscriptionPath =
           getSubscriptionProvider() == null
               ? null
               : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());

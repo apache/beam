@@ -36,12 +36,18 @@ public abstract class Event implements Serializable {
     return new AutoValue_Event(sequence, groupId, value);
   }
 
-  /** @return event sequence number */
+  /**
+   * @return event sequence number
+   */
   public abstract long getSequence();
 
-  /** @return the group id event is associated with */
+  /**
+   * @return the group id event is associated with
+   */
   public abstract String getKey();
 
-  /** @return value of the event */
+  /**
+   * @return value of the event
+   */
   public abstract String getValue();
 }

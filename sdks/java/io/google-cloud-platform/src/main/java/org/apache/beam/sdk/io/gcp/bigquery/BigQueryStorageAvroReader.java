@@ -69,7 +69,7 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
       "nullness" // reused record is null but avro not annotated
     })
     // record should not be reused, mutating outputted values is unsafe
-    GenericRecord newRecord = datumReader.read(/*reuse=*/ null, decoder);
+    GenericRecord newRecord = datumReader.read(/* reuse= */ null, decoder);
     return newRecord;
   }
 

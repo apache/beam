@@ -213,8 +213,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
    * finished.
    */
   @VisibleForTesting
-  @Nullable
-  DoFnInfo<?, ?> getDoFnInfo() {
+  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
     return helpers.fnInfo;
   }
 }

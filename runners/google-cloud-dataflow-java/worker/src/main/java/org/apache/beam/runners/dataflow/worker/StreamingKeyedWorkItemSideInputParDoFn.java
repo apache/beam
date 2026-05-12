@@ -239,8 +239,7 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
    * finished.
    */
   @VisibleForTesting
-  @Nullable
-  DoFnInfo<?, ?> getDoFnInfo() {
+  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
     return helpers.fnInfo;
   }
 }

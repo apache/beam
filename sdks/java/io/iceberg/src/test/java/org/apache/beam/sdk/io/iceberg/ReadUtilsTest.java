@@ -182,8 +182,7 @@ public class ReadUtilsTest {
             // streaming
             TestCase.of(streamingScanConfig, latest.parentId(), "default streaming read"),
             TestCase.of(
-                streamingScanConfig
-                    .toBuilder()
+                streamingScanConfig.toBuilder()
                     .setFromSnapshotInclusive(third.snapshotId())
                     .build(),
                 third.parentId(),
@@ -203,8 +202,8 @@ public class ReadUtilsTest {
 
     List<String> errors = new ArrayList<>();
     for (TestCase testCase : scanConfigCases) {
-      @Nullable
-      Long snapshotId = ReadUtils.getFromSnapshotExclusive(simpleTable, testCase.scanConfig);
+      @Nullable Long snapshotId =
+          ReadUtils.getFromSnapshotExclusive(simpleTable, testCase.scanConfig);
       if (!Objects.equals(testCase.expectedSnapshotId, snapshotId)) {
         errors.add(
             String.format(

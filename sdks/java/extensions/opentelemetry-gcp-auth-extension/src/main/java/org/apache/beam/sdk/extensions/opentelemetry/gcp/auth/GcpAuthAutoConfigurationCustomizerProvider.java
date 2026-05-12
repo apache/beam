@@ -184,17 +184,13 @@ public class GcpAuthAutoConfigurationCustomizerProvider
     if (exporter instanceof OtlpHttpSpanExporter) {
       SpanExporter result =
           ((OtlpHttpSpanExporter) exporter)
-              .toBuilder()
-              .setHeaders(() -> getRequiredHeaderMap(configProperties))
-              .build();
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
       exporter.shutdown();
       return result;
     } else if (exporter instanceof OtlpGrpcSpanExporter) {
       SpanExporter result =
           ((OtlpGrpcSpanExporter) exporter)
-              .toBuilder()
-              .setHeaders(() -> getRequiredHeaderMap(configProperties))
-              .build();
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
       exporter.shutdown();
       return result;
     }
@@ -208,17 +204,13 @@ public class GcpAuthAutoConfigurationCustomizerProvider
     if (exporter instanceof OtlpHttpMetricExporter) {
       MetricExporter result =
           ((OtlpHttpMetricExporter) exporter)
-              .toBuilder()
-              .setHeaders(() -> getRequiredHeaderMap(configProperties))
-              .build();
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
       exporter.shutdown();
       return result;
     } else if (exporter instanceof OtlpGrpcMetricExporter) {
       MetricExporter result =
           ((OtlpGrpcMetricExporter) exporter)
-              .toBuilder()
-              .setHeaders(() -> getRequiredHeaderMap(configProperties))
-              .build();
+              .toBuilder().setHeaders(() -> getRequiredHeaderMap(configProperties)).build();
       exporter.shutdown();
       return result;
     }

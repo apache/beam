@@ -387,6 +387,7 @@ public class Solace {
    */
   public static class SolaceRecordMapper {
     private static final Logger LOG = LoggerFactory.getLogger(SolaceRecordMapper.class);
+
     /**
      * Maps a {@link BytesXMLMessage} (if not null) to a {@link Solace.Record}.
      *

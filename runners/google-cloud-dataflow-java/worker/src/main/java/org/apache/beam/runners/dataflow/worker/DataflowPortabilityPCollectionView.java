@@ -113,7 +113,8 @@ public class DataflowPortabilityPCollectionView<K, V, W extends BoundedWindow>
     public TypeDescriptor<MultimapView<K, V>> getTypeDescriptor() {
       throw new UnsupportedOperationException();
     }
-  };
+  }
+  ;
 
   @Override
   public WindowMappingFn<?> getWindowMappingFn() {

@@ -462,6 +462,7 @@ public class FhirIO {
       private PCollection<String> resources;
 
       private PCollection<HealthcareIOError<String>> failedReads;
+
       /** The Pct. */
       PCollectionTuple pct;
 
@@ -524,6 +525,7 @@ public class FhirIO {
 
     /** The tag for the main output of FHIR resources. */
     public static final TupleTag<String> OUT = new TupleTag<String>() {};
+
     /** The tag for the deadletter output of FHIR resources. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -637,12 +639,15 @@ public class FhirIO {
 
     /** The tag for successful writes to FHIR store. */
     public static final TupleTag<String> SUCCESSFUL_BODY = new TupleTag<String>() {};
+
     /** The tag for the failed writes to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_BODY =
         new TupleTag<HealthcareIOError<String>>() {};
+
     /** The tag for the files that failed to FHIR store. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_FILES =
         new TupleTag<HealthcareIOError<String>>() {};
+
     /** The tag for temp files for import to FHIR store. */
     public static final TupleTag<ResourceId> TEMP_FILES = new TupleTag<ResourceId>() {};
 
@@ -1440,6 +1445,7 @@ public class FhirIO {
 
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
+
       /** The Fhir store. */
       private final ValueProvider<String> fhirStore;
 
@@ -1911,6 +1917,7 @@ public class FhirIO {
     /** The tag for the main output of FHIR Resources from a search. */
     public static final TupleTag<KV<String, JsonArray>> OUT =
         new TupleTag<KV<String, JsonArray>>() {};
+
     /** The tag for the deadletter output of FHIR Resources. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};

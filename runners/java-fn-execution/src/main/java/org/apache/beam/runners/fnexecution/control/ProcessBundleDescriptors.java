@@ -382,17 +382,13 @@ public class ProcessBundleDescriptors {
           timerCoder instanceof Timer.Coder, "Expected a timer coder but received %s.", timerCoder);
 
       RunnerApi.FunctionSpec.Builder updatedSpec =
-          components
-              .getTransformsOrThrow(timerReference.transform().getId())
-              .toBuilder()
+          components.getTransformsOrThrow(timerReference.transform().getId()).toBuilder()
               .getSpecBuilder();
       RunnerApi.ParDoPayload.Builder updatedPayload =
           RunnerApi.ParDoPayload.parseFrom(updatedSpec.getPayload()).toBuilder();
       updatedPayload.putTimerFamilySpecs(
           timerReference.localName(),
-          updatedPayload
-              .getTimerFamilySpecsOrThrow(timerReference.localName())
-              .toBuilder()
+          updatedPayload.getTimerFamilySpecsOrThrow(timerReference.localName()).toBuilder()
               .setTimerFamilyCoderId(sdkCoderId)
               .build());
       updatedSpec.setPayload(updatedPayload.build().toByteString());
@@ -400,9 +396,7 @@ public class ProcessBundleDescriptors {
           timerReference.transform().getId(),
           // Since a transform can have more then one timer, update the transform inside components
           // and not the original
-          components
-              .getTransformsOrThrow(timerReference.transform().getId())
-              .toBuilder()
+          components.getTransformsOrThrow(timerReference.transform().getId()).toBuilder()
               .setSpec(updatedSpec)
               .build());
 

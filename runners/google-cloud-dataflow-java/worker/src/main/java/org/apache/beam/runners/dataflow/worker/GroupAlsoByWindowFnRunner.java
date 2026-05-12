@@ -38,6 +38,7 @@ import org.joda.time.Instant;
 public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   private final PipelineOptions options;
+
   /** The {@link GroupAlsoByWindowFn} being run. */
   private final GroupAlsoByWindowFn<InputT, OutputT> fn;
 

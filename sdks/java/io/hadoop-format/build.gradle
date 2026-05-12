@@ -125,7 +125,7 @@ hadoopVersions.each {kv ->
 configurations.all (Configuration it) -> {
   // error-prone requires newer guava, don't override for annotation processing
   // https://github.com/google/error-prone/issues/2745
-  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
+  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor" || it.name.startsWith("spotless") || it.name.startsWith("checkstyle")) {
     return
   }
   resolutionStrategy {

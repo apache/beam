@@ -90,7 +90,7 @@ public class ShuffleReaderFactoryTest {
             shuffleReaderConfig,
             start,
             end,
-            CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null),
+            CloudObjects.asCloudObject(coder, /* sdkComponents= */ null),
             BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
             UngroupedShuffleReader.class,
             "UngroupedShuffleSource");
@@ -118,7 +118,7 @@ public class ShuffleReaderFactoryTest {
             CloudObjects.asCloudObject(
                 FullWindowedValueCoder.of(
                     KvCoder.of(keyCoder, IterableCoder.of(valueCoder)), IntervalWindowCoder.of()),
-                /*sdkComponents=*/ null),
+                /* sdkComponents= */ null),
             context,
             GroupingShuffleReader.class,
             "GroupingShuffleSource");
@@ -147,7 +147,7 @@ public class ShuffleReaderFactoryTest {
                 FullWindowedValueCoder.of(
                     KvCoder.of(keyCoder, windowedValueCoder.getValueCoder()),
                     IntervalWindowCoder.of()),
-                /*sdkComponents=*/ null),
+                /* sdkComponents= */ null),
             BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "testStage"),
             PartitioningShuffleReader.class,
             "PartitioningShuffleSource");

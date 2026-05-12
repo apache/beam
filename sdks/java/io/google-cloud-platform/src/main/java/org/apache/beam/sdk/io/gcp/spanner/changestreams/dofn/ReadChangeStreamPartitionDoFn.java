@@ -75,6 +75,7 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
   private final boolean cancelQueryOnHeartbeat;
+
   /**
    * Needs to be set through the {@link
    * ReadChangeStreamPartitionDoFn#setThroughputEstimator(BytesThroughputEstimator)} call.

@@ -134,7 +134,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.executorServiceSupplier = executorServiceSupplier;
   }
 
-  /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
+  /**
+   * @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly.
+   */
   static GrpcWindmillStreamFactory create(
       JobHeader jobHeader,
       int logEveryNStreamFailures,

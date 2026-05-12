@@ -21,7 +21,9 @@ import java.util.Optional;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Utility methods related to type awareness. */
-/** @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release. */
+/**
+ * @deprecated Use Java SDK directly, Euphoria is scheduled for removal in a future release.
+ */
 @Deprecated
 public class TypeAwareness {
 

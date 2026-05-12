@@ -71,10 +71,10 @@ public class SpannerChangeStreamPlacementTableIT {
   @ClassRule
   public static final IntegrationTestEnv ENV =
       new IntegrationTestEnv(
-          /*isPostgres=*/ false,
-          /*isMutableChangeStream=*/ true,
-          /*isPlacementTable=*/ true,
-          /*host=*/ Optional.empty());
+          /* isPostgres= */ false,
+          /* isMutableChangeStream= */ true,
+          /* isPlacementTable= */ true,
+          /* host= */ Optional.empty());
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

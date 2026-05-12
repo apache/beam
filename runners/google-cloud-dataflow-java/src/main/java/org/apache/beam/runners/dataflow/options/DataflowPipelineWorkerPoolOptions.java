@@ -45,7 +45,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
-    /** @deprecated use {@link #THROUGHPUT_BASED}. */
+    /**
+     * @deprecated use {@link #THROUGHPUT_BASED}.
+     */
     @Deprecated
     BASIC("AUTOSCALING_ALGORITHM_BASIC"),
 
@@ -104,7 +106,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   void setDiskSizeGb(int value);
 
   /** Container image used as Dataflow worker harness image. */
-  /** @deprecated Use {@link #getSdkContainerImage} instead. */
+  /**
+   * @deprecated Use {@link #getSdkContainerImage} instead.
+   */
   @Description(
       "Container image used to configure a Dataflow worker. "
           + "Can only be used for official Dataflow container images. "
@@ -113,7 +117,9 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   @Hidden
   String getWorkerHarnessContainerImage();
 
-  /** @deprecated Use {@link #setSdkContainerImage} instead. */
+  /**
+   * @deprecated Use {@link #setSdkContainerImage} instead.
+   */
   @Deprecated
   @Hidden
   void setWorkerHarnessContainerImage(String value);
@@ -195,15 +201,13 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
 
   /** Provisioned IOPS for the worker disk. */
   @Description("Provisioned IOPS for the worker disk.")
-  @Nullable
-  Long getDiskProvisionedIops();
+  @Nullable Long getDiskProvisionedIops();
 
   void setDiskProvisionedIops(Long value);
 
   /** Provisioned throughput in MiB/s for the worker disk. */
   @Description("Provisioned throughput in MiB/s for the worker disk.")
-  @Nullable
-  Long getDiskProvisionedThroughputMibps();
+  @Nullable Long getDiskProvisionedThroughputMibps();
 
   void setDiskProvisionedThroughputMibps(Long value);
 
@@ -215,8 +219,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
   @Description(
       "Specifies whether worker pools should be started with public IP addresses. WARNING:"
           + "This feature is available only through allowlist.")
-  @Nullable
-  Boolean getUsePublicIps();
+  @Nullable Boolean getUsePublicIps();
 
   void setUsePublicIps(@Nullable Boolean value);
 
@@ -228,8 +231,7 @@ public interface DataflowPipelineWorkerPoolOptions extends GcpOptions, FileStagi
    * Pipeline Execution Parameters</a>.
    */
   @Description("GCE minimum CPU platform. Default is determined by GCP.")
-  @Nullable
-  String getMinCpuPlatform();
+  @Nullable String getMinCpuPlatform();
 
   void setMinCpuPlatform(String minCpuPlatform);
 }

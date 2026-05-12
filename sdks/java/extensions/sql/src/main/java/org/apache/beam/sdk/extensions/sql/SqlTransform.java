@@ -262,6 +262,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public SqlTransform withAutoLoading(boolean autoLoading) {
     return toBuilder().setAutoLoading(autoLoading).build();
   }
+
   /**
    * register a UDF function used in this query.
    *

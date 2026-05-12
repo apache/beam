@@ -277,8 +277,7 @@ public class ArtifactStagingService
           chunk = bytesQueue.take();
         }
         dest.getOutputStream().close();
-        return originalArtifact
-            .toBuilder()
+        return originalArtifact.toBuilder()
             .setTypeUrn(dest.getTypeUrn())
             .setTypePayload(dest.getTypePayload())
             .build();
