@@ -131,19 +131,10 @@ tasks.register("installYamlIntegrationTestDeps") {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && " +
               "py_ver=\$(python -c 'import sys; print(f\"{sys.version_info.major}{sys.version_info.minor}\")') && " +
-              "constraint_file=\"\" && " +
-              "if [ -f \"container/ml/py\${py_ver}/base_image_requirements.txt\" ]; then " +
-              "  constraint_file=\"container/ml/py\${py_ver}/base_image_requirements.txt\"; " +
-              "elif [ -f \"container/py\${py_ver}/base_image_requirements.txt\" ]; then " +
-              "  constraint_file=\"container/py\${py_ver}/base_image_requirements.txt\"; " +
-              "fi && " +
-              "if [ -n \"\$constraint_file\" ]; then " +
-              "  echo \"Installing with constraint file: \$constraint_file\" && " +
-              "  pip install --pre --retries 10 -c \"\$constraint_file\" \${buildDir}/apache-beam.tar.gz[ml_test,yaml,transformers]; " +
-              "else " +
-              "  echo \"No constraint file found, installing without constraints\" && " +
-              "  pip install --pre --retries 10 \${buildDir}/apache-beam.tar.gz[ml_test,yaml,transformers]; " +
-              "fi"
+              "ml_extra=\"ml_test\" && " +
+              "if [ \"\$py_ver\" -ge 313 ]; then ml_extra=\"p\${py_ver}_ml_test\"; fi && " +
+              "echo \"Installing dependencies...\" && " +
+              "pip install --pre --retries 10 ${buildDir}/apache-beam.tar.gz[\$ml_extra,yaml,transformers]"
     }
   }
 }
