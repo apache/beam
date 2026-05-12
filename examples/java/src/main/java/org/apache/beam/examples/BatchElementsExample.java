@@ -18,7 +18,6 @@
 package org.apache.beam.examples;
 
 import java.util.List;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -44,40 +43,39 @@ import org.slf4j.LoggerFactory;
 //     - batch
 
 public class BatchElementsExample {
-    public static void main(String[] args) {
-        PipelineOptions options = PipelineOptionsFactory.create();
+  public static void main(String[] args) {
+    PipelineOptions options = PipelineOptionsFactory.create();
 
-        Pipeline pipeline = Pipeline.create(options);
+    Pipeline pipeline = Pipeline.create(options);
 
-        // [START main_section]
-        // Create input
+    // [START main_section]
+    // Create input
 
-        PCollection<String> inputs = pipeline.apply(Create.of("apple", "strawberry", "orange", "peach", "cherry", "pear"));
+    PCollection<String> inputs =
+        pipeline.apply(Create.of("apple", "strawberry", "orange", "peach", "cherry", "pear"));
 
-        //Create Batch Config
-        BatchElements.BatchConfig config = BatchElements.BatchConfig.builder()
-                .withMinBatchSize(2)
-                .withMaxBatchSize(4)
-                .build();
-        // Batch Elements
-        PCollection<List<String>> result = inputs.apply(BatchElements.withConfig(config));
-        // [END main_section]
-        result.apply(ParDo.of(new LogOutput()));
-        pipeline.run();
+    // Create Batch Config
+    BatchElements.BatchConfig config =
+        BatchElements.BatchConfig.builder().withMinBatchSize(2).withMaxBatchSize(4).build();
+    // Batch Elements
+    PCollection<List<String>> result = inputs.apply(BatchElements.withConfig(config));
+    // [END main_section]
+    result.apply(ParDo.of(new LogOutput()));
+    pipeline.run();
+  }
+
+  static class LogOutput extends DoFn<List<String>, String> {
+    private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      List<String> batch = c.element();
+
+      LOG.info("Batch Contents: {}", batch);
+
+      for (String element : batch) {
+        c.output(element);
+      }
     }
-
-    static class LogOutput extends DoFn<List<String>, String> {
-        private static final Logger LOG = LoggerFactory.getLogger(LogOutput.class);
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-            List<String> batch = c.element();
-
-            LOG.info("Batch Contents: {}", batch);
-
-            for (String element : batch) {
-                c.output(element);
-            }
-        }
-    }
+  }
 }
