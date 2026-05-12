@@ -59,6 +59,7 @@ func init() {
 	register.Function3x0(dofn1Counter)
 	register.Function2x0(dofnSink)
 	register.Function3x1(doFnFail)
+	register.Function3x0(doFnBlock)
 
 	register.Function2x1(combineIntSum)
 
@@ -281,6 +282,10 @@ func dofn1Counter(ctx context.Context, _ []byte, emit func(int64)) {
 func doFnFail(ctx context.Context, _ []byte, emit func(int64)) error {
 	beam.NewCounter(ns, "count").Inc(ctx, 1)
 	return fmt.Errorf("doFnFail: failing as intended")
+}
+
+func doFnBlock(ctx context.Context, _ []byte, emit func(int64)) {
+	<-ctx.Done()
 }
 
 func combineIntSum(a, b int64) int64 {
