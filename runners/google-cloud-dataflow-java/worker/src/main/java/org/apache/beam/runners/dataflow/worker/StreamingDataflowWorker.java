@@ -114,6 +114,7 @@ import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -635,6 +636,9 @@ public final class StreamingDataflowWorker {
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
             .setMaxCachedValueBytes(options.getMaxWindmillStateCacheValueBytes())
+            .setEnableHistogram(
+                !ExperimentalOptions.hasExperiment(
+                    options, "disable_windmill_user_state_cache_histogram"))
             .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =

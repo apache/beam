@@ -76,11 +76,17 @@ public class WindmillStateCache implements StatusDataProvider {
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
   private final boolean supportMapViaMultimap;
   private final long defaultMaxCachedValueBytes;
+  private final boolean enableHistogram;
   private volatile long maxCachedValueBytesOverride = -1L;
 
-  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap, long maxCachedValueBytes) {
+  WindmillStateCache(
+      long sizeMb,
+      boolean supportMapViaMultimap,
+      long maxCachedValueBytes,
+      boolean enableHistogram) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
     this.defaultMaxCachedValueBytes = maxCachedValueBytes;
+    this.enableHistogram = enableHistogram;
     int stateCacheConcurrencyLevel =
         Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
@@ -104,13 +110,16 @@ public class WindmillStateCache implements StatusDataProvider {
 
     Builder setMaxCachedValueBytes(long maxCachedValueBytes);
 
+    Builder setEnableHistogram(boolean enableHistogram);
+
     WindmillStateCache build();
   }
 
   public static Builder builder() {
     return new AutoBuilder_WindmillStateCache_Builder()
         .setSupportMapViaMultimap(false)
-        .setMaxCachedValueBytes(Long.MAX_VALUE);
+        .setMaxCachedValueBytes(Long.MAX_VALUE)
+        .setEnableHistogram(true);
   }
 
   public void setMaxCachedValueBytesOverride(long limit) {
@@ -122,10 +131,20 @@ public class WindmillStateCache implements StatusDataProvider {
     BiConsumer<StateId, StateCacheEntry> consumer =
         (stateId, stateCacheEntry) -> {
           stats.entries++;
-          stats.idWeight += stateId.getWeight();
-          stats.entryWeight += stateCacheEntry.getWeight();
+          long idWeight = stateId.getWeight();
+          stats.idWeight += idWeight;
+          long entryWeight = stateCacheEntry.getWeight();
+          stats.entryWeight += entryWeight;
           stats.entryValues += stateCacheEntry.values.size();
           stats.maxEntryValues = Math.max(stats.maxEntryValues, stateCacheEntry.values.size());
+          if (enableHistogram) {
+            stats.addKeyWeight(idWeight);
+            stats.addEntryWeight(entryWeight);
+            stateCacheEntry.values.forEach(
+                (encodedAddress, weightedValue) -> {
+                  stats.addValueWeight(weightedValue.weight);
+                });
+          }
         };
     stateCache.asMap().forEach(consumer);
     return stats;
@@ -149,27 +168,58 @@ public class WindmillStateCache implements StatusDataProvider {
     return new ForComputation(computation);
   }
 
+  private static String formatHistogram(long[] histogram) {
+    return String.format(
+        "[<128B:%d, <256B:%d, <512B:%d, <1KB:%d, <10KB:%d, <1MB:%d, >=1MB:%d]",
+        histogram[0],
+        histogram[1],
+        histogram[2],
+        histogram[3],
+        histogram[4],
+        histogram[5],
+        histogram[6]);
+  }
+
   /** Print summary statistics of the cache to the given {@link PrintWriter}. */
   @Override
   public void appendSummaryHtml(PrintWriter response) {
     response.println("Cache Stats: <br><table>");
-    response.println(
-        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
-            + "<th>Entry Values</th><th>Max Entry Values</th>"
-            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
-            + "</tr><tr>");
     CacheStats cacheStats = stateCache.stats();
     EntryStats entryStats = calculateEntryStats();
-    response.println("<td>" + cacheStats.hitRate() + "</td>");
-    response.println("<td>" + cacheStats.evictionCount() + "</td>");
-    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
-    response.println("<td>" + entryStats.entryValues + "</td>");
-    response.println("<td>" + entryStats.maxEntryValues + "</td>");
-    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
-    response.println("<td>" + keyIndex.size() + "</td>");
-    response.println("</tr></table><br>");
+
+    response.println("<tr><th>Hit Ratio</th><td>" + cacheStats.hitRate() + "</td></tr>");
+    response.println("<tr><th>Evictions</th><td>" + cacheStats.evictionCount() + "</td></tr>");
+    response.println(
+        "<tr><th>Entries</th><td>"
+            + entryStats.entries
+            + " ("
+            + stateCache.size()
+            + " inc. weak)</td></tr>");
+    response.println("<tr><th>Entry Values</th><td>" + entryStats.entryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Max Entry Values</th><td>" + entryStats.maxEntryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Id Weight</th><td>" + entryStats.idWeight / MEGABYTES + "MB</td></tr>");
+    response.println(
+        "<tr><th>Entry Weight</th><td>" + entryStats.entryWeight / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Max Weight</th><td>" + getMaxWeight() / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Keys</th><td>" + keyIndex.size() + "</td></tr>");
+    if (enableHistogram) {
+      response.println(
+          "<tr><th>Entry Weight Dist</th><td>"
+              + formatHistogram(entryStats.entryWeightHistogram)
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Value Weight Dist</th><td>"
+              + formatHistogram(entryStats.valueWeightHistogram)
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Key Weight Dist</th><td>"
+              + formatHistogram(entryStats.keyWeightHistogram)
+              + "</td></tr>");
+    }
+
+    response.println("</table><br>");
   }
 
   public BaseStatusServlet statusServlet() {
@@ -191,6 +241,31 @@ public class WindmillStateCache implements StatusDataProvider {
     long entryWeight;
     long entryValues;
     long maxEntryValues;
+    long[] entryWeightHistogram = new long[7];
+    long[] valueWeightHistogram = new long[7];
+    long[] keyWeightHistogram = new long[7];
+
+    void addEntryWeight(long weight) {
+      entryWeightHistogram[getBucket(weight)]++;
+    }
+
+    void addValueWeight(long weight) {
+      valueWeightHistogram[getBucket(weight)]++;
+    }
+
+    void addKeyWeight(long weight) {
+      keyWeightHistogram[getBucket(weight)]++;
+    }
+
+    private int getBucket(long weight) {
+      if (weight < 128) return 0;
+      if (weight < 256) return 1;
+      if (weight < 512) return 2;
+      if (weight < 1024) return 3;
+      if (weight < 10 * 1024) return 4;
+      if (weight < 1024 * 1024) return 5;
+      return 6;
+    }
   }
 
   /**

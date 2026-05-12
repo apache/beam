@@ -311,6 +311,27 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag2));
   }
 
+  @Test
+  public void testDisableHistogram() throws Exception {
+    WindmillStateCache noHistogramCache =
+        WindmillStateCache.builder().setSizeMb(400).setEnableHistogram(false).build();
+    WindmillStateCache.ForKeyAndFamily keyCache =
+        noHistogramCache
+            .forComputation(COMPUTATION)
+            .forKey(COMPUTATION_KEY, 0L, 1L)
+            .forFamily(STATE_FAMILY);
+
+    putInCache(
+        keyCache, StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
+    keyCache.persist();
+
+    java.io.StringWriter writer = new java.io.StringWriter();
+    noHistogramCache.appendSummaryHtml(new java.io.PrintWriter(writer));
+    String summary = writer.toString();
+
+    org.junit.Assert.assertFalse(summary.contains("Entry Weight Dist"));
+  }
+
   /** Verifies that values are cached in the appropriate namespaces. */
   @Test
   public void testInvalidation() throws Exception {
