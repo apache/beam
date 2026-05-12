@@ -154,6 +154,13 @@ public interface BigQueryOptions
   void setStorageWriteMaxInflightBytes(Long value);
 
   @Description(
+      "Maximum time in seconds a Storage Write API append request is allowed to wait in the "
+          + "request callback queue before timing out. Overrides Storage Write API default (5 min)")
+  Integer getStorageWriteApiMaxRequestCallbackWaitTimeSec();
+
+  void setStorageWriteApiMaxRequestCallbackWaitTimeSec(Integer value);
+
+  @Description(
       "Enables multiplexing mode, where multiple tables can share the same connection. Only available when writing with STORAGE_API_AT_LEAST_ONCE"
           + " mode. This is recommended if your write operation is creating 20+ connections. When using multiplexing, consider tuning "
           + "the number of connections created by the connection pool with minConnectionPoolConnections and maxConnectionPoolConnections. "
