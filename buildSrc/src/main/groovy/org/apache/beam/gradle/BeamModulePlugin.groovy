@@ -1586,6 +1586,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile).configureEach {
         // we configure the Java compiler to use UTF-8.
         options.encoding = "UTF-8"
+        options.fork = true
+        options.forkOptions.memoryMaximumSize = '4g'
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
           def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
