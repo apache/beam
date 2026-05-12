@@ -38,7 +38,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
 	github.com/aws/smithy-go v1.25.1
-	github.com/docker/go-connections v0.6.0
+	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/go-cmp v0.7.0
@@ -47,7 +47,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/nats-io/nats-server/v2 v2.14.0
-	github.com/nats-io/nats.go v1.51.0
+	github.com/nats-io/nats.go v1.52.0
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.42.0
