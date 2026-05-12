@@ -457,6 +457,30 @@ class PrismJobServerTest(unittest.TestCase):
             mock_zipfile_init.assert_called_once()
 
 
+class PrismRunnerExecutionTest(unittest.TestCase):
+  def test_dofn_failure_clean_exit(self):
+    import time
+    class FailDoFn(beam.DoFn):
+      def process(self, element):
+        raise ValueError("Failing as intended")
+
+    class BlockDoFn(beam.DoFn):
+      def process(self, element):
+        time.sleep(10)
+        yield element
+
+    from apache_beam.options.pipeline_options import PrismRunnerOptions
+    options = PortableOptions()
+    options.view_as(StandardOptions).runner = 'PrismRunner'
+    options.view_as(PortableOptions).job_server_timeout = 5
+
+    with self.assertRaisesRegex(Exception, "Failing as intended"):
+      with beam.Pipeline(options=options) as p:
+        imp = p | beam.Create([1, 2])
+        _ = imp | 'Block' >> beam.ParDo(BlockDoFn())
+        _ = imp | 'Fail' >> beam.ParDo(FailDoFn())
+
+
 class PrismRunnerSingletonTest(unittest.TestCase):
   @parameterized.expand([True, False])
   def test_singleton(self, enable_singleton):
