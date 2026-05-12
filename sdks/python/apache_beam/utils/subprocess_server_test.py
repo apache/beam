@@ -432,6 +432,7 @@ class CacheTest(unittest.TestCase):
 
     class DummySubprocessServer(subprocess_server.SubprocessServer):
       _cache = cache
+
       def __init__(self):
         super().__init__(lambda channel: None, ["dummy_cmd"], port=12345)
 
