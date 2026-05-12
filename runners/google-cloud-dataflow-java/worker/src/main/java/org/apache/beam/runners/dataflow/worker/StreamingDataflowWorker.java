@@ -657,15 +657,13 @@ public final class StreamingDataflowWorker {
                         windmillStateCache::forComputation,
                         ID_GENERATOR));
 
-    Fetcher configedFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
-    configedFetcher
+    Fetcher configFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
+    configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
             config -> {
-              if (config.userWorkerJobSettings().hasMaxCachedValueBytes()) {
-                windmillStateCache.setMaxCachedValueBytesOverride(
-                    config.userWorkerJobSettings().getMaxCachedValueBytes());
-              }
+              windmillStateCache.setMaxCachedValueBytesOverride(
+                  config.userWorkerJobSettings().getMaxCachedValueBytes());
             });
 
     ComputationStateCache computationStateCache =
@@ -706,7 +704,7 @@ public final class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        configedFetcher,
+        configFetcher,
         computationStateCache,
         windmillStateCache,
         workExecutor,
