@@ -472,7 +472,6 @@ class PrismRunnerExecutionTest(unittest.TestCase):
         time.sleep(10)
         yield element
 
-    from apache_beam.options.pipeline_options import PrismRunnerOptions
     options = PortableOptions()
     options.view_as(StandardOptions).runner = 'PrismRunner'
     options.view_as(PortableOptions).job_server_timeout = 5
