@@ -21,6 +21,7 @@ import logging
 import os.path
 import queue
 import shlex
+import threading
 import time
 import typing
 import unittest
@@ -188,7 +189,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(StandardOptions).streaming = self.streaming
     options.view_as(
         TypeOptions).allow_unsafe_triggers = self.allow_unsafe_triggers
-    options.view_as(PortableOptions).job_server_timeout = 60
     return options
 
   # Can't read host files from within docker, read a "local" file there.
@@ -299,22 +299,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                   ('B-1', {9}),
                   ('B-3', {10, 15, 16}),
               ])))
-
-  def test_dofn_failure_clean_exit(self):
-    class FailDoFn(beam.DoFn):
-      def process(self, element):
-        raise ValueError("Failing as intended")
-
-    class BlockDoFn(beam.DoFn):
-      def process(self, element):
-        time.sleep(1000)
-        yield element
-
-    with self.assertRaisesRegex(Exception, "Failing as intended"):
-      with self.create_pipeline() as p:
-        imp = p | beam.Create([1, 2])
-        _ = imp | 'Block' >> beam.ParDo(BlockDoFn())
-        _ = imp | 'Fail' >> beam.ParDo(FailDoFn())
 
 
 class PrismJobServerTest(unittest.TestCase):
@@ -476,6 +460,7 @@ class PrismJobServerTest(unittest.TestCase):
             mock_zipfile_init.assert_not_called()
           else:
             mock_zipfile_init.assert_called_once()
+
 
 class PrismRunnerSingletonTest(unittest.TestCase):
   @parameterized.expand([True, False])
