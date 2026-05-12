@@ -126,6 +126,11 @@ public class WindmillStateCache implements StatusDataProvider {
     this.maxCachedValueBytesOverride = limit;
   }
 
+  private long getMaxCachedValueBytesLimit() {
+    long override = maxCachedValueBytesOverride;
+    return override >= 0 ? override : defaultMaxCachedValueBytes;
+  }
+
   private EntryStats calculateEntryStats() {
     EntryStats stats = new EntryStats();
     BiConsumer<StateId, StateCacheEntry> consumer =
@@ -204,6 +209,8 @@ public class WindmillStateCache implements StatusDataProvider {
         "<tr><th>Entry Weight</th><td>" + entryStats.entryWeight / MEGABYTES + "MB</td></tr>");
     response.println("<tr><th>Max Weight</th><td>" + getMaxWeight() / MEGABYTES + "MB</td></tr>");
     response.println("<tr><th>Keys</th><td>" + keyIndex.size() + "</td></tr>");
+    response.println(
+        "<tr><th>Value Size Limit</th><td>" + getMaxCachedValueBytesLimit() + " bytes</td></tr>");
     if (enableHistogram) {
       response.println(
           "<tr><th>Entry Weight Dist</th><td>"
@@ -499,8 +506,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public void persist() {
-      long override = WindmillStateCache.this.maxCachedValueBytesOverride;
-      long limit = override >= 0 ? override : WindmillStateCache.this.defaultMaxCachedValueBytes;
+      long limit = WindmillStateCache.this.getMaxCachedValueBytesLimit();
       localCache.forEach(
           (id, entry) -> {
             if (entry.getWeight() <= limit) {
