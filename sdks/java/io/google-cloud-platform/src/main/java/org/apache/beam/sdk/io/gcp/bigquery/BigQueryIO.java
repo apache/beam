@@ -675,7 +675,10 @@ public class BigQueryIO {
             BigQueryUtils.tableRowToBeamRow(),
             BigQueryUtils.tableRowFromBeamRow());
   }
-  /** @deprecated this method may have breaking changes introduced, use with caution */
+
+  /**
+   * @deprecated this method may have breaking changes introduced, use with caution
+   */
   @Deprecated
   public static DynamicRead<TableRow> readDynamicallyTableRows() {
     return new AutoValue_BigQueryIO_DynamicRead.Builder<TableRow>()
@@ -688,7 +691,10 @@ public class BigQueryIO {
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .build();
   }
-  /** @deprecated this method may have breaking changes introduced, use with caution */
+
+  /**
+   * @deprecated this method may have breaking changes introduced, use with caution
+   */
   @Deprecated
   public static <T> DynamicRead<T> readDynamically(
       SerializableFunction<SchemaAndRecord, T> parseFn, Coder<T> outputCoder) {
@@ -836,7 +842,10 @@ public class BigQueryIO {
       return BigQueryAvroUtils.convertGenericRecordToTableRow(schemaAndRecord.getRecord());
     }
   }
-  /** @deprecated this class may have breaking changes introduced, use with caution */
+
+  /**
+   * @deprecated this class may have breaking changes introduced, use with caution
+   */
   @Deprecated
   @AutoValue
   public abstract static class DynamicRead<T>
@@ -1275,8 +1284,8 @@ public class BigQueryIO {
 
     abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    abstract @Nullable SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>>
-        getDatumReaderFactory();
+    abstract @Nullable
+        SerializableFunction<TableSchema, AvroSource.DatumReaderFactory<T>> getDatumReaderFactory();
 
     abstract @Nullable QueryPriority getQueryPriority();
 
@@ -2563,8 +2572,7 @@ public class BigQueryIO {
       throw new IllegalArgumentException("DynamicMessage is not supported.");
     }
     try {
-      return BigQueryIO.<T>write()
-          .toBuilder()
+      return BigQueryIO.<T>write().toBuilder()
           .setFormatFunction(FormatProto.fromClass(protoMessageClass))
           .build()
           .withWriteProtosClass(protoMessageClass);
@@ -2685,8 +2693,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonTableRef();
 
-    abstract @Nullable SerializableFunction<ValueInSingleWindow<T>, TableDestination>
-        getTableFunction();
+    abstract @Nullable
+        SerializableFunction<ValueInSingleWindow<T>, TableDestination> getTableFunction();
 
     abstract @Nullable TableRowFormatFunction<T> getFormatFunction();
 
@@ -2694,8 +2702,8 @@ public class BigQueryIO {
 
     abstract RowWriterFactory.@Nullable AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
-    abstract @Nullable SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
-        getAvroSchemaFactory();
+    abstract @Nullable
+        SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
 
     abstract boolean getUseAvroLogicalTypes();
 
@@ -2785,8 +2793,8 @@ public class BigQueryIO {
 
     abstract @Nullable String getWriteTempDataset();
 
-    abstract @Nullable SerializableFunction<T, RowMutationInformation>
-        getRowMutationInformationFn();
+    abstract @Nullable
+        SerializableFunction<T, RowMutationInformation> getRowMutationInformationFn();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
@@ -4406,8 +4414,7 @@ public class BigQueryIO {
      *
      * <p>If the table's project is not specified, use the executing project.
      */
-    @Nullable
-    ValueProvider<TableReference> getTableWithDefaultProject(BigQueryOptions bqOptions) {
+    @Nullable ValueProvider<TableReference> getTableWithDefaultProject(BigQueryOptions bqOptions) {
       ValueProvider<TableReference> table = getTable();
       if (table == null) {
         return table;

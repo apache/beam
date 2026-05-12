@@ -88,6 +88,7 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -319,8 +320,8 @@ class RecordWriterManager implements AutoCloseable {
   @VisibleForTesting
   Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
     TableIdentifier identifier = destination.getTableIdentifier();
-    @Nullable
-    LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
+    @Nullable LastRefreshedTable lastRefreshedTable =
+        LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
     if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
       lastRefreshedTable.refreshIfStale();
       return lastRefreshedTable.table;

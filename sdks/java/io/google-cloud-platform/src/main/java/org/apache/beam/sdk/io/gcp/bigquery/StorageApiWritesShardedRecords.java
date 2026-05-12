@@ -273,12 +273,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           + " tryIteration: "
           + tryIteration;
     }
-  };
+  }
+  ;
 
   @AutoValue
   abstract static class CreateRetryManagerResult<DestinationT> {
-    abstract @Nullable RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>>
-        getRetryManager();
+    abstract @Nullable
+        RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> getRetryManager();
 
     abstract boolean getSchemaMismatchSeen();
 
@@ -859,8 +860,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // So before creating a StreamWriter below, we fetch the table schema to check if we
                 // missed an update. If so, use the new schema instead of the base schema.
                 // TODO: There's still a race here!
-                @Nullable
-                TableSchema streamSchema =
+                @Nullable TableSchema streamSchema =
                     MoreObjects.firstNonNull(
                         writeStreamService.getWriteStreamSchema(getOrCreateStream.get()),
                         TableSchema.getDefaultInstance());
@@ -1070,12 +1070,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
           appendSplitDistribution.update(numAppends);
           if (autoUpdateSchema) {
-            @Nullable
-            StreamAppendClient streamAppendClient = appendClientHolder.getStreamAppendClient();
+            @Nullable StreamAppendClient streamAppendClient =
+                appendClientHolder.getStreamAppendClient();
             TableSchema originalSchema = appendClientHolder.get().getTableSchema();
 
-            @Nullable
-            TableSchema updatedSchemaReturned =
+            @Nullable TableSchema updatedSchemaReturned =
                 (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
             // Update the table schema and clear the append client.
             if (updatedSchemaReturned != null) {

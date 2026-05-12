@@ -87,9 +87,7 @@ public class BeamFnDataWriteRunnerTest {
       MessageWithComponents coderAndComponents = CoderTranslation.toProto(WIRE_CODER);
       WIRE_CODER_SPEC = coderAndComponents.getCoder();
       COMPONENTS =
-          coderAndComponents
-              .getComponents()
-              .toBuilder()
+          coderAndComponents.getComponents().toBuilder()
               .putCoders(WIRE_CODER_ID, WIRE_CODER_SPEC)
               .putCoders(ELEM_CODER_ID, CoderTranslation.toProto(ELEM_CODER).getCoder())
               .build();

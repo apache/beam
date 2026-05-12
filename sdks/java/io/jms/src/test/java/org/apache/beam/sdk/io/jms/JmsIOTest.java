@@ -172,7 +172,9 @@ public class JmsIOTest {
       Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass)
-      throws InvocationTargetException, NoSuchMethodException, InstantiationException,
+      throws InvocationTargetException,
+          NoSuchMethodException,
+          InstantiationException,
           IllegalAccessException {
     this.commonJms =
         new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);

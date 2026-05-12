@@ -1430,8 +1430,8 @@ public class AvroIO {
 
     abstract @Nullable FilenamePolicy getFilenamePolicy();
 
-    abstract @Nullable DynamicAvroDestinations<UserT, DestinationT, OutputT>
-        getDynamicDestinations();
+    abstract @Nullable
+        DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
 
     abstract AvroSink.@Nullable DatumWriterFactory<OutputT> getDatumWriterFactory();
 
@@ -1442,6 +1442,7 @@ public class AvroIO {
      * https://avro.apache.org/docs/1.7.7/api/java/org/apache/avro/file/CodecFactory.html
      */
     abstract SerializableAvroCodecFactory getCodec();
+
     /** Avro file metadata. */
     abstract ImmutableMap<String, Object> getMetadata();
 
@@ -1466,7 +1467,9 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(
           @Nullable String shardTemplate);
 
-      /** @deprecated Use {@link AvroIO.TypedWrite.Builder#setRecordClass(Class)} instead */
+      /**
+       * @deprecated Use {@link AvroIO.TypedWrite.Builder#setRecordClass(Class)} instead
+       */
       @Deprecated
       @SuppressWarnings("unchecked")
       public Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords) {
@@ -2001,6 +2004,7 @@ public class AvroIO {
     return new ConstantAvroDestination<>(
         filenamePolicy, schema, metadata, codec, formatFunction, datumWriterFactory);
   }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /**

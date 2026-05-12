@@ -92,8 +92,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         throws Exception {
       Coder<WindowedValue<Object>> typedCoder =
           (Coder<WindowedValue<Object>>) checkArgumentNotNull(coder);
-      @Nullable
-      ValueProvider<Boolean> skipUndecodableElements =
+      @Nullable ValueProvider<Boolean> skipUndecodableElements =
           options != null
               ? options
                   .as(DataflowStreamingPipelineOptions.class)

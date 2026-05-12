@@ -560,8 +560,7 @@ public class BigQueryHelpers {
       @SuppressWarnings({
         "nullness" // TODO(https://github.com/apache/beam/issues/20497)
       })
-      @NonNull
-      T result = BigQueryIO.JSON_FACTORY.fromString(json, clazz);
+      @NonNull T result = BigQueryIO.JSON_FACTORY.fromString(json, clazz);
       return result;
     } catch (IOException e) {
       throw new RuntimeException(

@@ -53,7 +53,8 @@ class TableCache {
                   table.refresh();
                   return Futures.immediateFuture(table);
                 }
-              });;
+              });
+  ;
 
   static Table get(String identifier) {
     try {

@@ -57,7 +57,7 @@ public class CalciteUtilsTest {
                 x -> x,
                 x ->
                     dataType
-                        .getField(x, /*caseSensitive=*/ true, /*elideRecord=*/ false)
+                        .getField(x, /* caseSensitive= */ true, /* elideRecord= */ false)
                         .getType()));
   }
 

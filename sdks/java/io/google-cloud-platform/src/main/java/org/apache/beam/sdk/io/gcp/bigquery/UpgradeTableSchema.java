@@ -76,8 +76,7 @@ public class UpgradeTableSchema {
         // TODO(reuvenlax): Fix this so that arbitrary types can be selected.
         TableFieldSchema.Type type =
             e.isStruct() ? TableFieldSchema.Type.STRUCT : TableFieldSchema.Type.STRING;
-        @Nullable
-        TableFieldSchema oldValue =
+        @Nullable TableFieldSchema oldValue =
             newFields
                 .computeIfAbsent(prefix, p -> Maps.newLinkedHashMap())
                 .put(

@@ -222,6 +222,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
+
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
 
@@ -1857,7 +1858,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return true;
       }
     }
-  };
+  }
+  ;
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
   public DataflowPipelineTranslator getTranslator() {

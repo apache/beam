@@ -418,8 +418,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @VisibleForTesting
-  @Nullable
-  String getReaderSchemaString() {
+  @Nullable String getReaderSchemaString() {
     return mode.readerSchemaString;
   }
 

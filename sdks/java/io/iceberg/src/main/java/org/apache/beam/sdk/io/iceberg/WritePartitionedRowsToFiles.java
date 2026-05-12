@@ -193,8 +193,8 @@ class WritePartitionedRowsToFiles
 
     LastRefreshedTable getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
       TableIdentifier identifier = destination.getTableIdentifier();
-      @Nullable
-      LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
+      @Nullable LastRefreshedTable lastRefreshedTable =
+          LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
       if (lastRefreshedTable != null) {
         lastRefreshedTable.refreshIfStale();
         return lastRefreshedTable;

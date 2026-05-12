@@ -955,8 +955,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
 
     private boolean isTimerUnmodified(TimerData timerData) {
-      @Nullable
-      TimerData updatedTimer =
+      @Nullable TimerData updatedTimer =
           modifiedUserTimerKeys.get(
               WindmillTimerInternals.getTimerDataKey(timerData), timerData.getNamespace());
       return updatedTimer == null || updatedTimer.equals(timerData);

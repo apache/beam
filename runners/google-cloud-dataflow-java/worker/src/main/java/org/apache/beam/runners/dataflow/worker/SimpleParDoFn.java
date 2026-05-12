@@ -538,8 +538,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
    * finished.
    */
   @VisibleForTesting
-  @Nullable
-  DoFnInfo<?, ?> getDoFnInfo() {
+  @Nullable DoFnInfo<?, ?> getDoFnInfo() {
     return fnInfo;
   }
 }

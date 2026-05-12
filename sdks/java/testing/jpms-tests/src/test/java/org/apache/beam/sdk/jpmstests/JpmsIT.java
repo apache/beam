@@ -40,6 +40,7 @@ public class JpmsIT {
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
   private static final String DEFAULT_OUTPUT_CHECKSUM = "ebf895e7324e8a3edc72e7bcc96fa2ba7f690def";
+
   /** Options for the Jpms Integration test. */
   public interface JpmsITOptions extends TestPipelineOptions, WordCountOptions {}
 
