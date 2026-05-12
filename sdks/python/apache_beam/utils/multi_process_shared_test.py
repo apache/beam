@@ -480,11 +480,10 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
         raise ConnectionError("Simulated transient connection failure")
       return orig_connect(self_mgr, *args, **kwargs)
 
-    with patch.object(
-        multi_process_shared._SingletonRegistrar,
-        'connect',
-        autospec=True,
-        side_effect=side_effect_connect):
+    with patch.object(multi_process_shared._SingletonRegistrar,
+                      'connect',
+                      autospec=True,
+                      side_effect=side_effect_connect):
       counter2 = shared2.acquire()
 
     self.assertEqual(counter1.increment(), 1)
