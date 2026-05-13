@@ -20,10 +20,10 @@
 
 # pytype: skip-file
 
-import grpc
 import json
 import logging
 
+import grpc
 from google.protobuf import json_format
 from google.protobuf import struct_pb2
 
