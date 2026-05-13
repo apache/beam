@@ -57,7 +57,7 @@ back to collapsed details
 &lt;p>Partially : &lt;/p>
 &lt;/b>
 &lt;br>
-Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+Dataflow has a native drain operation, support for event time timer loops drain is limited to Non-portable runner.
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>

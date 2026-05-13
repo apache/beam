@@ -166,10 +166,17 @@ side-input into the FanOut DoFn.</p><h2 id=option-3-implementing-a-heartbeat-usi
 </span></span><span class=line><span class=cl>    <span class=kd>public</span> <span class=kt>void</span> <span class=nf>onTimer</span><span class=o>(</span>
 </span></span><span class=line><span class=cl>        <span class=n>OnTimerContext</span> <span class=n>c</span><span class=o>,</span>
 </span></span><span class=line><span class=cl>        <span class=nd>@StateId</span><span class=o>(</span><span class=s>&#34;key&#34;</span><span class=o>)</span> <span class=n>ValueState</span><span class=o>&lt;</span><span class=n>String</span><span class=o>&gt;</span> <span class=n>key</span><span class=o>,</span>
-</span></span><span class=line><span class=cl>        <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;loopingTimer&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>loopingTimer</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=nd>@TimerId</span><span class=o>(</span><span class=s>&#34;loopingTimer&#34;</span><span class=o>)</span> <span class=n>Timer</span> <span class=n>loopingTimer</span><span class=o>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>CausedByDrain</span> <span class=n>drain</span><span class=o>)</span> <span class=o>{</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>      <span class=n>LOG</span><span class=o>.</span><span class=na>info</span><span class=o>(</span><span class=s>&#34;Timer @ {} fired&#34;</span><span class=o>,</span> <span class=n>c</span><span class=o>.</span><span class=na>timestamp</span><span class=o>());</span>
 </span></span><span class=line><span class=cl>      <span class=n>c</span><span class=o>.</span><span class=na>output</span><span class=o>(</span><span class=n>KV</span><span class=o>.</span><span class=na>of</span><span class=o>(</span><span class=n>key</span><span class=o>.</span><span class=na>read</span><span class=o>(),</span> <span class=n>0</span><span class=o>));</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>      <span class=c1>// Check if drain is in progress and avoid resetting the timer
+</span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=k>if</span> <span class=o>(</span><span class=n>drain</span> <span class=o>==</span> <span class=n>CausedByDrain</span><span class=o>.</span><span class=na>CAUSED_BY_DRAIN</span><span class=o>)</span> <span class=o>{</span>
+</span></span><span class=line><span class=cl>        <span class=n>LOG</span><span class=o>.</span><span class=na>info</span><span class=o>(</span><span class=s>&#34;Drain in progress, stopping looping timer.&#34;</span><span class=o>);</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span><span class=o>;</span>
+</span></span><span class=line><span class=cl>      <span class=o>}</span>
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>      <span class=c1>// If we do not put in a “time to live” value, then the timer would loop forever
 </span></span></span><span class=line><span class=cl><span class=c1></span>      <span class=n>Instant</span> <span class=n>nextTimer</span> <span class=o>=</span> <span class=n>c</span><span class=o>.</span><span class=na>timestamp</span><span class=o>().</span><span class=na>plus</span><span class=o>(</span><span class=n>Duration</span><span class=o>.</span><span class=na>standardMinutes</span><span class=o>(</span><span class=n>1</span><span class=o>));</span>
@@ -239,7 +246,7 @@ runners will need to add support for it with all of their more advanced
 feature sets. You can experiment with this pattern today using the
 DirectRunner. For other runners, please look out for their release notes on
 support for dealing with this use case in production.</p><p>(<a href=/documentation/runners/capability-matrix/>Capability Matrix</a>)</p><p>Runner specific notes:
-Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)</p></div></div><div class=blog-content><h2>Latest from the blog</h2></div><div class=posts-list><a class=post-card href=/blog/beam-2.72.0/ data-categories="blog release "><div class="post-info post-category"><p>blog & release
+Support for cancelling looping timers on drain is currently limited to Dataflow and is being implemented (see <a href=https://github.com/apache/beam/issues/36884>Issue #36884</a>).</p></div></div><div class=blog-content><h2>Latest from the blog</h2></div><div class=posts-list><a class=post-card href=/blog/beam-2.72.0/ data-categories="blog release "><div class="post-info post-category"><p>blog & release
                     
    </p><p>2026/03/30</p></div><div class=post><p class=post-title>Apache Beam 2.72.0</p><p class=post-info>Vitalii Terentev</p></div></a><a class=post-card href=/blog/beam-2.71.0/ data-categories="blog release "><div class="post-info post-category"><p>blog & release
                     
