@@ -56,6 +56,9 @@ def _make_mock_runner(
   runner.agent = agent
   runner.run_async = mock.MagicMock(side_effect=_async_gen)
   runner.session_service = mock.MagicMock()
+  runner.session_service.get_session = mock.AsyncMock(
+      side_effect=Exception("Session not found"))
+  runner.session_service.create_session = mock.AsyncMock()
   return runner
 
 
@@ -266,6 +269,8 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
     results = list(handler.run_inference(batch=["hello"], model=runner))
@@ -287,6 +292,8 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
     results = list(handler.run_inference(batch=["hello"], model=runner))
@@ -313,6 +320,8 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
     results = list(handler.run_inference(batch=["hi"], model=runner))
@@ -326,7 +335,7 @@ class TestResponseExtraction(unittest.TestCase):
 
     result = asyncio.run(
         ADKAgentModelHandler._invoke_agent(
-            runner, "user", "session-1", mock.MagicMock()))
+            runner, "user", "session-1", "test_app", mock.MagicMock()))
     self.assertEqual(result, "direct result")
 
 

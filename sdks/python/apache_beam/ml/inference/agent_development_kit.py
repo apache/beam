@@ -238,7 +238,8 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         message = element
 
       agent_invocations.append(
-          self._invoke_agent(model, user_id, session_id, message))
+          self._invoke_agent(
+              model, user_id, session_id, self._app_name, message))
       elements_with_sessions.append(element)
 
     # Run all agent invocations concurrently
@@ -263,6 +264,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       runner: "Runner",
       user_id: str,
       session_id: str,
+      app_name: str,
       message: genai_Content,
   ) -> Optional[str]:
     """Drives the ADK event loop and returns the final response text.
@@ -277,16 +279,17 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       The text of the agent's final response, or ``None`` if the agent
       produced no final text response.
     """
-    # Ensure a session exists for this invocation
+    # Check for your specific session ID
     try:
+      # Attempt to get the specific session
+      await runner.session_service.get_session(session_id)
+    except Exception as e:
       await runner.session_service.create_session(
-          app_name=self._app_name,
+          app_name=app_name,
           user_id=user_id,
           session_id=session_id,
       )
-    except sessions.SessionExistsError:
-      # It's okay if the session already exists for shared session IDs.
-      pass
+
     async for event in runner.run_async(
         user_id=user_id,
         session_id=session_id,
