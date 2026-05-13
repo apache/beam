@@ -17,11 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
-
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
-import java.util.Optional;
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
@@ -44,23 +43,18 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,41 +70,32 @@ public class StreamingWorkScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkScheduler.class);
 
-  private final DataflowWorkerHarnessOptions options;
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
   private final StreamingCounters streamingCounters;
-  private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final StreamingGlobalConfigHandle globalConfigHandle;
 
   public StreamingWorkScheduler(
-      DataflowWorkerHarnessOptions options,
       Supplier<Instant> clock,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
       StreamingCounters streamingCounters,
-      HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
       StreamingGlobalConfigHandle globalConfigHandle) {
-    this.options = options;
     this.clock = clock;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
-    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
     this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
     this.streamingCounters = streamingCounters;
-    this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
     this.globalConfigHandle = globalConfigHandle;
@@ -132,6 +117,8 @@ public class StreamingWorkScheduler {
       IdGenerator idGenerator,
       StreamingGlobalConfigHandle globalConfigHandle,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
+    SideInputStateFetcherFactory sideInputStateFetcherFactory =
+        SideInputStateFetcherFactory.fromOptions(options);
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
         new ComputationWorkExecutorFactory(
             options,
@@ -141,18 +128,17 @@ public class StreamingWorkScheduler {
             sampler,
             streamingCounters.pendingDeltaCounters(),
             idGenerator,
-            globalConfigHandle);
+            globalConfigHandle,
+            hotKeyLogger,
+            sideInputStateFetcherFactory);
 
     return new StreamingWorkScheduler(
-        options,
         clock,
         computationWorkExecutorFactory,
-        SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
-        hotKeyLogger,
         stageInfoMap,
         sampler,
         globalConfigHandle);
@@ -187,12 +173,6 @@ public class StreamingWorkScheduler {
   private static void setUpWorkLoggingContext(String workLatencyTrackingId, String computationId) {
     DataflowWorkerLoggingMDC.setWorkId(workLatencyTrackingId);
     DataflowWorkerLoggingMDC.setStageName(computationId);
-  }
-
-  private static String getShuffleTaskStepName(MapTask mapTask) {
-    // The MapTask instruction is ordered by dependencies, such that the first element is
-    // always going to be the shuffle task.
-    return mapTask.getInstructions().get(0).getName();
   }
 
   /** Resets logging context of the Thread executing the {@link Work} for logging. */
@@ -367,8 +347,6 @@ public class StreamingWorkScheduler {
   private ExecuteWorkResult executeWork(
       Work work, StageInfo stageInfo, ComputationState computationState) throws Exception {
     Windmill.WorkItem workItem = work.getWorkItem();
-    ByteString key = workItem.getKey();
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
     ComputationWorkExecutor computationWorkExecutor =
         computationState
             .acquireComputationWorkExecutor()
@@ -378,66 +356,30 @@ public class StreamingWorkScheduler {
                         stageInfo, computationState, work.getLatencyTrackingId()));
 
     try {
-      WindmillStateReader stateReader = work.createWindmillStateReader();
-      SideInputStateFetcher localSideInputStateFetcher =
-          sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
-
-      // If the read output KVs, then we can decode Windmill's byte key into userland
-      // key object and provide it to the execution context for use with per-key state.
-      // Otherwise, we pass null.
-      //
-      // The coder type that will be present is:
-      //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
-      Optional<Coder<?>> keyCoder = computationWorkExecutor.keyCoder();
-      @SuppressWarnings("deprecation")
-      @Nullable
-      final Object executionKey =
-          !keyCoder.isPresent() ? null : keyCoder.get().decode(key.newInput(), Coder.Context.OUTER);
-
-      if (workItem.hasHotKeyInfo()) {
-        Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-        Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-
-        String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if (executionKey != null
-            && (options.isHotKeyLoggingEnabled()
-                || hasExperiment(options, "enable_hot_key_logging"))
-            && keyCoder.isPresent()) {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
-        } else {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
-        }
-      }
-
       // Blocks while executing work.
-      computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher, outputBuilder);
+      computationWorkExecutor.executeWork(computationState, work);
 
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
 
-      // Reports source bytes processed to WorkItemCommitRequest if available.
-      try {
-        long sourceBytesProcessed =
-            computationWorkExecutor.computeSourceBytesProcessed(
-                computationState.sourceBytesProcessCounterName());
-        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
-      } catch (Exception e) {
-        LOG.error("{}", e.toString());
-      }
-
-      commitFinalizer.cacheCommitFinalizers(computationWorkExecutor.context().flushState());
+      StreamingModeExecutionContext context = computationWorkExecutor.context();
+      commitFinalizer.cacheCommitFinalizers(context.flushState());
 
       // Release the execution state for another thread to use.
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
       computationWorkExecutor = null;
 
+      Map<Work, Windmill.WorkItemCommitRequest.Builder> outputBuilders =
+          context.getOutputBuilders();
+      Windmill.WorkItemCommitRequest.Builder outputBuilder =
+          org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions
+              .checkNotNull(outputBuilders.get(work), "outputBuilder should not be null for work");
+
       work.setState(Work.State.COMMIT_QUEUED);
       outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
 
-      return ExecuteWorkResult.create(
-          outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());
+      return ExecuteWorkResult.create(outputBuilder, context.getStateBytesRead());
     } catch (Throwable t) {
       if (computationWorkExecutor != null) {
         // If processing failed due to a thrown exception, close the executionState. Do not

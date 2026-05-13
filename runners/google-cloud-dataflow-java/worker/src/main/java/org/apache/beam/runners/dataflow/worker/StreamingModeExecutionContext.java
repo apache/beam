@@ -44,11 +44,14 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowOperationContext.DataflowExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StepContext;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -56,6 +59,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -73,6 +77,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -122,6 +127,17 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final boolean throwExceptionOnLargeOutput;
   private volatile long backlogBytes;
 
+  private final Coder<?> keyCoder;
+  private final HotKeyLogger hotKeyLogger;
+  private final DataflowWorkerHarnessOptions options;
+  private final String stepName;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
+  private @Nullable ComputationWorkExecutor computationWorkExecutor;
+  private @Nullable String sourceBytesCounterName;
+  private @Nullable WindmillStateReader stateReader;
+  private @Nullable SideInputStateFetcher sideInputStateFetcher;
+  private final Map<Work, Windmill.WorkItemCommitRequest.Builder> outputBuilders = new HashMap<>();
+
   /**
    * Used to fetched cache side inputs for processing a single WorkItem. Cleared before processing a
    * different WorkItem.
@@ -142,7 +158,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   private @Nullable Work work;
   private WindmillComputationKey computationKey;
-  private SideInputStateFetcher sideInputStateFetcher;
   // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
   // be used for processing many work items and these values can change during the context's
   // lifetime. start() is called for each work item.
@@ -168,7 +183,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       StreamingModeExecutionStateRegistry executionStateRegistry,
       StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
-      boolean throwExceptionOnLargeOutput) {
+      boolean throwExceptionOnLargeOutput,
+      @Nullable Coder<?> keyCoder,
+      HotKeyLogger hotKeyLogger,
+      DataflowWorkerHarnessOptions options,
+      String stepName,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -183,6 +203,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
+    this.keyCoder = keyCoder;
+    this.hotKeyLogger = hotKeyLogger;
+    this.options = options;
+    this.stepName = stepName;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
   }
 
   @VisibleForTesting
@@ -236,15 +261,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public void start(
-      @Nullable Object key,
-      Work work,
-      WindmillStateReader stateReader,
-      SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
-    this.key = key;
+      ComputationWorkExecutor computationWorkExecutor,
+      ComputationState computationState,
+      Work work) {
+    this.computationWorkExecutor = computationWorkExecutor;
+    this.sourceBytesCounterName = computationState.sourceBytesProcessCounterName();
     this.work = work;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
-    this.sideInputStateFetcher = sideInputStateFetcher;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
     this.operationalLimits = config.operationalLimits();
@@ -252,9 +275,47 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
-    this.outputBuilder = outputBuilder;
+
     this.sideInputCache.clear();
     clearSinkFullHint();
+
+    advance();
+  }
+
+  private void advance() {
+    this.outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(work.getWorkItem().getKey())
+            .setShardingKey(work.getWorkItem().getShardingKey())
+            .setWorkToken(work.getWorkItem().getWorkToken())
+            .setCacheToken(work.getWorkItem().getCacheToken());
+    this.outputBuilders.put(work, this.outputBuilder);
+
+    this.stateReader = work.createWindmillStateReader();
+    this.sideInputStateFetcher =
+        sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
+
+    ByteString serializedKey = getSerializedKey();
+    if (keyCoder != null && serializedKey != null) {
+      try {
+        this.key = keyCoder.decode(serializedKey.newInput(), Coder.Context.OUTER);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to decode key", e);
+      }
+    }
+
+    if (work != null && work.getWorkItem().hasHotKeyInfo()) {
+      Windmill.HotKeyInfo hotKeyInfo = work.getWorkItem().getHotKeyInfo();
+      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+
+      if (this.key != null
+          && (options.isHotKeyLoggingEnabled()
+              || ExperimentalOptions.hasExperiment(options, "enable_hot_key_logging"))) {
+        hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, this.key);
+      } else {
+        hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+      }
+    }
 
     Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
 
@@ -265,9 +326,19 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       WindmillStateCache.ForKey cacheForKey =
           stateCache.forKey(getComputationKey(), getWorkItem().getCacheToken(), getWorkToken());
       for (StepContext stepContext : stepContexts) {
-        stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
+        stepContext.start(this.stateReader, processingTime, cacheForKey, work.watermarks());
       }
     }
+  }
+
+  public long getStateBytesRead() {
+    checkState(stateReader != null, "stateReader should not be null");
+    checkState(sideInputStateFetcher != null, "sideInputStateFetcher should not be null");
+    return stateReader.getBytesRead() + sideInputStateFetcher.getBytesRead();
+  }
+
+  public Map<Work, Windmill.WorkItemCommitRequest.Builder> getOutputBuilders() {
+    return outputBuilders;
   }
 
   /**
@@ -529,6 +600,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           activeReader);
       activeReader = null;
     }
+
+    try {
+      long sourceBytesProcessed =
+          computationWorkExecutor.computeSourceBytesProcessed(sourceBytesCounterName);
+      outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+    } catch (Exception e) {
+      LOG.error("Failed to compute source bytes processed: {}", e.toString());
+    }
+
     return callbacks;
   }
 

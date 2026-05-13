@@ -25,14 +25,10 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,14 +63,8 @@ public abstract class ComputationWorkExecutor {
   /**
    * Executes DoFns for the Work. Blocks the calling thread until DoFn(s) have completed execution.
    */
-  public final void executeWork(
-      @Nullable Object key,
-      Work work,
-      WindmillStateReader stateReader,
-      SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder)
-      throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder);
+  public final void executeWork(ComputationState computationState, Work work) throws Exception {
+    context().start(this, computationState, work);
     workExecutor().execute();
   }
 
