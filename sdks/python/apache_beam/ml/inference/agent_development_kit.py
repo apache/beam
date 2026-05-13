@@ -279,7 +279,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     """
     # Ensure a session exists for this invocation
     try:
-      await model.session_service.create_session(
+      await runner.session_service.create_session(
           app_name=self._app_name,
           user_id=user_id,
           session_id=session_id,
