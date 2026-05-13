@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import math
 import random
 import sys

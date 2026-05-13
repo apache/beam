@@ -112,6 +112,41 @@ class TestBigQueryEnrichment(unittest.TestCase):
         [(requests[0], beam.Row()), (requests[1], beam.Row())],
     )
 
+  def test_batch_elements_kwargs_include_max_batch_duration_secs(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=10,
+        max_batch_duration_secs=0.75,
+    )
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(),
+        {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+            'max_batch_duration_secs': 0.75,
+        })
+
+  def test_batch_elements_kwargs_omit_max_batch_duration_secs_by_default(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=10,
+    )
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+        })
+
 
 if __name__ == '__main__':
   unittest.main()

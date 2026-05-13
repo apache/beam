@@ -253,17 +253,8 @@ class YamlTransformE2ETest(unittest.TestCase):
       raise unittest.SkipTest('Pandas not available.')
 
     with tempfile.TemporaryDirectory() as tmpdir:
-      data = pd.DataFrame([
-          {
-              'label': '11a', 'rank': 0
-          },
-          {
-              'label': '37a', 'rank': 1
-          },
-          {
-              'label': '389a', 'rank': 2
-          },
-      ])
+      data = pd.DataFrame([{'label': f'{i}a', 'rank': i} for i in range(1024)])
+
       input = os.path.join(tmpdir, 'input.csv')
       output = os.path.join(tmpdir, 'output.json')
       data.to_csv(input, index=False)
@@ -286,9 +277,14 @@ class YamlTransformE2ETest(unittest.TestCase):
                     num_shards: 1
               - type: LogForTesting
             ''' % (repr(input), repr(output)))
-      all_output = list(glob.glob(output + "*"))
-      self.assertEqual(len(all_output), 1)
-      output_shard = list(glob.glob(output + "*"))[0]
+      all_output = list(glob.glob(output + "-*"))
+      file_and_size = {f: os.path.getsize(f) for f in all_output}
+      self.assertEqual(
+          len(all_output),
+          1,
+          msg=f"Expected 1 shard file, but found {len(all_output)}. "
+          f"Files & sizes (bytes): {file_and_size}")
+      output_shard = all_output[0]
       result = pd.read_json(
           output_shard, orient='records',
           lines=True).sort_values('rank').reindex()

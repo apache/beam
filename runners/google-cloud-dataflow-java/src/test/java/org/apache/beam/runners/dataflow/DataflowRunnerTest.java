@@ -1791,7 +1791,11 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingAnyFnApiExperimentEnablesUnifiedWorker() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       ExperimentalOptions.addExperiment(options, experiment);
       Pipeline p = Pipeline.create(options);
@@ -1806,7 +1810,11 @@ public class DataflowRunnerTest implements Serializable {
 
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       options.setStreaming(true);
       ExperimentalOptions.addExperiment(options, experiment);
@@ -1830,10 +1838,18 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingConflictingEnableAndDisableExperimentsThrowsException() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       for (String disabledExperiment :
           ImmutableList.of(
-              "disable_runner_v2", "disable_runner_v2_until_2023", "disable_prime_runner_v2")) {
+              "disable_runner_v2",
+              "disable_runner_v2_until_2023",
+              "disable_prime_runner_v2",
+              "enable_streaming_java_runner",
+              "disable_portable_runner")) {
         DataflowPipelineOptions options = buildPipelineOptions();
         ExperimentalOptions.addExperiment(options, experiment);
         ExperimentalOptions.addExperiment(options, disabledExperiment);
@@ -2819,6 +2835,7 @@ public class DataflowRunnerTest implements Serializable {
                                     null,
                                     null,
                                     CausedByDrain.NORMAL,
+                                    null,
                                     ValueKind.UPDATE_AFTER));
                             return;
                           case "d":

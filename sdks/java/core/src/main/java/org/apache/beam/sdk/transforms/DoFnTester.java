@@ -504,6 +504,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                       null,
                       null,
                       CausedByDrain.NORMAL,
+                      null,
                       ValueKind.INSERT));
         }
       };
@@ -659,6 +660,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   null,
                   null,
                   CausedByDrain.NORMAL,
+                  element.getOpenTelemetryContext(),
                   ValueKind.INSERT));
     }
 
@@ -674,6 +676,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   null,
                   null,
                   CausedByDrain.NORMAL,
+                  null,
                   kind));
     }
 
@@ -695,6 +698,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                     windowedValue.getRecordId(),
                     windowedValue.getRecordOffset(),
                     windowedValue.causedByDrain(),
+                    windowedValue.getOpenTelemetryContext(),
                     windowedValue.getValueKind()));
       }
     }
@@ -717,6 +721,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                     null,
                     null,
                     CausedByDrain.NORMAL,
+                    null,
                     ValueKind.INSERT));
       }
     }

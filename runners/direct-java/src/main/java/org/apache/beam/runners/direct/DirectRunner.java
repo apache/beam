@@ -177,7 +177,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     performRewrites(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
-    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
     try {
       DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
       pipeline.traverseTopologically(graphVisitor);
@@ -235,7 +235,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return result;
     } finally {
       MetricsEnvironment.setMetricsSupported(false);
-      WindowedValues.WindowedValueCoder.setMetadataSupported(false);
+      WindowedValues.WindowedValueCoder.setMetadataNotSupported();
     }
   }
 

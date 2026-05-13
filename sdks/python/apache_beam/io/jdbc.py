@@ -123,7 +123,7 @@ Config = typing.NamedTuple(
     'Config',
     [('driver_class_name', str), ('jdbc_url', str), ('username', str),
      ('password', str), ('connection_properties', typing.Optional[str]),
-     ('connection_init_sqls', typing.Optional[typing.List[str]]),
+     ('connection_init_sqls', typing.Optional[list[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
      ('fetch_size', typing.Optional[np.int16]),
@@ -264,6 +264,7 @@ def enforce_millis_instant_for_timestamp():
   LogicalType._known_logical_types = old_registry.copy()
   try:
     LogicalType.register_logical_type(MillisInstant)
+    LogicalType.register_logical_type(JdbcDateType)
     yield
   finally:
     LogicalType._known_logical_types = old_registry

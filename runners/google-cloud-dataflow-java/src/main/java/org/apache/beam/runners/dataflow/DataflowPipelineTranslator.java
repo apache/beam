@@ -221,7 +221,7 @@ public class DataflowPipelineTranslator {
   private static byte[] serializeWindowingStrategy(
       WindowingStrategy<?, ?> windowingStrategy, PipelineOptions options) {
     try {
-      SdkComponents sdkComponents = SdkComponents.create();
+      SdkComponents sdkComponents = SdkComponents.create(options);
 
       String workerHarnessContainerImageURL =
           DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
@@ -488,6 +488,13 @@ public class DataflowPipelineTranslator {
       }
       if (options.getDiskSizeGb() > 0) {
         workerPool.setDiskSizeGb(options.getDiskSizeGb());
+      }
+      if (options.getDiskProvisionedIops() != null && options.getDiskProvisionedIops() > 0) {
+        workerPool.setDiskProvisionedIops(options.getDiskProvisionedIops());
+      }
+      if (options.getDiskProvisionedThroughputMibps() != null
+          && options.getDiskProvisionedThroughputMibps() > 0) {
+        workerPool.setDiskProvisionedThroughputMibps(options.getDiskProvisionedThroughputMibps());
       }
       AutoscalingSettings settings = new AutoscalingSettings();
       if (options.getAutoscalingAlgorithm() != null) {

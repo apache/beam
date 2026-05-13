@@ -73,7 +73,7 @@ public class DataflowBatchWorkerHarness {
         DataflowBatchWorkerHarness.class.getSimpleName());
 
     CoderTranslation.verifyModelCodersRegistered();
-    WindowedValues.FullWindowedValueCoder.setMetadataSupported(true);
+    WindowedValues.FullWindowedValueCoder.setMetadataSupported();
 
     JvmInitializers.runBeforeProcessing(pipelineOptions);
     batchHarness.run();

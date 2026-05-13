@@ -83,7 +83,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Python']
         job_phrase: ['Run Python PreCommit']
-        python_version: ['3.10','3.11','3.12','3.13','3.14']
+        python_version: ['3.10','3.14']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -91,7 +91,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python PreCommit')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -137,7 +137,7 @@ jobs:
             -Pposargs="--ignore=apache_beam/dataframe/ --ignore=apache_beam/ml/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/" \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results
@@ -150,13 +150,3 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
-      - name: Cleanup
-        if: always()
-        run: |
-          # Kill any remaining processes
-          sudo pkill -f "gradle" || true
-          sudo pkill -f "java" || true
-          sudo pkill -f "python.*pytest" || true
-          # Clean up temp files
-          sudo rm -rf /tmp/beam-* || true
-          sudo rm -rf /tmp/gradle-* || true

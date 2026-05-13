@@ -26,10 +26,7 @@ import inspect
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Optional
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import overload
@@ -65,7 +62,7 @@ class RunnerApiFn(object):
   # classes + abc metaclass
   # __metaclass__ = abc.ABCMeta
 
-  _known_urns: Dict[str, Tuple[Optional[type], ConstructorFn]] = {}
+  _known_urns: dict[str, tuple[Optional[type], ConstructorFn]] = {}
 
   # @abc.abstractmethod is disabled here to avoid an error with mypy. mypy
   # performs abc.abtractmethod/property checks even if a class does
@@ -75,7 +72,7 @@ class RunnerApiFn(object):
   # concrete implementation.
   # @abc.abstractmethod
   def to_runner_api_parameter(
-      self, unused_context: 'PipelineContext') -> Tuple[str, Any]:
+      self, unused_context: 'PipelineContext') -> tuple[str, Any]:
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
@@ -87,7 +84,7 @@ class RunnerApiFn(object):
   def register_urn(
       cls,
       urn: str,
-      parameter_type: Type[T],
+      parameter_type: type[T],
   ) -> Callable[[Callable[[T, 'PipelineContext'], Any]],
                 Callable[[T, 'PipelineContext'], Any]]:
     pass
@@ -107,7 +104,7 @@ class RunnerApiFn(object):
   def register_urn(
       cls,
       urn: str,
-      parameter_type: Type[T],
+      parameter_type: type[T],
       fn: Callable[[T, 'PipelineContext'], Any]) -> None:
     pass
 
@@ -170,7 +167,7 @@ class RunnerApiFn(object):
 
   @classmethod
   def from_runner_api(
-      cls: Type[RunnerApiFnT],
+      cls: type[RunnerApiFnT],
       fn_proto: beam_runner_api_pb2.FunctionSpec,
       context: 'PipelineContext') -> RunnerApiFnT:
     """Converts from an FunctionSpec to a Fn object.

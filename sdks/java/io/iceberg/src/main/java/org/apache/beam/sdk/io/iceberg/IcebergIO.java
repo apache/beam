@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -381,7 +382,11 @@ import org.joda.time.Duration;
 public class IcebergIO {
 
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
-    return new AutoValue_IcebergIO_WriteRows.Builder().setCatalogConfig(catalog).build();
+    return new AutoValue_IcebergIO_WriteRows.Builder()
+        .setCatalogConfig(catalog)
+        .setDistributionMode(DistributionMode.NONE)
+        .setAutoSharding(false)
+        .build();
   }
 
   @AutoValue
@@ -397,6 +402,10 @@ public class IcebergIO {
 
     abstract @Nullable Integer getDirectWriteByteLimit();
 
+    abstract DistributionMode getDistributionMode();
+
+    abstract boolean getAutoSharding();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -410,6 +419,10 @@ public class IcebergIO {
       abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
+
+      abstract Builder setDistributionMode(DistributionMode mode);
+
+      abstract Builder setAutoSharding(boolean autoSharding);
 
       abstract WriteRows build();
     }
@@ -443,6 +456,24 @@ public class IcebergIO {
       return toBuilder().setDirectWriteByteLimit(directWriteByteLimit).build();
     }
 
+    /**
+     * Defines distribution of write data. Supported distributions:
+     *
+     * <ol>
+     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
+     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     * </ol>
+     *
+     * {@link DistributionMode.RANGE} is not supported yet
+     */
+    public WriteRows withDistributionMode(DistributionMode mode) {
+      return toBuilder().setDistributionMode(mode).build();
+    }
+
+    public WriteRows withAutosharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -464,15 +495,37 @@ public class IcebergIO {
             IcebergUtils.isUnbounded(input),
             "Must only provide direct write limit for unbounded pipelines.");
       }
-      return input
-          .apply("Assign Table Destinations", new AssignDestinations(destinations))
-          .apply(
-              "Write Rows to Destinations",
-              new WriteToDestinations(
-                  getCatalogConfig(),
-                  destinations,
-                  getTriggeringFrequency(),
-                  getDirectWriteByteLimit()));
+
+      switch (getDistributionMode()) {
+        case NONE:
+          Preconditions.checkArgument(
+              !getAutoSharding(),
+              "Autosharding option is only available with " + "'hash' distribution mode.");
+          return input
+              .apply("Assign Table Destinations", new AssignDestinations(destinations))
+              .apply(
+                  "Write Rows to Destinations",
+                  new WriteToDestinations(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getDirectWriteByteLimit()));
+        case HASH:
+          return input
+              .apply(
+                  "AssignDestinationAndPartition",
+                  new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+              .apply(
+                  "Write Rows to Partitions",
+                  new WriteToPartitions(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getAutoSharding()));
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported distribution mode: " + getDistributionMode());
+      }
     }
   }
 

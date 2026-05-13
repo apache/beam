@@ -26,10 +26,8 @@ import uuid
 import zipfile
 from concurrent import futures
 from typing import BinaryIO
-from typing import Dict
 from typing import Iterator
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import grpc
@@ -47,7 +45,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
-StateEvent = Tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
+StateEvent = tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
 
 
 def make_state_event(state, timestamp):
@@ -70,7 +68,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   Servicer for the Beam Job API.
   """
   def __init__(self):
-    self._jobs: Dict[str, AbstractBeamJob] = {}
+    self._jobs: dict[str, AbstractBeamJob] = {}
 
   def create_beam_job(
       self,
@@ -272,7 +270,7 @@ class JarArtifactManager(object):
   def close(self):
     self._zipfile_handle.close()
 
-  def file_writer(self, path: str) -> Tuple[BinaryIO, str]:
+  def file_writer(self, path: str) -> tuple[BinaryIO, str]:
     """Given a relative path, returns an open handle that can be written to
     and an reference that can later be used to read this file."""
     full_path = '%s/%s' % (self._root, path)

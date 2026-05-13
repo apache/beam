@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -57,12 +59,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ValueKind} support in {@link DoFn}. */
 @RunWith(JUnit4.class)
 public class ValueKindTest implements Serializable {
-
-  static {
-    System.setProperty(
-        "beamTestPipelineOptions", "[\"--runner=org.apache.beam.runners.direct.DirectRunner\"]");
-  }
-
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
@@ -278,7 +274,8 @@ public class ValueKindTest implements Serializable {
                                 c.pane(),
                                 null,
                                 null,
-                                org.apache.beam.sdk.values.CausedByDrain.NORMAL,
+                                CausedByDrain.NORMAL,
+                                null,
                                 ValueKind.UPDATE_BEFORE));
                       }
                     }))
@@ -321,7 +318,8 @@ public class ValueKindTest implements Serializable {
                                 c.pane(),
                                 null,
                                 null,
-                                org.apache.beam.sdk.values.CausedByDrain.NORMAL,
+                                CausedByDrain.NORMAL,
+                                null,
                                 ValueKind.UPDATE_BEFORE));
                       }
                     })
@@ -449,7 +447,7 @@ public class ValueKindTest implements Serializable {
                   public void onWindowExpiration(
                       OutputReceiver<String> receiver,
                       BoundedWindow window,
-                      @Timestamp org.joda.time.Instant timestamp) {
+                      @Timestamp Instant timestamp) {
                     receiver.outputWindowedValue(
                         "expired",
                         timestamp,

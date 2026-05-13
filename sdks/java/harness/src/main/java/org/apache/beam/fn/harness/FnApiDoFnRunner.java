@@ -1867,7 +1867,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           consumer,
           WindowedValues.of(
-              output, timestamp, windows, paneInfo, null, null, CausedByDrain.NORMAL, valueKind));
+              output,
+              timestamp,
+              windows,
+              paneInfo,
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              null,
+              valueKind));
     }
 
     @Override
@@ -1996,6 +2004,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               null,
               null,
               CausedByDrain.NORMAL,
+              currentElement.getOpenTelemetryContext(),
               kind));
     }
 
@@ -2155,6 +2164,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return timestamp();
+    }
+
+    @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      return currentRecordId();
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      return currentRecordOffset();
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
     }
 
     @Override
@@ -2442,6 +2467,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 null,
                 null,
                 currentTimer.causedByDrain(),
+                null,
                 kind));
       }
 
@@ -2481,7 +2507,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 currentTimer.getPaneInfo(),
                 null,
                 null,
-                currentTimer.causedByDrain()));
+                currentTimer.causedByDrain(),
+                null,
+                currentElement.getValueKind()));
       }
 
       @Override
@@ -2807,6 +2835,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 null,
                 null,
                 causedByDrain,
+                null,
                 kind));
       }
 
@@ -2915,6 +2944,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return currentTimeDomain;
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.getFireTimestamp();
     }
 
     @Override

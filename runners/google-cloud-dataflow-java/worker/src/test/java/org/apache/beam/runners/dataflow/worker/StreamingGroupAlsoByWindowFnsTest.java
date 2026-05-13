@@ -281,7 +281,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
 
   @Test
   public void testFixedWindowsWithDraining() throws Exception {
-    WindowedValues.WindowedValueCoder.setMetadataSupported(true);
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
     TupleTag<KV<String, Iterable<String>>> outputTag = new TupleTag<>();
     ListOutputManager outputManager = new ListOutputManager();
     DoFnRunner<KeyedWorkItem<String, String>, KV<String, Iterable<String>>> runner =
@@ -350,6 +350,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 equalTo(window(10, 20)),
                 anything(),
                 is(CausedByDrain.CAUSED_BY_DRAIN))));
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
   }
 
   @Test

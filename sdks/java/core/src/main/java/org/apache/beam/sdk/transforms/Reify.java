@@ -162,6 +162,7 @@ public class Reify {
                                   pc.currentRecordId(),
                                   pc.currentRecordOffset(),
                                   causedByDrain,
+                                  null,
                                   valueKind)));
                     }
                   }))
