@@ -295,7 +295,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
                 'mix2',
                 'test_process_exit',
                 'thundering_herd_test',
-                'transient_test']:
+                'transient_test',
+                'timeout_deadlock_test']:
       for ext in ['', '.address', '.address.error']:
         try:
           os.remove(os.path.join(tempdir, tag + ext))
@@ -488,6 +489,42 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
 
     self.assertEqual(counter1.increment(), 1)
     self.assertEqual(counter2.increment(), 2)
+
+  def test_connection_timeout_respawn_deadlock(self):
+    # Tests that when connecting to a newly spawned proxy server times out after all retries,
+    # the parent process cleanly terminates the unresponsive server before spawning a replacement.
+    # Without this termination, the parent process unlinks the address file and spawns Server 2,
+    # discarding the IPC pipe to Server 1. When Server 1 detects the closed pipe, its suicide
+    # pact monitor wakes up and deletes Server 2's address file, causing the parent process to
+    # hang forever in _create_server waiting for the address file to appear.
+    shared = multi_process_shared.MultiProcessShared(
+        Counter, tag='timeout_deadlock_test', always_proxy=True, spawn_process=True)
+
+    orig_connect = multi_process_shared._SingletonRegistrar.connect
+    connect_calls = [0]
+
+    def side_effect_connect(self_mgr, *args, **kwargs):
+      connect_calls[0] += 1
+      if connect_calls[0] <= 10:
+        raise ConnectionError("Simulated proxy server connection timeout")
+      return orig_connect(self_mgr, *args, **kwargs)
+
+    with patch.object(
+        multi_process_shared._SingletonRegistrar,
+        'connect',
+        autospec=True,
+        side_effect=side_effect_connect):
+      res = []
+      def run_acquire():
+        res.append(shared.acquire())
+
+      t = threading.Thread(target=run_acquire)
+      t.start()
+      t.join(timeout=20.0)
+      if t.is_alive():
+        raise TimeoutError("Timeout waiting for proxy server to respawn")
+
+      self.assertEqual(res[0].increment(), 1)
 
 
 if __name__ == '__main__':

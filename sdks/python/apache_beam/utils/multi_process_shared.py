@@ -370,6 +370,7 @@ class MultiProcessShared(Generic[T]):
     self._cross_process_lock = fasteners.InterProcessLock(
         os.path.join(self._path, self._tag) + '.lock')
     self._spawn_process = spawn_process
+    self._server_process = None
 
   def _get_manager(self):
     if self._manager is None:
@@ -397,7 +398,7 @@ class MultiProcessShared(Generic[T]):
               retryable_exceptions = (ConnectionError, EOFError)
 
               @retry.with_exponential_backoff(
-                  num_retries=5,
+                  num_retries=7,
                   initial_delay_secs=0.1,
                   retry_filter=lambda exn: isinstance(
                       exn, retryable_exceptions))
@@ -408,8 +409,15 @@ class MultiProcessShared(Generic[T]):
                 connect_manager()
                 self._manager = manager
               except retryable_exceptions:
-                # The server is no longer good, assume it died.
-                os.unlink(address_file)
+                # The server is no longer good, terminate it if we spawned it.
+                if getattr(self, '_server_process', None) and self._server_process.is_alive():
+                  logging.info(
+                      "Terminating unresponsive server process %s",
+                      self._server_process.pid)
+                  self._server_process.terminate()
+                  self._server_process.join()
+                if os.path.exists(address_file):
+                  os.unlink(address_file)
 
     return self._manager
 
@@ -463,6 +471,7 @@ class MultiProcessShared(Generic[T]):
           daemon=False  # Must be False for nested proxies
       )
       p.start()
+      self._server_process = p
       logging.info("Parent: Waiting for %s to write address file...", self._tag)
 
       def cleanup_process():
