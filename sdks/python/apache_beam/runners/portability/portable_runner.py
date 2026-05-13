@@ -551,8 +551,7 @@ class PipelineResult(runner.PipelineResult):
               previous_state = current_state
           self._messages.append(message)
       except grpc.RpcError as e:
-        if job_utils.is_grpc_stream_closure_error(e,
-                                                  allow_deadline_exceeded=True):
+        if job_utils.is_grpc_stream_closure_error(e):
           _LOGGER.info('Job message stream closed by runner: %s', e)
         else:
           raise
