@@ -1110,7 +1110,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp(), timestamp);
       builderSupplier
           .builder(output)
-          .setTimestamp(timestamp)
+          .setTimestamp(timestamp())
           .setWindows(Collections.singleton(window()))
           .setPaneInfo(PaneInfo.NO_FIRING)
           .setValueKind(kind)
@@ -1422,10 +1422,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(this.timestamp, timestamp);
       builderSupplier
           .builder(output)
-          .setTimestamp(timestamp)
+          .setTimestamp(this.timestamp)
           .setWindows(Collections.singleton(window()))
           .setPaneInfo(PaneInfo.NO_FIRING)
           .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .setValueKind(kind)
           .output();
     }
 

@@ -676,7 +676,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   null,
                   null,
                   CausedByDrain.NORMAL,
-                  null,
+                  element.getOpenTelemetryContext(),
                   kind));
     }
 
