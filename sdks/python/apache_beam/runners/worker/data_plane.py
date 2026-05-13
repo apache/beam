@@ -724,7 +724,8 @@ class _GrpcDataChannel(DataChannel):
           _put_queue(data.instruction_id, data)
     except Exception as e:
       if not self._closed:
-        if job_utils.is_grpc_stream_closure_error(e, allow_deadline_exceeded=True):
+        if job_utils.is_grpc_stream_closure_error(e,
+                                                  allow_deadline_exceeded=True):
           _LOGGER.info('Data plane stream closed by runner: %s', e)
         else:
           _LOGGER.exception('Failed to read inputs in the data plane.')

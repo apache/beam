@@ -538,7 +538,8 @@ class PipelineResult(runner.PipelineResult):
         for message in self._message_stream:
           if message.HasField('message_response'):
             mr = message.message_response
-            logging.log(MESSAGE_LOG_LEVELS[mr.importance], "%s", mr.message_text)
+            logging.log(
+                MESSAGE_LOG_LEVELS[mr.importance], "%s", mr.message_text)
             if mr.importance == beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR:
               last_error_text = mr.message_text
           else:
@@ -550,7 +551,8 @@ class PipelineResult(runner.PipelineResult):
               previous_state = current_state
           self._messages.append(message)
       except grpc.RpcError as e:
-        if job_utils.is_grpc_stream_closure_error(e, allow_deadline_exceeded=True):
+        if job_utils.is_grpc_stream_closure_error(e,
+                                                  allow_deadline_exceeded=True):
           _LOGGER.info('Job message stream closed by runner: %s', e)
         else:
           raise

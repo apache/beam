@@ -316,8 +316,10 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         # Ensure the steps are not fused (otherwise siblings are run sequentially
         # in a single thread, making execution order dependent on internal map
         # traversal). Reshuffle acts as a fusion break so they run in parallel.
-        _ = imp | 'ReshuffleBlock' >> beam.Reshuffle() | 'Block' >> beam.ParDo(BlockDoFn())
-        _ = imp | 'ReshuffleFail' >> beam.Reshuffle() | 'Fail' >> beam.ParDo(FailDoFn())
+        _ = imp | 'ReshuffleBlock' >> beam.Reshuffle() | 'Block' >> beam.ParDo(
+            BlockDoFn())
+        _ = imp | 'ReshuffleFail' >> beam.Reshuffle() | 'Fail' >> beam.ParDo(
+            FailDoFn())
 
   def test_dofn_failure_delayed_worker_shutdown(self):
     """Simulates a scenario where a DoFn failure causes pipeline abortion, but the Python
@@ -342,15 +344,22 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         yield element
 
     with mock.patch.object(GrpcClientDataChannel, 'close', new=delayed_close):
-      with self.assertLogs('apache_beam.runners.worker.data_plane', level='DEBUG') as log_cm:
-        with self.assertRaisesRegex(Exception, "Delayed shutdown fail as intended"):
+      with self.assertLogs('apache_beam.runners.worker.data_plane',
+                           level='DEBUG') as log_cm:
+        with self.assertRaisesRegex(Exception,
+                                    "Delayed shutdown fail as intended"):
           with self.create_pipeline() as p:
             imp = p | beam.Create([1, 2])
-            _ = imp | 'ReshuffleBlock' >> beam.Reshuffle() | 'Block' >> beam.ParDo(BlockDoFn())
-            _ = imp | 'ReshuffleFail' >> beam.Reshuffle() | 'Fail' >> beam.ParDo(FailDoFn())
+            _ = imp | 'ReshuffleBlock' >> beam.Reshuffle(
+            ) | 'Block' >> beam.ParDo(BlockDoFn())
+            _ = imp | 'ReshuffleFail' >> beam.Reshuffle(
+            ) | 'Fail' >> beam.ParDo(FailDoFn())
 
       # Ensure no ERROR logs were emitted by data_plane during the delayed shutdown
-      self.assertFalse(any("Failed to read inputs in the data plane." in log for log in log_cm.output))
+      self.assertFalse(
+          any(
+              "Failed to read inputs in the data plane." in log
+              for log in log_cm.output))
 
   def test_dofn_deadline_exceeded(self):
     """Simulates a scenario where a pipeline running on Prism exceeds its configured
@@ -361,7 +370,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
 
     orig_init = JobServiceHandle.__init__
 
-    def custom_init(self_handle, job_service, options, retain_unknown_options=False):
+    def custom_init(
+        self_handle, job_service, options, retain_unknown_options=False):
       orig_init(self_handle, job_service, options, retain_unknown_options)
       self_handle.timeout = 2
 
@@ -373,7 +383,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     with mock.patch.object(JobServiceHandle, '__init__', new=custom_init):
       with self.assertRaisesRegex(Exception, "Deadline Exceeded"):
         with self.create_pipeline() as p:
-          _ = p | beam.Create([1, 2]) | beam.Reshuffle() | beam.ParDo(BlockDoFn())
+          _ = p | beam.Create([1, 2]) | beam.Reshuffle() | beam.ParDo(
+              BlockDoFn())
 
 
 class PrismJobServerTest(unittest.TestCase):
@@ -629,4 +640,4 @@ class PrismRunnerSingletonTest(unittest.TestCase):
 if __name__ == '__main__':
   # Run the tests.
   logging.getLogger().setLevel(logging.INFO)
-
+  unittest.main()
