@@ -23,6 +23,7 @@ import tempfile
 import threading
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 from apache_beam.utils import multi_process_shared
 
@@ -293,7 +294,8 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
                 'mix1',
                 'mix2',
                 'test_process_exit',
-                'thundering_herd_test']:
+                'thundering_herd_test',
+                'transient_test']:
       for ext in ['', '.address', '.address.error']:
         try:
           os.remove(os.path.join(tempdir, tag + ext))
@@ -460,6 +462,32 @@ class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
       shared2.unsafe_hard_delete()
     except Exception:
       pass
+
+  def test_transient_connection_error_recovery(self):
+    shared1 = multi_process_shared.MultiProcessShared(
+        Counter, tag='transient_test', always_proxy=True, spawn_process=True)
+    shared2 = multi_process_shared.MultiProcessShared(
+        Counter, tag='transient_test', always_proxy=True, spawn_process=True)
+
+    counter1 = shared1.acquire()
+
+    orig_connect = multi_process_shared._SingletonRegistrar.connect
+    connect_calls = [0]
+
+    def side_effect_connect(self_mgr, *args, **kwargs):
+      connect_calls[0] += 1
+      if connect_calls[0] == 1:
+        raise ConnectionError("Simulated transient connection failure")
+      return orig_connect(self_mgr, *args, **kwargs)
+
+    with patch.object(multi_process_shared._SingletonRegistrar,
+                      'connect',
+                      autospec=True,
+                      side_effect=side_effect_connect):
+      counter2 = shared2.acquire()
+
+    self.assertEqual(counter1.increment(), 1)
+    self.assertEqual(counter2.increment(), 2)
 
 
 if __name__ == '__main__':
