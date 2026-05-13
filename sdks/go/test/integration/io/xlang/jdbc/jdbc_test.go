@@ -32,6 +32,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/containers"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -59,8 +60,8 @@ func setupTestContainer(ctx context.Context, t *testing.T, dbname, username, pas
 	}
 	hostname := "localhost"
 
-	dbURL := func(host string, port string) string {
-		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, dbname)
+	dbURL := func(host string, port nat.Port) string {
+		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port.Port(), dbname)
 	}
 	waitStrategy := wait.ForSQL(postgresPort, "postgres", dbURL).WithStartupTimeout(time.Minute)
 
