@@ -410,12 +410,20 @@ class MultiProcessShared(Generic[T]):
                 self._manager = manager
               except retryable_exceptions:
                 # The server is no longer good, terminate it if we spawned it.
+                if getattr(self, '_life_line', None):
+                  try:
+                    self._life_line.close()
+                  except Exception:
+                    pass
                 if getattr(self, '_server_process', None) and self._server_process.is_alive():
                   logging.info(
                       "Terminating unresponsive server process %s",
                       self._server_process.pid)
-                  self._server_process.terminate()
-                  self._server_process.join()
+                  try:
+                    self._server_process.kill()
+                    self._server_process.join(timeout=1.0)
+                  except Exception:
+                    pass
                 if os.path.exists(address_file):
                   os.unlink(address_file)
 
