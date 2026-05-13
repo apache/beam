@@ -47,7 +47,6 @@ import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -177,7 +176,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     performRewrites(pipeline);
     MetricsEnvironment.setMetricsSupported(true);
-    WindowedValues.WindowedValueCoder.setMetadataSupported();
     try {
       DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
       pipeline.traverseTopologically(graphVisitor);
@@ -235,7 +233,6 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return result;
     } finally {
       MetricsEnvironment.setMetricsSupported(false);
-      WindowedValues.WindowedValueCoder.setMetadataNotSupported();
     }
   }
 
