@@ -163,6 +163,9 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 	pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
+	// Allow a brief grace period for the SDK worker to cleanly shut down its client gRPC channels
+	// before tearing down the server-side gRPC streams.
+	time.Sleep(1 * time.Second)
 	wk.Stop()
 }
 
