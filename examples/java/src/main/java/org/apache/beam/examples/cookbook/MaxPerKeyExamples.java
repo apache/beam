@@ -30,6 +30,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -73,23 +75,22 @@ public class MaxPerKeyExamples {
    */
   static class ExtractTempFn extends DoFn<TableRow, KV<Integer, Double>> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      TableRow row = c.element();
+    public void processElement(
+        @Element TableRow row, OutputReceiver<KV<Integer, Double>> receiver) {
       Integer month = Integer.parseInt((String) row.get("month"));
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
-      c.output(KV.of(month, meanTemp));
+      receiver.output(KV.of(month, meanTemp));
     }
   }
 
   /** Format the results to a TableRow, to save to BigQuery. */
   static class FormatMaxesFn extends DoFn<KV<Integer, Double>, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(
+        @Element KV<Integer, Double> element, OutputReceiver<TableRow> receiver) {
       TableRow row =
-          new TableRow()
-              .set("month", c.element().getKey())
-              .set("max_mean_temp", c.element().getValue());
-      c.output(row);
+          new TableRow().set("month", element.getKey()).set("max_mean_temp", element.getValue());
+      receiver.output(row);
     }
   }
 

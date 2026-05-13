@@ -76,6 +76,10 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.Latest;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -540,14 +544,14 @@ public class Snippets {
             ParDo.of(
                 new DoFn<KV<String, CoGbkResult>, String>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    KV<String, CoGbkResult> e = c.element();
+                  public void processElement(
+                      @Element KV<String, CoGbkResult> e, OutputReceiver<String> receiver) {
                     String name = e.getKey();
                     Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
                     Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
                     String formattedResult =
                         Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
-                    c.output(formattedResult);
+                    receiver.output(formattedResult);
                   }
                 }));
     // [END CoGroupByKeyTuple]
@@ -642,20 +646,23 @@ public class Snippets {
                     new DoFn<Long, KV<Long, Long>>() {
 
                       @ProcessElement
-                      public void process(ProcessContext c, @Timestamp Instant timestamp) {
-                        Iterable<Map<String, String>> si = c.sideInput(mapIterable);
+                      public void process(
+                          @Timestamp Instant timestamp,
+                          @Element Long element,
+                          @SideInput("mapIterable") Iterable<Map<String, String>> si,
+                          OutputReceiver<KV<Long, Long>> receiver) {
                         // Take an element from the side input iterable (likely length 1)
                         Map<String, String> keyMap = si.iterator().next();
-                        c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
+                        receiver.outputWithTimestamp(KV.of(1L, element), Instant.now());
 
                         LOG.info(
                             "Value is {} with timestamp {}, using key A from side input with time {}.",
-                            c.element(),
+                            element,
                             timestamp.toString(DateTimeFormat.forPattern("HH:mm:ss")),
                             keyMap.get("Key_A"));
                       }
                     })
-                .withSideInputs(mapIterable));
+                .withSideInput("mapIterable", mapIterable));
 
     p.run();
   }
@@ -701,9 +708,9 @@ public class Snippets {
 
                   // Define the DoFn that logs the ValueProvider value.
                   @ProcessElement
-                  public void process(ProcessContext c) {
+                  public void process(PipelineOptions options) {
 
-                    MyOptions ops = c.getPipelineOptions().as(MyOptions.class);
+                    MyOptions ops = options.as(MyOptions.class);
                     // This example logs the ValueProvider value, but you could store it by
                     // pushing it to an external database.
 
@@ -943,11 +950,13 @@ public class Snippets {
               ParDo.of(
                       new DoFn<Instant, Long>() {
                         @ProcessElement
-                        public void process(ProcessContext c) {
-                          c.output((long) c.sideInput(sideInput).size());
+                        public void process(
+                            @SideInput("sideInput") List<Long> sideInputValue,
+                            OutputReceiver<Long> receiver) {
+                          receiver.output((long) sideInputValue.size());
                         }
                       })
-                  .withSideInputs(sideInput));
+                  .withSideInput("sideInput", sideInput));
       // [END PeriodicallyUpdatingSideInputs]
       return result;
     }
@@ -1188,7 +1197,10 @@ public class Snippets {
     private static class BundleFinalizationDoFn extends DoFn<String, Integer> {
       // [START BundleFinalize]
       @ProcessElement
-      public void processElement(ProcessContext c, BundleFinalizer bundleFinalizer) {
+      public void processElement(
+          @Element String element,
+          OutputReceiver<Integer> receiver,
+          BundleFinalizer bundleFinalizer) {
         // ... produce output ...
 
         bundleFinalizer.afterBundleCommit(

@@ -25,6 +25,9 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.options.*
 import org.apache.beam.sdk.transforms.*
+import org.apache.beam.sdk.transforms.DoFn.Element
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver
+import org.apache.beam.sdk.transforms.DoFn.SideInput
 import org.apache.beam.sdk.values.PCollection
 import java.util.logging.Logger
 
@@ -80,8 +83,7 @@ object FilterExamples {
      */
     internal class ProjectionFn : DoFn<TableRow, TableRow>() {
         @ProcessElement
-        fun processElement(c: ProcessContext) {
-            val row = c.element()
+        fun processElement(@Element row: TableRow, receiver: OutputReceiver<TableRow>) {
             // Grab year, month, day, mean_temp from the row
             val year = Integer.parseInt(row["year"] as String)
             val month = Integer.parseInt(row["month"] as String)
@@ -94,7 +96,7 @@ object FilterExamples {
                     .set("month", month)
                     .set("day", day)
                     .set("mean_temp", meanTemp)
-            c.output(outRow)
+            receiver.output(outRow)
         }
     }
 
@@ -108,11 +110,10 @@ object FilterExamples {
     internal class FilterSingleMonthDataFn(private var monthFilter: Int?) : DoFn<TableRow, TableRow>() {
 
         @ProcessElement
-        fun processElement(c: ProcessContext) {
-            val row = c.element()
+        fun processElement(@Element row: TableRow, receiver: OutputReceiver<TableRow>) {
             val month = row["month"]
             if (month == this.monthFilter) {
-                c.output(row)
+                receiver.output(row)
             }
         }
     }
@@ -123,10 +124,9 @@ object FilterExamples {
      */
     internal class ExtractTempFn : DoFn<TableRow, Double>() {
         @ProcessElement
-        fun processElement(c: ProcessContext) {
-            val row = c.element()
+        fun processElement(@Element row: TableRow, receiver: OutputReceiver<Double>) {
             val meanTemp = java.lang.Double.parseDouble(row["mean_temp"].toString())
-            c.output(meanTemp)
+            receiver.output(meanTemp)
         }
     }
 
@@ -158,15 +158,17 @@ object FilterExamples {
                     ParDo.of(
                             object : DoFn<TableRow, TableRow>() {
                                 @ProcessElement
-                                fun processElement(c: ProcessContext) {
-                                    val meanTemp = java.lang.Double.parseDouble(c.element()["mean_temp"].toString())
-                                    val gTemp = c.sideInput(globalMeanTemp)
+                                fun processElement(
+                                        @SideInput("globalMeanTemp") gTemp: Double,
+                                        @Element element: TableRow,
+                                        receiver: OutputReceiver<TableRow>) {
+                                    val meanTemp = java.lang.Double.parseDouble(element["mean_temp"].toString())
                                     if (meanTemp < gTemp) {
-                                        c.output(c.element())
+                                        receiver.output(element)
                                     }
                                 }
                             })
-                            .withSideInputs(globalMeanTemp))
+                            .withSideInput("globalMeanTemp", globalMeanTemp))
         }
     }
 
