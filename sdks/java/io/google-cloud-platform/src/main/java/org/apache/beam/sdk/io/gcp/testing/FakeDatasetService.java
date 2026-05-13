@@ -764,7 +764,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       AppendRowsRequest.MissingValueInterpretation missingValueInterpretation)
       throws Exception {
     return new StreamAppendClient() {
-      private Descriptor protoDescriptor = null;
+      private Descriptor protoDescriptor;
       private TableSchema currentSchema;
       private @Nullable com.google.cloud.bigquery.storage.v1.TableSchema updatedSchema;
       TableRowToStorageApiProto.SchemaInformation schemaInformation;
@@ -900,7 +900,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       public void pin() {}
 
       @Override
-      public void unpin() {}
+      public void unpin() throws Exception {}
     };
   }
 
