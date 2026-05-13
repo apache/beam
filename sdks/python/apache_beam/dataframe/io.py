@@ -685,10 +685,14 @@ class _WriteToPandas(beam.PTransform):
     else:
       dir, name = io.filesystems.FileSystems.split(self.path)
     num_shards = self.kwargs.pop('num_shards', None)
+    max_writers_per_bundle = self.kwargs.pop('max_writers_per_bundle', None)
     write_to_files_kwargs = {}
     if num_shards is not None:
       write_to_files_kwargs['shards'] = num_shards
-      write_to_files_kwargs['max_writers_per_bundle'] = 0
+      write_to_files_kwargs['max_writers_per_bundle'] = (
+          0 if max_writers_per_bundle is None else max_writers_per_bundle)
+    elif max_writers_per_bundle is not None:
+      write_to_files_kwargs['max_writers_per_bundle'] = max_writers_per_bundle
     return pcoll | fileio.WriteToFiles(
         path=dir,
         file_naming=self.kwargs.pop(
