@@ -669,6 +669,23 @@ class PipelineOptionsTest(unittest.TestCase):
       options = PipelineOptions(['--type_check_strictness', 'blahblah'])
       options.view_as(TypeOptions)
 
+  def test_profiling_agent_is_exclusive_with_legacy_profiling_options(self):
+    options = PipelineOptions(['--profiler_agent=memray'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_cpu'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_memory'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+
+
   def test_add_experiment(self):
     options = PipelineOptions([])
     options.view_as(DebugOptions).add_experiment('new_experiment')

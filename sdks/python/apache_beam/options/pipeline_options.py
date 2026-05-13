@@ -1658,6 +1658,58 @@ class ProfilingOptions(PipelineOptions):
         default=1.0,
         help='A number between 0 and 1 indicating the ratio '
         'of bundles that should be profiled.')
+    parser.add_argument(
+        '--profiler_agent',
+        default=None,
+        help=(
+            'Specifies the profiling agent to launch the SDK worker harness '
+            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'))
+    parser.add_argument(
+        '--profiler_extra_arg',
+        '--profiler_extra_args',
+        dest='profiler_extra_args',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help='Comma-separated list of extra arguments to pass to the profiler agent.')
+    parser.add_argument(
+        '--profiler_extra_env_var',
+        '--profiler_extra_env_vars',
+        dest='profiler_extra_env_vars',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=(
+            'Comma-separated list of environment variables required by the profiler agent '
+            'in format "KEY1=VAL1,KEY2=VAL2".'))
+    parser.add_argument(
+        '--profile_temp_location',
+        default=None,
+        help=(
+            'Directory path on the worker where local profiles are saved. '
+            'Defaults to ${semi_persist_dir}/profiles if not specified.'))
+    parser.add_argument(
+        '--profile_sync_period_sec',
+        type=int,
+        default=0,
+        help=(
+            'Frequency (in seconds) at which the local profiles are synced to GCS. '
+            'Defaults to 0 (sync disabled).'))
+    parser.add_argument(
+        '--profiler_stop_after_min',
+        type=int,
+        default=0,
+        help=(
+            'Time limit (in minutes) for profiling a single process. When exceeded, '
+            'the worker process is restarted without the profiler.'))
+
+  def validate(self, validator):
+    errors = []
+    if self.profiler_agent:
+      if self.profile_cpu or self.profile_memory:
+        errors.append(
+            '--profiler_agent is mutually exclusive with --profile_cpu '
+            'and --profile_memory.')
+    return errors
+
 
 
 class SetupOptions(PipelineOptions):
