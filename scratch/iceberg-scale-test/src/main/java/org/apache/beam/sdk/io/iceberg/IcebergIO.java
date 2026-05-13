@@ -38,6 +38,8 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -462,16 +464,9 @@ public class IcebergIO {
     }
 
     /**
-     * The default distribution mode is {@link DistributionMode#HASH}.
+     * Defines the distribution mode of write data prior to writing.
      *
-     * <p><b>Warning on HASH mode:</b> Utilizing {@code HASH} distribution mode (with or without
-     * auto-sharding) can suffer from large unpartitioned or skewed writes if key spaces are
-     * not uniformly distributed. This can bottleneck workers and produce fragmented layout files.
-     *
-     * <p><b>Note on RANGE mode:</b> When utilizing {@code RANGE} distribution mode, it is
-     * recommended that the custom distribution function is designed to produce adequately sized and
-     * strictly non-overlapping ranges of the sorting column to optimize downstream read
-     * performance.
+     * <p>The default distribution mode is {@link DistributionMode#HASH}.
      *
      * <h3>Comparison of Distribution Modes:</h3>
      *
@@ -617,6 +612,8 @@ public class IcebergIO {
      *             return (int) (id / 10000);
      *         }));
      * }</pre>
+     *
+     * @param mode The distribution mode.
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();

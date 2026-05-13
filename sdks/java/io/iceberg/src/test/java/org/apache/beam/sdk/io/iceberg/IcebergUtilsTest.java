@@ -269,6 +269,42 @@ public class IcebergUtilsTest {
           IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
       assertEquals(RECORD_MAP_OF_RECORDS, actual);
     }
+
+    @Test
+    public void testBigDecimalToStringConversion() {
+      BigDecimal num = new BigDecimal("987654321.123456789");
+      checkRowValueToRecordValue(
+          Schema.FieldType.DECIMAL, num, Types.StringType.get(), "987654321.123456789");
+    }
+
+    @Test
+    public void testIntegerToStringConversion() {
+      checkRowValueToRecordValue(Schema.FieldType.INT32, 42, Types.StringType.get(), "42");
+    }
+
+    @Test
+    public void testDoubleToStringConversion() {
+      checkRowValueToRecordValue(
+          Schema.FieldType.DOUBLE, 3.14159, Types.StringType.get(), "3.14159");
+    }
+
+    @Test
+    public void testBooleanToStringConversion() {
+      checkRowValueToRecordValue(Schema.FieldType.BOOLEAN, true, Types.StringType.get(), "true");
+    }
+
+    @Test
+    public void testNullStringConversion() {
+      Schema beamSchema =
+          Schema.of(Schema.Field.of("v", Schema.FieldType.STRING).withNullable(true));
+      Row row = Row.withSchema(beamSchema).addValue(null).build();
+
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(optional(0, "v", Types.StringType.get()));
+      Record record = IcebergUtils.beamRowToIcebergRecord(icebergSchema, row);
+
+      assertEquals(null, record.getField("v"));
+    }
   }
 
   @RunWith(JUnit4.class)
