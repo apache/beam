@@ -35,7 +35,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
@@ -140,8 +139,11 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
 
   @Override
   public boolean isKnownCoder(Coder<?> coder, PipelineOptions options) {
-    if (coder.getClass() == SchemaCoder.class
-        && StreamingOptions.updateCompatibilityVersionLessThan(options, "2.74")) {
+    if (coder.getClass() == SchemaCoder.class) {
+      // Don't emit beam:coder:schema:v1 yet: its payload carries Java-only
+      // blobs and no other SDK can decode it, so cross-SDK runners like the
+      // Python ULR break. Fall back to the legacy custom coder encoding
+      // until other SDKs add support (#33859).
       return false;
     }
     return BEAM_MODEL_CODER_URNS.containsKey(coder.getClass());
