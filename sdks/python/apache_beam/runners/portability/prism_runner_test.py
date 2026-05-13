@@ -188,7 +188,6 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(StandardOptions).streaming = self.streaming
     options.view_as(
         TypeOptions).allow_unsafe_triggers = self.allow_unsafe_triggers
-    options.view_as(PortableOptions).job_server_timeout = 10
     return options
 
   # Can't read host files from within docker, read a "local" file there.
