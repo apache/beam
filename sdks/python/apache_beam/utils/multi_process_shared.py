@@ -38,6 +38,8 @@ from typing import TypeVar
 
 import fasteners
 
+from apache_beam.utils import retry
+
 # In some python versions, there is a bug where AutoProxy doesn't handle
 # the kwarg 'manager_owned'. We implement our own backup here to make sure
 # we avoid this problem. More info here:
@@ -391,10 +393,21 @@ class MultiProcessShared(Generic[T]):
               manager = _SingletonRegistrar(
                   address=(host, int(port)), authkey=AUTH_KEY)
               multiprocessing.current_process().authkey = AUTH_KEY
-              try:
+
+              retryable_exceptions = (ConnectionError, EOFError)
+
+              @retry.with_exponential_backoff(
+                  num_retries=5,
+                  initial_delay_secs=0.1,
+                  retry_filter=lambda exn: isinstance(
+                      exn, retryable_exceptions))
+              def connect_manager():
                 manager.connect()
+
+              try:
+                connect_manager()
                 self._manager = manager
-              except ConnectionError:
+              except retryable_exceptions:
                 # The server is no longer good, assume it died.
                 os.unlink(address_file)
 

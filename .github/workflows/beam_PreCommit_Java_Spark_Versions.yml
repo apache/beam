@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-name: PreCommit Java Spark3 Versions
+name: PreCommit Java Spark Versions
 
 on:
   push:
@@ -23,13 +23,13 @@ on:
     branches: ['master', 'release-*']
     paths:
       - 'runners/spark/**'
-      - '.github/workflows/beam_PreCommit_Java_Spark3_Versions.yml'
+      - '.github/workflows/beam_PreCommit_Java_Spark_Versions.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - 'runners/spark/**'
       - 'release/trigger_all_tests.json'
-      - '.github/trigger_files/beam_PreCommit_Java_Spark3_Versions.json'
+      - '.github/trigger_files/beam_PreCommit_Java_Spark_Versions.json'
   issue_comment:
     types: [created]
   schedule:
@@ -63,20 +63,20 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Java_Spark3_Versions:
+  beam_PreCommit_Java_Spark_Versions:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       matrix:
-        job_name: [beam_PreCommit_Java_Spark3_Versions]
-        job_phrase: [Run Java_Spark3_Versions PreCommit]
+        job_name: [beam_PreCommit_Java_Spark_Versions]
+        job_phrase: [Run Java_Spark_Versions PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Spark3_Versions PreCommit'
+      github.event.comment.body == 'Run Java_Spark_Versions PreCommit'
     steps:
       - uses: actions/checkout@v6
       - name: Setup repository
@@ -87,12 +87,17 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: |
+            17
+            11
       - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:spark:3:sparkVersionsTest
+          gradle-command: :runners:spark:3:sparkVersionsTest :runners:spark:4:build
           arguments: |
             -PdisableSpotlessCheck=true \
+            -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}
