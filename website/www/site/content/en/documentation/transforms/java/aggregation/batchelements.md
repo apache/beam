@@ -18,6 +18,7 @@ limitations under the License.
 # BatchElements
 
 BatchElements transform groups individual elements into batches before processing them downstream.
+It is designed for operations where each call has a fixed overhead regardless of how many elements are processed and the transform amortizes that cost across multiple elements at once.
 The transform takes a `PCollection<T>` as input and produces a `PCollection<List<T>>`, where each output element is a batch containing multiple input elements.
 Batch sizes are chosen dynamically between the configured minimum and maximum values by measuring the execution time of downstream operations.
 
