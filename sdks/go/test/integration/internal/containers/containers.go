@@ -22,6 +22,7 @@ import (
 	"time"
 
 	retry "github.com/avast/retry-go/v4"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -105,7 +106,7 @@ func Port(
 	ctx context.Context,
 	t *testing.T,
 	container testcontainers.Container,
-	port string,
+	port nat.Port,
 ) string {
 	t.Helper()
 
