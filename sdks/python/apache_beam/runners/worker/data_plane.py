@@ -47,6 +47,7 @@ import grpc
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.byte_limited_queue import ByteLimitedQueue
@@ -723,9 +724,12 @@ class _GrpcDataChannel(DataChannel):
           _put_queue(data.instruction_id, data)
     except Exception as e:
       if not self._closed:
-        _LOGGER.exception('Failed to read inputs in the data plane.')
-        self._exception = e
-        raise
+        if job_utils.is_grpc_stream_closure_error(e, allow_deadline_exceeded=True):
+          _LOGGER.info('Data plane stream closed by runner: %s', e)
+        else:
+          _LOGGER.exception('Failed to read inputs in the data plane.')
+          self._exception = e
+          raise
     finally:
       self._closed = True
       self._reads_finished.set()

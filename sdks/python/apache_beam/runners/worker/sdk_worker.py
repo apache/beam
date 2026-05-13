@@ -52,6 +52,7 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
@@ -279,6 +280,11 @@ class SdkHarness(object):
         # will be like self.request_register(request)
         getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
             work_request)
+    except grpc.RpcError as e:
+      if job_utils.is_grpc_stream_closure_error(e):
+        _LOGGER.info('Control plane stream closed by runner: %s', e)
+      else:
+        raise
     finally:
       self._alive = False
       if self.data_sampler:

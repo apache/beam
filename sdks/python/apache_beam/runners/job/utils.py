@@ -20,6 +20,7 @@
 
 # pytype: skip-file
 
+import grpc
 import json
 import logging
 
@@ -37,3 +38,15 @@ def dict_to_struct(dict_obj: dict) -> struct_pb2.Struct:
 
 def struct_to_dict(struct_obj: struct_pb2.Struct) -> dict:
   return json.loads(json_format.MessageToJson(struct_obj))
+
+
+def is_grpc_stream_closure_error(e, allow_deadline_exceeded=False):
+  """Check whether a gRPC exception represents an expected stream termination
+  by the runner during job shutdown, cancellation, or timeout.
+  """
+  if not isinstance(e, grpc.RpcError) or not hasattr(e, 'code'):
+    return False
+  expected_codes = {grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.CANCELLED}
+  if allow_deadline_exceeded:
+    expected_codes.add(grpc.StatusCode.DEADLINE_EXCEEDED)
+  return e.code() in expected_codes

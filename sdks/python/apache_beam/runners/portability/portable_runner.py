@@ -534,20 +534,26 @@ class PipelineResult(runner.PipelineResult):
     def read_messages() -> None:
       nonlocal last_error_text
       previous_state = -1
-      for message in self._message_stream:
-        if message.HasField('message_response'):
-          mr = message.message_response
-          logging.log(MESSAGE_LOG_LEVELS[mr.importance], "%s", mr.message_text)
-          if mr.importance == beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR:
-            last_error_text = mr.message_text
+      try:
+        for message in self._message_stream:
+          if message.HasField('message_response'):
+            mr = message.message_response
+            logging.log(MESSAGE_LOG_LEVELS[mr.importance], "%s", mr.message_text)
+            if mr.importance == beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR:
+              last_error_text = mr.message_text
+          else:
+            current_state = message.state_response.state
+            if current_state != previous_state:
+              _LOGGER.info(
+                  "Job state changed to %s",
+                  self.runner_api_state_to_pipeline_state(current_state))
+              previous_state = current_state
+          self._messages.append(message)
+      except grpc.RpcError as e:
+        if job_utils.is_grpc_stream_closure_error(e, allow_deadline_exceeded=True):
+          _LOGGER.info('Job message stream closed by runner: %s', e)
         else:
-          current_state = message.state_response.state
-          if current_state != previous_state:
-            _LOGGER.info(
-                "Job state changed to %s",
-                self.runner_api_state_to_pipeline_state(current_state))
-            previous_state = current_state
-        self._messages.append(message)
+          raise
 
     message_thread = threading.Thread(
         target=read_messages, name='wait_until_finish_read')
