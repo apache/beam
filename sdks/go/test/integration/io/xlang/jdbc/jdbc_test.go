@@ -64,7 +64,7 @@ func setupTestContainer(ctx context.Context, t *testing.T, dbname, username, pas
 		cleanPort := strings.Split(port, "/")[0]
 		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, cleanPort, dbname)
 	}
-	waitStrategy := wait.ForSQL(postgresPort, "postgres", dbURL).WithStartupTimeout(time.Minute)
+	waitStrategy := wait.ForSQL(postgresPort, "postgres", dbURL).WithStartupTimeout(time.Second * 5)
 
 	container := containers.NewContainer(
 		ctx,
