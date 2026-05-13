@@ -36,12 +36,22 @@ apply from: "$basePath/spark_runner.gradle"
 
 // Spark 4 always requires Java 17, so unconditionally add the --add-opens flags
 // required by Kryo and other libraries that use reflection on JDK internals.
-test {
+tasks.withType(Test).configureEach {
   jvmArgs "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
           "--add-opens=java.base/java.nio=ALL-UNNAMED",
           "--add-opens=java.base/java.util=ALL-UNNAMED",
           "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
 }
+
+tasks.validatesStructuredStreamingRunnerBatch {
+  filter {
+    // TODO(https://github.com/apache/beam/issues/36841): currently failing with INTERNAL_ERROR]
+    //  Couldn't find method fromByteArray with arguments
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombining'
+  }
+}
+
+tasks.validatesRunner.dependsOn(validatesStructuredStreamingRunnerBatch)
 
 // Exclude DStream-based streaming tests from the shared-base copy: the Spark 4 module
 // supports only structured streaming (batch) and does not include legacy DStream support.
