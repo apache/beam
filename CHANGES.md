@@ -61,6 +61,7 @@
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* Spark 4 runner added to Java SDK ([#38255](https://github.com/apache/beam/pull/38255)).
 
 ## I/Os
 
