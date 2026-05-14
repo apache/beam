@@ -214,7 +214,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
       // TODO(https://github.com/apache/beam/issues/31231)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
 
-      // Failed with "KeyError: 'beam:coder:schema:v1'". New schema coder is not yet supported in runners other than dataflow
+      // Failed with "KeyError: 'beam:coder:schema:v1'". New schema coder urn is not yet supported in runners other than dataflow
       excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithShuffle'
       excludeTestsMatching 'org.apache.beam.sdk.transforms.PerKeyOrderingTest.testMultipleStatefulOrderingWithoutShuffle'
 
