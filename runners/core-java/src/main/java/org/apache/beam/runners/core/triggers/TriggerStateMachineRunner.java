@@ -204,8 +204,8 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     ValueState<BitSet> finishedSetState = state.access(FINISHED_BITS_TAG);
 
     if (useNewWindowOptimization) {
-      @Nullable BitSet bitSet = finishedSetState.read();
-      if (bitSet == null || !bitSet.equals(modifiedFinishedSet.getBitSet())) {
+      if (finishedSetState.read() == null
+          || !readFinishedBits(finishedSetState).equals(modifiedFinishedSet)) {
         // Write a value even if the bitset was empty
         finishedSetState.write(modifiedFinishedSet.getBitSet());
       }
