@@ -17,16 +17,20 @@
 import logging
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Optional
 
 import grpc
 from objsize import get_deep_size
 
 try:
-  from qdrant_client import QdrantClient, models
+  from qdrant_client import QdrantClient
+  from qdrant_client import models
   from qdrant_client.common.client_exceptions import ResourceExhaustedResponse
-  from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+  from qdrant_client.http.exceptions import ResponseHandlingException
+  from qdrant_client.http.exceptions import UnexpectedResponse
 except ImportError:
   logging.warning("Qdrant client library is not installed.")
 

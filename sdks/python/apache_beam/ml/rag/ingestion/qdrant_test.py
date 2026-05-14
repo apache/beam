@@ -18,12 +18,10 @@ import unittest
 from unittest import mock
 
 try:
-  from qdrant_client import QdrantClient, models
+  from qdrant_client import models
   from qdrant_client.common.client_exceptions import ResourceExhaustedResponse
-  from qdrant_client.http.exceptions import (
-      ResponseHandlingException,
-      UnexpectedResponse,
-  )
+  from qdrant_client.http.exceptions import ResponseHandlingException
+  from qdrant_client.http.exceptions import UnexpectedResponse
 
   QDRANT_AVAILABLE = True
 except ImportError:
@@ -32,12 +30,12 @@ except ImportError:
 import grpc
 from objsize import get_deep_size
 
-from apache_beam.ml.rag.ingestion.qdrant import (
-    _QdrantWriteFn,
-    QdrantWriteConfig,
-    QdrantConnectionParameters,
-)
-from apache_beam.ml.rag.types import EmbeddableItem, Content, Embedding
+from apache_beam.ml.rag.ingestion.qdrant import QdrantConnectionParameters
+from apache_beam.ml.rag.ingestion.qdrant import QdrantWriteConfig
+from apache_beam.ml.rag.ingestion.qdrant import _QdrantWriteFn
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import EmbeddableItem
+from apache_beam.ml.rag.types import Embedding
 
 
 class TestQdrantConnectionParameters(unittest.TestCase):

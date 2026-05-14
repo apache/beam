@@ -28,7 +28,8 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
-  from qdrant_client import QdrantClient, models
+  from qdrant_client import QdrantClient
+  from qdrant_client import models
   QDRANT_AVAILABLE = True
 except ImportError:
   QDRANT_AVAILABLE = False
