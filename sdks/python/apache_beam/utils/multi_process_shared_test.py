@@ -23,9 +23,29 @@ import tempfile
 import threading
 import unittest
 from typing import Any
+
+import pytest
 from unittest.mock import patch
 
 from apache_beam.utils import multi_process_shared
+
+
+@pytest.fixture(autouse=True)
+def isolate_multi_process_shared_tests(tmp_path, monkeypatch):
+  """Isolates MultiProcessShared tests by using a unique temp directory per test.
+
+  This prevents tests running in parallel (e.g. with pytest-xdist) from
+  interfering with each other by writing to the same shared default temp directory.
+  """
+  orig_init = multi_process_shared.MultiProcessShared.__init__
+
+  def mock_init(self, constructor, tag, *args, **kwargs):
+    if 'path' not in kwargs:
+      kwargs['path'] = str(tmp_path)
+    return orig_init(self, constructor, tag, *args, **kwargs)
+
+  monkeypatch.setattr(
+      multi_process_shared.MultiProcessShared, '__init__', mock_init)
 
 
 class CallableCounter(object):
@@ -285,22 +305,6 @@ class MultiProcessSharedTest(unittest.TestCase):
 
 
 class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
-  def setUp(self):
-    tempdir = tempfile.gettempdir()
-    for tag in ['basic',
-                'main',
-                'to_delete',
-                'to_keep',
-                'mix1',
-                'mix2',
-                'test_process_exit',
-                'thundering_herd_test',
-                'transient_test']:
-      for ext in ['', '.address', '.address.error']:
-        try:
-          os.remove(os.path.join(tempdir, tag + ext))
-        except OSError:
-          pass
 
   def tearDown(self):
     for p in multiprocessing.active_children():
