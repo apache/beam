@@ -559,7 +559,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         AppendClientInfo appendClientInfo,
         Callable<Boolean> tryCreateTable,
         Consumer<Iterable<AppendRowsContext<DestinationT>>> initializeContexts,
-        Consumer<Iterable<AppendRowsContext<DestinationT>>> clearClients,
+        Runnable resetClient,
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
         MultiOutputReceiver o) {
@@ -722,7 +722,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         }
 
         // Re-establish the client with the new stream.
-        clearClients.accept(failedContexts);
+        resetClient.run();
 
         // Reinitialize all contexts with the new stream and new offsets.
         initializeContexts.accept(failedContexts);
@@ -730,7 +730,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         // Offset failures imply that all subsequent parallel appends will also fail.
         // Retry them all.
       } else if (!quotaError) {
-        clearClients.accept(failedContexts);
+        resetClient.run();
       }
     }
 
@@ -933,8 +933,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               }
             };
 
-        Consumer<Iterable<AppendRowsContext<DestinationT>>> clearClients =
-            (contexts) -> {
+        Runnable resetClient =
+            () -> {
               try {
                 appendClientHolder.invalidateAndReset();
               } catch (Exception e) {
@@ -967,7 +967,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   appendClientHolder.get(),
                   tryCreateTable,
                   initializeContexts,
-                  clearClients,
+                  resetClient,
                   streamName,
                   streamOffset,
                   o);
