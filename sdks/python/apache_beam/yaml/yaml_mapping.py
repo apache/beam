@@ -17,7 +17,6 @@
 
 """This module defines the basic MapToFields operation."""
 import datetime
-from decimal import Decimal
 import itertools
 import json
 import re
@@ -27,6 +26,7 @@ from collections.abc import Callable
 from collections.abc import Collection
 from collections.abc import Iterable
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any
 from typing import NamedTuple
 from typing import Optional
