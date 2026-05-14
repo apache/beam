@@ -83,12 +83,10 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
   runtimeOnly project(":sdks:java:io:amazon-web-services2") // FileSystem may be used by Iceberg AddFiles
 
-  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
-    // iceberg ended support for Java 8 in 1.7.0
-    runtimeOnly project(":sdks:java:io:iceberg")
-    runtimeOnly project(":sdks:java:io:iceberg:hive")
-    runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
-  }
+  runtimeOnly project(":sdks:java:io:iceberg")
+  runtimeOnly project(":sdks:java:io:iceberg:hive")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  runtimeOnly library.java.bigdataoss_util_hadoop
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
