@@ -23,9 +23,9 @@ import tempfile
 import threading
 import unittest
 from typing import Any
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 from apache_beam.utils import multi_process_shared
 
@@ -305,7 +305,6 @@ class MultiProcessSharedTest(unittest.TestCase):
 
 
 class MultiProcessSharedSpawnProcessTest(unittest.TestCase):
-
   def tearDown(self):
     for p in multiprocessing.active_children():
       if p.is_alive():
