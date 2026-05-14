@@ -16,6 +16,8 @@
 #
 
 """This module defines the basic MapToFields operation."""
+import datetime
+from decimal import Decimal
 import itertools
 import json
 import re
@@ -219,6 +221,12 @@ def py_value_to_js_dict(py_value):
     py_value = py_value._asdict()
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
+  elif isinstance(py_value, bytes):
+    return py_value.decode('utf-8', errors='replace')
+  elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
+    return py_value.isoformat()
+  elif isinstance(py_value, Decimal):
+    return float(py_value)
   elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
   else:
@@ -237,8 +245,8 @@ def _expand_javascript_mapping_func(
 
   if expression:
     unpacking_code = '\n'.join([
-        f'  var {name} = __row__.{name};' for name in original_fields
-        if name in expression
+        f"  var {name} = __row__['{name}'];" for name in original_fields
+        if name in expression and name.isidentifier()
     ])
     source_code = f"""
     const udf = function(__row__) {{

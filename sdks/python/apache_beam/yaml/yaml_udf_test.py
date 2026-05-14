@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
+from decimal import Decimal
 import logging
 import os
 import shutil
@@ -372,6 +374,40 @@ class YamlUDFMappingTest(unittest.TestCase):
                   label='389a',
                   conductor=389,
                   row=beam.Row(rank=2, values=[7, 8, 9])),
+          ]))
+
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_non_serializable_types(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      data = [
+          beam.Row(
+              b=b'hello',
+              dt=datetime.datetime(2026, 5, 14, 12, 0, 0),
+              dec=Decimal('10.5'))
+      ]
+      elements = p | beam.Create(data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          b_out:
+            expression: "b + '_world'"
+          dt_out:
+            expression: "dt"
+          dec_out:
+            expression: "dec * 2"
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  b_out='hello_world',
+                  dt_out='2026-05-14T12:00:00',
+                  dec_out=21.0),
           ]))
 
 
