@@ -274,7 +274,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         new TriggerStateMachineRunner<>(
             triggerStateMachine,
             new TriggerStateMachineContextFactory<>(
-                windowingStrategy.getWindowFn(), stateInternals, activeWindows));
+                windowingStrategy.getWindowFn(), stateInternals, activeWindows),
+            this.useNewWindowOptimization);
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {
@@ -787,7 +788,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       // Perform prefetching of state to determine if the trigger should fire.
       if (windowActivation.isGarbageCollection) {
-        triggerRunner.prefetchIsClosed(directContext.state());
+        triggerRunner.prefetchFinishedSet(directContext.state());
       } else {
         triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
       }
@@ -966,7 +967,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchIsClosed(directContext.state());
+    triggerRunner.prefetchFinishedSet(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }
 
