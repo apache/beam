@@ -57,6 +57,16 @@ configurations.runtimeClasspath {
 
   // Pin nimbus-jose-jwt to 9.37.4 to fix CVE-2025-53864 (transitive via hadoop-auth)
   resolutionStrategy.force 'com.nimbusds:nimbus-jose-jwt:9.37.4'
+
+  // [iceberg]
+  // bigdataoss:gcs-connector and parquet:parquet-hadoop have conflicts with global hadoop-common:3.4.2
+  // upgrading gcs-connector to 4.0.0 would be fine, because it uses hadoop-common 3.4.2
+  // but parquet-hadoop is still at 3.3.0
+  // so for now we need to pin hadoop to 3.3.6 until parquet-hadoop releases a version that uses hadoop 3.4.2+
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
 }
 
 shadowJar {
