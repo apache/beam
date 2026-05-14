@@ -635,7 +635,7 @@ public final class StreamingDataflowWorker {
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
-            .setMaxCachedValueBytes(options.getMaxWindmillStateCacheValueBytes())
+            .setMaxCachedEntryBytes(options.getMaxWindmillStateCacheEntryBytes())
             .setEnableHistogram(
                 !ExperimentalOptions.hasExperiment(
                     options, "disable_windmill_user_state_cache_histogram"))
@@ -662,8 +662,8 @@ public final class StreamingDataflowWorker {
         .getGlobalConfigHandle()
         .registerConfigObserver(
             config -> {
-              windmillStateCache.setMaxCachedValueBytesOverride(
-                  config.userWorkerJobSettings().getMaxCachedValueBytes());
+              windmillStateCache.setMaxCachedEntryBytesOverride(
+                  config.userWorkerJobSettings().getMaxCachedEntryBytes());
             });
 
     ComputationStateCache computationStateCache =

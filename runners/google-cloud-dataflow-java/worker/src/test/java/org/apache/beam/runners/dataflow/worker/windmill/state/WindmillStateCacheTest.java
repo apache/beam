@@ -271,8 +271,8 @@ public class WindmillStateCacheTest {
   }
 
   @Test
-  public void testMaxCachedValueBytes() throws Exception {
-    cache.setMaxCachedValueBytesOverride(
+  public void testMaxCachedEntryBytes() throws Exception {
+    cache.setMaxCachedEntryBytesOverride(
         100); // Set limit to 100 bytes, per cache entry overhead is 136.
 
     WindmillStateCache.ForKeyAndFamily keyCache =
@@ -290,7 +290,7 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag1));
 
     // Now set limit larger.
-    cache.setMaxCachedValueBytesOverride(1000);
+    cache.setMaxCachedEntryBytesOverride(1000);
 
     putInCache(keyCache, StateNamespaces.global(), tag2, new TestState("g2"), 10);
     keyCache.persist();

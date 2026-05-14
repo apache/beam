@@ -32,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.util.SimpleByteHistogram;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
@@ -75,17 +76,17 @@ public class WindmillStateCache implements StatusDataProvider {
   private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex;
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
   private final boolean supportMapViaMultimap;
-  private final long defaultMaxCachedValueBytes;
+  private final long defaultMaxCachedEntryBytes;
   private final boolean enableHistogram;
-  private volatile long maxCachedValueBytesOverride = -1L;
+  private volatile long maxCachedEntryBytesOverride = -1L;
 
   WindmillStateCache(
       long sizeMb,
       boolean supportMapViaMultimap,
-      long maxCachedValueBytes,
+      long maxCachedEntryBytes,
       boolean enableHistogram) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
-    this.defaultMaxCachedValueBytes = maxCachedValueBytes;
+    this.defaultMaxCachedEntryBytes = maxCachedEntryBytes;
     this.enableHistogram = enableHistogram;
     int stateCacheConcurrencyLevel =
         Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
@@ -108,7 +109,7 @@ public class WindmillStateCache implements StatusDataProvider {
 
     Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
 
-    Builder setMaxCachedValueBytes(long maxCachedValueBytes);
+    Builder setMaxCachedEntryBytes(long maxCachedEntryBytes);
 
     Builder setEnableHistogram(boolean enableHistogram);
 
@@ -118,17 +119,17 @@ public class WindmillStateCache implements StatusDataProvider {
   public static Builder builder() {
     return new AutoBuilder_WindmillStateCache_Builder()
         .setSupportMapViaMultimap(false)
-        .setMaxCachedValueBytes(Long.MAX_VALUE)
+        .setMaxCachedEntryBytes(Long.MAX_VALUE)
         .setEnableHistogram(true);
   }
 
-  public void setMaxCachedValueBytesOverride(long limit) {
-    this.maxCachedValueBytesOverride = limit;
+  public void setMaxCachedEntryBytesOverride(long limit) {
+    this.maxCachedEntryBytesOverride = limit;
   }
 
-  private long getMaxCachedValueBytesLimit() {
-    long override = maxCachedValueBytesOverride;
-    return override >= 0 ? override : defaultMaxCachedValueBytes;
+  private long getMaxCachedEntryBytesLimit() {
+    long override = maxCachedEntryBytesOverride;
+    return override >= 0 ? override : defaultMaxCachedEntryBytes;
   }
 
   private EntryStats calculateEntryStats() {
@@ -173,18 +174,6 @@ public class WindmillStateCache implements StatusDataProvider {
     return new ForComputation(computation);
   }
 
-  private static String formatHistogram(long[] histogram) {
-    return String.format(
-        "[<128B:%d, <256B:%d, <512B:%d, <1KB:%d, <10KB:%d, <1MB:%d, >=1MB:%d]",
-        histogram[0],
-        histogram[1],
-        histogram[2],
-        histogram[3],
-        histogram[4],
-        histogram[5],
-        histogram[6]);
-  }
-
   /** Print summary statistics of the cache to the given {@link PrintWriter}. */
   @Override
   public void appendSummaryHtml(PrintWriter response) {
@@ -210,19 +199,19 @@ public class WindmillStateCache implements StatusDataProvider {
     response.println("<tr><th>Max Weight</th><td>" + getMaxWeight() / MEGABYTES + "MB</td></tr>");
     response.println("<tr><th>Keys</th><td>" + keyIndex.size() + "</td></tr>");
     response.println(
-        "<tr><th>Value Size Limit</th><td>" + getMaxCachedValueBytesLimit() + " bytes</td></tr>");
+        "<tr><th>Entry Size Limit</th><td>" + getMaxCachedEntryBytesLimit() + " bytes</td></tr>");
     if (enableHistogram) {
       response.println(
           "<tr><th>Entry Weight Dist</th><td>"
-              + formatHistogram(entryStats.entryWeightHistogram)
+              + entryStats.entryWeightHistogram.format()
               + "</td></tr>");
       response.println(
           "<tr><th>Value Weight Dist</th><td>"
-              + formatHistogram(entryStats.valueWeightHistogram)
+              + entryStats.valueWeightHistogram.format()
               + "</td></tr>");
       response.println(
           "<tr><th>Key Weight Dist</th><td>"
-              + formatHistogram(entryStats.keyWeightHistogram)
+              + entryStats.keyWeightHistogram.format()
               + "</td></tr>");
     }
 
@@ -248,30 +237,20 @@ public class WindmillStateCache implements StatusDataProvider {
     long entryWeight;
     long entryValues;
     long maxEntryValues;
-    long[] entryWeightHistogram = new long[7];
-    long[] valueWeightHistogram = new long[7];
-    long[] keyWeightHistogram = new long[7];
+    SimpleByteHistogram entryWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram valueWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram keyWeightHistogram = new SimpleByteHistogram();
 
     void addEntryWeight(long weight) {
-      entryWeightHistogram[getBucket(weight)]++;
+      entryWeightHistogram.add(weight);
     }
 
     void addValueWeight(long weight) {
-      valueWeightHistogram[getBucket(weight)]++;
+      valueWeightHistogram.add(weight);
     }
 
     void addKeyWeight(long weight) {
-      keyWeightHistogram[getBucket(weight)]++;
-    }
-
-    private int getBucket(long weight) {
-      if (weight < 128) return 0;
-      if (weight < 256) return 1;
-      if (weight < 512) return 2;
-      if (weight < 1024) return 3;
-      if (weight < 10 * 1024) return 4;
-      if (weight < 1024 * 1024) return 5;
-      return 6;
+      keyWeightHistogram.add(weight);
     }
   }
 
@@ -506,7 +485,7 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public void persist() {
-      long limit = WindmillStateCache.this.getMaxCachedValueBytesLimit();
+      long limit = WindmillStateCache.this.getMaxCachedEntryBytesLimit();
       localCache.forEach(
           (id, entry) -> {
             if (entry.getWeight() <= limit) {
