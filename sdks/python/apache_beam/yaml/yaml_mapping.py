@@ -183,35 +183,26 @@ def _check_mapping_arguments(
 _THREAD_LOCAL_JS_CACHE = threading.local()
 
 
-class _JsWrapper:
+class _JsFunctionWrapper:
   def __init__(self, source_code, entrypoint_name):
     self.source_code = source_code
     self.entrypoint_name = entrypoint_name
 
-  def _get_wrapper_fn(self):
+  def _get_fn(self):
     cache = _THREAD_LOCAL_JS_CACHE
     if not hasattr(cache, 'functions'):
       cache.functions = {}
 
     cache_key = (self.source_code, self.entrypoint_name)
     if cache_key not in cache.functions:
-      ctx = quickjs.Context()
-      ctx.eval(self.source_code)
-      cache.functions[cache_key] = ctx.get(self.entrypoint_name)
+      cache.functions[cache_key] = quickjs.Function(
+          self.entrypoint_name, self.source_code)
 
     return cache.functions[cache_key]
 
   def __call__(self, row):
-    wrapper_fn = self._get_wrapper_fn()
-    row_as_dict = py_value_to_js_dict(row)
-    try:
-      js_result = wrapper_fn(json.dumps(row_as_dict))
-    except Exception as exn:
-      raise RuntimeError(
-          f"Error evaluating javascript expression: {exn}") from exn
-    if hasattr(js_result, 'json'):
-      js_result = json.loads(js_result.json())
-    return dicts_to_rows(js_result)
+    fn = self._get_fn()
+    return dicts_to_rows(fn(py_value_to_js_dict(row)))
 
 
 # TODO(yaml) Improve type inferencing for JS UDF's
@@ -249,15 +240,12 @@ def _expand_javascript_mapping_func(
         if name in expression and name.isidentifier()
     ])
     source_code = f"""
-    const udf = function(__row__) {{
+    function udf(__row__) {{
     {unpacking_code}
       return ({expression});
-    }};
-    function wrapper(json_str) {{
-      return udf(JSON.parse(json_str));
     }}
     """
-    entrypoint = 'wrapper'
+    entrypoint = 'udf'
 
   elif callable:
     match = re.search(r'(?:async\s+)?function\s+([a-zA-Z0-9_]+)', callable)
@@ -265,27 +253,17 @@ def _expand_javascript_mapping_func(
       raise ValueError(
           f"Could not find function declaration in callable: {callable}")
     udf_name = match.group(1)
-    source_code = f"""
-    {callable}
-    function wrapper(json_str) {{
-      return {udf_name}(JSON.parse(json_str));
-    }}
-    """
-    entrypoint = 'wrapper'
+    source_code = callable
+    entrypoint = udf_name
 
   else:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
-    source_code = f"""
-    {udf_code}
-    function wrapper(json_str) {{
-      return {name}(JSON.parse(json_str));
-    }}
-    """
-    entrypoint = 'wrapper'
+    source_code = udf_code
+    entrypoint = name
 
-  return _JsWrapper(source_code, entrypoint)
+  return _JsFunctionWrapper(source_code, entrypoint)
 
 
 def _expand_python_mapping_func(
