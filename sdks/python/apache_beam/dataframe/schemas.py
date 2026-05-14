@@ -95,11 +95,8 @@ def generate_proxy(element_type: type) -> pd.DataFrame:
   else:
     fields = named_fields_from_element_type(element_type)
     proxy = pd.DataFrame(columns=[name for name, _ in fields])
-    for name, typehint in fields:
-      dtype = dtype_from_typehint(typehint)
-      proxy[name] = proxy[name].astype(dtype)
-
-    return proxy
+    dtypes = {name: dtype_from_typehint(typehint) for name, typehint in fields}
+    return proxy.astype(dtypes)
 
 
 def element_type_from_dataframe(
