@@ -59,7 +59,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
-    implementation library.java.hadoop_common
+    implementation "org.apache.hadoop:hadoop-common:3.3.6"
     // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
@@ -70,6 +70,7 @@ dependencies {
     runtimeOnly "org.apache.iceberg:iceberg-azure:$iceberg_version"
     runtimeOnly "org.apache.iceberg:iceberg-azure-bundle:$iceberg_version"
     runtimeOnly library.java.bigdataoss_gcs_connector
+    runtimeOnly library.java.bigdataoss_util_hadoop
     runtimeOnly library.java.hadoop_client
 
     testImplementation project(":sdks:java:managed")
@@ -117,6 +118,14 @@ dependencies {
 configurations.all {
   // iceberg-core needs avro:1.12.0
   resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
+  // bigdataoss:gcs-connector and parquet:parquet-hadoop have conflicts with global hadoop-common:3.4.2
+  // upgrading gcs-connector to 4.0.0 would be fine, because it uses hadoop-common 3.4.2
+  // but parquet-hadoop is still at 3.3.0
+  // so for now we need to pin hadoop to 3.3.6 until parquet-hadoop releases a version that uses hadoop 3.4.2+
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
 }
 
 hadoopVersions.each {kv ->
