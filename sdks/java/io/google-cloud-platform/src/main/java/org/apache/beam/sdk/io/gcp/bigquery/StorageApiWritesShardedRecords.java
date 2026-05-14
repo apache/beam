@@ -714,7 +714,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         o.get(flushTag)
             .output(KV.of(failedContext.streamName, new Operation(failedContext.offset - 1, true)));
 
-        // Clear streamName so a new stream will be created.
+        // Clear streamName so a new stream will be created in resetClient below.
         streamName.write("");
 
         // Re-establish the client with the new stream.
