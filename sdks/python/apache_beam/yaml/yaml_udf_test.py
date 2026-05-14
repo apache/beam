@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 import datetime
-from decimal import Decimal
 import logging
 import os
 import shutil
 import tempfile
 import unittest
+from decimal import Decimal
 
 import apache_beam as beam
 from apache_beam.io import localfilesystem
