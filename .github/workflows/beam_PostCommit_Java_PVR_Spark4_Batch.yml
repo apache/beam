@@ -56,7 +56,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 240
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_PostCommit_Java_PVR_Spark4_Batch]
         job_phrase: [Run Java Spark4 PortableValidatesRunner Batch]
     if: |
@@ -82,7 +82,7 @@ jobs:
         with:
             gradle-command: |
               :runners:spark:4:job-server:validatesPortableRunnerBatch \
-              :runners:spark:4:job-server:validatesPortableRunnerDocker
+              :runners:spark:4:job-server:validatesPortableRunnerDocker \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}
