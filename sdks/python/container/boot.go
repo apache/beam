@@ -133,7 +133,14 @@ type PipelineOptionsData struct {
 }
 
 type OptionsData struct {
-	Experiments []string `json:"experiments"`
+	Experiments          []string `json:"experiments"`
+	ProfilerAgent        string   `json:"profiler_agent"`
+	ProfilerExtraArgs    []string `json:"profiler_extra_args"`
+	ProfilerExtraEnvVars []string `json:"profiler_extra_env_vars"`
+	ProfileLocation      string   `json:"profile_location"`
+	ProfileTempLocation  string   `json:"profile_temp_location"`
+	ProfileSyncPeriodSec int      `json:"profile_sync_period_sec"`
+	ProfilerStopAfterMin int      `json:"profiler_stop_after_min"`
 }
 
 func getExperiments(options string) []string {
@@ -196,6 +203,30 @@ func launchSDKProcess() error {
 		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	} else {
 		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	}
+
+	var opts PipelineOptionsData
+	if err := json.Unmarshal([]byte(options), &opts); err != nil {
+		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
+	}
+
+	profileTempLocation := opts.Options.ProfileTempLocation
+	if profileTempLocation == "" {
+		profileTempLocation = filepath.Join(*semiPersistDir, "profiles")
+	}
+
+	if opts.Options.ProfilerAgent != "" {
+		logger.Printf(ctx, "Worker will be configured with profiler agent enabled.")
+		logger.Printf(ctx, "ProfilerAgent: %v", opts.Options.ProfilerAgent)
+		logger.Printf(ctx, "ProfilerExtraArgs: %v", opts.Options.ProfilerExtraArgs)
+		logger.Printf(ctx, "ProfilerExtraEnvVars: %v", opts.Options.ProfilerExtraEnvVars)
+		logger.Printf(ctx, "ProfileLocation: %v", opts.Options.ProfileLocation)
+		logger.Printf(ctx, "ProfileTempLocation: %v", profileTempLocation)
+		logger.Printf(ctx, "ProfileSyncPeriodSec: %v", opts.Options.ProfileSyncPeriodSec)
+		logger.Printf(ctx, "ProfilerStopAfterMin: %v", opts.Options.ProfilerStopAfterMin)
+		if err := os.MkdirAll(profileTempLocation, 0755); err != nil {
+			logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
+		}
 	}
 
 	// (2) Retrieve and install the staged packages.
@@ -314,11 +345,6 @@ func launchSDKProcess() error {
 		childPids.mu.Unlock()
 	}()
 
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
@@ -333,8 +359,54 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
+
+				currentProg := "python"
+				currentArgs := []string{"-m", sdkHarnessEntrypoint}
+				currentEnv := map[string]string{"WORKER_ID": workerId}
+
+				if opts.Options.ProfilerAgent != "" {
+					if opts.Options.ProfilerAgent == "memray" {
+						timeSuffix := time.Now().Format("20060102150405")
+						memrayFile := filepath.Join(profileTempLocation, fmt.Sprintf("memray-%s-%s.bin", workerId, timeSuffix))
+						currentArgs = []string{"-m", "memray", "run"}
+						currentArgs = append(currentArgs, opts.Options.ProfilerExtraArgs...)
+						currentArgs = append(currentArgs, "-o", memrayFile, "-m", sdkHarnessEntrypoint)
+					} else if opts.Options.ProfilerAgent == "tcmalloc" {
+						tcmallocHeapPath := filepath.Join(profileTempLocation, fmt.Sprintf("tcmalloc-%s", workerId))
+						existingPreload := os.Getenv("LD_PRELOAD")
+						if existingPreload != "" {
+							currentEnv["LD_PRELOAD"] = existingPreload + ":/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+						} else {
+							currentEnv["LD_PRELOAD"] = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+						}
+						currentEnv["HEAPPROFILE"] = tcmallocHeapPath
+					} else {
+						currentProg = opts.Options.ProfilerAgent
+						currentArgs = append(append([]string{}, opts.Options.ProfilerExtraArgs...), "python", "-m", sdkHarnessEntrypoint)
+					}
+
+					for _, envVar := range opts.Options.ProfilerExtraEnvVars {
+						parts := strings.SplitN(envVar, "=", 2)
+						if len(parts) == 2 {
+							currentEnv[parts[0]] = parts[1]
+						} else {
+							logger.Errorf(ctx, "Failed to parse profiler extra environment variable: %v. Expected format KEY=VALUE", envVar)
+						}
+					}
+				}
+
+				var envStr string
+				if len(currentEnv) > 0 {
+					var envStrings []string
+					for k, v := range currentEnv {
+						envStrings = append(envStrings, k+"="+v)
+					}
+					slices.Sort(envStrings)
+					envStr = strings.Join(envStrings, ", ")
+				}
+
+				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
+				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
