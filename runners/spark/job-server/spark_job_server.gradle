@@ -307,5 +307,7 @@ createCrossLanguageValidatesRunnerTask(
 )
 
 shadowJar {
-  outputs.upToDateWhen { false }
+  manifest {
+    attributes(["Multi-Release": true])
+  }
 }
