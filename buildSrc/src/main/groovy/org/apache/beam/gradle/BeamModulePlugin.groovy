@@ -859,13 +859,13 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
-        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // opentelemetry-bom sets version
         opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
-        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context:$opentelemetry_version", // Set version explicitly as it's standalone runtime dep for Beam modules
         opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
-        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // google_cloud_platform_libraries_bom sets version
-        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // google_cloud_platform_libraries_bom sets version
-        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
+        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
+        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
