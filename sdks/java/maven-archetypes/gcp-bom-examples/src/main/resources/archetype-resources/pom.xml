@@ -31,7 +31,6 @@
 
     <bigquery.version>@bigquery.version@</bigquery.version>
     <google-api-client.version>@google-api-client.version@</google-api-client.version>
-    <google-api-services-dataflow.version>@google-api-services-dataflow.version@</google-api-services-dataflow.version>
     <hamcrest.version>@hamcrest.version@</hamcrest.version>
     <jackson.version>@jackson.version@</jackson.version>
     <joda.version>@joda.version@</joda.version>
@@ -194,12 +193,6 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-          <scope>runtime</scope>
-        </dependency>
-        <dependency>
-          <groupId>com.google.apis</groupId>
-          <artifactId>google-api-services-dataflow</artifactId>
-          <version>${google-api-services-dataflow.version}</version>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
