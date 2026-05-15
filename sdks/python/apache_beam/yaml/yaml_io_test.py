@@ -14,14 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import fastavro
+
 import io
 import json
 import logging
-import mock
 import os
 import tempfile
 import unittest
+
+import fastavro
+import mock
 
 import apache_beam as beam
 from apache_beam.coders.row_coder import RowCoder
