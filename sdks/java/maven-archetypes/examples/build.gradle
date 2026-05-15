@@ -29,6 +29,7 @@ processResources {
     'project.version':  version,
     'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
     'google-api-client.version': dependencies.create(project.library.java.google_api_client).getVersion(),
+    'google-api-services-dataflow.version': dependencies.create(project.library.java.google_api_services_dataflow).getVersion(),
     'guava.version': dependencies.create(project.library.java.guava).getVersion(),
     'hamcrest.version': dependencies.create(project.library.java.hamcrest).getVersion(),
     'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
