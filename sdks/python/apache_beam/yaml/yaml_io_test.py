@@ -14,14 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import fastavro
 import io
 import json
 import logging
-import unittest
-
-import fastavro
 import mock
+import os
+import tempfile
+import unittest
 
 import apache_beam as beam
 from apache_beam.coders.row_coder import RowCoder
@@ -545,8 +545,6 @@ class YamlPubSubTest(unittest.TestCase):
 
 class YamlMatchAllTest(unittest.TestCase):
   def test_match_all_simple(self):
-    import tempfile
-    import os
     with tempfile.TemporaryDirectory() as temp_dir:
       file1 = os.path.join(temp_dir, 'file1.txt')
       file2 = os.path.join(temp_dir, 'file2.txt')
@@ -570,8 +568,6 @@ class YamlMatchAllTest(unittest.TestCase):
         assert_that(paths, equal_to([file1, file2]))
 
   def test_match_all_single_field_default(self):
-    import tempfile
-    import os
     with tempfile.TemporaryDirectory() as temp_dir:
       file1 = os.path.join(temp_dir, 'file1.txt')
       with open(file1, 'w') as fout:
