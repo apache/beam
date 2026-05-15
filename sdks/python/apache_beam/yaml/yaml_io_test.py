@@ -543,6 +543,79 @@ class YamlPubSubTest(unittest.TestCase):
         assert_that(result, equal_to(data))
 
 
+class YamlMatchAllTest(unittest.TestCase):
+  def test_match_all_simple(self):
+    import tempfile
+    import os
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      file2 = os.path.join(temp_dir, 'file2.txt')
+      for f in [file1, file2]:
+        with open(f, 'w') as fout:
+          fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create(
+                [beam.Row(pattern=os.path.join(temp_dir, 'file*.txt'))])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: pattern
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1, file2]))
+
+  def test_match_all_single_field_default(self):
+    import tempfile
+    import os
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      with open(file1, 'w') as fout:
+        fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(my_sole_pattern=file1)])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1]))
+
+  def test_match_all_multiple_fields_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo', other_field='bar')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+
+  def test_match_all_empty_match_disallow_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='does_not_exist*.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  empty_match_treatment: DISALLOW
+                '''))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
