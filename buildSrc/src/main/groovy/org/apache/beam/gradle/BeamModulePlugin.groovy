@@ -1296,7 +1296,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
+        if (config.getName() != "errorprone" &&
+            !config.getName().startsWith("spotless") &&
+            !config.getName().startsWith("checkstyle") &&
+            !inDependencyUpdates) {
           config.resolutionStrategy {
             // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
             // versions for only handful libraries when building the project (BEAM-9542).
