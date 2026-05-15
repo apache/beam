@@ -613,6 +613,53 @@ class YamlMatchAllTest(unittest.TestCase):
                   empty_match_treatment: DISALLOW
                 '''))
 
+  def test_match_all_invalid_field_error(self):
+    with self.assertRaisesRegex(
+        ValueError, "Field 'invalid_field' not found in input schema fields"):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: invalid_field
+                '''))
+
+  def test_match_all_none_timestamp(self):
+    from apache_beam.io.filesystem import FileMetadata
+
+    class MockMatchAll(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll.pipeline | beam.Create([
+            FileMetadata(
+                path='file.txt',
+                size_in_bytes=100,
+                last_updated_in_seconds=None)
+        ])
+
+    with mock.patch('apache_beam.io.fileio.MatchAll',
+                    return_value=MockMatchAll()):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(pattern='file.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    path='file.txt',
+                    size_in_bytes=100,
+                    last_updated_in_seconds=None)
+            ]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

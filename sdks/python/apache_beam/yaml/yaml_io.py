@@ -751,6 +751,10 @@ def match_all(
         name for name, _ in schemas.named_fields_from_element_type(
             pcoll.element_type)
     ]
+  except Exception:
+    field_names = None
+
+  if field_names:
     if file_pattern is not None:
       if file_pattern not in field_names:
         raise ValueError(
@@ -765,8 +769,7 @@ def match_all(
           f"Please specify the 'file_pattern' parameter to select which field "
           f"contains the file pattern.")
     patterns = pcoll | beam.Map(lambda x: str(getattr(x, pattern_field)))
-  except Exception:
-    # Fallback for PCollection without a schema (e.g. raw string elements)
+  else:
     patterns = pcoll
 
   matched = patterns | beam.io.fileio.MatchAll(
@@ -774,6 +777,6 @@ def match_all(
 
   return matched | beam.Map(
       lambda x: beam.Row(
-          path=str(x.path),
-          size_in_bytes=int(x.size_in_bytes),
-          last_updated_in_seconds=float(x.last_updated_in_seconds), ))
+          path=str(x.path), size_in_bytes=int(x.size_in_bytes),
+          last_updated_in_seconds=float(x.last_updated_in_seconds)
+          if x.last_updated_in_seconds is not None else None))
