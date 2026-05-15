@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +38,60 @@ public class TableSchemaTest {
   @Test
   public void testParseDateTime() {
     assertEquals(ColumnType.DATETIME, ColumnType.parse("DateTime"));
+  }
+
+  @Test
+  public void testParseDateTime64Millis() {
+    assertEquals(ColumnType.dateTime64(3), ColumnType.parse("DateTime64(3)"));
+  }
+
+  @Test
+  public void testParseDateTime64MicrosWithTimezone() {
+    // The timezone argument is display-only metadata; the parser accepts and ignores it.
+    assertEquals(ColumnType.dateTime64(6), ColumnType.parse("DateTime64(6, 'UTC')"));
+  }
+
+  @Test
+  public void testParseBareDateTime64DefaultsToPrecision3() {
+    assertEquals(ColumnType.dateTime64(3), ColumnType.parse("DateTime64"));
+  }
+
+  @Test
+  public void testParseDateTime64Nanos() {
+    assertEquals(ColumnType.dateTime64(9), ColumnType.parse("DateTime64(9)"));
+  }
+
+  @Test
+  public void testParseNullableDateTime64() {
+    assertEquals(
+        ColumnType.dateTime64(6).withNullable(true), ColumnType.parse("Nullable(DateTime64(6))"));
+  }
+
+  @Test
+  public void testParseArrayOfDateTime64() {
+    assertEquals(
+        ColumnType.array(ColumnType.dateTime64(3)), ColumnType.parse("Array(DateTime64(3))"));
+  }
+
+  @Test
+  public void testParseDateTime64OutOfRangePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(10)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDateTime64NegativePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(-1)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDateTime64GarbagePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(abc)"));
+    assertEquals("failed to parse", e.getMessage());
   }
 
   @Test
@@ -196,6 +251,53 @@ public class TableSchemaTest {
             Schema.Field.nullable("f1", Schema.FieldType.INT64));
 
     assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Millis() {
+    // Precision ≤ 3 keeps the legacy Joda-backed DATETIME so that existing pipelines using
+    // millisecond timestamps continue to work without code changes.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(3)));
+    Schema expected = Schema.of(Schema.Field.of("ts", Schema.FieldType.DATETIME));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Micros() {
+    // Precision 4–6 maps to SqlTypes.TIMESTAMP (MicrosInstant) — interoperable with
+    // BigQueryIO and Beam SQL, sufficient for microsecond ticks.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(6)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of(
+                "ts",
+                Schema.FieldType.logicalType(
+                    org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.TIMESTAMP)));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Nanos() {
+    // Precision 7–9 needs nanosecond precision; MicrosInstant rejects non-micro-aligned
+    // nanos, so the mapping must use NanosInstant.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(9)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of(
+                "ts",
+                Schema.FieldType.logicalType(
+                    new org.apache.beam.sdk.schemas.logicaltypes.NanosInstant())));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDateTime64RejectsNegativePrecision() {
+    ColumnType.dateTime64(-1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDateTime64RejectsPrecisionAboveNine() {
+    ColumnType.dateTime64(10);
   }
 
   @Test
