@@ -611,7 +611,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "2.79.0"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.26"
+    def google_cloud_bigdataoss_version = "3.1.16"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -623,7 +623,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
     def iceberg_bqms_catalog_version = "1.6.1-1.0.1"
-    def jackson_version = "2.15.4"
+    def jackson_version = "2.18.6"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
@@ -702,9 +702,9 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         azure_sdk_bom                               : "com.azure:azure-sdk-bom:1.2.14",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
-        bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
+        bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
+        bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
@@ -859,13 +859,13 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
-        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // opentelemetry-bom sets version
         opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
-        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context:$opentelemetry_version", // Set version explicitly as it's standalone runtime dep for Beam modules
         opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
-        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // google_cloud_platform_libraries_bom sets version
-        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // google_cloud_platform_libraries_bom sets version
-        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
+        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
+        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",

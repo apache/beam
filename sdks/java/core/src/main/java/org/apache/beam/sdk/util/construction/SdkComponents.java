@@ -63,7 +63,6 @@ public class SdkComponents {
   private final BiMap<Environment, String> environmentIds = HashBiMap.create();
   private final BiMap<RunnerApi.Coder, String> coderProtoToId = HashBiMap.create();
   private final Set<String> requirements;
-  private final PipelineOptions pipelineOptions;
 
   private final Set<String> reservedIds = new HashSet<>();
 
@@ -72,7 +71,17 @@ public class SdkComponents {
 
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
-    return new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "", null);
+    return new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "");
+  }
+
+  /**
+   * Create new {@link SdkComponents} importing all items from provided {@link Components} object.
+   *
+   * <p>WARNING: This action might cause some of duplicate items created.
+   */
+  public static SdkComponents create(
+      RunnerApi.Components components, Collection<String> requirements) {
+    return new SdkComponents(components, requirements, "");
   }
 
   /*package*/ static SdkComponents create(
@@ -82,9 +91,8 @@ public class SdkComponents {
       Map<String, WindowingStrategy<?, ?>> windowingStrategies,
       Map<String, Coder<?>> coders,
       Map<String, Environment> environments,
-      Collection<String> requirements,
-      PipelineOptions pipelineOptions) {
-    SdkComponents sdkComponents = new SdkComponents(components, requirements, "", pipelineOptions);
+      Collection<String> requirements) {
+    SdkComponents sdkComponents = SdkComponents.create(components, requirements);
     sdkComponents.transformIds.inverse().putAll(transforms);
     sdkComponents.pCollectionIds.inverse().putAll(pCollections);
     sdkComponents.windowingStrategyIds.inverse().putAll(windowingStrategies);
@@ -95,28 +103,19 @@ public class SdkComponents {
 
   public static SdkComponents create(PipelineOptions options) {
     SdkComponents sdkComponents =
-        new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "", options);
+        new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "");
     PortablePipelineOptions portablePipelineOptions = options.as(PortablePipelineOptions.class);
     sdkComponents.registerEnvironment(
         Environments.createOrGetDefaultEnvironment(portablePipelineOptions));
     return sdkComponents;
   }
 
-  public static SdkComponents create(PipelineOptions options, Environment environment) {
-    SdkComponents sdkComponents =
-        new SdkComponents(RunnerApi.Components.getDefaultInstance(), null, "", options);
-    sdkComponents.registerEnvironment(environment);
-    return sdkComponents;
-  }
-
   private SdkComponents(
       @Nullable Components components,
       @Nullable Collection<String> requirements,
-      String newIdPrefix,
-      @Nullable PipelineOptions pipelineOptions) {
+      String newIdPrefix) {
     this.newIdPrefix = newIdPrefix;
     this.requirements = new HashSet<>();
-    this.pipelineOptions = pipelineOptions;
 
     if (components == null) {
       if (requirements != null) {
@@ -154,7 +153,7 @@ public class SdkComponents {
    */
   public SdkComponents withNewIdPrefix(String newIdPrefix) {
     SdkComponents sdkComponents =
-        new SdkComponents(componentsBuilder.build(), requirements, newIdPrefix, pipelineOptions);
+        new SdkComponents(componentsBuilder.build(), requirements, newIdPrefix);
     sdkComponents.transformIds.putAll(transformIds);
     sdkComponents.pCollectionIds.putAll(pCollectionIds);
     sdkComponents.windowingStrategyIds.putAll(windowingStrategyIds);
@@ -175,7 +174,7 @@ public class SdkComponents {
       throws IOException {
     String name = getApplicationName(appliedPTransform);
     // If this transform is present in the components, nothing to do. return the existing name.
-    // Otherwise, the transform must be translated and added to the components.
+    // Otherwise the transform must be translated and added to the components.
     if (componentsBuilder.getTransformsOrDefault(name, null) != null) {
       return name;
     }
@@ -375,9 +374,5 @@ public class SdkComponents {
 
   public Collection<String> requirements() {
     return ImmutableSet.copyOf(requirements);
-  }
-
-  public PipelineOptions getPipelineOptions() {
-    return pipelineOptions;
   }
 }
