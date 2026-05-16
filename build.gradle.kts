@@ -278,6 +278,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
+  dependsOn(":runners:kafka-streams:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
