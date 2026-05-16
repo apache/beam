@@ -24,7 +24,7 @@ package org.apache.beam.examples.complete;
 //     of predefined 'routes', and looks for 'slowdowns' in those routes. It writes its
 //     results to a BigQuery table.
 //   multifile: true
-//   context_line: 399
+//   context_line: 411
 //   categories:
 //     - Combiners
 //     - Streaming
@@ -63,6 +63,9 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.Timestamp;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -187,12 +190,13 @@ public class TrafficRoutes {
         DateTimeFormat.forPattern("MM/dd/yyyy HH:mm:ss");
 
     @ProcessElement
-    public void processElement(DoFn<String, String>.ProcessContext c) throws Exception {
-      String[] items = c.element().split(",");
+    public void processElement(@Element String element, OutputReceiver<String> receiver)
+        throws Exception {
+      String[] items = element.split(",");
       String timestamp = tryParseTimestamp(items);
       if (timestamp != null) {
         try {
-          c.outputWithTimestamp(c.element(), new Instant(dateTimeFormat.parseMillis(timestamp)));
+          receiver.outputWithTimestamp(element, new Instant(dateTimeFormat.parseMillis(timestamp)));
         } catch (IllegalArgumentException e) {
           // Skip the invalid input.
         }
@@ -207,8 +211,11 @@ public class TrafficRoutes {
   static class ExtractStationSpeedFn extends DoFn<String, KV<String, StationSpeed>> {
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      String[] items = c.element().split(",");
+    public void processElement(
+        @Timestamp Instant timestamp,
+        @Element String element,
+        OutputReceiver<KV<String, StationSpeed>> receiver) {
+      String[] items = element.split(",");
       String stationType = tryParseStationType(items);
       // For this analysis, use only 'main line' station types
       if ("ML".equals(stationType)) {
@@ -216,11 +223,10 @@ public class TrafficRoutes {
         String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.
         if (avgSpeed != null && stationId != null && sdStations.containsKey(stationId)) {
-          StationSpeed stationSpeed =
-              new StationSpeed(stationId, avgSpeed, c.timestamp().getMillis());
+          StationSpeed stationSpeed = new StationSpeed(stationId, avgSpeed, timestamp.getMillis());
           // The tuple key is the 'route' name stored in the 'sdStations' hash.
           KV<String, StationSpeed> outputValue = KV.of(sdStations.get(stationId), stationSpeed);
-          c.output(outputValue);
+          receiver.output(outputValue);
         }
       }
     }
@@ -234,13 +240,16 @@ public class TrafficRoutes {
    */
   static class GatherStats extends DoFn<KV<String, Iterable<StationSpeed>>, KV<String, RouteInfo>> {
     @ProcessElement
-    public void processElement(ProcessContext c) throws IOException {
-      String route = c.element().getKey();
+    public void processElement(
+        @Element KV<String, Iterable<StationSpeed>> element,
+        OutputReceiver<KV<String, RouteInfo>> receiver)
+        throws IOException {
+      String route = element.getKey();
       double speedSum = 0.0;
       int speedCount = 0;
       int speedups = 0;
       int slowdowns = 0;
-      List<StationSpeed> infoList = Lists.newArrayList(c.element().getValue());
+      List<StationSpeed> infoList = Lists.newArrayList(element.getValue());
       // StationSpeeds sort by embedded timestamp.
       Collections.sort(infoList);
       Map<String, Double> prevSpeeds = new HashMap<>();
@@ -268,22 +277,25 @@ public class TrafficRoutes {
       double speedAvg = speedSum / speedCount;
       boolean slowdownEvent = slowdowns >= 2 * speedups;
       RouteInfo routeInfo = new RouteInfo(route, speedAvg, slowdownEvent);
-      c.output(KV.of(route, routeInfo));
+      receiver.output(KV.of(route, routeInfo));
     }
   }
 
   /** Format the results of the slowdown calculations to a TableRow, to save to BigQuery. */
   static class FormatStatsFn extends DoFn<KV<String, RouteInfo>, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      RouteInfo routeInfo = c.element().getValue();
+    public void processElement(
+        @Element KV<String, RouteInfo> element,
+        @Timestamp Instant timestamp,
+        OutputReceiver<TableRow> receiver) {
+      RouteInfo routeInfo = element.getValue();
       TableRow row =
           new TableRow()
               .set("avg_speed", routeInfo.getAvgSpeed())
               .set("slowdown_event", routeInfo.getSlowdownEvent())
-              .set("route", c.element().getKey())
-              .set("window_timestamp", c.timestamp().toString());
-      c.output(row);
+              .set("route", element.getKey())
+              .set("window_timestamp", timestamp.toString());
+      receiver.output(row);
     }
 
     /** Defines the BigQuery schema used for the output. */

@@ -15,6 +15,17 @@
 # limitations under the License.
 #
 
-"""Apache Beam SDK version information and utilities."""
+# cython: overflowcheck=True
 
-__version__ = '2.75.0.dev'
+cdef class ByteLimitedQueue(object):
+  cdef readonly Py_ssize_t max_elements
+  cdef readonly Py_ssize_t max_bytes
+  cdef readonly Py_ssize_t _byte_size
+  cdef readonly object _mutex
+  cdef readonly object _not_empty
+  cdef readonly object _waiting_writers
+  cdef readonly list _condition_pool
+  cdef readonly object _queue
+  cdef readonly Py_ssize_t _blocked_bytes
+
+  cpdef bint _can_fit(self, Py_ssize_t item_bytes) except -1

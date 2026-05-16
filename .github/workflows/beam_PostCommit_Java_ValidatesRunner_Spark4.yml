@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit Java ValidatesRunner Spark4 StructuredStreaming
+name: PostCommit Java ValidatesRunner Spark4
 
 on:
   schedule:
     - cron: '45 4/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Spark4StructuredStreaming.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_ValidatesRunner_Spark4.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -49,21 +49,21 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Java_ValidatesRunner_Spark4StructuredStreaming:
+  beam_PostCommit_Java_ValidatesRunner_Spark4:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 120
     strategy:
       matrix:
-        job_name: [beam_PostCommit_Java_ValidatesRunner_Spark4StructuredStreaming]
-        job_phrase: [Run Spark4 StructuredStreaming ValidatesRunner]
+        job_name: [beam_PostCommit_Java_ValidatesRunner_Spark4]
+        job_phrase: [Run Spark4 ValidatesRunner]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Spark4 StructuredStreaming ValidatesRunner'
+      github.event.comment.body == 'Run Spark4 ValidatesRunner'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,15 +74,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: '17'
-      - name: run validatesStructuredStreamingRunnerBatch script
+      - name: run validatesRunner script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:spark:4:validatesStructuredStreamingRunnerBatch
-          arguments: |
-            -PtestJavaVersion=17 \
-            -PdisableSpotlessCheck=true \
+          gradle-command: :runners:spark:4:validatesRunner
+          arguments: -PdisableSpotlessCheck=true
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

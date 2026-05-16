@@ -22,6 +22,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Latest;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithTimestamps;
@@ -36,7 +38,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Latest transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 49
+//   context_line: 51
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -84,9 +86,9 @@ public class LatestExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info("{}{}", prefix, c.element());
-      c.output(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }
