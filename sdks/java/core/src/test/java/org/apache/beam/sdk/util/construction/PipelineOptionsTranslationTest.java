@@ -209,6 +209,24 @@ public class PipelineOptionsTranslationTest {
       PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
       PipelineOptionsTranslation.toProto(deserialized);
     }
+
+    @Test
+    public void emptyStringStringOptionSerializesToProto() {
+      PipelineOptionsFactory.register(TestStringOptions.class);
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields("beam:option:name:v1", Value.newBuilder().setStringValue("").build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+      PipelineOptionsTranslation.toProto(deserialized);
+    }
+  }
+
+  /** {@link PipelineOptions} with a string option for empty-string struct value tests. */
+  public interface TestStringOptions extends PipelineOptions {
+    String getName();
+
+    void setName(String name);
   }
 
   /** {@link PipelineOptions} with a nullable boxed option for null struct value tests. */

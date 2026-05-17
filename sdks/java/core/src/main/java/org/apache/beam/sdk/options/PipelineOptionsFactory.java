@@ -1800,17 +1800,12 @@ public class PipelineOptionsFactory {
     if (node == null || node.isNull() || node.isMissingNode()) {
       return null;
     }
-    if (node.isTextual() && node.asText().isEmpty()) {
-      return null;
-    }
 
     JavaType targetType = MAPPER.constructType(method.getGenericReturnType());
-
-    // Portable pipeline options from protobuf Struct are usually string-encoded scalars.
-    // convertValue coerces them reliably; TreeTraversingParser + StdDeserializer can NPE on
-    // Jackson 2.18+ (e.g. LongDeserializer._parseLong when parsing string values).
-    if (node.isValueNode()) {
-      return MAPPER.convertValue(node, targetType);
+    if (node.isTextual()
+        && node.asText().isEmpty()
+        && !targetType.isTypeOrSubTypeOf(String.class)) {
+      return null;
     }
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
@@ -1824,6 +1819,8 @@ public class PipelineOptionsFactory {
     try {
       return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
     } catch (RuntimeException e) {
+      // Jackson 2.18+ can NPE in StdDeserializer when coercing string-encoded Struct values
+      // (e.g. LongDeserializer._parseLong); convertValue handles portable pipeline options.
       return MAPPER.convertValue(node, targetType);
     }
   }
