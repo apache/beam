@@ -1,3 +1,4 @@
 {
-  "comment": "Trigger file for PostCommit Python Portable Flink tests"
+  "comment": "Trigger file for PostCommit Python Portable Flink tests",
+  "modification": "1"
 }
