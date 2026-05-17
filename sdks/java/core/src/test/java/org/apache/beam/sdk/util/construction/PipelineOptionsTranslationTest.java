@@ -182,6 +182,8 @@ public class PipelineOptionsTranslationTest {
               .putFields(
                   "beam:option:streaming:v1", Value.newBuilder().setStringValue("true").build())
               .putFields(
+                  "beam:option:parallelism:v1", Value.newBuilder().setStringValue("2").build())
+              .putFields(
                   "beam:option:checkpointing_interval:v1",
                   Value.newBuilder().setStringValue("3000").build())
               .putFields(
@@ -190,6 +192,19 @@ public class PipelineOptionsTranslationTest {
               .putFields(
                   "beam:option:number_of_execution_retries:v1",
                   Value.newBuilder().setStringValue("1").build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+      PipelineOptionsTranslation.toProto(deserialized);
+    }
+
+    @Test
+    public void emptyStringLongOptionSerializesToProto() {
+      PipelineOptionsFactory.register(TestStreamingLikeOptions.class);
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields(
+                  "beam:option:checkpointing_interval:v1",
+                  Value.newBuilder().setStringValue("").build())
               .build();
       PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
       PipelineOptionsTranslation.toProto(deserialized);
@@ -208,6 +223,10 @@ public class PipelineOptionsTranslationTest {
     boolean isStreaming();
 
     void setStreaming(boolean streaming);
+
+    Integer getParallelism();
+
+    void setParallelism(Integer parallelism);
 
     Long getCheckpointingInterval();
 
