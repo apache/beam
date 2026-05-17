@@ -434,6 +434,8 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
           continue;
         }
 
+        JsonNode jsonNode = jsonOption.getValue();
+
         for (PipelineOptionSpec spec : specs) {
           if (!spec.shouldSerialize()) {
             continue;
@@ -443,7 +445,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
             continue;
           }
 
-          Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
+          Object value = getValueFromJson(jsonNode, spec.getGetterMethod());
           DisplayDataValue resolved = DisplayDataValue.resolve(value);
           builder.add(
               DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
@@ -600,11 +602,13 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
    * @return An object matching the return type of the method passed in.
    */
   private Object getValueFromJson(String propertyName, Method method) {
-    JsonNode jsonNode = jsonOptions.get(propertyName);
-    return getValueFromJson(jsonNode, method);
+    return getValueFromJson(jsonOptions.get(propertyName), method);
   }
 
-  private static Object getValueFromJson(JsonNode node, Method method) {
+  private static Object getValueFromJson(@Nullable JsonNode node, Method method) {
+    if (node == null || node.isNull() || node.isMissingNode()) {
+      return null;
+    }
     try {
       return PipelineOptionsFactory.deserializeNode(node, method);
     } catch (IOException e) {

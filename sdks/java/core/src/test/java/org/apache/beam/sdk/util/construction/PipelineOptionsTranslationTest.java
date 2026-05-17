@@ -160,6 +160,66 @@ public class PipelineOptionsTranslationTest {
 
       assertThat(deserialized, notNullValue());
     }
+
+    @Test
+    public void nullKnownOptionSerializesToProto() {
+      PipelineOptionsFactory.register(TestBoxedOptions.class);
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields(
+                  "beam:option:example:v1",
+                  Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+      PipelineOptionsTranslation.toProto(deserialized);
+    }
+
+    @Test
+    public void stringEncodedStreamingOptionsRoundTripToProto() {
+      PipelineOptionsFactory.register(TestStreamingLikeOptions.class);
+      Struct serialized =
+          Struct.newBuilder()
+              .putFields(
+                  "beam:option:streaming:v1", Value.newBuilder().setStringValue("true").build())
+              .putFields(
+                  "beam:option:checkpointing_interval:v1",
+                  Value.newBuilder().setStringValue("3000").build())
+              .putFields(
+                  "beam:option:shutdown_sources_after_idle_ms:v1",
+                  Value.newBuilder().setStringValue("60000").build())
+              .putFields(
+                  "beam:option:number_of_execution_retries:v1",
+                  Value.newBuilder().setStringValue("1").build())
+              .build();
+      PipelineOptions deserialized = PipelineOptionsTranslation.fromProto(serialized);
+      PipelineOptionsTranslation.toProto(deserialized);
+    }
+  }
+
+  /** {@link PipelineOptions} with a nullable boxed option for null struct value tests. */
+  public interface TestBoxedOptions extends PipelineOptions {
+    Integer getExample();
+
+    void setExample(Integer example);
+  }
+
+  /** Options with types matching Flink portable Kafka test pipeline settings. */
+  public interface TestStreamingLikeOptions extends PipelineOptions {
+    boolean isStreaming();
+
+    void setStreaming(boolean streaming);
+
+    Long getCheckpointingInterval();
+
+    void setCheckpointingInterval(Long interval);
+
+    Long getShutdownSourcesAfterIdleMs();
+
+    void setShutdownSourcesAfterIdleMs(Long timeoutMs);
+
+    Integer getNumberOfExecutionRetries();
+
+    void setNumberOfExecutionRetries(Integer retries);
   }
 
   /** {@link PipelineOptions} with an unserializable option. */

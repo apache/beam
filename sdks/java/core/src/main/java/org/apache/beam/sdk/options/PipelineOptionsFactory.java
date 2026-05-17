@@ -1797,14 +1797,18 @@ public class PipelineOptionsFactory {
   }
 
   static Object deserializeNode(JsonNode node, Method method) throws IOException {
-    if (node.isNull()) {
+    if (node == null || node.isNull() || node.isMissingNode()) {
       return null;
+    }
+
+    JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
+    if (jsonDeserializer == null) {
+      return MAPPER.convertValue(node, MAPPER.constructType(method.getGenericReturnType()));
     }
 
     JsonParser parser = new TreeTraversingParser(node, MAPPER);
     parser.nextToken();
 
-    JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
     return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
   }
 
