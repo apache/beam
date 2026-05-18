@@ -299,7 +299,8 @@ class FileBasedCacheManager(CacheManager):
       elif filesystems.FileSystems.exists(self._cache_dir):
         filesystems.FileSystems.delete([self._cache_dir])
     except Exception as e:
-      _LOGGER.warning('Failed to clean up cache directory %s: %s', self._cache_dir, e)
+      _LOGGER.warning(
+          'Failed to clean up cache directory %s: %s', self._cache_dir, e)
     self._saved_pcoders = {}
 
   def _glob_path(self, *labels):
