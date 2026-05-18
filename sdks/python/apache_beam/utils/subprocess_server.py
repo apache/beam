@@ -78,13 +78,14 @@ class _SharedCache:
     self._counter = 0
 
   def _next_id(self):
-    with self._lock:
-      self._counter += 1
-      return self._counter
+    # Caller must hold self._lock.
+    self._counter += 1
+    return self._counter
 
   def register(self):
-    owner = self._next_id()
-    self._live_owners.add(owner)
+    with self._lock:
+      owner = self._next_id()
+      self._live_owners.add(owner)
     return owner
 
   def purge(self, owner):

@@ -15,23 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.construction;
+package org.apache.beam.runners.dataflow.worker.util;
 
-import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
+/** A simple histogram to track byte sizes. */
+public class SimpleByteHistogram {
+  private final long[] buckets = new long[7];
 
-/** A registrar of {@link Coder} URNs to the associated {@link CoderTranslator}. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
-public interface CoderTranslatorRegistrar {
-  /**
-   * Returns a mapping of coder classes to the URN representing that coder.
-   *
-   * <p>URNs must map to only one coder.
-   */
-  Map<Class<? extends Coder>, String> getCoderURNs();
+  public void add(long weight) {
+    buckets[getBucket(weight)]++;
+  }
 
-  /** Returns a mapping of URN to {@link CoderTranslator}. */
-  Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators();
+  private int getBucket(long weight) {
+    if (weight < 128) return 0;
+    if (weight < 256) return 1;
+    if (weight < 512) return 2;
+    if (weight < 1024) return 3;
+    if (weight < 10 * 1024) return 4;
+    if (weight < 1024 * 1024) return 5;
+    return 6;
+  }
+
+  public String format() {
+    return String.format(
+        "[<128B:%d, <256B:%d, <512B:%d, <1KB:%d, <10KB:%d, <1MB:%d, >=1MB:%d]",
+        buckets[0], buckets[1], buckets[2], buckets[3], buckets[4], buckets[5], buckets[6]);
+  }
 }
