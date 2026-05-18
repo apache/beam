@@ -254,27 +254,17 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		bgctx := context.Background()
 
 		// Wait for either context cancellation or container to stop
-		done := make(chan struct{})
+		type waitResult struct {
+			err error
+		}
+		done := make(chan waitResult)
 		go func() {
 			result := cli.ContainerWait(bgctx, containerID, dcli.ContainerWaitOptions{
 				Condition: container.WaitConditionNotRunning,
 			})
-			if result.Error != nil {
-				logger.Error("docker container wait error", "error", result.Error)
-			} else {
-				logger.Info("docker container has self terminated")
-
-				rc, err := cli.ContainerLogs(bgctx, containerID, dcli.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
-				if err != nil {
-					logger.Error("docker container logs error", "error", err)
-				} else {
-					defer rc.Close()
-					var buf bytes.Buffer
-					stdcopy.StdCopy(&buf, &buf, rc)
-					logger.Error("container self terminated", "log", buf.String())
-				}
-			}
-			close(done)
+			// Error is a channel in the new API
+			err := <-result.Error
+			done <- waitResult{err: err}
 		}()
 
 		select {
@@ -299,8 +289,23 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 			if err != nil {
 				logger.Error("docker container kill error", "error", err)
 			}
-		case <-done:
+		case result := <-done:
 			// Container stopped on its own
+			if result.err != nil {
+				logger.Error("docker container wait error", "error", result.err)
+				// Fetch and log container output on error
+				rc, err := cli.ContainerLogs(bgctx, containerID, dcli.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+				if err != nil {
+					logger.Error("failed to fetch container logs after wait error", "error", err)
+				} else {
+					defer rc.Close()
+					var buf bytes.Buffer
+					stdcopy.StdCopy(&buf, &buf, rc)
+					logger.Error("container logs after wait error", "log", buf.String())
+				}
+			} else {
+				logger.Info("container terminated on its own")
+			}
 		}
 	}()
 
