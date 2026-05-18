@@ -502,13 +502,6 @@ public class PipelineOptionsFactory {
       new ObjectMapper()
           .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
 
-  private static final DefaultDeserializationContext DESERIALIZATION_CONTEXT =
-      new DefaultDeserializationContext.Impl(MAPPER.getDeserializationContext().getFactory())
-          .createInstance(
-              MAPPER.getDeserializationConfig(),
-              new TokenBuffer(MAPPER, false).asParser(),
-              new InjectableValues.Std());
-
   static final DefaultSerializerProvider SERIALIZER_PROVIDER =
       new DefaultSerializerProvider.Impl()
           .createInstance(MAPPER.getSerializationConfig(), MAPPER.getSerializerFactory());
@@ -1733,7 +1726,15 @@ public class PipelineOptionsFactory {
       BeanProperty prop = createBeanProperty(method);
       AnnotatedMember annotatedMethod = prop.getMember();
 
-      DefaultDeserializationContext context = DESERIALIZATION_CONTEXT.copy();
+      // Initialize a new context that is properly associated with a dummy parser.
+      // Using copy() here would leave the context's transient parser field as null,
+      // causing NullPointerExceptions in Jackson 2.14+ when deserializers try to
+      // query the parser for format constraints or coercion validations.
+      JsonParser dummyParser = new TokenBuffer(MAPPER, false).asParser();
+      DefaultDeserializationContext context =
+          ((DefaultDeserializationContext) MAPPER.getDeserializationContext())
+              .createInstance(
+                  MAPPER.getDeserializationConfig(), dummyParser, new InjectableValues.Std());
       Object maybeDeserializerClass =
           context.getAnnotationIntrospector().findDeserializer(annotatedMethod);
 
@@ -1805,7 +1806,14 @@ public class PipelineOptionsFactory {
     parser.nextToken();
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
+    // Create a fresh context that is correctly associated with the active parser.
+    // Using copy() here would leave the context's transient parser field as null,
+    // causing NullPointerExceptions in Jackson 2.14+ deserializers during coercion
+    // validations and length checks.
+    DefaultDeserializationContext context =
+        ((DefaultDeserializationContext) MAPPER.getDeserializationContext())
+            .createInstance(MAPPER.getDeserializationConfig(), parser, new InjectableValues.Std());
+    return jsonDeserializer.deserialize(parser, context);
   }
 
   /**
