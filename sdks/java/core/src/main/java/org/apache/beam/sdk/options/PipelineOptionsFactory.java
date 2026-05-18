@@ -1796,9 +1796,23 @@ public class PipelineOptionsFactory {
         .orNull();
   }
 
+  /**
+   * Returns true when the getter declares custom Jackson serde, per {@link PipelineOptions}
+   * validation ({@code @JsonSerialize} and {@code @JsonDeserialize} must appear together).
+   */
+  private static boolean usesPropertyLevelJacksonSerde(Method method) {
+    return method.isAnnotationPresent(JsonSerialize.class)
+        && method.isAnnotationPresent(JsonDeserialize.class);
+  }
+
   static Object deserializeNode(JsonNode node, Method method) throws IOException {
     if (node.isNull()) {
       return null;
+    }
+
+    if (!usesPropertyLevelJacksonSerde(method)) {
+      JavaType javaType = MAPPER.constructType(method.getGenericReturnType());
+      return MAPPER.treeToValue(node, javaType);
     }
 
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
@@ -1807,16 +1821,9 @@ public class PipelineOptionsFactory {
       return MAPPER.treeToValue(node, javaType);
     }
 
-    try {
-      JsonParser parser = new TreeTraversingParser(node, MAPPER);
-      parser.nextToken();
-      return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
-    } catch (NullPointerException e) {
-      // Jackson 2.18+ can yield a non-null contextual JsonDeserializer that still NPEs for some
-      // pipeline option shapes during display-data serialization (Flink ValidatesRunner Kafka).
-      JavaType javaType = MAPPER.constructType(method.getGenericReturnType());
-      return MAPPER.treeToValue(node, javaType);
-    }
+    JsonParser parser = new TreeTraversingParser(node, MAPPER);
+    parser.nextToken();
+    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
   }
 
   /**

@@ -1132,9 +1132,8 @@ public class PipelineOptionsFactoryTest {
   }
 
   /**
-   * Regression test for display-data population after JSON round-trip. The contextual
-   * JsonDeserializer path must not NPE without recovery; {@link DisplayData#from} exercises {@link
-   * PipelineOptionsFactory#deserializeNode} for jsonOptions.
+   * Regression test for display-data population after JSON round-trip. {@link DisplayData#from}
+   * exercises {@link PipelineOptionsFactory#deserializeNode} for jsonOptions (treeToValue path).
    */
   @Test
   public void testDisplayDataFromDeserializedPolymorphicOption() throws Exception {
