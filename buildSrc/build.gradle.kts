@@ -44,6 +44,7 @@ repositories {
   if (useMirror) {
     maven { url = uri(mavenCentralMirrorUrl!!) }
   }
+  mavenCentral()
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {
     url = uri("https://repo.spring.io/plugins-release/")
