@@ -111,6 +111,46 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9, 12])),
           ]))
 
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_callable_styles(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create(self.data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          label:
+            callable: "(x) => x.label + 'x'"
+          conductor:
+            callable: "function(x) { return x.conductor + 1 }"
+          row:
+            callable: |
+              (x) => {
+                x.row.values.push(x.row.rank + 10)
+                return x.row
+              }
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  label='11ax',
+                  conductor=12,
+                  row=beam.Row(rank=0, values=[1, 2, 3, 10])),
+              beam.Row(
+                  label='37ax',
+                  conductor=38,
+                  row=beam.Row(rank=1, values=[4, 5, 6, 11])),
+              beam.Row(
+                  label='389ax',
+                  conductor=390,
+                  row=beam.Row(rank=2, values=[7, 8, 9, 12])),
+          ]))
+
   def test_map_to_fields_filter_inline_py(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:

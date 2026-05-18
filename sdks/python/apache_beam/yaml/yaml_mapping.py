@@ -213,10 +213,13 @@ def py_value_to_js_dict(py_value):
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
   elif isinstance(py_value, bytes):
-    return py_value.decode('utf-8', errors='replace')
+    return py_value.decode('utf-8', errors='strict')
   elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
     return py_value.isoformat()
   elif isinstance(py_value, Decimal):
+    # Coerce Decimal to float since JavaScript's standard number type is a
+    # 64-bit float. Note that this can cause a loss of precision for
+    # high-precision decimal values.
     return float(py_value)
   elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
@@ -248,13 +251,8 @@ def _expand_javascript_mapping_func(
     entrypoint = 'udf'
 
   elif callable:
-    match = re.search(r'(?:async\s+)?function\s+([a-zA-Z0-9_]+)', callable)
-    if not match:
-      raise ValueError(
-          f"Could not find function declaration in callable: {callable}")
-    udf_name = match.group(1)
-    source_code = callable
-    entrypoint = udf_name
+    source_code = f"var __udf__ = ({callable});"
+    entrypoint = '__udf__'
 
   else:
     if not path.endswith('.js'):
