@@ -6764,9 +6764,9 @@ class StreamingConfigTask(_messages.Message):
       format version for streaming engine jobs.
     userStepToStateFamilyNameMap: Map from user step names to state families.
     userWorkerRunnerV1Settings: Binary encoded proto to control runtime
-      behavior of the java runner v1 user worker.
+      behavior of the Streaming Java Runner user worker.
     userWorkerRunnerV2Settings: Binary encoded proto to control runtime
-      behavior of the runner v2 user worker.
+      behavior of the Portable Runner user worker.
     windmillServiceEndpoint: If present, the worker must use this endpoint to
       communicate with Windmill Service dispatchers, otherwise the worker must
       continue to use whatever endpoint it had been using.

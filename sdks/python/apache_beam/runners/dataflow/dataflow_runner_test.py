@@ -747,9 +747,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       options = PipelineOptions([f'--experiments={experiment}'])
       self.assertTrue(
           _is_runner_v2_disabled(options),
-          f'Expected {experiment} to disable runner v2')
+          f'Expected {experiment} to disable Portable Runner')
       with self.assertRaisesRegex(ValueError,
-                                  'Disabling Runner V2 no longer supported'):
+                                  'Disabling Portable Runner .* no longer supported'):
         DataflowRunner().run_pipeline(None, options)
 
 
