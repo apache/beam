@@ -646,6 +646,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // in GlobalWindow
       if (useNewWindowOptimization && triggerRunner.isNew(directContext.state())) {
         // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
+        // TODO: Instead of the clears here, we could mark these states as empty locally
+        //  in the state cache and/or explicitly tell that the entries are non-existent
         reduceFn.clearState(renamedContext);
         paneInfoTracker.clear(directContext.state());
         if (!disableWatermarkKnownEmptyOptimization) {
