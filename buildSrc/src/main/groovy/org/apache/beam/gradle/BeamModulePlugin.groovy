@@ -507,7 +507,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
-    project.ext.getRatchetBranch = { ->
+    project.ext.getRatchetBranch = {
+      ->
       if (project.hasProperty('disableSpotlessRatchet') && project.disableSpotlessRatchet == 'true') {
         return null
       }
