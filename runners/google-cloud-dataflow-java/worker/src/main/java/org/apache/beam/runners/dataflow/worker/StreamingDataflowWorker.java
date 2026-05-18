@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig.Fetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
@@ -113,6 +114,7 @@ import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -633,6 +635,10 @@ public final class StreamingDataflowWorker {
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .setMaxCachedEntryBytes(options.getMaxWindmillStateCacheEntryBytes())
+            .setEnableHistogram(
+                !ExperimentalOptions.hasExperiment(
+                    options, "disable_windmill_user_state_cache_histogram"))
             .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
@@ -650,6 +656,15 @@ public final class StreamingDataflowWorker {
                         workExecutor,
                         windmillStateCache::forComputation,
                         ID_GENERATOR));
+
+    Fetcher configFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config -> {
+              windmillStateCache.setMaxCachedEntryBytesOverride(
+                  config.userWorkerJobSettings().getMaxCachedEntryBytes());
+            });
 
     ComputationStateCache computationStateCache =
         configFetcherComputationStateCacheAndWindmillClient.computationStateCache();
@@ -689,7 +704,7 @@ public final class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        configFetcherComputationStateCacheAndWindmillClient.configFetcher(),
+        configFetcher,
         computationStateCache,
         windmillStateCache,
         workExecutor,
