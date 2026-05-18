@@ -1132,9 +1132,9 @@ public class PipelineOptionsFactoryTest {
   }
 
   /**
-   * Regression test for display-data population after JSON round-trip. With Jackson 2.18+, {@link
-   * PipelineOptionsFactory#computeDeserializerForMethod(Method)} can return null for polymorphic
-   * option types; {@link DisplayData#from} must not NPE when re-deserializing jsonOptions.
+   * Regression test for display-data population after JSON round-trip. The contextual
+   * JsonDeserializer path must not NPE without recovery; {@link DisplayData#from} exercises {@link
+   * PipelineOptionsFactory#deserializeNode} for jsonOptions.
    */
   @Test
   public void testDisplayDataFromDeserializedPolymorphicOption() throws Exception {

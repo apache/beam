@@ -1801,15 +1801,21 @@ public class PipelineOptionsFactory {
       return null;
     }
 
+    JavaType javaType = MAPPER.constructType(method.getGenericReturnType());
     JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
     if (jsonDeserializer == null) {
-      JavaType javaType = MAPPER.constructType(method.getGenericReturnType());
       return MAPPER.treeToValue(node, javaType);
     }
 
-    JsonParser parser = new TreeTraversingParser(node, MAPPER);
-    parser.nextToken();
-    return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
+    try {
+      JsonParser parser = new TreeTraversingParser(node, MAPPER);
+      parser.nextToken();
+      return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
+    } catch (NullPointerException e) {
+      // Jackson 2.18+ can yield a non-null contextual JsonDeserializer that still NPEs for some
+      // pipeline option shapes during display-data serialization (Flink ValidatesRunner Kafka).
+      return MAPPER.treeToValue(node, javaType);
+    }
   }
 
   /**
