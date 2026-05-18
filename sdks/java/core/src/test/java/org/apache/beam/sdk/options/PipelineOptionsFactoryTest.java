@@ -74,6 +74,7 @@ import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Collections2;
@@ -1128,6 +1129,24 @@ public class PipelineOptionsFactoryTest {
 
     assertEquals("value", options.getObjectValue().get().key);
     assertEquals(PolymorphicTypeTwo.class, options.getObjectValue().get().getClass());
+  }
+
+  /**
+   * Regression test for display-data population after JSON round-trip. With Jackson 2.18+, {@link
+   * PipelineOptionsFactory#computeDeserializerForMethod(Method)} can return null for polymorphic
+   * option types; {@link DisplayData#from} must not NPE when re-deserializing jsonOptions.
+   */
+  @Test
+  public void testDisplayDataFromDeserializedPolymorphicOption() throws Exception {
+    PolymorphicTypes options =
+        PipelineOptionsFactory.fromArgs("--object={\"key\":\"value\",\"@type\":\"one\"}")
+            .as(PolymorphicTypes.class);
+    ObjectMapper mapper =
+        new ObjectMapper()
+            .registerModules(ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    PipelineOptions deserialized =
+        mapper.readValue(mapper.writeValueAsString(options), PipelineOptions.class);
+    DisplayData.from(deserialized);
   }
 
   @Test

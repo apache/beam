@@ -1746,7 +1746,7 @@ public class PipelineOptionsFactory {
 
       TypeDeserializer typeDeserializer =
           context.getFactory().findTypeDeserializer(context.getConfig(), prop.getType());
-      if (typeDeserializer != null) {
+      if (typeDeserializer != null && jsonDeserializer != null) {
         jsonDeserializer = new TypeWrappedDeserializer(typeDeserializer, jsonDeserializer);
       }
 
@@ -1801,10 +1801,14 @@ public class PipelineOptionsFactory {
       return null;
     }
 
+    JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
+    if (jsonDeserializer == null) {
+      JavaType javaType = MAPPER.constructType(method.getGenericReturnType());
+      return MAPPER.treeToValue(node, javaType);
+    }
+
     JsonParser parser = new TreeTraversingParser(node, MAPPER);
     parser.nextToken();
-
-    JsonDeserializer<Object> jsonDeserializer = getDeserializerForMethod(method);
     return jsonDeserializer.deserialize(parser, DESERIALIZATION_CONTEXT.copy());
   }
 
