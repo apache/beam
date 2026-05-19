@@ -62,13 +62,19 @@ class UserPipelineTracker:
     Otherwise, removes the given derived pipeline.
     """
     with self._lock:
-      user_pipeline = self.get_user_pipeline(pipeline)
-      if user_pipeline:
-        for d in self._user_pipelines[user_pipeline]:
+      if pipeline in self._user_pipelines:
+        for d in self._user_pipelines[pipeline]:
           self._derived_pipelines.pop(d, None)
-        self._user_pipelines.pop(user_pipeline, None)
+          self._pid_to_pipelines.pop(self._key(d), None)
+        self._user_pipelines.pop(pipeline, None)
       elif pipeline in self._derived_pipelines:
-        self._derived_pipelines.pop(pipeline, None)
+        user_pipeline = self._derived_pipelines.pop(pipeline, None)
+        if user_pipeline in self._user_pipelines:
+          try:
+            self._user_pipelines[user_pipeline].remove(pipeline)
+          except ValueError:
+            pass
+      self._pid_to_pipelines.pop(self._key(pipeline), None)
 
   def clear(self) -> None:
     """Clears the tracker of all user and derived pipelines."""
@@ -90,7 +96,7 @@ class UserPipelineTracker:
   def add_user_pipeline(self, p: beam.Pipeline) -> beam.Pipeline:
     """Adds a user pipeline with an empty set of derived pipelines."""
     with self._lock:
-      self._memoize_pipieline(p)
+      self._memoize_pipeline(p)
 
       # Create a new node for the user pipeline if it doesn't exist already.
       user_pipeline = self.get_user_pipeline(p)
@@ -100,7 +106,7 @@ class UserPipelineTracker:
 
       return user_pipeline
 
-  def _memoize_pipieline(self, p: beam.Pipeline) -> None:
+  def _memoize_pipeline(self, p: beam.Pipeline) -> None:
     """Memoizes the pid of the pipeline to the pipeline object."""
     pid = self._key(p)
     with self._lock:
@@ -130,8 +136,8 @@ class UserPipelineTracker:
     ut.get_user_pipeline(derived2)
     """
     with self._lock:
-      self._memoize_pipieline(maybe_user_pipeline)
-      self._memoize_pipieline(derived_pipeline)
+      self._memoize_pipeline(maybe_user_pipeline)
+      self._memoize_pipeline(derived_pipeline)
 
       # Cannot add a derived pipeline twice.
       assert derived_pipeline not in self._derived_pipelines
