@@ -328,6 +328,22 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
     PortableRunnerTestWithSubprocesses):
   _use_subprocesses = True
 
+  @classmethod
+  def setUpClass(cls):
+    import os
+    cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
+    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
+    super().setUpClass()
+
+  @classmethod
+  def tearDownClass(cls):
+    import os
+    if cls._old_fork_support is None:
+      os.environ.pop('GRPC_ENABLE_FORK_SUPPORT', None)
+    else:
+      os.environ['GRPC_ENABLE_FORK_SUPPORT'] = cls._old_fork_support
+    super().tearDownClass()
+
   def create_options(self):
     options = super() \
       .create_options()
