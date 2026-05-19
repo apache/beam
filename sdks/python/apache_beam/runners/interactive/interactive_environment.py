@@ -474,8 +474,8 @@ class InteractiveEnvironment(object):
   def describe_all_recordings(self):
     """Returns a description of the recording for all watched pipelnes."""
     return {
-        self.pipeline_id_to_pipeline(pid): rm.describe()
-        for pid, rm in self._recording_managers.items()
+        rm.user_pipeline: rm.describe()
+        for rm in self._recording_managers.values()
     }
 
   def set_pipeline_result(self, pipeline, result):
