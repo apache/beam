@@ -26,19 +26,9 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.MongoCmdOptions;
-import de.flapdoodle.embed.mongo.config.MongodConfig;
-import de.flapdoodle.embed.mongo.config.Net;
-import de.flapdoodle.embed.mongo.config.Storage;
-import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.runtime.Network;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -59,29 +49,28 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** Test on the MongoDbIO. */
 @RunWith(JUnit4.class)
 public class MongoDbIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
-  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
   private static final String DATABASE_NAME = "beam";
   private static final String COLLECTION_NAME = "test";
   private static final String VIEW_NAME = "test_view";
+  private static final DockerImageName MONGO_IMAGE = DockerImageName.parse("mongo:4.4.17");
 
-  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-  private static MongodExecutable mongodExecutable;
-  private static MongodProcess mongodProcess;
+  @ClassRule
+  public static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(MONGO_IMAGE);
+
   private static MongoClient client;
   private static MongoDatabase database;
-
-  private static int port;
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
@@ -89,26 +78,8 @@ public class MongoDbIOTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-    port = NetworkTestHelper.getAvailableLocalPort();
-    LOG.info("Starting MongoDB embedded instance on {}", port);
-    MongodConfig mongodConfig =
-        MongodConfig.builder()
-            .version(Version.Main.PRODUCTION)
-            .isConfigServer(false)
-            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
-            .net(new Net("localhost", port, Network.localhostIsIPv6()))
-            .cmdOptions(
-                MongoCmdOptions.builder()
-                    .syncDelay(10)
-                    .useNoPrealloc(true)
-                    .useSmallFiles(true)
-                    .useNoJournal(true)
-                    .isVerbose(false)
-                    .build())
-            .build();
-    mongodExecutable = mongodStarter.prepare(mongodConfig);
-    mongodProcess = mongodExecutable.start();
-    client = MongoClients.create("mongodb://localhost:" + port);
+    LOG.info("Starting MongoDB container");
+    client = MongoClients.create(MONGO_CONTAINER.getReplicaSetUrl());
     database = client.getDatabase(DATABASE_NAME);
 
     LOG.info("Insert test data");
@@ -123,8 +94,6 @@ public class MongoDbIOTest {
   public static void afterClass() {
     LOG.info("Stopping MongoDB instance");
     client.close();
-    mongodProcess.stop();
-    mongodExecutable.stop();
   }
 
   @Test
@@ -193,7 +162,7 @@ public class MongoDbIOTest {
 
     MongoDbIO.Read spec =
         MongoDbIO.read()
-            .withUri("mongodb://localhost:" + port)
+            .withUri(MONGO_CONTAINER.getReplicaSetUrl())
             .withDatabase(DATABASE_NAME)
             .withCollection(COLLECTION_NAME)
             .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates));
@@ -207,7 +176,7 @@ public class MongoDbIOTest {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME));
 
@@ -233,7 +202,7 @@ public class MongoDbIOTest {
     MongoDbIO.BoundedMongoDbSource source =
         new MongoDbIO.BoundedMongoDbSource(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME));
 
@@ -245,7 +214,7 @@ public class MongoDbIOTest {
     MongoDbIO.BoundedMongoDbSource source =
         new MongoDbIO.BoundedMongoDbSource(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(VIEW_NAME));
 
@@ -256,7 +225,7 @@ public class MongoDbIOTest {
   public void testReadWithCustomConnectionOptions() {
     MongoDbIO.Read read =
         MongoDbIO.read()
-            .withUri("mongodb://localhost:" + port)
+            .withUri(MONGO_CONTAINER.getReplicaSetUrl())
             .withMaxConnectionIdleTime(10)
             .withDatabase(DATABASE_NAME)
             .withCollection(COLLECTION_NAME);
@@ -286,7 +255,7 @@ public class MongoDbIOTest {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME)
                 .withQueryFn(FindQuery.create().withFilters(Filters.eq("scientist", "Einstein"))));
@@ -301,7 +270,7 @@ public class MongoDbIOTest {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME)
                 .withNumSplits(10)
@@ -326,7 +295,7 @@ public class MongoDbIOTest {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME)
                 .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates)));
@@ -348,7 +317,7 @@ public class MongoDbIOTest {
     PCollection<Document> output =
         pipeline.apply(
             MongoDbIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(COLLECTION_NAME)
                 .withQueryFn(AggregationQuery.create().withMongoDbPipeline(aggregates)));
@@ -367,7 +336,7 @@ public class MongoDbIOTest {
         .apply(Create.of(createDocuments(numElements, false)))
         .apply(
             MongoDbIO.write()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(collectionName));
 
@@ -387,7 +356,7 @@ public class MongoDbIOTest {
         .apply(Create.of(doc, doc))
         .apply(
             MongoDbIO.write()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withOrdered(false)
                 .withCollection(collectionName));
@@ -410,7 +379,7 @@ public class MongoDbIOTest {
         .apply(Create.of(docs))
         .apply(
             MongoDbIO.write()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE_NAME)
                 .withCollection(collectionName)
                 .withUpdateConfiguration(
@@ -434,7 +403,7 @@ public class MongoDbIOTest {
 
     pipeline.apply(
         MongoDbIO.read()
-            .withUri("mongodb://localhost:" + port)
+            .withUri(MONGO_CONTAINER.getReplicaSetUrl())
             .withDatabase(DATABASE_NAME)
             .withCollection(COLLECTION_NAME)
             .withQueryFn(FindQueryTest.create().withFilters(Filters.eq("scientist", "Einstein"))));

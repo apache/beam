@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig.Fetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
@@ -113,6 +114,7 @@ import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -182,6 +184,7 @@ public final class StreamingDataflowWorker {
   private final ComputationConfig.Fetcher configFetcher;
   private final ComputationStateCache computationStateCache;
   private final BoundedQueueExecutor workUnitExecutor;
+  private final ScheduledExecutorService commitFinalizerCleanupExecutor;
   private final AtomicReference<StreamingWorkerHarness> streamingWorkerHarness =
       new AtomicReference<>();
   private final AtomicBoolean running = new AtomicBoolean();
@@ -208,6 +211,7 @@ public final class StreamingDataflowWorker {
       ComputationStateCache computationStateCache,
       WindmillStateCache windmillStateCache,
       BoundedQueueExecutor workUnitExecutor,
+      ScheduledExecutorService commitFinalizerCleanupExecutor,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       DataflowWorkerHarnessOptions options,
       HotKeyLogger hotKeyLogger,
@@ -232,6 +236,7 @@ public final class StreamingDataflowWorker {
             Executors.newCachedThreadPool());
     this.options = options;
     this.workUnitExecutor = workUnitExecutor;
+    this.commitFinalizerCleanupExecutor = commitFinalizerCleanupExecutor;
     this.harnessSwitchExecutor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder().setNameFormat("HarnessSwitchExecutor").build());
@@ -252,6 +257,7 @@ public final class StreamingDataflowWorker {
             readerCache,
             mapTaskExecutorFactory,
             workUnitExecutor,
+            commitFinalizerCleanupExecutor,
             this.stateCache::forComputation,
             failureTracker,
             workFailureProcessor,
@@ -618,10 +624,21 @@ public final class StreamingDataflowWorker {
     StreamingCounters streamingCounters = StreamingCounters.create();
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    ScheduledExecutorService commitFinalizerCleanupExecutor =
+        Executors.newScheduledThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallbackCleanup-%d")
+                .setDaemon(true)
+                .build());
     WindmillStateCache windmillStateCache =
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .setMaxCachedEntryBytes(options.getMaxWindmillStateCacheEntryBytes())
+            .setEnableHistogram(
+                !ExperimentalOptions.hasExperiment(
+                    options, "disable_windmill_user_state_cache_histogram"))
             .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
@@ -639,6 +656,15 @@ public final class StreamingDataflowWorker {
                         workExecutor,
                         windmillStateCache::forComputation,
                         ID_GENERATOR));
+
+    Fetcher configFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config -> {
+              windmillStateCache.setMaxCachedEntryBytesOverride(
+                  config.userWorkerJobSettings().getMaxCachedEntryBytes());
+            });
 
     ComputationStateCache computationStateCache =
         configFetcherComputationStateCacheAndWindmillClient.computationStateCache();
@@ -678,10 +704,11 @@ public final class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        configFetcherComputationStateCacheAndWindmillClient.configFetcher(),
+        configFetcher,
         computationStateCache,
         windmillStateCache,
         workExecutor,
+        commitFinalizerCleanupExecutor,
         IntrinsicMapTaskExecutorFactory.defaultFactory(),
         options,
         new HotKeyLogger(),
@@ -844,6 +871,13 @@ public final class StreamingDataflowWorker {
       WindmillStubFactoryFactory stubFactory) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    ScheduledExecutorService commitFinalizerCleanupExecutor =
+        Executors.newScheduledThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallbackCleanup-%d")
+                .setDaemon(true)
+                .build());
     WindmillStateCache stateCache =
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
@@ -932,6 +966,7 @@ public final class StreamingDataflowWorker {
         computationStateCache,
         stateCache,
         workExecutor,
+        commitFinalizerCleanupExecutor,
         mapTaskExecutorFactory,
         options,
         hotKeyLogger,
@@ -1123,6 +1158,7 @@ public final class StreamingDataflowWorker {
       streamingWorkerHarness.get().shutdown();
       memoryMonitor.shutdown();
       workUnitExecutor.shutdown();
+      commitFinalizerCleanupExecutor.shutdown();
       computationStateCache.closeAndInvalidateAll();
       workerStatusReporter.stop();
     } catch (Exception e) {

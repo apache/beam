@@ -322,4 +322,13 @@ public class DataflowPipelineOptionsTest {
           TimeoutException.class, () -> DefaultGcpRegionFactory.getRegionFromGcloudCli(1L));
     }
   }
+
+  @Test
+  public void testDiskProvisionedIopsAndThroughput() {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setDiskProvisionedIops(1000L);
+    options.setDiskProvisionedThroughputMibps(100L);
+    assertEquals(Long.valueOf(1000), options.getDiskProvisionedIops());
+    assertEquals(Long.valueOf(100), options.getDiskProvisionedThroughputMibps());
+  }
 }

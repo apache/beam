@@ -29,8 +29,6 @@ import types
 import weakref
 from typing import Any
 from typing import Callable
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import objsize
@@ -77,12 +75,12 @@ class CacheAware(object):
   def __init__(self) -> None:
     pass
 
-  def get_referents_for_cache(self) -> List[Any]:
+  def get_referents_for_cache(self) -> list[Any]:
     """Returns the list of objects accounted during cache measurement."""
     raise NotImplementedError()
 
 
-def _safe_isinstance(obj: Any, type: Union[type, Tuple[type, ...]]) -> bool:
+def _safe_isinstance(obj: Any, type: Union[type, tuple[type, ...]]) -> bool:
   """
   Return whether an object is an instance of a class or of a subclass thereof.
   See `isinstance()` for more information.
@@ -126,7 +124,7 @@ def _size_func(obj: Any) -> int:
 _size_func.last_log_time = 0  # type: ignore
 
 
-def _get_referents_func(*objs: List[Any]) -> List[Any]:
+def _get_referents_func(*objs: list[Any]) -> list[Any]:
   """Returns the list of objects accounted during cache measurement.
 
   Users can inherit CacheAware to override which referents should be

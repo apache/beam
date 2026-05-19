@@ -24,7 +24,7 @@ import com.google.auth.Credentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -37,7 +37,7 @@ public final class ArtifactUtils {
   public static String createRunId() {
     return String.format(
         "%s-%s",
-        DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneId.of("UTC")).format(Instant.now()),
+        DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC).format(Instant.now()),
         // by default some templates replace "dd" in the output paths with a day of the month, since
         // this id is used as a part of output paths replace "dd" with an arbitrary number to avoid
         // confusion and potential flaky tests

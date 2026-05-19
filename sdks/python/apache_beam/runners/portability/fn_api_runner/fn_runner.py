@@ -32,16 +32,11 @@ import sys
 import threading
 import time
 from typing import Callable
-from typing import Dict
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import Mapping
 from typing import MutableMapping
 from typing import Optional
-from typing import Set
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -133,7 +128,7 @@ class FnApiRunner(runner.PipelineRunner):
             retrieval_token='unused-retrieval-token'))
 
   @staticmethod
-  def supported_requirements() -> Tuple[str, ...]:
+  def supported_requirements() -> tuple[str, ...]:
     return (
         common_urns.requirements.REQUIRES_STATEFUL_PROCESSING.urn,
         common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
@@ -380,7 +375,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def create_stages(
       self, pipeline_proto: beam_runner_api_pb2.Pipeline
-  ) -> Tuple[translations.TransformContext, List[translations.Stage]]:
+  ) -> tuple[translations.TransformContext, list[translations.Stage]]:
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
@@ -409,7 +404,7 @@ class FnApiRunner(runner.PipelineRunner):
   def run_stages(
       self,
       stage_context: translations.TransformContext,
-      stages: List[translations.Stage]) -> 'RunnerResult':
+      stages: list[translations.Stage]) -> 'RunnerResult':
     """Run a list of topologically-sorted stages in batch mode.
 
     Args:
@@ -607,7 +602,7 @@ class FnApiRunner(runner.PipelineRunner):
   @staticmethod
   def _collect_written_timers(
       bundle_context_manager: execution.BundleContextManager
-  ) -> Tuple[Dict[translations.TimerFamilyId, timestamp.Timestamp],
+  ) -> tuple[dict[translations.TimerFamilyId, timestamp.Timestamp],
              OutputTimerData]:
     """Review output buffers, and collect written timers.
 
@@ -670,7 +665,7 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager: execution.BundleContextManager,
       bundle_result: beam_fn_api_pb2.InstructionResponse,
       deferred_inputs: MutableMapping[str, execution.PartitionableBuffer]
-  ) -> Set[str]:
+  ) -> set[str]:
     """Returns a set of PCollection IDs of PColls having delayed applications.
 
     This transform inspects the bundle_context_manager, and bundle_result
@@ -697,11 +692,11 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
       self,
-      splits: List[beam_fn_api_pb2.ProcessBundleSplitResponse],
+      splits: list[beam_fn_api_pb2.ProcessBundleSplitResponse],
       bundle_context_manager: execution.BundleContextManager,
       last_sent: MutableMapping[str, execution.PartitionableBuffer],
       deferred_inputs: MutableMapping[str, execution.PartitionableBuffer]
-  ) -> Tuple[Set[str], Set[str]]:
+  ) -> tuple[set[str], set[str]]:
     """Returns a two sets representing PCollections with watermark holds.
 
     The first set represents PCollections with delayed root applications.
@@ -710,7 +705,7 @@ class FnApiRunner(runner.PipelineRunner):
 
     pcolls_with_delayed_apps = set()
     transforms_with_channel_splits = set()
-    prev_stops: Dict[str, int] = {}
+    prev_stops: dict[str, int] = {}
     for split in splits:
       for delayed_application in split.residual_roots:
         producer_name = bundle_context_manager.input_for(
@@ -927,8 +922,8 @@ class FnApiRunner(runner.PipelineRunner):
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
     if bundle_context_manager.num_workers == 1:
       # Avoid thread/processor pools for increased performance and debugability.
-      bundle_manager_type: Union[Type[BundleManager],
-                                 Type[ParallelBundleManager]] = BundleManager
+      bundle_manager_type: Union[type[BundleManager],
+                                 type[ParallelBundleManager]] = BundleManager
     elif bundle_context_manager.stage.is_stateful():
       # State is keyed, and a single key cannot be processed concurrently.
       # Alternatively, we could arrange to partition work by key.
@@ -946,11 +941,11 @@ class FnApiRunner(runner.PipelineRunner):
       runner_execution_context: execution.FnApiRunnerExecutionContext,
       stage_inputs: Iterable[str],
       expected_timers: Iterable[translations.TimerFamilyId],
-      pcolls_with_da: Set[str],
-      transforms_w_splits: Set[str],
-      watermarks_by_transform_and_timer_family: Dict[translations.TimerFamilyId,
+      pcolls_with_da: set[str],
+      transforms_w_splits: set[str],
+      watermarks_by_transform_and_timer_family: dict[translations.TimerFamilyId,
                                                      timestamp.Timestamp]
-  ) -> Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]:
+  ) -> dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]:
     """Builds a dictionary of PCollection (or TimerFamilyId) to timestamp.
 
     Args:
@@ -965,7 +960,7 @@ class FnApiRunner(runner.PipelineRunner):
       watermarks_by_transform_and_timer_family: represent the set of watermark
         holds to be added for each timer family.
     """
-    updates: Dict[Union[str, translations.TimerFamilyId],
+    updates: dict[Union[str, translations.TimerFamilyId],
                   timestamp.Timestamp] = {}
 
     def get_pcoll_id(transform_id):
@@ -1016,10 +1011,10 @@ class FnApiRunner(runner.PipelineRunner):
       data_output: DataOutput,
       expected_timer_output: OutputTimers,
       bundle_manager: 'BundleManager'
-  ) -> Tuple[beam_fn_api_pb2.InstructionResponse,
-             Dict[str, execution.PartitionableBuffer],
+  ) -> tuple[beam_fn_api_pb2.InstructionResponse,
+             dict[str, execution.PartitionableBuffer],
              OutputTimerData,
-             Dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]]:
+             dict[Union[str, translations.TimerFamilyId], timestamp.Timestamp]]:
     """Execute a bundle, and return a result object, and deferred inputs."""
     data_input = bundle_input.data
     input_timers = bundle_input.timers
@@ -1038,7 +1033,7 @@ class FnApiRunner(runner.PipelineRunner):
     # - timers
     # - SDK-initiated deferred applications of root elements
     # - Runner-initiated deferred applications of root elements
-    deferred_inputs: Dict[str, execution.PartitionableBuffer] = {}
+    deferred_inputs: dict[str, execution.PartitionableBuffer] = {}
 
     watermarks_by_transform_and_timer_family, newly_set_timers = (
         self._collect_written_timers(bundle_context_manager))
@@ -1252,8 +1247,8 @@ class BundleManager(object):
       self,
       split_manager,
       inputs: Mapping[str, execution.PartitionableBuffer],
-      process_bundle_id) -> List[beam_fn_api_pb2.ProcessBundleSplitResponse]:
-    split_results: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
+      process_bundle_id) -> list[beam_fn_api_pb2.ProcessBundleSplitResponse]:
+    split_results: list[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
     read_transform_id, buffer_data = only_element(inputs.items())
     byte_stream = b''.join(buffer_data or [])
     num_elements = len(
@@ -1359,7 +1354,7 @@ class BundleManager(object):
             cache_tokens=[next(self._cache_token_generator)]))
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
-    split_results: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
+    split_results: list[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
     with ProgressRequester(self._worker_handler,
                            process_bundle_id,
                            self._progress_frequency):
@@ -1368,8 +1363,8 @@ class BundleManager(object):
         split_results = self._generate_splits_for_testing(
             split_manager, inputs, process_bundle_id)
 
-      expect_reads: List[Union[str,
-                               Tuple[str,
+      expect_reads: list[Union[str,
+                               tuple[str,
                                      str]]] = list(expected_outputs.keys())
       expect_reads.extend(list(expected_output_timers.keys()))
 
@@ -1433,8 +1428,8 @@ class ParallelBundleManager(BundleManager):
       expected_output_timers: OutputTimers,
       dry_run: bool = False,
   ) -> BundleProcessResult:
-    part_inputs: List[Dict[str,
-                           List[bytes]]] = [{}
+    part_inputs: list[dict[str,
+                           list[bytes]]] = [{}
                                             for _ in range(self._num_workers)]
     # Timers are only executed on the first worker
     # TODO(BEAM-9741): Split timers to multiple workers
@@ -1446,7 +1441,7 @@ class ParallelBundleManager(BundleManager):
         part_inputs[ix][name] = part
 
     merged_result: Optional[beam_fn_api_pb2.InstructionResponse] = None
-    split_result_list: List[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
+    split_result_list: list[beam_fn_api_pb2.ProcessBundleSplitResponse] = []
 
     def execute(part_map_input_timers) -> BundleProcessResult:
       part_map, input_timers = part_map_input_timers
@@ -1581,7 +1576,7 @@ class FnApiMetrics(metric.MetricResults):
         self.BOUNDED_TRIES: bounded_tries,
     }
 
-  def monitoring_infos(self) -> List[metrics_pb2.MonitoringInfo]:
+  def monitoring_infos(self) -> list[metrics_pb2.MonitoringInfo]:
     return [
         item for sublist in self._monitoring_infos.values() for item in sublist
     ]

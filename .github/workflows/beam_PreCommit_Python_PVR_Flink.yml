@@ -90,7 +90,7 @@ jobs:
       github.event.comment.body == 'Run Python_PVR_Flink PreCommit'
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -111,7 +111,7 @@ jobs:
           arguments: |
             -PpythonVersion=3.14 \
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python Test Results

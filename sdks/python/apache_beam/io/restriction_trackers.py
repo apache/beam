@@ -18,8 +18,6 @@
 """`iobase.RestrictionTracker` implementations provided with Apache Beam."""
 # pytype: skip-file
 
-from typing import Tuple
-
 from apache_beam.io.iobase import RestrictionProgress
 from apache_beam.io.iobase import RestrictionTracker
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -62,7 +60,7 @@ class OffsetRange(object):
       yield OffsetRange(current_split_start, current_split_stop)
       current_split_start = current_split_stop
 
-  def split_at(self, split_pos) -> Tuple['OffsetRange', 'OffsetRange']:
+  def split_at(self, split_pos) -> tuple['OffsetRange', 'OffsetRange']:
     return OffsetRange(self.start, split_pos), OffsetRange(split_pos, self.stop)
 
   def new_tracker(self):

@@ -24,6 +24,8 @@ import static org.junit.Assert.assertTrue;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -177,5 +179,23 @@ public class CalciteUtilsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Cannot find a matching Beam FieldType for Calcite type: UNKNOWN");
     CalciteUtils.toFieldType(relDataType);
+  }
+
+  @Test
+  public void testToRelDataTypeWithRowBackedLogicalType() {
+    Schema nestedSchema = Schema.builder().addField("nested_f1", Schema.FieldType.INT32).build();
+    Schema.FieldType rowType = Schema.FieldType.row(nestedSchema);
+
+    Schema.LogicalType<Row, Row> logicalType =
+        new PassThroughLogicalType<Row>(
+            "RowBackedLogicalType", Schema.FieldType.STRING, "", rowType) {};
+
+    Schema.FieldType logicalFieldType = Schema.FieldType.logicalType(logicalType);
+
+    RelDataType relDataType = CalciteUtils.toRelDataType(dataTypeFactory, logicalFieldType);
+
+    assertEquals(SqlTypeName.ROW, relDataType.getSqlTypeName());
+    assertEquals(1, relDataType.getFieldCount());
+    assertEquals("nested_f1", relDataType.getFieldList().get(0).getName());
   }
 }

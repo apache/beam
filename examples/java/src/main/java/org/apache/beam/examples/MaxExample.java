@@ -22,6 +22,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -33,7 +35,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Max transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 45
+//   context_line: 47
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -63,9 +65,9 @@ public class MaxExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info("{}{}", prefix, c.element());
-      c.output(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }

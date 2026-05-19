@@ -57,9 +57,7 @@ import sys
 import tempfile
 from importlib.metadata import distribution
 from typing import Callable
-from typing import List
 from typing import Optional
-from typing import Tuple
 from urllib.parse import urlparse
 
 from packaging import version
@@ -138,7 +136,7 @@ class Stager(object):
 
   @staticmethod
   def extract_staging_tuple_iter(
-      artifacts: List[beam_runner_api_pb2.ArtifactInformation]):
+      artifacts: list[beam_runner_api_pb2.ArtifactInformation]):
     for artifact in artifacts:
       if artifact.type_urn == common_urns.artifact_types.FILE.urn:
         file_payload = beam_runner_api_pb2.ArtifactFilePayload()
@@ -162,8 +160,8 @@ class Stager(object):
   def create_job_resources(
       options: PipelineOptions,
       temp_dir: str,
-      build_setup_args: Optional[List[str]] = None,
-      pypi_requirements: Optional[List[str]] = None,
+      build_setup_args: Optional[list[str]] = None,
+      pypi_requirements: Optional[list[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
                                                      None]] = None,
       skip_prestaged_dependencies: Optional[bool] = False,
@@ -200,7 +198,7 @@ class Stager(object):
           while trying to create the resources (e.g., build a setup package).
         """
 
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
 
     setup_options = options.view_as(SetupOptions)
     use_beam_default_container = options.view_as(
@@ -403,7 +401,7 @@ class Stager(object):
 
   def stage_job_resources(
       self,
-      resources: List[Tuple[str, str, str]],
+      resources: list[tuple[str, str, str]],
       staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -437,9 +435,9 @@ class Stager(object):
   def create_and_stage_job_resources(
       self,
       options: PipelineOptions,
-      build_setup_args: Optional[List[str]] = None,
+      build_setup_args: Optional[list[str]] = None,
       temp_dir: Optional[str] = None,
-      pypi_requirements: Optional[List[str]] = None,
+      pypi_requirements: Optional[list[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
                                                      None]] = None,
       staging_location: Optional[str] = None):
@@ -544,7 +542,7 @@ class Stager(object):
 
   @staticmethod
   def _create_jar_packages(
-      jar_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      jar_packages, temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local jar packages for Java SDK Harness.
 
     :param jar_packages: Ordered list of local paths to jar packages to be
@@ -557,9 +555,9 @@ class Stager(object):
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages: List[str] = []
+    local_packages: list[str] = []
     for package in jar_packages:
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
@@ -595,7 +593,7 @@ class Stager(object):
   @staticmethod
   def _create_extra_packages(
       extra_packages,
-      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local extra packages.
 
       Args:
@@ -614,9 +612,9 @@ class Stager(object):
         RuntimeError: If files specified are not found or do not have expected
           name patterns.
       """
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages: List[str] = []
+    local_packages: list[str] = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
               os.path.basename(package).endswith('.tar.gz') or
@@ -815,7 +813,7 @@ class Stager(object):
   def _build_setup_package(
       setup_file: str,
       temp_dir: str,
-      build_setup_args: Optional[List[str]] = None) -> str:
+      build_setup_args: Optional[list[str]] = None) -> str:
     saved_current_directory = os.getcwd()
 
     try:
@@ -882,7 +880,7 @@ class Stager(object):
   @staticmethod
   def _create_beam_sdk(
       sdk_remote_location,
-      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a Beam SDK file with the appropriate version.
 
       Args:

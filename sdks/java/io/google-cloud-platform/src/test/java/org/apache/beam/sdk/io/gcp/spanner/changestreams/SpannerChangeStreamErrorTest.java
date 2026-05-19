@@ -593,13 +593,13 @@ public class SpannerChangeStreamErrorTest implements Serializable {
 
   private ResultSet mockchangePartitionState(
       Timestamp startTimestamp, Timestamp after3Seconds, String state) {
-    List<String> tokens = new ArrayList<>();
-    tokens.add("Parent0");
+    List<String> composedPartitionTokens = new ArrayList<>();
+    composedPartitionTokens.add("Parent0");
     Statement getPartitionStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
-            .bind("partitionTokens")
-            .toStringArray(tokens)
+                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@composedPartitionTokens) AND State = @state")
+            .bind("composedPartitionTokens")
+            .toStringArray(composedPartitionTokens)
             .bind("state")
             .to(state)
             .build();

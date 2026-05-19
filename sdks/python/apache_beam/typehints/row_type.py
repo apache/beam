@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 from __future__ import annotations
 
 import dataclasses
