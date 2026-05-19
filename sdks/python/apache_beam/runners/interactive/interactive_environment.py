@@ -366,7 +366,8 @@ class InteractiveEnvironment(object):
       # NOOP if setting to the same cache_manager.
       return
     # Check if the pipeline is already tracked as a user pipeline before cleanup.
-    is_user_pipeline = self._tracked_user_pipelines.get_user_pipeline(pipeline) is pipeline
+    is_user_pipeline = self._tracked_user_pipelines.get_user_pipeline(
+        pipeline) is pipeline
     if self.get_cache_manager(pipeline):
       # Invoke cleanup routine when a new cache_manager is forcefully set and
       # current cache_manager is not None.
