@@ -21,8 +21,11 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -43,6 +46,7 @@ import org.slf4j.event.Level;
 @RunWith(JUnit4.class)
 public class LogElementsTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(LogElements.class);
 
   @Test
   @Category(NeedsRunner.class)
@@ -73,14 +77,80 @@ public class LogElementsTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testLogElementsLogsAtConfiguredLevel() {
+    pipeline
+        .apply("CreateTrace", Create.of("trace-element"))
+        .apply("LogTrace", LogElements.<String>of(Level.TRACE).withPrefix("trace: "));
+    pipeline
+        .apply("CreateDebug", Create.of("debug-element"))
+        .apply("LogDebug", LogElements.<String>of(Level.DEBUG).withPrefix("debug: "));
+    pipeline
+        .apply("CreateInfo", Create.of("info-element"))
+        .apply("LogInfo", LogElements.<String>of(Level.INFO).withPrefix("info: "));
+    pipeline
+        .apply("CreateWarn", Create.of("warn-element"))
+        .apply("LogWarn", LogElements.<String>of(Level.WARN).withPrefix("warn: "));
+    pipeline
+        .apply("CreateError", Create.of("error-element"))
+        .apply("LogError", LogElements.<String>of(Level.ERROR).withPrefix("error: "));
+
+    pipeline.run();
+
+    expectedLogs.verifyTrace("trace: trace-element");
+    expectedLogs.verifyDebug("debug: debug-element");
+    expectedLogs.verifyInfo("info: info-element");
+    expectedLogs.verifyWarn("warn: warn-element");
+    expectedLogs.verifyError("error: error-element");
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testLogElementsDoesNotFormatWhenLevelDisabled() {
+    java.util.logging.Logger.getLogger(LogElements.class.getName())
+        .setLevel(java.util.logging.Level.OFF);
+    ThrowsOnToString element = new ThrowsOnToString();
+
+    PCollection<ThrowsOnToString> output =
+        pipeline
+            .apply(Create.of(element).withCoder(SerializableCoder.of(ThrowsOnToString.class)))
+            .apply(LogElements.<ThrowsOnToString>of(Level.INFO));
+
+    PAssert.that(output).containsInAnyOrder(element);
+    pipeline.run();
+  }
+
+  @Test
   public void testDisplayData() {
     DisplayData displayData =
         DisplayData.from(
-            LogElements.of(Level.WARN).withPrefix("row: ").withTimestamp().withWindow());
+            LogElements.of(Level.WARN)
+                .withPrefix("row: ")
+                .withTimestamp()
+                .withWindow()
+                .withPaneInfo());
 
     assertThat(displayData, hasDisplayItem("level", "WARN"));
     assertThat(displayData, hasDisplayItem("prefix", "row: "));
     assertThat(displayData, hasDisplayItem("withTimestamp", true));
     assertThat(displayData, hasDisplayItem("withWindow", true));
+    assertThat(displayData, hasDisplayItem("withPaneInfo", true));
+  }
+
+  private static class ThrowsOnToString implements Serializable {
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof ThrowsOnToString;
+    }
+
+    @Override
+    public int hashCode() {
+      return ThrowsOnToString.class.hashCode();
+    }
+
+    @Override
+    public String toString() {
+      throw new AssertionError("LogElements should not format elements when logging is disabled.");
+    }
   }
 }

@@ -110,7 +110,7 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PCollection<T> input) {
-    return input.apply("Log", ParDo.of(new LoggingFn<>(this))).setCoder(input.getCoder());
+    return input.apply("Log", ParDo.of(new LoggingFn<>(this)));
   }
 
   @Override
@@ -163,9 +163,32 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
         LOG.warn("{}", message);
         break;
       case ERROR:
-      default:
         LOG.error("{}", message);
+        break;
+      default:
+        throw unsupportedLogLevel(level);
     }
+  }
+
+  private static boolean isLoggingEnabled(Level level) {
+    switch (level) {
+      case TRACE:
+        return LOG.isTraceEnabled();
+      case DEBUG:
+        return LOG.isDebugEnabled();
+      case INFO:
+        return LOG.isInfoEnabled();
+      case WARN:
+        return LOG.isWarnEnabled();
+      case ERROR:
+        return LOG.isErrorEnabled();
+      default:
+        throw unsupportedLogLevel(level);
+    }
+  }
+
+  private static IllegalArgumentException unsupportedLogLevel(Level level) {
+    return new IllegalArgumentException("Unsupported log level: " + level);
   }
 
   private static class LoggingFn<T> extends DoFn<T, T> {
@@ -190,17 +213,19 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
         BoundedWindow window,
         PaneInfo paneInfo,
         OutputReceiver<T> receiver) {
-      log(
-          level,
-          formatForLogging(
-              element,
-              prefix,
-              withTimestamp,
-              withWindow,
-              withPaneInfo,
-              timestamp,
-              window,
-              paneInfo));
+      if (isLoggingEnabled(level)) {
+        log(
+            level,
+            formatForLogging(
+                element,
+                prefix,
+                withTimestamp,
+                withWindow,
+                withPaneInfo,
+                timestamp,
+                window,
+                paneInfo));
+      }
       receiver.output(element);
     }
   }
