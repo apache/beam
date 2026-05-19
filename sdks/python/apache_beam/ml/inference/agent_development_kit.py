@@ -302,8 +302,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
             f"Agent {runner.agent.name} did not return a response, "
             f"final event: {event}")
 
-    raise ValueError(
-        f"Agent {runner.agent.name} did not return a response")
+    raise ValueError(f"Agent {runner.agent.name} did not return a response")
 
   def get_metrics_namespace(self) -> str:
     return "ADKAgentModelHandler"
