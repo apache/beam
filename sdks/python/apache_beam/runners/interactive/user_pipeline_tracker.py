@@ -42,8 +42,8 @@ class UserPipelineTracker:
   def __init__(self):
     self._lock = threading.RLock()
     self._user_pipelines: dict[beam.Pipeline, list[beam.Pipeline]] = {}
-    self._derived_pipelines: dict[beam.Pipeline] = {}
-    self._pid_to_pipelines: dict[beam.Pipeline] = {}
+    self._derived_pipelines: dict[beam.Pipeline, beam.Pipeline] = {}
+    self._pid_to_pipelines: dict[str, beam.Pipeline] = {}
 
   def __iter__(self) -> Iterator[beam.Pipeline]:
     """Iterates through all the user pipelines."""
@@ -75,13 +75,12 @@ class UserPipelineTracker:
     # Remove all local_tempdir of created pipelines.
     with self._lock:
       pipelines = list(self._pid_to_pipelines.values())
-    for p in pipelines:
-      shutil.rmtree(p.local_tempdir, ignore_errors=True)
-
-    with self._lock:
       self._user_pipelines.clear()
       self._derived_pipelines.clear()
       self._pid_to_pipelines.clear()
+
+    for p in pipelines:
+      shutil.rmtree(p.local_tempdir, ignore_errors=True)
 
   def get_pipeline(self, pid: str) -> Optional[beam.Pipeline]:
     """Returns the pipeline corresponding to the given pipeline id."""
