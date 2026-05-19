@@ -1422,11 +1422,6 @@ class BatchViewOverrides {
     }
 
     @Override
-    public ValueKind getValueKind() {
-      return ValueKind.INSERT;
-    }
-
-    @Override
     public Iterable<WindowedValue<T>> explodeWindows() {
       return Collections.emptyList();
     }
