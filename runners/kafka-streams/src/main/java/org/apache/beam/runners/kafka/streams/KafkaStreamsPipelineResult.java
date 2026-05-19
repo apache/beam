@@ -43,23 +43,31 @@ class KafkaStreamsPipelineResult implements PipelineResult {
 
   @Override
   public State cancel() throws IOException {
-    State state = delegate.cancel();
-    stopJobServer.run();
-    return state;
+    try {
+      return delegate.cancel();
+    } finally {
+      stopJobServer.run();
+    }
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
     State state = delegate.waitUntilFinish(duration);
-    stopJobServer.run();
+    // A null/non-terminal state means the wait timed out and the pipeline is still running;
+    // keep the job server alive so the caller can continue to interact with the job.
+    if (state != null && state.isTerminal()) {
+      stopJobServer.run();
+    }
     return state;
   }
 
   @Override
   public State waitUntilFinish() {
-    State state = delegate.waitUntilFinish();
-    stopJobServer.run();
-    return state;
+    try {
+      return delegate.waitUntilFinish();
+    } finally {
+      stopJobServer.run();
+    }
   }
 
   @Override

@@ -66,11 +66,21 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   void setStateDir(String stateDir);
 
-  /** Default {@link #getStateDir()} under the JVM temp directory. */
+  /**
+   * Default {@link #getStateDir()} under the JVM temp directory.
+   *
+   * <p>The job name is included in the path so that multiple pipelines running on the same host
+   * (e.g. parallel tests) do not collide on the same Kafka Streams state directory and trigger a
+   * {@code LockException}.
+   */
   class StateDirDefaultFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return Paths.get(System.getProperty("java.io.tmpdir"), "beam-kafka-streams-state").toString();
+      return Paths.get(
+              System.getProperty("java.io.tmpdir"),
+              "beam-kafka-streams-state",
+              options.getJobName())
+          .toString();
     }
   }
 }
