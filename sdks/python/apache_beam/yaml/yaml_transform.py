@@ -1411,11 +1411,8 @@ class _BeamFileIOLoader(jinja2.BaseLoader):
     self.search_paths = list(search_paths)
 
   def get_source(self, environment, path):
-    candidates = []
-    if FileSystems.get_scheme(path) is not None or path.startswith('/'):
-      candidates.append(path)
-    else:
-      candidates.append(path)
+    candidates = [path]
+    if FileSystems.get_scheme(path) is None and not path.startswith('/'):
       for search_path in self.search_paths:
         candidates.append(FileSystems.join(search_path, path))
 
@@ -1435,9 +1432,8 @@ def expand_jinja(
     jinja_template: str,
     jinja_variables: Mapping[str, Any],
     search_paths: Iterable[str] = ()) -> str:
-  import apache_beam
   beam_root_dir = os.path.dirname(
-      os.path.dirname(os.path.abspath(apache_beam.__file__)))
+      os.path.dirname(os.path.abspath(beam.__file__)))
 
   all_search_paths = list(search_paths)
   if beam_root_dir not in all_search_paths:
