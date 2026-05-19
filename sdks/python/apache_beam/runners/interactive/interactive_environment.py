@@ -370,6 +370,8 @@ class InteractiveEnvironment(object):
       # current cache_manager is not None.
       self.cleanup(pipeline)
     self._cache_managers[str(id(pipeline))] = cache_manager
+    # Re-track the user pipeline because the self.cleanup() call above evicts it.
+    self.add_user_pipeline(pipeline)
 
   def get_cache_manager(self, pipeline, create_if_absent=False):
     """Gets the cache manager held by current Interactive Environment for the
