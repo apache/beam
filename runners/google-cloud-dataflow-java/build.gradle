@@ -258,6 +258,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   def pipelineOptions = args.pipelineOptions ?: runnerV2PipelineOptions
   def excludedTests = args.excludedTests ?: []
   def excludedCategories = args.excludedCategories ?: []
+  def maxParallelForksForTest = args.maxParallelForks != null ? args.maxParallelForks : Integer.MAX_VALUE
 
   return tasks.create(name: name, type: Test, group: "Verification") {
     dependsOn buildAndPushDockerJavaContainer
@@ -265,7 +266,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
+    maxParallelForks maxParallelForksForTest
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
@@ -613,6 +614,7 @@ task validatesRunnerV2Streaming {
   description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
+    maxParallelForks: 4,
     pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
     excludedCategories: [
       'org.apache.beam.sdk.testing.LargeKeys$Above10KB',
