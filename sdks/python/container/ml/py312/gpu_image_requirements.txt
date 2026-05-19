@@ -129,7 +129,7 @@ httpx==0.28.1
 huggingface_hub==0.36.2
 hyperframe==6.1.0
 hypothesis==6.148.3
-idna==3.11
+idna==3.15
 importlib_metadata==8.7.1
 iniconfig==2.3.0
 interegular==0.3.3
