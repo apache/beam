@@ -62,6 +62,7 @@ type B struct {
 	OutputData engine.TentativeData
 
 	Resp      chan *fnpb.ProcessBundleResponse
+	Done      chan struct{}
 	BundleErr error
 	responded bool
 
@@ -80,6 +81,7 @@ func (b *B) Init() {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
+	b.Done = make(chan struct{})
 }
 
 // DataOrTimerDone indicates a final element has been received from a Data or Timer output.
@@ -102,7 +104,11 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 		return
 	}
 	b.responded = true
+	if b.Done != nil {
+		close(b.Done)
+	}
 	if resp.GetError() != "" {
+		slog.Error("DEBUG: Prism received bundle error from worker response", "bundle", resp.GetInstructionId())
 		b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
 		close(b.Resp)
 		return
@@ -138,6 +144,13 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	case <-wk.StoppedChan:
 		// The worker was stopped before req was sent.
 		// Quit to avoid sending on a closed channel.
+		outCap := b.OutputCount + len(b.HasTimers)
+		for i := 0; i < outCap; i++ {
+			b.DataOrTimerDone()
+		}
+		return b.DataWait
+	case <-b.Done:
+		// The bundle completed/failed before req was sent.
 		outCap := b.OutputCount + len(b.HasTimers)
 		for i := 0; i < outCap; i++ {
 			b.DataOrTimerDone()
@@ -181,6 +194,9 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		case <-ctx.Done():
 			b.DataOrTimerDone()
 			return b.DataWait
+		case <-b.Done:
+			b.DataOrTimerDone()
+			return b.DataWait
 		case wk.DataReqs <- elms:
 		}
 	}
@@ -200,6 +216,9 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		b.DataOrTimerDone()
 		return b.DataWait
 	case <-ctx.Done():
+		b.DataOrTimerDone()
+		return b.DataWait
+	case <-b.Done:
 		b.DataOrTimerDone()
 		return b.DataWait
 	case wk.DataReqs <- &fnpb.Elements{
