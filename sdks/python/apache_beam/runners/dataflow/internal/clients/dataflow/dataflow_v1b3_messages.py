@@ -4477,10 +4477,15 @@ class Package(_messages.Message):
       type is: Google Cloud Storage: storage.googleapis.com/{bucket}
       bucket.storage.googleapis.com/
     name: The name of the package.
+    sha256: Optional. The hex-encoded SHA256 checksum of the package. If the
+      checksum is provided, the worker will verify the checksum of the package
+      before using it. If the checksum does not match, the worker will fail to
+      start.
   """
 
   location = _messages.StringField(1)
   name = _messages.StringField(2)
+  sha256 = _messages.StringField(3)
 
 
 class ParDoInstruction(_messages.Message):
