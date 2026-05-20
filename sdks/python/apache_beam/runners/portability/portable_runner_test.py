@@ -18,6 +18,7 @@
 
 import inspect
 import logging
+import os
 import socket
 import subprocess
 import sys
@@ -328,16 +329,16 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
     PortableRunnerTestWithSubprocesses):
   _use_subprocesses = True
 
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
   @classmethod
   def setUpClass(cls):
-    import os
     cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
     os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
     super().setUpClass()
 
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
   @classmethod
   def tearDownClass(cls):
-    import os
     if cls._old_fork_support is None:
       os.environ.pop('GRPC_ENABLE_FORK_SUPPORT', None)
     else:
