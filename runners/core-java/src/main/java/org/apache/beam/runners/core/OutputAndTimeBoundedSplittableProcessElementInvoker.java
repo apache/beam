@@ -453,7 +453,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
-      noteOutput();
       outputReceiver.output(
           tag,
           WindowedValues.of(
