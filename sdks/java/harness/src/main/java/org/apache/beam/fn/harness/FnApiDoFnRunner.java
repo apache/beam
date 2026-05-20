@@ -1771,16 +1771,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        ValueKind valueKind) {
-      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, valueKind);
-    }
-
-    @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
@@ -1949,21 +1939,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       // Don't need to check timestamp since we can always output using the input timestamp.
       outputTo(consumer, currentElement.withValue(output));
-    }
-
-    @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        ValueKind valueKind) {
-      builder(output)
-          .setTimestamp(timestamp)
-          .setWindows(windows)
-          .setPaneInfo(paneInfo)
-          .setValueKind(valueKind)
-          .output();
     }
 
     @Override
@@ -2393,16 +2368,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void outputWindowedValue(
-          OutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          ValueKind valueKind) {
-        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
-      }
-
-      @Override
       public BoundedWindow window() {
         return currentWindow;
       }
@@ -2731,16 +2696,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo);
-      }
-
-      @Override
-      public void outputWindowedValue(
-          OutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo,
-          ValueKind valueKind) {
-        OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
       }
 
       @Override
