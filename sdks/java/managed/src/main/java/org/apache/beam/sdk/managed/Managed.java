@@ -99,6 +99,7 @@ public class Managed {
   public static final String POSTGRES = "postgres";
   public static final String MYSQL = "mysql";
   public static final String SQL_SERVER = "sqlserver";
+  public static final String DELTA = "delta";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
@@ -110,6 +111,7 @@ public class Managed {
           .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_READ))
           .put(MYSQL, getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_READ))
           .put(SQL_SERVER, getUrn(ExternalTransforms.ManagedTransforms.Urns.SQL_SERVER_READ))
+          .put(DELTA, "beam:schematransform:org.apache.beam:delta_read:v1")
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()

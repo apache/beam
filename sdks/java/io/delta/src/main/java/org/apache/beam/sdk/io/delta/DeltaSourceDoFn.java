@@ -1,0 +1,429 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.delta;
+
+import io.delta.kernel.Scan;
+import io.delta.kernel.data.ArrayValue;
+import io.delta.kernel.data.ColumnVector;
+import io.delta.kernel.data.ColumnarBatch;
+import io.delta.kernel.data.FilteredColumnarBatch;
+import io.delta.kernel.data.MapValue;
+import io.delta.kernel.data.Row;
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
+import io.delta.kernel.engine.FileReadResult;
+import io.delta.kernel.internal.InternalScanFileUtils;
+import io.delta.kernel.internal.data.ScanStateRow;
+import io.delta.kernel.internal.util.Utils;
+import io.delta.kernel.types.ArrayType;
+import io.delta.kernel.types.BinaryType;
+import io.delta.kernel.types.BooleanType;
+import io.delta.kernel.types.ByteType;
+import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
+import io.delta.kernel.types.DoubleType;
+import io.delta.kernel.types.FloatType;
+import io.delta.kernel.types.IntegerType;
+import io.delta.kernel.types.LongType;
+import io.delta.kernel.types.MapType;
+import io.delta.kernel.types.ShortType;
+import io.delta.kernel.types.StringType;
+import io.delta.kernel.types.StructField;
+import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
+import io.delta.kernel.utils.CloseableIterator;
+import io.delta.kernel.utils.FileStatus;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.hadoop.conf.Configuration;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A Splittable DoFn that processes {@link DeltaReadTask} elements, performs logical reads, and
+ * supports dynamic work rebalancing.
+ */
+@DoFn.BoundedPerElement
+class DeltaSourceDoFn extends DoFn<DeltaReadTask, org.apache.beam.sdk.values.Row> {
+  @Nullable Map<String, String> hadoopConfig;
+  private @Nullable Engine engine;
+
+  private static final Logger LOG = LoggerFactory.getLogger(DeltaSourceDoFn.class);
+
+  public DeltaSourceDoFn(@Nullable Map<String, String> hadoopConfig) {
+    this.hadoopConfig = hadoopConfig;
+  }
+
+  private Configuration getConfiguration() {
+    Configuration conf = new Configuration();
+    if (hadoopConfig != null) {
+      for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+        conf.set(entry.getKey(), entry.getValue());
+      }
+    }
+    return conf;
+  }
+
+  private List<Long> getRowGroupSizes(DeltaReadTask task) {
+    List<Long> sizes = new ArrayList<>();
+    Configuration conf = getConfiguration();
+    for (SerializableRow scanFileRow : task.getScanFileRows()) {
+      String pathStr = InternalScanFileUtils.getAddFileStatus(scanFileRow).getPath();
+      try {
+        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(pathStr);
+        org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
+            org.apache.parquet.hadoop.ParquetFileReader.readFooter(
+                conf,
+                hadoopPath,
+                org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
+        for (org.apache.parquet.hadoop.metadata.BlockMetaData block : metadata.getBlocks()) {
+          sizes.add(block.getTotalByteSize());
+        }
+      } catch (java.io.IOException e) {
+        throw new RuntimeException("Failed to read Parquet footer for " + pathStr, e);
+      }
+    }
+    return sizes;
+  }
+
+  @GetInitialRestriction
+  public OffsetRange getInitialRestriction(@Element DeltaReadTask task) {
+    List<Long> rowGroupSizes = getRowGroupSizes(task);
+    return new OffsetRange(0L, rowGroupSizes.size());
+  }
+
+  @NewTracker
+  public DeltaReadTaskTracker newTracker(
+      @Restriction OffsetRange restriction, @Element DeltaReadTask task) {
+    return new DeltaReadTaskTracker(restriction, getRowGroupSizes(task));
+  }
+
+  @Setup
+  public void setUp() {
+    engine = DefaultEngine.create(getConfiguration());
+  }
+
+  @ProcessElement
+  public ProcessContinuation processElement(
+      @Element DeltaReadTask task,
+      RestrictionTracker<OffsetRange, Long> tracker,
+      OutputReceiver<org.apache.beam.sdk.values.Row> out)
+      throws Exception {
+
+    LOG.info("**** xyz123 reading DeltaReadTask: {}", task);
+
+    SerializableRow scanStateRow = task.getScanStateRow();
+    StructType physicalSchema = ScanStateRow.getPhysicalDataReadSchema(scanStateRow);
+    StructType logicalSchema = ScanStateRow.getLogicalSchema(scanStateRow);
+    Schema beamSchema = DeltaIO.ReadRows.convertToBeamSchema(logicalSchema);
+
+    Engine currentEngine = engine;
+    if (currentEngine == null) {
+      throw new IllegalArgumentException("Expected the engine to not be null");
+    }
+
+    BeamParquetHandler parquetHandler =
+        new BeamParquetHandler(getConfiguration(), currentEngine.getParquetHandler(), tracker);
+    BeamEngine beamEngine = new BeamEngine(currentEngine, parquetHandler);
+
+    for (SerializableRow scanFileRow : task.getScanFileRows()) {
+      FileStatus fileStatus = InternalScanFileUtils.getAddFileStatus(scanFileRow);
+      CloseableIterator<FileReadResult> fileReadResults =
+          beamEngine
+              .getParquetHandler()
+              .readParquetFiles(
+                  Utils.singletonCloseableIterator(fileStatus), physicalSchema, Optional.empty());
+
+      CloseableIterator<ColumnarBatch> physicalData =
+          new CloseableIterator<ColumnarBatch>() {
+            @Override
+            public void close() throws java.io.IOException {
+              fileReadResults.close();
+            }
+
+            @Override
+            public boolean hasNext() {
+              return fileReadResults.hasNext();
+            }
+
+            @Override
+            public ColumnarBatch next() {
+              return fileReadResults.next().getData();
+            }
+          };
+
+      try (CloseableIterator<FilteredColumnarBatch> logicalBatches =
+          Scan.transformPhysicalData(beamEngine, scanStateRow, scanFileRow, physicalData)) {
+
+        while (logicalBatches.hasNext()) {
+          FilteredColumnarBatch batch = logicalBatches.next();
+          try (CloseableIterator<Row> logicalRows = batch.getRows()) {
+            while (logicalRows.hasNext()) {
+              Row deltaRow = logicalRows.next();
+              org.apache.beam.sdk.values.Row beamRow = toBeamRow(deltaRow, beamSchema);
+              out.output(beamRow);
+            }
+          }
+        }
+      }
+    }
+    return ProcessContinuation.stop();
+  }
+
+  private static org.apache.beam.sdk.values.Row toBeamRow(Row deltaRow, Schema beamSchema) {
+    org.apache.beam.sdk.values.Row.Builder builder =
+        org.apache.beam.sdk.values.Row.withSchema(beamSchema);
+    StructType deltaSchema = deltaRow.getSchema();
+    List<StructField> fields = deltaSchema.fields();
+    for (int i = 0; i < fields.size(); i++) {
+      StructField field = fields.get(i);
+      builder.addValue(getFieldValue(deltaRow, i, field.getDataType()));
+    }
+    return builder.build();
+  }
+
+  private static @Nullable Object getFieldValue(Row row, int index, DataType type) {
+    if (row.isNullAt(index)) {
+      return null;
+    }
+    if (type instanceof BooleanType) {
+      return row.getBoolean(index);
+    } else if (type instanceof ByteType) {
+      return (int) row.getByte(index);
+    } else if (type instanceof ShortType) {
+      return (int) row.getShort(index);
+    } else if (type instanceof IntegerType) {
+      return row.getInt(index);
+    } else if (type instanceof LongType) {
+      return row.getLong(index);
+    } else if (type instanceof FloatType) {
+      return row.getFloat(index);
+    } else if (type instanceof DoubleType) {
+      return row.getDouble(index);
+    } else if (type instanceof StringType) {
+      return row.getString(index);
+    } else if (type instanceof BinaryType) {
+      return row.getBinary(index);
+    } else if (type instanceof TimestampType) {
+      long microSeconds = row.getLong(index);
+      return new org.joda.time.Instant(microSeconds / 1000L);
+    } else if (type instanceof DateType) {
+      int daysSinceEpoch = row.getInt(index);
+      return new org.joda.time.Instant(daysSinceEpoch * 86400000L);
+    } else if (type instanceof ArrayType) {
+      ArrayValue arrayValue = row.getArray(index);
+      int size = arrayValue.getSize();
+      ColumnVector elements = arrayValue.getElements();
+      DataType elementType = ((ArrayType) type).getElementType();
+      List<@Nullable Object> list = new ArrayList<>(size);
+      for (int i = 0; i < size; i++) {
+        list.add(getVectorValue(elements, i, elementType));
+      }
+      return list;
+    } else if (type instanceof MapType) {
+      MapValue mapValue = row.getMap(index);
+      int size = mapValue.getSize();
+      ColumnVector keys = mapValue.getKeys();
+      ColumnVector values = mapValue.getValues();
+      DataType keyType = ((MapType) type).getKeyType();
+      DataType valueType = ((MapType) type).getValueType();
+      Map<Object, @Nullable Object> map = new LinkedHashMap<>(size);
+      for (int i = 0; i < size; i++) {
+        Object key = getVectorValue(keys, i, keyType);
+        if (key != null) {
+          map.put(key, getVectorValue(values, i, valueType));
+        }
+      }
+      return map;
+    } else if (type instanceof StructType) {
+      Row nestedRow = row.getStruct(index);
+      Schema nestedBeamSchema = DeltaIO.ReadRows.convertToBeamSchema((StructType) type);
+      return toBeamRow(nestedRow, nestedBeamSchema);
+    }
+    throw new UnsupportedOperationException("Unsupported type: " + type.getClass());
+  }
+
+  private static @Nullable Object getVectorValue(ColumnVector vector, int index, DataType type) {
+    if (vector.isNullAt(index)) {
+      return null;
+    }
+    if (type instanceof BooleanType) {
+      return vector.getBoolean(index);
+    } else if (type instanceof ByteType) {
+      return (int) vector.getByte(index);
+    } else if (type instanceof ShortType) {
+      return (int) vector.getShort(index);
+    } else if (type instanceof IntegerType) {
+      return vector.getInt(index);
+    } else if (type instanceof LongType) {
+      return vector.getLong(index);
+    } else if (type instanceof FloatType) {
+      return vector.getFloat(index);
+    } else if (type instanceof DoubleType) {
+      return vector.getDouble(index);
+    } else if (type instanceof StringType) {
+      return vector.getString(index);
+    } else if (type instanceof BinaryType) {
+      return vector.getBinary(index);
+    } else if (type instanceof TimestampType) {
+      long microSeconds = vector.getLong(index);
+      return new org.joda.time.Instant(microSeconds / 1000L);
+    } else if (type instanceof DateType) {
+      int daysSinceEpoch = vector.getInt(index);
+      return new org.joda.time.Instant(daysSinceEpoch * 86400000L);
+    } else if (type instanceof ArrayType) {
+      ArrayValue arrayValue = vector.getArray(index);
+      int size = arrayValue.getSize();
+      ColumnVector elements = arrayValue.getElements();
+      DataType elementType = ((ArrayType) type).getElementType();
+      List<@Nullable Object> list = new ArrayList<>(size);
+      for (int i = 0; i < size; i++) {
+        list.add(getVectorValue(elements, i, elementType));
+      }
+      return list;
+    } else if (type instanceof MapType) {
+      MapValue mapValue = vector.getMap(index);
+      int size = mapValue.getSize();
+      ColumnVector keys = mapValue.getKeys();
+      ColumnVector values = mapValue.getValues();
+      DataType keyType = ((MapType) type).getKeyType();
+      DataType valueType = ((MapType) type).getValueType();
+      Map<Object, @Nullable Object> map = new LinkedHashMap<>(size);
+      for (int i = 0; i < size; i++) {
+        Object key = getVectorValue(keys, i, keyType);
+        if (key != null) {
+          map.put(key, getVectorValue(values, i, valueType));
+        }
+      }
+      return map;
+    } else if (type instanceof StructType) {
+      StructType structType = (StructType) type;
+      int numFields = structType.fields().size();
+      ColumnVector[] childVectors = new ColumnVector[numFields];
+      for (int i = 0; i < numFields; i++) {
+        childVectors[i] = vector.getChild(i);
+      }
+      Row nestedRow = new VectorRow(structType, childVectors, index);
+      Schema nestedBeamSchema = DeltaIO.ReadRows.convertToBeamSchema(structType);
+      return toBeamRow(nestedRow, nestedBeamSchema);
+    }
+    throw new UnsupportedOperationException("Unsupported vector type: " + type.getClass());
+  }
+
+  private static class VectorRow implements Row {
+    private final StructType schema;
+    private final ColumnVector[] fields;
+    private final int rowIndex;
+
+    VectorRow(StructType schema, ColumnVector[] fields, int rowIndex) {
+      this.schema = schema;
+      this.fields = fields;
+      this.rowIndex = rowIndex;
+    }
+
+    @Override
+    public StructType getSchema() {
+      return schema;
+    }
+
+    @Override
+    public boolean isNullAt(int ord) {
+      return fields[ord].isNullAt(rowIndex);
+    }
+
+    @Override
+    public boolean getBoolean(int ord) {
+      return fields[ord].getBoolean(rowIndex);
+    }
+
+    @Override
+    public byte getByte(int ord) {
+      return fields[ord].getByte(rowIndex);
+    }
+
+    @Override
+    public short getShort(int ord) {
+      return fields[ord].getShort(rowIndex);
+    }
+
+    @Override
+    public int getInt(int ord) {
+      return fields[ord].getInt(rowIndex);
+    }
+
+    @Override
+    public long getLong(int ord) {
+      return fields[ord].getLong(rowIndex);
+    }
+
+    @Override
+    public float getFloat(int ord) {
+      return fields[ord].getFloat(rowIndex);
+    }
+
+    @Override
+    public double getDouble(int ord) {
+      return fields[ord].getDouble(rowIndex);
+    }
+
+    @Override
+    public String getString(int ord) {
+      return fields[ord].getString(rowIndex);
+    }
+
+    @Override
+    public byte[] getBinary(int ord) {
+      return fields[ord].getBinary(rowIndex);
+    }
+
+    @Override
+    public BigDecimal getDecimal(int ord) {
+      return fields[ord].getDecimal(rowIndex);
+    }
+
+    @Override
+    public Row getStruct(int ord) {
+      StructType childSchema = (StructType) schema.fields().get(ord).getDataType();
+      int numFields = childSchema.fields().size();
+      ColumnVector[] childFields = new ColumnVector[numFields];
+      for (int j = 0; j < numFields; j++) {
+        childFields[j] = fields[ord].getChild(j);
+      }
+      return new VectorRow(childSchema, childFields, rowIndex);
+    }
+
+    @Override
+    public ArrayValue getArray(int ord) {
+      return fields[ord].getArray(rowIndex);
+    }
+
+    @Override
+    public MapValue getMap(int ord) {
+      return fields[ord].getMap(rowIndex);
+    }
+  }
+}
