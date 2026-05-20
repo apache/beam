@@ -1412,18 +1412,20 @@ class _BeamFileIOLoader(jinja2.BaseLoader):
 
   def get_source(self, environment, path):
     candidates = [path]
-    if FileSystems.get_scheme(path) is None and not path.startswith('/'):
+    if FileSystems.get_scheme(path) is None and not os.path.isabs(path):
       for search_path in self.search_paths:
         candidates.append(FileSystems.join(search_path, path))
 
     for candidate in candidates:
       try:
-        if FileSystems.exists(candidate):
-          with FileSystems.open(candidate) as fin:
-            source = fin.read().decode()
-          return strip_leading_comments(source), candidate, lambda: True
+        exists = FileSystems.exists(candidate)
       except Exception:
-        pass
+        exists = False
+
+      if exists:
+        with FileSystems.open(candidate) as fin:
+          source = fin.read().decode()
+        return strip_leading_comments(source), candidate, lambda: True
 
     raise jinja2.TemplateNotFound(path)
 
