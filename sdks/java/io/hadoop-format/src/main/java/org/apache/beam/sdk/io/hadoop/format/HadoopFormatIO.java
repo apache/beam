@@ -34,6 +34,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,10 +53,9 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -748,17 +748,25 @@ public class HadoopFormatIO {
           .collect(Collectors.toList());
     }
 
-    /** Report only file-based sources. */
     private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
-      List<ResourceId> fileResources =
-          inputSplits.stream()
-              .map(SerializableSplit::getSplit)
-              .filter(FileSplit.class::isInstance)
-              .map(FileSplit.class::cast)
-              .map(fileSplit -> FileSystems.matchNewResource(fileSplit.getPath().toString(), false))
-              .collect(Collectors.toList());
-
-      FileSystems.reportSourceLineage(fileResources);
+      for (SerializableSplit serializableSplit : inputSplits) {
+        InputSplit split = serializableSplit.getSplit();
+        if (split instanceof FileSplit) {
+          URI uri = ((FileSplit) split).getPath().toUri();
+          String scheme = uri.getScheme();
+          if (scheme == null) {
+            continue;
+          }
+          ImmutableList.Builder<String> segments = ImmutableList.builder();
+          if (uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+            segments.add(uri.getAuthority());
+          }
+          if (uri.getPath() != null && !uri.getPath().isEmpty() && !uri.getPath().equals("/")) {
+            segments.add(uri.getPath());
+          }
+          Lineage.getSources().add(scheme, segments.build(), "/");
+        }
+      }
     }
 
     @Override
