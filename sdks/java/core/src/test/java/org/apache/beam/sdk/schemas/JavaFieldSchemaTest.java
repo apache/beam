@@ -21,12 +21,14 @@ import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ANNOTATED_SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.CASE_FORMAT_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ENUMERATION;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.JAVA_TIME_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_NULLABLE_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLES_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLE_JAVA_TIME_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NULLABLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ENUM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_ITERABLE;
@@ -46,20 +48,28 @@ import static org.junit.Assert.assertTrue;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.AnnotatedSimplePojo;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.FirstCircularNestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.JavaTimePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArraysPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.NullableJavaTimePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NullablePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNestedNullable;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
@@ -226,6 +236,118 @@ public class JavaFieldSchemaTest {
     assertEquals(BYTE_BUFFER, pojo.byteBuffer);
     assertEquals(BigDecimal.ONE, pojo.bigDecimal);
     assertEquals("stringbuilder", pojo.stringBuilder.toString());
+  }
+
+  @Test
+  public void testJavaTimeSchema() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(JavaTimePOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(JAVA_TIME_POJO_SCHEMA, schema);
+    // Reproduces the failure mode in #37524: a POJO inferred from JSR-310 fields must be
+    // assignable to a row schema (e.g. one produced by IcebergIO) that uses the same logical
+    // types.
+    Schema icebergStyleSchema =
+        Schema.builder()
+            .addLogicalTypeField("localDate", SqlTypes.DATE)
+            .addLogicalTypeField("localTime", SqlTypes.TIME)
+            .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+            .addLogicalTypeField("instant", new NanosInstant())
+            .addLogicalTypeField("uuid", SqlTypes.UUID)
+            .build();
+    assertTrue(schema.assignableToIgnoreNullable(icebergStyleSchema));
+  }
+
+  @Test
+  public void testJavaTimeToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    LocalDate localDate = LocalDate.of(2024, 1, 15);
+    LocalTime localTime = LocalTime.of(10, 30, 45);
+    LocalDateTime localDateTime = LocalDateTime.of(2024, 1, 15, 10, 30, 45);
+    java.time.Instant instant = java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L);
+    UUID uuid = UUID.fromString("11111111-2222-3333-4444-555555555555");
+    JavaTimePOJO pojo = new JavaTimePOJO(localDate, localTime, localDateTime, instant, uuid);
+
+    Row row = registry.getToRowFunction(JavaTimePOJO.class).apply(pojo);
+
+    assertEquals(5, row.getFieldCount());
+    assertEquals(localDate, row.getLogicalTypeValue("localDate", LocalDate.class));
+    assertEquals(localTime, row.getLogicalTypeValue("localTime", LocalTime.class));
+    assertEquals(localDateTime, row.getLogicalTypeValue("localDateTime", LocalDateTime.class));
+    assertEquals(instant, row.getLogicalTypeValue("instant", java.time.Instant.class));
+    assertEquals(uuid, row.getLogicalTypeValue("uuid", UUID.class));
+  }
+
+  @Test
+  public void testJavaTimeFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    LocalDate localDate = LocalDate.of(2024, 1, 15);
+    LocalTime localTime = LocalTime.of(10, 30, 45);
+    LocalDateTime localDateTime = LocalDateTime.of(2024, 1, 15, 10, 30, 45);
+    java.time.Instant instant = java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L);
+    UUID uuid = UUID.fromString("11111111-2222-3333-4444-555555555555");
+    Row row =
+        Row.withSchema(JAVA_TIME_POJO_SCHEMA)
+            .addValues(localDate, localTime, localDateTime, instant, uuid)
+            .build();
+
+    JavaTimePOJO pojo = registry.getFromRowFunction(JavaTimePOJO.class).apply(row);
+
+    assertEquals(localDate, pojo.localDate);
+    assertEquals(localTime, pojo.localTime);
+    assertEquals(localDateTime, pojo.localDateTime);
+    assertEquals(instant, pojo.instant);
+    assertEquals(uuid, pojo.uuid);
+  }
+
+  @Test
+  public void testJavaTimeRoundTrip() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    JavaTimePOJO original =
+        new JavaTimePOJO(
+            LocalDate.of(2024, 1, 15),
+            LocalTime.of(10, 30, 45),
+            LocalDateTime.of(2024, 1, 15, 10, 30, 45),
+            java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L),
+            UUID.fromString("11111111-2222-3333-4444-555555555555"));
+
+    Row row = registry.getToRowFunction(JavaTimePOJO.class).apply(original);
+    JavaTimePOJO roundTripped = registry.getFromRowFunction(JavaTimePOJO.class).apply(row);
+
+    assertEquals(original, roundTripped);
+  }
+
+  @Test
+  public void testNullableJavaTimeSchema() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(NullableJavaTimePOJO.class);
+    SchemaTestUtils.assertSchemaEquivalent(NULLABLE_JAVA_TIME_POJO_SCHEMA, schema);
+  }
+
+  @Test
+  public void testNullableJavaTimeToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    NullableJavaTimePOJO pojo = new NullableJavaTimePOJO();
+    Row row = registry.getToRowFunction(NullableJavaTimePOJO.class).apply(pojo);
+
+    assertEquals(5, row.getFieldCount());
+    assertNull(row.getLogicalTypeValue("localDate", LocalDate.class));
+    assertNull(row.getLogicalTypeValue("localTime", LocalTime.class));
+    assertNull(row.getLogicalTypeValue("localDateTime", LocalDateTime.class));
+    assertNull(row.getLogicalTypeValue("instant", java.time.Instant.class));
+    assertNull(row.getLogicalTypeValue("uuid", UUID.class));
+  }
+
+  @Test
+  public void testNullableJavaTimeFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = Row.nullRow(NULLABLE_JAVA_TIME_POJO_SCHEMA);
+
+    NullableJavaTimePOJO pojo = registry.getFromRowFunction(NullableJavaTimePOJO.class).apply(row);
+    assertNull(pojo.localDate);
+    assertNull(pojo.localTime);
+    assertNull(pojo.localDateTime);
+    assertNull(pojo.instant);
+    assertNull(pojo.uuid);
   }
 
   @Test
