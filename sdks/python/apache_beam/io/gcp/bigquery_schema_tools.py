@@ -55,15 +55,21 @@ BIG_QUERY_TO_PYTHON_TYPES = {
 
 
 def generate_user_type_from_bq_schema(
-    the_table_schema, selected_fields: 'bigquery.TableSchema' = None) -> type:
+    the_table_schema,
+    selected_fields: 'bigquery.TableSchema' = None,
+    type_overrides=None) -> type:
   """Convert a schema of type TableSchema into a pcollection element.
       Args:
         the_table_schema: A BQ schema of type TableSchema
         selected_fields: if not None, the subset of fields to consider
+        type_overrides: Optional mapping of BigQuery type names (uppercase)
+          to Python types. These override the default mappings in
+          BIG_QUERY_TO_PYTHON_TYPES. For example:
+          ``{'DATE': datetime.date, 'JSON': dict}``
       Returns:
         type: type that can be used to work with pCollections.
   """
-
+  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **(type_overrides or {})}
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
       the_table_schema)
   if the_schema == {}:
@@ -72,8 +78,8 @@ def generate_user_type_from_bq_schema(
   for field in the_schema['fields']:
     if selected_fields is not None and field['name'] not in selected_fields:
       continue
-    if field['type'] in BIG_QUERY_TO_PYTHON_TYPES:
-      typ = bq_field_to_type(field['type'], field['mode'])
+    if field['type'] in effective_types:
+      typ = bq_field_to_type(field['type'], field['mode'], type_overrides)
     else:
       raise ValueError(
           f"Encountered "
@@ -85,19 +91,44 @@ def generate_user_type_from_bq_schema(
   return usertype
 
 
-def bq_field_to_type(field, mode):
+def bq_field_to_type(field, mode, type_overrides=None):
+  """Convert a BigQuery field type and mode to a Python type hint.
+
+  Args:
+    field: The BigQuery type name (e.g., 'STRING', 'DATE').
+    mode: The field mode ('NULLABLE', 'REPEATED', 'REQUIRED').
+    type_overrides: Optional mapping of BigQuery type names (uppercase)
+      to Python types. These override the default mappings.
+
+  Returns:
+    The corresponding Python type hint.
+  """
+  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **(type_overrides or {})}
   if mode == 'NULLABLE' or mode is None or mode == '':
-    return Optional[BIG_QUERY_TO_PYTHON_TYPES[field]]
+    return Optional[effective_types[field]]
   elif mode == 'REPEATED':
-    return Sequence[BIG_QUERY_TO_PYTHON_TYPES[field]]
+    return Sequence[effective_types[field]]
   elif mode == 'REQUIRED':
-    return BIG_QUERY_TO_PYTHON_TYPES[field]
+    return effective_types[field]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
 
 
-def convert_to_usertype(table_schema, selected_fields=None):
-  usertype = generate_user_type_from_bq_schema(table_schema, selected_fields)
+def convert_to_usertype(
+    table_schema, selected_fields=None, type_overrides=None):
+  """Convert a BigQuery table schema to a user type.
+
+  Args:
+    table_schema: A BQ schema of type TableSchema
+    selected_fields: if not None, the subset of fields to consider
+    type_overrides: Optional mapping of BigQuery type names (uppercase)
+      to Python types.
+
+  Returns:
+    A ParDo transform that converts dictionaries to the user type.
+  """
+  usertype = generate_user_type_from_bq_schema(
+      table_schema, selected_fields, type_overrides)
   return beam.ParDo(BeamSchemaConversionDoFn(usertype))
 
 
