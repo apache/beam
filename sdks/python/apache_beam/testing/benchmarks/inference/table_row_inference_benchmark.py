@@ -88,8 +88,8 @@ class TableRowInferenceBenchmarkTest(DataflowCostBenchmark):
       if self.opts.input_subscription:
         extra_opts['input_subscription'] = self.opts.input_subscription
       extra_opts['window_size_sec'] = (
-          self.opts.window_size_sec if self.opts.window_size_sec is not None
-          else 60)
+          self.opts.window_size_sec
+          if self.opts.window_size_sec is not None else 60)
       extra_opts['trigger_interval_sec'] = (
           self.opts.trigger_interval_sec
           if self.opts.trigger_interval_sec is not None else 30)
