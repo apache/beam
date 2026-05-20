@@ -2801,7 +2801,7 @@ public class DataflowRunnerTest implements Serializable {
     // ValueKind is not supported in Dataflow shuffle yet
     assumeFalse(isRunnerV2);
 
-    PCollection<String> input = pipeline.apply(Create.of("a", "b", "c", "d", "e"));
+    PCollection<String> input = pipeline.apply(Create.of("a", "b", "c", "d"));
     TupleTag<String> mainTag = new TupleTag<String>() {};
     TupleTag<String> sideTag = new TupleTag<String>() {};
 
@@ -2823,9 +2823,6 @@ public class DataflowRunnerTest implements Serializable {
                             c.output(element); // default: INSERT
                             return;
                           case "b":
-                            c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
-                            return;
-                          case "c":
                             c.outputWindowedValue(
                                 WindowedValues.of(
                                     element,
@@ -2836,13 +2833,21 @@ public class DataflowRunnerTest implements Serializable {
                                     null,
                                     CausedByDrain.NORMAL,
                                     null,
-                                    ValueKind.UPDATE_AFTER));
+                                    ValueKind.UPDATE_BEFORE));
+                            return;
+                          case "c":
+                            outputReceiver
+                                .get(mainTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.UPDATE_AFTER)
+                                .output();
                             return;
                           case "d":
-                            c.outputWithKind(sideTag, element, ValueKind.UPDATE_AFTER);
-                            return;
-                          case "e":
-                            outputReceiver.get(sideTag).outputWithKind(element, ValueKind.DELETE);
+                            outputReceiver
+                                .get(sideTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.DELETE)
+                                .output();
                         }
                       }
                     })
@@ -2877,7 +2882,7 @@ public class DataflowRunnerTest implements Serializable {
                     }));
 
     PAssert.that(main).containsInAnyOrder("a:INSERT", "b:UPDATE_BEFORE", "c:UPDATE_AFTER");
-    PAssert.that(side).containsInAnyOrder("d:UPDATE_AFTER", "e:DELETE");
+    PAssert.that(side).containsInAnyOrder("d:DELETE");
     pipeline.run();
   }
 
@@ -2895,8 +2900,9 @@ public class DataflowRunnerTest implements Serializable {
                     new DoFn<KV<String, String>, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(
-                          @Element KV<String, String> element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                          @Element KV<String, String> element,
+                          OutputReceiver<KV<String, String>> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(Reshuffle.of())

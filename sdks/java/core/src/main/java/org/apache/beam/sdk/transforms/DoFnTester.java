@@ -630,11 +630,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void outputWithKind(OutputT output, ValueKind kind) {
-      outputWithKind(mainOutputTag, output, kind);
-    }
-
-    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -662,22 +657,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   CausedByDrain.NORMAL,
                   element.getOpenTelemetryContext(),
                   ValueKind.INSERT));
-    }
-
-    @Override
-    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-      getMutableOutput(tag)
-          .add(
-              ValueInSingleWindow.of(
-                  output,
-                  element.getTimestamp(),
-                  element.getWindow(),
-                  element.getPaneInfo(),
-                  null,
-                  null,
-                  CausedByDrain.NORMAL,
-                  element.getOpenTelemetryContext(),
-                  kind));
     }
 
     @Override

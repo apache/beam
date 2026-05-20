@@ -469,32 +469,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
-    public void outputWithKind(OutputT output, ValueKind kind) {
-      outputWithKind(mainOutputTag, output, kind);
-    }
-
-    @Override
-    public <T> void outputWithKind(TupleTag<T> tag, T value, ValueKind kind) {
-      noteOutput();
-      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
-        ((TimestampObservingWatermarkEstimator) watermarkEstimator)
-            .observeTimestamp(element.getTimestamp());
-      }
-      outputReceiver.output(
-          tag,
-          WindowedValues.of(
-              value,
-              element.getTimestamp(),
-              element.getWindows(),
-              element.getPaneInfo(),
-              element.getRecordId(),
-              element.getRecordOffset(),
-              element.causedByDrain(),
-              element.getOpenTelemetryContext(),
-              kind));
-    }
-
-    @Override
     public <T> void outputWindowedValue(
         TupleTag<T> tag,
         T value,

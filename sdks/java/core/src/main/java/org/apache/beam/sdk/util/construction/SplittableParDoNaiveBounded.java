@@ -631,11 +631,6 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public void outputWithKind(OutputT output, ValueKind kind) {
-        outerContext.outputWithKind(output, kind);
-      }
-
-      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -652,11 +647,6 @@ public class SplittableParDoNaiveBounded {
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
         outerContext.outputWithTimestamp(tag, output, timestamp);
-      }
-
-      @Override
-      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-        outerContext.outputWithKind(tag, output, kind);
       }
 
       @Override

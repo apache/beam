@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -60,6 +61,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ValueKindTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @After
+  public void tearDown() {
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
+  }
 
   @Test
   @Category(NeedsRunner.class)
@@ -93,11 +99,27 @@ public class ValueKindTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
+                      public void processElement(
+                          @Element String element,
+                          @Timestamp Instant timestamp,
+                          BoundedWindow window,
+                          PaneInfo paneInfo,
+                          OutputReceiver<String> out,
+                          ProcessContext c) {
                         if ("a".equals(element)) {
-                          c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                          out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                         } else {
-                          c.outputWithKind(element, ValueKind.UPDATE_AFTER);
+                          c.outputWindowedValue(
+                              WindowedValues.of(
+                                  element,
+                                  timestamp,
+                                  Collections.singleton(window),
+                                  paneInfo,
+                                  null,
+                                  null,
+                                  CausedByDrain.NORMAL,
+                                  null,
+                                  ValueKind.UPDATE_AFTER));
                         }
                       }
                     }))
@@ -128,8 +150,9 @@ public class ValueKindTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                      public void processElement(
+                          @Element String element, OutputReceiver<String> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(
@@ -168,8 +191,9 @@ public class ValueKindTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                      public void processElement(
+                          @Element String element, OutputReceiver<String> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(
@@ -213,8 +237,9 @@ public class ValueKindTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                      public void processElement(
+                          @Element String element, OutputReceiver<String> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(
@@ -356,8 +381,11 @@ public class ValueKindTest implements Serializable {
             ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
-                        c.outputWithKind(sideTag, element, ValueKind.UPDATE_BEFORE);
+                      public void processElement(@Element String element, MultiOutputReceiver out) {
+                        out.get(sideTag)
+                            .builder(element)
+                            .setValueKind(ValueKind.UPDATE_BEFORE)
+                            .output();
                       }
                     })
                 .withOutputTags(mainTag, TupleTagList.of(sideTag)));
@@ -383,7 +411,8 @@ public class ValueKindTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testValueKindInSplittableDoFn() {
-    PCollection<String> input = pipeline.apply(Create.of("a"));
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    PCollection<String> input = pipeline.apply(Create.of("a", "b"));
 
     PCollection<String> output =
         input
@@ -392,8 +421,13 @@ public class ValueKindTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(@Element String element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                      public void processElement(
+                          @Element String element, OutputReceiver<String> out) {
+                        if ("a".equalsIgnoreCase(element)) {
+                          out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
+                        } else {
+                          out.output(element);
+                        }
                       }
                     }))
             .apply(
@@ -417,7 +451,7 @@ public class ValueKindTest implements Serializable {
                       }
                     }));
 
-    PAssert.that(output).containsInAnyOrder("a:UPDATE_BEFORE");
+    PAssert.that(output).containsInAnyOrder("a:UPDATE_BEFORE", "b:INSERT");
     pipeline.run();
   }
 
@@ -467,34 +501,56 @@ public class ValueKindTest implements Serializable {
     PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "a")));
 
     PCollection<String> output =
-        input.apply(
-            "TimerParDo",
-            ParDo.of(
-                new DoFn<KV<String, String>, String>() {
-                  @TimerId("timer")
-                  private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+        input
+            .apply(
+                "TimerParDo",
+                ParDo.of(
+                    new DoFn<KV<String, String>, String>() {
+                      @TimerId("timer")
+                      private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-                  @ProcessElement
-                  public void processElement(
-                      @Element KV<String, String> element,
-                      @TimerId("timer") Timer timer,
-                      ProcessContext c) {
-                    timer.set(c.timestamp().plus(Duration.standardSeconds(1)));
-                  }
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element,
+                          @TimerId("timer") Timer timer,
+                          ProcessContext c) {
+                        timer.set(c.timestamp().plus(Duration.standardSeconds(1)));
+                      }
 
-                  @OnTimer("timer")
-                  public void onTimer(OnTimerContext c) {
-                    c.outputWithKind("timed_out", ValueKind.UPDATE_BEFORE);
-                  }
-                }));
+                      @OnTimer("timer")
+                      public void onTimer(OnTimerContext c) {
+                        c.outputWindowedValue(
+                            WindowedValues.of(
+                                "timed_out",
+                                c.timestamp(),
+                                c.window(),
+                                PaneInfo.NO_FIRING,
+                                null,
+                                null,
+                                c.causedByDrain(),
+                                null,
+                                ValueKind.DELETE));
+                      }
+                    }))
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
 
-    PAssert.that(output).containsInAnyOrder("timed_out");
+    PAssert.that(output).containsInAnyOrder("timed_out:DELETE");
     pipeline.run();
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testValueKindPreservedInReshuffle() {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
     PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "value")));
 
     PCollection<String> output =
@@ -505,8 +561,9 @@ public class ValueKindTest implements Serializable {
                     new DoFn<KV<String, String>, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(
-                          @Element KV<String, String> element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                          @Element KV<String, String> element,
+                          OutputReceiver<KV<String, String>> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(Reshuffle.of())
@@ -528,6 +585,7 @@ public class ValueKindTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testValueKindPreservedInGroupByKeyWithReify() {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
     PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "value")));
 
     PCollection<String> output =
@@ -538,8 +596,9 @@ public class ValueKindTest implements Serializable {
                     new DoFn<KV<String, String>, KV<String, String>>() {
                       @ProcessElement
                       public void processElement(
-                          @Element KV<String, String> element, ProcessContext c) {
-                        c.outputWithKind(element, ValueKind.UPDATE_BEFORE);
+                          @Element KV<String, String> element,
+                          OutputReceiver<KV<String, String>> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
                       }
                     }))
             .apply(Reify.windowsInValue())

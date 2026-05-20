@@ -46,6 +46,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,6 +57,11 @@ import org.junit.runners.JUnit4;
 /** Test case for {@link WindowedValue}. */
 @RunWith(JUnit4.class)
 public class WindowedValueTest {
+
+  @After
+  public void tearDown() {
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
+  }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -128,7 +134,6 @@ public class WindowedValueTest {
     Assert.assertEquals(CausedByDrain.CAUSED_BY_DRAIN, value.causedByDrain());
     Assert.assertNotNull(value.getOpenTelemetryContext());
     Assert.assertEquals(ValueKind.DELETE, value.getValueKind());
-    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
   }
 
   @Test
@@ -156,7 +161,6 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
     Assert.assertEquals(value.getValueKind(), decodedValue.getValueKind());
-    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
   }
 
   @Test

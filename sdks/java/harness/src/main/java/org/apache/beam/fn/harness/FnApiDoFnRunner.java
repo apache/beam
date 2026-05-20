@@ -1771,22 +1771,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void outputWithKind(OutputT output, ValueKind kind) {
-      builder(output).setValueKind(kind).output();
-    }
-
-    @Override
-    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-      outputWindowedValue(
-          tag,
-          output,
-          currentElement.getTimestamp(),
-          currentElement.getWindows(),
-          currentElement.getPaneInfo(),
-          kind);
-    }
-
-    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -1968,11 +1952,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    public void outputWithKind(OutputT output, ValueKind kind) {
-      builder(output).setValueKind(kind).output();
-    }
-
-    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -1985,27 +1964,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           .setPaneInfo(paneInfo)
           .setValueKind(valueKind)
           .output();
-    }
-
-    @Override
-    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-      FnDataReceiver<WindowedValue<T>> consumer =
-          (FnDataReceiver) localNameToConsumer.get(tag.getId());
-      if (consumer == null) {
-        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-      }
-      outputTo(
-          consumer,
-          WindowedValues.of(
-              output,
-              currentElement.getTimestamp(),
-              currentElement.getWindows(),
-              currentElement.getPaneInfo(),
-              null,
-              null,
-              CausedByDrain.NORMAL,
-              currentElement.getOpenTelemetryContext(),
-              kind));
     }
 
     @Override
@@ -2435,11 +2393,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void outputWithKind(OutputT output, ValueKind kind) {
-        OutputReceiver.super.outputWithKind(output, kind);
-      }
-
-      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -2447,28 +2400,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           PaneInfo paneInfo,
           ValueKind valueKind) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
-      }
-
-      @Override
-      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-        checkOnWindowExpirationTimestamp(currentTimer.getHoldTimestamp());
-        FnDataReceiver<WindowedValue<T>> consumer =
-            (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        if (consumer == null) {
-          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-        }
-        outputTo(
-            consumer,
-            WindowedValues.of(
-                output,
-                currentTimer.getHoldTimestamp(),
-                currentWindow,
-                currentTimer.getPaneInfo(),
-                null,
-                null,
-                currentTimer.causedByDrain(),
-                null,
-                kind));
       }
 
       @Override
@@ -2803,11 +2734,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void outputWithKind(OutputT output, ValueKind kind) {
-        OutputReceiver.super.outputWithKind(output, kind);
-      }
-
-      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -2815,28 +2741,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           PaneInfo paneInfo,
           ValueKind valueKind) {
         OutputReceiver.super.outputWindowedValue(output, timestamp, windows, paneInfo, valueKind);
-      }
-
-      @Override
-      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
-        checkTimerTimestamp(currentTimer.getHoldTimestamp());
-        FnDataReceiver<WindowedValue<T>> consumer =
-            (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        if (consumer == null) {
-          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
-        }
-        outputTo(
-            consumer,
-            WindowedValues.of(
-                output,
-                currentTimer.getHoldTimestamp(),
-                currentWindow,
-                currentTimer.getPaneInfo(),
-                null,
-                null,
-                causedByDrain,
-                null,
-                kind));
       }
 
       @Override
