@@ -6093,7 +6093,41 @@ directory and give it additional resources.&lt;/p>
 &lt;h2 id="whats-next">What&amp;rsquo;s next&lt;/h2>
 &lt;p>Take a look at our &lt;a href="/documentation/">other documentation&lt;/a> such as the Beam
 programming guide, pipeline execution information, and transform reference
-catalogs.&lt;/p></description></item><item><title>Documentation: BatchElements</title><link>/documentation/transforms/python/aggregation/batchelements/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/batchelements/</guid><description>
+catalogs.&lt;/p></description></item><item><title>Documentation: BatchElements</title><link>/documentation/transforms/java/aggregation/batchelements/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/batchelements/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="batchelements">BatchElements&lt;/h1>
+&lt;p>BatchElements transform groups individual elements into batches before processing them downstream.
+It is designed for operations where each call has a fixed overhead regardless of how many elements are processed and the transform amortizes that cost across multiple elements at once.
+The transform takes a &lt;code>PCollection&amp;lt;T&amp;gt;&lt;/code> as input and produces a &lt;code>PCollection&amp;lt;List&amp;lt;T&amp;gt;&amp;gt;&lt;/code>, where each output element is a batch containing multiple input elements.
+Batch sizes are chosen dynamically between the configured minimum and maximum values by measuring the execution time of downstream operations.&lt;/p>
+&lt;p>Batching is performed per window. Each emitted batch belongs to the same window as its input elements.&lt;/p>
+&lt;h2 id="examples">Examples&lt;/h2>
+&lt;div class="playground-wrapper">
+&lt;div class="playground-snippets">
+&lt;div
+class="language-java playground-snippet"
+data-sdk="java"
+data-path="SDK_JAVA_BatchElements"
+data-show="main_section"
+>&lt;/div>
+&lt;/div>
+&lt;div
+class="code-snippet code-snippet-playground"
+data-src="https://play.beam.apache.org/embedded?editable=1&amp;examples=%5b%7b%22path%22%3a%22SDK_JAVA_BatchElements%22%2c%22sdk%22%3a%22java%22%2c%22show%22%3a%22main_section%22%7d%5d"
+data-width="100%"
+data-height="700px"
+>&lt;/div>
+&lt;/div></description></item><item><title>Documentation: BatchElements</title><link>/documentation/transforms/python/aggregation/batchelements/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/aggregation/batchelements/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21673,201 +21707,6 @@ Row(product_id=3, name=&amp;#39;C&amp;#39;, quantity=10, region_id=4)&lt;/code>&
 class="button"
 target="_blank"
 href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.cloudsql.html#apache_beam.transforms.enrichment_handlers.cloudsql.CloudSQLEnrichmentHandler"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Enrichment with Milvus</title><link>/documentation/transforms/python/elementwise/enrichment-milvus/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/python/elementwise/enrichment-milvus/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="use-milvus-to-enrich-data">Use Milvus to enrich data&lt;/h1>
-&lt;script type="text/javascript">
-localStorage.setItem("language", "language-py")
-&lt;/script>
-&lt;table>
-&lt;tr>
-&lt;td>
-&lt;a>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler"
->&lt;img
-src="https://beam.apache.org/images/logos/sdks/python.png"
-width="32px"
-height="32px"
-alt="Pydoc"
-/>
-Pydoc&lt;/a
->
-&lt;/td>
-&lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p>
-&lt;/a>
-&lt;/td>
-&lt;/tr>
-&lt;/table>
-&lt;p>In Apache Beam 2.67.0 and later versions, the enrichment transform includes
-a built-in enrichment handler for
-&lt;a href="https://milvus.io/">Milvus&lt;/a>.
-The following example demonstrates how to create a pipeline that use the enrichment transform with the &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler">&lt;code>MilvusSearchEnrichmentHandler&lt;/code>&lt;/a> handler.&lt;/p>
-&lt;p>The data in the Milvus instance collection &lt;code>docs_catalog&lt;/code> follows this format:&lt;/p>
-&lt;div class="table-wrapper">&lt;table>
-&lt;thead>
-&lt;tr>
-&lt;th style="text-align:center">id&lt;/th>
-&lt;th style="text-align:center">content&lt;/th>
-&lt;th style="text-align:center">domain&lt;/th>
-&lt;th style="text-align:center">cost&lt;/th>
-&lt;th style="text-align:center">metadata&lt;/th>
-&lt;th style="text-align:center">dense_embedding&lt;/th>
-&lt;th style="text-align:center">sparse_embedding&lt;/th>
-&lt;/tr>
-&lt;/thead>
-&lt;tbody>
-&lt;tr>
-&lt;td style="text-align:center">1&lt;/td>
-&lt;td style="text-align:center">This is a test document&lt;/td>
-&lt;td style="text-align:center">medical&lt;/td>
-&lt;td style="text-align:center">49&lt;/td>
-&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;en&amp;rdquo;}&lt;/td>
-&lt;td style="text-align:center">[0.1, 0.2, 0.3]&lt;/td>
-&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">2&lt;/td>
-&lt;td style="text-align:center">Another test document&lt;/td>
-&lt;td style="text-align:center">legal&lt;/td>
-&lt;td style="text-align:center">75&lt;/td>
-&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;en&amp;rdquo;}&lt;/td>
-&lt;td style="text-align:center">[0.2, 0.3, 0.4]&lt;/td>
-&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
-&lt;/tr>
-&lt;tr>
-&lt;td style="text-align:center">3&lt;/td>
-&lt;td style="text-align:center">وثيقة اختبار&lt;/td>
-&lt;td style="text-align:center">financial&lt;/td>
-&lt;td style="text-align:center">149&lt;/td>
-&lt;td style="text-align:center">{&amp;ldquo;language&amp;rdquo;: &amp;ldquo;ar&amp;rdquo;}&lt;/td>
-&lt;td style="text-align:center">[0.3, 0.4, 0.5]&lt;/td>
-&lt;td style="text-align:center">[auto-generated by Milvus]&lt;/td>
-&lt;/tr>
-&lt;/tbody>
-&lt;/table>
-&lt;/div>
-&lt;div class='language-py snippet'>
-&lt;div class="notebook-skip code-snippet">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="nn">beam&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Content&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Chunk&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.types&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Embedding&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.transforms.enrichment&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">Enrichment&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.ml.rag.enrichment.milvus_search&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusSearchEnrichmentHandler&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusConnectionParameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusSearchParameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">MilvusCollectionLoadParameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">VectorSearchParameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">VectorSearchMetrics&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">uri&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_URI&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">user&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_USER&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">password&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_PASSWORD&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">db_id&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_ID&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">token&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_TOKEN&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">collection_name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">environ&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">get&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;MILVUS_VECTOR_DB_COLLECTION_NAME&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">data&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">Chunk&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;query1&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">embedding&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">Embedding&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">dense_embedding&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">0.2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mf">0.3&lt;/span>&lt;span class="p">]),&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">content&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">Content&lt;/span>&lt;span class="p">())&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">connection_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusConnectionParameters&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">uri&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">user&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">password&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">db_id&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">token&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The first condition (language == &amp;#34;en&amp;#34;) excludes documents in other&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># languages. Initially, this gives us two documents. After applying the second&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># condition (cost &amp;lt; 50), only the first document returns in search results.&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">filter_expr&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s1">&amp;#39;metadata[&amp;#34;language&amp;#34;] == &amp;#34;en&amp;#34; AND cost &amp;lt; 50&amp;#39;&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">search_params&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;metric_type&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">VectorSearchMetrics&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">COSINE&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">value&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;nprobe&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">}&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">vector_search_params&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">VectorSearchParameters&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">anns_field&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;dense_embedding_cosine&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">limit&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">3&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">filter&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">filter_expr&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_params&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">search_params&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">search_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusSearchParameters&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">collection_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">collection_name&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_strategy&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">vector_search_params&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output_fields&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;id&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;domain&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;cost&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;metadata&amp;#34;&lt;/span>&lt;span class="p">],&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">round_decimal&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># The collection load parameters are optional. They provide fine-graine&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># control over how collections are loaded into memory. For simple use cases or&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># when getting started, this parameter can be omitted to use default loading&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># behavior. Consider using it in resource-constrained environments to optimize&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># memory usage and query performance.&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">collection_load_parameters&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusCollectionLoadParameters&lt;/span>&lt;span class="p">()&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">milvus_search_handler&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">MilvusSearchEnrichmentHandler&lt;/span>&lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">connection_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">connection_parameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">search_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">search_parameters&lt;/span>&lt;span class="p">,&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">collection_load_parameters&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">collection_load_parameters&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Create&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">data&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Enrich W/ Milvus&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">Enrichment&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">milvus_search_handler&lt;/span>&lt;span class="p">)&lt;/span>
-&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s2">&amp;#34;Print&amp;#34;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">print&lt;/span>&lt;span class="p">))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;p>
-&lt;p class="notebook-skip">Output:&lt;/p>
-&lt;div class="snippet">
-&lt;div class="notebook-skip code-snippet without_switcher">
-&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
-&lt;img src="/images/copy-icon.svg"/>
-&lt;/a>
-&lt;pre tabindex="0">&lt;code>Chunk(content=Content(text=None), id=&amp;#39;query1&amp;#39;, index=0, metadata={&amp;#39;enrichment_data&amp;#39;: defaultdict(&amp;lt;class &amp;#39;list&amp;#39;&amp;gt;, {&amp;#39;id&amp;#39;: [1], &amp;#39;distance&amp;#39;: [1.0], &amp;#39;fields&amp;#39;: [{&amp;#39;content&amp;#39;: &amp;#39;This is a test document&amp;#39;, &amp;#39;cost&amp;#39;: 49, &amp;#39;domain&amp;#39;: &amp;#39;medical&amp;#39;, &amp;#39;id&amp;#39;: 1, &amp;#39;metadata&amp;#39;: {&amp;#39;language&amp;#39;: &amp;#39;en&amp;#39;}}]})}, embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3], sparse_embedding=None))&lt;/code>&lt;/pre>
-&lt;/div>
-&lt;/div>
-&lt;/p>
-&lt;h2 id="notebook-exmaple">Notebook exmaple&lt;/h2>
-&lt;a href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/milvus_enrichment_transform.ipynb" target="_blank">
-&lt;img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab" width="150" height="auto" style="max-width: 100%"/>
-&lt;/a>
-&lt;h2 id="api-documentation">API documentation&lt;/h2>
-&lt;table align="left" style="margin-right:1em">
-&lt;td>
-&lt;a
-class="button"
-target="_blank"
-href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler"
 >&lt;img
 src="https://beam.apache.org/images/logos/sdks/python.png"
 width="32px"
