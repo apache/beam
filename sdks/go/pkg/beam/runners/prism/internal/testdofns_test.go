@@ -433,7 +433,6 @@ func (fn *slowFailSDF) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTra
 }
 
 func (fn *slowFailSDF) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, config SourceConfig, emit func(int64)) error {
-	fmt.Println("DEBUG: slowFailSDF.ProcessElement invoked")
 	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
 		<-ctx.Done()
 	}
