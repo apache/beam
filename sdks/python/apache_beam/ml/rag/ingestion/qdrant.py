@@ -282,8 +282,10 @@ class _QdrantWriteFn(beam.DoFn):
 
   def teardown(self):
     if self._client:
-      self._client.close()
-      self._client = None
+      try:
+        self._client.close()
+      finally:
+        self._client = None
 
   def finish_bundle(self):
     self._flush()
