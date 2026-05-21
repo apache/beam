@@ -18,6 +18,20 @@
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 pluginManagement {
+    val mavenCentralMirrorUrl = settings.providers.gradleProperty("mavenCentralMirrorUrl").orNull
+    val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
+
+    if (useMirror) {
+        logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+    }
+
+    repositories {
+        if (useMirror) {
+            maven { url = uri(mavenCentralMirrorUrl!!) }
+        }
+        gradlePluginPortal()
+    }
     plugins {
         id("org.javacc.javacc") version "4.0.3" // enable the JavaCC parser generator
     }
