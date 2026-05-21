@@ -36,6 +36,8 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.types.Conversions;
+import org.apache.iceberg.types.Types;
 import org.junit.Test;
 
 /**
@@ -93,21 +95,18 @@ public class SerializableDataFileTest {
    */
   @Test
   public void testBoundByteBufferIsCopiedByLimitNotBackingArrayLength() {
-    // Reproduce the shape iceberg-parquet produces in the wild: a ByteBuffer
-    // whose backing array is larger than [position, limit), with trailing
-    // 0x00 bytes. iceberg-parquet hits this because the JDK UTF-8 encoder
-    // over-allocates; here we build it explicitly so the test doesn't depend
-    // on encoder internals.
+    // Encode bounds the same way iceberg-parquet does in the wild — via
+    // Conversions.toByteBuffer(STRING, value). For UTF-8 strings of 10+
+    // characters the underlying JDK CharsetEncoder over-allocates by ~10%
+    // and flips, producing a ByteBuffer with capacity > limit.
     int columnId = 3;
-    byte[] expectedLower = "lower_bound_str".getBytes(StandardCharsets.UTF_8);
-    byte[] expectedUpper = "upper_bound_str".getBytes(StandardCharsets.UTF_8);
+    String lowerValue = "lower_bound_str";
+    String upperValue = "upper_bound_str";
+    byte[] expectedLower = lowerValue.getBytes(StandardCharsets.UTF_8);
+    byte[] expectedUpper = upperValue.getBytes(StandardCharsets.UTF_8);
 
-    ByteBuffer lower = ByteBuffer.allocate(expectedLower.length + 1);
-    lower.put(expectedLower);
-    lower.flip();
-    ByteBuffer upper = ByteBuffer.allocate(expectedUpper.length + 1);
-    upper.put(expectedUpper);
-    upper.flip();
+    ByteBuffer lower = Conversions.toByteBuffer(Types.StringType.get(), lowerValue);
+    ByteBuffer upper = Conversions.toByteBuffer(Types.StringType.get(), upperValue);
 
     Map<Integer, ByteBuffer> lowerBounds = new HashMap<>();
     lowerBounds.put(columnId, lower);
