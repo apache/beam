@@ -131,17 +131,18 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 		return
 	}
 	b.responded = true
+	if b.DataAbort != nil {
+		// Defer closing DataAbort to guarantee that the abort signal is sent
+		// when this function returns. This ensures it is always executed after
+		// any error has been safely written and synchronized via b.SetErr() or,
+		// in the happy path, after the successful response is sent to b.Resp.
+		defer close(b.DataAbort)
+	}
 	if resp.GetError() != "" {
 		slog.Error("Prism received bundle error from worker response", "bundle", resp.GetInstructionId())
 		b.SetErr(fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError()))
-		if b.DataAbort != nil {
-			close(b.DataAbort)
-		}
 		close(b.Resp)
 		return
-	}
-	if b.DataAbort != nil {
-		close(b.DataAbort)
 	}
 	b.Resp <- resp.GetProcessBundle()
 }
