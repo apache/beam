@@ -17,9 +17,8 @@
 PyTorch EfficientNet-B0 model optimized for T4 GPUs.
 It reads image URIs from Pub/Sub, decodes and preprocesses them in parallel,
 and runs inference with adaptive batch sizing for optimal GPU utilization.
-The pipeline ensures exactly-once semantics via stateful deduplication and
-idempotent BigQuery writes, allowing stable and reproducible performance
-measurements under continuous load.
+The pipeline targets stable and reproducible performance measurements under
+continuous load.
 Resources like Pub/Sub topic/subscription cleanup is handled programmatically.
 """
 
@@ -36,7 +35,6 @@ import torch
 import torch.nn.functional as F
 
 import apache_beam as beam
-from apache_beam.coders import BytesCoder
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.ml.inference.base import PredictionResult
@@ -46,7 +44,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.runner import PipelineResult
-from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 
 from google.api_core.exceptions import NotFound
@@ -114,16 +111,6 @@ class MakeKeyDoFn(beam.DoFn):
           element, (bytes, bytearray)) else str(element)
       image_id = hashlib.sha1(uri.encode("utf-8")).hexdigest()
       yield image_id, uri
-
-
-class DedupDoFn(beam.DoFn):
-  seen = userstate.ReadModifyWriteStateSpec('seen', BytesCoder())
-
-  def process(self, element, seen=beam.DoFn.StateParam(seen)):
-    if seen.read() == b'1':
-      return
-    seen.write(b'1')
-    yield element
 
 
 class DecodePreprocessDoFn(beam.DoFn):
@@ -265,10 +252,6 @@ def parse_known_args(argv):
   # Windows
   parser.add_argument('--window_sec', type=int, default=60)
   parser.add_argument('--trigger_proc_time_sec', type=int, default=30)
-
-  # Dedup
-  parser.add_argument(
-      '--enable_dedup', default='false', choices=['true', 'false'])
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   return known_args, pipeline_args
@@ -478,9 +461,6 @@ def run(
       pcoll
       | 'MakeKey' >> beam.ParDo(MakeKeyDoFn(input_mode=known_args.input_mode)))
 
-  if known_args.enable_dedup == 'true':
-    keyed = keyed | 'Dedup' >> beam.ParDo(DedupDoFn())
-
   preprocessed = (
       keyed
       | 'DecodePreprocess' >> beam.ParDo(
@@ -494,8 +474,10 @@ def run(
       'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
 
   predictions = (
-      to_infer
-      | 'RunInference' >> RunInference(KeyedModelHandler(model_handler)))
+    to_infer
+    | 'RunInference' >> RunInference(
+        KeyedModelHandler(model_handler)).with_resource_hints(
+            accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver"))
 
   results = (
       predictions

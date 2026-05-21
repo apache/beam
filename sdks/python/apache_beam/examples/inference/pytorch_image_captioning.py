@@ -59,16 +59,6 @@ def now_millis() -> int:
   return int(time.time() * 1000)
 
 
-def load_image_from_uri(uri: str) -> bytes:
-  with FileSystems.open(uri) as f:
-    return f.read()
-
-
-def sha1_hex(s: str) -> str:
-  import hashlib
-  return hashlib.sha1(s.encode("utf-8")).hexdigest()
-
-
 def decode_pil(image_bytes: bytes) -> PILImage.Image:
   with PILImage.open(io.BytesIO(image_bytes)) as img:
     img = img.convert("RGB")
@@ -80,23 +70,38 @@ def decode_pil(image_bytes: bytes) -> PILImage.Image:
 
 
 class MakeKeyDoFn(beam.DoFn):
-  """Produce (image_id, uri) where image_id is stable for dedup and keys."""
+  """Produce (uri, uri) so the URI is used as the stable key."""
   def process(self, element: str):
     uri = element
-    image_id = sha1_hex(uri)
-    yield image_id, uri
+    yield uri, uri
 
 
 class ReadImageBytesDoFn(beam.DoFn):
-  """Turn (image_id, uri) -> (image_id, dict(image_bytes, uri))."""
+  """Turn (uri, uri) -> (uri, dict(image_bytes))."""
   def process(self, kv: Tuple[str, str]):
-    image_id, uri = kv
+    uri, _ = kv
     try:
-      b = load_image_from_uri(uri)
-      yield image_id, {"image_bytes": b, "uri": uri}
+      with FileSystems.open(uri) as f:
+        image_bytes = f.read()
+      yield uri, {"image_bytes": image_bytes}
     except Exception as e:
-      logging.warning("Failed to read image %s (%s): %s", image_id, uri, e)
+      logging.warning("Failed to read image %s: %s", uri, e)
       return
+
+
+class DecodeImageDoFn(beam.DoFn):
+  """Turn (uri, dict(image_bytes)) -> (uri, dict(image))."""
+  def process(self, kv: Tuple[str, Dict[str, Any]]):
+    uri, value = kv
+    image_bytes = value["image_bytes"]
+
+    try:
+      image = decode_pil(image_bytes)
+    except Exception as e:
+      logging.warning("Failed to decode image %s: %s", uri, e)
+      image = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
+
+    yield uri, {"image": image}
 
 
 class PostProcessDoFn(beam.DoFn):
@@ -106,7 +111,7 @@ class PostProcessDoFn(beam.DoFn):
     self.clip_name = clip_name
 
   def process(self, kv: Tuple[str, PredictionResult]):
-    image_id, pred = kv
+    uri, pred = kv
     if hasattr(pred, "inference"):
       inf = pred.inference or {}
     else:
@@ -122,7 +127,7 @@ class PostProcessDoFn(beam.DoFn):
     total_ms = inf.get("total_ms", None)
 
     yield {
-        "image_id": image_id,
+        "image_id": uri,
         "blip_model": self.blip_name,
         "clip_model": self.clip_name,
         "best_caption": best_caption,
@@ -172,19 +177,7 @@ class BlipCaptionModelHandler(ModelHandler):
     model.eval()
     start = now_millis()
 
-    images = []
-    uris = []
-    bytes_list = []
-    for x in batch:
-      b = x["image_bytes"]
-      bytes_list.append(b)
-      uris.append(x.get("uri", ""))
-      try:
-        images.append(decode_pil(b))
-      except Exception as e:
-        # fallback: a blank image (so pipeline keeps going)
-        logging.warning("Failed to decode image %s: %s", uris[-1], e)
-        images.append(PILImage.new("RGB", (224, 224), color=(0, 0, 0)))
+    images = [x["image"] for x in batch]
 
     # Processor makes pixel_values
     inputs = processor(images=images, return_tensors="pt")
@@ -217,10 +210,9 @@ class BlipCaptionModelHandler(ModelHandler):
     results = []
     for i in range(len(batch)):
       results.append({
-          "image_bytes": bytes_list[i],
-          "uri": uris[i],
-          "candidates": candidates_per_image[i],
-          "blip_ms": blip_ms,
+        "image": images[i],
+        "candidates": candidates_per_image[i],
+        "blip_ms": blip_ms,
       })
     return results
 
@@ -266,16 +258,10 @@ class ClipRankModelHandler(ModelHandler):
     blip_ms_list: List[Optional[int]] = []
 
     for x in batch:
-      image_bytes = x["image_bytes"]
+      img = x["image"]
       candidates = [str(c) for c in (x.get("candidates", []) or [])]
       candidates_list.append(candidates)
       blip_ms_list.append(x.get("blip_ms", None))
-
-      try:
-        img = decode_pil(image_bytes)
-      except Exception as e:
-        logging.warning("Failed to decode image for CLIP ranking: %s", e)
-        img = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
 
       start_i = len(texts)
       for c in candidates:
@@ -592,8 +578,8 @@ def run(
             allowed_lateness=0))
 
   keyed = (pcoll | 'MakeKey' >> beam.ParDo(MakeKeyDoFn()))
-
-  images = (keyed | 'ReadImageBytes' >> beam.ParDo(ReadImageBytesDoFn()))
+  image_bytes = (keyed | 'ReadImageBytes' >> beam.ParDo(ReadImageBytesDoFn()))
+  images = (image_bytes | 'DecodeImage' >> beam.ParDo(DecodeImageDoFn()))
 
   # Stage 1: BLIP candidate generation
   blip_out = (
