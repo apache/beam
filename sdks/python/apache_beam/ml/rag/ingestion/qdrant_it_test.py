@@ -74,11 +74,11 @@ class TestQdrantIngestion(unittest.TestCase):
     cls._port = int(cls._container.get_exposed_port(6333))
     cls._connection_params = QdrantConnectionParameters(
         host=cls._host, port=cls._port)
-    cls.client = cls._container.get_client()
 
   def setUp(self):
     self._collection_name = f"test_collection_{self._testMethodName}"
 
+    self.client = self._container.get_client()
     self.client.create_collection(
         collection_name=self._collection_name,
         vectors_config={
