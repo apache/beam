@@ -55,7 +55,9 @@ def main(argv):
   with fully_qualified_named_transform.FullyQualifiedNamedTransform.with_filter(
       known_args.fully_qualified_name_glob):
 
-    address = '0.0.0.0:{}'.format(known_args.port)
+    # Bind to localhost instead of 0.0.0.0 to ensure compatibility with loopback
+    # connections on dual-stack (IPv4/IPv6) systems.
+    address = 'localhost:{}'.format(known_args.port)
     server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     if known_args.serve_loopback_worker:
       beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
@@ -71,9 +73,15 @@ def main(argv):
         artifact_service.ArtifactRetrievalService(
             artifact_service.BeamFilesystemHandler(None).file_reader),
         server)
-    server.add_insecure_port(address)
+    # Ensure gRPC server successfully binds. If this fails (e.g., due to port collision),
+    # add_insecure_port returns 0. We raise an error to crash the subprocess immediately,
+    # allowing the parent process to detect it and fail fast rather than hanging.
+    bound_port = server.add_insecure_port(address)
+    if not bound_port:
+      raise RuntimeError(
+          "Failed to bind expansion service to {}".format(address))
     server.start()
-    _LOGGER.info('Listening for expansion requests at %d', known_args.port)
+    _LOGGER.info('Listening for expansion requests at %d', bound_port)
 
     def cleanup(unused_signum, unused_frame):
       _LOGGER.info('Shutting down expansion service.')
