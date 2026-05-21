@@ -52,8 +52,12 @@ class MatrixPowerTest(unittest.TestCase):
         '--input_matrix=%s --input_vector=%s --exponent=%d --output=%s.result' %
         (matrix_path, vector_path, self.EXPONENT, vector_path)).split())
     # Parse result file and compare.
+    shard_paths = glob.glob(vector_path + '.result*')
+    self.assertTrue(
+        shard_paths,
+        'No output shards found matching prefix: %s.result' % vector_path)
     results = []
-    for path in glob.glob(vector_path + '.result*'):
+    for path in shard_paths:
       with open(path) as result_file:
         results.append(result_file.read())
     self.assertEqual(sorted(self.EXPECTED_OUTPUT), sorted(''.join(results)))
