@@ -64,7 +64,7 @@ TEST_CORPUS = [
 
 @unittest.skipIf(not QDRANT_AVAILABLE, "qdrant dependencies not installed.")
 @unittest.skipIf(not QdrantContainer, "qdrant test_container not installed.")
-@pytest.mark.uses_testcontainers
+@pytest.mark.require_docker_in_docker
 class TestQdrantIngestion(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
