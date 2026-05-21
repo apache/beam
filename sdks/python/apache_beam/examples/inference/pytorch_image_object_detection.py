@@ -63,11 +63,6 @@ def now_millis() -> int:
   return int(time.time() * 1000)
 
 
-def load_image_from_uri(uri: str) -> bytes:
-  with FileSystems.open(uri) as f:
-    return f.read()
-
-
 def decode_to_tens(
     image_bytes: bytes,
     resize_shorter_side: Optional[int] = None) -> torch.Tensor:
@@ -95,39 +90,36 @@ def decode_to_tens(
     return torch.from_numpy(arr)
 
 
-def sha1_hex(s: str) -> str:
-  import hashlib
-  return hashlib.sha1(s.encode("utf-8")).hexdigest()
-
-
 # ============ DoFns ============
 
 
 class MakeKeyDoFn(beam.DoFn):
-  """Produce (image_id, uri) where image_id is stable for dedup and keys."""
+  """Produce (uri, uri) where the URI is used as the stable key."""
   def process(self, element: str):
     uri = element
-    image_id = sha1_hex(uri)
-    yield image_id, uri
+    yield uri, uri
 
 
 class DecodePreprocessDoFn(beam.DoFn):
-  """Turn (image_id, uri) -> (image_id, tensor)."""
+  """Turn (uri, uri) -> (uri, tensor)."""
   def __init__(self, resize_shorter_side: Optional[int] = None):
     self.resize_shorter_side = resize_shorter_side
 
   def process(self, kv: Tuple[str, str]):
-    image_id, uri = kv
+    uri, _ = kv
     start = now_millis()
     try:
-      b = load_image_from_uri(uri)
-      tensor = decode_to_tens(b, resize_shorter_side=self.resize_shorter_side)
+      with FileSystems.open(uri) as f:
+        image_bytes = f.read()
+      tensor = decode_to_tens(
+        image_bytes,
+        resize_shorter_side=self.resize_shorter_side)
       preprocess_ms = now_millis() - start
-      yield image_id, {
-          "tensor": tensor, "preprocess_ms": preprocess_ms, "uri": uri
+      yield uri, {
+        "tensor": tensor, "preprocess_ms": preprocess_ms
       }
     except Exception as e:
-      logging.warning("Decode failed for %s (%s): %s", image_id, uri, e)
+      logging.warning("Decode failed for %s: %s", uri, e)
       return
 
 
@@ -213,7 +205,7 @@ class PostProcessDoFn(beam.DoFn):
     }
 
   def process(self, kv: Tuple[str, PredictionResult]):
-    image_id, pred = kv
+    image_uri, pred = kv
 
     # pred can be PredictionResult OR raw torchvision dict.
     if hasattr(pred, "inference"):
@@ -226,9 +218,9 @@ class PostProcessDoFn(beam.DoFn):
 
     if not isinstance(inference_obj, dict):
       logging.warning(
-          "Unexpected inf-ce type for %s: %s", image_id, type(inference_obj))
+          "Unexpected inf-ce type for %s: %s", image_uri, type(inference_obj))
       yield {
-          "image_id": image_id,
+          "image_id": image_uri,
           "model_name": self.model_name,
           "detections": json.dumps([]),
           "num_detections": 0,
@@ -239,7 +231,7 @@ class PostProcessDoFn(beam.DoFn):
     extracted = self._extract_detection(inference_obj)
 
     yield {
-        "image_id": image_id,
+        "image_id": image_uri,
         "model_name": self.model_name,
         "detections": json.dumps(extracted["detections"]),
         "num_detections": int(extracted["num_detections"]),
