@@ -71,6 +71,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -184,6 +185,7 @@ class GcsUtilV1 {
           return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
         }
       };
+  private static final AtomicBoolean overwriteLog = new AtomicBoolean(false);
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -729,6 +731,14 @@ class GcsUtilV1 {
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials)
       throws IOException {
+    // Suppress log spams in gcsio 3.0
+    if (overwriteLog.compareAndSet(false, true)) {
+      java.util.logging.Logger gcsLogger =
+          java.util.logging.Logger.getLogger(
+              "com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl");
+      gcsLogger.setLevel(java.util.logging.Level.SEVERE);
+    }
+
     return GoogleCloudStorageImpl.builder()
         .setOptions(options)
         .setHttpTransport(storage.getRequestFactory().getTransport())
