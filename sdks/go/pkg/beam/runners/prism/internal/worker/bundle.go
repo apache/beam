@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -63,6 +64,7 @@ type B struct {
 
 	Resp      chan *fnpb.ProcessBundleResponse
 	Done      chan struct{}
+	mu        sync.Mutex
 	BundleErr error
 	responded bool
 
@@ -98,6 +100,22 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
+// SetErr sets the bundle error if it is not already set.
+func (b *B) SetErr(err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.BundleErr == nil {
+		b.BundleErr = err
+	}
+}
+
+// GetErr gets the current bundle error.
+func (b *B) GetErr() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.BundleErr
+}
+
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	if b.responded {
 		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
@@ -109,7 +127,7 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	}
 	if resp.GetError() != "" {
 		slog.Error("DEBUG: Prism received bundle error from worker response", "bundle", resp.GetInstructionId())
-		b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
+		b.SetErr(fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError()))
 		close(b.Resp)
 		return
 	}
