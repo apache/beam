@@ -184,8 +184,8 @@ public class GcsUtilTest {
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(GoogleCloudStorageReadOptions.Fadvise.AUTO)
-            .setGzipEncodingSupportEnabled(true)
-            .setFastFailOnNotFoundEnabled(false)
+            .setSupportGzipEncoding(true)
+            .setFastFailOnNotFound(false)
             .build();
 
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
@@ -193,10 +193,7 @@ public class GcsUtilTest {
 
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorage googleCloudStorageMock = Mockito.spy(GoogleCloudStorage.class);
-    Mockito.when(
-            googleCloudStorageMock.open(
-                Mockito.any(StorageResourceId.class),
-                Mockito.any(GoogleCloudStorageReadOptions.class)))
+    Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
         .thenReturn(Mockito.mock(SeekableByteChannel.class));
     gcsUtil.delegate.setCloudStorageImpl(googleCloudStorageMock);
 
@@ -1009,7 +1006,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(false).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
 
     gcsUtil.delegate.setCloudStorageImpl(
         GoogleCloudStorageOptions.builder()
@@ -1029,7 +1026,7 @@ public class GcsUtilTest {
     GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
     GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
     GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFoundEnabled(true).build();
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
     gcsUtil.delegate.setCloudStorageImpl(
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
@@ -1676,10 +1673,8 @@ public class GcsUtilTest {
             .thenReturn(Channels.newChannel(new ByteArrayOutputStream()));
       } else {
         SeekableByteChannel seekableByteChannel = new SeekableInMemoryByteChannel(readPayload);
-        Mockito.when(googleCloudStorageMock.open(Mockito.any(StorageResourceId.class)))
-            .thenReturn(seekableByteChannel);
-        Mockito.when(
-                googleCloudStorageMock.open(Mockito.any(StorageResourceId.class), Mockito.any()))
+        Mockito.when(googleCloudStorageMock.open(Mockito.any())).thenReturn(seekableByteChannel);
+        Mockito.when(googleCloudStorageMock.open(Mockito.any(), Mockito.any()))
             .thenReturn(seekableByteChannel);
       }
       return gcsUtilMock;
