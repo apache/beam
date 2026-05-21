@@ -62,7 +62,7 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	Resp      chan *fnpb.ProcessBundleResponse
+	Resp chan *fnpb.ProcessBundleResponse
 	// DataAbort is closed when the worker responds to the bundle instruction
 	// (with success or failure), signaling ProcessOn to stop streaming data.
 	//
