@@ -180,6 +180,7 @@ ml_base_core = [
     'langchain',
     'sentence-transformers>=2.2.2',
     'skl2onnx',
+    'scipy<1.16.0; python_version < "3.11"',
     'pyod>=0.7.6',  # 0.7.5 crashes setuptools
     'tensorflow',
     # tensorflow transitive dep, lower versions not compatible with Python3.10+
@@ -506,6 +507,7 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0,<1.8.0',
+              'scipy<1.16.0; python_version < "3.11"',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0',
               'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
@@ -518,7 +520,8 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1'
+              'oracledb>=3.1.1',
+              'aiohttp<4.0.0'
           ],
           'gcp': [
               'cachetools>=3.1.0,<7',
@@ -550,6 +553,7 @@ if __name__ == '__main__':
               'google-cloud-recommendations-ai>=0.1.0,<0.11.0',
               'google-cloud-aiplatform>=1.26.0, < 2.0',
               'cloud-sql-python-connector>=1.18.2,<2.0.0',
+              'aiohttp<4.0.0',
               'python-tds>=1.16.1',
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
@@ -679,6 +683,7 @@ if __name__ == '__main__':
               'tensorflow==2.11.0',
               'tf2onnx==1.13.0',
               'skl2onnx==1.13',
+              'scipy<1.16.0; python_version < "3.11"',
               'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'
           ],

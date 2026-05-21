@@ -23,7 +23,7 @@
 
 absl-py==2.4.0
 aiofiles==25.1.0
-aiohappyeyeballs==2.6.1
+aiohappyeyeballs==2.6.2
 aiohttp==3.13.5
 aiosignal==1.4.0
 annotated-doc==0.0.4
@@ -106,7 +106,7 @@ google-cloud-storage==3.10.1
 google-cloud-videointelligence==2.19.0
 google-cloud-vision==3.14.0
 google-crc32c==1.8.0
-google-genai==2.4.0
+google-genai==2.5.0
 google-pasta==0.2.0
 google-resumable-media==2.9.0
 googleapis-common-protos==1.75.0
@@ -204,10 +204,10 @@ objsize==0.7.1
 openai==1.107.1
 openai-harmony==0.0.8
 opencv-python-headless==4.13.0.92
-opentelemetry-api==1.42.0
+opentelemetry-api==1.42.1
 opentelemetry-resourcedetector-gcp==1.12.0a0
-opentelemetry-sdk==1.42.0
-opentelemetry-semantic-conventions==0.63b0
+opentelemetry-sdk==1.42.1
+opentelemetry-semantic-conventions==0.63b1
 opt_einsum==3.4.0
 optree==0.19.1
 oracledb==4.0.1
@@ -264,7 +264,7 @@ regex==2026.5.9
 requests==2.34.2
 requests-mock==1.12.1
 rich==15.0.0
-rich-toolkit==0.19.9
+rich-toolkit==0.19.10
 rignore==0.7.6
 rpds-py==0.30.0
 rsa==4.9.1
@@ -319,7 +319,7 @@ watchfiles==1.2.0
 websockets==16.0
 Werkzeug==3.1.8
 wheel==0.47.0
-wrapt==2.1.2
+wrapt==2.2.0
 xformers==0.0.31
 xgrammar==0.1.21
 yarl==1.24.2
