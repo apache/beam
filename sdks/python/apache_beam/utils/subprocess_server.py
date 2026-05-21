@@ -232,6 +232,7 @@ class SubprocessServer(object):
         self.stop()
         if attempt == max_attempts - 1:
           raise
+        time.sleep(1)
 
   def start_process(self):
     if self._owner_id is not None:
