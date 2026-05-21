@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import pytest
 import unittest
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.ml.rag.ingestion.qdrant import QdrantConnectionParameters
