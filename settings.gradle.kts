@@ -17,9 +17,14 @@
  */
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
+// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
+val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
+// GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
+val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
+val isCi = isJenkinsBuild || isGithubActionsBuild
+
 pluginManagement {
     val mavenCentralMirrorUrl = settings.providers.gradleProperty("mavenCentralMirrorUrl").orNull
-    val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
     val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
     if (useMirror) {
@@ -41,13 +46,6 @@ plugins {
     id("com.gradle.develocity") version "3.19"
     id("com.gradle.common-custom-user-data-gradle-plugin") version "2.6.0"
 }
-
-
-// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
-val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
-// GITHUB_REPOSITORY and GITHUB_RUN_ID set automatically during Github Actions run
-val isGithubActionsBuild = arrayOf("GITHUB_REPOSITORY", "GITHUB_RUN_ID").all { System.getenv(it) != null }
-val isCi = isJenkinsBuild || isGithubActionsBuild
 
 develocity {
     server = "https://develocity.apache.org"
