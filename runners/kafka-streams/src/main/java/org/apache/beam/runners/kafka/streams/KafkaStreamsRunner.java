@@ -28,6 +28,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +36,6 @@ import org.slf4j.LoggerFactory;
  * A {@link PipelineRunner} that submits portable jobs to an in-process or external Beam job service
  * backed by the Kafka Streams translation path.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaStreamsRunner.class);
@@ -55,7 +53,7 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     assignPortableDefaults(pipelineOptions);
-    KafkaStreamsJobServerDriver jobServerDriver = null;
+    @Nullable KafkaStreamsJobServerDriver jobServerDriver = null;
     try {
       if (Strings.isNullOrEmpty(pipelineOptions.getJobEndpoint())) {
         LOG.info("No job endpoint configured; starting an embedded Kafka Streams job server.");
@@ -68,7 +66,8 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
       PortableRunner portableRunner = PortableRunner.fromOptions(pipelineOptions);
       PipelineResult result = portableRunner.run(pipeline);
       if (jobServerDriver != null) {
-        return new KafkaStreamsPipelineResult(result, jobServerDriver::stop);
+        KafkaStreamsJobServerDriver driverForStop = jobServerDriver;
+        return new KafkaStreamsPipelineResult(result, driverForStop::stop);
       }
       return result;
     } catch (IOException e) {
@@ -84,10 +83,9 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
       pipelineOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_LOOPBACK);
     }
     ExperimentalOptions experimentalOptions = pipelineOptions.as(ExperimentalOptions.class);
+    @Nullable List<String> existingExperiments = experimentalOptions.getExperiments();
     List<String> experiments =
-        experimentalOptions.getExperiments() == null
-            ? new ArrayList<>()
-            : new ArrayList<>(experimentalOptions.getExperiments());
+        existingExperiments == null ? new ArrayList<>() : new ArrayList<>(existingExperiments);
     if (!experiments.contains("beam_fn_api")) {
       experiments.add("beam_fn_api");
       experimentalOptions.setExperiments(experiments);

@@ -23,17 +23,16 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Job invoker for the Kafka Streams portable runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class KafkaStreamsJobInvoker extends JobInvoker {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaStreamsJobInvoker.class);
@@ -69,7 +68,7 @@ public class KafkaStreamsJobInvoker extends JobInvoker {
         String.format("%s_%s", kafkaStreamsOptions.getJobName(), UUID.randomUUID().toString());
 
     PortablePipelineRunner pipelineRunner = new KafkaStreamsPipelineRunner(kafkaStreamsOptions);
-    kafkaStreamsOptions.setRunner(null);
+    clearRunner(kafkaStreamsOptions);
 
     LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(
@@ -83,7 +82,7 @@ public class KafkaStreamsJobInvoker extends JobInvoker {
 
   protected JobInvocation createJobInvocation(
       String invocationId,
-      String retrievalToken,
+      @Nullable String retrievalToken,
       ListeningExecutorService executorService,
       RunnerApi.Pipeline pipeline,
       KafkaStreamsPipelineOptions kafkaStreamsOptions,
@@ -92,8 +91,19 @@ public class KafkaStreamsJobInvoker extends JobInvoker {
         JobInfo.create(
             invocationId,
             kafkaStreamsOptions.getJobName(),
-            retrievalToken,
+            Strings.nullToEmpty(retrievalToken),
             PipelineOptionsTranslation.toProto(kafkaStreamsOptions));
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
+  }
+
+  /**
+   * Clears the runner class on the pipeline options before serialization. The Beam {@link
+   * PipelineOptions#setRunner} API accepts {@code null} to clear the runner — this mirrors the same
+   * pattern used by Flink/Spark portable runners so the runner class is not required on the SDK
+   * harness classpath.
+   */
+  @SuppressWarnings("nullness")
+  private static void clearRunner(PipelineOptions options) {
+    options.setRunner(null);
   }
 }

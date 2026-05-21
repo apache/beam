@@ -29,9 +29,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Driver that starts a Beam job server for the Kafka Streams portable runner. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class KafkaStreamsJobServerDriver extends JobServerDriver {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaStreamsJobServerDriver.class);

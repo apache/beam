@@ -25,9 +25,6 @@ import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTra
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
 
 /** Executes a portable pipeline by translating it to Kafka Streams. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
 
   private final KafkaStreamsPipelineOptions pipelineOptions;

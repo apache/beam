@@ -41,13 +41,6 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   void setApplicationId(String applicationId);
 
-  @Description(
-      "Kafka Streams processing.guarantee setting, for example at_least_once or exactly_once_v2.")
-  @Default.String("exactly_once_v2")
-  String getProcessingGuarantee();
-
-  void setProcessingGuarantee(String processingGuarantee);
-
   @Description("Soft cap on the number of elements per bundle.")
   @Default.Integer(1000)
   int getMaxBundleSize();

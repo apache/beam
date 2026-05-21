@@ -59,4 +59,9 @@ dependencies {
   implementation "org.apache.kafka:kafka-streams:$kafka_version"
   permitUnusedDeclared "org.apache.kafka:kafka-clients:$kafka_version"
   permitUnusedDeclared "org.apache.kafka:kafka-streams:$kafka_version"
+
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
 }
