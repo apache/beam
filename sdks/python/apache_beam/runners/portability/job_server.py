@@ -121,6 +121,11 @@ class SubprocessJobServer(JobServer):
       logger = logging.getLogger(f"{self.__class__.__name__}")
       if self._log_filter is not None:
         logger.addFilter(self._log_filter)
+        # Explicitly set logger level to INFO so logger.info(...) calls in
+        # SubprocessServer._really_start_process's log_stdout pass the initial
+        # isEnabledFor check, allowing the filter to dynamically elevate log
+        # levels to WARNING or ERROR.
+        logger.setLevel(logging.INFO)
       self._server = subprocess_server.SubprocessServer(
           beam_job_api_pb2_grpc.JobServiceStub, cmd, port=port, logger=logger)
     return self._server.start()

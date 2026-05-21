@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
@@ -61,8 +62,19 @@ type B struct {
 	dataSema   atomic.Int32
 	OutputData engine.TentativeData
 
-	Resp      chan *fnpb.ProcessBundleResponse
-	BundleErr error
+	Resp chan *fnpb.ProcessBundleResponse
+	// DataAbort is closed when the worker responds to the bundle instruction
+	// (with success or failure), signaling ProcessOn to stop streaming data.
+	//
+	// This prevents a deadlock where a worker fails mid-bundle and stops reading
+	// from the data channel while the runner blocks indefinitely attempting to
+	// write remaining elements. Other signals are insufficient to abort immediately:
+	// - ctx.Done() only triggers on global timeouts/cancellations, which is too late.
+	// - wk.StoppedChan is only closed when tearing down the worker pool, which does
+	//   not happen while the runner is waiting on the current bundle to finish.
+	DataAbort chan struct{}
+	mu        sync.Mutex
+	bundleErr error
 	responded bool
 
 	SinkToPCollection map[string]string
@@ -80,6 +92,7 @@ func (b *B) Init() {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
+	b.DataAbort = make(chan struct{})
 }
 
 // DataOrTimerDone indicates a final element has been received from a Data or Timer output.
@@ -96,14 +109,40 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
+// SetErr sets the bundle error if it is not already set, returning true if it was set, and false otherwise.
+func (b *B) SetErr(err error) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.bundleErr == nil {
+		b.bundleErr = err
+		return true
+	}
+	return false
+}
+
+// GetErr gets the current bundle error.
+func (b *B) GetErr() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.bundleErr
+}
+
 func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	if b.responded {
 		slog.Warn("additional bundle response", "bundle", b, "resp", resp)
 		return
 	}
 	b.responded = true
+	if b.DataAbort != nil {
+		// Defer closing DataAbort to guarantee that the abort signal is sent
+		// when this function returns. This ensures it is always executed after
+		// any error has been safely written and synchronized via b.SetErr() or,
+		// in the happy path, after the successful response is sent to b.Resp.
+		defer close(b.DataAbort)
+	}
 	if resp.GetError() != "" {
-		b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
+		slog.Error("Prism received bundle error from worker response", "bundle", resp.GetInstructionId())
+		b.SetErr(fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError()))
 		close(b.Resp)
 		return
 	}
@@ -138,6 +177,13 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	case <-wk.StoppedChan:
 		// The worker was stopped before req was sent.
 		// Quit to avoid sending on a closed channel.
+		outCap := b.OutputCount + len(b.HasTimers)
+		for i := 0; i < outCap; i++ {
+			b.DataOrTimerDone()
+		}
+		return b.DataWait
+	case <-b.DataAbort:
+		// The bundle completed/failed before req was sent.
 		outCap := b.OutputCount + len(b.HasTimers)
 		for i := 0; i < outCap; i++ {
 			b.DataOrTimerDone()
@@ -181,6 +227,9 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		case <-ctx.Done():
 			b.DataOrTimerDone()
 			return b.DataWait
+		case <-b.DataAbort:
+			b.DataOrTimerDone()
+			return b.DataWait
 		case wk.DataReqs <- elms:
 		}
 	}
@@ -200,6 +249,9 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		b.DataOrTimerDone()
 		return b.DataWait
 	case <-ctx.Done():
+		b.DataOrTimerDone()
+		return b.DataWait
+	case <-b.DataAbort:
 		b.DataOrTimerDone()
 		return b.DataWait
 	case wk.DataReqs <- &fnpb.Elements{
