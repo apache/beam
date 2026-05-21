@@ -509,7 +509,7 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0',
-              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
+              'testcontainers[mysql,kafka,milvus,qdrant]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               # TODO(https://github.com/apache/beam/issues/36951): need to
               # further investigate the cause

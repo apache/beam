@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
-import tempfile
+import pytest
 import unittest
 
 import apache_beam as beam
@@ -28,12 +27,16 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
-  from qdrant_client import QdrantClient
   from qdrant_client import models
 
   QDRANT_AVAILABLE = True
 except ImportError:
   QDRANT_AVAILABLE = False
+
+try:
+  from testcontainers.qdrant import QdrantContainer
+except ImportError:
+  QdrantContainer = None
 # pylint: enable=ungrouped-imports
 
 TEST_CORPUS = [
@@ -59,35 +62,35 @@ TEST_CORPUS = [
 
 
 @unittest.skipIf(not QDRANT_AVAILABLE, "qdrant dependencies not installed.")
+@unittest.skipIf(not QdrantContainer, "qdrant test_container not installed.")
+@pytest.mark.uses_testcontainers
 class TestQdrantIngestion(unittest.TestCase):
-  @contextlib.contextmanager
-  def qdrant_client(self) -> "QdrantClient":
-    client = QdrantClient(path=self._temp_dir.name)
-    try:
-      yield client
-    finally:
-      client.close()
+  @classmethod
+  def setUpClass(cls):
+    cls._container = QdrantContainer()
+    cls._container.start()
+    cls._host = cls._container.get_container_host_ip()
+    cls._port = int(cls._container.get_exposed_port(6333))
+    cls._connection_params = QdrantConnectionParameters(
+        host=cls._host, port=cls._port)
+    cls.client = cls._container.get_client()
 
   def setUp(self):
-    self._temp_dir = tempfile.TemporaryDirectory()
     self._collection_name = f"test_collection_{self._testMethodName}"
 
-    with self.qdrant_client() as client:
-      client.create_collection(
-          collection_name=self._collection_name,
-          vectors_config={
-              "dense": models.VectorParams(
-                  size=2, distance=models.Distance.COSINE)
-          },
-          sparse_vectors_config={"sparse": models.SparseVectorParams()},
-      )
-      assert client.collection_exists(collection_name=self._collection_name)
+    self.client.create_collection(
+        collection_name=self._collection_name,
+        vectors_config={
+            "dense": models.VectorParams(
+                size=2, distance=models.Distance.COSINE)
+        },
+        sparse_vectors_config={"sparse": models.SparseVectorParams()},
+    )
+    assert self.client.collection_exists(collection_name=self._collection_name)
 
-    self._connection_params = QdrantConnectionParameters(
-        path=self._temp_dir.name)
-
-  def tearDown(self):
-    self._temp_dir.cleanup()
+  @classmethod
+  def tearDownClass(cls):
+    cls._container.stop()
 
   def test_write_on_non_existent_collection(self):
     non_existent = "nonexistent_collection"
@@ -98,9 +101,7 @@ class TestQdrantIngestion(unittest.TestCase):
     )
 
     with self.assertRaises(Exception):
-      p = TestPipeline()
-      p.not_use_test_runner_api = True
-      with p:
+      with TestPipeline(is_integration_test=True) as p:
         _ = p | beam.Create(TEST_CORPUS) | write_config.create_write_transform()
 
   def test_write_dense_embeddings_only(self):
@@ -110,21 +111,18 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(TEST_CORPUS),
     )
 
-    p = TestPipeline()
-    p.not_use_test_runner_api = True
-    with p:
+    with TestPipeline(is_integration_test=True) as p:
       _ = p | beam.Create(TEST_CORPUS) | write_config.create_write_transform()
 
-    with self.qdrant_client() as client:
-      count_result = client.count(collection_name=self._collection_name)
-      self.assertEqual(count_result.count, len(TEST_CORPUS))
+    count_result = self.client.count(collection_name=self._collection_name)
+    self.assertEqual(count_result.count, len(TEST_CORPUS))
 
-      points, _ = client.scroll(
-        collection_name=self._collection_name,
-        limit=100,
-        with_payload=True,
-        with_vectors=True,
-      )
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=True,
+    )
     points_by_id = {p.id: p for p in points}
 
     for item in TEST_CORPUS:
@@ -157,21 +155,18 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(sparse_corpus),
     )
 
-    p = TestPipeline()
-    p.not_use_test_runner_api = True
-    with p:
+    with TestPipeline(is_integration_test=True) as p:
       _ = p | beam.Create(sparse_corpus) | write_config.create_write_transform()
 
-    with self.qdrant_client() as client:
-      count_result = client.count(collection_name=self._collection_name)
-      self.assertEqual(count_result.count, len(sparse_corpus))
+    count_result = self.client.count(collection_name=self._collection_name)
+    self.assertEqual(count_result.count, len(sparse_corpus))
 
-      points, _ = client.scroll(
-        collection_name=self._collection_name,
-        limit=100,
-        with_payload=True,
-        with_vectors=True,
-      )
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=True,
+    )
     points_by_id = {p.id: p for p in points}
 
     for item in sparse_corpus:
@@ -213,21 +208,18 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(hybrid_corpus),
     )
 
-    p = TestPipeline()
-    p.not_use_test_runner_api = True
-    with p:
+    with TestPipeline(is_integration_test=True) as p:
       _ = p | beam.Create(hybrid_corpus) | write_config.create_write_transform()
 
-    with self.qdrant_client() as client:
-      count_result = client.count(collection_name=self._collection_name)
-      self.assertEqual(count_result.count, len(hybrid_corpus))
+    count_result = self.client.count(collection_name=self._collection_name)
+    self.assertEqual(count_result.count, len(hybrid_corpus))
 
-      points, _ = client.scroll(
-        collection_name=self._collection_name,
-        limit=100,
-        with_payload=True,
-        with_vectors=True,
-      )
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=True,
+    )
     points_by_id = {p.id: p for p in points}
 
     for item in hybrid_corpus:
@@ -260,21 +252,18 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=3,
     )
 
-    p = TestPipeline()
-    p.not_use_test_runner_api = True
-    with p:
+    with TestPipeline(is_integration_test=True) as p:
       _ = p | beam.Create(batch_corpus) | write_config.create_write_transform()
 
-    with self.qdrant_client() as client:
-      count_result = client.count(collection_name=self._collection_name)
-      self.assertEqual(count_result.count, len(batch_corpus))
+    count_result = self.client.count(collection_name=self._collection_name)
+    self.assertEqual(count_result.count, len(batch_corpus))
 
-      points, _ = client.scroll(
-        collection_name=self._collection_name,
-        limit=100,
-        with_payload=True,
-        with_vectors=True,
-      )
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=True,
+    )
     points_by_id = {p.id: p for p in points}
 
     for item in batch_corpus:
@@ -304,24 +293,21 @@ class TestQdrantIngestion(unittest.TestCase):
         max_batch_byte_size=15_000,
     )
 
-    p = TestPipeline()
-    p.not_use_test_runner_api = True
-    with p:
+    with TestPipeline(is_integration_test=True) as p:
       _ = (
           p
           | beam.Create(byte_size_corpus)
           | write_config.create_write_transform())
 
-    with self.qdrant_client() as client:
-      count_result = client.count(collection_name=self._collection_name)
-      self.assertEqual(count_result.count, len(byte_size_corpus))
+    count_result = self.client.count(collection_name=self._collection_name)
+    self.assertEqual(count_result.count, len(byte_size_corpus))
 
-      points, _ = client.scroll(
-        collection_name=self._collection_name,
-        limit=100,
-        with_payload=True,
-        with_vectors=True,
-      )
+    points, _ = self.client.scroll(
+      collection_name=self._collection_name,
+      limit=100,
+      with_payload=True,
+      with_vectors=True,
+    )
     points_by_id = {p.id: p for p in points}
 
     for item in byte_size_corpus:
