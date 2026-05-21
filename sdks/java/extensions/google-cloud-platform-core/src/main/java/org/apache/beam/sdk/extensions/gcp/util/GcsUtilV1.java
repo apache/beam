@@ -728,15 +728,14 @@ class GcsUtilV1 {
     }
   }
 
+  @SuppressFBWarnings("LG_LOST_LOGGER_DUE_TO_WEAK_REFERENCE")
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials)
       throws IOException {
     // Suppress log spams in gcsio 3.0
     if (overwriteLog.compareAndSet(false, true)) {
-      java.util.logging.Logger gcsLogger =
-          java.util.logging.Logger.getLogger(
-              "com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl");
-      gcsLogger.setLevel(java.util.logging.Level.SEVERE);
+      java.util.logging.Logger.getLogger("com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl")
+          .setLevel(java.util.logging.Level.SEVERE);
     }
 
     return GoogleCloudStorageImpl.builder()
