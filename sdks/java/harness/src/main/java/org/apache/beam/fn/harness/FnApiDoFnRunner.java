@@ -1821,16 +1821,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      outputWindowedValue(tag, output, timestamp, windows, paneInfo, ValueKind.INSERT);
-    }
-
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        ValueKind valueKind) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
       FnDataReceiver<WindowedValue<T>> consumer =
@@ -1849,7 +1839,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               null,
               CausedByDrain.NORMAL,
               null,
-              valueKind));
+              ValueKind.INSERT));
     }
 
     @Override
