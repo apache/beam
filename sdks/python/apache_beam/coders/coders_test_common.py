@@ -31,7 +31,7 @@ import subprocess
 import sys
 import textwrap
 import unittest
-import zoneinfo
+
 from decimal import Decimal
 from typing import Any
 from typing import NamedTuple
@@ -68,6 +68,11 @@ try:
   import dill
 except ImportError:
   dill = None
+
+try:
+  import zoneinfo
+except ImportError:
+  zoneinfo = None
 
 MyNamedTuple = collections.namedtuple("A", ["x", "y"])  # type: ignore[name-match]
 AnotherNamedTuple = collections.namedtuple("AnotherNamedTuple", ["x", "y"])
@@ -434,7 +439,6 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.BooleanCoder(), True, False)
 
   def test_fast_primitives_coder_datetime(self):
-    tz = zoneinfo.ZoneInfo("America/New_York")
     self.check_coder(
         coders.FastPrimitivesCoder(),
         datetime.datetime(2026, 1, 1),
@@ -442,12 +446,22 @@ class CodersTest(unittest.TestCase):
             2025,
             2,
             3,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=3, minutes=30))),
+        datetime.datetime(
+            2025,
+            2,
+            3,
             tzinfo=datetime.timezone(datetime.timedelta(hours=3), name="Foo")),
-        datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=0),
-        datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=1),
         # Nonsense tznaive fold is still preserved.
         datetime.datetime(2026, 11, 1, 1, 30, fold=1),
     )
+    if zoneinfo is not None:
+      tz = zoneinfo.ZoneInfo("America/New_York")
+      self.check_coder(
+          coders.FastPrimitivesCoder(),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=0),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=1),
+      )
 
   def test_fast_primitives_coder_date(self):
     self.check_coder(

@@ -40,7 +40,6 @@ import itertools
 import json
 import logging
 import pickle
-import zoneinfo
 from io import BytesIO
 from typing import TYPE_CHECKING
 from typing import Any
@@ -76,6 +75,11 @@ try:
   import dill
 except ImportError:
   dill = None
+
+try:
+  import zoneinfo
+except ImportError:
+  zoneinfo = None
 
 if TYPE_CHECKING:
   import proto
@@ -453,8 +457,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       # We use RFC 9557 for lossless encoding of timezone info.
       stream.write_byte(DATETIME_TYPE)
       stream.write(value.isoformat().encode("utf-8"))
-      if value.tzinfo is not None and type(
-          value.tzinfo) is not datetime.timezone:
+      if (zoneinfo is not None and value.tzinfo is not None and
+          type(value.tzinfo) is not datetime.timezone):
         stream.write(f"[{value.tzinfo}]".encode("utf-8"))
       if type(
           value.tzinfo) is datetime.timezone and (tzname :=
@@ -675,7 +679,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
       if tz_name and (offset := dt.utcoffset()) is not None:
         dt = dt.replace(tzinfo=datetime.timezone(offset=offset, name=tz_name))
-      elif zone_name:
+      elif zoneinfo is not None and zone_name:
         dt = dt.replace(tzinfo=zoneinfo.ZoneInfo(zone_name))
 
       if fold != dt.fold:
