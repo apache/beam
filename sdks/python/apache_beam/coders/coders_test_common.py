@@ -31,7 +31,6 @@ import subprocess
 import sys
 import textwrap
 import unittest
-
 from decimal import Decimal
 from typing import Any
 from typing import NamedTuple
