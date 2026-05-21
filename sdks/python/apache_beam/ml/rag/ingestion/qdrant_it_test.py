@@ -30,6 +30,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from qdrant_client import QdrantClient
   from qdrant_client import models
+
   QDRANT_AVAILABLE = True
 except ImportError:
   QDRANT_AVAILABLE = False
@@ -60,7 +61,7 @@ TEST_CORPUS = [
 @unittest.skipIf(not QDRANT_AVAILABLE, "qdrant dependencies not installed.")
 class TestQdrantIngestion(unittest.TestCase):
   @contextlib.contextmanager
-  def qdrant_client(self) -> 'QdrantClient':
+  def qdrant_client(self) -> "QdrantClient":
     client = QdrantClient(path=self._temp_dir.name)
     try:
       yield client
@@ -97,7 +98,9 @@ class TestQdrantIngestion(unittest.TestCase):
     )
 
     with self.assertRaises(Exception):
-      with TestPipeline() as p:
+      p = TestPipeline()
+      p.not_use_test_runner_api = True
+      with p:
         _ = p | beam.Create(TEST_CORPUS) | write_config.create_write_transform()
 
   def test_write_dense_embeddings_only(self):
@@ -107,7 +110,9 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(TEST_CORPUS),
     )
 
-    with TestPipeline() as p:
+    p = TestPipeline()
+    p.not_use_test_runner_api = True
+    with p:
       _ = p | beam.Create(TEST_CORPUS) | write_config.create_write_transform()
 
     with self.qdrant_client() as client:
@@ -152,7 +157,9 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(sparse_corpus),
     )
 
-    with TestPipeline() as p:
+    p = TestPipeline()
+    p.not_use_test_runner_api = True
+    with p:
       _ = p | beam.Create(sparse_corpus) | write_config.create_write_transform()
 
     with self.qdrant_client() as client:
@@ -206,7 +213,9 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=len(hybrid_corpus),
     )
 
-    with TestPipeline() as p:
+    p = TestPipeline()
+    p.not_use_test_runner_api = True
+    with p:
       _ = p | beam.Create(hybrid_corpus) | write_config.create_write_transform()
 
     with self.qdrant_client() as client:
@@ -228,7 +237,8 @@ class TestQdrantIngestion(unittest.TestCase):
               "dense": item.dense_embedding,
               "sparse": models.SparseVector(
                   indices=item.sparse_embedding[0],
-                  values=item.sparse_embedding[1]),
+                  values=item.sparse_embedding[1],
+              ),
           },
           payload=item.metadata,
       )
@@ -250,7 +260,9 @@ class TestQdrantIngestion(unittest.TestCase):
         batch_size=3,
     )
 
-    with TestPipeline() as p:
+    p = TestPipeline()
+    p.not_use_test_runner_api = True
+    with p:
       _ = p | beam.Create(batch_corpus) | write_config.create_write_transform()
 
     with self.qdrant_client() as client:
@@ -292,7 +304,9 @@ class TestQdrantIngestion(unittest.TestCase):
         max_batch_byte_size=15_000,
     )
 
-    with TestPipeline() as p:
+    p = TestPipeline()
+    p.not_use_test_runner_api = True
+    with p:
       _ = (
           p
           | beam.Create(byte_size_corpus)
