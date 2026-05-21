@@ -300,6 +300,17 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
                   ('B-3', {10, 15, 16}),
               ])))
 
+  def test_failing_dofn(self):
+    # Prism interprets all bundle failures as RuntimeError
+    with self.assertRaisesRegex(
+        RuntimeError, "Intentional DoFn failure for prism logging test"):
+      with self.create_pipeline() as p:
+
+        def failing_fn(x):
+          raise ValueError("Intentional DoFn failure for prism logging test")
+
+        _ = p | beam.Create([1, 2, 3]) | beam.Map(failing_fn)
+
 
 class PrismJobServerTest(unittest.TestCase):
   def setUp(self) -> None:
