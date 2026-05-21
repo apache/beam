@@ -63,7 +63,16 @@ type B struct {
 	OutputData engine.TentativeData
 
 	Resp      chan *fnpb.ProcessBundleResponse
-	Done      chan struct{}
+	// DataAbort is closed when the worker responds to the bundle instruction
+	// (with success or failure), signaling ProcessOn to stop streaming data.
+	//
+	// This prevents a deadlock where a worker fails mid-bundle and stops reading
+	// from the data channel while the runner blocks indefinitely attempting to
+	// write remaining elements. Other signals are insufficient to abort immediately:
+	// - ctx.Done() only triggers on global timeouts/cancellations, which is too late.
+	// - wk.StoppedChan is only closed when tearing down the worker pool, which does
+	//   not happen while the runner is waiting on the current bundle to finish.
+	DataAbort chan struct{}
 	mu        sync.Mutex
 	BundleErr error
 	responded bool
@@ -83,7 +92,7 @@ func (b *B) Init() {
 		close(b.DataWait) // Can happen if there are no outputs for the bundle.
 	}
 	b.Resp = make(chan *fnpb.ProcessBundleResponse, 1)
-	b.Done = make(chan struct{})
+	b.DataAbort = make(chan struct{})
 }
 
 // DataOrTimerDone indicates a final element has been received from a Data or Timer output.
@@ -122,8 +131,8 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 		return
 	}
 	b.responded = true
-	if b.Done != nil {
-		close(b.Done)
+	if b.DataAbort != nil {
+		close(b.DataAbort)
 	}
 	if resp.GetError() != "" {
 		slog.Error("DEBUG: Prism received bundle error from worker response", "bundle", resp.GetInstructionId())
@@ -167,7 +176,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 			b.DataOrTimerDone()
 		}
 		return b.DataWait
-	case <-b.Done:
+	case <-b.DataAbort:
 		// The bundle completed/failed before req was sent.
 		outCap := b.OutputCount + len(b.HasTimers)
 		for i := 0; i < outCap; i++ {
@@ -212,7 +221,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 		case <-ctx.Done():
 			b.DataOrTimerDone()
 			return b.DataWait
-		case <-b.Done:
+		case <-b.DataAbort:
 			b.DataOrTimerDone()
 			return b.DataWait
 		case wk.DataReqs <- elms:
@@ -236,7 +245,7 @@ func (b *B) ProcessOn(ctx context.Context, wk *W) <-chan struct{} {
 	case <-ctx.Done():
 		b.DataOrTimerDone()
 		return b.DataWait
-	case <-b.Done:
+	case <-b.DataAbort:
 		b.DataOrTimerDone()
 		return b.DataWait
 	case wk.DataReqs <- &fnpb.Elements{
