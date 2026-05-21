@@ -431,4 +431,29 @@ public class StreamingModeExecutionContextTest {
       assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
     }
   }
+
+  @Test
+  public void testSetBacklogBytes() {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    executionContext.start(
+        "key",
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder);
+
+    stepContext.setBacklogBytes(1234.0);
+    executionContext.flushState();
+
+    assertEquals(1234, outputBuilder.getSourceBacklogBytes());
+  }
 }

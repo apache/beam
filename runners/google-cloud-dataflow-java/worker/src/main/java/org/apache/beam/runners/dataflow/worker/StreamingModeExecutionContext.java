@@ -254,6 +254,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
             : WindmillTagEncodingV1.instance();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
+    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
 
     Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
@@ -528,6 +529,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           getWorkItem().getWorkToken(),
           activeReader);
       activeReader = null;
+    } else if (backlogBytes != UnboundedReader.BACKLOG_UNKNOWN && backlogBytes != 1L) {
+      // If activeReader is null, we might still have backlogBytes from an SDF. We ignore a reported
+      // backlogBytes of 1 since older versions of the Java SDK use this value as a default when
+      // RestrictionTracker.getProgress() or GetSize() are not defined.
+      outputBuilder.setSourceBacklogBytes(backlogBytes);
     }
     return callbacks;
   }
@@ -726,6 +732,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     public BundleFinalizer bundleFinalizer() {
       return wrapped.bundleFinalizer();
     }
+
+    @Override
+    public void setBacklogBytes(double backlogBytes) {
+      wrapped.setBacklogBytes(backlogBytes);
+    }
   }
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
@@ -854,6 +865,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       stateInternals.persist(outputBuilder);
       systemTimerInternals.persistTo(outputBuilder);
       userTimerInternals.persistTo(outputBuilder);
+    }
+
+    @Override
+    public void setBacklogBytes(double backlogBytes) {
+      StreamingModeExecutionContext.this.backlogBytes = (long) backlogBytes;
     }
 
     @Override
