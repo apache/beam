@@ -474,10 +474,10 @@ def run(
       'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
 
   predictions = (
-    to_infer
-    | 'RunInference' >> RunInference(
-        KeyedModelHandler(model_handler)).with_resource_hints(
-            accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver"))
+      to_infer
+      | 'RunInference' >> RunInference(
+          KeyedModelHandler(model_handler)).with_resource_hints(
+              accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver"))
 
   results = (
       predictions
