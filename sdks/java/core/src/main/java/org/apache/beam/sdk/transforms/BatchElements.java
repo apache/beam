@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static java.util.Collections.singleton;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,6 +29,7 @@ import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -568,7 +571,11 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
 
         try (BatchSizeEstimator.Stopwatch sw = estimator.recordTime(targetBatch.size)) {
 
-          receiver.outputWithTimestamp(targetBatch.elements, targetWindow.maxTimestamp());
+          receiver.outputWindowedValue(
+              targetBatch.elements,
+              targetWindow.maxTimestamp(),
+              singleton(targetWindow),
+              PaneInfo.NO_FIRING);
         }
 
         batches.remove(targetWindow);
