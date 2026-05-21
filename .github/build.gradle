@@ -18,7 +18,15 @@
 
 buildscript {
   repositories {
-    mavenCentral()
+    def mirrorUrl = project.findProperty("mavenCentralMirrorUrl")
+    boolean isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    def useMirror = isCi && mirrorUrl
+
+    if (!useMirror) {
+      mavenCentral()
+    } else {
+      maven { url mirrorUrl }
+    }
   }
   dependencies {
     classpath group: 'org.yaml', name: 'snakeyaml', version: '2.2'

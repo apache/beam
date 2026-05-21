@@ -140,6 +140,8 @@ public class SplittableParDoProcessFnTest {
     private InMemoryTimerInternals timerInternals;
     private TestInMemoryStateInternals<String> stateInternals;
     private InMemoryBundleFinalizer bundleFinalizer;
+    private final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
+        processFn;
 
     ProcessFnTester(
         Instant currentProcessingTime,
@@ -154,15 +156,14 @@ public class SplittableParDoProcessFnTest {
       // encode IntervalWindow's because that's what all tests here use.
       WindowingStrategy<InputT, BoundedWindow> windowingStrategy =
           (WindowingStrategy) WindowingStrategy.of(FixedWindows.of(Duration.standardSeconds(1)));
-      final ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
-          processFn =
-              new ProcessFn<>(
-                  fn,
-                  inputCoder,
-                  restrictionCoder,
-                  watermarkEstimatorStateCoder,
-                  windowingStrategy,
-                  Collections.emptyMap());
+      this.processFn =
+          new ProcessFn<>(
+              fn,
+              inputCoder,
+              restrictionCoder,
+              watermarkEstimatorStateCoder,
+              windowingStrategy,
+              Collections.emptyMap());
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
@@ -383,6 +384,61 @@ public class SplittableParDoProcessFnTest {
     public WatermarkEstimators.Manual newWatermarkEstimator(
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
       return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+  }
+
+  private static class GetSizeFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        c.output(String.valueOf(i));
+        if (i == 2) {
+          return resume();
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, 10);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+
+    @GetSize
+    public double getSize(@Restriction OffsetRange range) {
+      return range.getTo() - range.getFrom();
+    }
+  }
+
+  // Used to check that backlog can be computed from the restriction tracker if GetSize is not
+  // defined.
+  private static class SdfWithoutGetSize extends DoFn<Integer, String> {
+    @ProcessElement
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        c.output(String.valueOf(i));
+        if (i == 2) {
+          return resume();
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, 10);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange range) {
+      return new OffsetRangeTracker(range);
     }
   }
 
@@ -682,6 +738,56 @@ public class SplittableParDoProcessFnTest {
             MAX_OUTPUTS_PER_BUNDLE,
             MAX_BUNDLE_DURATION)) {
       tester.startElement(42, new SomeRestriction());
+    }
+  }
+
+  @Test
+  public void testReportsBacklog() throws Exception {
+    DoFn<Integer, String> fn = new GetSizeFn();
+    Instant base = Instant.now();
+    final List<Double> backlogs = new ArrayList<>();
+
+    try (ProcessFnTester<Integer, String, OffsetRange, Long, Void> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            VoidCoder.of(),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      tester.startElement(42, new OffsetRange(0, 10));
+      // First call outputs 0, 1, and 2, and then resumes.
+      // The residual range should be [3, 10), so size is 7.
+      assertEquals(1, backlogs.size());
+      assertEquals(7.0, backlogs.get(0), 0.001);
+    }
+  }
+
+  @Test
+  public void testReportsBacklogWithoutGetSize() throws Exception {
+    DoFn<Integer, String> fn = new SdfWithoutGetSize();
+    Instant base = Instant.now();
+    final List<Double> backlogs = new ArrayList<>();
+
+    try (ProcessFnTester<Integer, String, OffsetRange, Long, Void> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            VoidCoder.of(),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      tester.startElement(42, new OffsetRange(0, 10));
+      // First call outputs 0, 1, and 2, and then resumes.
+      // The residual range should be [3, 10), so size is 7.
+      assertEquals(1, backlogs.size());
+      assertEquals(7.0, backlogs.get(0), 0.001);
     }
   }
 }

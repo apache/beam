@@ -57,6 +57,14 @@ configurations.runtimeClasspath {
 
   // Pin nimbus-jose-jwt to 9.37.4 to fix CVE-2025-53864 (transitive via hadoop-auth)
   resolutionStrategy.force 'com.nimbusds:nimbus-jose-jwt:9.37.4'
+
+  // [iceberg]
+  // TODO(https://github.com/apache/beam/issues/38515):
+  //  Remove below pins when parquet-hadoop upgrades to hadoop-common:3.4.2
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
 }
 
 shadowJar {
@@ -83,12 +91,10 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
   runtimeOnly project(":sdks:java:io:amazon-web-services2") // FileSystem may be used by Iceberg AddFiles
 
-  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
-    // iceberg ended support for Java 8 in 1.7.0
-    runtimeOnly project(":sdks:java:io:iceberg")
-    runtimeOnly project(":sdks:java:io:iceberg:hive")
-    runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
-  }
+  runtimeOnly project(":sdks:java:io:iceberg")
+  runtimeOnly project(":sdks:java:io:iceberg:hive")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  runtimeOnly library.java.bigdataoss_util_hadoop
 
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14

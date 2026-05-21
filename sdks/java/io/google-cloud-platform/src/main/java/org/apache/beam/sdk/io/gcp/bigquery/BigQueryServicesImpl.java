@@ -1496,6 +1496,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryWriteClient newWriteClient;
     private final long storageWriteMaxInflightRequests;
     private final long storageWriteMaxInflightBytes;
+    private final @Nullable Integer storageWriteApiMaxRequestCallbackWaitTimeSec;
     private final BigQueryIOMetadata bqIOMetadata;
     private final PipelineOptions options;
 
@@ -1506,6 +1507,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
       this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.storageWriteApiMaxRequestCallbackWaitTimeSec =
+          bqOptions.getStorageWriteApiMaxRequestCallbackWaitTimeSec();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -1514,6 +1517,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
       this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.storageWriteApiMaxRequestCallbackWaitTimeSec =
+          bqOptions.getStorageWriteApiMaxRequestCallbackWaitTimeSec();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -1577,6 +1582,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .setMaxConnectionsPerRegion(
                   options.as(BigQueryOptions.class).getMaxConnectionPoolConnections())
               .build());
+
+      if (storageWriteApiMaxRequestCallbackWaitTimeSec != null) {
+        StreamWriter.setMaxRequestCallbackWaitTime(
+            java.time.Duration.ofSeconds(storageWriteApiMaxRequestCallbackWaitTimeSec));
+      }
 
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)
