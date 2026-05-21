@@ -112,12 +112,9 @@ class DecodePreprocessDoFn(beam.DoFn):
       with FileSystems.open(uri) as f:
         image_bytes = f.read()
       tensor = decode_to_tens(
-        image_bytes,
-        resize_shorter_side=self.resize_shorter_side)
+          image_bytes, resize_shorter_side=self.resize_shorter_side)
       preprocess_ms = now_millis() - start
-      yield uri, {
-        "tensor": tensor, "preprocess_ms": preprocess_ms
-      }
+      yield uri, {"tensor": tensor, "preprocess_ms": preprocess_ms}
     except Exception as e:
       logging.warning("Decode failed for %s: %s", uri, e)
       return

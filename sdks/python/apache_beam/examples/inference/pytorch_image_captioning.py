@@ -210,9 +210,9 @@ class BlipCaptionModelHandler(ModelHandler):
     results = []
     for i in range(len(batch)):
       results.append({
-        "image": images[i],
-        "candidates": candidates_per_image[i],
-        "blip_ms": blip_ms,
+          "image": images[i],
+          "candidates": candidates_per_image[i],
+          "blip_ms": blip_ms,
       })
     return results
 
