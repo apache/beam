@@ -19,10 +19,14 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -33,6 +37,8 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -1397,5 +1403,88 @@ public class TestJavaBeans {
           .addField(
               Schema.Field.nullable("value", FieldType.FLOAT)
                   .withDescription("This value is the value stored in the object as a float."))
+          .build();
+
+  /** A Bean containing JSR-310 date/time types and a UUID, all inferred as Beam logical types. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class JavaTimeBean {
+    private LocalDate localDate;
+    private LocalTime localTime;
+    private LocalDateTime localDateTime;
+    private java.time.Instant instant;
+    private UUID uuid;
+
+    public JavaTimeBean() {}
+
+    public LocalDate getLocalDate() {
+      return localDate;
+    }
+
+    public void setLocalDate(LocalDate localDate) {
+      this.localDate = localDate;
+    }
+
+    public LocalTime getLocalTime() {
+      return localTime;
+    }
+
+    public void setLocalTime(LocalTime localTime) {
+      this.localTime = localTime;
+    }
+
+    public LocalDateTime getLocalDateTime() {
+      return localDateTime;
+    }
+
+    public void setLocalDateTime(LocalDateTime localDateTime) {
+      this.localDateTime = localDateTime;
+    }
+
+    public java.time.Instant getInstant() {
+      return instant;
+    }
+
+    public void setInstant(java.time.Instant instant) {
+      this.instant = instant;
+    }
+
+    public UUID getUuid() {
+      return uuid;
+    }
+
+    public void setUuid(UUID uuid) {
+      this.uuid = uuid;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof JavaTimeBean)) {
+        return false;
+      }
+      JavaTimeBean that = (JavaTimeBean) o;
+      return Objects.equals(localDate, that.localDate)
+          && Objects.equals(localTime, that.localTime)
+          && Objects.equals(localDateTime, that.localDateTime)
+          && Objects.equals(instant, that.instant)
+          && Objects.equals(uuid, that.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(localDate, localTime, localDateTime, instant, uuid);
+    }
+  }
+
+  /** The schema for {@link JavaTimeBean}. */
+  public static final Schema JAVA_TIME_BEAN_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("localDate", SqlTypes.DATE)
+          .addLogicalTypeField("localTime", SqlTypes.TIME)
+          .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+          .addLogicalTypeField("instant", new NanosInstant())
+          .addLogicalTypeField("uuid", SqlTypes.UUID)
           .build();
 }
