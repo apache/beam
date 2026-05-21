@@ -78,7 +78,8 @@ def main(argv):
     # allowing the parent process to detect it and fail fast rather than hanging.
     bound_port = server.add_insecure_port(address)
     if not bound_port:
-      raise RuntimeError("Failed to bind expansion service to {}".format(address))
+      raise RuntimeError(
+          "Failed to bind expansion service to {}".format(address))
     server.start()
     _LOGGER.info('Listening for expansion requests at %d', bound_port)
 
