@@ -74,7 +74,7 @@ type B struct {
 	//   not happen while the runner is waiting on the current bundle to finish.
 	DataAbort chan struct{}
 	mu        sync.Mutex
-	BundleErr error
+	bundleErr error
 	responded bool
 
 	SinkToPCollection map[string]string
@@ -109,20 +109,22 @@ func (b *B) LogValue() slog.Value {
 		slog.String("stage", b.PBDID))
 }
 
-// SetErr sets the bundle error if it is not already set.
-func (b *B) SetErr(err error) {
+// SetErr sets the bundle error if it is not already set, returning true if it was set, and false otherwise.
+func (b *B) SetErr(err error) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.BundleErr == nil {
-		b.BundleErr = err
+	if b.bundleErr == nil {
+		b.bundleErr = err
+		return true
 	}
+	return false
 }
 
 // GetErr gets the current bundle error.
 func (b *B) GetErr() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.BundleErr
+	return b.bundleErr
 }
 
 func (b *B) Respond(resp *fnpb.InstructionResponse) {

@@ -247,7 +247,9 @@ progress:
 					// by the nil/null check inside SetErr(): if a concurrent primary error (e.g.,
 					// worker crash) was set first, it will not be overwritten and b.GetErr() will
 					// correctly preserve and return it instead of the secondary split error.
-					b.SetErr(err)
+					if !b.SetErr(err) {
+						slog.Debug("Error for bundle already set, logging dropped split error", "bundle", rb, "error", err)
+					}
 					return b.GetErr()
 				}
 				if sr.GetChannelSplits() == nil {
