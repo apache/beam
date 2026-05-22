@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -99,8 +98,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   // clone DoFn instances on the same worker node, static maps ensure safe JVM-wide resource reuse.
   private static final ConcurrentHashMap<String, ExecutorService> pool = new ConcurrentHashMap<>();
   // activeElements (processingElements) is global JVM memory (all keys)
-  private static final ConcurrentHashMap<
-          String, ConcurrentHashMap<Object, InFlightElement<?, ?, ?>>>
+  private static final ConcurrentHashMap<String, ConcurrentHashMap<Object, InFlightElement<?>>>
       processingElements = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, AtomicInteger> itemsInBuffer =
       new ConcurrentHashMap<>();
@@ -108,12 +106,10 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   private static final ReentrantLock lock = new ReentrantLock();
   private static final boolean verboseLogging = false;
 
-  private static class InFlightElement<K, InputT, OutputT> {
-    final KV<K, InputT> element;
+  private static class InFlightElement<OutputT> {
     final CompletableFuture<List<OutputT>> future;
 
-    InFlightElement(KV<K, InputT> element, CompletableFuture<List<OutputT>> future) {
-      this.element = element;
+    InFlightElement(CompletableFuture<List<OutputT>> future) {
       this.future = future;
     }
   }
@@ -212,13 +208,12 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   }
 
   @SuppressWarnings("unchecked")
-  private ConcurrentHashMap<Object, InFlightElement<K, InputT, OutputT>> getProcessingElements() {
-    ConcurrentHashMap<Object, InFlightElement<?, ?, ?>> elements = processingElements.get(uuid);
+  private ConcurrentHashMap<Object, InFlightElement<OutputT>> getProcessingElements() {
+    ConcurrentHashMap<Object, InFlightElement<?>> elements = processingElements.get(uuid);
     if (elements == null) {
       throw new IllegalStateException("Processing elements map not initialized for UUID: " + uuid);
     }
-    return (ConcurrentHashMap<Object, InFlightElement<K, InputT, OutputT>>)
-        (ConcurrentHashMap<?, ?>) elements;
+    return (ConcurrentHashMap<Object, InFlightElement<OutputT>>) (ConcurrentHashMap<?, ?>) elements;
   }
 
   private AtomicInteger getItemsInBuffer() {
@@ -298,8 +293,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       KV<K, InputT> element, BoundedWindow window, Instant timestamp, boolean ignoreBuffer) {
     lock.lock();
     try {
-      ConcurrentHashMap<Object, InFlightElement<K, InputT, OutputT>> activeElements =
-          getProcessingElements();
+      ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
       Object elementId = idFn.apply(element.getValue());
 
       if (activeElements.containsKey(elementId)) {
@@ -428,7 +422,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                   }
                 });
 
-        activeElements.put(elementId, new InFlightElement<>(element, future));
+        activeElements.put(elementId, new InFlightElement<>(future));
         getItemsInBuffer().incrementAndGet();
         return true;
       }
@@ -536,70 +530,60 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       LOG.info("processing timer for key: {}", key);
     }
 
-    ConcurrentHashMap<Object, InFlightElement<K, InputT, OutputT>> activeElements =
-        getProcessingElements();
-    Set<Object> stateIds = new HashSet<>();
-    for (KV<K, InputT> element : stateList) {
-      stateIds.add(idFn.apply(element.getValue()));
-    }
-
-    List<Object> toCancel = new ArrayList<>();
-    lock.lock();
-    try {
-      // Cancel any active elements for this key that are no longer in runner's state
-      for (Map.Entry<Object, InFlightElement<K, InputT, OutputT>> entry :
-          activeElements.entrySet()) {
-        Object elementId = entry.getKey();
-        InFlightElement<K, InputT, OutputT> inFlight = entry.getValue();
-
-        if (Objects.equals(inFlight.element.getKey(), key) && !stateIds.contains(elementId)) {
-          inFlight.future.cancel(true);
-          toCancel.add(elementId);
-          LOG.info("Cancelling item {} which is no longer in state", inFlight.element);
-        }
-      }
-      for (Object elementId : toCancel) {
-        activeElements.remove(elementId);
-      }
-    } finally {
-      lock.unlock();
-    }
+    ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
 
     List<List<OutputT>> toReturn = new ArrayList<>();
-    List<KV<K, InputT>> finishedItems = new ArrayList<>();
+    Set<KV<K, InputT>> finishedItems = new HashSet<>();
     List<KV<K, InputT>> toReschedule = new ArrayList<>();
 
     int itemsFinished = 0;
     int itemsNotYetFinished = 0;
     int itemsRescheduled = 0;
-    int itemsCancelled = toCancel.size();
+    int itemsCancelled = 0;
+
+    Set<Object> finishedElementIds = new HashSet<>();
+    Set<Object> inFlightElementIds = new HashSet<>();
+    Set<Object> rescheduledElementIds = new HashSet<>();
 
     lock.lock();
     try {
       for (KV<K, InputT> element : stateList) {
         Object elementId = idFn.apply(element.getValue());
+
+        // Skip processing if we already completed, rescheduled, or found this elementId active in
+        // this cycle
+        if (finishedElementIds.contains(elementId)
+            || rescheduledElementIds.contains(elementId)
+            || inFlightElementIds.contains(elementId)) {
+          continue;
+        }
+
         if (activeElements.containsKey(elementId)) {
-          InFlightElement<K, InputT, OutputT> inFlight = activeElements.get(elementId);
+          InFlightElement<OutputT> inFlight = activeElements.get(elementId);
           if (inFlight.future.isDone()) {
             try {
               if (!inFlight.future.isCancelled()) {
                 toReturn.add(inFlight.future.get());
               }
               finishedItems.add(element);
+              finishedElementIds.add(elementId);
               activeElements.remove(elementId);
               itemsFinished++;
             } catch (Exception e) {
               LOG.error("Error executing async task for element {}", element, e);
               finishedItems.add(element);
+              finishedElementIds.add(elementId);
               activeElements.remove(elementId);
             }
           } else {
+            inFlightElementIds.add(elementId);
             itemsNotYetFinished++;
           }
         } else {
           LOG.info(
               "Item {} found in state but not in local active elements, scheduling now", element);
           toReschedule.add(element);
+          rescheduledElementIds.add(elementId);
           itemsRescheduled++;
         }
       }
