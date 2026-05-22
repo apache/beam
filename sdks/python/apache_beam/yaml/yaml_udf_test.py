@@ -459,6 +459,26 @@ class YamlUDFMappingTest(unittest.TestCase):
                   dec_out=21.0),
           ]))
 
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_robustness(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      data = [beam.Row(a=100, x=-42)]
+      elements = p | beam.Create(data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          abs_val:
+            expression: "Math.abs(x)"
+      ''')
+      assert_that(result, equal_to([
+          beam.Row(abs_val=42),
+      ]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

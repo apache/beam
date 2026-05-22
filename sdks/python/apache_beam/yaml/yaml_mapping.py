@@ -202,7 +202,11 @@ class _JsFunctionWrapper:
 
   def __call__(self, row):
     fn = self._get_fn()
-    return dicts_to_rows(fn(py_value_to_js_dict(row)))
+    try:
+      return dicts_to_rows(fn(py_value_to_js_dict(row)))
+    except Exception as exn:
+      raise RuntimeError(
+          f"Error evaluating javascript expression: {exn}") from exn
 
 
 # TODO(yaml) Improve type inferencing for JS UDF's
@@ -213,7 +217,7 @@ def py_value_to_js_dict(py_value):
   if isinstance(py_value, dict):
     return {key: py_value_to_js_dict(value) for key, value in py_value.items()}
   elif isinstance(py_value, bytes):
-    return py_value.decode('utf-8', errors='strict')
+    return py_value.decode('utf-8', errors='replace')
   elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
     return {'__date__': True, 'value': py_value.isoformat()}
   elif isinstance(py_value, Decimal):
@@ -238,14 +242,11 @@ def _expand_javascript_mapping_func(
         "quickjs-ng library is not installed.")
 
   if expression:
-    unpacking_code = '\n'.join([
-        f"  var {name} = __row__['{name}'];" for name in original_fields
-        if name in expression and name.isidentifier()
-    ])
     source_code = f"""
     function udf(__row__) {{
-    {unpacking_code}
-      return ({expression});
+      with (__row__) {{
+        return ({expression});
+      }}
     }}
     """
     user_entrypoint = 'udf'
