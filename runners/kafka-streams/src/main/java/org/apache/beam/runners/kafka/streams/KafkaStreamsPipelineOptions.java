@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.Validation;
 
 /** Pipeline options for the Kafka Streams runner. */
 public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
@@ -35,8 +36,9 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   @Description(
       "Kafka Streams application.id (must be unique for each distinct topology using the same "
-          + "input topics in a Kafka cluster).")
-  @Default.String("beam-kafka-streams-runner")
+          + "input topics in a Kafka cluster). Must be specified explicitly: a shared default "
+          + "would let concurrent jobs collide on the same Kafka Streams consumer group.")
+  @Validation.Required
   String getApplicationId();
 
   void setApplicationId(String applicationId);

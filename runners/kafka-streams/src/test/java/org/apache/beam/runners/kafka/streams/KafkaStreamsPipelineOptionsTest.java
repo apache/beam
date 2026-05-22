@@ -21,8 +21,10 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.junit.Test;
 
 /** Tests for {@link KafkaStreamsPipelineOptions}. */
@@ -31,15 +33,27 @@ public class KafkaStreamsPipelineOptionsTest {
   @Test
   public void testDefaultValues() {
     KafkaStreamsPipelineOptions options =
-        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+        PipelineOptionsFactory.fromArgs("--applicationId=test-app")
+            .as(KafkaStreamsPipelineOptions.class);
 
     assertThat(options.getBootstrapServers(), is("localhost:9092"));
-    assertThat(options.getApplicationId(), is("beam-kafka-streams-runner"));
     assertThat(options.getMaxBundleSize(), is(1000));
     assertThat(options.getMaxBundleTimeMs(), is(1000));
     assertThat(options.getStateDir(), is(notNullValue()));
     assertThat(options.getStateDir(), containsString("beam-kafka-streams-state"));
     assertThat(options.getStateDir(), containsString(options.getJobName()));
+  }
+
+  @Test
+  public void testApplicationIdIsRequired() {
+    KafkaStreamsPipelineOptions options =
+        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> PipelineOptionsValidator.validate(KafkaStreamsPipelineOptions.class, options));
+    assertThat(ex.getMessage(), containsString("getApplicationId"));
   }
 
   @Test
@@ -63,9 +77,11 @@ public class KafkaStreamsPipelineOptionsTest {
   @Test
   public void testStateDirIsolatesByJobName() {
     KafkaStreamsPipelineOptions optionsA =
-        PipelineOptionsFactory.fromArgs("--jobName=job-a").as(KafkaStreamsPipelineOptions.class);
+        PipelineOptionsFactory.fromArgs("--jobName=job-a", "--applicationId=app-a")
+            .as(KafkaStreamsPipelineOptions.class);
     KafkaStreamsPipelineOptions optionsB =
-        PipelineOptionsFactory.fromArgs("--jobName=job-b").as(KafkaStreamsPipelineOptions.class);
+        PipelineOptionsFactory.fromArgs("--jobName=job-b", "--applicationId=app-b")
+            .as(KafkaStreamsPipelineOptions.class);
 
     assertThat(optionsA.getStateDir(), containsString("job-a"));
     assertThat(optionsB.getStateDir(), containsString("job-b"));

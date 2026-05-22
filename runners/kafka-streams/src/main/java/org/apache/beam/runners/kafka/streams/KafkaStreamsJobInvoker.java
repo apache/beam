@@ -23,7 +23,6 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.runners.jobsubmission.JobInvoker;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -68,7 +67,6 @@ public class KafkaStreamsJobInvoker extends JobInvoker {
         String.format("%s_%s", kafkaStreamsOptions.getJobName(), UUID.randomUUID().toString());
 
     PortablePipelineRunner pipelineRunner = new KafkaStreamsPipelineRunner(kafkaStreamsOptions);
-    clearRunner(kafkaStreamsOptions);
 
     LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(
@@ -94,16 +92,5 @@ public class KafkaStreamsJobInvoker extends JobInvoker {
             Strings.nullToEmpty(retrievalToken),
             PipelineOptionsTranslation.toProto(kafkaStreamsOptions));
     return new JobInvocation(jobInfo, executorService, pipeline, pipelineRunner);
-  }
-
-  /**
-   * Clears the runner class on the pipeline options before serialization. The Beam {@link
-   * PipelineOptions#setRunner} API accepts {@code null} to clear the runner — this mirrors the same
-   * pattern used by Flink/Spark portable runners so the runner class is not required on the SDK
-   * harness classpath.
-   */
-  @SuppressWarnings("nullness")
-  private static void clearRunner(PipelineOptions options) {
-    options.setRunner(null);
   }
 }
