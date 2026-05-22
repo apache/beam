@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.solace.read;
 
 import java.util.Objects;
-import java.util.UUID;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -63,8 +62,7 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       LOG.warn("SolaceIO.Read: Checkpoint has no reader UUID, cannot finalize.");
       return;
     }
-    UUID uuid = UUID.fromString(readerUuid);
-    UnboundedSolaceReader<?> reader = ActiveReadersRegistry.get(uuid);
+    UnboundedSolaceReader<?> reader = ActiveReadersRegistry.get(readerUuid);
     if (reader != null) {
       reader.finalizeCheckpoint(checkpointId);
     } else {

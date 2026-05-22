@@ -59,7 +59,8 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final UnboundedSolaceSource<T> currentSource;
   private final WatermarkPolicy<T> watermarkPolicy;
   private final SempClient sempClient;
-  final UUID readerUuid;
+  final String readerUuid;
+  private final Object lock = new Object();
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
@@ -78,7 +79,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
    */
   private final Queue<BytesXMLMessage> receivedMessages = new ArrayDeque<>();
 
-  private static final Cache<UUID, SessionService> sessionServiceCache;
+  private static final Cache<String, SessionService> sessionServiceCache;
   private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
 
   static {
@@ -87,7 +88,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
         CacheBuilder.newBuilder()
             .expireAfterAccess(cacheExpirationTimeout)
             .removalListener(
-                (RemovalNotification<UUID, SessionService> notification) -> {
+                (RemovalNotification<String, SessionService> notification) -> {
                   LOG.info(
                       "SolaceIO.Read: Closing session for the reader with uuid {} as it has been idle for over {}.",
                       notification.getKey(),
@@ -114,7 +115,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
             currentSource.getTimestampFn(), currentSource.getWatermarkIdleDurationThreshold());
     this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
-    this.readerUuid = UUID.randomUUID();
+    this.readerUuid = UUID.randomUUID().toString();
   }
 
   private SessionService getSessionService() {
@@ -155,7 +156,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    synchronized (this) {
+    synchronized (lock) {
       receivedMessages.add(receivedXmlMessage);
     }
 
@@ -168,10 +169,10 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     ActiveReadersRegistry.unregister(readerUuid);
   }
 
-  public void finalizeCheckpoint(long checkpointId) {
+  void finalizeCheckpoint(long checkpointId) {
     List<BytesXMLMessage> messagesToAck = new ArrayList<>();
 
-    synchronized (this) {
+    synchronized (lock) {
       SortedMap<Long, List<BytesXMLMessage>> toAck = pendingCheckpoints.headMap(checkpointId, true);
       for (List<BytesXMLMessage> msgs : toAck.values()) {
         messagesToAck.addAll(msgs);
@@ -183,7 +184,11 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       try {
         msg.ackMessage();
       } catch (IllegalStateException e) {
-        LOG.warn("SolaceIO.Read: Failed to ack message, session might be closed.", e);
+        LOG.warn(
+            "SolaceIO.Read: Failed to acknowledge message with applicationMessageId={}, ackMessageId={}. Session might be closed.",
+            msg.getApplicationMessageId(),
+            msg.getAckMessageId(),
+            e);
       }
     }
   }
@@ -201,13 +206,13 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   public UnboundedSource.CheckpointMark getCheckpointMark() {
     long checkpointId;
     ImmutableList<BytesXMLMessage> messages;
-    synchronized (this) {
+    synchronized (lock) {
       checkpointId = nextCheckpointId++;
       messages = ImmutableList.copyOf(receivedMessages);
       receivedMessages.clear();
       pendingCheckpoints.put(checkpointId, messages);
     }
-    return new SolaceCheckpointMark(readerUuid.toString(), checkpointId);
+    return new SolaceCheckpointMark(readerUuid, checkpointId);
   }
 
   @Override

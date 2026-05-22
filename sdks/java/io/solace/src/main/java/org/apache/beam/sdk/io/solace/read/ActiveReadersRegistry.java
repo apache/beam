@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import java.lang.ref.WeakReference;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -30,19 +29,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * reader and perform sequential acknowledgments.
  */
 class ActiveReadersRegistry {
-  private static final ConcurrentHashMap<UUID, WeakReference<UnboundedSolaceReader<?>>> registry =
-      new ConcurrentHashMap<>();
+  private static final Cache<String, UnboundedSolaceReader<?>> registry =
+      CacheBuilder.newBuilder().weakValues().build();
 
-  public static void register(UUID uuid, UnboundedSolaceReader<?> reader) {
-    registry.put(uuid, new WeakReference<>(reader));
+  public static void register(String uuid, UnboundedSolaceReader<?> reader) {
+    registry.put(uuid, reader);
   }
 
-  public static void unregister(UUID uuid) {
-    registry.remove(uuid);
+  public static void unregister(String uuid) {
+    registry.invalidate(uuid);
   }
 
-  public static @Nullable UnboundedSolaceReader<?> get(UUID uuid) {
-    WeakReference<UnboundedSolaceReader<?>> ref = registry.get(uuid);
-    return ref != null ? ref.get() : null;
+  public static @Nullable UnboundedSolaceReader<?> get(String uuid) {
+    return registry.getIfPresent(uuid);
   }
 }
