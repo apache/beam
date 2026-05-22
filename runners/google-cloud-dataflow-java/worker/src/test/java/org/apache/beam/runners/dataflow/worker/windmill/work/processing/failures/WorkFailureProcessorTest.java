@@ -33,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
@@ -98,7 +99,10 @@ public class WorkFailureProcessorTest {
                 mock(HeartbeatSender.class)),
             false,
             clock),
-        processWorkFn);
+        work -> {
+          processWorkFn.accept(work);
+          return WorkResult.create(1, work.getSerializedWorkItemSize());
+        });
   }
 
   private static ExecutableWork createWork(Consumer<Work> processWorkFn) {

@@ -24,6 +24,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 
@@ -38,7 +40,7 @@ public class BoundedQueueExecutor {
 
   // Used to guard elementsOutstanding and bytesOutstanding.
   private final Monitor monitor;
-  private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
+  private final ConcurrentLinkedQueue<WorkResult> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
   private final AtomicBoolean isDecrementBatchPending = new AtomicBoolean(false);
   private int elementsOutstanding = 0;
@@ -106,7 +108,7 @@ public class BoundedQueueExecutor {
 
   // Before adding a Work to the queue, check that there are enough bytes of space or no other
   // outstanding elements of work.
-  public void execute(Runnable work, long workBytes) {
+  public void execute(ExecutableWork work, long workBytes) {
     monitor.enterWhenUninterruptibly(
         new Guard(monitor) {
           @Override
@@ -119,10 +121,15 @@ public class BoundedQueueExecutor {
     executeMonitorHeld(work, workBytes);
   }
 
-  // Forcibly add something to the queue, ignoring the length limit.
-  public void forceExecute(Runnable work, long workBytes) {
+  public void forceExecute(ExecutableWork work, long workBytes) {
     monitor.enter();
     executeMonitorHeld(work, workBytes);
+  }
+
+  /** Forcibly execute a Runnable callback with 0 bytes of size. */
+  public void forceExecute(Runnable work) {
+    monitor.enter();
+    executeMonitorHeld(work);
   }
 
   // Set the maximum/core pool size of the executor.
@@ -221,8 +228,24 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private void executeMonitorHeld(Runnable work, long workBytes) {
+  private void executeMonitorHeld(ExecutableWork work, long workBytes) {
     bytesOutstanding += workBytes;
+    ++elementsOutstanding;
+    monitor.leave();
+
+    executor.execute(
+        () -> {
+          // Any execution exception thrown by work.run() propagates uncaught, triggering
+          // the default JVM UncaughtExceptionHandler which immediately crashes/terminates
+          // the JVM. Since the process exits immediately, reclaiming resource budgets in
+          // this JVM is unnecessary. Furthermore, since a failed execution does not return
+          // a WorkResult, we do not have a good/accurate fallback value to decrement.
+          WorkResult result = work.run();
+          decrementCounters(result);
+        });
+  }
+
+  private void executeMonitorHeld(Runnable work) {
     ++elementsOutstanding;
     monitor.leave();
 
@@ -232,21 +255,27 @@ public class BoundedQueueExecutor {
             try {
               work.run();
             } finally {
-              decrementCounters(workBytes);
+              // Commit finalizer callbacks catch and swallow all exceptions downstream
+              // to keep the worker alive (so the JVM does not crash). Therefore, to
+              // prevent elements outstanding capacity leaks under swallowed failures,
+              // we must guarantee decrementing element counts in the finally block.
+              decrementCounters(WorkResult.create(1, 0L));
             }
           });
-    } catch (RuntimeException e) {
-      // If the execute() call threw an exception, decrement counters here.
-      decrementCounters(workBytes);
-      throw e;
+    } catch (Throwable e) {
+      // Since finalizer rejections are caught and swallowed downstream, we must
+      // decrement elements outstanding immediately on task submission failure to
+      // prevent permanent capacity leaks in the running JVM.
+      decrementCounters(WorkResult.create(1, 0L));
+      throw ExceptionUtils.propagate(e);
     }
   }
 
-  private void decrementCounters(long workBytes) {
+  private void decrementCounters(WorkResult result) {
     // All threads queue decrements and one thread grabs the monitor and updates
     // counters. We do this to reduce contention on monitor which is locked by
     // GetWork thread
-    decrementQueue.add(workBytes);
+    decrementQueue.add(result);
     boolean submittedToExistingBatch = isDecrementBatchPending.getAndSet(true);
     if (submittedToExistingBatch) {
       // There is already a thread about to drain the decrement queue
@@ -265,12 +294,12 @@ public class BoundedQueueExecutor {
       long bytesToDecrement = 0;
       int elementsToDecrement = 0;
       while (true) {
-        Long pollResult = decrementQueue.poll();
+        WorkResult pollResult = decrementQueue.poll();
         if (pollResult == null) {
           break;
         }
-        bytesToDecrement += pollResult;
-        ++elementsToDecrement;
+        bytesToDecrement += pollResult.bytesProcessed();
+        elementsToDecrement += pollResult.itemsProcessed();
       }
       if (elementsToDecrement == 0) {
         return;

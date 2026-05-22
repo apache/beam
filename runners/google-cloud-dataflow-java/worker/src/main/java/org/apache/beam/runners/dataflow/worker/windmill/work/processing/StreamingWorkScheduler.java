@@ -42,11 +42,13 @@ import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeExcept
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -233,15 +235,15 @@ public class StreamingWorkScheduler {
    *
    * @implNote This will block the calling thread during execution of user DoFns.
    */
-  private void processWork(
+  private WorkResult processWork(
       ComputationState computationState,
       Work work,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    processWork(computationState, work);
+    return processWork(computationState, work);
   }
 
-  private void processWork(ComputationState computationState, Work work) {
+  private WorkResult processWork(ComputationState computationState, Work work) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
@@ -258,7 +260,7 @@ public class StreamingWorkScheduler {
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
       work.setState(Work.State.COMMIT_QUEUED);
       work.queueCommit(outputBuilder.build(), computationState);
-      return;
+      return WorkResult.create(1, work.getSerializedWorkItemSize());
     }
 
     long processingStartTimeNanos = System.nanoTime();
@@ -284,6 +286,7 @@ public class StreamingWorkScheduler {
       work.queueCommit(validatedCommitRequest, computationState);
       recordProcessingStats(commitRequest, workItem, executeWorkResult);
       LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
+      return WorkResult.create(1, work.getSerializedWorkItemSize());
     } catch (Throwable t) {
       // OutOfMemoryError that are caught will be rethrown and trigger jvm termination.
       try {
@@ -294,10 +297,14 @@ public class StreamingWorkScheduler {
             invalidWork ->
                 computationState.completeWorkAndScheduleNextWorkForKey(
                     invalidWork.getShardedKey(), invalidWork.id()));
+        // Failure successfully processed/invalidated/rescheduled. Return failure WorkResult to
+        // release budget cleanly.
+        return WorkResult.create(1, work.getSerializedWorkItemSize());
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t2) {
-        throw new RuntimeException(t2);
+        LOG.warn("Failed to process work failure safely for work {}", work.id(), t2);
+        throw ExceptionUtils.propagate(t2);
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that

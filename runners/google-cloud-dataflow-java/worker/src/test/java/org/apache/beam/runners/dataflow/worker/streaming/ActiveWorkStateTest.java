@@ -73,7 +73,7 @@ public class ActiveWorkStateTest {
             createWorkProcessingContext(),
             false,
             Instant::now),
-        ignored -> {});
+        work -> WorkResult.create(1, work.getSerializedWorkItemSize()));
   }
 
   private static ExecutableWork expiredWork(Windmill.WorkItem workItem) {
@@ -85,7 +85,7 @@ public class ActiveWorkStateTest {
             createWorkProcessingContext(),
             false,
             () -> Instant.EPOCH),
-        ignored -> {});
+        work -> WorkResult.create(1, work.getSerializedWorkItemSize()));
   }
 
   private static Work.ProcessingContext createWorkProcessingContext() {

@@ -18,35 +18,15 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
-import java.util.function.Function;
-import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
-/** {@link Work} instance and a processing function used to process the work. */
+/** The result of executing an {@link ExecutableWork}. */
 @AutoValue
-public abstract class ExecutableWork {
-
-  public static ExecutableWork create(Work work, Function<Work, WorkResult> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
+public abstract class WorkResult {
+  public static WorkResult create(int itemsProcessed, long bytesProcessed) {
+    return new AutoValue_WorkResult(itemsProcessed, bytesProcessed);
   }
 
-  public abstract Work work();
+  public abstract int itemsProcessed();
 
-  public abstract Function<Work, WorkResult> executeWorkFn();
-
-  public WorkResult run() {
-    try {
-      return executeWorkFn().apply(work());
-    } catch (Throwable t) {
-      throw ExceptionUtils.propagate(t);
-    }
-  }
-
-  public final WorkId id() {
-    return work().id();
-  }
-
-  public final Windmill.WorkItem getWorkItem() {
-    return work().getWorkItem();
-  }
+  public abstract long bytesProcessed();
 }

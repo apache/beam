@@ -106,6 +106,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandleImpl;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.FanOutStreamingEngineWorkerHarness;
@@ -373,7 +374,10 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        processWorkFn);
+        work -> {
+          processWorkFn.accept(work);
+          return WorkResult.create(1, work.getSerializedWorkItemSize());
+        });
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
