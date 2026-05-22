@@ -26,13 +26,14 @@ import static org.mockito.Mockito.mock;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.BoundedQueueExecutorWorkHandleImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -86,9 +87,8 @@ public class BoundedQueueExecutorTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        work -> {
+        (work, handle) -> {
           executeWorkFn.accept(work);
-          return WorkResult.create(1, work.getSerializedWorkItemSize());
         });
   }
 
@@ -385,6 +385,145 @@ public class BoundedQueueExecutorTest {
     }
 
     assertEquals(0, executor.elementsOutstanding());
+  }
+
+  @Test
+  public void testPollWorkAndInlineBatchExecution() throws Exception {
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            1,
+            DEFAULT_THREAD_EXPIRATION_SEC,
+            TimeUnit.SECONDS,
+            10,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("testPollWorkAndInlineBatchExecution-%d")
+                .setDaemon(true)
+                .build(),
+            useFairMonitor);
+
+    CountDownLatch blockerStart = new CountDownLatch(1);
+    CountDownLatch blockerStop = new CountDownLatch(1);
+    ExecutableWork blockerWork = createSleepProcessWork(blockerStart, blockerStop);
+
+    CountDownLatch start1 = new CountDownLatch(1);
+    CountDownLatch stop1 = new CountDownLatch(1);
+    ExecutableWork m1 = createSleepProcessWork(start1, stop1);
+
+    CountDownLatch start2 = new CountDownLatch(1);
+    CountDownLatch stop2 = new CountDownLatch(1);
+    ExecutableWork m2 = createSleepProcessWork(start2, stop2);
+
+    // 1. Occupy the single worker thread with blocker work so subsequent tasks remain queued.
+    testExecutor.execute(blockerWork, 0);
+    blockerStart.await();
+    assertEquals(1, testExecutor.elementsOutstanding());
+    assertEquals(0, testExecutor.bytesOutstanding());
+
+    // 2. Enqueue tasks to stay in the queue.
+    testExecutor.execute(m1, 1000);
+    testExecutor.execute(m2, 2000);
+
+    assertEquals(3, testExecutor.elementsOutstanding());
+    assertEquals(3000, testExecutor.bytesOutstanding());
+
+    // 3. Create the batch handle.
+    try (BoundedQueueExecutorWorkHandleImpl batchHandle = testExecutor.createEmptyBudgetHandle()) {
+      // 4. Poll tasks inline.
+      Optional<ExecutableWork> polled1 = testExecutor.pollWork(batchHandle);
+      assertTrue(polled1.isPresent());
+      assertEquals(m1, polled1.get());
+
+      Optional<ExecutableWork> polled2 = testExecutor.pollWork(batchHandle);
+      assertTrue(polled2.isPresent());
+      assertEquals(m2, polled2.get());
+
+      // Queue should now be empty.
+      Optional<ExecutableWork> polled3 = testExecutor.pollWork(batchHandle);
+      assertFalse(polled3.isPresent());
+
+      // 5. Run polled tasks inline.
+      start1.countDown();
+      stop1.countDown();
+      polled1.get().run(batchHandle);
+
+      start2.countDown();
+      stop2.countDown();
+      polled2.get().run(batchHandle);
+
+      // Outstanding counts should NOT yet be decremented.
+      assertEquals(3, testExecutor.elementsOutstanding());
+      assertEquals(3000, testExecutor.bytesOutstanding());
+    }
+
+    // 6. Upon close, outstanding counts should immediately reflect the batch decrement in one shot.
+    // Only the blocker task (0 bytes, 1 element) should remain outstanding.
+    while (testExecutor.elementsOutstanding() != 1) {
+      Thread.sleep(10);
+    }
+    assertEquals(1, testExecutor.elementsOutstanding());
+    assertEquals(0, testExecutor.bytesOutstanding());
+
+    // Clean up blocker.
+    blockerStop.countDown();
+    testExecutor.shutdown();
+  }
+
+  @Test
+  public void testPollWorkAndInlineBatchExecutionWithException() throws Exception {
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            1,
+            DEFAULT_THREAD_EXPIRATION_SEC,
+            TimeUnit.SECONDS,
+            10,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("testPollWorkAndInlineBatchExecutionWithException-%d")
+                .setDaemon(true)
+                .build(),
+            useFairMonitor);
+
+    CountDownLatch blockerStart = new CountDownLatch(1);
+    CountDownLatch blockerStop = new CountDownLatch(1);
+    ExecutableWork blockerWork = createSleepProcessWork(blockerStart, blockerStop);
+
+    // Occupy all worker threads
+    testExecutor.execute(blockerWork, 0);
+    blockerStart.await();
+
+    ExecutableWork inlineWork1 =
+        createWork(
+            ignored -> {
+              throw new RuntimeException("Simulated inline execution exception");
+            });
+
+    long size1 = inlineWork1.work().getSerializedWorkItemSize();
+    testExecutor.execute(inlineWork1, size1);
+
+    long outstandingBytesBefore = testExecutor.bytesOutstanding();
+    int outstandingElementsBefore = testExecutor.elementsOutstanding();
+
+    try {
+      try (BoundedQueueExecutorWorkHandleImpl batchHandle =
+          testExecutor.createEmptyBudgetHandle()) {
+        Optional<ExecutableWork> polled1 = testExecutor.pollWork(batchHandle);
+        assertTrue(polled1.isPresent());
+        polled1.get().run(batchHandle);
+      }
+    } catch (RuntimeException e) {
+      assertEquals("Simulated inline execution exception", e.getMessage());
+    }
+
+    // Outstanding elements must still be released cleanly by try-with-resources close!
+    while (testExecutor.elementsOutstanding() != outstandingElementsBefore - 1) {
+      Thread.sleep(10);
+    }
+    assertEquals(outstandingElementsBefore - 1, testExecutor.elementsOutstanding());
+    assertEquals(outstandingBytesBefore - size1, testExecutor.bytesOutstanding());
+
+    blockerStop.countDown();
+    testExecutor.shutdown();
   }
 
   @Test

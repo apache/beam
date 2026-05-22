@@ -77,7 +77,7 @@ public class ComputationStateCacheTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        work -> WorkResult.create(1, work.getSerializedWorkItemSize()));
+        (work, handle) -> {});
   }
 
   @Before

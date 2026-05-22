@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
-import java.util.function.Function;
+import java.util.function.BiConsumer;
 import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
@@ -26,17 +26,18 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 @AutoValue
 public abstract class ExecutableWork {
 
-  public static ExecutableWork create(Work work, Function<Work, WorkResult> executeWorkFn) {
+  public static ExecutableWork create(
+      Work work, BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
     return new AutoValue_ExecutableWork(work, executeWorkFn);
   }
 
   public abstract Work work();
 
-  public abstract Function<Work, WorkResult> executeWorkFn();
+  public abstract BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn();
 
-  public WorkResult run() {
+  public void run(BoundedQueueExecutorWorkHandle handle) {
     try {
-      return executeWorkFn().apply(work());
+      executeWorkFn().accept(work(), handle);
     } catch (Throwable t) {
       throw ExceptionUtils.propagate(t);
     }

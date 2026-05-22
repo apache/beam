@@ -17,16 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import com.google.auto.value.AutoValue;
-
-/** The result of executing an {@link ExecutableWork}. */
-@AutoValue
-public abstract class WorkResult {
-  public static WorkResult create(int itemsProcessed, long bytesProcessed) {
-    return new AutoValue_WorkResult(itemsProcessed, bytesProcessed);
-  }
-
-  public abstract int itemsProcessed();
-
-  public abstract long bytesProcessed();
-}
+/**
+ * A handle to use when requesting pulling more work from @BoundedQueueExecutor
+ * via @BoundedQueueExecutor.pollWork
+ */
+public interface BoundedQueueExecutorWorkHandle {}

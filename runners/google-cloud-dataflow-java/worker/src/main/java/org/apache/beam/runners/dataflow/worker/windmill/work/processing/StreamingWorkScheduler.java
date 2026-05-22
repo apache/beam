@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
@@ -42,7 +43,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeExcept
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.WorkResult;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -220,7 +220,7 @@ public class StreamingWorkScheduler {
         ExecutableWork.create(
             Work.create(
                 workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock),
-            work -> processWork(computationState, work, getWorkStreamLatencies)));
+            (work, handle) -> processWork(computationState, work, getWorkStreamLatencies, handle)));
   }
 
   /** Adds any applied finalize ids to the commit finalizer to have their callbacks executed. */
@@ -234,16 +234,19 @@ public class StreamingWorkScheduler {
    * internally if processing fails due to uncaught {@link Exception}(s).
    *
    * @implNote This will block the calling thread during execution of user DoFns.
+   * @param handle handled to pass to BoundedQueueExecutor.pollWork, currently unused
    */
-  private WorkResult processWork(
+  private void processWork(
       ComputationState computationState,
       Work work,
-      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies,
+      BoundedQueueExecutorWorkHandle handle) {
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    return processWork(computationState, work);
+    processWork(computationState, work, handle);
   }
 
-  private WorkResult processWork(ComputationState computationState, Work work) {
+  private void processWork(
+      ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle unusedHandle) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
@@ -260,7 +263,7 @@ public class StreamingWorkScheduler {
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
       work.setState(Work.State.COMMIT_QUEUED);
       work.queueCommit(outputBuilder.build(), computationState);
-      return WorkResult.create(1, work.getSerializedWorkItemSize());
+      return;
     }
 
     long processingStartTimeNanos = System.nanoTime();
@@ -286,20 +289,16 @@ public class StreamingWorkScheduler {
       work.queueCommit(validatedCommitRequest, computationState);
       recordProcessingStats(commitRequest, workItem, executeWorkResult);
       LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
-      return WorkResult.create(1, work.getSerializedWorkItemSize());
     } catch (Throwable t) {
       // OutOfMemoryError that are caught will be rethrown and trigger jvm termination.
       try {
         workFailureProcessor.logAndProcessFailure(
             computationId,
-            ExecutableWork.create(work, retry -> processWork(computationState, retry)),
+            ExecutableWork.create(work, (retry, h) -> processWork(computationState, retry, h)),
             t,
             invalidWork ->
                 computationState.completeWorkAndScheduleNextWorkForKey(
                     invalidWork.getShardedKey(), invalidWork.id()));
-        // Failure successfully processed/invalidated/rescheduled. Return failure WorkResult to
-        // release budget cleanly.
-        return WorkResult.create(1, work.getSerializedWorkItemSize());
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t2) {
