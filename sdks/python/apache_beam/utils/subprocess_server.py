@@ -208,7 +208,7 @@ class SubprocessServer(object):
         # Default: 0 (disabled), enable socket reuse for better handling
         ("grpc.so_reuseport", 1),
     ]
-    
+
     retry_intervals = iter(
         FuzzedExponentialIntervals(
             initial_delay_secs=1.0,
@@ -216,16 +216,17 @@ class SubprocessServer(object):
             factor=2,
             fuzz=0.5,
             max_delay_secs=8.0))
-    
+
     for attempt in range(max_attempts):
       attempt_budget = 300.0  # 5 minutes max wait time per attempt
       attempt_start_time = time.time()
-      
+
       process = None
       try:
         process, endpoint = self.start_process()
-        _LOGGER.info("SubprocessServer: start_process returned endpoint: %s", endpoint)
-        
+        _LOGGER.info(
+            "SubprocessServer: start_process returned endpoint: %s", endpoint)
+
         # Initialize heartbeat metrics
         now = time.time()
         if process:
@@ -248,39 +249,49 @@ class SubprocessServer(object):
             _LOGGER.error("Started job service with %s", process.args)
             raise RuntimeError(
                 'Service failed to start up with error %s' % process.poll())
-          
+
           now = time.time()
-          
+
           # Attempt budget check
           elapsed = now - attempt_start_time
           if elapsed >= attempt_budget:
             raise TimeoutError(
-                f"Timed out after 5 minutes waiting for grpc channel to be ready at {endpoint}")
+                f"Timed out after 5 minutes waiting for grpc channel to be ready at {endpoint}"
+            )
 
           # Check CPU time every 5 seconds to update heartbeat
           if now - last_cpu_check_time >= 5.0:
-            current_cpu_time = _get_process_cpu_time(process.pid) if process else None
+            current_cpu_time = _get_process_cpu_time(
+                process.pid) if process else None
             if current_cpu_time is not None and last_cpu_time is not None:
-              total_wait = now - getattr(process, '_start_time', attempt_start_time)
+              total_wait = now - getattr(
+                  process, '_start_time', attempt_start_time)
               if current_cpu_time != last_cpu_time:
                 if process:
                   process._last_heartbeat_time = now
                 _LOGGER.info(
                     "SubprocessServer: cpu time change (%s -> %s), heartbeat updated (silence/total: 0.0s/%.1fs).",
-                    last_cpu_time, current_cpu_time, total_wait)
+                    last_cpu_time,
+                    current_cpu_time,
+                    total_wait)
                 last_cpu_time = current_cpu_time
               else:
                 _LOGGER.info(
                     "SubprocessServer: cpu time check (%s), heartbeat holds (silence/total: %.1fs/%.1fs).",
-                    current_cpu_time, now - getattr(process, '_last_heartbeat_time', attempt_start_time), total_wait)
+                    current_cpu_time,
+                    now - getattr(
+                        process, '_last_heartbeat_time', attempt_start_time),
+                    total_wait)
             last_cpu_check_time = now
 
           # Check heartbeat silence duration
-          last_heartbeat = getattr(process, '_last_heartbeat_time', attempt_start_time)
+          last_heartbeat = getattr(
+              process, '_last_heartbeat_time', attempt_start_time)
           silence_duration = now - last_heartbeat
           if silence_duration > 120.0:  # 2 minutes silence timeout
             raise TimeoutError(
-                f"Subprocess went silent for {silence_duration:.1f}s (no CPU or stdout/stderr progress) at {endpoint}")
+                f"Subprocess went silent for {silence_duration:.1f}s (no CPU or stdout/stderr progress) at {endpoint}"
+            )
 
           try:
             current_timeout = min(wait_secs, attempt_budget - elapsed)
@@ -320,13 +331,13 @@ class SubprocessServer(object):
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
     endpoint = 'localhost:%s' % port
     _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
-    
+
     # Use unbuffered python I/O for real-time stdout log capture
     env = {**os.environ, 'PYTHONUNBUFFERED': '1'}
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
     process._start_time = time.time()
- 
+
     # Emit the output of this command as info level logging.
     def log_stdout():
       line = process.stdout.readline()
@@ -699,7 +710,9 @@ def is_service_endpoint(path):
 def _get_process_cpu_time(pid):
   try:
     import subprocess
-    output = subprocess.check_output(['ps', '-p', str(pid), '-o', 'time='], stderr=subprocess.DEVNULL).decode().strip()
+    output = subprocess.check_output(
+        ['ps', '-p', str(pid), '-o', 'time='],
+        stderr=subprocess.DEVNULL).decode().strip()
     parts = output.split(':')
     if len(parts) == 2:  # MM:SS.hh
       return float(parts[0]) * 60 + float(parts[1])
