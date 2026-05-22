@@ -438,6 +438,12 @@ class YamlUDFMappingTest(unittest.TestCase):
             expression: "b + '_world'"
           dt_out:
             expression: "dt"
+          dt_year:
+            expression: "dt.getFullYear()"
+          dt_month:
+            expression: "dt.getMonth() + 1"
+          dt_date:
+            expression: "dt.getDate()"
           dec_out:
             expression: "dec * 2"
       ''')
@@ -446,7 +452,10 @@ class YamlUDFMappingTest(unittest.TestCase):
           equal_to([
               beam.Row(
                   b_out='hello_world',
-                  dt_out='2026-05-14T12:00:00',
+                  dt_out='2026-05-14T12:00:00.000Z',
+                  dt_year=2026,
+                  dt_month=5,
+                  dt_date=14,
                   dec_out=21.0),
           ]))
 

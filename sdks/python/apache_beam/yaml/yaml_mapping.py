@@ -215,7 +215,7 @@ def py_value_to_js_dict(py_value):
   elif isinstance(py_value, bytes):
     return py_value.decode('utf-8', errors='strict')
   elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
-    return py_value.isoformat()
+    return {'__date__': True, 'value': py_value.isoformat()}
   elif isinstance(py_value, Decimal):
     # Coerce Decimal to float since JavaScript's standard number type is a
     # 64-bit float. Note that this can cause a loss of precision for
@@ -248,20 +248,40 @@ def _expand_javascript_mapping_func(
       return ({expression});
     }}
     """
-    entrypoint = 'udf'
+    user_entrypoint = 'udf'
 
   elif callable:
     source_code = f"var __udf__ = ({callable});"
-    entrypoint = '__udf__'
+    user_entrypoint = '__udf__'
 
   else:
     if not path.endswith('.js'):
       raise ValueError(f'File "{path}" is not a valid .js file.')
     udf_code = FileSystems.open(path).read().decode()
     source_code = udf_code
-    entrypoint = name
+    user_entrypoint = name
 
-  return _JsFunctionWrapper(source_code, entrypoint)
+  source_code += f"""
+  function __convert_dates__(obj) {{
+    if (obj && typeof obj === 'object') {{
+      if (obj.__date__) {{
+        return new Date(obj.value);
+      }}
+      for (var key in obj) {{
+        if (obj.hasOwnProperty(key)) {{
+          obj[key] = __convert_dates__(obj[key]);
+        }}
+      }}
+    }}
+    return obj;
+  }}
+
+  function __wrapper__(row) {{
+    return {user_entrypoint}(__convert_dates__(row));
+  }}
+  """
+
+  return _JsFunctionWrapper(source_code, '__wrapper__')
 
 
 def _expand_python_mapping_func(
