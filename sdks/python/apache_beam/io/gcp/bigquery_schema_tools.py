@@ -59,15 +59,17 @@ def generate_user_type_from_bq_schema(
     selected_fields: 'bigquery.TableSchema' = None,
     type_overrides=None) -> type:
   """Convert a schema of type TableSchema into a pcollection element.
-      Args:
-        the_table_schema: A BQ schema of type TableSchema
-        selected_fields: if not None, the subset of fields to consider
-        type_overrides: Optional mapping of BigQuery type names (uppercase)
-          to Python types. These override the default mappings in
-          BIG_QUERY_TO_PYTHON_TYPES. For example:
-          ``{'DATE': datetime.date, 'JSON': dict}``
-      Returns:
-        type: type that can be used to work with pCollections.
+
+  Args:
+    the_table_schema: A BQ schema of type TableSchema
+    selected_fields: if not None, the subset of fields to consider
+    type_overrides: Optional mapping of BigQuery type names (uppercase)
+      to Python types. These override the default mappings in
+      BIG_QUERY_TO_PYTHON_TYPES. For example:
+      ``{'DATE': datetime.date, 'JSON': dict}``
+
+  Returns:
+    type: type that can be used to work with pCollections.
   """
   effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **(type_overrides or {})}
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
