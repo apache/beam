@@ -81,7 +81,7 @@ def main(argv):
       raise RuntimeError(
           "Failed to bind expansion service to {}".format(address))
     server.start()
-    _LOGGER.info('Listening for expansion requests at %d', bound_port)
+    _LOGGER.info('Listening for expansion requests at %s', address)
 
     def cleanup(unused_signum, unused_frame):
       _LOGGER.info('Shutting down expansion service.')

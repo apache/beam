@@ -40,6 +40,7 @@ import grpc
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.runners.internal.names import BEAM_SDK_NAME
+from apache_beam.utils.retry import FuzzedExponentialIntervals
 from apache_beam.version import __version__ as beam_version
 
 _LOGGER = logging.getLogger(__name__)
@@ -118,6 +119,12 @@ class _SharedCache:
         self._cache[key].owners.add(owner)
       return self._cache[key].obj
 
+  def force_remove(self, *key):
+    with self._lock:
+      entry = self._cache.pop(key, None)
+    if entry is not None:
+      self._destructor(entry.obj)
+
 
 class JavaHelper:
   @classmethod
@@ -187,24 +194,52 @@ class SubprocessServer(object):
 
   def start(self):
     max_attempts = 3
+    channel_options = [
+        ("grpc.max_receive_message_length", -1),
+        ("grpc.max_send_message_length", -1),
+        # Default: 20000ms (20s), increased to 10 minutes for stability
+        ("grpc.keepalive_timeout_ms", 600_000),
+        # Default: 2, set to 0 to allow unlimited pings without data
+        ("grpc.http2.max_pings_without_data", 0),
+        # Default: False, set to True to allow keepalive pings when no calls
+        ("grpc.keepalive_permit_without_calls", True),
+        # Default: 2, set to 0 to allow unlimited ping strikes
+        ("grpc.http2.max_ping_strikes", 0),
+        # Default: 0 (disabled), enable socket reuse for better handling
+        ("grpc.so_reuseport", 1),
+    ]
+    
+    retry_intervals = iter(
+        FuzzedExponentialIntervals(
+            initial_delay_secs=1.0,
+            num_retries=max_attempts - 1,
+            factor=2,
+            fuzz=0.5,
+            max_delay_secs=8.0))
+    
     for attempt in range(max_attempts):
+      attempt_budget = 300.0  # 5 minutes max wait time per attempt
+      attempt_start_time = time.time()
+      
+      process = None
       try:
         process, endpoint = self.start_process()
+        _LOGGER.info("SubprocessServer: start_process returned endpoint: %s", endpoint)
+        
+        # Initialize heartbeat metrics
+        now = time.time()
+        if process:
+          process._last_heartbeat_time = now
+        last_cpu_time = _get_process_cpu_time(process.pid) if process else None
+        last_cpu_check_time = now
+        # Set the start time on process if not set yet
+        if process and not hasattr(process, '_start_time'):
+          process._start_time = now
+        total_wait = now - getattr(process, '_start_time', attempt_start_time)
+        _LOGGER.info(
+            "SubprocessServer: Heartbeat initialized, heartbeat updated (silence/total: 0.0s/%.1fs).",
+            total_wait)
         wait_secs = .1
-        channel_options = [
-            ("grpc.max_receive_message_length", -1),
-            ("grpc.max_send_message_length", -1),
-            # Default: 20000ms (20s), increased to 10 minutes for stability
-            ("grpc.keepalive_timeout_ms", 600_000),
-            # Default: 2, set to 0 to allow unlimited pings without data
-            ("grpc.http2.max_pings_without_data", 0),
-            # Default: False, set to True to allow keepalive pings when no calls
-            ("grpc.keepalive_permit_without_calls", True),
-            # Default: 2, set to 0 to allow unlimited ping strikes
-            ("grpc.http2.max_ping_strikes", 0),
-            # Default: 0 (disabled), enable socket reuse for better handling
-            ("grpc.so_reuseport", 1),
-        ]
         self._grpc_channel = grpc.insecure_channel(
             endpoint, options=channel_options)
         channel_ready = grpc.channel_ready_future(self._grpc_channel)
@@ -213,8 +248,43 @@ class SubprocessServer(object):
             _LOGGER.error("Started job service with %s", process.args)
             raise RuntimeError(
                 'Service failed to start up with error %s' % process.poll())
+          
+          now = time.time()
+          
+          # Attempt budget check
+          elapsed = now - attempt_start_time
+          if elapsed >= attempt_budget:
+            raise TimeoutError(
+                f"Timed out after 5 minutes waiting for grpc channel to be ready at {endpoint}")
+
+          # Check CPU time every 5 seconds to update heartbeat
+          if now - last_cpu_check_time >= 5.0:
+            current_cpu_time = _get_process_cpu_time(process.pid) if process else None
+            if current_cpu_time is not None and last_cpu_time is not None:
+              total_wait = now - getattr(process, '_start_time', attempt_start_time)
+              if current_cpu_time != last_cpu_time:
+                if process:
+                  process._last_heartbeat_time = now
+                _LOGGER.info(
+                    "SubprocessServer: cpu time change (%s -> %s), heartbeat updated (silence/total: 0.0s/%.1fs).",
+                    last_cpu_time, current_cpu_time, total_wait)
+                last_cpu_time = current_cpu_time
+              else:
+                _LOGGER.info(
+                    "SubprocessServer: cpu time check (%s), heartbeat holds (silence/total: %.1fs/%.1fs).",
+                    current_cpu_time, now - getattr(process, '_last_heartbeat_time', attempt_start_time), total_wait)
+            last_cpu_check_time = now
+
+          # Check heartbeat silence duration
+          last_heartbeat = getattr(process, '_last_heartbeat_time', attempt_start_time)
+          silence_duration = now - last_heartbeat
+          if silence_duration > 120.0:  # 2 minutes silence timeout
+            raise TimeoutError(
+                f"Subprocess went silent for {silence_duration:.1f}s (no CPU or stdout/stderr progress) at {endpoint}")
+
           try:
-            channel_ready.result(timeout=wait_secs)
+            current_timeout = min(wait_secs, attempt_budget - elapsed)
+            channel_ready.result(timeout=current_timeout)
             break
           except (grpc.FutureTimeoutError, grpc.RpcError):
             wait_secs *= 1.2
@@ -222,6 +292,8 @@ class SubprocessServer(object):
                 logging.WARNING if wait_secs > 1 else logging.DEBUG,
                 'Waiting for grpc channel to be ready at %s.',
                 endpoint)
+        if process:
+          process._started = True
         return self._stub_class(self._grpc_channel)
       except Exception as e:
         _LOGGER.warning(
@@ -229,10 +301,12 @@ class SubprocessServer(object):
             attempt + 1,
             e,
             exc_info=True)
-        self.stop()
-        if attempt == max_attempts - 1:
-          raise
-        time.sleep(1)
+        self.stop(force=True)
+        try:
+          backoff_sleep = next(retry_intervals)
+        except StopIteration:
+          raise e
+        time.sleep(backoff_sleep)
 
   def start_process(self):
     if self._owner_id is not None:
@@ -246,13 +320,23 @@ class SubprocessServer(object):
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
     endpoint = 'localhost:%s' % port
     _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
+    
+    # Use unbuffered python I/O for real-time stdout log capture
+    env = {**os.environ, 'PYTHONUNBUFFERED': '1'}
     process = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+    process._start_time = time.time()
+ 
     # Emit the output of this command as info level logging.
     def log_stdout():
       line = process.stdout.readline()
       while line:
+        process._last_heartbeat_time = time.time()
+        total_wait = time.time() - getattr(process, '_start_time', time.time())
+        if not getattr(process, '_started', False):
+          _LOGGER.info(
+              "SubprocessServer: STDOUT/STDERR activity, heartbeat updated (silence/total: 0.0s/%.1fs).",
+              total_wait)
         # The log obtained from stdout is bytes, decode it into string.
         # Remove newline via rstrip() to not print an empty line.
         logger.info(line.decode(errors='backslashreplace').rstrip())
@@ -263,16 +347,22 @@ class SubprocessServer(object):
     t.start()
     return process, endpoint
 
-  def stop(self):
-    self.stop_process()
+  def stop(self, force=False):
+    self.stop_process(force=force)
 
-  def stop_process(self):
-    if self._owner_id is not None:
+  def stop_process(self, force=False):
+    if force:
       try:
-        self._cache.purge(self._owner_id)
+        self._cache.force_remove(tuple(self._cmd), self._port, self._logger)
       finally:
-        # Make sure _owner_id is set to None even if purge fails.
         self._owner_id = None
+    else:
+      if self._owner_id is not None:
+        try:
+          self._cache.purge(self._owner_id)
+        finally:
+          # Make sure _owner_id is set to None even if purge fails.
+          self._owner_id = None
     if self._grpc_channel:
       try:
         self._grpc_channel.close()
@@ -604,6 +694,20 @@ class JavaJarServer(SubprocessServer):
 def is_service_endpoint(path):
   """Checks whether the path conforms to the 'beam_services' PipelineOption."""
   return re.match(r'^[a-zA-Z0-9.-]+:\d+$', path)
+
+
+def _get_process_cpu_time(pid):
+  try:
+    import subprocess
+    output = subprocess.check_output(['ps', '-p', str(pid), '-o', 'time='], stderr=subprocess.DEVNULL).decode().strip()
+    parts = output.split(':')
+    if len(parts) == 2:  # MM:SS.hh
+      return float(parts[0]) * 60 + float(parts[1])
+    elif len(parts) == 3:  # HH:MM:SS
+      return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+    return float(output)
+  except Exception:
+    return None
 
 
 def pick_port(*ports):
