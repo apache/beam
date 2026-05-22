@@ -182,7 +182,7 @@ async def check_workflow_flakiness(workflow):
 
     success_rate = 1.0
     if len(workflow_runs):
-        failed_runs = list(filter(lambda r: r.status == "failure" | r.status == "cancelled", workflow_runs))
+        failed_runs = list(filter(lambda r: r.status == "failure" or r.status == "cancelled", workflow_runs))
         print(f"Number of failed workflow runs: {len(failed_runs)}")
         success_rate -= len(failed_runs) / len(workflow_runs)
 
