@@ -23,14 +23,14 @@ on:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: 
+    paths:
       - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
   pull_request:
     branches: ['master', 'release-*']
     tags: 'v*'
-    paths: 
+    paths:
       - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
@@ -82,7 +82,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
-          go-version: '1.16'
+          go-version: '1.26'
 
       - name: Build Playground router image
         run: ./gradlew -i playground:backend:containers:router:docker
