@@ -732,10 +732,12 @@ class Stager(object):
     # addressed, download wheel based on glibc version in Beam's Python
     # Base image
     pip_version = distribution('pip').version
-    if version.parse(pip_version) >= version.parse('19.3'):
-      # pip can only recognize manylinux2014_x86_64 wheels
-      # from version 19.3.
-      return 'manylinux2014_x86_64'
+    # See more information about manylinux at
+    # https://github.com/pypa/manylinux
+    if version.parse(pip_version) >= version.parse('20.3'):
+      return 'manylinux_2_28_x86_64'
+    elif version.parse(pip_version) >= version.parse('19.3'):
+      return 'manylinux2014'
     else:
       return 'manylinux2010_x86_64'
 
@@ -756,6 +758,9 @@ class Stager(object):
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
+
+      with open(tmp_requirements_filepath, 'r') as f:
+        _LOGGER.info('Content of tmp_requirements_filepath: %s', f.read())
 
       # Download to a temporary directory first, then copy to cache.
       # This allows us to track exactly which packages are needed for this
