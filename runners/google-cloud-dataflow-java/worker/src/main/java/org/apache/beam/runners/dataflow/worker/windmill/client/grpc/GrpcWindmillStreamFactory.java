@@ -117,13 +117,13 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.windmillMessagesBetweenIsReadyChecks = windmillMessagesBetweenIsReadyChecks;
     // Configure backoff to retry calls forever, with a maximum sane retry interval.
-    this.grpcBackOff =
+    Supplier<FluentBackoff> backoffConfig =
         Suppliers.memoize(
             () ->
                 FluentBackoff.DEFAULT
                     .withInitialBackoff(MIN_BACKOFF)
-                    .withMaxBackoff(maxBackOffSupplier.get())
-                    .backoff());
+                    .withMaxBackoff(maxBackOffSupplier.get()));
+    this.grpcBackOff = () -> backoffConfig.get().backoff();
     this.streamRegistry = ConcurrentHashMap.newKeySet();
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
