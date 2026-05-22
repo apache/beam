@@ -100,7 +100,9 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       PipelineOptions options, @Nullable SolaceCheckpointMark checkpointMark) {
     // it makes no sense to resume a Solace Session with the previous checkpoint
     // so don't need the pass a checkpoint to new a Solace Reader
-    return new UnboundedSolaceReader<>(this);
+    UnboundedSolaceReader<T> reader = new UnboundedSolaceReader<>(this);
+    ActiveReadersRegistry.register(reader.readerUuid, reader);
+    return reader;
   }
 
   @Override

@@ -24,10 +24,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,6 +45,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -55,16 +59,18 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final UnboundedSolaceSource<T> currentSource;
   private final WatermarkPolicy<T> watermarkPolicy;
   private final SempClient sempClient;
-  private final UUID readerUuid;
+  final UUID readerUuid;
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
 
   /**
-   * Queue to place advanced messages before {@link #getCheckpointMark()} is called. CAUTION:
-   * Accessed by both reader and checkpointing threads.
+   * Map to track pending checkpoints and their messages. Accessed by both reader
+   * (getCheckpointMark) and finalizer (finalizeCheckpoint) threads.
    */
-  private final Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
+  private final TreeMap<Long, List<BytesXMLMessage>> pendingCheckpoints = new TreeMap<>();
+
+  private long nextCheckpointId = 1;
 
   /**
    * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
@@ -136,8 +142,6 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public boolean advance() {
-    finalizeReadyMessages();
-
     BytesXMLMessage receivedXmlMessage;
     try {
       receivedXmlMessage = getSessionService().getReceiver().receive();
@@ -151,30 +155,35 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    receivedMessages.add(receivedXmlMessage);
+    synchronized (this) {
+      receivedMessages.add(receivedXmlMessage);
+    }
 
     return true;
   }
 
   @Override
   public void close() {
-    finalizeReadyMessages();
     sessionServiceCache.invalidate(readerUuid);
+    ActiveReadersRegistry.unregister(readerUuid);
   }
 
-  public void finalizeReadyMessages() {
-    BytesXMLMessage msg;
-    while ((msg = safeToAckMessages.poll()) != null) {
+  public void finalizeCheckpoint(long checkpointId) {
+    List<BytesXMLMessage> messagesToAck = new ArrayList<>();
+
+    synchronized (this) {
+      SortedMap<Long, List<BytesXMLMessage>> toAck = pendingCheckpoints.headMap(checkpointId, true);
+      for (List<BytesXMLMessage> msgs : toAck.values()) {
+        messagesToAck.addAll(msgs);
+      }
+      toAck.clear();
+    }
+
+    for (BytesXMLMessage msg : messagesToAck) {
       try {
         msg.ackMessage();
       } catch (IllegalStateException e) {
-        LOG.error(
-            "SolaceIO.Read: failed to acknowledge the message with applicationMessageId={}, ackMessageId={}. Returning the message to queue to retry.",
-            msg.getApplicationMessageId(),
-            msg.getAckMessageId(),
-            e);
-        safeToAckMessages.add(msg); // In case the error was transient, might succeed later
-        break; // Commit is only best effort
+        LOG.warn("SolaceIO.Read: Failed to ack message, session might be closed.", e);
       }
     }
   }
@@ -190,9 +199,15 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    safeToAckMessages.addAll(receivedMessages);
-    receivedMessages.clear();
-    return new SolaceCheckpointMark(safeToAckMessages);
+    long checkpointId;
+    ImmutableList<BytesXMLMessage> messages;
+    synchronized (this) {
+      checkpointId = nextCheckpointId++;
+      messages = ImmutableList.copyOf(receivedMessages);
+      receivedMessages.clear();
+      pendingCheckpoints.put(checkpointId, messages);
+    }
+    return new SolaceCheckpointMark(readerUuid.toString(), checkpointId);
   }
 
   @Override
