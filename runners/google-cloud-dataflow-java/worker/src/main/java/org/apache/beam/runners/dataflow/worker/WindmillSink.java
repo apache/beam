@@ -226,6 +226,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
                   data.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
                       ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
                       : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+              .setValueKind(WindmillValueKindHelper.toProto(data.getValueKind()))
               .build();
       ByteString metadata =
           encodeMetadata(

@@ -52,6 +52,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -198,6 +199,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           @Override
           public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
             return processContext.causedByDrain();
+          }
+
+          @Override
+          public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+            return processContext.valueKind();
           }
 
           @Override
@@ -434,6 +440,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public CausedByDrain causedByDrain() {
       return element.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind() {
+      return element.getValueKind();
     }
 
     @Override

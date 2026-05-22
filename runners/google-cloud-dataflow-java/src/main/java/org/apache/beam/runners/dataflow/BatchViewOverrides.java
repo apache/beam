@@ -1382,6 +1382,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
+    }
+
+    @Override
     public CausedByDrain causedByDrain() {
       return CausedByDrain.NORMAL;
     }
@@ -1414,11 +1419,6 @@ class BatchViewOverrides {
     @Override
     public @Nullable Long getRecordOffset() {
       return null;
-    }
-
-    @Override
-    public ValueKind getValueKind() {
-      return ValueKind.INSERT;
     }
 
     @Override

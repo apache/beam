@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueKind;
-import org.apache.beam.sdk.values.ValueKindUtil;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -149,7 +148,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
-        valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
+        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;

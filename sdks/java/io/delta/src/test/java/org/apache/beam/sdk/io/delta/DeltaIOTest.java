@@ -37,11 +37,12 @@ public class DeltaIOTest {
     Map<String, String> hadoopConfig = new HashMap<>();
     hadoopConfig.put("fs.defaultFS", "file:///");
 
-    ReadRows readRows = DeltaIO.readRows()
-        .from(tablePath)
-        .withVersion(version)
-        .withTimestamp(timestamp)
-        .withConfig(hadoopConfig);
+    ReadRows readRows =
+        DeltaIO.readRows()
+            .from(tablePath)
+            .withVersion(version)
+            .withTimestamp(timestamp)
+            .withConfig(hadoopConfig);
 
     Assert.assertEquals(tablePath, readRows.getTablePath());
     Assert.assertEquals(Long.valueOf(version), readRows.getVersion());

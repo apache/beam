@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.ValueKind;
-import org.apache.beam.sdk.values.ValueKindUtil;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -158,7 +157,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
-        valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
+        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
       }
       InputStream inputStream = message.getData().newInput();
       ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);

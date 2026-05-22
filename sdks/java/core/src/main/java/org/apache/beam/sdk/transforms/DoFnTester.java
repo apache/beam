@@ -56,6 +56,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -503,7 +504,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                       null,
                       null,
                       CausedByDrain.NORMAL,
-                      null));
+                      null,
+                      ValueKind.INSERT));
         }
       };
     }
@@ -608,6 +610,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public ValueKind valueKind() {
+      return element.getValueKind();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -648,7 +655,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                   null,
                   null,
                   CausedByDrain.NORMAL,
-                  element.getOpenTelemetryContext()));
+                  element.getOpenTelemetryContext(),
+                  ValueKind.INSERT));
     }
 
     @Override
@@ -669,7 +677,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
                     windowedValue.getRecordId(),
                     windowedValue.getRecordOffset(),
                     windowedValue.causedByDrain(),
-                    windowedValue.getOpenTelemetryContext()));
+                    windowedValue.getOpenTelemetryContext(),
+                    windowedValue.getValueKind()));
       }
     }
 
@@ -684,7 +693,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         getMutableOutput(tag)
             .add(
                 ValueInSingleWindow.of(
-                    output, timestamp, w, paneInfo, null, null, CausedByDrain.NORMAL, null));
+                    output,
+                    timestamp,
+                    w,
+                    paneInfo,
+                    null,
+                    null,
+                    CausedByDrain.NORMAL,
+                    null,
+                    ValueKind.INSERT));
       }
     }
   }
