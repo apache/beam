@@ -224,7 +224,7 @@ class SubprocessServer(object):
       process = None
       try:
         process, endpoint = self.start_process()
-        _LOGGER.info(
+        _LOGGER.warning(
             "SubprocessServer: start_process returned endpoint: %s", endpoint)
 
         # Initialize heartbeat metrics
@@ -237,7 +237,7 @@ class SubprocessServer(object):
         if process and not hasattr(process, '_start_time'):
           process._start_time = now
         total_wait = now - getattr(process, '_start_time', attempt_start_time)
-        _LOGGER.info(
+        _LOGGER.warning(
             "SubprocessServer: Heartbeat initialized, heartbeat updated (silence/total: 0.0s/%.1fs).",
             total_wait)
         wait_secs = .1
@@ -269,14 +269,14 @@ class SubprocessServer(object):
               if current_cpu_time != last_cpu_time:
                 if process:
                   process._last_heartbeat_time = now
-                _LOGGER.info(
+                _LOGGER.warning(
                     "SubprocessServer: cpu time change (%s -> %s), heartbeat updated (silence/total: 0.0s/%.1fs).",
                     last_cpu_time,
                     current_cpu_time,
                     total_wait)
                 last_cpu_time = current_cpu_time
               else:
-                _LOGGER.info(
+                _LOGGER.warning(
                     "SubprocessServer: cpu time check (%s), heartbeat holds (silence/total: %.1fs/%.1fs).",
                     current_cpu_time,
                     now - getattr(
@@ -330,7 +330,7 @@ class SubprocessServer(object):
       port, = pick_port(None)
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
     endpoint = 'localhost:%s' % port
-    _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
+    _LOGGER.warning("Starting service with %s", str(cmd).replace("',", "'"))
 
     # Use unbuffered python I/O for real-time stdout log capture
     env = {**os.environ, 'PYTHONUNBUFFERED': '1'}
@@ -345,12 +345,12 @@ class SubprocessServer(object):
         process._last_heartbeat_time = time.time()
         total_wait = time.time() - getattr(process, '_start_time', time.time())
         if not getattr(process, '_started', False):
-          _LOGGER.info(
+          _LOGGER.warning(
               "SubprocessServer: STDOUT/STDERR activity, heartbeat updated (silence/total: 0.0s/%.1fs).",
               total_wait)
         # The log obtained from stdout is bytes, decode it into string.
         # Remove newline via rstrip() to not print an empty line.
-        logger.info(line.decode(errors='backslashreplace').rstrip())
+        logger.warning(line.decode(errors='backslashreplace').rstrip())
         line = process.stdout.readline()
 
     t = threading.Thread(target=log_stdout)
