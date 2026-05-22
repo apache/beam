@@ -303,11 +303,34 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
     name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
     root: "apache",
     tag: project.sdk_version)
+  doFirst {
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
+    if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
+      cloudsdkConfig = "/tmp/gcloud"
+    }
+    if (cloudsdkConfig == "/tmp/gcloud") {
+      def tmpGcloudDir = new File(cloudsdkConfig)
+      tmpGcloudDir.mkdirs()
+      System.setProperty("CLOUDSDK_CONFIG", cloudsdkConfig)
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+      ignoreExitValue = false
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+      ignoreExitValue = false
+    }
+  }
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
     }
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("CLOUDSDK_CONFIG") ?: "/tmp/gcloud"
     exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
       commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
     }
   }
@@ -321,11 +344,34 @@ def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDist
     name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
     root: "apache",
     tag: project.sdk_version)
+  doFirst {
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
+    if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
+      cloudsdkConfig = "/tmp/gcloud"
+    }
+    if (cloudsdkConfig == "/tmp/gcloud") {
+      def tmpGcloudDir = new File(cloudsdkConfig)
+      tmpGcloudDir.mkdirs()
+      System.setProperty("CLOUDSDK_CONFIG", cloudsdkConfig)
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+      ignoreExitValue = false
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+      ignoreExitValue = false
+    }
+  }
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaDistrolessImageName}"
     }
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("CLOUDSDK_CONFIG") ?: "/tmp/gcloud"
     exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
       commandLine "gcloud", "docker", "--", "push", "${dockerJavaDistrolessImageName}"
     }
   }

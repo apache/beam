@@ -25,12 +25,12 @@ ARG TARGETARCH
 ARG pull_licenses
 
 # Dependency jars
+# jamm.jar is required as a javaagent to get accurate object size measuring
 COPY target/slf4j-api.jar \
      target/slf4j-jdk14.jar \
      target/jcl-over-slf4j.jar \
      target/log4j-over-slf4j.jar \
      target/log4j-to-slf4j.jar \
-     # Required to use jamm as a javaagent to get accurate object size measuring
      target/jamm.jar \
      /opt/apache/beam/jars/
 
