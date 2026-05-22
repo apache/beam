@@ -790,7 +790,7 @@ def write_to_mongodb(
     *,
     database: str,
     collection: str,
-    connection_uri: str = "mongodb://localhost:27017",
+    connection_uri: Optional[str] = None,
     batch_size: int = 100,
     extra_client_params: Optional[Mapping[str, Any]] = None):
   """Writes data to MongoDB.
@@ -799,7 +799,7 @@ def write_to_mongodb(
     pcoll: The input PCollection of Beam Rows.
     database: The MongoDB database name.
     collection: The MongoDB collection name.
-    connection_uri: The MongoDB connection string.
+    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     batch_size: Number of documents per bulk_write to MongoDB.
     extra_client_params: Optional MongoClient parameters.
   """

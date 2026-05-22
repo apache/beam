@@ -63,6 +63,8 @@ from apache_beam.yaml.conftest import yaml_test_files_dir
 
 _LOGGER = logging.getLogger(__name__)
 
+_MONGO_CONTAINER_IMAGE = 'mongo:7.0.7'
+
 
 @contextlib.contextmanager
 def gcs_temp_dir(bucket):
@@ -222,7 +224,7 @@ def temp_mongodb_table():
   - collection: ${mongo_vars.COLLECTION}
   """
   _LOGGER.info("Setting up MongoDB fixture...")
-  mongo_container = MongoDbContainer("mongo:7.0.7")
+  mongo_container = MongoDbContainer(_MONGO_CONTAINER_IMAGE)
   try:
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()

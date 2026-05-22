@@ -21,13 +21,10 @@ import com.google.auto.service.AutoService;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -40,9 +37,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.bson.BsonNull;
 import org.bson.Document;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB. */
 @AutoService(SchemaTransformProvider.class)
@@ -160,14 +155,7 @@ public class MongoDbWriteSchemaTransformProvider
     @ProcessElement
     public void processElement(@Element Row row, MultiOutputReceiver receiver) {
       try {
-        Object converted = convertToBsonValue(row);
-        if (converted instanceof Document) {
-          receiver.get(OUTPUT_TAG).output((Document) converted);
-        } else {
-          throw new IllegalStateException(
-              "Expected Document but got "
-                  + (converted != null ? converted.getClass().getName() : "null"));
-        }
+        receiver.get(OUTPUT_TAG).output(MongoDbUtils.toDocument(row));
       } catch (Exception e) {
         if (!handleErrors) {
           throw new RuntimeException(e);
@@ -176,37 +164,5 @@ public class MongoDbWriteSchemaTransformProvider
         receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
       }
     }
-  }
-
-  private static Object convertToBsonValue(@Nullable Object value) {
-    if (value == null) {
-      return new BsonNull();
-    }
-    if (value instanceof Row) {
-      Row row = (Row) value;
-      Document doc = new Document();
-      for (Field field : row.getSchema().getFields()) {
-        Object fieldValue = row.getValue(field.getName());
-        Object converted = convertToBsonValue(fieldValue);
-        doc.append(field.getName(), converted != null ? converted : new BsonNull());
-      }
-      return doc;
-    } else if (value instanceof Iterable) {
-      List<Object> bsonList = new ArrayList<>();
-      for (Object item : (Iterable<?>) value) {
-        Object converted = convertToBsonValue(item);
-        bsonList.add(converted != null ? converted : new BsonNull());
-      }
-      return bsonList;
-    } else if (value instanceof Map) {
-      Map<?, ?> map = (Map<?, ?>) value;
-      Document doc = new Document();
-      for (Map.Entry<?, ?> entry : map.entrySet()) {
-        Object converted = convertToBsonValue(entry.getValue());
-        doc.append(String.valueOf(entry.getKey()), converted != null ? converted : new BsonNull());
-      }
-      return doc;
-    }
-    return value;
   }
 }
