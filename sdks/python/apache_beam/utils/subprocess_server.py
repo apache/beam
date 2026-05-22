@@ -457,11 +457,11 @@ class JavaJarServer(SubprocessServer):
               'transform/runner.')
       return super().start_process()
 
-  def stop_process(self):
+  def stop_process(self, force=False):
     if self._existing_service:
       pass
     else:
-      return super().stop_process()
+      return super().stop_process(force=force)
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):
