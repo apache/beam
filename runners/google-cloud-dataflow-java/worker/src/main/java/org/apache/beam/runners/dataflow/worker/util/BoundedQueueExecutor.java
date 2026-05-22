@@ -348,6 +348,13 @@ public class BoundedQueueExecutor {
     return new BoundedQueueExecutorWorkHandleImpl(0, 0L);
   }
 
+  /**
+   * Poll additional work to be executed inline inside with the current execute(ExecutableWork work,
+   * long workBytes) call. It is the responsibility of the caller to execute or discard the returned
+   * ExecutableWork. Budget for the returned work is released when the execute() call finishes.
+   *
+   * @param handle the handle that was passed to ExecutableWork.executeWorkFn
+   */
   public Optional<ExecutableWork> pollWork(BoundedQueueExecutorWorkHandle handle) {
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     while (true) {
