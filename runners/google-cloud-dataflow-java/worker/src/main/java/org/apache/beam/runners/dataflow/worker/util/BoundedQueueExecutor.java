@@ -268,7 +268,7 @@ public class BoundedQueueExecutor {
 
     @Override
     public synchronized void close() {
-      Preconditions.checkArgument(!closed);
+      if (closed) return;
       closed = true;
       decrementCounters(this.elements, this.bytes);
     }
@@ -356,6 +356,7 @@ public class BoundedQueueExecutor {
    * @param handle the handle that was passed to ExecutableWork.executeWorkFn
    */
   public Optional<ExecutableWork> pollWork(BoundedQueueExecutorWorkHandle handle) {
+    Preconditions.checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     while (true) {
       Runnable runnable = executor.getQueue().poll();
