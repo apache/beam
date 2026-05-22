@@ -464,6 +464,30 @@ class CacheTest(unittest.TestCase):
     # without raising ValueError.
     server.stop_process()
 
+  def test_get_process_io_counters(self):
+    import sys
+    from unittest.mock import MagicMock
+    
+    mock_psutil = MagicMock()
+    sys.modules['psutil'] = mock_psutil
+    try:
+      mock_process = mock_psutil.Process.return_value
+      
+      from collections import namedtuple
+      IOCounters = namedtuple('IOCounters', ['read_bytes', 'write_bytes', 'read_count', 'write_count'])
+      mock_process.io_counters.return_value = IOCounters(100, 200, 10, 20)
+      
+      counters = subprocess_server._get_process_io_counters(123)
+      self.assertEqual(counters, (100, 200, 10, 20))
+      
+      # Test Exception handling
+      mock_process.io_counters.side_effect = Exception("Error")
+      self.assertIsNone(subprocess_server._get_process_io_counters(123))
+    finally:
+      del sys.modules['psutil']
+
+
+
 
 if __name__ == '__main__':
   unittest.main()

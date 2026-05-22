@@ -232,6 +232,7 @@ class SubprocessServer(object):
         if process:
           process._last_heartbeat_time = now
         last_cpu_time = _get_process_cpu_time(process.pid) if process else None
+        last_io_counters = _get_process_io_counters(process.pid) if process else None
         last_cpu_check_time = now
         # Set the start time on process if not set yet
         if process and not hasattr(process, '_start_time'):
@@ -259,9 +260,11 @@ class SubprocessServer(object):
                 f"Timed out after 5 minutes waiting for grpc channel to be ready at {endpoint}"
             )
 
-          # Check CPU time every 5 seconds to update heartbeat
+          # Check CPU and I/O activity every 5 seconds to update heartbeat
           if now - last_cpu_check_time >= 5.0:
             current_cpu_time = _get_process_cpu_time(
+                process.pid) if process else None
+            current_io_counters = _get_process_io_counters(
                 process.pid) if process else None
             if current_cpu_time is not None and last_cpu_time is not None:
               total_wait = now - getattr(
@@ -270,18 +273,41 @@ class SubprocessServer(object):
                 if process:
                   process._last_heartbeat_time = now
                 _LOGGER.warning(
-                    "SubprocessServer: cpu time change (%s -> %s), heartbeat updated (silence/total: 0.0s/%.1fs).",
+                    "SubprocessServer: cpu time change (%s -> %s), heartbeat updated (silence/total: 0.0s/%.1fs, io: %s).",
                     last_cpu_time,
                     current_cpu_time,
-                    total_wait)
+                    total_wait,
+                    current_io_counters)
                 last_cpu_time = current_cpu_time
               else:
                 _LOGGER.warning(
-                    "SubprocessServer: cpu time check (%s), heartbeat holds (silence/total: %.1fs/%.1fs).",
+                    "SubprocessServer: cpu time check (%s), heartbeat holds (silence/total: %.1fs/%.1fs, io: %s).",
                     current_cpu_time,
                     now - getattr(
                         process, '_last_heartbeat_time', attempt_start_time),
-                    total_wait)
+                    total_wait,
+                    current_io_counters)
+
+            # Check I/O counters
+            if current_io_counters is not None and last_io_counters is not None:
+              total_wait = now - getattr(
+                  process, '_start_time', attempt_start_time)
+              if current_io_counters != last_io_counters:
+                if process:
+                  process._last_heartbeat_time = now
+                _LOGGER.warning(
+                    "SubprocessServer: io counters change, heartbeat updated (silence/total: 0.0s/%.1fs, io: %s -> %s).",
+                    total_wait,
+                    last_io_counters,
+                    current_io_counters)
+                last_io_counters = current_io_counters
+              else:
+                _LOGGER.warning(
+                    "SubprocessServer: io counters check, heartbeat holds (silence/total: %.1fs/%.1fs, io: %s).",
+                    now - getattr(
+                        process, '_last_heartbeat_time', attempt_start_time),
+                    total_wait,
+                    current_io_counters)
             last_cpu_check_time = now
 
           # Check heartbeat silence duration
@@ -721,6 +747,19 @@ def _get_process_cpu_time(pid):
     return float(output)
   except Exception:
     return None
+
+
+def _get_process_io_counters(pid):
+  try:
+    import psutil
+    process = psutil.Process(pid)
+    if not hasattr(process, 'io_counters'):
+      return None
+    io = process.io_counters()
+    return (io.read_bytes, io.write_bytes, io.read_count, io.write_count)
+  except Exception:
+    return None
+
 
 
 def pick_port(*ports):
