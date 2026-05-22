@@ -115,7 +115,6 @@
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
-    'MatchAll': 'apache_beam.yaml.yaml_io.match_all'
 
 
 # General File Formats
