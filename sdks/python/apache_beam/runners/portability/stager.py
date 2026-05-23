@@ -737,7 +737,7 @@ class Stager(object):
     if version.parse(pip_version) >= version.parse('20.3'):
       return 'manylinux_2_28_x86_64'
     elif version.parse(pip_version) >= version.parse('19.3'):
-      return 'manylinux2014'
+      return 'manylinux2014_x86_64'
     else:
       return 'manylinux2010_x86_64'
 
