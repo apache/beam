@@ -466,6 +466,7 @@ class CacheTest(unittest.TestCase):
 
   def test_force_remove(self):
     destructor_calls = []
+
     def custom_destructor(obj):
       destructor_calls.append(obj)
 
@@ -477,7 +478,7 @@ class CacheTest(unittest.TestCase):
     # Get object 'a' under both active owners
     a = cache.get('a')
     self.assertEqual(a[0], 'a')
-    self.assertIn(('a',), cache._cache)
+    self.assertIn(('a', ), cache._cache)
 
     # force_remove on a non-existent key should be a safe no-op
     cache.force_remove('non_existent')
@@ -486,7 +487,7 @@ class CacheTest(unittest.TestCase):
     cache.force_remove('a')
 
     # The cache entry should be gone
-    self.assertNotIn(('a',), cache._cache)
+    self.assertNotIn(('a', ), cache._cache)
 
     # Destructor must be called on 'a'
     self.assertEqual(destructor_calls, [a])
@@ -502,12 +503,14 @@ class CacheTest(unittest.TestCase):
 
   def test_subprocess_server_start_failed_no_leak(self):
     destructor_calls = []
+
     def custom_destructor(obj):
       destructor_calls.append(obj)
 
     class DummyProcess:
       def __init__(self):
         self.args = ["dummy_cmd"]
+
       def poll(self):
         return 1  # Simulate that process exited/failed
 
