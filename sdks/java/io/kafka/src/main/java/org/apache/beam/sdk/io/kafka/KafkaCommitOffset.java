@@ -25,6 +25,8 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -62,7 +64,15 @@ public class KafkaCommitOffset<K, V>
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(CommitOffsetDoFn.class);
+
+    private final Counter commitFailures =
+        Metrics.counter(CommitOffsetDoFn.class, "commit-failures");
+
+    private final Counter retriesExhausted =
+        Metrics.counter(CommitOffsetDoFn.class, "retries-exhausted");
+
     private final Map<String, Object> consumerConfig;
+
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         consumerFactoryFn;
 
@@ -76,16 +86,24 @@ public class KafkaCommitOffset<K, V>
     @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
+
       Map<String, Object> updatedConsumerConfig =
           overrideBootstrapServersConfig(consumerConfig, element.getKey());
+
       try (Consumer<byte[], byte[]> consumer = consumerFactoryFn.apply(updatedConsumerConfig)) {
+
         try {
           consumer.commitSync(
               Collections.singletonMap(
                   element.getKey().getTopicPartition(),
                   new OffsetAndMetadata(element.getValue() + 1)));
+
         } catch (Exception e) {
-          // TODO: consider retrying.
+
+          commitFailures.inc();
+          retriesExhausted.inc();
+
+          // TODO: consider retrying and increment retry-attempt metrics.
           LOG.warn("Getting exception when committing offset: {}", e.getMessage());
         }
       }
@@ -93,23 +111,30 @@ public class KafkaCommitOffset<K, V>
 
     private Map<String, Object> overrideBootstrapServersConfig(
         Map<String, Object> currentConfig, KafkaSourceDescriptor description) {
+
       checkState(
           currentConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
               || description.getBootStrapServers() != null);
+
       Map<String, Object> config = new HashMap<>(currentConfig);
+
       if (description.getBootStrapServers() != null
           && !description.getBootStrapServers().isEmpty()) {
+
         config.put(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
             String.join(",", description.getBootStrapServers()));
       }
+
       return config;
     }
   }
 
   private static final class MaxOffsetFn<K, V>
       extends DoFn<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>, KV<KafkaSourceDescriptor, Long>> {
+
     private static class OffsetAndTimestamp {
+
       OffsetAndTimestamp(long offset, Instant timestamp) {
         this.offset = offset;
         this.timestamp = timestamp;
@@ -130,6 +155,7 @@ public class KafkaCommitOffset<K, V>
 
     @StartBundle
     public void startBundle() {
+
       if (maxObserved == null) {
         maxObserved = new HashMap<>();
       } else {
@@ -143,13 +169,16 @@ public class KafkaCommitOffset<K, V>
     public void processElement(
         @Element KV<KafkaSourceDescriptor, KafkaRecord<K, V>> element,
         @Timestamp Instant timestamp) {
+
       maxObserved.compute(
           element.getKey(),
           (k, v) -> {
             long offset = element.getValue().getOffset();
+
             if (v == null) {
               return new OffsetAndTimestamp(offset, timestamp);
             }
+
             v.merge(offset, timestamp);
             return v;
           });
@@ -158,6 +187,7 @@ public class KafkaCommitOffset<K, V>
     @FinishBundle
     @SuppressWarnings("nullness") // startBundle guaranteed to initialize
     public void finishBundle(FinishBundleContext context) {
+
       maxObserved.forEach(
           (k, v) -> context.output(KV.of(k, v.offset), v.timestamp, GlobalWindow.INSTANCE));
     }
@@ -165,19 +195,26 @@ public class KafkaCommitOffset<K, V>
 
   @Override
   public PCollection<Void> expand(PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
+
     try {
+
       PCollection<KV<KafkaSourceDescriptor, Long>> offsets;
+
       if (use259implementation) {
+
         offsets =
             input.apply(
                 MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
                     .via(element -> KV.of(element.getKey(), element.getValue().getOffset())));
+
       } else {
+
         // Reduce the amount of data to combine by calculating a max within the generally dense
         // bundles of reading
         // from a Kafka partition.
         offsets = input.apply(ParDo.of(new MaxOffsetFn<>()));
       }
+
       return offsets
           .setCoder(
               KvCoder.of(
@@ -190,6 +227,7 @@ public class KafkaCommitOffset<K, V>
           .apply(Max.longsPerKey())
           .apply(ParDo.of(new CommitOffsetDoFn(readSourceDescriptors)))
           .setCoder(VoidCoder.of());
+
     } catch (NoSuchSchemaException e) {
       throw new RuntimeException(e.getMessage());
     }
