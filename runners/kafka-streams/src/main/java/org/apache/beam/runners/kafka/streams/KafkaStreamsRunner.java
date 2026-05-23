@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.kafka.streams;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.portability.PortableRunner;
@@ -70,9 +69,12 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
         return new KafkaStreamsPipelineResult(result, driverForStop::stop);
       }
       return result;
-    } catch (IOException e) {
+    } catch (Exception e) {
       if (jobServerDriver != null) {
         jobServerDriver.stop();
+      }
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
       }
       throw new RuntimeException(e);
     }
