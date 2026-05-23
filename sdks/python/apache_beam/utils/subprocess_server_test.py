@@ -559,17 +559,22 @@ class CacheTest(unittest.TestCase):
     mock_process.stdout.readline.return_value = b""
 
     with patch('subprocess.Popen', return_value=mock_process) as mock_popen:
-      with self.assertLogs('apache_beam.utils.subprocess_server', level='ERROR') as log_ctx:
+      with self.assertLogs('apache_beam.utils.subprocess_server',
+                           level='ERROR') as log_ctx:
+
         class DummyServer(subprocess_server.SubprocessServer):
           pass
 
-        server = DummyServer(lambda channel: None, ["dummy_cmd_logging"], port=12345)
+        server = DummyServer(
+            lambda channel: None, ["dummy_cmd_logging"], port=12345)
         server.start_process()
         server.stop_process()
 
       # Assert the error logs were recorded
-      self.assertTrue(any("Really starting service at" in log for log in log_ctx.output))
-      self.assertTrue(any("Really destroying service at" in log for log in log_ctx.output))
+      self.assertTrue(
+          any("Really starting service at" in log for log in log_ctx.output))
+      self.assertTrue(
+          any("Really destroying service at" in log for log in log_ctx.output))
 
   def test_non_context_owners_do_not_share_keys(self):
     cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
@@ -582,21 +587,21 @@ class CacheTest(unittest.TestCase):
     b = cache.get('b', owner=owner2)
 
     # Verify that owner1 does not own 'b'
-    self.assertNotIn(owner1, cache._cache[('b',)].owners)
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
 
     # Verify that owner2 does not own 'a'
-    self.assertNotIn(owner2, cache._cache[('a',)].owners)
+    self.assertNotIn(owner2, cache._cache[('a', )].owners)
 
     # Purging owner2 should immediately destroy/remove 'b'
     cache.purge(owner2)
-    self.assertNotIn(('b',), cache._cache)
+    self.assertNotIn(('b', ), cache._cache)
 
     # 'a' is still alive because owner1 is still registered
-    self.assertIn(('a',), cache._cache)
+    self.assertIn(('a', ), cache._cache)
 
     # Purging owner1 should destroy/remove 'a'
     cache.purge(owner1)
-    self.assertNotIn(('a',), cache._cache)
+    self.assertNotIn(('a', ), cache._cache)
 
   def test_context_owner_owns_all_keys(self):
     cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
@@ -613,11 +618,10 @@ class CacheTest(unittest.TestCase):
     b = cache.get('b', owner=owner3)
 
     # owner2 (context) should own 'b'
-    self.assertIn(owner2, cache._cache[('b',)].owners)
+    self.assertIn(owner2, cache._cache[('b', )].owners)
 
     # owner1 (non-context) should NOT own 'b'
-    self.assertNotIn(owner1, cache._cache[('b',)].owners)
-
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
 
 
 if __name__ == '__main__':

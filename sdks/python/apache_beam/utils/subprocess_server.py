@@ -307,7 +307,8 @@ class SubprocessServer(object):
     process, endpoint = process_and_endpoint  # pylint: disable=unpacking-non-sequence
     if not process:
       return
-    _LOGGER.error("Really destroying service at %s with cmd: %s", endpoint, process.args)
+    _LOGGER.error(
+        "Really destroying service at %s with cmd: %s", endpoint, process.args)
     for _ in range(5):
       if process.poll() is not None:
         break
