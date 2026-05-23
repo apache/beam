@@ -686,53 +686,71 @@ func TestElementManager_OnWindowExpiration(t *testing.T) {
 }
 
 func TestElementManager_ReturnResidualsPendingCount(t *testing.T) {
-	em := NewElementManager(Config{})
-	em.AddStage("impulse", nil, []string{"input"}, nil)
-	em.AddStage("dofn", []string{"input"}, nil, nil)
-	em.Impulse("impulse")
-
-	stage := em.stages["dofn"]
-	info := PColInfo{
-		GlobalID: "generic_info",
-		WDec:     exec.MakeWindowDecoder(coder.NewGlobalWindow()),
-		WEnc:     exec.MakeWindowEncoder(coder.NewGlobalWindow()),
-		EDec: func(r io.Reader) []byte {
-			b, _ := io.ReadAll(r)
-			return b
+	tests := []struct {
+		name             string
+		firstRsIndex     int
+		wantFinalPending int64
+	}{
+		{
+			name:             "ChannelSplit",
+			firstRsIndex:     0,
+			wantFinalPending: 1,
+		},
+		{
+			name:             "SDFCheckpoint",
+			firstRsIndex:     1,
+			wantFinalPending: 2, // Incremented by 1 because the active portion (index 0) is still in progress and will be completed/decremented in PersistBundle.
 		},
 	}
 
-	// Initial state should have 1 pending element from impulse
-	if got, want := em.livePending.Load(), int64(1); got != want {
-		t.Fatalf("initial livePending = %v, want %v", got, want)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			em := NewElementManager(Config{})
+			em.AddStage("impulse", nil, []string{"input"}, nil)
+			em.AddStage("dofn", []string{"input"}, nil, nil)
+			em.Impulse("impulse")
 
-	// Start a bundle
-	bundID, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, func() string { return "inst0" })
-	if !ok {
-		t.Fatalf("failed to start bundle")
-	}
+			stage := em.stages["dofn"]
+			info := PColInfo{
+				GlobalID: "generic_info",
+				WDec:     exec.MakeWindowDecoder(coder.NewGlobalWindow()),
+				WEnc:     exec.MakeWindowEncoder(coder.NewGlobalWindow()),
+				EDec: func(r io.Reader) []byte {
+					b, _ := io.ReadAll(r)
+					return b
+				},
+			}
 
-	// Waitgroup/livePending shouldn't change on starting a bundle (it's still pending)
-	if got, want := em.livePending.Load(), int64(1); got != want {
-		t.Fatalf("livePending after startEventTimeBundle = %v, want %v", got, want)
-	}
+			// Initial state should have 1 pending element from impulse
+			if got, want := em.livePending.Load(), int64(1); got != want {
+				t.Fatalf("initial livePending = %v, want %v", got, want)
+			}
 
-	// Prepare residuals
-	residBytes := []byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67} // windowed value header + ABC
-	residuals := Residuals{
-		Data: []Residual{{Element: residBytes}},
-	}
+			// Start a bundle
+			bundID, ok, _, _ := stage.startEventTimeBundle(mtime.MaxTimestamp, func() string { return "inst0" })
+			if !ok {
+				t.Fatalf("failed to start bundle")
+			}
 
-	rb := RunBundle{StageID: "dofn", BundleID: bundID}
-	
-	// Return residuals (Simulates splitting)
-	em.ReturnResiduals(rb, 0, info, residuals)
+			// Waitgroup/livePending shouldn't change on starting a bundle (it's still pending)
+			if got, want := em.livePending.Load(), int64(1); got != want {
+				t.Fatalf("livePending after startEventTimeBundle = %v, want %v", got, want)
+			}
 
-	// Since we split the bundle (0 primary completed, 1 residual returned), 
-	// the element remains pending. The pending count MUST still be exactly 1!
-	if got, want := em.livePending.Load(), int64(1); got != want {
-		t.Errorf("BUG DETECTED: livePending after ReturnResiduals = %v, want 1! (Elements counted twice)", got)
+			// Prepare residuals
+			residBytes := []byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67} // windowed value header + ABC
+			residuals := Residuals{
+				Data: []Residual{{Element: residBytes}},
+			}
+
+			rb := RunBundle{StageID: "dofn", BundleID: bundID}
+
+			// Return residuals (Simulates splitting)
+			em.ReturnResiduals(rb, test.firstRsIndex, info, residuals)
+
+			if got, want := em.livePending.Load(), test.wantFinalPending; got != want {
+				t.Errorf("livePending after ReturnResiduals = %v, want %v", got, want)
+			}
+		})
 	}
 }
-
