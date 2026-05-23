@@ -797,7 +797,7 @@ class Stager(object):
             platform_tag
         ])
       _LOGGER.info('Executing command: %s', cmd_args)
-      processes.check_output(cmd_args, stderr=processes.STDOUT)
+      processes.check_call(cmd_args)
 
       # Get list of downloaded packages and copy them to the cache
       downloaded_packages = set()

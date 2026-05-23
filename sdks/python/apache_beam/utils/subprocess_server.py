@@ -262,7 +262,7 @@ class SubprocessServer(object):
       while line:
         # The log obtained from stdout is bytes, decode it into string.
         # Remove newline via rstrip() to not print an empty line.
-        logger.info(line.decode(errors='backslashreplace').rstrip())
+        _LOGGER.warning(line.decode(errors='backslashreplace').rstrip())
         line = process.stdout.readline()
 
     t = threading.Thread(target=log_stdout)

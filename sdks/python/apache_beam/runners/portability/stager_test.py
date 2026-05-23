@@ -985,13 +985,13 @@ class StagerTest(unittest.TestCase):
 
     captured_cmd_args = []
 
-    def mock_check_output(cmd_args, **kwargs):
+    def mock_check_call(cmd_args, **kwargs):
       captured_cmd_args.extend(cmd_args)
-      return b''
+      return 0
 
     with mock.patch(
-        'apache_beam.runners.portability.stager.processes.check_output',
-        side_effect=mock_check_output):
+        'apache_beam.runners.portability.stager.processes.check_call',
+        side_effect=mock_check_call):
       stager.Stager._populate_requirements_cache(
           requirements_file, requirements_cache_dir)
 
