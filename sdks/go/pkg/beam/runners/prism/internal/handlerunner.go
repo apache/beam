@@ -210,7 +210,7 @@ func (h *runner) handleReshuffle(tid string, t *pipepb.PTransform, comps *pipepb
 	}
 
 	// And all the sub transforms.
-	toRemove = append(toRemove, t.GetSubtransforms()...)
+	toRemove = append(toRemove, removeSubTransforms(comps, t.GetSubtransforms())...)
 
 	// Return the new components which is the transforms consumer
 	return prepareResult{

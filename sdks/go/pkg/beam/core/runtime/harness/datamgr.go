@@ -136,9 +136,13 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 		default:
 			log.Warnf(ctx, "forcing DataChannel[%v] reconnection on port %v due to %v", id, port, err)
 		}
-		m.mu.Lock()
-		delete(m.ports, port.URL)
-		m.mu.Unlock()
+		go func() {
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			if curr, ok := m.ports[port.URL]; ok && curr == ch {
+				delete(m.ports, port.URL)
+			}
+		}()
 	}
 	m.ports[port.URL] = ch
 	return ch, nil

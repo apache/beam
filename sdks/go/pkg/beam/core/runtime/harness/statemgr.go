@@ -619,9 +619,13 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 		default:
 			log.Warnf(ctx, "forcing StateChannel[%v] reconnection on port %v due to %v", id, port, err)
 		}
-		m.mu.Lock()
-		delete(m.ports, port.URL)
-		m.mu.Unlock()
+		go func() {
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			if curr, ok := m.ports[port.URL]; ok && curr == ch {
+				delete(m.ports, port.URL)
+			}
+		}()
 	}
 	m.ports[port.URL] = ch
 	return ch, nil

@@ -391,6 +391,16 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		// Log a heartbeat every 60 seconds
 		case <-ticker.C:
 			j.Logger.Info("pipeline is running", slog.String("job", j.String()))
+			j.Logger.Info("pipeline stages state", slog.String("stages", em.DumpStages()))
+			for envID, wk := range wks {
+				if wk != nil && wk.Connected() && !wk.Stopped() {
+					j.Logger.Info("worker status",
+						slog.String("workerID", wk.ID),
+						slog.String("envID", envID),
+						slog.Duration("uptime", wk.Uptime()),
+						slog.Any("active_bundles", wk.ActiveBundles()))
+				}
+			}
 		}
 	}
 }
