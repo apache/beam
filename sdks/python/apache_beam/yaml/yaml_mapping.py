@@ -195,8 +195,27 @@ class _JsFunctionWrapper:
 
     cache_key = (self.source_code, self.entrypoint_name)
     if cache_key not in cache.functions:
-      cache.functions[cache_key] = quickjs.Function(
-          self.entrypoint_name, self.source_code)
+      context = quickjs.Context()
+      context.eval(self.source_code)
+      f = context.get(self.entrypoint_name)
+
+      def call_fn(*args, run_gc=True):
+        def convert_arg(arg):
+          if isinstance(arg, (type(None), str, bool, float, int)):
+            return arg
+          else:
+            return context.parse_json(json.dumps(arg))
+
+        try:
+          result = f(*[convert_arg(a) for a in args])
+          if isinstance(result, quickjs.Object):
+            result = json.loads(result.json())
+          return result
+        finally:
+          if run_gc:
+            context.gc()
+
+      cache.functions[cache_key] = call_fn
 
     return cache.functions[cache_key]
 
