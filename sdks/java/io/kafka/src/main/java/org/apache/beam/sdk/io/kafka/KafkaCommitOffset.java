@@ -58,8 +58,7 @@ public class KafkaCommitOffset<K, V>
   private final boolean use259implementation;
 
   KafkaCommitOffset(
-      KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors,
-      boolean use259implementation) {
+      KafkaIO.ReadSourceDescriptors<K, V> readSourceDescriptors, boolean use259implementation) {
 
     this.readSourceDescriptors = readSourceDescriptors;
     this.use259implementation = use259implementation;
@@ -112,8 +111,7 @@ public class KafkaCommitOffset<K, V>
     }
 
     private Map<String, Object> overrideBootstrapServersConfig(
-        Map<String, Object> currentConfig,
-        KafkaSourceDescriptor description) {
+        Map<String, Object> currentConfig, KafkaSourceDescriptor description) {
 
       checkState(
           currentConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
@@ -134,9 +132,7 @@ public class KafkaCommitOffset<K, V>
   }
 
   private static final class MaxOffsetFn<K, V>
-      extends DoFn<
-          KV<KafkaSourceDescriptor, KafkaRecord<K, V>>,
-          KV<KafkaSourceDescriptor, Long>> {
+      extends DoFn<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>, KV<KafkaSourceDescriptor, Long>> {
 
     private static class OffsetAndTimestamp {
 
@@ -157,8 +153,7 @@ public class KafkaCommitOffset<K, V>
       Instant timestamp;
     }
 
-    private transient @MonotonicNonNull
-        Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved;
+    private transient @MonotonicNonNull Map<KafkaSourceDescriptor, OffsetAndTimestamp> maxObserved;
 
     @StartBundle
     public void startBundle() {
@@ -201,8 +196,7 @@ public class KafkaCommitOffset<K, V>
   }
 
   @Override
-  public PCollection<Void> expand(
-      PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
+  public PCollection<Void> expand(PCollection<KV<KafkaSourceDescriptor, KafkaRecord<K, V>>> input) {
 
     try {
 
@@ -212,13 +206,8 @@ public class KafkaCommitOffset<K, V>
 
         offsets =
             input.apply(
-                MapElements.into(
-                        new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
-                    .via(
-                        element ->
-                            KV.of(
-                                element.getKey(),
-                                element.getValue().getOffset())));
+                MapElements.into(new TypeDescriptor<KV<KafkaSourceDescriptor, Long>>() {})
+                    .via(element -> KV.of(element.getKey(), element.getValue().getOffset())));
 
       } else {
 
