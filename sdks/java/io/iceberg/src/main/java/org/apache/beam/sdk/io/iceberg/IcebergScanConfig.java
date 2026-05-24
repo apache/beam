@@ -470,13 +470,14 @@ public abstract class IcebergScanConfig implements Serializable {
           field != null, error("'watermark_column' refers to unknown column: %s"), watermarkColumn);
       checkArgument(
           field.isRequired(),
-          error("'watermark_column' refers to a nullable column: %s"),
+          error("'watermark_column' needs to be a non-nullable column: %s"),
           watermarkColumn);
       checkArgument(
           field.type().typeId() == TIMESTAMP || field.type().typeId() == LONG,
           error("'watermark_column' must be a timestamp-typed column, but '%s' has type %s"),
           watermarkColumn,
           field.type().typeId());
+      checkArgumentNotNull(getProjectedSchema().findField(watermarkColumn), "'watermark_column' column should not be dropped.");
     }
   }
 

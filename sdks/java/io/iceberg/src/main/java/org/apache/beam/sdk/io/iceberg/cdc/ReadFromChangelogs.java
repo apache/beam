@@ -165,16 +165,14 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         KvCoder.of(
             KvCoder.of(VarLongCoder.of(), SchemaCoder.of(scanConfig.rowIdBeamSchema())),
             SchemaCoder.of(fullRowSchema));
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> keyedInsertsWithTimestamps =
+    PCollection<KV<KV<Long, Row>, Row>> keyedInsertsWithTimestamps =
         biDirectionalRows
             .get(BIDIRECTIONAL_INSERTS)
-            .setCoder(keyedOutputCoder)
-            .apply("Reify INSERT Timestamps", Reify.timestampsInValue());
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> keyedDeletesWithTimestamps =
+            .setCoder(keyedOutputCoder);
+    PCollection<KV<KV<Long, Row>, Row>> keyedDeletesWithTimestamps =
         biDirectionalRows
             .get(BIDIRECTIONAL_DELETES)
-            .setCoder(keyedOutputCoder)
-            .apply("Reify DELETE Timestamps", Reify.timestampsInValue());
+            .setCoder(keyedOutputCoder);
 
     return new CdcOutput(
         input.getPipeline(),
@@ -186,14 +184,14 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
   public static class CdcOutput implements POutput {
     private final Pipeline pipeline;
     private final PCollection<Row> uniDirectionalRows;
-    private final PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalInserts;
-    private final PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalDeletes;
+    private final PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts;
+    private final PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes;
 
     CdcOutput(
         Pipeline p,
         PCollection<Row> uniDirectionalRows,
-        PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalInserts,
-        PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalDeletes) {
+        PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts,
+        PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes) {
       this.pipeline = p;
       this.uniDirectionalRows = uniDirectionalRows;
       this.biDirectionalInserts = biDirectionalInserts;
@@ -204,11 +202,11 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       return uniDirectionalRows;
     }
 
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalInserts() {
+    PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts() {
       return biDirectionalInserts;
     }
 
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> biDirectionalDeletes() {
+    PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes() {
       return biDirectionalDeletes;
     }
 

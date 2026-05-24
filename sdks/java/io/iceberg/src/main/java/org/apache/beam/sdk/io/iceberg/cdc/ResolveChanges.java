@@ -35,21 +35,15 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.types.Types;
+import org.joda.time.Instant;
 
 /**
  * Receives a {@link CoGbkResult} containing inserts and deletes sharing the same snapshot ID and
  * Primary Key, and uses {@link CdcResolver} to identify logical updates.
- *
- * <p>Input elements are pre-prepared with reified timestamps. This is because CoGroupByKey assigns
- * all elements in a window with the same timestamp, erasing individual record timestamps. This DoFn
- * enriches the record with the reified value to preserve its timestamp. TODO(ahmedabu98): is this ^
- * necessary anymore, now that we window each group by its snapshot commit timestamp? All rows
- * coming from a group should all have the same timestamp at this point. And we only potentially
- * assign watermark column timestamp downstream from this DoFn.
  */
-public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
-  public static final TupleTag<TimestampedValue<Row>> DELETES = new TupleTag<>() {};
-  public static final TupleTag<TimestampedValue<Row>> INSERTS = new TupleTag<>() {};
+class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
+  static final TupleTag<Row> DELETES = new TupleTag<>() {};
+  static final TupleTag<Row> INSERTS = new TupleTag<>() {};
   private final RowFilter rowFilter;
 
   ResolveChanges(IcebergScanConfig scanConfig) {
@@ -63,31 +57,28 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
 
   @ProcessElement
   public void processElement(
-      @Element KV<KV<Long, Row>, CoGbkResult> element, OutputReceiver<Row> out) {
+    @Element KV<KV<Long, Row>, CoGbkResult> element, @Timestamp Instant timestamp, OutputReceiver<Row> out) {
     Row primaryKey = element.getKey().getValue();
     Set<String> pkFields = new HashSet<>(primaryKey.getSchema().getFieldNames());
     CoGbkResult result = element.getValue();
 
     // should be okay to materialize these lists. a PK collision will likely be a handful of records
     // at most
-    List<TimestampedValue<Row>> deletes = Lists.newArrayList(result.getAll(DELETES));
-    List<TimestampedValue<Row>> inserts = Lists.newArrayList(result.getAll(INSERTS));
-    // TODO(ahmedabu98): do we need to sort anymore? all records should have the same timestamp now.
-    deletes.sort(Comparator.comparing(TimestampedValue::getTimestamp));
-    inserts.sort(Comparator.comparing(TimestampedValue::getTimestamp));
+    List<Row> deletes = Lists.newArrayList(result.getAll(DELETES));
+    List<Row> inserts = Lists.newArrayList(result.getAll(INSERTS));
 
     new RowResolver(pkFields)
         .resolve(
             deletes,
             inserts,
-            (kind, tv) -> {
-              Row projectedRow = rowFilter.filter(tv.getValue());
-              out.builder(projectedRow).setValueKind(kind).setTimestamp(tv.getTimestamp()).output();
-              logEmit(kind, tv);
+            (kind, row) -> {
+              Row projectedRow = rowFilter.filter(row);
+              out.builder(projectedRow).setValueKind(kind).setTimestamp(timestamp).output();
+              logEmit(kind, row);
             });
   }
 
-  private static final class RowResolver extends CdcResolver<TimestampedValue<Row>> {
+  private static final class RowResolver extends CdcResolver<Row> {
     private final Set<String> pkFields;
 
     RowResolver(Set<String> pkFields) {
@@ -95,20 +86,20 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
     }
 
     @Override
-    protected int nonPkHash(TimestampedValue<Row> element) {
+    protected int nonPkHash(Row element) {
       int hash = 1;
-      for (String field : element.getValue().getSchema().getFieldNames()) {
+      for (String field : element.getSchema().getFieldNames()) {
         if (pkFields.contains(field)) {
           continue;
         }
-        hash = 31 * hash + Objects.hashCode(element.getValue().getValue(field));
+        hash = 31 * hash + Objects.hashCode(element.getValue(field));
       }
       return hash;
     }
 
     @Override
-    protected boolean nonPkEquals(TimestampedValue<Row> delete, TimestampedValue<Row> insert) {
-      Schema schema = insert.getValue().getSchema();
+    protected boolean nonPkEquals(Row delete, Row insert) {
+      Schema schema = insert.getSchema();
       for (String field : schema.getFieldNames()) {
         // we already know PK values are equal
         if (pkFields.contains(field)) {
@@ -116,8 +107,8 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
         }
         // return early if two values are not equal
         if (!Row.Equals.deepEquals(
-            insert.getValue().getValue(field),
-            delete.getValue().getValue(field),
+            insert.getValue(field),
+            delete.getValue(field),
             schema.getField(field).getType())) {
           return false;
         }
@@ -127,19 +118,19 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
   }
 
   /** Debug-only logging hook so the existing CoW / update / extra prints survive the refactor. */
-  private static void logEmit(ValueKind kind, TimestampedValue<Row> tv) {
+  private static void logEmit(ValueKind kind, Row row) {
     switch (kind) {
       case UPDATE_BEFORE:
-        System.out.printf("[BIDIRECTIONAL] -- UpdateBefore:%n\t%s%n", tv);
+        System.out.printf("[BIDIRECTIONAL] -- UpdateBefore:%n\t%s%n", row);
         break;
       case UPDATE_AFTER:
-        System.out.printf("[BIDIRECTIONAL] -- UpdateAfter%n\t%s%n", tv);
+        System.out.printf("[BIDIRECTIONAL] -- UpdateAfter%n\t%s%n", row);
         break;
       case DELETE:
-        System.out.printf("[BIDIRECTIONAL] -- Deleted%n%s%n", tv);
+        System.out.printf("[BIDIRECTIONAL] -- Deleted%n%s%n", row);
         break;
       case INSERT:
-        System.out.printf("[BIDIRECTIONAL] -- Inserted%n%s%n", tv);
+        System.out.printf("[BIDIRECTIONAL] -- Inserted%n%s%n", row);
         break;
     }
   }
