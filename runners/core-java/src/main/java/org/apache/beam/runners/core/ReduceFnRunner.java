@@ -100,6 +100,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       "unstable_not_update_compatible_new_window_optimization";
   public static final String UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION =
       "unstable_disable_watermark_known_empty_optimization";
+
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
    *

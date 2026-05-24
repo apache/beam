@@ -2791,8 +2791,7 @@ public class DataflowRunnerTest implements Serializable {
   @Category({ValidatesRunner.class})
   public void testValueKindParameterAndOutputWithKind() {
     boolean isRunnerV2 = false;
-    @Nullable
-    List<String> experiments =
+    @Nullable List<String> experiments =
         pipeline.getOptions().as(DataflowPipelineOptions.class).getExperiments();
     if (experiments != null
         && (experiments.contains("use_unified_worker") || experiments.contains("use_runner_v2"))) {

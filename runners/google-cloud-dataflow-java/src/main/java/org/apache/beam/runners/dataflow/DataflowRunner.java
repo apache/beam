@@ -1364,8 +1364,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // need the default environment.
     SdkComponents portableComponents = SdkComponents.create();
     portableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
+        defaultEnvironmentForDataflow.toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
@@ -1409,8 +1408,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Capture the SdkComponents for look up during step translations
     SdkComponents dataflowV1Components = SdkComponents.create();
     dataflowV1Components.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
+        defaultEnvironmentForDataflow.toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
