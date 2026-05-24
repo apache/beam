@@ -21,12 +21,14 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types;
@@ -34,7 +36,9 @@ import org.apache.iceberg.types.Types;
 public class TestFixtures {
   public static final Schema SCHEMA =
       new Schema(
-          required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get()));
+          Arrays.asList(
+              required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get())),
+          Sets.newHashSet(1));
 
   public static final Schema NESTED_SCHEMA =
       new Schema(
