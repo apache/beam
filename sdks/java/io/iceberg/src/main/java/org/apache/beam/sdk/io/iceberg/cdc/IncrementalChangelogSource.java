@@ -118,14 +118,14 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
     // exists in its own window.
     // We re-window the resolved output back to GlobalWindows before the final Flatten
     // to align with the other branches.
-    Window<KV<KV<Long, Row>, TimestampedValue<Row>>> keyedWindowing =
-        Window.<KV<KV<Long, Row>, TimestampedValue<Row>>>into(new SnapshotWindowFn())
+    Window<KV<KV<Long, Row>, Row>> keyedWindowing =
+        Window.<KV<KV<Long, Row>, Row>>into(new SnapshotWindowFn())
             .triggering(AfterWatermark.pastEndOfWindow())
             .withAllowedLateness(Duration.ZERO)
             .discardingFiredPanes();
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> keyedInserts =
+    PCollection<KV<KV<Long, Row>, Row>> keyedInserts =
         outputRows.biDirectionalInserts().apply("Window Inserts", keyedWindowing);
-    PCollection<KV<KV<Long, Row>, TimestampedValue<Row>>> keyedDeletes =
+    PCollection<KV<KV<Long, Row>, Row>> keyedDeletes =
         outputRows.biDirectionalDeletes().apply("Window Deletes", keyedWindowing);
     PCollection<Row> biDirectionalCdcRows =
         KeyedPCollectionTuple.of(INSERTS, keyedInserts)
