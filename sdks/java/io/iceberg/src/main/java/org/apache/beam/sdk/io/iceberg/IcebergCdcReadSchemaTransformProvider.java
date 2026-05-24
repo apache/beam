@@ -119,7 +119,7 @@ public class IcebergCdcReadSchemaTransformProvider
               .keeping(configuration.getKeep())
               .dropping(configuration.getDrop())
               .withFilter(configuration.getFilter())
-            .withWatermarkColumn(configuration.getWatermarkColumn());
+              .withWatermarkColumn(configuration.getWatermarkColumn());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -199,15 +199,16 @@ public class IcebergCdcReadSchemaTransformProvider
         "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
     abstract @Nullable List<String> getDrop();
 
-    @SchemaFieldDescription("Column used to derive the source's output watermark. " +
-      "Must be an existing, required, top-level column of type 'long' or 'timestamp'. " +
-      "If not set, the watermark advances according to snapshot commit timestamp.")
+    @SchemaFieldDescription(
+        "Column used to derive the source's output watermark. "
+            + "Must be an existing, required, top-level column of type 'long' or 'timestamp'. "
+            + "If not set, the watermark advances according to snapshot commit timestamp.")
     abstract @Nullable String getWatermarkColumn();
 
     @SchemaFieldDescription(
-      "Maximum expected snapshot discovery delay in seconds. While idle, the source may advance "
-        + "the watermark to now() minus this delay; snapshots discovered later with older commit "
-        + "timestamps may be treated as late by downstream windowing. Default: 600 seconds.")
+        "Maximum expected snapshot discovery delay in seconds. While idle, the source may advance "
+            + "the watermark to now() minus this delay; snapshots discovered later with older commit "
+            + "timestamps may be treated as late by downstream windowing. Default: 600 seconds.")
     abstract @Nullable Long getMaxSnapshotDiscoveryDelay();
 
     @AutoValue.Builder

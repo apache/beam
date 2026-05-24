@@ -167,8 +167,8 @@ public class WorkerCustomSourcesTest {
   public void testSplitAndReadBundlesBack() throws Exception {
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(CountingSource.upTo(10L), options);
-    List<WindowedValue<Integer>> elems = readElemsFromSource(options, source);
-    assertEquals(10L, elems.size());
+    List<WindowedValue<Long>> elems = readElemsFromSource(options, source);
+    assertEquals(10, elems.size());
     for (long i = 0; i < 10L; i++) {
       assertEquals(valueInGlobalWindow(i), elems.get((int) i));
     }
@@ -188,7 +188,7 @@ public class WorkerCustomSourcesTest {
       com.google.api.services.dataflow.model.Source bundleSource = bundle.getSource();
       assertTrue(bundleSource.getDoesNotNeedSplitting());
       bundleSource.setCodec(source.getCodec());
-      List<WindowedValue<Integer>> xs = readElemsFromSource(options, bundleSource);
+      List<WindowedValue<Long>> xs = readElemsFromSource(options, bundleSource);
       assertThat(
           "Failed on bundle " + i,
           xs,
@@ -239,6 +239,7 @@ public class WorkerCustomSourcesTest {
   }
 
   private static class SourceWithLargeObject extends MockSource {
+    @SuppressWarnings("unused")
     byte[] array;
 
     public SourceWithLargeObject(int sourceObjectSize) {
@@ -304,15 +305,15 @@ public class WorkerCustomSourcesTest {
     // Same as previous test, but now using BasicSerializableSourceFormat wrappers.
     // We know that the underlying reader behaves correctly (because of the previous test),
     // now check that we are wrapping it correctly.
-    NativeReader<WindowedValue<Integer>> reader =
-        (NativeReader<WindowedValue<Integer>>)
+    NativeReader<WindowedValue<Long>> reader =
+        (NativeReader<WindowedValue<Long>>)
             ReaderRegistry.defaultRegistry()
                 .create(
                     translateIOToCloudSource(CountingSource.upTo(10), options),
                     options,
                     null, // executionContext
                     TestOperationContext.create());
-    try (NativeReader.NativeReaderIterator<WindowedValue<Integer>> iterator = reader.iterator()) {
+    try (NativeReader.NativeReaderIterator<WindowedValue<Long>> iterator = reader.iterator()) {
       assertTrue(iterator.start());
       assertEquals(valueInGlobalWindow(0L), iterator.getCurrent());
       assertEquals(

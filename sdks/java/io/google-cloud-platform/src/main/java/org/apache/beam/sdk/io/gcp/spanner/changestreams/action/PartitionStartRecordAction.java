@@ -138,6 +138,7 @@ public class PartitionStartRecordAction {
             .setStartTimestamp(record.getStartTimestamp())
             .setEndTimestamp(partition.getEndTimestamp())
             .setHeartbeatMillis(partition.getHeartbeatMillis())
+            .setTvfName(partition.getTvfName())
             .setState(CREATED)
             .setWatermark(record.getStartTimestamp())
             .build();
@@ -146,7 +147,10 @@ public class PartitionStartRecordAction {
         partitionMetadataDao
             .runInTransaction(
                 transaction -> {
-                  if (transaction.getPartition(startPartitionToken) == null) {
+                  if (transaction.getPartition(
+                          PartitionMetadataDao.composePartitionTokenWithTvfName(
+                              startPartitionToken, partition.getTvfName()))
+                      == null) {
                     transaction.insert(row);
                     return true;
                   }

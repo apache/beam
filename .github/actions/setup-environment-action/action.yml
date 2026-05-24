@@ -48,7 +48,7 @@ runs:
   steps:
     - name: Install Python
       if: ${{ inputs.python-version != '' }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}
@@ -76,12 +76,13 @@ runs:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
     - name: Setup Gradle
-      uses: gradle/gradle-build-action@v2
+      uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5
       with:
         cache-disabled: ${{ inputs.disable-cache }}
+        validate-wrappers: false
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v6
       with:
-        go-version: ${{ inputs.go-version == 'default' && '1.25' || inputs.go-version }} # never set patch, to get latest patch releases.
+        go-version: ${{ inputs.go-version == 'default' && '1.26' || inputs.go-version }} # never set patch, to get latest patch releases.
         cache-dependency-path: $${{ inputs.disable-cache && '' || 'sdks/go.sum' }}

@@ -33,7 +33,7 @@ import org.apache.http.params.HttpParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** */
+/** Utility class for fetching Google Compute Engine metadata. */
 public class GceMetadataUtil {
   private static final String BASE_METADATA_URL = "http://metadata/computeMetadata/v1/";
 
@@ -60,6 +60,7 @@ public class GceMetadataUtil {
         }
       }
     } catch (IOException ignored) {
+      LOG.debug("Failed to fetch GCE metadata.", ignored);
     }
 
     // The return value can be an empty string, which may mean it's running on a non DataflowRunner.
@@ -77,14 +78,22 @@ public class GceMetadataUtil {
   }
 
   public static String fetchDataflowJobId() {
-    return GceMetadataUtil.fetchCustomGceMetadata("job_id");
+    return fetchCustomGceMetadata("job_id");
   }
 
   public static String fetchDataflowJobName() {
-    return GceMetadataUtil.fetchCustomGceMetadata("job_name");
+    return fetchCustomGceMetadata("job_name");
   }
 
   public static String fetchDataflowWorkerId() {
-    return GceMetadataUtil.fetchVmInstanceMetadata("id");
+    return fetchVmInstanceMetadata("id");
+  }
+
+  public static String fetchDataflowWorkerName() {
+    return fetchVmInstanceMetadata("name");
+  }
+
+  public static String fetchDataflowRegion() {
+    return fetchVmInstanceMetadata("cloud_region");
   }
 }

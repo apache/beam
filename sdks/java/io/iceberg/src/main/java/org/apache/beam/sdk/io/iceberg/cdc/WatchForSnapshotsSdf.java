@@ -244,7 +244,9 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
    */
   private ProcessContinuation pauseOrStop(
       ManualWatermarkEstimator<Instant> watermark, boolean bounded) {
-    Duration delay = MoreObjects.firstNonNull(scanConfig.getMaxSnapshotDiscoveryDelay(), MAX_SNAPSHOT_DISCOVERY_DELAY);
+    Duration delay =
+        MoreObjects.firstNonNull(
+            scanConfig.getMaxSnapshotDiscoveryDelay(), MAX_SNAPSHOT_DISCOVERY_DELAY);
     Instant idleWatermark = Instant.now().minus(delay);
     if (watermark.currentWatermark().isBefore(idleWatermark)) {
       LOG.info(

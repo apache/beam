@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import typing
 import unittest
 from typing import Tuple

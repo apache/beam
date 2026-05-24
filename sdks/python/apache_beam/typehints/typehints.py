@@ -65,6 +65,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import copy
 import logging
 import types
@@ -1462,9 +1463,10 @@ def normalize(x, none_as_type=False):
   # Convert bare builtin types to correct type hints directly
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
-  elif getattr(x, '__module__',
-               None) in ('typing', 'collections', 'collections.abc') or getattr(
-                   x, '__origin__', None) in _KNOWN_PRIMITIVE_TYPES:
+  elif isinstance(x, types.UnionType) or getattr(
+      x, '__module__',
+      None) in ('typing', 'collections', 'collections.abc') or getattr(
+          x, '__origin__', None) in _KNOWN_PRIMITIVE_TYPES:
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
       # We were able to do the conversion.
@@ -1484,7 +1486,8 @@ _KNOWN_PRIMITIVE_TYPES.update({
 })
 
 
-def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
+def is_consistent_with(
+    sub, base, use_beartype: typing.Optional[bool] = None) -> bool:
   """Checks whether sub a is consistent with base.
 
   This is according to the terminology of PEP 483/484.  This relationship is
@@ -1493,6 +1496,15 @@ def is_consistent_with(sub, base, use_beartype: bool = False) -> bool:
   relation, but also handles the special Any type as well as type
   parameterization.
   """
+  if use_beartype is None:
+    from apache_beam.options.pipeline_options_context import get_pipeline_options
+    options = get_pipeline_options()
+    if options:
+      from apache_beam.options.pipeline_options import TypeOptions
+      use_beartype = not options.view_as(TypeOptions).disable_beartype
+    else:
+      use_beartype = True
+
   from apache_beam.pvalue import Row
   from apache_beam.typehints.row_type import RowTypeConstraint
   if sub == base:

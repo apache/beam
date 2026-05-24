@@ -485,9 +485,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  def test_reshuffle_before_load(self, compat_version):
-    from apache_beam.coders import typecoders
-    typecoders.registry.force_dill_deterministic_coders = True
+  @mock.patch(
+      'apache_beam.coders.coders._should_force_use_dill', return_value=True)
+  def test_reshuffle_before_load(self, mock_force_dill, compat_version):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -523,7 +523,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     reshuffle_before_load = compat_version is None
     assert transform.reshuffle_before_load == reshuffle_before_load
-    typecoders.registry.force_dill_deterministic_coders = False
 
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
@@ -998,10 +997,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       param(
           is_streaming=True, with_auto_sharding=True, compat_version="2.64.0"),
   ])
+  @mock.patch(
+      'apache_beam.coders.coders._should_force_use_dill', return_value=True)
   def test_triggering_frequency(
-      self, is_streaming, with_auto_sharding, compat_version):
-    from apache_beam.coders import typecoders
-    typecoders.registry.force_dill_deterministic_coders = True
+      self, mock_force_dill, is_streaming, with_auto_sharding, compat_version):
 
     destination = 'project1:dataset1.table1'
 
@@ -1107,8 +1106,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           equal_to(expected_destinations),
           label='CheckDestinations')
       assert_that(jobs, equal_to(expected_jobs), label='CheckJobs')
-
-    typecoders.registry.force_dill_deterministic_coders = False
 
 
 class BigQueryFileLoadsIT(unittest.TestCase):

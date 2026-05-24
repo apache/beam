@@ -282,6 +282,7 @@ final class GrpcDirectGetWorkStream
         createWatermarks(workItem, metadata),
         createProcessingContext(metadata.computationId()),
         metadata.drainMode(),
+        assembledWorkItem.appliedFinalizeIds(),
         assembledWorkItem.latencyAttributions());
     budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension();

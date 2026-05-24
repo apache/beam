@@ -67,63 +67,88 @@ public abstract class DLPDeidentifyText
 
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
-  /** @return Template name for data inspection. */
+  /** Returns template name for data inspection. */
   public abstract @Nullable String getInspectTemplateName();
 
-  /** @return Template name for data deidentification. */
+  /** Returns template name for data deidentification. */
   public abstract @Nullable String getDeidentifyTemplateName();
 
   /**
-   * @return Configuration object for data inspection. If present, supersedes the template settings.
+   * Returns configuration object for data inspection. If present, supersedes the template settings.
    */
   public abstract @Nullable InspectConfig getInspectConfig();
 
-  /** @return Configuration object for deidentification. If present, supersedes the template. */
+  /** Returns configuration object for deidentification. If present, supersedes the template. */
   public abstract @Nullable DeidentifyConfig getDeidentifyConfig();
 
-  /** @return List of column names if the input KV value is a delimited row. */
+  /** Returns list of column names if the input KV value is a delimited row. */
   public abstract @Nullable PCollectionView<List<String>> getHeaderColumns();
 
-  /** @return Delimiter to be used when splitting values from input strings into columns. */
+  /** Returns delimiter to be used when splitting values from input strings into columns. */
   public abstract @Nullable String getColumnDelimiter();
 
-  /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer getBatchSizeBytes();
+  /** Returns size of input elements batch to be sent to Cloud DLP service in one request. */
+  public abstract int getBatchSizeBytes();
 
-  /** @return ID of Google Cloud project to be used when deidentifying data. */
+  /** Returns ID of Google Cloud project to be used when deidentifying data. */
   public abstract String getProjectId();
 
   @AutoValue.Builder
   public abstract static class Builder {
-    /** @param inspectTemplateName Template name for data inspection. */
+    /**
+     * Sets template name for data inspection.
+     *
+     * @param inspectTemplateName Template name for data inspection.
+     */
     public abstract Builder setInspectTemplateName(String inspectTemplateName);
 
-    /** @param headerColumns List of column names if the input KV value is a delimited row. */
+    /**
+     * Sets list of column names if the input KV value is a delimited row.
+     *
+     * @param headerColumns List of column names if the input KV value is a delimited row.
+     */
     public abstract Builder setHeaderColumns(PCollectionView<List<String>> headerColumns);
 
     /**
+     * Sets delimiter to be used when splitting values from input strings into columns.
+     *
      * @param delimiter Delimiter to be used when splitting values from input strings into columns.
      */
     public abstract Builder setColumnDelimiter(String delimiter);
 
     /**
+     * Sets size of input elements batch to be sent to Cloud DLP service in one request.
+     *
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
-    public abstract Builder setBatchSizeBytes(Integer batchSize);
+    public abstract Builder setBatchSizeBytes(int batchSize);
 
-    /** @param projectId ID of Google Cloud project to be used when deidentifying data. */
+    /**
+     * Sets ID of Google Cloud project to be used when deidentifying data.
+     *
+     * @param projectId ID of Google Cloud project to be used when deidentifying data.
+     */
     public abstract Builder setProjectId(String projectId);
 
-    /** @param deidentifyTemplateName Template name for data deidentification. */
+    /**
+     * Sets template name for data deidentification.
+     *
+     * @param deidentifyTemplateName Template name for data deidentification.
+     */
     public abstract Builder setDeidentifyTemplateName(String deidentifyTemplateName);
 
     /**
+     * Sets configuration object for data inspection. If present, supersedes the template settings.
+     *
      * @param inspectConfig Configuration object for data inspection. If present, supersedes the
      *     template settings.
      */
     public abstract Builder setInspectConfig(InspectConfig inspectConfig);
 
     /**
+     * Sets configuration object for data deidentification. If present, supersedes the template
+     * settings.
+     *
      * @param deidentifyConfig Configuration object for data deidentification. If present,
      *     supersedes the template settings.
      */

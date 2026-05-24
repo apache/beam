@@ -57,6 +57,7 @@ public class ReadFromTwitterDoFnTest {
   LinkedBlockingQueue<Status> queue2 = new LinkedBlockingQueue<>();
 
   @Before
+  @SuppressWarnings("JavaUtilDate")
   public void setUp() throws JsonProcessingException {
     MockitoAnnotations.initMocks(this);
     when(status1.getText()).thenReturn("Breaking News1");

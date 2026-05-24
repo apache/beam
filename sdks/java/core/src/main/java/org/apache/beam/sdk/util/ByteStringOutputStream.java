@@ -162,10 +162,8 @@ public final class ByteStringOutputStream extends OutputStream implements Append
    * Resets the output stream to be re-used possibly re-using any existing buffers.
    */
   public void reset() {
-    if (size() == 0) {
-      return;
-    }
-    toByteStringAndReset();
+    bufferPos = 0;
+    result = ByteString.EMPTY;
   }
 
   /**
@@ -214,6 +212,12 @@ public final class ByteStringOutputStream extends OutputStream implements Append
    */
   public int size() {
     return result.size() + bufferPos;
+  }
+
+  /** Returns if the output stream is currently empty. */
+  @SuppressWarnings("ReferenceEquality")
+  public boolean isEmpty() {
+    return bufferPos == 0 && result == ByteString.EMPTY;
   }
 
   @Override

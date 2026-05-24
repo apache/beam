@@ -21,6 +21,7 @@
 
 import argparse
 import shlex
+import sys
 from unittest import SkipTest
 
 from apache_beam.internal import pickler
@@ -166,6 +167,19 @@ class TestPipeline(Pipeline):
     return shlex.split(test_pipeline_options) \
       if test_pipeline_options else []
 
+  @classmethod
+  def get_options_list(cls, argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--test-pipeline-options',
+        type=str,
+        action='store',
+        help='Pipeline options for the test')
+    known, _ = parser.parse_known_args(argv if argv is not None else sys.argv)
+    opts = known.test_pipeline_options or getattr(
+        cls, 'pytest_test_pipeline_options', None)
+    return shlex.split(opts) if opts else []
+
   def get_full_options_as_args(self, **extra_opts):
     """Get full pipeline options as an argument list.
 
@@ -195,7 +209,9 @@ class TestPipeline(Pipeline):
       None if option is not found in existing option list which is generated
       by parsing value of argument `test-pipeline-options`.
     """
-    parser = argparse.ArgumentParser()
+    # Parse one flag at a time; disable prefix matching so e.g. --mode does
+    # not satisfy --model_path when both appear in options_list.
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     opt_name = opt_name[:2] if opt_name[:2] == '--' else opt_name
     # Option name should start with '--' when it's used for parsing.
     if bool_option:

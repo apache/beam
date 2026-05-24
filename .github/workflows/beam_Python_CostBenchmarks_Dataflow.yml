@@ -53,7 +53,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 900
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
@@ -61,7 +61,7 @@ jobs:
         job_name: ["beam_Python_CostBenchmark_Dataflow"]
         job_phrase: ["Run Python Dataflow Cost Benchmarks"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

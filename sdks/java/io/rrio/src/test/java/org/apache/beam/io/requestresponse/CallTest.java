@@ -316,7 +316,7 @@ public class CallTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Request)) {
         return false;
       }
       Request request = (Request) o;
@@ -341,7 +341,7 @@ public class CallTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Response)) {
         return false;
       }
       Response response = (Response) o;

@@ -72,7 +72,7 @@ public class RowToEntity extends PTransform<PCollection<Row>, PCollection<Entity
                 + "` should of type `VARBINARY`. Please change the type or specify a field to"
                 + " write the KEY value from via TableProperties.");
       }
-      LOG.info("Field to use as Entity KEY is set to: `" + keyField + "`.");
+      LOG.info("Field to use as Entity KEY is set to: `{}`.", keyField);
     }
     return input.apply(ParDo.of(new RowToEntity.RowToEntityConverter(isFieldPresent)));
   }

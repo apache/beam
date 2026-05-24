@@ -161,7 +161,7 @@ public class WorkerCustomSources {
             "Ignoring negative estimated size {} produced by source {}", estimatedSize, source);
       }
     } catch (Exception e) {
-      LOG.warn("Size estimation of the source failed: " + source, e);
+      LOG.warn("Size estimation of the source failed: {}", source, e);
     }
     cloudSource.setMetadata(metadata);
     return cloudSource;
@@ -661,7 +661,7 @@ public class WorkerCustomSources {
     @VisibleForTesting
     static @Nullable ReportedParallelism longToParallelism(long value) {
       if (value >= 0) {
-        return new ReportedParallelism().setValue(Double.valueOf(value));
+        return new ReportedParallelism().setValue(Double.valueOf((double) value));
       } else {
         return null;
       }
@@ -680,6 +680,8 @@ public class WorkerCustomSources {
         if (fractionConsumed != null) {
           progress.setFractionConsumed(fractionConsumed);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating fraction consumed from reader {}", reader, t);
       }
@@ -689,6 +691,8 @@ public class WorkerCustomSources {
         if (parallelism != null) {
           progress.setConsumedParallelism(parallelism);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating consumed parallelism from reader {}", reader, t);
       }
@@ -698,6 +702,8 @@ public class WorkerCustomSources {
         if (parallelism != null) {
           progress.setRemainingParallelism(parallelism);
         }
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable t) {
         LOG.warn("Error estimating remaining parallelism from reader {}", reader, t);
       }

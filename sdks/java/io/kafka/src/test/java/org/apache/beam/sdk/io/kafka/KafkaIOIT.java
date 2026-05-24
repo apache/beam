@@ -128,7 +128,7 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * IO Integration test for {@link org.apache.beam.sdk.io.kafka.KafkaIO}.
  *
- * <p>{@see https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
+ * <p>{@link https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
  * more details.
  *
  * <p>NOTE: This test sets retention policy of the messages so that all messages are retained in the
@@ -593,7 +593,7 @@ public class KafkaIOIT {
   public static class LogFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> outputReceiver) {
-      LOG.error(element);
+      LOG.error("{}", element);
       outputReceiver.output(element);
     }
   }
@@ -811,6 +811,38 @@ public class KafkaIOIT {
     DelayedCheckStopReadingFn checkStopReadingFn = new DelayedCheckStopReadingFn();
 
     runWithStopReadingFn(checkStopReadingFn, "delayed-stop-reading", sourceOptions.numRecords);
+  }
+
+  @Test
+  public void testKafkaWithStopReadTime() throws IOException {
+    writePipeline
+        .apply("Generate records", Read.from(new SyntheticBoundedSource(sourceOptions)))
+        .apply("Measure write time", ParDo.of(new TimeMonitor<>(NAMESPACE, WRITE_TIME_METRIC_NAME)))
+        .apply(
+            "Write to Kafka",
+            writeToKafka().withTopic(options.getKafkaTopic() + "-stop-read-time"));
+
+    PipelineResult writeResult = writePipeline.run();
+    PipelineResult.State writeState = writeResult.waitUntilFinish();
+    assertNotEquals(PipelineResult.State.FAILED, writeState);
+
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(false);
+    @SuppressWarnings("unused")
+    PCollection<KafkaRecord<byte[], byte[]>> rows =
+        sdfReadPipeline.apply(
+            "Read from bounded Kafka",
+            readFromKafka()
+                .withTopic(options.getKafkaTopic() + "-stop-read-time")
+                .withStopReadTime(
+                    org.joda.time.Instant.ofEpochMilli(
+                        new MetricsReader(writeResult, NAMESPACE)
+                            .getEndTimeMetric(WRITE_TIME_METRIC_NAME))));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(readResult, readState);
+    assertNotEquals(PipelineResult.State.FAILED, readState);
   }
 
   public static final Schema KAFKA_TOPIC_SCHEMA =

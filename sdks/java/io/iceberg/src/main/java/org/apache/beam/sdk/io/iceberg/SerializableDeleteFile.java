@@ -274,7 +274,7 @@ public abstract class SerializableDeleteFile {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SerializableDeleteFile)) {
       return false;
     }
     SerializableDeleteFile that = (SerializableDeleteFile) o;

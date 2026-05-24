@@ -48,6 +48,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     String dockerComposeFile = 'docker-compose.yml'
     Set<Task> dependencies = [] as Set
     Set<String> tags = [] as Set
+    String tagSuffix = null
     Map<String, String> namedTags = [:]
     Map<String, String> labels = [:]
     Map<String, String> buildArgs = [:]
@@ -100,7 +101,11 @@ class BeamDockerPlugin implements Plugin<Project> {
     }
 
     Set<String> getTags() {
-      return this.tags + project.getVersion().toString()
+      def allTags = this.tags + project.getVersion().toString()
+      if (tagSuffix) {
+        allTags = allTags.collect { it.endsWith(tagSuffix) ? it : it + tagSuffix }.toSet()
+      }
+      return allTags
     }
 
     Set<String> getPlatform() {

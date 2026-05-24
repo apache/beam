@@ -27,7 +27,7 @@ applyJavaNature(
 description = "Apache Beam :: IT :: ClickHouse"
 ext.summary = "Integration test utilities for ClickHouse."
 
-def clickhouse_jdbc_version = "0.6.4"
+def clickhouse_java_client_version = "0.9.6"
 
 dependencies {
     implementation project(path: ":it:common")
@@ -38,7 +38,8 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation library.java.testcontainers_base
     implementation library.java.testcontainers_clickhouse
-    implementation "com.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version:all"
+    implementation "com.clickhouse:client-v2:$clickhouse_java_client_version:all"
+    runtimeOnly "com.clickhouse:clickhouse-jdbc:$clickhouse_java_client_version:all"
 
     testImplementation(library.java.truth)
     testImplementation 'junit:junit:4.13.2'
@@ -49,6 +50,6 @@ dependencies {
     testImplementation library.java.commons_lang3
     testRuntimeOnly library.java.slf4j_simple
 
-    permitUnusedDeclared "com.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version:all"
+    permitUnusedDeclared "com.clickhouse:client-v2:$clickhouse_java_client_version:all"
 
 }

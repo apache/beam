@@ -51,8 +51,8 @@ try:
   import PIL
   from PIL.Image import Image as PIL_Image
 except ImportError:
-  PIL = None
-  PIL_Image = Any
+  PIL = None  # type: ignore[assignment]
+  PIL_Image = Any  # type: ignore[misc, assignment]
 
 try:
 

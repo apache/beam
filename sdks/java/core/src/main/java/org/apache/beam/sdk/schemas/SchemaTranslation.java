@@ -43,6 +43,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.Date;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
@@ -113,6 +114,7 @@ public class SchemaTranslation {
           .put(VariableBytes.IDENTIFIER, VariableBytes.class)
           .put(FixedString.IDENTIFIER, FixedString.class)
           .put(VariableString.IDENTIFIER, VariableString.class)
+          .put(Date.IDENTIFIER, Date.class)
           .build();
 
   public static SchemaApi.Schema schemaToProto(Schema schema, boolean serializeLogicalType) {

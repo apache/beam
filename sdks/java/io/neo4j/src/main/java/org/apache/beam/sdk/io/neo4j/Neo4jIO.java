@@ -834,12 +834,10 @@ public class Neo4jIO {
 
         String readWrite = writeTransaction ? "write" : "read";
         LOG.info(
-            "Starting a "
-                + readWrite
-                + " transaction for cypher: "
-                + cypher
-                + ", parameters: "
-                + parametersString);
+            "Starting a {} transaction for cypher: {}, parameters: {}",
+            readWrite,
+            cypher,
+            parametersString);
       }
 
       // There are 2 ways to do a transaction on Neo4j: read or write
@@ -854,7 +852,7 @@ public class Neo4jIO {
         } else {
           count = driverSession.session.readTransaction(transactionWork, transactionConfig);
         }
-        LOG.debug("Retrieved " + count + " elements from Neo4J");
+        LOG.debug("Retrieved {} elements from Neo4J", count);
       }
     }
   }
@@ -1173,10 +1171,9 @@ public class Neo4jIO {
       if (logCypher && !loggingDone) {
         String parametersString = getParametersString(parametersMap);
         LOG.info(
-            "Starting a write transaction for unwind statement cypher: "
-                + cypher
-                + ", parameters: "
-                + parametersString);
+            "Starting a write transaction for unwind statement cypher: {}, parameters: {}",
+            cypher,
+            parametersString);
         loggingDone = true;
       }
 

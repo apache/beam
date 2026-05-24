@@ -46,6 +46,7 @@ See the following pages for performance measures recorded when running various B
 ## Streaming
 
 - [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
+- [Table Row Inference Sklearn Streaming](/performance/tablerowinferencestreaming)
 
 ## Batch
 
@@ -57,3 +58,4 @@ See the following pages for performance measures recorded when running various B
 - [PyTorch Vision Classification Resnet 152 Tesla T4 GPU](/performance/pytorchresnet152tesla)
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
+- [Table Row Inference Sklearn Batch](/performance/tablerowinference)

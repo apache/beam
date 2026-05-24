@@ -96,7 +96,7 @@ public class Neo4jResourceManagerTest {
         Neo4jResourceManager.builder(TEST_ID)
             .setDatabaseName(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase());
     new Neo4jResourceManager(neo4jDriver, container, builder);
-
+    String unused = testManager.createTestDatabase();
     verify(session).run(and(startsWith("CREATE DATABASE"), endsWith("NOWAIT")), anyMap());
   }
 
@@ -107,35 +107,40 @@ public class Neo4jResourceManagerTest {
 
   @Test
   public void testGetDatabaseNameShouldReturnCorrectValue() {
-    assertThat(testManager.getDatabaseName()).matches(TEST_ID + "-\\d{8}-\\d{6}-\\d{6}");
+    String databaseName = testManager.createTestDatabase();
+    assertThat(databaseName).matches("test[0-9a-f]{4}-\\d{8}-\\d{6}-\\d{6}");
   }
 
   @Test
   public void testDropDatabaseShouldThrowErrorIfDriverFailsToRunQuery() {
+    String unused = testManager.createTestDatabase();
     doThrow(ClientException.class).when(session).run(anyString(), anyMap());
 
     assertThrows(
         Neo4jResourceManagerException.class,
-        () -> testManager.dropDatabase(STATIC_DATABASE_NAME, DatabaseWaitOptions.noWaitDatabase()));
+        () -> testManager.dropTestDatabases(DatabaseWaitOptions.noWaitDatabase()));
   }
 
   @Test
   public void testRunShouldThrowErrorIfDriverFailsToRunParameterlessQuery() {
+    String databaseName = testManager.createTestDatabase();
     doThrow(ClientException.class).when(session).run(anyString(), anyMap());
-
     assertThrows(
-        Neo4jResourceManagerException.class, () -> testManager.run("MATCH (n) RETURN n LIMIT 1"));
+        Neo4jResourceManagerException.class,
+        () -> testManager.run(databaseName, "MATCH (n) RETURN n LIMIT 1"));
   }
 
   @Test
   public void testRunShouldThrowErrorIfDriverFailsToRunQuery() {
+    String databaseName = testManager.createTestDatabase();
     doThrow(ClientException.class).when(session).run(anyString(), anyMap());
-
     assertThrows(
         Neo4jResourceManagerException.class,
         () ->
             testManager.run(
-                "MATCH (n) WHERE n < $val RETURN n LIMIT 1", Collections.singletonMap("val", 2)));
+                "MATCH (n) WHERE n < $val RETURN n LIMIT 1",
+                databaseName,
+                Collections.singletonMap("val", 2)));
   }
 
   @Test
@@ -152,6 +157,7 @@ public class Neo4jResourceManagerTest {
 
   @Test
   public void testCleanupShouldDropNonStaticDatabase() {
+    String unused = testManager.createTestDatabase();
     when(session.run(anyString(), anyMap())).thenReturn(mock(Result.class));
 
     testManager.cleanupAll();
@@ -162,8 +168,8 @@ public class Neo4jResourceManagerTest {
 
   @Test
   public void testCleanupAllShouldThrowErrorWhenNeo4jDriverFailsToDropDatabase() {
+    String unused = testManager.createTestDatabase();
     doThrow(ClientException.class).when(session).run(anyString(), anyMap());
-
     assertThrows(Neo4jResourceManagerException.class, () -> testManager.cleanupAll());
   }
 

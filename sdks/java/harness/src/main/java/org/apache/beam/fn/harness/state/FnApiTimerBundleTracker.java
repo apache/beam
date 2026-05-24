@@ -198,6 +198,8 @@ public class FnApiTimerBundleTracker<K> {
             if (timerFamilyOrId != null && timer != null) {
               getTimersReceiverFromTimerIdFn.apply(timerFamilyOrId).accept(timer);
             }
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             throw UserCodeException.wrap(t);
           }

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -146,7 +147,7 @@ public class BeamFnDataOutboundAggregatorTest {
     } else {
       receiver = Iterables.getOnlyElement(aggregator.outputDataReceivers.values());
     }
-    assertEquals(0L, receiver.bufferedSize());
+    assertFalse(receiver.hasBufferedOutput());
     assertEquals(102L, receiver.getByteCount());
     assertEquals(2L, receiver.getElementCount());
 
@@ -156,7 +157,7 @@ public class BeamFnDataOutboundAggregatorTest {
     aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
     // Test that receiver stats have been reset after
     // sendOrCollectBufferedDataAndFinishOutboundStreams.
-    assertEquals(0L, receiver.bufferedSize());
+    assertFalse(receiver.hasBufferedOutput());
     assertEquals(0L, receiver.getByteCount());
     assertEquals(0L, receiver.getElementCount());
 

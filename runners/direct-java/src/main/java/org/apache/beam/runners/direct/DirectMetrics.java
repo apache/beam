@@ -142,7 +142,9 @@ class DirectMetrics extends MetricResults {
      * @param bundle The bundle being committed.
      * @param finalCumulative The final cumulative value for the given bundle.
      */
-    public void commitLogical(final CommittedBundle<?> bundle, final UpdateT finalCumulative) {
+    public void commitLogical(
+        @SuppressWarnings("unused") final CommittedBundle<?> bundle,
+        final UpdateT finalCumulative) {
       UpdateT current;
       do {
         current = finishedCommitted.get();

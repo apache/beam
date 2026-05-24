@@ -20,7 +20,8 @@ package org.apache.beam.examples.complete;
 import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -58,7 +59,9 @@ public class TopWikipediaSessionsIT {
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("topwikisessions-it-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format(
+                    "topwikisessions-it-%tF-%<tH-%<tM-%<tS-%<tL",
+                    LocalDateTime.now(ZoneId.of("UTC"))),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)

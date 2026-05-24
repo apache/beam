@@ -24,6 +24,7 @@ import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -49,9 +50,11 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.BeforeClass;
@@ -114,7 +117,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the second batch of transactions that will have strict timestamp ordering
@@ -125,7 +128,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     try {
       Thread.sleep(timeIncrementInSeconds * 1000);
     } catch (InterruptedException e) {
-      LOG.error(e.toString(), e);
+      LOG.error("Interrupted while waiting", e);
     }
 
     // This will be the final batch of transactions that will have strict timestamp ordering
@@ -154,47 +157,33 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
             .apply(
                 ParDo.of(new SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.ToStringFn()));
 
-    // Assert that the returned PCollection contains all six transactions (in string representation)
-    // and that each transaction contains, in order, the list of mutations added.
-    PAssert.that(tokens)
+    // Split into per-record lines so the assertion doesn't depend on how many flushes occurred.
+    // getRecordString() guarantees one \n-terminated line per record (keys + mod type only).
+    PCollection<String> changeRecordLines =
+        tokens.apply(
+            FlatMapElements.into(TypeDescriptors.strings())
+                .via(
+                    (String token) ->
+                        Arrays.stream(token.split("\n", -1))
+                            .filter(line -> !line.isEmpty())
+                            .collect(Collectors.toList())));
+
+    PAssert.that(changeRecordLines)
         .containsInAnyOrder(
-            // Insert Singer 0 into the table.
-            "{\"SingerId\":\"0\"},INSERT\n"
-
-                // Insert Singer 1 and 2 into the table,
-                + "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n"
-
-                // Delete Singer 1 and Insert Singer 3 into the table.
-                + "{\"SingerId\":\"1\"},DELETE\n"
-                + "{\"SingerId\":\"3\"},INSERT\n"
-
-                // Delete Singers 2 and 3.
-                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n"
-
-                // Delete Singer 0.
-                + "{\"SingerId\":\"0\"},DELETE\n",
-
-            // Second batch of transactions.
-            // Insert Singer 1 and 2 into the table,
-            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n"
-
-                // Delete Singer 1 and Insert Singer 3 into the table.
-                + "{\"SingerId\":\"1\"},DELETE\n"
-                + "{\"SingerId\":\"3\"},INSERT\n"
-
-                // Delete Singers 2 and 3.
-                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n",
-
-            // Third batch of transactions.
-            // Insert Singer 1 and 2 into the table,
-            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT\n"
-
-                // Delete Singer 1 and Insert Singer 3 into the table.
-                + "{\"SingerId\":\"1\"},DELETE\n"
-                + "{\"SingerId\":\"3\"},INSERT\n"
-
-                // Delete Singers 2 and 3.
-                + "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE\n");
+            "{\"SingerId\":\"0\"},INSERT",
+            "{\"SingerId\":\"0\"},DELETE",
+            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT",
+            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT",
+            "{\"SingerId\":\"1\"}{\"SingerId\":\"2\"},INSERT",
+            "{\"SingerId\":\"1\"},DELETE",
+            "{\"SingerId\":\"1\"},DELETE",
+            "{\"SingerId\":\"1\"},DELETE",
+            "{\"SingerId\":\"3\"},INSERT",
+            "{\"SingerId\":\"3\"},INSERT",
+            "{\"SingerId\":\"3\"},INSERT",
+            "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE",
+            "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE",
+            "{\"SingerId\":\"2\"}{\"SingerId\":\"3\"},DELETE");
 
     pipeline
         .runWithAdditionalOptionArgs(Collections.singletonList("--streaming"))
@@ -413,8 +402,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
         LOG.debug("Setting next timer to {}", nextTimer.toString());
         timer.set(nextTimer);
       } else {
-        LOG.debug(
-            "Timer not being set as exceeded pipeline end time: " + pipelineEndTime.toString());
+        LOG.debug("Timer not being set as exceeded pipeline end time: {}", pipelineEndTime);
       }
     }
   }
@@ -475,27 +463,27 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
     mutations.add(insertRecordMutation(1, "FirstName1", "LastName2"));
     mutations.add(insertRecordMutation(2, "FirstName2", "LastName2"));
     Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    LOG.debug("The first transaction committed with timestamp: {}", t1);
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
     mutations.add(insertRecordMutation(3, "FirstName3", "LastName3"));
     mutations.add(deleteRecordMutation(1));
     Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    LOG.debug("The second transaction committed with timestamp: {}", t2);
     mutations.clear();
 
     // 3. Commit a transaction to delete Singer 2 and Singer 3 from the table.
     mutations.add(deleteRecordMutation(2));
     mutations.add(deleteRecordMutation(3));
     Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    LOG.debug("The third transaction committed with timestamp: {}", t3);
     mutations.clear();
 
     // 4. Commit a transaction to delete Singer 0.
     mutations.add(deleteRecordMutation(0));
     Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.debug("The fourth transaction committed with timestamp: {}", t4);
     return t4;
   }
 
@@ -557,7 +545,7 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey)) {
         return false;
       }
       SpannerChangeStreamOrderedByTimestampAndTransactionIdIT.SortKey sortKey =

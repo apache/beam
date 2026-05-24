@@ -47,7 +47,7 @@ public class FixedCredentialsBasicAuthJcsmpSessionServiceFactory extends Session
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof FixedCredentialsBasicAuthJcsmpSessionServiceFactory)) {
       return false;
     }
     FixedCredentialsBasicAuthJcsmpSessionServiceFactory that =

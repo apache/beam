@@ -26,8 +26,8 @@ public final class KeyCommitTooLargeException extends Exception {
     StringBuilder message = new StringBuilder();
     message.append("Commit request for stage ");
     message.append(computationId);
-    message.append(" and key ");
-    message.append(request.getKey().toStringUtf8());
+    message.append(" and sharding key ");
+    message.append(request.getShardingKey());
     if (request.getSerializedSize() > 0) {
       message.append(
           " has size "

@@ -50,7 +50,7 @@ import org.mockito.junit.MockitoJUnitRunner;
     "initialization.fields.uninitialized") // mockito fields are initialized via the Mockito Runner
 public final class PartitionQueryResponseToRunQueryRequestTest {
 
-  @Mock protected DoFn<PartitionQueryPair, RunQueryRequest>.ProcessContext processContext;
+  @Mock DoFn<PartitionQueryPair, RunQueryRequest>.ProcessContext processContext;
 
   private final StructuredQuery query =
       StructuredQuery.newBuilder()

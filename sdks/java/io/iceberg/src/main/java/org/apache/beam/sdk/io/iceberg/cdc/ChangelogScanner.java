@@ -268,6 +268,7 @@ class ChangelogScanner
     return scan;
   }
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   private void createAndOutputReadTasks(
       IncrementalChangelogScan scan, MultiOutputReceiver multiOutputReceiver) throws IOException {
     Snapshot snapshot = checkStateNotNull(this.snapshot);

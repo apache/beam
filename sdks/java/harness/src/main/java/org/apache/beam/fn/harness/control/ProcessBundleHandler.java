@@ -1188,6 +1188,8 @@ public class ProcessBundleHandler {
         for (ThrowingRunnable teardownFunction : Lists.reverse(this.getTearDownFunctions())) {
           try {
             teardownFunction.run();
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable e) {
             LOG.warn(
                 "Exceptions are thrown from DoFn.teardown method when trying to discard "
@@ -1299,7 +1301,7 @@ public class ProcessBundleHandler {
           String.format(
               "No factory registered for %s, known factories %s",
               context.getPTransform().getSpec().getUrn(), knownUrns);
-      LOG.error(message);
+      LOG.error("{}", message);
       throw new IllegalStateException(message);
     }
   }

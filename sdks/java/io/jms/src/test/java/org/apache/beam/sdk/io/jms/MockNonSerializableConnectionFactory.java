@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.jms;
 
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.JMSContext;
 import javax.jms.JMSException;
 
 public class MockNonSerializableConnectionFactory implements ConnectionFactory {
@@ -30,5 +31,25 @@ public class MockNonSerializableConnectionFactory implements ConnectionFactory {
   @Override
   public Connection createConnection(String userName, String password) throws JMSException {
     return null;
+  }
+
+  @Override
+  public JMSContext createContext() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public JMSContext createContext(String userName, String password) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public JMSContext createContext(String userName, String password, int sessionMode) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public JMSContext createContext(int sessionMode) {
+    throw new UnsupportedOperationException();
   }
 }

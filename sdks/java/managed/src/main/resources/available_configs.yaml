@@ -38,3 +38,38 @@
         - "keep"
         - "drop"
         - "only"
+"beam:schematransform:org.apache.beam:postgres_read:v1":
+    ignored:
+        - "connection_init_sql"
+        - "disable_auto_commit"
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"
+"beam:schematransform:org.apache.beam:postgres_write:v1":
+    ignored:
+        - "connection_init_sql"
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"
+"beam:schematransform:org.apache.beam:mysql_read:v1":
+    ignored:
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"
+"beam:schematransform:org.apache.beam:mysql_write:v1":
+    ignored:
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"
+"beam:schematransform:org.apache.beam:sql_server_read:v1":
+    ignored:
+        - "connection_init_sql"
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"
+"beam:schematransform:org.apache.beam:sql_server_write:v1":
+    ignored:
+        - "connection_init_sql"
+        - "driver_class_name"
+        - "driver_jars"
+        - "jdbc_type"

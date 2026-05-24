@@ -72,7 +72,7 @@ def patch_notebook(full_path):
 
   # Add the license block.
   decoder = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
-  elements = decoder.decode(content).items()
+  elements = list(decoder.decode(content).items())
   first_key, _ = elements[0]
   if first_key != 'license':
     print('Patching {}'.format(full_path))

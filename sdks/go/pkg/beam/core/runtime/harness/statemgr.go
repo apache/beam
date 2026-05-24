@@ -147,6 +147,30 @@ func (s *ScopedStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context
 	return wr, err
 }
 
+// OpenOrderedListUserStateReader opens a byte stream for reading user ordered list state in the range [start, end).
+func (s *ScopedStateReader) OpenOrderedListUserStateReader(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.ReadCloser, error) {
+	rw, err := s.openReader(ctx, id, func(ch *StateChannel) *stateKeyReader {
+		return newOrderedListUserStateReader(ch, id, s.instID, userStateID, key, w, start, end)
+	})
+	return rw, err
+}
+
+// OpenOrderedListUserStateAppender opens a byte stream for appending user ordered list state.
+func (s *ScopedStateReader) OpenOrderedListUserStateAppender(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newOrderedListUserStateWriter(ch, id, s.instID, userStateID, key, w, writeTypeAppend)
+	})
+	return wr, err
+}
+
+// OpenOrderedListUserStateClearer opens a byte stream for clearing user ordered list state in the range [start, end).
+func (s *ScopedStateReader) OpenOrderedListUserStateClearer(ctx context.Context, id exec.StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.Writer, error) {
+	wr, err := s.openWriter(ctx, id, func(ch *StateChannel) *stateKeyWriter {
+		return newOrderedListUserStateClearer(ch, id, s.instID, userStateID, key, w, start, end)
+	})
+	return wr, err
+}
+
 // GetSideInputCache returns a pointer to the SideInputCache being used by the SDK harness.
 func (s *ScopedStateReader) GetSideInputCache() exec.SideCache {
 	return s.cache
@@ -388,6 +412,64 @@ func newMultimapKeysUserStateWriter(ch *StateChannel, id exec.StreamID, instID i
 		key:       key,
 		ch:        ch,
 		writeType: wt,
+	}
+}
+
+func newOrderedListUserStateReader(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, start, end int64) *stateKeyReader {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_OrderedListUserState_{
+			OrderedListUserState: &fnpb.StateKey_OrderedListUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				Range:       &fnpb.OrderedListRange{Start: start, End: end},
+			},
+		},
+	}
+	return &stateKeyReader{
+		instID: instID,
+		key:    key,
+		ch:     ch,
+	}
+}
+
+func newOrderedListUserStateWriter(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, wt writeTypeEnum) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_OrderedListUserState_{
+			OrderedListUserState: &fnpb.StateKey_OrderedListUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: wt,
+	}
+}
+
+func newOrderedListUserStateClearer(ch *StateChannel, id exec.StreamID, instID instructionID, userStateID string, k []byte, w []byte, start, end int64) *stateKeyWriter {
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_OrderedListUserState_{
+			OrderedListUserState: &fnpb.StateKey_OrderedListUserState{
+				TransformId: id.PtransformID,
+				UserStateId: userStateID,
+				Window:      w,
+				Key:         k,
+				Range:       &fnpb.OrderedListRange{Start: start, End: end},
+			},
+		},
+	}
+	return &stateKeyWriter{
+		instID:    instID,
+		key:       key,
+		ch:        ch,
+		writeType: writeTypeClear,
 	}
 }
 

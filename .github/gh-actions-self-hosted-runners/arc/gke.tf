@@ -47,7 +47,15 @@ resource "google_container_node_pool" "main-actions-runner-pool" {
     ]
     service_account = data.google_service_account.service_account.email
     tags = ["actions-runner-pool"]
+    labels = {
+      "runner-pool" = var.main_runner.name
+    }
    }
+  lifecycle {
+    ignore_changes = [
+      node_config[0].resource_labels,
+    ]
+  }
 }
 
 resource "google_container_node_pool" "additional_runner_pools" {
@@ -88,7 +96,12 @@ resource "google_container_node_pool" "additional_runner_pools" {
         }
       }
     }
+  lifecycle {
+    ignore_changes = [
+      node_config[0].resource_labels,
+    ]
   }
+}
 
 
 resource "google_compute_global_address" "actions-runner-ip" {

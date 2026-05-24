@@ -65,7 +65,7 @@ env: # Workflow level env vars if needed, specific ones are below
 jobs:
   run_python_mobile_gaming_rc_validation:
     name: Run Python Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 360
     env: # Job-level env vars inherit workflow level and define job-specific ones
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
@@ -89,7 +89,7 @@ jobs:
 
     steps:
       - name: Checkout code at RC tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.RC_TAG }}
 
@@ -115,7 +115,7 @@ jobs:
         shell: bash
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v3
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
 
       - name: Download RC Artifacts
         run: |

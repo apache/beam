@@ -299,7 +299,7 @@ func (tsi *testStreamImpl) initHandler(id string) {
 	}
 }
 
-// TagsToPCollections recieves the map of local output tags to global pcollection ids.
+// TagsToPCollections receives the map of local output tags to global pcollection ids.
 func (tsi *testStreamImpl) TagsToPCollections(tagToPcol map[string]string) {
 	tsi.em.testStreamHandler.TagsToPCollections(tagToPcol)
 }

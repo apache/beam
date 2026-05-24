@@ -39,7 +39,7 @@ public class TestHelper {
     @Override
     public List<String> mapRow(TestRow element) {
       List<String> res = new ArrayList<>();
-      res.add(element.id().toString());
+      res.add(String.valueOf(element.id()));
       res.add(element.name());
       return res;
     }

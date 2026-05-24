@@ -153,7 +153,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AuctionOrBidWindow)) {
         return false;
       }
       if (!super.equals(o)) {
@@ -396,7 +396,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof WinningBids)) {
       return false;
     }
 

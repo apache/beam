@@ -21,7 +21,9 @@ import com.google.auto.value.AutoValue;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
@@ -41,6 +43,16 @@ public abstract class IcebergTableCreateConfig {
   @Pure
   public abstract @Nullable List<String> getPartitionFields();
 
+  /** Sort order to apply when the table is dynamically created. */
+  @Pure
+  @SchemaIgnore
+  public SortOrder getSortOrder() {
+    return SortOrderUtils.toSortOrder(getSortFields(), getSchema());
+  }
+
+  @Pure
+  public abstract @Nullable List<String> getSortFields();
+
   @Pure
   public abstract @Nullable Map<String, String> getTableProperties();
 
@@ -54,6 +66,8 @@ public abstract class IcebergTableCreateConfig {
     public abstract Builder setSchema(Schema schema);
 
     public abstract Builder setPartitionFields(@Nullable List<String> partitionFields);
+
+    public abstract Builder setSortFields(@Nullable List<String> sortFields);
 
     public abstract Builder setTableProperties(@Nullable Map<String, String> tableProperties);
 

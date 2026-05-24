@@ -58,7 +58,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
-import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
@@ -74,7 +73,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"rawtypes", "nullness"})
+@SuppressWarnings({"rawtypes", "nullness", "AutoValueSubclassLeaked"})
 public class BigQueryIOTranslation {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslation.class);
@@ -109,6 +108,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("projection_pushdown_applied")
             .addNullableByteArrayField("bad_record_router")
             .addNullableByteArrayField("bad_record_error_handler")
+            .addNullableByteArrayField("direct_read_picos_timestamp_precision")
             .build();
 
     public static final String BIGQUERY_READ_TRANSFORM_URN =
@@ -192,8 +192,11 @@ public class BigQueryIOTranslation {
       if (transform.getFromBeamRowFn() != null) {
         fieldValues.put("from_beam_row_fn", toByteArray(transform.getFromBeamRowFn()));
       }
-      if (transform.getUseAvroLogicalTypes() != null) {
-        fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
+      fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
+      if (transform.getDirectReadPicosTimestampPrecision() != null) {
+        fieldValues.put(
+            "direct_read_picos_timestamp_precision",
+            toByteArray(transform.getDirectReadPicosTimestampPrecision()));
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
@@ -293,6 +296,13 @@ public class BigQueryIOTranslation {
         if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
+        byte[] timestampPrecisionBytes =
+            configRow.getBytes("direct_read_picos_timestamp_precision");
+        if (timestampPrecisionBytes != null) {
+          builder =
+              builder.setDirectReadPicosTimestampPrecision(
+                  (TimestampPrecision) fromByteArray(timestampPrecisionBytes));
+        }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
         if (selectedFields != null && !selectedFields.isEmpty()) {
           builder.setSelectedFields(StaticValueProvider.of(ImmutableList.of(selectedFields)));
@@ -342,7 +352,7 @@ public class BigQueryIOTranslation {
           // from older Beam versions.
           // See https://github.com/apache/beam/issues/30534.
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+          builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
           byte[] badRecordRouter = configRow.getBytes("bad_record_router");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
@@ -552,19 +562,11 @@ public class BigQueryIOTranslation {
         fieldValues.put("custom_gcs_temp_location", transform.getCustomGcsTempLocation().get());
       }
       fieldValues.put("extended_error_info", transform.getExtendedErrorInfo());
-      if (transform.getSkipInvalidRows() != null) {
-        fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
-      }
-      if (transform.getIgnoreUnknownValues() != null) {
-        fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
-      }
-      if (transform.getIgnoreInsertIds() != null) {
-        fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
-      }
+      fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
+      fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
+      fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
       fieldValues.put("max_retry_jobs", transform.getMaxRetryJobs());
-      if (transform.getPropagateSuccessful() != null) {
-        fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
-      }
+      fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
       if (transform.getKmsKey() != null) {
         fieldValues.put("kms_key", transform.getKmsKey());
       }
@@ -576,24 +578,14 @@ public class BigQueryIOTranslation {
             "default_missing_value_interpretation",
             toByteArray(transform.getDefaultMissingValueInterpretation()));
       }
-      if (transform.getOptimizeWrites() != null) {
-        fieldValues.put("optimize_writes", transform.getOptimizeWrites());
-      }
-      if (transform.getUseBeamSchema() != null) {
-        fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
-      }
-      if (transform.getAutoSharding() != null) {
-        fieldValues.put("auto_sharding", transform.getAutoSharding());
-      }
-      if (transform.getAutoSchemaUpdate() != null) {
-        fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
-      }
+      fieldValues.put("optimize_writes", transform.getOptimizeWrites());
+      fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
+      fieldValues.put("auto_sharding", transform.getAutoSharding());
+      fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
       if (transform.getWriteProtosClass() != null) {
         fieldValues.put("write_protos_class", toByteArray(transform.getWriteProtosClass()));
       }
-      if (transform.getDirectWriteProtos() != null) {
-        fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());
-      }
+      fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());
       if (transform.getDeterministicRecordIdFn() != null) {
         fieldValues.put(
             "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));
@@ -910,7 +902,7 @@ public class BigQueryIOTranslation {
           // from older Beam versions.
           // See https://github.com/apache/beam/issues/30534.
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
-          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+          builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
           byte[] badRecordRouter = configRow.getBytes("bad_record_router");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));

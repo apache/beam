@@ -26,6 +26,7 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
@@ -114,7 +115,16 @@ public class SpannerReadIT {
       project = options.as(GcpOptions.class).getProject();
     }
 
-    spanner = SpannerOptions.newBuilder().setProjectId(project).build().getService();
+    spanner =
+        SpannerOptions.newBuilder()
+            .setProjectId(project)
+            .disableGrpcGcpExtension()
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build())
+            .build()
+            .getService();
 
     databaseName = generateDatabaseName();
     pgDatabaseName = "pg-" + databaseName;

@@ -21,12 +21,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ClientInterceptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata.Key;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.MetadataUtils;
 
 /** A {@link ClientInterceptor} that attaches a provided SDK Harness ID to outgoing messages. */
 public class AddHarnessIdInterceptor {
-  private static final Key<String> ID_KEY = Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
+  private static final Metadata.Key<String> ID_KEY =
+      Metadata.Key.of("worker_id", Metadata.ASCII_STRING_MARSHALLER);
 
   public static ClientInterceptor create(String harnessId) {
     checkArgument(harnessId != null, "harnessId must not be null");

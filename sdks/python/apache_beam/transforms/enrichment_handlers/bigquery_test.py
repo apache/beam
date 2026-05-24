@@ -15,8 +15,11 @@
 # limitations under the License.
 #
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
+
+import apache_beam as beam
 
 # pylint: disable=ungrouped-imports
 try:
@@ -64,6 +67,85 @@ class TestBigQueryEnrichment(unittest.TestCase):
           min_batch_size=min_batch_size,
           max_batch_size=max_batch_size,
       )
+
+  def test_batch_mode_fans_out_response_for_duplicate_keys(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=2,
+    )
+    requests = [beam.Row(id='1', name='first'), beam.Row(id='1', name='second')]
+
+    with mock.patch.object(handler,
+                           '_execute_query',
+                           return_value=[{'id': '1', 'value': 'enriched'}]):
+      responses = handler(requests)
+
+    self.assertEqual(
+        responses,
+        [
+            (requests[0], beam.Row(id='1', value='enriched')),
+            (requests[1], beam.Row(id='1', value='enriched')),
+        ],
+    )
+
+  def test_batch_mode_emits_empty_rows_for_all_unmatched_duplicate_keys(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=2,
+        throw_exception_on_empty_results=False,
+    )
+    requests = [beam.Row(id='1', name='first'), beam.Row(id='1', name='second')]
+
+    with mock.patch.object(handler, '_execute_query', return_value=None):
+      responses = handler(requests)
+
+    self.assertEqual(
+        responses,
+        [(requests[0], beam.Row()), (requests[1], beam.Row())],
+    )
+
+  def test_batch_elements_kwargs_include_max_batch_duration_secs(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=10,
+        max_batch_duration_secs=0.75,
+    )
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(),
+        {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+            'max_batch_duration_secs': 0.75,
+        })
+
+  def test_batch_elements_kwargs_omit_max_batch_duration_secs_by_default(self):
+    handler = BigQueryEnrichmentHandler(
+        project=self.project,
+        table_name='project.dataset.table',
+        row_restriction_template="id='{}'",
+        fields=['id'],
+        min_batch_size=2,
+        max_batch_size=10,
+    )
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+        })
 
 
 if __name__ == '__main__':

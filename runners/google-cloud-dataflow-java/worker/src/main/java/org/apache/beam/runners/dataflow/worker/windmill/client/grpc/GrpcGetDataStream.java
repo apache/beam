@@ -226,12 +226,15 @@ final class GrpcGetDataStream
 
     @Override
     public boolean hasPendingRequests() {
+      // Note the batchesSizeSupplier may reflect batches that could be sent on another physical
+      // stream. However we treat them as possibly pending on all physical streams to ensure that we
+      // recreate streams to send them.
       return !pending.isEmpty() || batchesSizeSupplier.get() > 0;
     }
 
     @Override
     public void onDone(Status status) {
-      if (status.isOk() && hasPendingRequests()) {
+      if (status.isOk() && !pending.isEmpty()) {
         LOG.warn("Pending requests not expected on successful GetData stream flushing.");
       }
       for (AppendableInputStream responseStream : pending.values()) {
@@ -289,11 +292,11 @@ final class GrpcGetDataStream
         // Notify all waiters with requests in this batch as well as the sender
         // of the next batch (if one exists).
         batch.notifySent();
-      } catch (Exception e) {
-        LOG.debug("Batch failed to send on new stream", e);
+      } catch (Throwable t) {
         // Free waiters if the send() failed.
         batch.notifyFailed();
-        throw e;
+        LOG.debug("Batch failed to send on new stream", t);
+        throw t;
       }
     }
   }
@@ -535,12 +538,12 @@ final class GrpcGetDataStream
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
       batch.notifySent();
-    } catch (Exception e) {
-      LOG.debug("Batch failed to send", e);
+    } catch (Throwable t) {
       // Free waiters if the send() failed.
       batch.notifyFailed();
-      // Propagate the exception to the calling thread.
-      throw e;
+      LOG.debug("Batch failed to send", t);
+      // Propagate the exception/error to the calling thread.
+      throw t;
     }
   }
 

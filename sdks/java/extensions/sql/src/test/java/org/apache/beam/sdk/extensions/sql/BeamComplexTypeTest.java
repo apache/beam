@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.junit.Assert.assertEquals;
+
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -300,7 +302,6 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  @Ignore("https://github.com/apache/beam/issues/21024")
   @Test
   public void testNestedBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -325,7 +326,6 @@ public class BeamComplexTypeTest {
     pipeline.run();
   }
 
-  @Ignore("https://github.com/apache/beam/issues/21024")
   @Test
   public void testNestedArrayOfBytes() {
     byte[] bytes = new byte[] {-70, -83, -54, -2};
@@ -771,6 +771,30 @@ public class BeamComplexTypeTest {
             .addValues("str", null, null)
             .build();
     PAssert.that(outputRow).containsInAnyOrder(expectedRow);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
+  }
+
+  @Test
+  public void testUnknownLogicalType() {
+    Schema.FieldType rowType = Schema.FieldType.row(innerRowSchema);
+
+    Schema.LogicalType<Row, Row> logicalType =
+        new org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType<Row>(
+            "RowBackedLogicalType", new byte[] {}, Schema.FieldType.STRING, "", rowType);
+
+    Schema inputSchema = Schema.builder().addLogicalTypeField("logical_field", logicalType).build();
+
+    Row nestedRow = Row.withSchema(innerRowSchema).addValue("abc").addValue(42L).build();
+    Row inputRow = Row.withSchema(inputSchema).addValue(nestedRow).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(inputRow))
+            .setRowSchema(inputSchema)
+            .apply(SqlTransform.query("select * from PCOLLECTION"));
+
+    PAssert.that(outputRow).containsInAnyOrder(inputRow);
+    assertEquals(inputRow.getSchema(), outputRow.getSchema());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
   }
 }

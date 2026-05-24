@@ -241,7 +241,7 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
    */
   public static PCollection.IsBounded getBoundednessOfRelNode(RelNode relNode) {
     if (relNode instanceof BeamRelNode) {
-      return (((BeamRelNode) relNode).isBounded());
+      return ((BeamRelNode) relNode).isBounded();
     }
     List<PCollection.IsBounded> boundednessOfInputs = new ArrayList<>();
     for (RelNode inputRel : relNode.getInputs()) {

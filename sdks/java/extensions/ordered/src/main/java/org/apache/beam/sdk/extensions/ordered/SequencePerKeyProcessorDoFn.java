@@ -189,7 +189,7 @@ class SequencePerKeyProcessorDoFn<
   private boolean checkIfProcessingIsCompleted(ProcessingState<EventKeyTypeT> processingState) {
     boolean result = processingState.isProcessingCompleted();
     if (result && LOG.isTraceEnabled()) {
-      LOG.trace("Processing for key '" + processingState.getKey() + "' is completed.");
+      LOG.trace("Processing for key '{}' is completed.", processingState.getKey());
     }
     return result;
   }
@@ -256,7 +256,7 @@ class SequencePerKeyProcessorDoFn<
       return;
     }
 
-    LOG.debug("Starting to process batch for key '" + processingState.getKey() + "'");
+    LOG.debug("Starting to process batch for key '{}'", processingState.getKey());
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
 

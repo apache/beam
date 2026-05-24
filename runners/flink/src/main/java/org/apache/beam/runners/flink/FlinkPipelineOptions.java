@@ -303,11 +303,17 @@ public interface FlinkPipelineOptions
 
   void setAutoWatermarkInterval(Long interval);
 
+  /**
+   * Flink mode for data exchange of batch pipelines.
+   *
+   * @deprecated Only effective for Flink DataSet API and removed in Flink 2.0.
+   */
+  @Deprecated
   @Description(
       "Flink mode for data exchange of batch pipelines. "
           + "Reference {@link org.apache.flink.api.common.ExecutionMode}. "
           + "Set this to BATCH_FORCED if pipelines get blocked, see "
-          + "https://issues.apache.org/jira/browse/FLINK-10672")
+          + "https://issues.apache.org/jira/browse/FLINK-10672.")
   @Default.String(PIPELINED)
   String getExecutionModeForBatch();
 

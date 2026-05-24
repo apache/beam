@@ -115,7 +115,7 @@ public class ReferenceCountingExecutableStageContextFactory
   private void scheduleRelease(JobInfo jobInfo) {
     WrappedContext wrapper = getCache().get(jobInfo.jobId());
     Preconditions.checkState(
-        wrapper != null, "Releasing context for unknown job: " + jobInfo.jobId());
+        wrapper != null, "Releasing context for unknown job %s", jobInfo.jobId());
 
     PipelineOptions pipelineOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions());
@@ -180,6 +180,8 @@ public class ReferenceCountingExecutableStageContextFactory
         if (getCache().remove(wrapper.jobInfo.jobId(), wrapper)) {
           try {
             wrapper.closeActual();
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             LOG.error("Unable to close ExecutableStageContext.", t);
           }
@@ -222,7 +224,7 @@ public class ReferenceCountingExecutableStageContextFactory
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof WrappedContext)) {
         return false;
       }
       WrappedContext that = (WrappedContext) o;

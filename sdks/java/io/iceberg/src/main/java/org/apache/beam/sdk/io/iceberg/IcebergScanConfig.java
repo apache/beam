@@ -21,13 +21,19 @@ import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSch
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-import static org.apache.hadoop.util.Sets.newHashSet;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
 import static org.apache.iceberg.types.Type.TypeID.LONG;
 import static org.apache.iceberg.types.Type.TypeID.TIMESTAMP;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -99,8 +105,16 @@ public abstract class IcebergScanConfig implements Serializable {
     if (keep != null && !keep.isEmpty()) {
       selectedFields.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
-      schema.columns().stream().map(NestedField::name).forEach(selectedFields::add);
-      drop.forEach(selectedFields::remove);
+      List<String> paths = new ArrayList<>(TypeUtil.indexNameById(schema.asStruct()).values());
+      Collections.sort(paths);
+      for (int i = 0; i < paths.size(); i++) {
+        String path = paths.get(i);
+        boolean isParent = i + 1 < paths.size() && paths.get(i + 1).startsWith(path + ".");
+        boolean isDrop = drop.stream().anyMatch(d -> path.equals(d) || path.startsWith(d + "."));
+        if (!isParent && !isDrop) {
+          selectedFields.add(path);
+        }
+      }
     } else {
       // default: include all columns
       return schema;
@@ -360,7 +374,7 @@ public abstract class IcebergScanConfig implements Serializable {
         param = "drop";
         fieldsSpecified = newHashSet(checkArgumentNotNull(drop));
       }
-      table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
+      fieldsSpecified.removeIf(name -> table.schema().findField(name) != null);
 
       checkArgument(
           fieldsSpecified.isEmpty()

@@ -57,7 +57,7 @@ public class Order implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Order)) {
       return false;
     }
     Order order = (Order) o;

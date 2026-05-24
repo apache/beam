@@ -79,6 +79,7 @@ abstract class PrismExecutor {
     try {
       boolean ignored = executorService.awaitTermination(5000L, TimeUnit.MILLISECONDS);
     } catch (InterruptedException ignored) {
+      // Ignore InterruptedException during shutdown.
     }
     if (process == null) {
       return;
@@ -90,6 +91,7 @@ abstract class PrismExecutor {
     try {
       process.waitFor();
     } catch (InterruptedException ignored) {
+      // Ignore InterruptedException during shutdown.
     }
   }
 
@@ -110,7 +112,7 @@ abstract class PrismExecutor {
 
   /**
    * Execute the {@link ProcessBuilder} that starts the Prism service. Redirects output to the
-   * {@param outputStream}.
+   * {@code outputStream}.
    */
   void execute(OutputStream outputStream) throws IOException {
     execute(createProcessBuilder().redirectErrorStream(true));
@@ -127,7 +129,7 @@ abstract class PrismExecutor {
 
   /**
    * Execute the {@link ProcessBuilder} that starts the Prism service. Redirects output to the
-   * {@param file}.
+   * {@code file}.
    */
   void execute(File file) throws IOException {
     execute(

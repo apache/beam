@@ -232,9 +232,21 @@ public abstract class SerializableDataFile {
     }
     Map<Integer, byte[]> output = new HashMap<>(input.size());
     for (Map.Entry<Integer, ByteBuffer> e : input.entrySet()) {
-      output.put(e.getKey(), e.getValue().array());
+      output.put(e.getKey(), toByteArray(e.getValue()));
     }
     return output;
+  }
+
+  // Copy only [position, limit). ByteBuffer.array() returns the full backing
+  // array, which is sometimes larger than the buffer's content (e.g. trailing
+  // 0x00 bytes). Leaking those into manifest bounds shifts the lower bound
+  // above the real min and breaks equality predicate pushdown in some query
+  // engines.
+  private static byte[] toByteArray(ByteBuffer buf) {
+    ByteBuffer view = buf.duplicate();
+    byte[] bytes = new byte[view.remaining()];
+    view.get(bytes);
+    return bytes;
   }
 
   static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(@Nullable Map<Integer, byte[]> input) {
@@ -253,7 +265,7 @@ public abstract class SerializableDataFile {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SerializableDataFile)) {
       return false;
     }
     SerializableDataFile that = (SerializableDataFile) o;

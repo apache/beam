@@ -171,14 +171,14 @@ public class LoggingTransformProvider
           // https://stackoverflow.com/questions/2621701/setting-log-level-of-message-at-runtime-in-slf4j
           switch (logLevel) {
             case DEBUG:
-              LOG.debug(msg);
+              LOG.debug("{}", msg);
               break;
             case INFO:
-              LOG.info(msg);
+              LOG.info("{}", msg);
               break;
             case ERROR:
             default:
-              LOG.error(msg);
+              LOG.error("{}", msg);
           }
           out.output(row);
         }

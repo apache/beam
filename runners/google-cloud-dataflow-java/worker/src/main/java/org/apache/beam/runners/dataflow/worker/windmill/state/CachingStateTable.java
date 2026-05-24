@@ -48,7 +48,7 @@ final class CachingStateTable {
   private final @Nullable CachingStateTable derivedStateTable;
   private final boolean isNewKey;
   private final boolean mapStateViaMultimapState;
-  private final WindmillStateTagUtil windmillStateTagUtil;
+  private final WindmillTagEncoding windmillTagEncoding;
 
   private CachingStateTable(Builder builder) {
     this.stateTable = new HashMap<>();
@@ -60,7 +60,7 @@ final class CachingStateTable {
     this.scopedReadStateSupplier = builder.scopedReadStateSupplier;
     this.derivedStateTable = builder.derivedStateTable;
     this.mapStateViaMultimapState = builder.mapStateViaMultimapState;
-    this.windmillStateTagUtil = builder.windmillStateTagUtil;
+    this.windmillTagEncoding = builder.windmillTagEncoding;
     if (this.isSystemTable) {
       Preconditions.checkState(derivedStateTable == null);
     } else {
@@ -74,9 +74,9 @@ final class CachingStateTable {
       ForKeyAndFamily cache,
       boolean isNewKey,
       Supplier<Closeable> scopedReadStateSupplier,
-      WindmillStateTagUtil windmillStateTagUtil) {
+      WindmillTagEncoding windmillTagEncoding) {
     return new Builder(
-        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey, windmillStateTagUtil);
+        stateFamily, reader, cache, scopedReadStateSupplier, isNewKey, windmillTagEncoding);
   }
 
   /**
@@ -114,7 +114,7 @@ final class CachingStateTable {
       public <T> BagState<T> bindBag(StateTag<BagState<T>> address, Coder<T> elemCoder) {
         StateTag<BagState<T>> resolvedAddress =
             isSystemTable ? StateTags.makeSystemTagInternal(address) : address;
-        InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, resolvedAddress);
+        InternedByteString encodedKey = windmillTagEncoding.stateTag(namespace, resolvedAddress);
 
         @Nullable WindmillBag<T> bag = (WindmillBag<T>) cache.get(namespace, encodedKey);
         if (bag == null) {
@@ -144,7 +144,7 @@ final class CachingStateTable {
               new WindmillMapViaMultimap<>(
                   bindMultimap(internalMultimapAddress, keyCoder, valueCoder));
         } else {
-          InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, spec);
+          InternedByteString encodedKey = windmillTagEncoding.stateTag(namespace, spec);
           result = (AbstractWindmillMap<KeyT, ValueT>) cache.get(namespace, encodedKey);
           if (result == null) {
             result =
@@ -161,7 +161,7 @@ final class CachingStateTable {
           StateTag<MultimapState<KeyT, ValueT>> spec,
           Coder<KeyT> keyCoder,
           Coder<ValueT> valueCoder) {
-        InternedByteString encodedKey = windmillStateTagUtil.encodeKey(namespace, spec);
+        InternedByteString encodedKey = windmillTagEncoding.stateTag(namespace, spec);
         WindmillMultimap<KeyT, ValueT> result =
             (WindmillMultimap<KeyT, ValueT>) cache.get(namespace, encodedKey);
         if (result == null) {
@@ -177,8 +177,7 @@ final class CachingStateTable {
       public <T> OrderedListState<T> bindOrderedList(
           StateTag<OrderedListState<T>> spec, Coder<T> elemCoder) {
         StateTag<OrderedListState<T>> specOrInternalTag = addressOrInternalTag(spec);
-        InternedByteString encodedKey =
-            windmillStateTagUtil.encodeKey(namespace, specOrInternalTag);
+        InternedByteString encodedKey = windmillTagEncoding.stateTag(namespace, specOrInternalTag);
 
         WindmillOrderedList<T> result = (WindmillOrderedList<T>) cache.get(namespace, encodedKey);
         if (result == null) {
@@ -202,7 +201,7 @@ final class CachingStateTable {
           StateTag<WatermarkHoldState> address, TimestampCombiner timestampCombiner) {
         StateTag<WatermarkHoldState> addressOrInternalTag = addressOrInternalTag(address);
         InternedByteString encodedKey =
-            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
+            windmillTagEncoding.stateTag(namespace, addressOrInternalTag);
 
         WindmillWatermarkHold result = (WindmillWatermarkHold) cache.get(namespace, encodedKey);
         if (result == null) {
@@ -231,7 +230,7 @@ final class CachingStateTable {
                 combineFn,
                 cache,
                 isNewKey,
-                windmillStateTagUtil);
+                windmillTagEncoding);
 
         result.initializeForWorkItem(reader, scopedReadStateSupplier);
         return result;
@@ -251,7 +250,7 @@ final class CachingStateTable {
       public <T> ValueState<T> bindValue(StateTag<ValueState<T>> address, Coder<T> coder) {
         StateTag<ValueState<T>> addressOrInternalTag = addressOrInternalTag(address);
         InternedByteString encodedKey =
-            windmillStateTagUtil.encodeKey(namespace, addressOrInternalTag);
+            windmillTagEncoding.stateTag(namespace, addressOrInternalTag);
 
         WindmillValue<T> result = (WindmillValue<T>) cache.get(namespace, encodedKey);
         if (result == null) {
@@ -289,7 +288,7 @@ final class CachingStateTable {
     private final WindmillStateCache.ForKeyAndFamily cache;
     private final Supplier<Closeable> scopedReadStateSupplier;
     private final boolean isNewKey;
-    private final WindmillStateTagUtil windmillStateTagUtil;
+    private final WindmillTagEncoding windmillTagEncoding;
     private boolean isSystemTable;
     private @Nullable CachingStateTable derivedStateTable;
     private boolean mapStateViaMultimapState = false;
@@ -300,7 +299,7 @@ final class CachingStateTable {
         ForKeyAndFamily cache,
         Supplier<Closeable> scopedReadStateSupplier,
         boolean isNewKey,
-        WindmillStateTagUtil windmillStateTagUtil) {
+        WindmillTagEncoding windmillTagEncoding) {
       this.stateFamily = stateFamily;
       this.reader = reader;
       this.cache = cache;
@@ -308,7 +307,7 @@ final class CachingStateTable {
       this.isNewKey = isNewKey;
       this.isSystemTable = true;
       this.derivedStateTable = null;
-      this.windmillStateTagUtil = windmillStateTagUtil;
+      this.windmillTagEncoding = windmillTagEncoding;
     }
 
     Builder withDerivedState(CachingStateTable derivedStateTable) {

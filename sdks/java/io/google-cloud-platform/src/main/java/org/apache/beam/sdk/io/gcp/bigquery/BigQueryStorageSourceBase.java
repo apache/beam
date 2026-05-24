@@ -22,12 +22,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.ArrowSerializationOptions;
+import com.google.cloud.bigquery.storage.v1.AvroSerializationOptions;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.DataFormat;
 import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -39,6 +42,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +73,8 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final SerializableFunction<SchemaAndRecord, T> parseFn;
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
+  private final @Nullable TimestampPrecision picosTimestampPrecision;
+  private boolean emptyOrPruned = false;
 
   BigQueryStorageSourceBase(
       @Nullable DataFormat format,
@@ -76,13 +82,15 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       @Nullable ValueProvider<String> rowRestrictionProvider,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
-      BigQueryServices bqServices) {
+      BigQueryServices bqServices,
+      @Nullable TimestampPrecision picosTimestampPrecision) {
     this.format = format;
     this.selectedFieldsProvider = selectedFieldsProvider;
     this.rowRestrictionProvider = rowRestrictionProvider;
     this.parseFn = checkNotNull(parseFn, "parseFn");
     this.outputCoder = checkNotNull(outputCoder, "outputCoder");
     this.bqServices = checkNotNull(bqServices, "bqServices");
+    this.picosTimestampPrecision = picosTimestampPrecision;
   }
 
   /**
@@ -131,11 +139,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (rowRestrictionProvider != null && rowRestrictionProvider.isAccessible()) {
       tableReadOptionsBuilder.setRowRestriction(rowRestrictionProvider.get());
     }
-    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
 
     if (format != null) {
       readSessionBuilder.setDataFormat(format);
+      setPicosTimestampPrecision(tableReadOptionsBuilder, format);
     }
+    readSessionBuilder.setReadOptions(tableReadOptionsBuilder);
 
     // Setting the  requested max stream count to 0, implies that the Read API backend will select
     // an appropriate number of streams for the Session to produce reasonable throughput.
@@ -150,13 +159,27 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
     }
 
+    String project =
+        bqOptions.getBigQueryProject() == null
+            ? bqOptions.getProject()
+            : bqOptions.getBigQueryProject();
+    if (project == null) {
+      if (targetTable != null
+          && targetTable.getTableReference() != null
+          && targetTable.getTableReference().getProjectId() != null) {
+        project = targetTable.getTableReference().getProjectId();
+      } else {
+        @Nullable String tableReferenceId = getTargetTableId(bqOptions);
+        if (tableReferenceId != null) {
+          TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+          project = tableReference.getProjectId();
+        }
+      }
+    }
+
     CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent(
-                BigQueryHelpers.toProjectResourceName(
-                    bqOptions.getBigQueryProject() == null
-                        ? bqOptions.getProject()
-                        : bqOptions.getBigQueryProject()))
+            .setParent(BigQueryHelpers.toProjectResourceName(project))
             .setReadSession(readSessionBuilder)
             .setMaxStreamCount(streamCount)
             .build();
@@ -173,8 +196,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (readSession.getStreamsList().isEmpty()) {
       LOG.info(
           "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
+      emptyOrPruned = true;
       return ImmutableList.of();
     } else {
+      emptyOrPruned = false;
       LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
@@ -197,6 +222,105 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+    if (emptyOrPruned) {
+      // When split() returns an empty list, UnboundedReadFromBoundedSource falls back to wrapping
+      // the original unsplit source directly (ImmutableList.of(bigQuerySotrageSourceBase)) so we
+      // need to return empty reader.
+      return new EmptyReader<>(this);
+    }
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
+  }
+
+  private static class EmptyReader<T> extends BoundedReader<T> {
+    private final BigQueryStorageSourceBase<T> source;
+
+    EmptyReader(BigQueryStorageSourceBase<T> source) {
+      this.source = source;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return false;
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      return false;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      throw new NoSuchElementException();
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      throw new NoSuchElementException();
+    }
+
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    public BoundedSource<T> getCurrentSource() {
+      return source;
+    }
+  }
+
+  private void setPicosTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder, DataFormat dataFormat) {
+    if (picosTimestampPrecision == null) {
+      return;
+    }
+
+    if (dataFormat == DataFormat.ARROW) {
+      setArrowTimestampPrecision(tableReadOptionsBuilder, picosTimestampPrecision);
+    } else if (dataFormat == DataFormat.AVRO) {
+      setAvroTimestampPrecision(tableReadOptionsBuilder, picosTimestampPrecision);
+    }
+  }
+
+  private static void setArrowTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder,
+      TimestampPrecision timestampPrecision) {
+    ArrowSerializationOptions.PicosTimestampPrecision precision;
+    switch (timestampPrecision) {
+      case MICROS:
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
+        break;
+      case NANOS:
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS;
+        break;
+      case PICOS:
+        precision = ArrowSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported timestamp precision for Storage Read API: " + timestampPrecision);
+    }
+    tableReadOptionsBuilder.setArrowSerializationOptions(
+        ArrowSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));
+  }
+
+  private static void setAvroTimestampPrecision(
+      ReadSession.TableReadOptions.Builder tableReadOptionsBuilder,
+      TimestampPrecision timestampPrecision) {
+    AvroSerializationOptions.PicosTimestampPrecision precision;
+    switch (timestampPrecision) {
+      case MICROS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_MICROS;
+        break;
+      case NANOS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_NANOS;
+        break;
+      case PICOS:
+        precision = AvroSerializationOptions.PicosTimestampPrecision.TIMESTAMP_PRECISION_PICOS;
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Unsupported timestamp precision for Storage Read API: " + timestampPrecision);
+    }
+    tableReadOptionsBuilder.setAvroSerializationOptions(
+        AvroSerializationOptions.newBuilder().setPicosTimestampPrecision(precision));
   }
 }

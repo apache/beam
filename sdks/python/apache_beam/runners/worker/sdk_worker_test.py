@@ -704,6 +704,38 @@ class ShortIdCacheTest(unittest.TestCase):
           % case.info)
 
 
+class DeferredCallTest(unittest.TestCase):
+  """Tests for _DeferredCall.get()."""
+  def test_get_single_arg(self):
+    f = sdk_worker._Future().set(42)
+    call = sdk_worker._DeferredCall(lambda x: x, f)
+    self.assertEqual(call.get(), 42)
+
+  def test_get_multiple_args(self):
+    futures = [sdk_worker._Future().set(i) for i in range(5)]
+    call = sdk_worker._DeferredCall(lambda *args: sum(args), *futures)
+    self.assertEqual(call.get(), sum(range(5)))
+
+  def test_get_non_future_args_are_wrapped(self):
+    # __init__ wraps non-Future values in _Future().set(v); get() must work.
+    call = sdk_worker._DeferredCall(lambda x, y: x * y, 3, 7)
+    self.assertEqual(call.get(), 21)
+
+  def test_get_mixed_future_and_value_args(self):
+    a = sdk_worker._Future().set(10)
+    call = sdk_worker._DeferredCall(lambda x, y: x + y, a, 5)
+    self.assertEqual(call.get(), 15)
+
+  def test_get_zero_args(self):
+    call = sdk_worker._DeferredCall(lambda: 99)
+    self.assertEqual(call.get(), 99)
+
+  def test_get_preserves_return_value_type(self):
+    f = sdk_worker._Future().set({'key': 'val'})
+    call = sdk_worker._DeferredCall(lambda d: d, f)
+    self.assertEqual(call.get(), {'key': 'val'})
+
+
 def monitoringInfoMetadata(info):
   return {
       descriptor.name: value

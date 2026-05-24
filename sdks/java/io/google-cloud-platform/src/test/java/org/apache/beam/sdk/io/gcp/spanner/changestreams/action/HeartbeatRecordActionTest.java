@@ -41,6 +41,7 @@ import org.junit.Test;
 public class HeartbeatRecordActionTest {
 
   private HeartbeatRecordAction action;
+  private HeartbeatRecordAction cancellingAction;
   private PartitionMetadata partition;
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
   private RestrictionInterrupter<Timestamp> interrupter;
@@ -49,7 +50,8 @@ public class HeartbeatRecordActionTest {
   @Before
   public void setUp() {
     final ChangeStreamMetrics metrics = mock(ChangeStreamMetrics.class);
-    action = new HeartbeatRecordAction(metrics);
+    action = new HeartbeatRecordAction(metrics, false);
+    cancellingAction = new HeartbeatRecordAction(metrics, true);
     partition = mock(PartitionMetadata.class);
     tracker = mock(RestrictionTracker.class);
     interrupter = mock(RestrictionInterrupter.class);
@@ -60,6 +62,7 @@ public class HeartbeatRecordActionTest {
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
 
     when(tracker.tryClaim(timestamp)).thenReturn(true);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
@@ -70,7 +73,30 @@ public class HeartbeatRecordActionTest {
             new HeartbeatRecord(timestamp, null),
             tracker,
             interrupter,
-            watermarkEstimator);
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+  }
+
+  @Test
+  public void testRestrictionClaimedOnCancellingAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
+
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        cancellingAction.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
 
     assertEquals(Optional.empty(), maybeContinuation);
     verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
@@ -80,6 +106,7 @@ public class HeartbeatRecordActionTest {
   public void testRestrictionNotClaimed() {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
 
     when(tracker.tryClaim(timestamp)).thenReturn(false);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
@@ -90,7 +117,30 @@ public class HeartbeatRecordActionTest {
             new HeartbeatRecord(timestamp, null),
             tracker,
             interrupter,
-            watermarkEstimator);
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
+    verify(watermarkEstimator, never()).setWatermark(any());
+  }
+
+  @Test
+  public void testRestrictionNotClaimedOnCancellingAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
+
+    when(tracker.tryClaim(timestamp)).thenReturn(false);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        cancellingAction.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
@@ -100,6 +150,7 @@ public class HeartbeatRecordActionTest {
   public void testSoftDeadlineReached() {
     final String partitionToken = "partitionToken";
     final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
 
     when(interrupter.tryInterrupt(timestamp)).thenReturn(true);
     when(tracker.tryClaim(timestamp)).thenReturn(true);
@@ -111,9 +162,99 @@ public class HeartbeatRecordActionTest {
             new HeartbeatRecord(timestamp, null),
             tracker,
             interrupter,
-            watermarkEstimator);
+            watermarkEstimator,
+            endTimestamp);
 
     assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
+  }
+
+  @Test
+  public void testSoftDeadlineReachedOnCancellingAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
+
+    when(interrupter.tryInterrupt(timestamp)).thenReturn(true);
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        cancellingAction.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
+    verify(watermarkEstimator, never()).setWatermark(any());
+  }
+
+  @Test
+  public void testEndTimestampReachedOnCancellingAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(10L);
+
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        cancellingAction.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+  }
+
+  @Test
+  public void testEndTimestampNotReachedOnCancellingAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
+
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        cancellingAction.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
+  }
+
+  @Test
+  public void testEndTimestampNotReachedOnAction() {
+    final String partitionToken = "partitionToken";
+    final Timestamp timestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
+
+    when(tracker.tryClaim(timestamp)).thenReturn(true);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(
+            partition,
+            new HeartbeatRecord(timestamp, null),
+            tracker,
+            interrupter,
+            watermarkEstimator,
+            endTimestamp);
+
+    assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(timestamp.toSqlTimestamp().getTime()));
   }
 }

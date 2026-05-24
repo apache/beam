@@ -34,6 +34,7 @@ ARG py_version
 RUN  \
     # Install native bindings required for dependencies.
     apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y \
        # Required by python-snappy
        libsnappy-dev \
@@ -86,7 +87,10 @@ RUN  \
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
     pip install upgrade_ensurepip; \
     python3 -m upgrade_ensurepip; \
-    find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
+    # setuptools is not bundled with ensurepip in Python 3.12+
+    if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
+        find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
+    fi; \
     find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
     pip uninstall upgrade_ensurepip -y; \
     python3 -m ensurepip;

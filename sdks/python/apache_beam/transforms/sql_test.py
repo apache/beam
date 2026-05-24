@@ -45,6 +45,19 @@ Shopper = typing.NamedTuple(
 coders.registry.register_coder(Shopper, coders.RowCoder)
 
 
+class Aribitrary:
+  def __init__(self, obj):
+    self.obj = obj
+
+  def __eq__(self, other):
+    return self.obj == other.obj
+
+
+UserTypeRow = typing.NamedTuple(
+    "UserTypeRow", [("id", int), ("arb", Aribitrary), ("complex", complex)])
+coders.registry.register_coder(UserTypeRow, coders.RowCoder)
+
+
 @pytest.mark.xlang_sql_expansion_service
 @unittest.skipIf(
     TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
@@ -148,6 +161,19 @@ class SqlTransformTest(unittest.TestCase):
           | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
+
+  def test_row_user_type(self):
+    with TestPipeline() as p:
+      out = (
+          p | beam.Create([
+              UserTypeRow(1, Aribitrary(1.0), 1 + 2.5j),
+              UserTypeRow(1, Aribitrary("abc"), -1j),
+          ])
+          | SqlTransform("SELECT arb, complex FROM PCOLLECTION")
+          | beam.Map(tuple))
+      assert_that(
+          out,
+          equal_to([(Aribitrary(1.0), 1 + 2.5j), (Aribitrary("abc"), -1j)]))
 
   def test_windowing_before_sql(self):
     with TestPipeline() as p:

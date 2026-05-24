@@ -23,7 +23,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import net.snowflake.client.jdbc.SnowflakeSQLException;
+import net.snowflake.client.api.exception.SnowflakeSQLException;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeTableSchema;

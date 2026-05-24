@@ -23,6 +23,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.joda.time.Duration;
 
 /** [Internal] Options for configuring StreamingDataflowWorker. */
@@ -100,6 +101,13 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillServiceCommitThreads(Integer value);
 
   @Description(
+      "Number of commit threads per backend windmill worker in streaming engine direct path mode.")
+  @Default.Integer(1)
+  Integer getWindmillServiceDirectPathCommitThreads();
+
+  void setWindmillServiceDirectPathCommitThreads(Integer value);
+
+  @Description(
       "Frequency at which active work should be reported back to Windmill, in millis. "
           + "The first refresh will occur after at least this much time has passed since "
           + "starting the work item")
@@ -125,13 +133,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
-  @Description("If true, a most a single active rpc will be used per channel.")
+  /** @deprecated since 2.73.0 */
+  @Deprecated
+  @Description("Unused flag.")
   Boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(Boolean value);
 
-  @Description(
-      "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
+  /** @deprecated since beam 2.73.0 */
+  @Deprecated
+  @Description("Unused Flag")
   Boolean getUseSeparateWindmillHeartbeatStreams();
 
   void setUseSeparateWindmillHeartbeatStreams(Boolean value);
@@ -226,11 +237,27 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
 
+  @Description(
+      "If true, log and skip input elements that are unable to successfully decode from the streaming backend.")
+  ValueProvider<Boolean> getSkipInputElementsWithDecodingExceptions();
+
+  void setSkipInputElementsWithDecodingExceptions(ValueProvider<Boolean> value);
+
   @Description("Enables direct path mode for streaming engine.")
   @Default.InstanceFactory(EnableWindmillServiceDirectPathFactory.class)
   boolean getIsWindmillServiceDirectPathEnabled();
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
+
+  /**
+   * The maximum size of cached entries in bytes. Entries (eg: values, bags) larger than this limit
+   * will not be cached by the windmill state cache
+   */
+  @Description("The maximum size of cached entries in bytes.")
+  @Default.Long(Long.MAX_VALUE)
+  Long getMaxWindmillStateCacheEntryBytes();
+
+  void setMaxWindmillStateCacheEntryBytes(Long value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for

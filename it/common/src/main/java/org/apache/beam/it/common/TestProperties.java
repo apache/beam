@@ -67,8 +67,6 @@ public final class TestProperties {
   public static final String DEFAULT_REGION = "us-central1";
 
   // Error messages
-  private static final String CLI_ERR_MSG = "-D%s is required on the command line";
-  private static final String ENV_VAR_MSG = "%s is required as an environment variable";
 
   private static final Logger LOG = LoggerFactory.getLogger(TestProperties.class);
 
@@ -170,8 +168,8 @@ public final class TestProperties {
     if (required) {
       String errMsg =
           type == Type.PROPERTY
-              ? String.format(CLI_ERR_MSG, name)
-              : String.format(ENV_VAR_MSG, name);
+              ? String.format("-D%s is required on the command line", name)
+              : String.format("%s is required as an environment variable", name);
       checkState(value != null, errMsg);
     }
 

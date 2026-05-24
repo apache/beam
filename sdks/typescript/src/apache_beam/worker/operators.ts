@@ -427,6 +427,8 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
   keyCoder: Coder<unknown>;
   windowCoder: Coder<Window>;
 
+  // Use a Map for LRU ordering: JavaScript Maps preserve insertion order,
+  // so we can implement LRU by deleting and re-inserting on access.
   groups: Map<string, A>;
   maxKeys: number = 10000;
 
@@ -474,18 +476,25 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
         encodeToBase64(window, this.windowCoder) +
         " " +
         encodeToBase64(wvalue.value.key, this.keyCoder);
-      if (!this.groups.has(wkey)) {
-        this.groups.set(wkey, this.combineFn.createAccumulator());
+      const existingAccumulator = this.groups.get(wkey);
+      const newAccumulator =
+        existingAccumulator !== undefined
+          ? this.combineFn.addInput(existingAccumulator, wvalue.value.value)
+          : this.combineFn.addInput(
+              this.combineFn.createAccumulator(),
+              wvalue.value.value,
+            );
+      // Move to end (most recently used) by delete + set
+      // Only delete if the key already exists (avoids unnecessary operation for new keys)
+      if (existingAccumulator !== undefined) {
+        this.groups.delete(wkey);
       }
-      this.groups.set(
-        wkey,
-        this.combineFn.addInput(this.groups.get(wkey), wvalue.value.value),
-      );
+      this.groups.set(wkey, newAccumulator);
     }
     if (this.groups.size > this.maxKeys) {
-      // Flush a random 10% of the map to make more room.
-      // TODO: Tune this, or better use LRU or ARC for this cache.
-      return this.flush(this.maxKeys * 0.9);
+      // Flush the least recently used entries (at the front of the Map)
+      // until we're back under maxKeys.
+      return this.flushLRU(this.maxKeys);
     } else {
       return NonPromise;
     }
@@ -495,10 +504,19 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
     this.groups = new Map();
   }
 
-  flush(target: number): ProcessResult {
+  /**
+   * Flushes entries from the cache using LRU eviction.
+   * Evicts the least recently used entries (from the front of the Map)
+   * until the cache size is at or below the target.
+   */
+  flushLRU(target: number): ProcessResult {
     const result = new ProcessResultBuilder();
     const toDelete: string[] = [];
+    // Iterate from the front (oldest/least recently used entries)
     for (const [wkey, values] of this.groups) {
+      if (this.groups.size - toDelete.length <= target) {
+        break;
+      }
       const parts = wkey.split(" ");
       const encodedWindow = parts[0];
       const encodedKey = parts[1];
@@ -515,9 +533,6 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
         }),
       );
       toDelete.push(wkey);
-      if (this.groups.size - toDelete.length <= target) {
-        break;
-      }
     }
     for (const wkey of toDelete) {
       this.groups.delete(wkey);
@@ -526,7 +541,8 @@ export class CombinePerKeyPrecombineOperator<I, A, O>
   }
 
   async finishBundle() {
-    const maybePromise = this.flush(0);
+    // Flush all remaining entries using flushLRU(0)
+    const maybePromise = this.flushLRU(0);
     if (maybePromise !== NonPromise) {
       await maybePromise;
     }

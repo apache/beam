@@ -353,7 +353,16 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
     }
     if (window instanceof IntervalWindow) {
       IntervalWindow iw = (IntervalWindow) window;
-      return String.format("%s-%s", iw.start().toString(), iw.end().toString());
+      // Use ISO-8601 format but replace colons with underscores for Windows compatibility
+      // since colons are illegal characters in Windows file paths.
+      String startStr = iw.start().toString();
+      String endStr = iw.end().toString();
+      String osName = System.getProperty("os.name");
+      if (osName != null && osName.startsWith("Windows")) {
+        startStr = startStr.replace(':', '_');
+        endStr = endStr.replace(':', '_');
+      }
+      return String.format("%s-%s", startStr, endStr);
     }
     return window.toString();
   }

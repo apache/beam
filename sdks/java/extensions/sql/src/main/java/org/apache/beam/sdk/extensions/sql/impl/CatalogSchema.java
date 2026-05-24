@@ -68,6 +68,10 @@ public class CatalogSchema implements Schema {
     return catalog;
   }
 
+  public void updateProperties(Map<String, String> setProps, Collection<String> resetProps) {
+    catalog.updateProperties(setProps, resetProps);
+  }
+
   public @Nullable BeamCalciteSchema getCurrentDatabaseSchema() {
     return getSubSchema(catalog.currentDatabase());
   }
@@ -104,7 +108,7 @@ public class CatalogSchema implements Schema {
     if (alreadyExists) {
       String message = format("Database '%s' already exists.", name);
       if (ifNotExists || name.equals(DEFAULT)) {
-        LOG.info(message);
+        LOG.info("Database '{}' already exists.", name);
       } else {
         throw SqlUtil.newContextException(
             databaseIdentifier.getParserPosition(), RESOURCE.internal(message));

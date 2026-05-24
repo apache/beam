@@ -128,7 +128,7 @@ public class FlinkUnboundedSourceReader<T>
         pipelineOptions.as(FlinkPipelineOptions.class).getAutoWatermarkInterval();
     if (watermarkInterval == null) {
       watermarkInterval =
-          (pipelineOptions.as(FlinkPipelineOptions.class).getMaxBundleTimeMills()) / 5L;
+          pipelineOptions.as(FlinkPipelineOptions.class).getMaxBundleTimeMills() / 5L;
       watermarkInterval =
           (watermarkInterval > MIN_WATERMARK_EMIT_INTERVAL_MS)
               ? watermarkInterval

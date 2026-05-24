@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import hashlib
 import io
 import itertools
 import json
@@ -96,6 +97,40 @@ class UtilTest(unittest.TestCase):
       self.fail('No pipeline_url found in %s' % recovered_options)
 
     self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
+
+  def test_pipeline_proto_hash(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    proto_pipeline = beam_runner_api_pb2.Pipeline()
+    proto_pipeline.components.transforms['dummy'].unique_name = 'dummy'
+
+    expected_hash = hashlib.sha256(
+        proto_pipeline.SerializeToString()).hexdigest()
+
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL,
+                                proto_pipeline,
+                                pipeline_proto_hash=expected_hash)
+
+    recovered_options = None
+    for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
+      if additionalProperty.key == 'options':
+        recovered_options = additionalProperty.value
+        break
+    else:
+      self.fail('No pipeline options found')
+
+    pipeline_proto_hash = None
+    for property in recovered_options.object_value.properties:
+      if property.key == 'pipelineProtoHash':
+        pipeline_proto_hash = property.value
+        break
+    else:
+      self.fail('No pipelineProtoHash found')
+
+    self.assertEqual(pipeline_proto_hash.string_value, expected_hash)
 
   def test_set_network(self):
     pipeline_options = PipelineOptions([
@@ -609,6 +644,23 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].numThreadsPerWorker, 2)
 
+  def test_disk_provisioning_options(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200'
+    ])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(env.proto.workerPools[0].diskProvisionedIops, 4000)
+    self.assertEqual(
+        env.proto.workerPools[0].diskProvisionedThroughputMibps, 200)
+
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -1066,7 +1118,7 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 14, 0))
+      (3, 15, 0))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
@@ -1340,13 +1392,19 @@ class UtilTest(unittest.TestCase):
                     ])
             }))
     client = apiclient.DataflowApplicationClient(pipeline_options)
-    with mock.patch.object(apiclient._LegacyDataflowStager,
-                           'stage_job_resources') as mock_stager:
-      client._stage_resources(pipeline, pipeline_options)
+    with mock.patch.object(apiclient.DataflowApplicationClient,
+                           '_compute_sha256',
+                           side_effect=lambda path: 'hash' + path):
+      with mock.patch.object(apiclient._LegacyDataflowStager,
+                             'stage_job_resources') as mock_stager:
+        client._stage_resources(pipeline, pipeline_options)
     mock_stager.assert_called_once_with(
-        [('/tmp/foo1', 'foo1', ''), ('/tmp/bar1', 'bar1', ''),
-         ('/tmp/baz', 'baz1', ''), ('/tmp/renamed1', 'renamed1', 'abcdefg'),
-         ('/tmp/foo2', 'foo2', ''), ('/tmp/bar2', 'bar2', '')],
+        [('/tmp/foo1', 'foo1', 'hash/tmp/foo1'),
+         ('/tmp/bar1', 'bar1', 'hash/tmp/bar1'),
+         ('/tmp/baz', 'baz1', 'hash/tmp/baz'),
+         ('/tmp/renamed1', 'renamed1', 'abcdefg'),
+         ('/tmp/foo2', 'foo2', 'hash/tmp/foo2'),
+         ('/tmp/bar2', 'bar2', 'hash/tmp/bar2')],
         staging_location='gs://test-location/staging')
 
     pipeline_expected = beam_runner_api_pb2.Pipeline(
@@ -1357,8 +1415,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/foo1'
-                            ).SerializeToString(),
+                                url='gs://test-location/staging/foo1',
+                                sha256='hash/tmp/foo1').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
@@ -1366,8 +1424,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/bar1').
-                            SerializeToString(),
+                                url='gs://test-location/staging/bar1',
+                                sha256='hash/tmp/bar1').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
@@ -1375,8 +1433,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/baz1').
-                            SerializeToString(),
+                                url='gs://test-location/staging/baz1',
+                                sha256='hash/tmp/baz').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
@@ -1396,8 +1454,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/foo2').
-                            SerializeToString(),
+                                url='gs://test-location/staging/foo2',
+                                sha256='hash/tmp/foo2').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
@@ -1405,8 +1463,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/bar2').
-                            SerializeToString(),
+                                url='gs://test-location/staging/bar2',
+                                sha256='hash/tmp/bar2').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(
@@ -1414,8 +1472,8 @@ class UtilTest(unittest.TestCase):
                         beam_runner_api_pb2.ArtifactInformation(
                             type_urn=common_urns.artifact_types.URL.urn,
                             type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-                                url='gs://test-location/staging/baz1').
-                            SerializeToString(),
+                                url='gs://test-location/staging/baz1',
+                                sha256='hash/tmp/baz').SerializeToString(),
                             role_urn=common_urns.artifact_roles.STAGING_TO.urn,
                             role_payload=beam_runner_api_pb2.
                             ArtifactStagingToRolePayload(

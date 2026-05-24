@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.snowflake.data;
 
 import java.io.Serializable;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.annotation.JsonSubTypes;
-import net.snowflake.client.jdbc.internal.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import net.snowflake.client.jdbc.internal.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeDate;
 import org.apache.beam.sdk.io.snowflake.data.datetime.SnowflakeDateTime;
@@ -50,31 +49,31 @@ import org.apache.beam.sdk.io.snowflake.data.text.SnowflakeVarchar;
 /** Interface for data types to provide SQLs for themselves. */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes({
-  @Type(value = SnowflakeDate.class, name = "date"),
-  @Type(value = SnowflakeDateTime.class, name = "datetime"),
-  @Type(value = SnowflakeTime.class, name = "time"),
-  @Type(value = SnowflakeTimestamp.class, name = "timestamp"),
-  @Type(value = SnowflakeTimestampLTZ.class, name = "timestamp_ltz"),
-  @Type(value = SnowflakeTimestampNTZ.class, name = "timestamp_ntz"),
-  @Type(value = SnowflakeTimestampTZ.class, name = "timestamp_tz"),
-  @Type(value = SnowflakeBoolean.class, name = "boolean"),
-  @Type(value = SnowflakeDecimal.class, name = "decimal"),
-  @Type(value = SnowflakeDouble.class, name = "double"),
-  @Type(value = SnowflakeFloat.class, name = "float"),
-  @Type(value = SnowflakeInteger.class, name = "integer"),
-  @Type(value = SnowflakeNumber.class, name = "number"),
-  @Type(value = SnowflakeNumeric.class, name = "numeric"),
-  @Type(value = SnowflakeReal.class, name = "real"),
-  @Type(value = SnowflakeArray.class, name = "array"),
-  @Type(value = SnowflakeObject.class, name = "object"),
-  @Type(value = SnowflakeVariant.class, name = "variant"),
-  @Type(value = SnowflakeBinary.class, name = "binary"),
-  @Type(value = SnowflakeChar.class, name = "char"),
-  @Type(value = SnowflakeString.class, name = "string"),
-  @Type(value = SnowflakeText.class, name = "text"),
-  @Type(value = SnowflakeVarBinary.class, name = "varbinary"),
-  @Type(value = SnowflakeVarchar.class, name = "varchar"),
-  @Type(value = SnowflakeGeography.class, name = "geography"),
+  @JsonSubTypes.Type(value = SnowflakeDate.class, name = "date"),
+  @JsonSubTypes.Type(value = SnowflakeDateTime.class, name = "datetime"),
+  @JsonSubTypes.Type(value = SnowflakeTime.class, name = "time"),
+  @JsonSubTypes.Type(value = SnowflakeTimestamp.class, name = "timestamp"),
+  @JsonSubTypes.Type(value = SnowflakeTimestampLTZ.class, name = "timestamp_ltz"),
+  @JsonSubTypes.Type(value = SnowflakeTimestampNTZ.class, name = "timestamp_ntz"),
+  @JsonSubTypes.Type(value = SnowflakeTimestampTZ.class, name = "timestamp_tz"),
+  @JsonSubTypes.Type(value = SnowflakeBoolean.class, name = "boolean"),
+  @JsonSubTypes.Type(value = SnowflakeDecimal.class, name = "decimal"),
+  @JsonSubTypes.Type(value = SnowflakeDouble.class, name = "double"),
+  @JsonSubTypes.Type(value = SnowflakeFloat.class, name = "float"),
+  @JsonSubTypes.Type(value = SnowflakeInteger.class, name = "integer"),
+  @JsonSubTypes.Type(value = SnowflakeNumber.class, name = "number"),
+  @JsonSubTypes.Type(value = SnowflakeNumeric.class, name = "numeric"),
+  @JsonSubTypes.Type(value = SnowflakeReal.class, name = "real"),
+  @JsonSubTypes.Type(value = SnowflakeArray.class, name = "array"),
+  @JsonSubTypes.Type(value = SnowflakeObject.class, name = "object"),
+  @JsonSubTypes.Type(value = SnowflakeVariant.class, name = "variant"),
+  @JsonSubTypes.Type(value = SnowflakeBinary.class, name = "binary"),
+  @JsonSubTypes.Type(value = SnowflakeChar.class, name = "char"),
+  @JsonSubTypes.Type(value = SnowflakeString.class, name = "string"),
+  @JsonSubTypes.Type(value = SnowflakeText.class, name = "text"),
+  @JsonSubTypes.Type(value = SnowflakeVarBinary.class, name = "varbinary"),
+  @JsonSubTypes.Type(value = SnowflakeVarchar.class, name = "varchar"),
+  @JsonSubTypes.Type(value = SnowflakeGeography.class, name = "geography"),
 })
 public interface SnowflakeDataType extends Serializable {
   String sql();

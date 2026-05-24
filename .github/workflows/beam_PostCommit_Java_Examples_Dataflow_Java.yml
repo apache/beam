@@ -26,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,21 +53,21 @@ env:
 jobs:
   beam_PostCommit_Java_Examples_Dataflow_Java:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.java_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_Java]
         job_phrase: [Run Java examples on Dataflow Java]
-        java_version: ['8','17','21', '25']
+        java_version: ['17', '21', '25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Java examples on Dataflow Java')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -86,7 +86,7 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java${{ matrix.java_version }}PostCommit
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

@@ -21,6 +21,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -47,6 +49,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -135,7 +138,8 @@ class RecordWriterManager implements AutoCloseable {
                       RuntimeException rethrow =
                           new RuntimeException(
                               String.format(
-                                  "Encountered an error when closing data writer for table '%s', path: %s",
+                                  "Encountered an error when closing data writer for table '%s',"
+                                      + " path: %s",
                                   icebergDestination.getTableIdentifier(), recordWriter.path()),
                               e);
                       exceptions.add(rethrow);
@@ -256,8 +260,40 @@ class RecordWriterManager implements AutoCloseable {
   private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
       totalSerializableDataFiles = Maps.newHashMap();
 
+  static final class LastRefreshedTable {
+    final Table table;
+    volatile Instant lastRefreshTime;
+    static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(2);
+
+    LastRefreshedTable(Table table, Instant lastRefreshTime) {
+      this.table = table;
+      this.lastRefreshTime = lastRefreshTime;
+    }
+
+    /**
+     * Refreshes the table metadata if it is considered stale (older than 2 minutes).
+     *
+     * <p>This method first performs a non-synchronized check on the table's freshness. This
+     * provides a lock-free fast path that avoids synchronization overhead in the common case where
+     * the table does not need to be refreshed. If the table might be stale, it then enters a
+     * synchronized block to ensure that only one thread performs the refresh operation.
+     */
+    void refreshIfStale() {
+      // Fast path: Avoid entering the synchronized block if the table is not stale.
+      if (lastRefreshTime.isAfter(Instant.now().minus(STALENESS_THRESHOLD))) {
+        return;
+      }
+      synchronized (this) {
+        if (lastRefreshTime.isBefore(Instant.now().minus(STALENESS_THRESHOLD))) {
+          table.refresh();
+          lastRefreshTime = Instant.now();
+        }
+      }
+    }
+  }
+
   @VisibleForTesting
-  static final Cache<TableIdentifier, Table> TABLE_CACHE =
+  static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
       CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
 
   private boolean isClosed = false;
@@ -272,34 +308,36 @@ class RecordWriterManager implements AutoCloseable {
   /**
    * Returns an Iceberg {@link Table}.
    *
-   * <p>First attempts to fetch the table from the {@link #TABLE_CACHE}. If it's not there, we
-   * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
-   * create it, inferring the table schema from the record schema.
+   * <p>First attempts to fetch the table from the {@link #LAST_REFRESHED_TABLE_CACHE}. If it's not
+   * there, we attempt to load it using the Iceberg API. If the table doesn't exist at all, we
+   * attempt to create it, inferring the table schema from the record schema.
    *
    * <p>Note that this is a best-effort operation that depends on the {@link Catalog}
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+  @VisibleForTesting
+  Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
     TableIdentifier identifier = destination.getTableIdentifier();
-    @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
-    if (table != null) {
-      // If fetching from cache, refresh the table to avoid working with stale metadata
-      // (e.g. partition spec)
-      table.refresh();
-      return table;
+    @Nullable
+    LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
+    if (lastRefreshedTable != null && lastRefreshedTable.table != null) {
+      lastRefreshedTable.refreshIfStale();
+      return lastRefreshedTable.table;
     }
 
     Namespace namespace = identifier.namespace();
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    SortOrder sortOrder = createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
     Map<String, String> tableProperties =
         createConfig != null && createConfig.getTableProperties() != null
             ? createConfig.getTableProperties()
             : Maps.newHashMap();
 
-    synchronized (TABLE_CACHE) {
+    @Nullable Table table = null;
+    synchronized (LAST_REFRESHED_TABLE_CACHE) {
       // Create namespace if it does not exist yet
       if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
         SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
@@ -321,12 +359,20 @@ class RecordWriterManager implements AutoCloseable {
       } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
-          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          table =
+              catalog
+                  .buildTable(identifier, tableSchema)
+                  .withPartitionSpec(partitionSpec)
+                  .withSortOrder(sortOrder)
+                  .withProperties(tableProperties)
+                  .create();
           LOG.info(
-              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
+              "Created Iceberg table '{}' with schema: {}\n"
+                  + ", partition spec: {}, sort order: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
+              sortOrder,
               tableProperties);
         } catch (AlreadyExistsException ignored) {
           // race condition: another worker already created this table
@@ -334,8 +380,8 @@ class RecordWriterManager implements AutoCloseable {
         }
       }
     }
-
-    TABLE_CACHE.put(identifier, table);
+    lastRefreshedTable = new LastRefreshedTable(table, Instant.now());
+    LAST_REFRESHED_TABLE_CACHE.put(identifier, lastRefreshedTable);
     return table;
   }
 
@@ -366,33 +412,36 @@ class RecordWriterManager implements AutoCloseable {
    */
   @Override
   public void close() throws IOException {
-    for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
-        windowedDestinationAndState : destinations.entrySet()) {
-      DestinationState state = windowedDestinationAndState.getValue();
+    try {
+      for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
+          windowedDestinationAndState : destinations.entrySet()) {
+        DestinationState state = windowedDestinationAndState.getValue();
 
-      // removing writers from the state's cache will trigger the logic to collect each writer's
-      // data file.
-      state.writers.invalidateAll();
-      // first check for any exceptions swallowed by the cache
-      if (!state.exceptions.isEmpty()) {
-        IllegalStateException exception =
-            new IllegalStateException(
-                String.format("Encountered %s failed writer(s).", state.exceptions.size()));
-        for (Exception e : state.exceptions) {
-          exception.addSuppressed(e);
+        // removing writers from the state's cache will trigger the logic to collect each writer's
+        // data file.
+        state.writers.invalidateAll();
+        // first check for any exceptions swallowed by the cache
+        if (!state.exceptions.isEmpty()) {
+          IllegalStateException exception =
+              new IllegalStateException(
+                  String.format("Encountered %s failed writer(s).", state.exceptions.size()));
+          for (Exception e : state.exceptions) {
+            exception.addSuppressed(e);
+          }
+          throw exception;
         }
-        throw exception;
-      }
 
-      if (state.dataFiles.isEmpty()) {
-        continue;
-      }
+        if (state.dataFiles.isEmpty()) {
+          continue;
+        }
 
-      totalSerializableDataFiles.put(
-          windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
-      state.dataFiles.clear();
+        totalSerializableDataFiles.put(
+            windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
+        state.dataFiles.clear();
+      }
+    } finally {
+      destinations.clear();
     }
-    destinations.clear();
     checkArgument(
         openWriters == 0,
         "Expected all data writers to be closed, but found %s data writer(s) still open",

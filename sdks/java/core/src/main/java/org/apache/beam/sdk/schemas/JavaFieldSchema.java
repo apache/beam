@@ -103,12 +103,10 @@ public class JavaFieldSchema extends GetterBasedSchemaProviderV2 {
       }
       Preconditions.checkState(
           number == i,
-          "Expected field number "
-              + i
-              + " for field + "
-              + type.getName()
-              + " instead got "
-              + number);
+          "Expected field number %s for field %s instead got %s",
+          i,
+          type.getName(),
+          number);
     }
   }
 

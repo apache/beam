@@ -167,7 +167,7 @@ public class Query4Model extends NexmarkQueryModel<CategoryPrice> implements Ser
     // Find the last (in processing time) reported average price for each category.
     Map<Long, TimestampedValue<CategoryPrice>> finalAverages = new TreeMap<>();
     for (TimestampedValue<CategoryPrice> obj : results) {
-      Assert.assertTrue("have CategoryPrice", obj.getValue() instanceof CategoryPrice);
+      Assert.assertTrue("have CategoryPrice", obj.getValue() != null);
       CategoryPrice categoryPrice = (CategoryPrice) obj.getValue();
       if (categoryPrice.isLast) {
         finalAverages.put(

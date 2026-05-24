@@ -22,6 +22,7 @@ from apache_beam.coders.coder_impl import LogicalTypeCoderImpl
 from apache_beam.coders.coder_impl import RowCoderImpl
 from apache_beam.coders.coders import BigEndianShortCoder
 from apache_beam.coders.coders import BooleanCoder
+from apache_beam.coders.coders import ByteCoder
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
 from apache_beam.coders.coders import DecimalCoder
@@ -147,8 +148,10 @@ def _nonnull_coder_from_type(field_type):
       return VarIntCoder()
     elif field_type.atomic_type == schema_pb2.INT32:
       return VarInt32Coder()
-    if field_type.atomic_type == schema_pb2.INT16:
+    elif field_type.atomic_type == schema_pb2.INT16:
       return BigEndianShortCoder()
+    elif field_type.atomic_type == schema_pb2.BYTE:
+      return ByteCoder()
     elif field_type.atomic_type == schema_pb2.FLOAT:
       return SinglePrecisionFloatCoder()
     elif field_type.atomic_type == schema_pb2.DOUBLE:

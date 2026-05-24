@@ -172,6 +172,8 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
         output -> {
           try {
             receiver.process(output);
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             throw new RuntimeException(t);
           }

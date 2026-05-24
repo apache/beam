@@ -467,7 +467,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
         new ProcessBuilder().command("/bin/bash", "-c", cmd).redirectErrorStream(true).start();
     String output =
         new String(ByteStreams.toByteArray(process.getInputStream()), StandardCharsets.UTF_8);
-    LOG.info(output);
+    LOG.info("Command output: {}", output);
     Matcher m = JOB_ID_PATTERN.matcher(output);
     if (!m.find()) {
       throw new RuntimeException(

@@ -158,7 +158,7 @@ public class DetectNewPartitionsAction {
 
     List<ByteStringRange> missingPartitions = getMissingPartitionsFromEntireKeySpace(partitions);
     if (missingPartitions.isEmpty()) {
-      LOG.info("DNP: Updating watermark: " + lowWatermark);
+      LOG.info("DNP: Updating watermark: {}", lowWatermark);
       return Optional.of(lowWatermark);
     }
     LOG.warn(
@@ -253,8 +253,8 @@ public class DetectNewPartitionsAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       InitialPipelineState initialPipelineState)
       throws Exception {
-    LOG.debug("DNP: Watermark: " + watermarkEstimator.getState());
-    LOG.debug("DNP: CurrentTracker: " + tracker.currentRestriction().getFrom());
+    LOG.debug("DNP: Watermark: {}", watermarkEstimator.getState());
+    LOG.debug("DNP: CurrentTracker: {}", tracker.currentRestriction().getFrom());
     if (tracker.currentRestriction().getFrom() == 0L) {
       if (!tracker.tryClaim(0L)) {
         LOG.error(
@@ -298,7 +298,7 @@ public class DetectNewPartitionsAction {
     }
 
     if (!tracker.tryClaim(tracker.currentRestriction().getFrom())) {
-      LOG.warn("DNP: Checkpointing, stopping this run: " + tracker.currentRestriction());
+      LOG.warn("DNP: Checkpointing, stopping this run: {}", tracker.currentRestriction());
       return ProcessContinuation.stop();
     }
 

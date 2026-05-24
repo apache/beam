@@ -25,6 +25,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -89,8 +90,10 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
-    doFnRunner.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
+    doFnRunner.onTimer(
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
   }
 
   @Override
@@ -142,7 +145,15 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           } else {
             nonLateElements.add(
                 WindowedValues.of(
-                    element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
+                    element.getValue(),
+                    element.getTimestamp(),
+                    window,
+                    element.getPaneInfo(),
+                    element.getRecordId(),
+                    element.getRecordOffset(),
+                    element.causedByDrain(),
+                    element.getOpenTelemetryContext(),
+                    element.getValueKind()));
           }
         }
       }

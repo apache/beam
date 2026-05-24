@@ -175,7 +175,7 @@ tasks.register("postCommitYamlIntegrationTests") {
       }
       exec {
         executable 'sh'
-        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
       }
     }
   }
@@ -200,6 +200,7 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
   getVersionsAsList('python_versions').each { it ->
     def pyversion = it.replace('.', '')
+    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.4.0'
 
     project.tasks.register("bdistPy${pyversion}${platform}") {
       description "Build a Python wheel distribution for Py${pyversion} ${platform}"
@@ -220,7 +221,7 @@ platform_identifiers_map.each { platform, idsuffix ->
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel==2.23.3 setuptools && " +
+                 "pip install cibuildwheel==${cibuildwheel_version} setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }

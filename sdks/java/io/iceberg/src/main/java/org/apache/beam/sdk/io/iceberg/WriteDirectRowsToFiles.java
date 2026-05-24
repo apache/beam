@@ -98,7 +98,7 @@ class WriteDirectRowsToFiles
 
     @ProcessElement
     public void processElement(
-        ProcessContext context,
+        @SuppressWarnings("unused") ProcessContext context,
         @Element KV<String, Row> element,
         BoundedWindow window,
         PaneInfo paneInfo)

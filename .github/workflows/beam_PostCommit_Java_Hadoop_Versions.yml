@@ -40,7 +40,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -51,7 +51,7 @@ env:
 jobs:
   beam_PostCommit_Java_Hadoop_Versions:    
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 240
     strategy:
       matrix:
@@ -63,7 +63,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run PostCommit_Java_Hadoop_Versions'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -72,24 +72,12 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-        with:
-          java-version: |
-            8
-            11
       - name: run javaHadoopVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :javaHadoopVersionsTest
-      # TODO(https://github.com/apache/beam/issues/32189) remove when embedded hive supports Java11
-      - name: run java8HadoopVersionsTest script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:io:hcatalog:hadoopVersionsTest
-          arguments: |
-            -PtestJavaVersion=8 \
-            -Pjava8Home=$JAVA_HOME_8_X64 \
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

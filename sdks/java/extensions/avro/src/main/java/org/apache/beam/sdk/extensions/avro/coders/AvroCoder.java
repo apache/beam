@@ -865,7 +865,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     if (this == other) {
       return true;
     }
-    if (other == null || this.getClass() != other.getClass()) {
+    if (!(other instanceof AvroCoder)) {
       return false;
     }
     AvroCoder<?> that = (AvroCoder<?>) other;
@@ -940,7 +940,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AvroCoderCacheKey)) {
         return false;
       }
       AvroCoderCacheKey that = (AvroCoderCacheKey) o;

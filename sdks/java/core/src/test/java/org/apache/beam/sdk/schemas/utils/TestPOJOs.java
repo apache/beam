@@ -19,10 +19,14 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -34,7 +38,10 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -92,7 +99,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithNestedNullable)) {
         return false;
       }
       POJOWithNestedNullable that = (POJOWithNestedNullable) o;
@@ -302,7 +309,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof AnnotatedSimplePojo)) {
         return false;
       }
       AnnotatedSimplePojo that = (AnnotatedSimplePojo) o;
@@ -440,7 +447,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimplePOJO)) {
         return false;
       }
       SimplePOJO that = (SimplePOJO) o;
@@ -511,7 +518,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedPOJO)) {
         return false;
       }
       NestedPOJO that = (NestedPOJO) o;
@@ -549,7 +556,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveArrayPOJO)) {
         return false;
       }
       PrimitiveArrayPOJO that = (PrimitiveArrayPOJO) o;
@@ -591,7 +598,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArrayPOJO)) {
         return false;
       }
       NestedArrayPOJO that = (NestedArrayPOJO) o;
@@ -624,7 +631,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArraysPOJO)) {
         return false;
       }
       NestedArraysPOJO that = (NestedArraysPOJO) o;
@@ -659,12 +666,15 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedCollectionPOJO)) {
         return false;
       }
       NestedCollectionPOJO that = (NestedCollectionPOJO) o;
       return Objects.equals(simples, that.simples)
-          && Objects.equals(iterableSimples, that.iterableSimples);
+          && (iterableSimples == that.iterableSimples
+              || (iterableSimples != null
+                  && that.iterableSimples != null
+                  && Iterables.elementsEqual(iterableSimples, that.iterableSimples)));
     }
 
     @Override
@@ -696,7 +706,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveMapPOJO)) {
         return false;
       }
       PrimitiveMapPOJO that = (PrimitiveMapPOJO) o;
@@ -730,7 +740,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedMapPOJO)) {
         return false;
       }
       NestedMapPOJO that = (NestedMapPOJO) o;
@@ -774,7 +784,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithBoxedFields)) {
         return false;
       }
       POJOWithBoxedFields that = (POJOWithBoxedFields) o;
@@ -819,7 +829,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof POJOWithByteArray)) {
         return false;
       }
       POJOWithByteArray that = (POJOWithByteArray) o;
@@ -887,11 +897,14 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (!(o instanceof PojoWithNestedArray)) {
+      if (!(o instanceof PojoWithIterable)) {
         return false;
       }
       PojoWithIterable that = (PojoWithIterable) o;
-      return Objects.equals(strings, that.strings);
+      return strings == that.strings
+          || (strings != null
+              && that.strings != null
+              && Iterables.elementsEqual(strings, that.strings));
     }
 
     @Override
@@ -927,7 +940,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PojoWithEnum)) {
         return false;
       }
       PojoWithEnum that = (PojoWithEnum) o;
@@ -999,7 +1012,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NullablePOJO)) {
         return false;
       }
       NullablePOJO that = (NullablePOJO) o;
@@ -1075,7 +1088,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PojoWithCaseFormat)) {
         return false;
       }
       PojoWithCaseFormat that = (PojoWithCaseFormat) o;
@@ -1124,7 +1137,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SelfNestedPOJO)) {
         return false;
       }
       SelfNestedPOJO that = (SelfNestedPOJO) o;
@@ -1155,7 +1168,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FirstCircularNestedPOJO)) {
         return false;
       }
       FirstCircularNestedPOJO that = (FirstCircularNestedPOJO) o;
@@ -1186,7 +1199,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SecondCircularNestedPOJO)) {
         return false;
       }
       SecondCircularNestedPOJO that = (SecondCircularNestedPOJO) o;
@@ -1217,7 +1230,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedPOJOWithSimplePOJO)) {
         return false;
       }
       NestedPOJOWithSimplePOJO that = (NestedPOJOWithSimplePOJO) o;
@@ -1254,7 +1267,7 @@ public class TestPOJOs {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimplePOJOWithDescription)) {
         return false;
       }
       SimplePOJOWithDescription that = (SimplePOJOWithDescription) o;
@@ -1273,5 +1286,117 @@ public class TestPOJOs {
           .addField(
               Schema.Field.nullable("str", FieldType.STRING)
                   .withDescription("a simple string that is part of this field"))
+          .build();
+
+  /** A POJO containing JSR-310 date/time types and a UUID, all inferred as Beam logical types. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class JavaTimePOJO {
+    public LocalDate localDate;
+    public LocalTime localTime;
+    public LocalDateTime localDateTime;
+    public java.time.Instant instant;
+    public UUID uuid;
+
+    public JavaTimePOJO() {}
+
+    public JavaTimePOJO(
+        LocalDate localDate,
+        LocalTime localTime,
+        LocalDateTime localDateTime,
+        java.time.Instant instant,
+        UUID uuid) {
+      this.localDate = localDate;
+      this.localTime = localTime;
+      this.localDateTime = localDateTime;
+      this.instant = instant;
+      this.uuid = uuid;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof JavaTimePOJO)) {
+        return false;
+      }
+      JavaTimePOJO that = (JavaTimePOJO) o;
+      return Objects.equals(localDate, that.localDate)
+          && Objects.equals(localTime, that.localTime)
+          && Objects.equals(localDateTime, that.localDateTime)
+          && Objects.equals(instant, that.instant)
+          && Objects.equals(uuid, that.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(localDate, localTime, localDateTime, instant, uuid);
+    }
+  }
+
+  /** The schema for {@link JavaTimePOJO}. */
+  public static final Schema JAVA_TIME_POJO_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("localDate", SqlTypes.DATE)
+          .addLogicalTypeField("localTime", SqlTypes.TIME)
+          .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+          .addLogicalTypeField("instant", new NanosInstant())
+          .addLogicalTypeField("uuid", SqlTypes.UUID)
+          .build();
+
+  /** A POJO with nullable JSR-310 and UUID fields. */
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class NullableJavaTimePOJO {
+    public @Nullable LocalDate localDate;
+    public @Nullable LocalTime localTime;
+    public @Nullable LocalDateTime localDateTime;
+    public java.time.@Nullable Instant instant;
+    public @Nullable UUID uuid;
+
+    public NullableJavaTimePOJO() {}
+
+    public NullableJavaTimePOJO(
+        LocalDate localDate,
+        LocalTime localTime,
+        LocalDateTime localDateTime,
+        java.time.Instant instant,
+        UUID uuid) {
+      this.localDate = localDate;
+      this.localTime = localTime;
+      this.localDateTime = localDateTime;
+      this.instant = instant;
+      this.uuid = uuid;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof NullableJavaTimePOJO)) {
+        return false;
+      }
+      NullableJavaTimePOJO that = (NullableJavaTimePOJO) o;
+      return Objects.equals(localDate, that.localDate)
+          && Objects.equals(localTime, that.localTime)
+          && Objects.equals(localDateTime, that.localDateTime)
+          && Objects.equals(instant, that.instant)
+          && Objects.equals(uuid, that.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(localDate, localTime, localDateTime, instant, uuid);
+    }
+  }
+
+  /** The schema for {@link NullableJavaTimePOJO}. */
+  public static final Schema NULLABLE_JAVA_TIME_POJO_SCHEMA =
+      Schema.builder()
+          .addNullableLogicalTypeField("localDate", SqlTypes.DATE)
+          .addNullableLogicalTypeField("localTime", SqlTypes.TIME)
+          .addNullableLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+          .addNullableLogicalTypeField("instant", new NanosInstant())
+          .addNullableLogicalTypeField("uuid", SqlTypes.UUID)
           .build();
 }

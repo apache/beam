@@ -64,7 +64,7 @@ func TestGetJobOptions(t *testing.T) {
 		t.Errorf("getJobOptions().Name = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Experiments), 5; got != want {
-		t.Errorf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	} else {
 		sort.Strings(opts.Experiments)
 		expectedExperiments := []string{"beam_fn_api", "min_cpu_platform=testPlatform", "use_portable_job_submission", "use_runner_v2", "use_unified_worker"}
@@ -75,7 +75,7 @@ func TestGetJobOptions(t *testing.T) {
 		}
 	}
 	if got, want := len(opts.DataflowServiceOptions), 2; got != want {
-		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %d, want %d", got, want)
 	} else {
 		sort.Strings(opts.DataflowServiceOptions)
 		expectedOptions := []string{"opt1", "opt2"}
@@ -92,7 +92,7 @@ func TestGetJobOptions(t *testing.T) {
 		t.Errorf("getJobOptions().Region = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Labels), 2; got != want {
-		t.Errorf("len(getJobOptions().Labels) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Labels) = %d, want %d", got, want)
 	} else {
 		if got, want := opts.Labels["label1"], "val1"; got != want {
 			t.Errorf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
@@ -134,7 +134,7 @@ func TestGetJobOptions_Streaming(t *testing.T) {
 		t.Errorf("getJobOptions().Name = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Experiments), 7; got != want {
-		t.Errorf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	} else {
 		sort.Strings(opts.Experiments)
 		expectedExperiments := []string{"beam_fn_api", "enable_streaming_engine", "enable_windmill_service", "min_cpu_platform=testPlatform", "use_portable_job_submission", "use_runner_v2", "use_unified_worker"}
@@ -145,7 +145,7 @@ func TestGetJobOptions_Streaming(t *testing.T) {
 		}
 	}
 	if got, want := len(opts.DataflowServiceOptions), 2; got != want {
-		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().DataflowServiceOptions) = %d, want %d", got, want)
 	} else {
 		sort.Strings(opts.DataflowServiceOptions)
 		expectedOptions := []string{"opt1", "opt2"}
@@ -162,7 +162,7 @@ func TestGetJobOptions_Streaming(t *testing.T) {
 		t.Errorf("getJobOptions().Region = %q, want %q", got, want)
 	}
 	if got, want := len(opts.Labels), 2; got != want {
-		t.Errorf("len(getJobOptions().Labels) = %q, want %q", got, want)
+		t.Errorf("len(getJobOptions().Labels) = %d, want %d", got, want)
 	} else {
 		if got, want := opts.Labels["label1"], "val1"; got != want {
 			t.Errorf("getJobOptions().Labels[\"label1\"] = %q, want %q", got, want)
@@ -192,7 +192,7 @@ func TestGetJobOptions_NoExperimentsSet(t *testing.T) {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
 	if got, want := len(opts.Experiments), 4; got != want {
-		t.Fatalf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+		t.Fatalf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	}
 	sort.Strings(opts.Experiments)
 	expectedExperiments := []string{"beam_fn_api", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
@@ -216,7 +216,7 @@ func TestGetJobOptions_NoExperimentsSetStreaming(t *testing.T) {
 		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
 	}
 	if got, want := len(opts.Experiments), 6; got != want {
-		t.Fatalf("len(getJobOptions().Experiments) = %q, want %q", got, want)
+		t.Fatalf("len(getJobOptions().Experiments) = %d, want %d", got, want)
 	}
 	sort.Strings(opts.Experiments)
 	expectedExperiments := []string{"beam_fn_api", "enable_streaming_engine", "enable_windmill_service", "use_portable_job_submission", "use_unified_worker", "use_runner_v2"}
@@ -516,6 +516,26 @@ func getFieldFromOpt(fieldName string, opts *dataflowlib.JobOptions) string {
 	return reflect.ValueOf(opts).Elem().FieldByName(fieldName).String()
 }
 
+func TestGetJobOptions_DiskProvisionedOptions(t *testing.T) {
+	resetGlobals()
+	*stagingLocation = "gs://testStagingLocation"
+	*gcpopts.Project = "testProject"
+	*gcpopts.Region = "testRegion"
+	*diskProvisionedIops = 1000
+	*diskProvisionedThroughputMibps = 100
+
+	opts, err := getJobOptions(context.Background(), false)
+	if err != nil {
+		t.Fatalf("getJobOptions() returned error %q, want %q", err, "nil")
+	}
+	if got, want := opts.DiskProvisionedIops, int64(1000); got != want {
+		t.Errorf("opts.DiskProvisionedIops = %d, want %d", got, want)
+	}
+	if got, want := opts.DiskProvisionedThroughputMibps, int64(100); got != want {
+		t.Errorf("opts.DiskProvisionedThroughputMibps = %d, want %d", got, want)
+	}
+}
+
 func resetGlobals() {
 	*autoscalingAlgorithm = ""
 	*dataflowServiceOptions = ""
@@ -537,4 +557,6 @@ func resetGlobals() {
 	*workerHarnessImage = ""
 	*workerMachineType = ""
 	*machineType = ""
+	*diskProvisionedIops = 0
+	*diskProvisionedThroughputMibps = 0
 }

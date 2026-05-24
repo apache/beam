@@ -38,7 +38,6 @@ from apache_beam.runners import runner
 from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.runners.interactive.messaging.interactive_environment_inspector import InteractiveEnvironmentInspector
-from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.sql.sql_chain import SqlChain
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
 from apache_beam.runners.interactive.utils import assert_bucket_exists
@@ -366,11 +365,17 @@ class InteractiveEnvironment(object):
     if self.get_cache_manager(pipeline) is cache_manager:
       # NOOP if setting to the same cache_manager.
       return
+    # Check if the pipeline is already tracked as a user pipeline before cleanup.
+    is_user_pipeline = self._tracked_user_pipelines.get_user_pipeline(
+        pipeline) is pipeline
     if self.get_cache_manager(pipeline):
       # Invoke cleanup routine when a new cache_manager is forcefully set and
       # current cache_manager is not None.
       self.cleanup(pipeline)
     self._cache_managers[str(id(pipeline))] = cache_manager
+    if is_user_pipeline:
+      # Re-track the user pipeline because the self.cleanup() call above evicts it.
+      self.add_user_pipeline(pipeline)
 
   def get_cache_manager(self, pipeline, create_if_absent=False):
     """Gets the cache manager held by current Interactive Environment for the
@@ -428,6 +433,10 @@ class InteractiveEnvironment(object):
 
   def get_recording_manager(self, pipeline, create_if_absent=False):
     """Gets the recording manager for the given pipeline."""
+    # Allow initial module loading to be complete and not have a circular
+    # import.
+    from apache_beam.runners.interactive.recording_manager import RecordingManager
+
     recording_manager = self._recording_managers.get(str(id(pipeline)), None)
     if not recording_manager and create_if_absent:
       # Get the pipeline variable name for the user. This is useful if the user
@@ -465,8 +474,8 @@ class InteractiveEnvironment(object):
   def describe_all_recordings(self):
     """Returns a description of the recording for all watched pipelnes."""
     return {
-        self.pipeline_id_to_pipeline(pid): rm.describe()
-        for pid, rm in self._recording_managers.items()
+        rm.user_pipeline: rm.describe()
+        for rm in self._recording_managers.values()
     }
 
   def set_pipeline_result(self, pipeline, result):

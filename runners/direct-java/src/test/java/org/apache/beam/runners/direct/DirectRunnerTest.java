@@ -49,6 +49,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -75,6 +77,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -742,6 +745,50 @@ public class DirectRunnerTest implements Serializable {
     String getIgnoredField();
 
     void setIgnoredField(String value);
+  }
+
+  @Test
+  public void testLogLevel() {
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs(
+                new String[] {
+                  "--runner=DirectRunner",
+                  "--defaultSdkHarnessLogLevel=ERROR",
+                  "--sdkHarnessLogLevelOverrides={\"org.apache.beam.runners.direct.DirectRunnerTest\":\"INFO\"}"
+                })
+            .create();
+    Pipeline pipeline = Pipeline.create(options);
+
+    LogManager logManager = LogManager.getLogManager();
+    // use full name to avoid conflicts with org.slf4j.Logger
+    java.util.logging.Logger rootLogger = logManager.getLogger("");
+    Level originalLevel = rootLogger.getLevel();
+
+    try {
+      pipeline
+          .apply(Impulse.create())
+          .apply(
+              ParDo.of(
+                  new DoFn<byte[], byte[]>() {
+                    @ProcessElement
+                    public void process(@Element byte[] element, OutputReceiver<byte[]> o) {
+                      LogManager logManager = LogManager.getLogManager();
+                      java.util.logging.Logger rootLogger = logManager.getLogger("");
+                      // check loglevel here. Whether actual logs are rendered depends on slf4j impl
+                      // and upstream configs.
+                      assertEquals(Level.SEVERE, rootLogger.getLevel());
+                      assertEquals(
+                          Level.INFO,
+                          java.util.logging.Logger.getLogger(
+                                  "org.apache.beam.runners.direct.DirectRunnerTest")
+                              .getLevel());
+                    }
+                  }));
+      pipeline.run();
+    } finally {
+      // resume original log level
+      rootLogger.setLevel(originalLevel);
+    }
   }
 
   private static class LongNoDecodeCoder extends AtomicCoder<Long> {

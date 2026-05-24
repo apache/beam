@@ -180,6 +180,7 @@ public class BatchDataflowWorker implements Closeable {
     return result;
   }
 
+  @SuppressWarnings("ThreadPriorityCheck")
   private static Thread startMemoryMonitorThread(MemoryMonitor memoryMonitor) {
     Thread result = new Thread(memoryMonitor);
     result.setDaemon(true);
@@ -276,11 +277,11 @@ public class BatchDataflowWorker implements Closeable {
       executeWork(worker, progressUpdater);
       workItemStatusClient.reportSuccess();
       return true;
-
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable e) {
       workItemStatusClient.reportError(e);
       return false;
-
     } finally {
       if (worker != null) {
         try {

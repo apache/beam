@@ -27,9 +27,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -338,7 +344,7 @@ class ElasticsearchIOTestUtils {
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
 
     ArrayList<String> data = new ArrayList<>();
-    LocalDateTime baseDateTime = LocalDateTime.now();
+    LocalDateTime baseDateTime = LocalDateTime.now(ZoneOffset.UTC);
     for (int i = 0; i < numDocs; i++) {
       int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
@@ -555,4 +561,41 @@ class ElasticsearchIOTestUtils {
           }
         }
       };
+
+  /**
+   * Small server that always returns a specified HTTP error code. This is useful to simulate server
+   * errors in tests.
+   */
+  static class AlwaysFailServer implements AutoCloseable {
+    private final HttpServer server;
+    private final int port;
+
+    AlwaysFailServer(int port, int status) throws IOException {
+      HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
+      this.port = server.getAddress().getPort();
+      server.createContext("/", exchange -> handle(exchange, status));
+      server.start();
+
+      this.server = server;
+    }
+
+    int getPort() {
+      return port;
+    }
+
+    private static void handle(HttpExchange exchange, int status) throws IOException {
+      byte[] response = "Internal Server Error".getBytes(StandardCharsets.UTF_8);
+      exchange.sendResponseHeaders(status, response.length);
+      try (OutputStream os = exchange.getResponseBody()) {
+        os.write(response);
+      }
+    }
+
+    @Override
+    public void close() throws Exception {
+      if (server != null) {
+        server.stop(0);
+      }
+    }
+  }
 }

@@ -56,6 +56,20 @@ KeyedTensorInferenceFn = Callable[[
                                   Iterable[PredictionResult]]
 
 
+def _cuda_device_is_usable() -> bool:
+  """Returns True only when CUDA can actually allocate tensors."""
+  if not torch.cuda.is_available():
+    return False
+  try:
+    # Some environments report CUDA available but fail at first real use
+    # because a driver is missing or inaccessible.
+    torch.empty(1, device='cuda')
+    return True
+  except Exception:  # pylint: disable=broad-except
+    logging.warning("CUDA probe failed", exc_info=True)
+    return False
+
+
 def _validate_constructor_args(
     state_dict_path, model_class, torch_script_model_path):
   message = (
@@ -86,7 +100,7 @@ def _load_model(
     model_params: Optional[dict[str, Any]],
     torch_script_model_path: Optional[str],
     load_model_args: Optional[dict[str, Any]]):
-  if device == torch.device('cuda') and not torch.cuda.is_available():
+  if device == torch.device('cuda') and not _cuda_device_is_usable():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
         "Switching to CPU.")
@@ -197,6 +211,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       large_model: bool = False,
       model_copies: Optional[int] = None,
       load_model_args: Optional[dict[str, Any]] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -240,12 +258,29 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     with PyTorch 1.9 and 1.10.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._state_dict_path = state_dict_path
     if device == 'GPU':
       logging.info("Device is set to CUDA")
@@ -256,18 +291,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
-    self._env_vars = kwargs.get('env_vars', {})
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -341,18 +366,6 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_PyTorch'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies
 
 
 def default_keyed_tensor_inference_fn(
@@ -438,6 +451,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
       large_model: bool = False,
       model_copies: Optional[int] = None,
       load_model_args: Optional[dict[str, Any]] = None,
+      max_batch_weight: Optional[int] = None,
+      element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -486,12 +503,29 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
         GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
+      max_batch_weight: the maximum total weight of a batch.
+      element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
     **Supported Versions:** RunInference APIs in Apache Beam have been tested
     on torch>=1.9.0,<1.14.0.
     """
+    super().__init__(
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size,
+        max_batch_duration_secs=max_batch_duration_secs,
+        max_batch_weight=max_batch_weight,
+        element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
+        large_model=large_model,
+        model_copies=model_copies,
+        **kwargs)
     self._state_dict_path = state_dict_path
     if device == 'GPU':
       logging.info("Device is set to CUDA")
@@ -502,18 +536,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
     self._model_class = model_class
     self._model_params = model_params if model_params else {}
     self._inference_fn = inference_fn
-    self._batching_kwargs = {}
-    if min_batch_size is not None:
-      self._batching_kwargs['min_batch_size'] = min_batch_size
-    if max_batch_size is not None:
-      self._batching_kwargs['max_batch_size'] = max_batch_size
-    if max_batch_duration_secs is not None:
-      self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
-    self._env_vars = kwargs.get('env_vars', {})
-    self._share_across_processes = large_model or (model_copies is not None)
-    self._model_copies = model_copies or 1
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -589,15 +613,3 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
        A namespace for metrics collected by the RunInference transform.
     """
     return 'BeamML_PyTorch'
-
-  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
-    pass
-
-  def batch_elements_kwargs(self):
-    return self._batching_kwargs
-
-  def share_model_across_processes(self) -> bool:
-    return self._share_across_processes
-
-  def model_copies(self) -> int:
-    return self._model_copies

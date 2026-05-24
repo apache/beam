@@ -159,7 +159,7 @@ class CoGBKTransform(ptransform.PTransform):
     return pcoll \
            | beam.CoGroupByKey() \
            | beam.ParDo(self.ConcatFn()).with_output_types(
-               typing.Tuple[int, typing.Iterable[str]])
+               tuple[int, typing.Iterable[str]])
 
   def to_runner_api_parameter(self, unused_context):
     return TEST_CGBK_URN, None

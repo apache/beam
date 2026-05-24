@@ -22,7 +22,6 @@ export * from "./bigqueryio";
 export * from "./kafka";
 export * from "./parquetio";
 export * from "./pubsub";
-export * from "./pubsublite";
 export * from "./schemaio";
 
 import { requireForSerialization } from "../serialization";

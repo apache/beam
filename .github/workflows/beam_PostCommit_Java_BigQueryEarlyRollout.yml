@@ -26,7 +26,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -53,8 +53,8 @@ env:
 jobs:
   beam_PostCommit_Java_BigQueryEarlyRollout:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
-    timeout-minutes: 100
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    timeout-minutes: 160
     strategy:
       matrix:
         job_name: [beam_PostCommit_Java_BigQueryEarlyRollout]
@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java BigQueryEarlyRollout PostCommit'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -98,7 +98,7 @@ jobs:
 #          body: |
 #            PostCommit Java BigQueryEarlyRollout failed on ${{ env.date }}. This test monitors BigQuery rollouts impacting Beam and should be escalated immediately if a real issue is encountered to pause further rollouts. For further details refer to the following links:\n * Failing job: https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml \n * Job configuration: https://github.com/apache/beam/blob/master/.github/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

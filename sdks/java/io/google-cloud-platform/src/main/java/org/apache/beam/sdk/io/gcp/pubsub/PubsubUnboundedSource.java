@@ -581,7 +581,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     /**
      * BLOCKING NACK (ie request deadline extension of 0) receipt of messages from Pubsub with the
-     * given {@code ockIds}. Does not retain {@code ackIds}.
+     * given {@code ackIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       pubsubClient.get().modifyAckDeadline(subscription, ackIds, 0);

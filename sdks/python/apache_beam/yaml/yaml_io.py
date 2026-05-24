@@ -165,9 +165,12 @@ def write_to_bigquery(
         Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
 
       error_handling: If specified, should be a mapping giving an output into
-        which to emit records that failed to bet written to BigQuery, as
+        which to emit records that failed to be written to BigQuery, as
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
+        Note: error_handling requires the Storage Write API method and is not
+        supported with File Loads (FILE_LOADS method). When error_handling is
+        specified, the transform will automatically use STORAGE_WRITE_API.
   """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
@@ -559,6 +562,8 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
+    distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -608,6 +613,15 @@ def write_to_iceberg(
     only: The name of exactly one field to keep as the top level record when
       writing to the destination. All other fields are dropped. This field must
       be of row type. Mutually exclusive with drop and keep.
+    distribution_mode: Defines distribution of write data. Supported
+      distributions:
+      - none: don't shuffle rows (default)
+      - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -621,7 +635,9 @@ def write_to_iceberg(
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
-          only=only))
+          only=only,
+          distribution_mode=distribution_mode,
+          autosharding=autosharding))
 
 
 def io_providers():

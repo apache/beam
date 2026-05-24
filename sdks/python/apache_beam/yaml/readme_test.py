@@ -85,7 +85,7 @@ class FakeSql(beam.PTransform):
           typ = next(iter(inputs.values())).element_type.get_type_for(name)
         # Handle optionals more gracefully.
         if (str(typ).startswith('typing.Union[') or
-            str(typ).startswith('typing.Optional[')):
+            str(typ).startswith('typing.Optional[') or '|' in str(typ)):
           if len(typ.__args__) == 2 and type(None) in typ.__args__:
             typ, = [t for t in typ.__args__ if t is not type(None)]
       return name, typ

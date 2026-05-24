@@ -95,8 +95,9 @@ const (
 	URNEnvDocker   = "beam:env:docker:v1"
 
 	// Userstate URNs.
-	URNBagUserState      = "beam:user_state:bag:v1"
-	URNMultiMapUserState = "beam:user_state:multimap:v1"
+	URNBagUserState         = "beam:user_state:bag:v1"
+	URNMultiMapUserState    = "beam:user_state:multimap:v1"
+	URNOrderedListUserState = "beam:user_state:ordered_list:v1"
 
 	// Base version URNs are to allow runners to make distinctions between different releases
 	// in a way that won't change based on actual releases, in particular for FnAPI behaviors.
@@ -599,6 +600,17 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) ([]string, error) {
 						},
 						Protocol: &pipepb.FunctionSpec{
 							Urn: URNMultiMapUserState,
+						},
+					}
+				case state.TypeOrderedList:
+					stateSpecs[ps.StateKey()] = &pipepb.StateSpec{
+						Spec: &pipepb.StateSpec_OrderedListSpec{
+							OrderedListSpec: &pipepb.OrderedListStateSpec{
+								ElementCoderId: coderID,
+							},
+						},
+						Protocol: &pipepb.FunctionSpec{
+							Urn: URNOrderedListUserState,
 						},
 					}
 				default:

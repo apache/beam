@@ -402,7 +402,7 @@ public class ParDoSchemaTest implements Serializable {
   abstract static class Inferred {
     abstract String getStringField();
 
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
   }
 
   @Test
@@ -448,7 +448,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class Inferred2 {
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
 
     abstract String getStringField();
   }
@@ -519,7 +519,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class ForExtraction {
-    abstract Integer getIntegerField();
+    abstract int getIntegerField();
 
     abstract String getStringField();
 
@@ -828,7 +828,7 @@ public class ParDoSchemaTest implements Serializable {
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   abstract static class TestStateSchemaValue2 {
-    abstract Integer getInteger();
+    abstract int getInteger();
   }
 
   @DefaultSchema(AutoValueSchema.class)
