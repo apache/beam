@@ -72,7 +72,7 @@ class _SharedCache:
   def __init__(self, constructor, destructor):
     self._constructor = constructor
     self._destructor = destructor
-    self._live_owners = set()
+    self._live_owners = {}
     self._cache = {}
     self._lock = threading.Lock()
     self._counter = 0
@@ -82,10 +82,10 @@ class _SharedCache:
     self._counter += 1
     return self._counter
 
-  def register(self):
+  def register(self, is_context=False):
     with self._lock:
       owner = self._next_id()
-      self._live_owners.add(owner)
+      self._live_owners[owner] = is_context
     return owner
 
   def purge(self, owner):
@@ -97,7 +97,7 @@ class _SharedCache:
             "shutdown, the subprocess was already cleaned up earlier.",
             owner)
         return
-      self._live_owners.remove(owner)
+      del self._live_owners[owner]
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
           entry.owners.remove(owner)
@@ -108,14 +108,22 @@ class _SharedCache:
     for value in to_delete:
       self._destructor(value)
 
-  def get(self, *key):
+  def get(self, *key, owner=None):
     if not self._live_owners:
       raise RuntimeError("At least one owner must be registered.")
     with self._lock:
       if key not in self._cache:
         self._cache[key] = _SharedCacheEntry(self._constructor(*key), set())
-      for owner in self._live_owners:
+      if owner is not None:
+        if owner not in self._live_owners:
+          raise RuntimeError("The requesting owner must be registered.")
         self._cache[key].owners.add(owner)
+        for live_owner, is_context in self._live_owners.items():
+          if is_context:
+            self._cache[key].owners.add(live_owner)
+      else:
+        for live_owner in self._live_owners:
+          self._cache[key].owners.add(live_owner)
       return self._cache[key].obj
 
   def force_remove(self, *key):
@@ -180,7 +188,7 @@ class SubprocessServer(object):
     These subprocesses may be shared with other contexts as well.
     """
     try:
-      unique_id = cls._cache.register()
+      unique_id = cls._cache.register(is_context=True)
       yield
     finally:
       cls._cache.purge(unique_id)
@@ -235,8 +243,9 @@ class SubprocessServer(object):
   def start_process(self):
     if self._owner_id is not None:
       self._cache.purge(self._owner_id)
-    self._owner_id = self._cache.register()
-    return self._cache.get(tuple(self._cmd), self._port, self._logger)
+    self._owner_id = self._cache.register(is_context=False)
+    return self._cache.get(
+        tuple(self._cmd), self._port, self._logger, owner=self._owner_id)
 
   def _really_start_process(cmd, port, logger):
     if not port:
