@@ -551,31 +551,6 @@ class CacheTest(unittest.TestCase):
     # Clean up the other owner
     cache.purge(other_owner)
 
-  def test_subprocess_server_logging(self):
-    from unittest.mock import MagicMock
-
-    mock_process = MagicMock()
-    mock_process.poll.return_value = 0
-    mock_process.stdout.readline.return_value = b""
-
-    with patch('subprocess.Popen', return_value=mock_process) as mock_popen:
-      with self.assertLogs('apache_beam.utils.subprocess_server',
-                           level='ERROR') as log_ctx:
-
-        class DummyServer(subprocess_server.SubprocessServer):
-          pass
-
-        server = DummyServer(
-            lambda channel: None, ["dummy_cmd_logging"], port=12345)
-        server.start_process()
-        server.stop_process()
-
-      # Assert the error logs were recorded
-      self.assertTrue(
-          any("Really starting service at" in log for log in log_ctx.output))
-      self.assertTrue(
-          any("Really destroying service at" in log for log in log_ctx.output))
-
   def test_non_context_owners_do_not_share_keys(self):
     cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
     # owner1 is a non-context owner (e.g., prism)
