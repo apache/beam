@@ -58,6 +58,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.ChangelogScanTask;
 import org.apache.iceberg.StructLike;
@@ -316,8 +317,10 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       @Nullable StructLike overlapLower = ovl.toStructLike(overlapLowerRow);
       @Nullable StructLike overlapUpper = ovl.toStructLike(overlapUpperRow);
 
+      boolean isInsert = task.getType() == ADDED_ROWS;
       TupleTag<KV<KV<Long, Row>, Row>> taggedOutput =
-          task.getType() == ADDED_ROWS ? BIDIRECTIONAL_INSERTS : BIDIRECTIONAL_DELETES;
+          isInsert ? BIDIRECTIONAL_INSERTS : BIDIRECTIONAL_DELETES;
+      ValueKind kind = isInsert ? ValueKind.INSERT : ValueKind.DELETE;
 
       Schema outputSchema = keyedOutput ? fullBeamRowSchema : projectedBeamRowSchema;
       try (CloseableIterable<Record> records =
@@ -326,7 +329,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
           // uni-directional -- just output records (they are already projected by read pushdown)
           if (!keyedOutput) {
             Row row = icebergRecordToBeamRow(projectedBeamRowSchema, rec);
-            outputReceiver.get(UNIDIRECTIONAL_ROWS).output(row);
+            outputReceiver.get(UNIDIRECTIONAL_ROWS).builder(row).setValueKind(kind).output();
             continue;
           }
 
@@ -336,7 +339,11 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
             Row row = icebergRecordToBeamRow(outputSchema, rec);
             Row pk = structToRow(scanConfig.rowIdBeamSchema(), pkProjector().wrap(rec));
             long snapshotId = task.getCommitSnapshotId();
-            outputReceiver.get(taggedOutput).output(KV.of(KV.of(snapshotId, pk), row));
+            outputReceiver
+                .get(taggedOutput)
+                .builder(KV.of(KV.of(snapshotId, pk), row))
+                .setValueKind(kind)
+                .output();
 
             System.out.printf(
                 "[LARGE BIIDIRECTIONAL OVERLAP] -- %s(%s)%n%s%n",
@@ -348,7 +355,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
             System.out.printf(
                 "[LARGE BIIDIRECTIONAL NO-OVERLAP] -- %s(%s)%n%s%n",
                 getKind(task.getType()), task.getCommitSnapshotId(), row);
-            outputReceiver.get(UNIDIRECTIONAL_ROWS).output(row);
+            outputReceiver.get(UNIDIRECTIONAL_ROWS).builder(row).setValueKind(kind).output();
           }
         }
       }

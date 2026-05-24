@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.iceberg.data.Record;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -47,20 +48,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       and rewrites the whole file (minus some records that are actually marked for deletion).
  *       Unchanged records are no-ops and should not be mistaken for updates.
  *   <li>Walk the remaining deletes and inserts, emitting matched pairs as {@link
- *       ChangeKind#UPDATE_BEFORE} / {@link ChangeKind#UPDATE_AFTER}.
- *   <li>Emit any unmatched extras as {@link ChangeKind#DELETE} / {@link ChangeKind#INSERT}.
+ *       ValueKind#UPDATE_BEFORE} / {@link ValueKind#UPDATE_AFTER}.
+ *   <li>Emit any unmatched extras as {@link ValueKind#DELETE} / {@link ValueKind#INSERT}.
  * </ol>
  */
 abstract class CdcResolver<T> {
-
-  // TODO: replace this with actual ValueKind when it lands
-  enum ChangeKind {
-    INSERT,
-    DELETE,
-    UPDATE_BEFORE,
-    UPDATE_AFTER
-  }
-
   /** Hashes the non-PK fields of an element. Used as the index for O(n+m) CoW deduplication. */
   protected abstract int nonPkHash(T element);
 
@@ -77,7 +69,7 @@ abstract class CdcResolver<T> {
    *
    * <p>Both input lists are inspected in their given order.
    */
-  final void resolve(List<T> deletes, List<T> inserts, BiConsumer<ChangeKind, T> emit) {
+  final void resolve(List<T> deletes, List<T> inserts, BiConsumer<ValueKind, T> emit) {
     boolean hasDeletes = !deletes.isEmpty();
     boolean hasInserts = !inserts.isEmpty();
 
@@ -125,8 +117,8 @@ abstract class CdcResolver<T> {
         }
 
         if (d < deletes.size() && i < inserts.size()) {
-          emit.accept(ChangeKind.UPDATE_BEFORE, deletes.get(d));
-          emit.accept(ChangeKind.UPDATE_AFTER, inserts.get(i));
+          emit.accept(ValueKind.UPDATE_BEFORE, deletes.get(d));
+          emit.accept(ValueKind.UPDATE_AFTER, inserts.get(i));
           d++;
           i++;
         }
@@ -135,23 +127,23 @@ abstract class CdcResolver<T> {
       // emit unmatched extras as DELETE / INSERT.
       while (d < deletes.size()) {
         if (!dupDeletes[d]) {
-          emit.accept(ChangeKind.DELETE, deletes.get(d));
+          emit.accept(ValueKind.DELETE, deletes.get(d));
         }
         d++;
       }
       while (i < inserts.size()) {
         if (!dupInserts[i]) {
-          emit.accept(ChangeKind.INSERT, inserts.get(i));
+          emit.accept(ValueKind.INSERT, inserts.get(i));
         }
         i++;
       }
     } else if (hasInserts) {
       for (T r : inserts) {
-        emit.accept(ChangeKind.INSERT, r);
+        emit.accept(ValueKind.INSERT, r);
       }
     } else if (hasDeletes) {
       for (T r : deletes) {
-        emit.accept(ChangeKind.DELETE, r);
+        emit.accept(ValueKind.DELETE, r);
       }
     }
   }
