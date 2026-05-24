@@ -33,7 +33,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /** Utility to fetch and cache Iceberg {@link Table}s. */
-// TODO(ahmedabu98): add periodic refresh
 public class TableCache {
   private static final Map<String, IcebergCatalogConfig> CATALOG_CACHE = new ConcurrentHashMap<>();
   private static final LoadingCache<String, Table> INTERNAL_CACHE =
