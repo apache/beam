@@ -78,7 +78,7 @@ public abstract class SnapshotInfo {
   private static @MonotonicNonNull SchemaCoder<SnapshotInfo> coder;
   private static @MonotonicNonNull Schema schema;
 
-  static SchemaCoder<SnapshotInfo> getCoder() {
+  public static SchemaCoder<SnapshotInfo> getCoder() {
     if (coder == null) {
       initSchemaAndCoder();
     }

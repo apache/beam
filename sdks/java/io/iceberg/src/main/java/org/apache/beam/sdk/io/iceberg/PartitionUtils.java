@@ -18,15 +18,25 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.iceberg.data.IdentityPartitionConverters.convertConstant;
 
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.iceberg.ChangelogScanTask;
+import org.apache.iceberg.ContentFile;
+import org.apache.iceberg.ContentScanTask;
+import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PartitionUtils {
@@ -89,5 +99,62 @@ class PartitionUtils {
     }
 
     return builder.build();
+  }
+
+  /**
+   * Copied over from Apache Iceberg's <a
+   * href="https://github.com/apache/iceberg/blob/main/core/src/main/java/org/apache/iceberg/util/PartitionUtil.java">PartitionUtil</a>.
+   *
+   * <p>Needed to accommodate CDC reads, where scans produce {@link ChangelogScanTask}s instead of
+   * {@link ContentScanTask}s.
+   */
+  public static Map<Integer, ?> constantsMap(
+      PartitionSpec spec, ContentFile<?> file, @Nullable Long fileSequenceNumber) {
+    Preconditions.checkState(
+        spec.specId() == file.specId(),
+        "File spec ID (%s) does not match PartitionSpec ID (%s)",
+        file.specId(),
+        spec.specId());
+    StructLike partitionData = file.partition();
+
+    // use java.util.HashMap because partition data may contain null values
+    Map<Integer, Object> idToConstant = Maps.newHashMap();
+
+    // add first_row_id as _row_id
+    if (file.firstRowId() != null) {
+      idToConstant.put(
+          MetadataColumns.ROW_ID.fieldId(),
+          convertConstant(Types.LongType.get(), file.firstRowId()));
+    }
+
+    // When reconstructing a DataFile, we lose the ability to attach its fileSequenceNumber,
+    // so we pipe it along the util methods to include it here.
+    fileSequenceNumber =
+        fileSequenceNumber != null ? fileSequenceNumber : file.fileSequenceNumber();
+    idToConstant.put(
+        MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId(),
+        convertConstant(Types.LongType.get(), fileSequenceNumber));
+
+    // add _file
+    idToConstant.put(
+        MetadataColumns.FILE_PATH.fieldId(),
+        convertConstant(Types.StringType.get(), file.location()));
+
+    // add _spec_id
+    idToConstant.put(
+        MetadataColumns.SPEC_ID.fieldId(), convertConstant(Types.IntegerType.get(), file.specId()));
+
+    List<Types.NestedField> partitionFields = spec.partitionType().fields();
+    List<PartitionField> fields = spec.fields();
+    for (int pos = 0; pos < fields.size(); pos += 1) {
+      PartitionField field = fields.get(pos);
+      if (field.transform().isIdentity()) {
+        Object converted =
+            convertConstant(partitionFields.get(pos).type(), partitionData.get(pos, Object.class));
+        idToConstant.put(field.sourceId(), converted);
+      }
+    }
+
+    return idToConstant;
   }
 }

@@ -17,27 +17,31 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.hadoop.util.Sets.newHashSet;
+import static org.apache.iceberg.types.Type.TypeID.LONG;
+import static org.apache.iceberg.types.Type.TypeID.TIMESTAMP;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.*;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.MetadataColumns;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
-import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Comparators;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types.NestedField;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -50,6 +54,8 @@ public abstract class IcebergScanConfig implements Serializable {
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
   private transient @MonotonicNonNull Evaluator cachedEvaluator;
   private transient @MonotonicNonNull Expression cachedFilter;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRecordIdSchema;
+  private transient @MonotonicNonNull Schema cachedRowIdBeamSchema;
 
   public enum ScanType {
     TABLE,
@@ -89,14 +95,12 @@ public abstract class IcebergScanConfig implements Serializable {
       @Nullable List<String> keep,
       @Nullable List<String> drop,
       @Nullable Set<String> fieldsInFilter) {
-    ImmutableList.Builder<String> selectedFieldsBuilder = ImmutableList.builder();
+    Set<String> selectedFields = new LinkedHashSet<>();
     if (keep != null && !keep.isEmpty()) {
-      selectedFieldsBuilder.addAll(keep);
+      selectedFields.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
-      Set<String> fields =
-          schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
-      drop.forEach(fields::remove);
-      selectedFieldsBuilder.addAll(fields);
+      schema.columns().stream().map(NestedField::name).forEach(selectedFields::add);
+      drop.forEach(selectedFields::remove);
     } else {
       // default: include all columns
       return schema;
@@ -105,9 +109,8 @@ public abstract class IcebergScanConfig implements Serializable {
     if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
       fieldsInFilter.stream()
           .map(f -> schema.caseInsensitiveFindField(f).name())
-          .forEach(selectedFieldsBuilder::add);
+          .forEach(selectedFields::add);
     }
-    ImmutableList<String> selectedFields = selectedFieldsBuilder.build();
     return selectedFields.isEmpty() ? schema : schema.select(selectedFields);
   }
 
@@ -135,15 +138,34 @@ public abstract class IcebergScanConfig implements Serializable {
     return cachedRequiredSchema;
   }
 
+  public org.apache.iceberg.Schema recordIdSchema() {
+    if (cachedRecordIdSchema == null) {
+      org.apache.iceberg.Schema fullSchema = TableCache.get(getTableIdentifier()).schema();
+      cachedRecordIdSchema = TypeUtil.select(fullSchema, fullSchema.identifierFieldIds());
+    }
+    return cachedRecordIdSchema;
+  }
+
+  public Schema rowIdBeamSchema() {
+    if (cachedRowIdBeamSchema == null) {
+      cachedRowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema());
+    }
+    return cachedRowIdBeamSchema;
+  }
+
+  public Comparator<StructLike> recordIdComparator() {
+    return Comparators.forType(recordIdSchema().asStruct());
+  }
+
   @Pure
   @Nullable
-  public Evaluator getEvaluator() {
+  public Evaluator getEvaluator(org.apache.iceberg.Schema requiredSchema) {
     @Nullable Expression filter = getFilter();
     if (filter == null) {
       return null;
     }
     if (cachedEvaluator == null) {
-      cachedEvaluator = new Evaluator(getRequiredSchema().asStruct(), filter);
+      cachedEvaluator = new Evaluator(requiredSchema.asStruct(), filter);
     }
     return cachedEvaluator;
   }
@@ -221,6 +243,12 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable List<String> getDropFields();
 
   @Pure
+  public abstract @Nullable String getWatermarkColumn();
+
+  @Pure
+  public abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
+
+  @Pure
   public static Builder builder() {
     return new AutoValue_IcebergScanConfig.Builder()
         .setScanType(ScanType.TABLE)
@@ -242,7 +270,8 @@ public abstract class IcebergScanConfig implements Serializable {
         .setPollInterval(null)
         .setStartingStrategy(null)
         .setTag(null)
-        .setBranch(null);
+        .setBranch(null)
+        .setWatermarkColumn(null);
   }
 
   @AutoValue.Builder
@@ -305,6 +334,10 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setDropFields(@Nullable List<String> fields);
 
+    public abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
+
+    public abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
+
     public abstract IcebergScanConfig build();
   }
 
@@ -322,16 +355,19 @@ public abstract class IcebergScanConfig implements Serializable {
       String param;
       if (keep != null) {
         param = "keep";
-        fieldsSpecified = newHashSet(checkNotNull(keep));
+        fieldsSpecified = newHashSet(checkArgumentNotNull(keep));
       } else { // drop != null
         param = "drop";
-        fieldsSpecified = newHashSet(checkNotNull(drop));
+        fieldsSpecified = newHashSet(checkArgumentNotNull(drop));
       }
       table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
 
       checkArgument(
-          fieldsSpecified.isEmpty(),
-          error(String.format("'%s' specifies unknown field(s): %s", param, fieldsSpecified)));
+          fieldsSpecified.isEmpty()
+              || fieldsSpecified.stream().allMatch(MetadataColumns::isMetadataColumn),
+          error("'%s' specifies unknown field(s): %s"),
+          param,
+          fieldsSpecified);
     }
 
     // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
@@ -365,6 +401,18 @@ public abstract class IcebergScanConfig implements Serializable {
                     + "reading with Managed.ICEBERG_CDC: "
                     + invalidOptions));
       }
+    } else {
+      Set<Integer> primaryKeyIds = new HashSet<>(table.schema().identifierFieldIds());
+      checkState(
+          !primaryKeyIds.isEmpty(),
+          "Cannot read CDC records as the table schema does not specified any primary key fields.");
+      Set<Integer> projectedPrimaryKeyIds = getProjectedSchema().identifierFieldIds();
+      primaryKeyIds.removeAll(projectedPrimaryKeyIds);
+      checkArgument(
+          primaryKeyIds.isEmpty(),
+          "When reading CDC records, the projected schema must not drop primary key fields. "
+              + "The specified configuration drops the following PK fields: %s",
+          primaryKeyIds);
     }
 
     if (getStartingStrategy() != null) {
@@ -379,11 +427,42 @@ public abstract class IcebergScanConfig implements Serializable {
     checkArgument(
         getToTimestamp() == null || getToSnapshot() == null,
         error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
+    @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
+    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
+    if (fromSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(fromSnapshotId),
+          error("configured starting snapshot does not exist: '%s'"),
+          fromSnapshotId);
+    }
+    if (toSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(toSnapshotId),
+          error("configured end snapshot does not exist: '%s'"),
+          toSnapshotId);
+    }
 
     if (getPollInterval() != null) {
       checkArgument(
           Boolean.TRUE.equals(getStreaming()),
           error("'poll_interval_seconds' can only be set when streaming is true"));
+    }
+
+    @Nullable String watermarkColumn = getWatermarkColumn();
+    if (watermarkColumn != null) {
+      checkArgument(getUseCdc(), error("'watermark_column' is only supported in CDC mode"));
+      NestedField field = table.schema().findField(watermarkColumn);
+      checkArgument(
+          field != null, error("'watermark_column' refers to unknown column: %s"), watermarkColumn);
+      checkArgument(
+          field.isRequired(),
+          error("'watermark_column' refers to a nullable column: %s"),
+          watermarkColumn);
+      checkArgument(
+          field.type().typeId() == TIMESTAMP || field.type().typeId() == LONG,
+          error("'watermark_column' must be a timestamp-typed column, but '%s' has type %s"),
+          watermarkColumn,
+          field.type().typeId());
     }
   }
 
