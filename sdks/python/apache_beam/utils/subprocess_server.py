@@ -222,7 +222,7 @@ class SubprocessServer(object):
       channel_ready = grpc.channel_ready_future(self._grpc_channel)
       while True:
         if process is not None and process.poll() is not None:
-          _LOGGER.error("Started job service with %s", process.args)
+          _LOGGER.error("Failed to start job service with %s", process.args)
           raise RuntimeError(
               'Service failed to start up with error %s' % process.poll())
         try:
@@ -252,7 +252,7 @@ class SubprocessServer(object):
       port, = pick_port(None)
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
     endpoint = 'localhost:%s' % port
-    _LOGGER.error("Really starting service at %s with cmd: %s", endpoint, cmd)
+    _LOGGER.warning("Really starting service at %s with cmd: %s", endpoint, cmd)
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -307,7 +307,7 @@ class SubprocessServer(object):
     process, endpoint = process_and_endpoint  # pylint: disable=unpacking-non-sequence
     if not process:
       return
-    _LOGGER.error(
+    _LOGGER.warning(
         "Really destroying service at %s with cmd: %s", endpoint, process.args)
     for _ in range(5):
       if process.poll() is not None:
