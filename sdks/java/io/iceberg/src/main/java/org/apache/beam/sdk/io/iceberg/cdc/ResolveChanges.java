@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.types.Types;
 
@@ -80,9 +81,8 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
             deletes,
             inserts,
             (kind, tv) -> {
-              // TODO: emit with proper UPDATE_BEFORE / UPDATE_AFTER / DELETE / INSERT row kinds.
               Row projectedRow = rowFilter.filter(tv.getValue());
-              out.outputWithTimestamp(projectedRow, tv.getTimestamp());
+              out.builder(projectedRow).setValueKind(kind).setTimestamp(tv.getTimestamp()).output();
               logEmit(kind, tv);
             });
   }
@@ -127,7 +127,7 @@ public class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
   }
 
   /** Debug-only logging hook so the existing CoW / update / extra prints survive the refactor. */
-  private static void logEmit(CdcResolver.ChangeKind kind, TimestampedValue<Row> tv) {
+  private static void logEmit(ValueKind kind, TimestampedValue<Row> tv) {
     switch (kind) {
       case UPDATE_BEFORE:
         System.out.printf("[BIDIRECTIONAL] -- UpdateBefore:%n\t%s%n", tv);

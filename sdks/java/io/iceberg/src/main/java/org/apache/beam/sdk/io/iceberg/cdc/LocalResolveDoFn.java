@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
@@ -139,19 +140,21 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
       OutputReceiver<Row> out)
       throws IOException {
     OverlapRange ovl = checkStateNotNull(overlap);
+    boolean isInsert = task.getType() == ADDED_ROWS;
     try (CloseableIterable<Record> records =
         CdcReadUtils.changelogRecordsForTask(task, table, scanConfig, false)) {
       for (Record rec : records) {
         if (ovl.contains(rec, overlapLower, overlapUpper)) { // needs resolution
           StructLike pk = StructLikeUtil.copy(ovl.recordIdProjection());
           PkGroup group = pkGroups.computeIfAbsent(pk, k -> new PkGroup());
-          if (task.getType() == ADDED_ROWS) {
+          if (isInsert) {
             group.inserts.add(rec);
           } else {
             group.deletes.add(rec);
           }
         } else { // safe to emit directly
-          emit(rec, out);
+          emit(rec, isInsert ? ValueKind.INSERT : ValueKind.DELETE, out);
+          logEmit(isInsert ? ValueKind.INSERT : ValueKind.DELETE, rec);
         }
       }
     }
@@ -166,8 +169,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
           group.deletes,
           group.inserts,
           (kind, rec) -> {
-            // TODO: emit with proper UPDATE_BEFORE / UPDATE_AFTER / DELETE / INSERT row kinds.
-            emit(rec, out);
+            emit(rec, kind, out);
             logEmit(kind, rec);
           });
     }
@@ -206,7 +208,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
   }
 
   /** Debug-only logging hook so the existing CoW / update / extra prints survive the refactor. */
-  private static void logEmit(CdcResolver.ChangeKind kind, Record rec) {
+  private static void logEmit(ValueKind kind, Record rec) {
     switch (kind) {
       case UPDATE_BEFORE:
         System.out.printf("[LOCAL_RESOLVE] -- UpdateBefore:%n\t%s%n", rec);
@@ -224,9 +226,11 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
   }
 
   /** Prune to get the final projected record then output as a Beam Row. */
-  private void emit(Record rec, OutputReceiver<Row> out) {
+  private void emit(Record rec, ValueKind kind, OutputReceiver<Row> out) {
     StructLike projected = checkStateNotNull(projector).wrap(rec);
-    out.output(IcebergUtils.structToRow(projectedBeamSchema, projected));
+    out.builder(IcebergUtils.structToRow(projectedBeamSchema, projected))
+        .setValueKind(kind)
+        .output();
   }
 
   /** Two parallel lists of inserts/deletes that share a primary key. */
