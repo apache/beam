@@ -169,7 +169,7 @@ class DoFnProcessTest(unittest.TestCase):
     # because the runner's _reraise_augmented wraps the TypeError before
     # it surfaces to the test framework.
     with self.assertRaisesRegex(
-        Exception, 'Returning a str from a ParDo or FlatMap is discouraged'):
+        Exception, 'Returning a str from a ParDo or FlatMap is not allowed'):
       with TestPipeline() as p:
         _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
 
@@ -180,7 +180,7 @@ class DoFnProcessTest(unittest.TestCase):
         return b'hello'
 
     with self.assertRaisesRegex(
-        Exception, 'Returning a bytes from a ParDo or FlatMap is discouraged'):
+        Exception, 'Returning a bytes from a ParDo or FlatMap is not allowed'):
       with TestPipeline() as p:
         _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
 
@@ -191,7 +191,7 @@ class DoFnProcessTest(unittest.TestCase):
         return {'k': 'v'}
 
     with self.assertRaisesRegex(
-        Exception, 'Returning a dict from a ParDo or FlatMap is discouraged'):
+        Exception, 'Returning a dict from a ParDo or FlatMap is not allowed'):
       with TestPipeline() as p:
         _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
 

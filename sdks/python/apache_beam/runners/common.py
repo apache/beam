@@ -1679,7 +1679,7 @@ class _OutputHandler(OutputHandler):
     if self._check_user_dofn_output and isinstance(results, (str, bytes, dict)):
       object_type = type(results).__name__
       raise TypeError(
-          'Returning a %s from a ParDo or FlatMap is discouraged. '
+          'Returning a %s from a ParDo or FlatMap is not allowed. '
           'Please use list(%r) if you really want this behavior.' %
           (object_type, results))
 
