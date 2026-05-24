@@ -26,29 +26,7 @@ plugins {
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
   id("org.sonarqube") version "3.0"
-  id("com.diffplug.spotless")
 }
-
-repositories {
-  mavenCentral()
-}
-
-spotless {
-  predeclareDeps()
-}
-
-configure<com.diffplug.gradle.spotless.SpotlessExtensionPredeclare> {
-  java {
-    googleJavaFormat("1.17.0")
-  }
-  groovy {
-    greclipse()
-  }
-  groovyGradle {
-    greclipse()
-  }
-}
-
 
 /*************************************************************************************************/
 // Configure the root project
