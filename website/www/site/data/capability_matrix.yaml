@@ -1475,7 +1475,7 @@ capability-matrix:
             - class: dataflow
               l1: "Partially"
               l2:
-              l3: Dataflow has a native drain operation, but it does not work in the presence of event time timer loops. Final implemention pending model support.
+              l3: Dataflow has a native drain operation, support for event time timer loops drain is limited to Non-portable runner.
             - class: prism
               l1: "No"
               l2:

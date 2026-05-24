@@ -58,6 +58,10 @@ public interface WindowedValue<T> {
 
   CausedByDrain causedByDrain();
 
+  /** Returns the {@link ValueKind} associated with this WindowedValue. */
+  @Pure
+  ValueKind getValueKind();
+
   /**
    * A representation of each of the actual values represented by this compressed {@link
    * WindowedValue}, one per window.
