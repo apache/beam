@@ -75,7 +75,15 @@ runs:
       with:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
-    - name: Setup Gradle
+    - name: Setup Gradle (Remote)
+      id: setup-gradle-remote
+      continue-on-error: true
+      uses: gradle/actions/setup-gradle@v5
+      with:
+        cache-disabled: ${{ inputs.disable-cache }}
+        validate-wrappers: false
+    - name: Setup Gradle (Local Fallback)
+      if: steps.setup-gradle-remote.outcome == 'failure'
       uses: ./.github/actions/gradle-actions/setup-gradle
       with:
         cache-disabled: ${{ inputs.disable-cache }}
