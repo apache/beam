@@ -1,0 +1,3 @@
+# Configuration file for asdf version manager
+nodejs 24.3.0
+gradle 8.14.2

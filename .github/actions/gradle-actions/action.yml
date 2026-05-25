@@ -1,0 +1,14 @@
+name: Build with Gradle
+description: A collection of actions for building Gradle projects, as well as generating a dependency graph via Dependency Submission.
+
+runs:
+  using: "composite"
+  steps:
+  - run: |
+      echo "::error::The path 'gradle/actions' is not a valid action. Please use 'gradle/actions/setup-gradle' or 'gradle/actions/dependency-submission'."
+      exit 1
+    shell: bash
+
+branding:
+  icon: 'box'
+  color: 'gray-dark'

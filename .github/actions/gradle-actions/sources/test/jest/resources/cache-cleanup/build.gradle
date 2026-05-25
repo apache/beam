@@ -1,0 +1,11 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api "org.apache.commons:commons-math3:${System.properties['commons_math3_version']}"
+}

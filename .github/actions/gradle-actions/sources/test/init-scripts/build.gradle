@@ -1,0 +1,30 @@
+plugins {
+    id 'groovy'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation gradleTestKit()
+    testImplementation 'org.spockframework:spock-core:2.3-groovy-4.0'
+    testImplementation('org.spockframework:spock-junit4:2.3-groovy-4.0')
+
+    testImplementation ('io.ratpack:ratpack-groovy-test:1.9.0') {
+        exclude group: 'org.codehaus.groovy', module: 'groovy-all'
+    }
+    testImplementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.20.0'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}

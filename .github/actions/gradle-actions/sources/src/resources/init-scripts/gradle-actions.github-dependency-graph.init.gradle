@@ -1,0 +1,65 @@
+import org.gradle.util.GradleVersion
+
+// Only run when dependency graph is explicitly enabled
+if (getVariable('GITHUB_DEPENDENCY_GRAPH_ENABLED') != "true") {
+  return
+}
+
+// Do not run for unsupported versions of Gradle
+def gradleVersion = GradleVersion.current().baseVersion
+if (gradleVersion < GradleVersion.version("5.2") ||
+    (gradleVersion >= GradleVersion.version("7.0") && gradleVersion < GradleVersion.version("7.1"))) {
+  if (getVariable('GITHUB_DEPENDENCY_GRAPH_CONTINUE_ON_FAILURE') != "true") {
+    throw new GradleException("Dependency Graph is not supported for ${gradleVersion}. No dependency snapshot will be generated.")
+  }
+  logger.warn("::warning::Dependency Graph is not supported for ${gradleVersion}. No dependency snapshot will be generated.")
+  return
+}
+
+// Attempt to find a unique job correlator to use based on the environment variable
+// This is only required for top-level builds
+def isTopLevelBuild = gradle.getParent() == null
+if (isTopLevelBuild) {
+  def reportFile = getUniqueReportFile(getVariable('GITHUB_DEPENDENCY_GRAPH_JOB_CORRELATOR'))
+
+  if (reportFile == null) {
+    logger.warn("::warning::No dependency snapshot generated for step. Could not determine unique job correlator - specify GITHUB_DEPENDENCY_GRAPH_JOB_CORRELATOR var for this step.")
+    return
+  }
+
+  logger.lifecycle("Generating dependency graph into '${reportFile}'")
+}
+
+apply from: 'gradle-actions.github-dependency-graph-gradle-plugin-apply.groovy'
+
+/**
+ * Using the supplied jobCorrelator value:
+ * - Checks if report file already exists
+ * - If so, tries to find a unique value that does not yet have a corresponding report file.
+ * - When found, this value is set as a System property override.
+ */
+File getUniqueReportFile(String jobCorrelator) {
+    def reportDir = getVariable('DEPENDENCY_GRAPH_REPORT_DIR')
+    def reportFile = new File(reportDir, jobCorrelator + ".json")
+    if (!reportFile.exists()) return reportFile
+
+    // Try at most 100 suffixes
+    for (int i = 1; i < 100; i++) {
+        def candidateCorrelator = jobCorrelator + "-" + i
+        def candidateFile = new File(reportDir, candidateCorrelator + ".json")
+        if (!candidateFile.exists()) {
+           System.properties['GITHUB_DEPENDENCY_GRAPH_JOB_CORRELATOR'] = candidateCorrelator
+           return candidateFile
+        }
+    }
+
+    // Could not determine unique job correlator
+    return null
+}
+
+/**
+* Return the environment variable value, or equivalent system property (if set)
+*/
+String getVariable(String name) {
+  return System.properties[name] ?: System.getenv(name)
+}

@@ -1,0 +1,231 @@
+name: Gradle Dependency Submission
+description: Generates a dependency graph for a Gradle project and submits it via the Dependency Submission API
+
+inputs:
+  # Gradle execution configuration
+  gradle-version:
+    description: |
+      Gradle version to use. If specified, this Gradle version will be downloaded, added to the PATH and used for invoking Gradle.
+      If not provided, it is assumed that the project uses the Gradle Wrapper.
+    required: false
+
+  build-root-directory:
+    description: Path to the root directory of the build. Default is the root of the GitHub workspace.
+    required: false
+
+  dependency-resolution-task:
+    description: |
+      Task(s) that should be executed in order to resolve all project dependencies.
+      By default, the built-in `:ForceDependencyResolutionPlugin_resolveAllDependencies` task is executed.
+    required: false
+
+  additional-arguments:
+    description: |
+      Additional arguments to pass to Gradle when generating the dependency graph.
+      For example, `--no-configuration-cache --stacktrace`.
+    required: false
+
+  # Cache configuration
+  cache-disabled:
+    description: When 'true', all caching is disabled. No entries will be written to or read from the cache.
+    required: false
+    default: false
+
+  cache-read-only:
+    description: |
+      When 'true', existing entries will be read from the cache but no entries will be written.
+      By default this value is 'false' for workflows on the GitHub default branch and 'true' for workflows on other branches.
+    required: false
+    default: ${{ github.event.repository != null && github.ref_name != github.event.repository.default_branch }}
+
+  cache-write-only:
+    description: |
+      When 'true', entries will not be restored from the cache but will be saved at the end of the Job.
+      Setting this to 'true' implies cache-read-only will be 'false'.
+    required: false
+    default: false
+
+  cache-overwrite-existing:
+    description: When 'true', a pre-existing Gradle User Home will not prevent the cache from being restored.
+    required: false
+    default: false
+
+  cache-encryption-key:
+    description: |
+      A base64 encoded AES key used to encrypt the configuration-cache data. The key is exported as 'GRADLE_ENCRYPTION_KEY' for later steps.
+      A suitable key can be generated with `openssl rand -base64 16`.
+      Configuration-cache data will not be saved/restored without an encryption key being provided.
+    required: false
+
+  cache-cleanup:
+    description: |
+      Specifies if the action should attempt to remove any stale/unused entries from the Gradle User Home prior to saving to the GitHub Actions cache.
+      By default ('on-success'), cleanup is performed when all Gradle builds succeed for the Job. 
+      This behaviour can be disabled ('never'), or configured to always run irrespective of the build outcome ('always').
+      Valid values are 'never', 'on-success' and 'always'.
+    required: false
+    default: 'on-success'
+
+  gradle-home-cache-cleanup:
+    description: When 'true', the action will attempt to remove any stale/unused entries from the Gradle User Home prior to saving to the GitHub Actions cache.
+    required: false
+    deprecation-message: This input has been superceded by the 'cache-cleanup' input parameter.
+
+  gradle-home-cache-includes:
+    description: Paths within Gradle User Home to cache.
+    required: false
+    default: |
+        caches
+        notifications
+
+  gradle-home-cache-excludes:
+    description: Paths within Gradle User Home to exclude from cache.
+    required: false
+
+  # Job summary configuration
+  add-job-summary:
+    description: Specifies when a Job Summary should be inluded in the action results. Valid values are 'never', 'always' (default), and 'on-failure'.
+    required: false
+    default: 'always'
+
+  add-job-summary-as-pr-comment:
+    description: Specifies when each Job Summary should be added as a PR comment. Valid values are 'never' (default), 'always', and 'on-failure'. No action will be taken if the workflow was not triggered from a pull request.
+    required: false
+    default: 'never'
+
+  # Dependency Graph configuration
+  dependency-graph:
+    description: |
+      Specifies how the dependency-graph should be handled by this action. 
+      By default a dependency-graph will be generated, submitted to the dependency-submission API, and saved as a workflow artifact.
+      Valid values are:
+        'generate-and-submit': Generates a dependency graph for the project and submits it in the same Job.
+        'generate-submit-and-upload (default)': As per 'generate-and-submit', but also saves the dependency graph as a workflow artifact.
+        'generate-and-upload': Generates a dependency graph for the project and saves it as a workflow artifact. Does not submit it to the repository.
+        'download-and-submit': Retrieves a previously saved dependency-graph and submits it to the repository.
+
+      Use `generate-and-submit` if you prefer not to save the dependency-graph as a workflow artifact.
+      The `generate-and-upload` and `download-and-submit` options are designed to be used in an untrusted workflow scenario,
+      where the workflow generating the dependency-graph cannot (or should not) be given the `contents: write` permissions
+      required to submit via the Dependency Submission API.
+    required: false
+    default: 'generate-submit-and-upload'
+
+  dependency-graph-report-dir:
+    description: |
+      Specifies where the dependency graph report will be generated. 
+      Paths can relative or absolute. Relative paths are resolved relative to the workspace directory.
+    required: false
+    default: 'dependency-graph-reports'
+
+  dependency-graph-continue-on-failure:
+    description: When 'false' a failure to generate or submit a dependency graph will fail the Step or Job. When 'true' a warning will be emitted but no failure will result.
+    required: false
+    default: false
+
+  dependency-graph-exclude-projects:
+    description: |
+      Gradle projects that should be excluded from dependency graph (regular expression).
+      When set, any matching project will be excluded.
+    required: false
+
+  dependency-graph-include-projects:
+    description: |
+      Gradle projects that should be included in dependency graph (regular expression). 
+      When set, only matching projects will be included.
+    required: false
+
+  dependency-graph-exclude-configurations:
+    description: |
+      Gradle configurations that should be included in dependency graph (regular expression). 
+      When set, anymatching configurations will be excluded.
+    required: false
+
+  dependency-graph-include-configurations:
+    description: |
+      Gradle configurations that should be included in dependency graph (regular expression). 
+      When set, only matching configurations will be included.
+    required: false
+
+  artifact-retention-days:
+    description: Specifies the number of days to retain any artifacts generated by the action. If not set, the default retention settings for the repository will apply.
+    required: false
+
+  # Build Scan configuration
+  build-scan-publish:
+    description: |
+      Set to 'true' to automatically publish build results as a Build Scan on scans.gradle.com.
+      For publication to succeed without user input, you must also provide values for `build-scan-terms-of-use-url` and 'build-scan-terms-of-use-agree'.
+    required: false
+    default: false
+
+  build-scan-terms-of-use-url:
+    description: The URL to the Build Scan® terms of use. This input must be set to 'https://gradle.com/terms-of-service' or 'https://gradle.com/help/legal-terms-of-use'.
+    required: false
+
+  build-scan-terms-of-use-agree:
+    description: Indicate that you agree to the Build Scan® terms of use. This input value must be "yes".
+    required: false
+
+  develocity-access-key:
+    description: Develocity access key. Should be set to a secret containing the Develocity Access key.
+    required: false
+
+  develocity-token-expiry:
+    description: The Develocity short-lived access tokens expiry in hours. Default is 2 hours.
+    required: false
+
+  # Wrapper validation configuration
+  validate-wrappers:
+    description: |
+      When 'true' the action will automatically validate all wrapper jars found in the repository.
+      If the wrapper checksums are not valid, the action will fail.
+    required: false
+    default: false
+
+  allow-snapshot-wrappers:
+    description: |
+      When 'true', wrapper validation will include the checksums of snapshot wrapper jars. 
+      Use this if you are running with nightly or snapshot versions of the Gradle wrapper.
+    required: false
+    default: false
+
+  # DEPRECATED ACTION INPUTS
+
+  # EXPERIMENTAL ACTION INPUTS
+  # The following action properties allow fine-grained tweaking of the action caching behaviour.
+  # These properties are experimental and not (yet) designed for production use, and may change without notice in a subsequent release of `setup-gradle`.
+  # Use at your own risk!
+  gradle-home-cache-strict-match:
+    description: When 'true', the action will not attempt to restore the Gradle User Home entries from other Jobs.
+    required: false
+    default: false
+
+  # INTERNAL ACTION INPUTS
+  # These inputs should not be configured directly, and are only used to pass environmental information to the action
+  workflow-job-context:
+    description: Used to uniquely identify the current job invocation. Defaults to the matrix values for this job; this should not be overridden by users (INTERNAL).
+    required: false
+    default: ${{ toJSON(matrix) }}
+
+  github-token:
+    description: The GitHub token used to authenticate when submitting via the Dependency Submission API.
+    default: ${{ github.token }}
+    required: false
+
+outputs:
+  build-scan-url:
+    description: Link to the Build Scan® generated by a Gradle build. Note that this output applies to a Step executing Gradle, not to the `setup-gradle` Step itself.
+  dependency-graph-file:
+    description: Path to the GitHub Dependency Graph snapshot file generated by a Gradle build. Note that this output applies to a Step executing Gradle, not to the `setup-gradle` Step itself.
+  gradle-version:
+    description: Version of Gradle that was setup by the action
+
+runs:
+  using: 'node24'
+  main: '../dist/dependency-submission/main/index.js'
+  post: '../dist/dependency-submission/post/index.js'
+
+branding:
+  icon: 'box'
+  color: 'gray-dark'

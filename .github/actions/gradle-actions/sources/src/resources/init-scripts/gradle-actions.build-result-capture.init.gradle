@@ -1,0 +1,154 @@
+/*
+ * Capture information for each executed Gradle build to display in the job summary.
+ */
+import org.gradle.util.GradleVersion
+import org.slf4j.LoggerFactory
+
+def SKIP_BUILD_CAPTURE = "GRADLE_ACTIONS_SKIP_BUILD_RESULT_CAPTURE"
+def BUILD_SCAN_PLUGIN_ID = "com.gradle.build-scan"
+def BUILD_SCAN_EXTENSION = "buildScan"
+def DEVELOCITY_PLUGIN_ID = "com.gradle.develocity"
+def DEVELOCITY_EXTENSION = "develocity"
+def GE_PLUGIN_ID = "com.gradle.enterprise"
+def GE_EXTENSION = "gradleEnterprise"
+
+if (System.properties[SKIP_BUILD_CAPTURE] ?: System.getenv(SKIP_BUILD_CAPTURE)) {
+    logger.lifecycle("gradle/actions: Not capturing build results")
+    return
+}
+
+// Only run against root build. Do not run against included builds.
+def isTopLevelBuild = gradle.getParent() == null
+if (isTopLevelBuild) {
+    def resultsWriter = new ResultsWriter()
+    def version = GradleVersion.current().baseVersion
+
+    def atLeastGradle3 = version >= GradleVersion.version("3.0")
+    def atLeastGradle6 = version >= GradleVersion.version("6.0")
+    def atLeastGradle7 = version >= GradleVersion.version("7.0")
+
+    def invocationId = "-${System.currentTimeMillis()}"
+
+    if (atLeastGradle6) {
+        // Use BuildService for modern Gradle versions
+        if (atLeastGradle7) {
+            captureUsingBuildService(invocationId)
+        } else {
+            captureUsingBuildFinished(gradle, invocationId, resultsWriter)
+        }
+
+        // Use the Develocity plugin to also capture build scan links, when available
+        settingsEvaluated { settings ->
+            def captureBuildScanLink = {
+                // Prefer the 'develocity' extension, if available
+                if (settings.extensions.findByName(DEVELOCITY_EXTENSION)) {
+                    captureUsingBuildScanPublished(settings.extensions[DEVELOCITY_EXTENSION].buildScan, invocationId, resultsWriter)
+                } else {
+                    captureUsingBuildScanPublished(settings.extensions[GE_EXTENSION].buildScan, invocationId, resultsWriter)
+                }
+            }
+            settings.pluginManager.withPlugin(GE_PLUGIN_ID, captureBuildScanLink)
+            settings.pluginManager.withPlugin(DEVELOCITY_PLUGIN_ID) {
+                // Develocity plugin applies GE plugin: avoid duplicate call
+                if (settings.pluginManager.hasPlugin(GE_PLUGIN_ID)) return
+                captureBuildScanLink()
+            }
+        }
+    } else if (atLeastGradle3) {
+        projectsEvaluated { gradle ->
+            // By default, use 'buildFinished' to capture build results
+            captureUsingBuildFinished(gradle, invocationId, resultsWriter)
+
+            def captureBuildScanLink = {
+                // Prefer the 'develocity' extension, if available
+                if (gradle.rootProject.extensions.findByName(DEVELOCITY_EXTENSION)) {
+                    captureUsingBuildScanPublished(gradle.rootProject.extensions[DEVELOCITY_EXTENSION].buildScan, invocationId, resultsWriter)
+                } else {
+                    captureUsingBuildScanPublished(gradle.rootProject.extensions[BUILD_SCAN_EXTENSION], invocationId, resultsWriter)
+                }
+            }
+
+            gradle.rootProject.pluginManager.withPlugin(BUILD_SCAN_PLUGIN_ID, captureBuildScanLink)
+
+            gradle.rootProject.pluginManager.withPlugin(DEVELOCITY_PLUGIN_ID) {
+                // Develocity plugin applies Build Scan plugin: avoid duplicate call
+                if (gradle.rootProject.pluginManager.hasPlugin(BUILD_SCAN_PLUGIN_ID)) return
+                captureBuildScanLink()
+            }
+        }
+    }
+}
+
+def captureUsingBuildService(invocationId) {
+    gradle.ext.invocationId = invocationId
+    apply from: 'gradle-actions.build-result-capture-service.plugin.groovy'
+}
+
+void captureUsingBuildFinished(gradle, String invocationId, ResultsWriter resultsWriter) {
+    gradle.buildFinished { result ->
+        def buildResults = [
+            rootProjectName: rootProject.name,
+            rootProjectDir: rootProject.projectDir.absolutePath,
+            requestedTasks: gradle.startParameter.taskNames.join(" "),
+            gradleVersion: GradleVersion.current().version,
+            gradleHomeDir: gradle.gradleHomeDir.absolutePath,
+            buildFailed: result.failure != null,
+            configCacheHit: false
+        ]
+        resultsWriter.writeToResultsFile("build-results", invocationId, buildResults)
+    }
+}
+
+// The `buildScanPublished` hook allows the capture of the Build Scan URI.
+// Results captured this way will overwrite any results from 'buildFinished'.
+void captureUsingBuildScanPublished(buildScanExtension, String invocationId, ResultsWriter resultsWriter) {
+    buildScanExtension.with {
+        buildScanPublished { buildScan ->
+            def scanResults = [
+                buildScanUri: buildScan.buildScanUri.toASCIIString(),
+                buildScanFailed: false
+            ]
+            resultsWriter.writeToResultsFile("build-scans", invocationId, scanResults)
+
+            def githubOutput = System.getenv("GITHUB_OUTPUT")
+            if (githubOutput) {
+                new File(githubOutput) << "build-scan-url=${buildScan.buildScanUri}\n"
+            } else {
+                // Retained for compatibility with older GHES versions
+                println("::set-output name=build-scan-url::${buildScan.buildScanUri}")
+            }
+        }
+
+        onError { error ->
+            def scanResults = [
+                buildScanUri: null,
+                buildScanFailed: true
+            ]
+            resultsWriter.writeToResultsFile("build-scans", invocationId, scanResults)
+        }
+    }
+}
+
+class ResultsWriter {
+    private final logger = LoggerFactory.getLogger("gradle/actions")
+
+    void writeToResultsFile(String subDir, String invocationId, def content) {
+        def runnerTempDir = System.getProperty("RUNNER_TEMP") ?: System.getenv("RUNNER_TEMP")
+        def githubActionStep = System.getProperty("GITHUB_ACTION") ?: System.getenv("GITHUB_ACTION")
+        if (!runnerTempDir || !githubActionStep) {
+            return
+        }
+
+        try {
+            def buildResultsDir = new File(runnerTempDir, ".gradle-actions/${subDir}")
+            buildResultsDir.mkdirs()
+            def buildResultsFile = new File(buildResultsDir, githubActionStep + invocationId + ".json")
+            if (!buildResultsFile.exists()) {
+                logger.lifecycle("gradle/actions: Writing build results to ${buildResultsFile}")
+                buildResultsFile << groovy.json.JsonOutput.toJson(content)
+            }
+        } catch (Exception e) {
+            println "\ngradle action failed to write build-results file. Will continue.\n> ${e.getLocalizedMessage()}"
+        }
+    }
+}

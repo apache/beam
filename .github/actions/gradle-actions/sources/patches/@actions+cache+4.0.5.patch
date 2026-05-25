@@ -1,0 +1,248 @@
+diff --git a/node_modules/@actions/cache/lib/cache.d.ts b/node_modules/@actions/cache/lib/cache.d.ts
+index ef0928b..d06e675 100644
+--- a/node_modules/@actions/cache/lib/cache.d.ts
++++ b/node_modules/@actions/cache/lib/cache.d.ts
+@@ -21,7 +21,8 @@ export declare function isFeatureAvailable(): boolean;
+  * @param enableCrossOsArchive an optional boolean enabled to restore on windows any cache created on any platform
+  * @returns string returns the key for the cache hit, otherwise returns undefined
+  */
+-export declare function restoreCache(paths: string[], primaryKey: string, restoreKeys?: string[], options?: DownloadOptions, enableCrossOsArchive?: boolean): Promise<string | undefined>;
++export declare function restoreCache(paths: string[], primaryKey: string, restoreKeys?: string[], options?: DownloadOptions, enableCrossOsArchive?: boolean): Promise<CacheEntry | undefined>;
++
+ /**
+  * Saves a list of files with the specified key
+  *
+@@ -31,4 +32,12 @@ export declare function restoreCache(paths: string[], primaryKey: string, restor
+  * @param options cache upload options
+  * @returns number returns cacheId if the cache was saved successfully and throws an error if save fails
+  */
+-export declare function saveCache(paths: string[], key: string, options?: UploadOptions, enableCrossOsArchive?: boolean): Promise<number>;
++export declare function saveCache(paths: string[], key: string, options?: UploadOptions, enableCrossOsArchive?: boolean): Promise<CacheEntry>;
++
++// PATCHED: Add `CacheEntry` as return type for save/restore functions
++// This allows us to track and report on cache entry sizes.
++export declare class CacheEntry {
++    key: string;
++    size?: number;
++    constructor(key: string, size?: number);
++}
+diff --git a/node_modules/@actions/cache/lib/cache.js b/node_modules/@actions/cache/lib/cache.js
+index 41f2a37..2fe1600 100644
+--- a/node_modules/@actions/cache/lib/cache.js
++++ b/node_modules/@actions/cache/lib/cache.js
+@@ -165,26 +165,29 @@ function restoreCacheV1(paths, primaryKey, restoreKeys, options, enableCrossOsAr
+             core.info(`Cache Size: ~${Math.round(archiveFileSize / (1024 * 1024))} MB (${archiveFileSize} B)`);
+             yield (0, tar_1.extractTar)(archivePath, compressionMethod);
+             core.info('Cache restored successfully');
+-            return cacheEntry.cacheKey;
+-        }
+-        catch (error) {
+-            const typedError = error;
+-            if (typedError.name === ValidationError.name) {
+-                throw error;
+-            }
+-            else {
+-                // warn on cache restore failure and continue build
+-                // Log server errors (5xx) as errors, all other errors as warnings
+-                if (typedError instanceof http_client_1.HttpClientError &&
+-                    typeof typedError.statusCode === 'number' &&
+-                    typedError.statusCode >= 500) {
+-                    core.error(`Failed to restore: ${error.message}`);
+-                }
+-                else {
+-                    core.warning(`Failed to restore: ${error.message}`);
+-                }
+-            }
++
++            // PATCHED - Include size of restored entry
++            return new CacheEntry(cacheEntry.cacheKey, archiveFileSize);
+         }
++        // PATCHED - propagate errors
++        // catch (error) {
++        //    const typedError = error;
++        //    if (typedError.name === ValidationError.name) {
++        //        throw error;
++        //    }
++        //    else {
++        //        // warn on cache restore failure and continue build
++        //        // Log server errors (5xx) as errors, all other errors as warnings
++        //        if (typedError instanceof http_client_1.HttpClientError &&
++        //            typeof typedError.statusCode === 'number' &&
++        //            typedError.statusCode >= 500) {
++        //            core.error(`Failed to restore: ${error.message}`);
++        //        }
++        //        else {
++        //            core.warning(`Failed to restore: ${error.message}`);
++        //        }
++        //    }
++        //}
+         finally {
+             // Try to delete the archive to save space
+             try {
+@@ -257,26 +260,29 @@ function restoreCacheV2(paths, primaryKey, restoreKeys, options, enableCrossOsAr
+             }
+             yield (0, tar_1.extractTar)(archivePath, compressionMethod);
+             core.info('Cache restored successfully');
+-            return response.matchedKey;
+-        }
+-        catch (error) {
+-            const typedError = error;
+-            if (typedError.name === ValidationError.name) {
+-                throw error;
+-            }
+-            else {
+-                // Supress all non-validation cache related errors because caching should be optional
+-                // Log server errors (5xx) as errors, all other errors as warnings
+-                if (typedError instanceof http_client_1.HttpClientError &&
+-                    typeof typedError.statusCode === 'number' &&
+-                    typedError.statusCode >= 500) {
+-                    core.error(`Failed to restore: ${error.message}`);
+-                }
+-                else {
+-                    core.warning(`Failed to restore: ${error.message}`);
+-                }
+-            }
++
++            // PATCHED - Include size of restored entry
++            return new CacheEntry(response.matchedKey, archiveFileSize);
+         }
++        // PATCHED - propagate errors
++        // catch (error) {
++        //    const typedError = error;
++        //    if (typedError.name === ValidationError.name) {
++        //        throw error;
++        //    }
++        //    else {
++        //        // Supress all non-validation cache related errors because caching should be optional
++        //        // Log server errors (5xx) as errors, all other errors as warnings
++        //        if (typedError instanceof http_client_1.HttpClientError &&
++        //            typeof typedError.statusCode === 'number' &&
++        //            typedError.statusCode >= 500) {
++        //            core.error(`Failed to restore: ${error.message}`);
++        //        }
++        //        else {
++        //            core.warning(`Failed to restore: ${error.message}`);
++        //        }
++        //    }
++        //}
+         finally {
+             try {
+                 if (archivePath) {
+@@ -367,27 +373,31 @@ function saveCacheV1(paths, key, options, enableCrossOsArchive = false) {
+             }
+             core.debug(`Saving Cache (ID: ${cacheId})`);
+             yield cacheHttpClient.saveCache(cacheId, archivePath, '', options);
++
++            // PATCHED - Include size of saved entry
++            return new CacheEntry(key, archiveFileSize);
+         }
+-        catch (error) {
+-            const typedError = error;
+-            if (typedError.name === ValidationError.name) {
+-                throw error;
+-            }
+-            else if (typedError.name === ReserveCacheError.name) {
+-                core.info(`Failed to save: ${typedError.message}`);
+-            }
+-            else {
+-                // Log server errors (5xx) as errors, all other errors as warnings
+-                if (typedError instanceof http_client_1.HttpClientError &&
+-                    typeof typedError.statusCode === 'number' &&
+-                    typedError.statusCode >= 500) {
+-                    core.error(`Failed to save: ${typedError.message}`);
+-                }
+-                else {
+-                    core.warning(`Failed to save: ${typedError.message}`);
+-                }
+-            }
+-        }
++        // PATCHED - propagate errors
++        //catch (error) {
++        //    const typedError = error;
++        //    if (typedError.name === ValidationError.name) {
++        //        throw error;
++        //    }
++        //    else if (typedError.name === ReserveCacheError.name) {
++        //        core.info(`Failed to save: ${typedError.message}`);
++        //    }
++        //    else {
++        //        // Log server errors (5xx) as errors, all other errors as warnings
++        //        if (typedError instanceof http_client_1.HttpClientError &&
++        //            typeof typedError.statusCode === 'number' &&
++        //            typedError.statusCode >= 500) {
++        //            core.error(`Failed to save: ${typedError.message}`);
++        //        }
++        //        else {
++        //            core.warning(`Failed to save: ${typedError.message}`);
++        //        }
++        //    }
++        //}
+         finally {
+             // Try to delete the archive to save space
+             try {
+@@ -471,27 +481,31 @@ function saveCacheV2(paths, key, options, enableCrossOsArchive = false) {
+                 throw new Error(`Unable to finalize cache with key ${key}, another job may be finalizing this cache.`);
+             }
+             cacheId = parseInt(finalizeResponse.entryId);
++
++            // PATCHED - Include size of saved entry
++            return new CacheEntry(key, archiveFileSize);
+         }
+-        catch (error) {
+-            const typedError = error;
+-            if (typedError.name === ValidationError.name) {
+-                throw error;
+-            }
+-            else if (typedError.name === ReserveCacheError.name) {
+-                core.info(`Failed to save: ${typedError.message}`);
+-            }
+-            else {
+-                // Log server errors (5xx) as errors, all other errors as warnings
+-                if (typedError instanceof http_client_1.HttpClientError &&
+-                    typeof typedError.statusCode === 'number' &&
+-                    typedError.statusCode >= 500) {
+-                    core.error(`Failed to save: ${typedError.message}`);
+-                }
+-                else {
+-                    core.warning(`Failed to save: ${typedError.message}`);
+-                }
+-            }
+-        }
++        // PATCHED - propagate errors
++        //catch (error) {
++        //    const typedError = error;
++        //    if (typedError.name === ValidationError.name) {
++        //        throw error;
++        //    }
++        //    else if (typedError.name === ReserveCacheError.name) {
++        //        core.info(`Failed to save: ${typedError.message}`);
++        //    }
++        //    else {
++        //        // Log server errors (5xx) as errors, all other errors as warnings
++        //        if (typedError instanceof http_client_1.HttpClientError &&
++        //            typeof typedError.statusCode === 'number' &&
++        //            typedError.statusCode >= 500) {
++        //            core.error(`Failed to save: ${typedError.message}`);
++        //        }
++        //        else {
++        //            core.warning(`Failed to save: ${typedError.message}`);
++        //        }
++        //    }
++        //}
+         finally {
+             // Try to delete the archive to save space
+             try {
+@@ -504,4 +518,12 @@ function saveCacheV2(paths, key, options, enableCrossOsArchive = false) {
+         return cacheId;
+     });
+ }
++// PATCHED - CacheEntry class
++class CacheEntry {
++    constructor(key, size) {
++        this.key = key;
++        this.size = size;
++    }
++}
++
+ //# sourceMappingURL=cache.js.map
+\ No newline at end of file
