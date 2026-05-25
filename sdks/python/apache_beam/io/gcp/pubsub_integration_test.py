@@ -26,6 +26,8 @@ import unittest
 import uuid
 
 import pytest
+from hamcrest.core.core.allof import all_of
+
 from apache_beam.io.gcp import pubsub_it_pipeline
 from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.io.gcp.pubsub import WriteToPubSub
@@ -34,7 +36,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
-from hamcrest.core.core.allof import all_of
 
 INPUT_TOPIC = 'psit_topic_input'
 OUTPUT_TOPIC = 'psit_topic_output'
@@ -321,11 +322,11 @@ class PubSubIntegrationTest(unittest.TestCase):
           '(see https://github.com/apache/beam/issues/36201). '
           'Use apache_beam.io.external.gcp.pubsub.WriteToPubSub '
           'with publish_with_ordering_key=True instead.')
+    from google.pubsub_v1.types import Subscription
 
     from apache_beam.options.pipeline_options import PipelineOptions
     from apache_beam.options.pipeline_options import StandardOptions
     from apache_beam.transforms import Create
-    from google.pubsub_v1.types import Subscription
 
     ordering_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(
