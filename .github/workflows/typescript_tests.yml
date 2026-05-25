@@ -44,6 +44,9 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+permissions:
+  contents: read
+
 jobs:
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'
