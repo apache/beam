@@ -156,9 +156,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    synchronized (lock) {
-      receivedMessages.add(receivedXmlMessage);
-    }
+    receivedMessages.add(receivedXmlMessage);
 
     return true;
   }
@@ -204,12 +202,10 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    long checkpointId;
-    ImmutableList<BytesXMLMessage> messages;
+    long checkpointId = nextCheckpointId++;
+    ImmutableList<BytesXMLMessage> messages = ImmutableList.copyOf(receivedMessages);
+    receivedMessages.clear();
     synchronized (lock) {
-      checkpointId = nextCheckpointId++;
-      messages = ImmutableList.copyOf(receivedMessages);
-      receivedMessages.clear();
       pendingCheckpoints.put(checkpointId, messages);
     }
     return new SolaceCheckpointMark(readerUuid, checkpointId);
