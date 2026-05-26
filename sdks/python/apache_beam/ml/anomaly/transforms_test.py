@@ -116,6 +116,24 @@ def _keyed_result_is_equal_to(
   return a[0] == b[0] and _unkeyed_result_is_equal_to(a[1], b[1])
 
 
+def _prediction_metadata_is_equal_to(
+    a: AnomalyPrediction, b: AnomalyPrediction):
+  return a.model_id == b.model_id and a.threshold == b.threshold and \
+      a.info == b.info and a.source_predictions == b.source_predictions
+
+
+def _unkeyed_result_metadata_is_equal_to(a: AnomalyResult, b: AnomalyResult):
+  return a.example._asdict() == b.example._asdict() and \
+      len(a.predictions) == len(b.predictions) and all(
+          _prediction_metadata_is_equal_to(a_pred, b_pred)
+          for a_pred, b_pred in zip(a.predictions, b.predictions))
+
+
+def _keyed_result_metadata_is_equal_to(
+    a: tuple[int, AnomalyResult], b: tuple[int, AnomalyResult]):
+  return a[0] == b[0] and _unkeyed_result_metadata_is_equal_to(a[1], b[1])
+
+
 class TestAnomalyDetection(unittest.TestCase):
   class TestData:
     unkeyed_input = [
@@ -234,9 +252,11 @@ class TestAnomalyDetection(unittest.TestCase):
       result = (p | beam.Create(input) | AnomalyDetection(detector))
 
       if isinstance(input[0], tuple):
-        assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
+        assert_that(
+            result, equal_to(expected, _keyed_result_metadata_is_equal_to))
       else:
-        assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
+        assert_that(
+            result, equal_to(expected, _unkeyed_result_metadata_is_equal_to))
 
   @parameterized.expand([
       (TestData.keyed_input, TestData.keyed_ensemble_expected),
