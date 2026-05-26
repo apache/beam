@@ -807,7 +807,7 @@ class Stager(object):
           platforms = [preferred_platform]
 
         last_exception = None
-        for platform in platforms:
+        for idx, platform in enumerate(platforms):
           attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
           attempt_cmd_args = cmd_args + [
               '--dest',
@@ -819,6 +819,10 @@ class Stager(object):
               '--platform',
               platform
           ]
+          # Force binary wheel only if we have more platform fallbacks to try
+          if idx < len(platforms) - 1:
+            attempt_cmd_args.extend(['--only-binary', ':all:'])
+
           _LOGGER.info('Executing command: %s', attempt_cmd_args)
           try:
             processes.check_output(attempt_cmd_args, stderr=processes.STDOUT)
