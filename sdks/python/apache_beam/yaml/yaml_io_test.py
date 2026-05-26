@@ -18,6 +18,8 @@
 import io
 import json
 import logging
+import os
+import tempfile
 import unittest
 
 import fastavro
@@ -541,6 +543,122 @@ class YamlPubSubTest(unittest.TestCase):
                   rank: {type: integer}
             ''')
         assert_that(result, equal_to(data))
+
+
+class YamlMatchAllTest(unittest.TestCase):
+  def test_match_all_simple(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      file2 = os.path.join(temp_dir, 'file2.txt')
+      for f in [file1, file2]:
+        with open(f, 'w') as fout:
+          fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create(
+                [beam.Row(pattern=os.path.join(temp_dir, 'file*.txt'))])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: pattern
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1, file2]))
+
+  def test_match_all_single_field_default(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      with open(file1, 'w') as fout:
+        fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(my_sole_pattern=file1)])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1]))
+
+  def test_match_all_multiple_fields_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo', other_field='bar')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+
+  def test_match_all_empty_match_disallow_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='does_not_exist*.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  empty_match_treatment: DISALLOW
+                '''))
+
+  def test_match_all_invalid_field_error(self):
+    with self.assertRaisesRegex(
+        ValueError, "Field 'invalid_field' not found in input schema fields"):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: invalid_field
+                '''))
+
+  def test_match_all_none_timestamp(self):
+    from apache_beam.io.filesystem import FileMetadata
+
+    class MockMatchAll(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll.pipeline | beam.Create([
+            FileMetadata(
+                path='file.txt',
+                size_in_bytes=100,
+                last_updated_in_seconds=None)
+        ])
+
+    with mock.patch('apache_beam.io.fileio.MatchAll',
+                    return_value=MockMatchAll()):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(pattern='file.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    path='file.txt',
+                    size_in_bytes=100,
+                    last_updated_in_seconds=None)
+            ]))
 
 
 if __name__ == '__main__':
