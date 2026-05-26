@@ -49,6 +49,7 @@ from apache_beam.utils import retry
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  import google.auth
   from google.cloud import dataflow
 
   from apache_beam.runners.dataflow.internal import apiclient
@@ -63,6 +64,18 @@ _LOGGER = logging.getLogger(__name__)
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
+  @classmethod
+  def setUpClass(cls):
+    super().setUpClass()
+    cls.patcher = mock.patch(
+        'google.auth.default', return_value=(None, 'test_project'))
+    cls.patcher.start()
+
+  @classmethod
+  def tearDownClass(cls):
+    super().tearDownClass()
+    cls.patcher.stop()
+
   @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_create_application_client(self):
     pipeline_options = PipelineOptions()
