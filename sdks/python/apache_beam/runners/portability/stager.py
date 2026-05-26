@@ -89,11 +89,13 @@ SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
 # Ordered list of manylinux tags from newest (strictest) to oldest (most compatible)
-# used for cross-platform binary dependency downloads.
+# paired with the minimum pip version required to support the tag.
+# See https://github.com/pypa/manylinux.
 _MANYLINUX_PLATFORMS = [
-    'manylinux_2_28_x86_64',
-    'manylinux2014_x86_64',  # equivalent to manylinux_2_17
-    'manylinux2010_x86_64',  # equivalent to manylinux_2_12
+    ('manylinux_2_28_x86_64', '20.3'),
+    ('manylinux2014_x86_64', '19.3'),  # equivalent to manylinux_2_17
+    ('manylinux2010_x86_64',
+     '0.0'),  # equivalent to manylinux_2_12, the fallback if pip is too old
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -726,30 +728,6 @@ class Stager(object):
       return [], requirements_file
 
   @staticmethod
-  def _get_platform_for_default_sdk_container():
-    """
-    Get the platform for apache beam SDK container based on Pip version.
-
-    Note: pip is still expected to download compatible wheel of a package
-    with platform tag manylinux1 if the package on PyPI doesn't
-    have (manylinux2014) or (manylinux2010) wheels.
-    Reference: https://www.python.org/dev/peps/pep-0599/#id21
-    """
-
-    # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
-    # addressed, download wheel based on glibc version in Beam's Python
-    # Base image
-    pip_version = distribution('pip').version
-    # See more information about manylinux at
-    # https://github.com/pypa/manylinux
-    if version.parse(pip_version) >= version.parse('20.3'):
-      return 'manylinux_2_28_x86_64'
-    elif version.parse(pip_version) >= version.parse('19.3'):
-      return 'manylinux2014_x86_64'
-    else:
-      return 'manylinux2010_x86_64'
-
-  @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(
@@ -796,15 +774,11 @@ class Stager(object):
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         abi_tag = 'cp%d%d%s' % (
             sys.version_info[0], sys.version_info[1], abi_suffix)
-        preferred_platform = Stager._get_platform_for_default_sdk_container()
-
-        # Fallback platform tags in case the preferred modern tag is too strict
-        # for some dependencies on PyPI.
-        try:
-          start_idx = _MANYLINUX_PLATFORMS.index(preferred_platform)
-          platforms = _MANYLINUX_PLATFORMS[start_idx:]
-        except ValueError:
-          platforms = [preferred_platform]
+        pip_version = distribution('pip').version
+        platforms = [
+            platform for platform, min_pip_version in _MANYLINUX_PLATFORMS
+            if version.parse(pip_version) >= version.parse(min_pip_version)
+        ]
 
         last_exception = None
         for idx, platform in enumerate(platforms):
