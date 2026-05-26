@@ -20,6 +20,7 @@ import (
 	"flag"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
@@ -227,7 +228,7 @@ func TestGetJobOptions_NoExperimentsSetStreaming(t *testing.T) {
 	}
 }
 
-func TestGetJobOptions_DisableRunnerV2ExperimentsSet(t *testing.T) {
+func TestGetJobOptions_DisableRunnerV2ExperimentsSetFailJob(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = "gs://testStagingLocation"
 	*gcpopts.Project = "testProject"
@@ -238,13 +239,15 @@ func TestGetJobOptions_DisableRunnerV2ExperimentsSet(t *testing.T) {
 
 	if err == nil {
 		t.Error("getJobOptions() returned error nil, want an error")
+	} else if !strings.Contains(err.Error(), "Disabling Dataflow Portable Runner is no longer supported") {
+		t.Errorf("getJobOptions() returned wrong error %q, want it to mention %q", err.Error(), "Disabling Dataflow Portable Runner is no longer supported")
 	}
 	if opts != nil {
 		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
 	}
 }
 
-func TestGetJobOptions_DisablePortableRunnerExperimentsSet(t *testing.T) {
+func TestGetJobOptions_DisablePortableRunnerExperimentsSetFailJob(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = "gs://testStagingLocation"
 	*gcpopts.Project = "testProject"
@@ -255,13 +258,15 @@ func TestGetJobOptions_DisablePortableRunnerExperimentsSet(t *testing.T) {
 
 	if err == nil {
 		t.Error("getJobOptions() returned error nil, want an error")
+	} else if !strings.Contains(err.Error(), "Disabling Dataflow Portable Runner is no longer supported") {
+		t.Errorf("getJobOptions() returned wrong error %q, want it to mention %q", err.Error(), "Disabling Dataflow Portable Runner is no longer supported")
 	}
 	if opts != nil {
 		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
 	}
 }
 
-func TestGetJobOptions_EnableStreamingJavaRunnerExperimentsSet(t *testing.T) {
+func TestGetJobOptions_EnableStreamingJavaRunnerExperimentsSetFailJob(t *testing.T) {
 	resetGlobals()
 	*stagingLocation = "gs://testStagingLocation"
 	*gcpopts.Project = "testProject"
@@ -272,6 +277,8 @@ func TestGetJobOptions_EnableStreamingJavaRunnerExperimentsSet(t *testing.T) {
 
 	if err == nil {
 		t.Error("getJobOptions() returned error nil, want an error")
+	} else if !strings.Contains(err.Error(), "Disabling Dataflow Portable Runner is no longer supported") {
+		t.Errorf("getJobOptions() returned wrong error %q, want it to mention %q", err.Error(), "Disabling Dataflow Portable Runner is no longer supported")
 	}
 	if opts != nil {
 		t.Errorf("getJobOptions() returned JobOptions when it should not have, got %#v, want nil", opts)
