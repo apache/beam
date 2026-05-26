@@ -342,7 +342,7 @@ class DataflowRunner(PipelineRunner):
     """Remotely executes entire pipeline or parts reachable from node."""
     if _is_runner_v2_disabled(options):
       raise ValueError(
-          'Disabling Portable Runner no longer supported '
+          'Disabling Dataflow Portable Runner no longer supported '
           'using Beam Python %s.' % beam.version.__version__)
 
     # Label goog-dataflow-notebook if job is started from notebook.
@@ -650,8 +650,8 @@ def _check_and_add_missing_streaming_options(options):
 
   :param options: PipelineOptions for this pipeline.
   """
-  # Streaming only supports using Portable Runner (aka unified worker).
-  # Portable Runner only supports using streaming engine (aka windmill service)
+  # Streaming only supports using Dataflow Portable Runner (aka unified worker, runner v2).
+  # Dataflow Portable Runner only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
     debug_options.add_experiment('enable_streaming_engine')
@@ -661,7 +661,7 @@ def _check_and_add_missing_streaming_options(options):
 def _is_runner_v2_disabled(options):
   # Type: (PipelineOptions) -> bool
 
-  """Returns true if Portable Runner is disabled."""
+  """Returns true if Dataflow Portable Runner is disabled."""
   debug_options = options.view_as(DebugOptions)
   return (
       debug_options.lookup_experiment('disable_portable_runner') or

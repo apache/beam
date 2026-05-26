@@ -431,7 +431,7 @@ task printRunnerV2PipelineOptions {
   dependsOn buildAndPushDockerJavaContainer
 
   doLast {
-    println "To run a Dataflow job with Portable Runner, add the following pipeline options to your command-line:"
+    println "To run a Dataflow job with Dataflow Portable Runner, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
     println "docker rmi ${dockerJavaImageName}; gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
@@ -471,7 +471,7 @@ def validatesRunnerStreamingConfig = [
   excludedTests: [
     // TODO(https://github.com/apache/beam/issues/21472)
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    // GroupIntoBatches.withShardedKey not supported on streaming Streaming Java Runner
+    // GroupIntoBatches.withShardedKey not supported on Streaming Java Runner
     // https://github.com/apache/beam/issues/22592
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
