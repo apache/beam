@@ -819,7 +819,9 @@ class Stager(object):
               '--platform',
               platform
           ]
-          # Force binary wheel only if we have more platform fallbacks to try
+          # Force binary wheel only if we have more platform fallbacks to try.
+          # For the last platform, we omit this flag so it can natively fall back
+          # to downloading a source distribution (sdist) if no matching wheel is found.
           if idx < len(platforms) - 1:
             attempt_cmd_args.extend(['--only-binary', ':all:'])
 
