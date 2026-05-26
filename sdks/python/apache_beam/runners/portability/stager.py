@@ -88,6 +88,14 @@ SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
 
+# Ordered list of manylinux tags from newest (strictest) to oldest (most compatible)
+# used for cross-platform binary dependency downloads.
+_MANYLINUX_PLATFORMS = [
+    'manylinux_2_28_x86_64',
+    'manylinux2014_x86_64',  # equivalent to manylinux_2_17
+    'manylinux2010_x86_64',  # equivalent to manylinux_2_12
+]
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -762,15 +770,13 @@ class Stager(object):
       # Download to a temporary directory first, then copy to cache.
       # This allows us to track exactly which packages are needed for this
       # requirements file.
-      download_dir = tempfile.mkdtemp(dir=temp_directory)
+      download_dir = None
 
       cmd_args = [
           Stager._get_python_executable(),
           '-m',
           'pip',
           'download',
-          '--dest',
-          download_dir,
           '--find-links',
           cache_dir,
           '-r',
@@ -781,23 +787,54 @@ class Stager(object):
       ]
 
       if populate_cache_with_sdists:
-        cmd_args.extend(['--no-binary', ':all:'])
+        download_dir = tempfile.mkdtemp(dir=temp_directory)
+        cmd_args.extend(['--dest', download_dir, '--no-binary', ':all:'])
+        _LOGGER.info('Executing command: %s', cmd_args)
+        processes.check_output(cmd_args, stderr=processes.STDOUT)
       else:
         language_implementation_tag = 'cp'
         abi_suffix = 'm' if sys.version_info < (3, 8) else ''
         abi_tag = 'cp%d%d%s' % (
             sys.version_info[0], sys.version_info[1], abi_suffix)
-        platform_tag = Stager._get_platform_for_default_sdk_container()
-        cmd_args.extend([
-            '--implementation',
-            language_implementation_tag,
-            '--abi',
-            abi_tag,
-            '--platform',
-            platform_tag
-        ])
-      _LOGGER.info('Executing command: %s', cmd_args)
-      processes.check_output(cmd_args, stderr=processes.STDOUT)
+        preferred_platform = Stager._get_platform_for_default_sdk_container()
+
+        # Fallback platform tags in case the preferred modern tag is too strict
+        # for some dependencies on PyPI.
+        try:
+          start_idx = _MANYLINUX_PLATFORMS.index(preferred_platform)
+          platforms = _MANYLINUX_PLATFORMS[start_idx:]
+        except ValueError:
+          platforms = [preferred_platform]
+
+        last_exception = None
+        for platform in platforms:
+          attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
+          attempt_cmd_args = cmd_args + [
+              '--dest',
+              attempt_download_dir,
+              '--implementation',
+              language_implementation_tag,
+              '--abi',
+              abi_tag,
+              '--platform',
+              platform
+          ]
+          _LOGGER.info('Executing command: %s', attempt_cmd_args)
+          try:
+            processes.check_output(attempt_cmd_args, stderr=processes.STDOUT)
+            download_dir = attempt_download_dir
+            last_exception = None
+            break
+          except Exception as e:
+            _LOGGER.warning(
+                'Pip download failed with platform %s, trying fallback: %s',
+                platform,
+                e)
+            shutil.rmtree(attempt_download_dir)
+            last_exception = e
+
+        if last_exception:
+          raise last_exception
 
       # Get list of downloaded packages and copy them to the cache
       downloaded_packages = set()
