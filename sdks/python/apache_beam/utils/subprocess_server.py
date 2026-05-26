@@ -118,6 +118,12 @@ class _SharedCache:
         self._cache[key].owners.add(owner)
       return self._cache[key].obj
 
+  def force_remove(self, *key):
+    with self._lock:
+      entry = self._cache.pop(key, None)
+    if entry is not None:
+      self._destructor(entry.obj)
+
 
 class JavaHelper:
   @classmethod
@@ -223,7 +229,7 @@ class SubprocessServer(object):
       return self._stub_class(self._grpc_channel)
     except:  # pylint: disable=bare-except
       _LOGGER.exception("Error bringing up service")
-      self.stop()
+      self.stop_force()
       raise
 
   def start_process(self):
@@ -265,6 +271,20 @@ class SubprocessServer(object):
       finally:
         # Make sure _owner_id is set to None even if purge fails.
         self._owner_id = None
+    if self._grpc_channel:
+      try:
+        self._grpc_channel.close()
+      except:  # pylint: disable=bare-except
+        _LOGGER.error(
+            "Could not close the gRPC channel started with cmd %s", self._cmd)
+      finally:
+        self._grpc_channel = None
+
+  def stop_force(self):
+    try:
+      self._cache.force_remove(tuple(self._cmd), self._port, self._logger)
+    finally:
+      self._owner_id = None
     if self._grpc_channel:
       try:
         self._grpc_channel.close()

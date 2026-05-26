@@ -188,6 +188,7 @@ public class Redistribute {
                       .setWindow(kv.getValue().getWindow())
                       .setPaneInfo(kv.getValue().getPaneInfo())
                       .setCausedByDrain(kv.getValue().getCausedByDrain())
+                      .setValueKind(kv.getValue().getValueKind())
                       .output();
                 }
               }));
