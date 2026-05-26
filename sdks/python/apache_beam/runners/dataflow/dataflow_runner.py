@@ -193,7 +193,9 @@ class DataflowRunner(PipelineRunner):
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
           message = '%s: %s: %s' % (
-              m.time, m.message_importance, m.message_text)
+              m.time,
+              dataflow_api.JobMessageImportance(m.message_importance).name,
+              m.message_text)
 
           if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
@@ -209,7 +211,8 @@ class DataflowRunner(PipelineRunner):
           # Skip empty messages.
           if m.message_importance is None:
             continue
-          message_importance = str(m.message_importance)
+          message_importance = dataflow_api.JobMessageImportance(
+              m.message_importance).name
           if (message_importance == 'JOB_MESSAGE_DEBUG' or
               message_importance == 'JOB_MESSAGE_DETAILED'):
             _LOGGER.debug(message)
