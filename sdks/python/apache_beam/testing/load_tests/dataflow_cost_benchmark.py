@@ -212,7 +212,7 @@ class DataflowCostBenchmark(LoadTest):
           return 0.0
         if active_field == 'money_value':
           money = value.money_value
-          nanos = getattr(money, 'nanos', 0) or 0
+          nanos = getattr(money, 'nanos', 0)
           return float(money.units) + (float(nanos) / 1_000_000_000.0)
       return 0.0
 
