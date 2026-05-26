@@ -141,10 +141,10 @@ tasks.register("installYamlIntegrationTestDeps") {
               "fi && " +
               "if [ -n \"\$constraint_file\" ]; then " +
               "  echo \"Installing with constraint file: \$constraint_file\" && " +
-              "  pip install --pre --retries 10 -c \"\$constraint_file\" \${buildDir}/apache-beam.tar.gz[\$ml_extra,yaml,transformers]; " +
+              "  pip install --pre --retries 10 -c \"\$constraint_file\" ${buildDir}/apache-beam.tar.gz[\$ml_extra,yaml,transformers]; " +
               "else " +
               "  echo \"No constraint file found, installing without constraints\" && " +
-              "  pip install --pre --retries 10 \${buildDir}/apache-beam.tar.gz[\$ml_extra,yaml,transformers]; " +
+              "  pip install --pre --retries 10 ${buildDir}/apache-beam.tar.gz[\$ml_extra,yaml,transformers]; " +
               "fi"
     }
   }
