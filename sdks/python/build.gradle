@@ -131,8 +131,9 @@ tasks.register("installYamlIntegrationTestDeps") {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && " +
               "py_ver=\$(python -c 'import sys; print(f\"{sys.version_info.major}{sys.version_info.minor}\")') && " +
-              "ml_extra=\"ml_test\" && " +
-              "if [ \"\$py_ver\" -ge 313 ]; then ml_extra=\"p\${py_ver}_ml_test\"; fi && " +
+              "ml_extra=\"p310_ml_test\" && " +
+              "if [ \"\$py_ver\" -eq 312 ]; then ml_extra=\"p312_ml_test\"; " +
+              "elif [ \"\$py_ver\" -ge 313 ]; then ml_extra=\"p\${py_ver}_ml_test\"; fi && " +
               "constraint_file=\"\" && " +
               "if [ -f \"container/ml/py\${py_ver}/base_image_requirements.txt\" ]; then " +
               "  constraint_file=\"container/ml/py\${py_ver}/base_image_requirements.txt\"; " +
