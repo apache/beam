@@ -24,6 +24,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTranslator;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -43,6 +44,10 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
+    // Surface a clear error if a required option (e.g. applicationId) is missing instead of
+    // letting Properties.put fail with a raw NullPointerException further down.
+    PipelineOptionsValidator.validate(KafkaStreamsPipelineOptions.class, pipelineOptions);
+
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context =
         translator.createTranslationContext(jobInfo, pipelineOptions);

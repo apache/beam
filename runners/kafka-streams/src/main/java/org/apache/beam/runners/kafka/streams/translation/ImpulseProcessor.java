@@ -21,6 +21,7 @@ import java.time.Duration;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.PunctuationType;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -64,6 +65,7 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
 
   private @Nullable ProcessorContext<byte[], WindowedValue<byte[]>> context;
   private @Nullable KeyValueStore<String, Boolean> firedStore;
+  private @Nullable Cancellable scheduledPunctuator;
 
   ImpulseProcessor(String stateStoreName, String transformId) {
     this.stateStoreName = stateStoreName;
@@ -74,7 +76,8 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
   public void init(ProcessorContext<byte[], WindowedValue<byte[]>> context) {
     this.context = context;
     this.firedStore = context.getStateStore(stateStoreName);
-    context.schedule(PUNCTUATION_DELAY, PunctuationType.WALL_CLOCK_TIME, ts -> maybeFire());
+    this.scheduledPunctuator =
+        context.schedule(PUNCTUATION_DELAY, PunctuationType.WALL_CLOCK_TIME, ts -> maybeFire());
   }
 
   @Override
@@ -91,6 +94,7 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
       return;
     }
     if (Boolean.TRUE.equals(store.get(FIRED_KEY))) {
+      cancelPunctuator();
       return;
     }
     WindowedValue<byte[]> impulse = WindowedValues.valueInGlobalWindow(new byte[0]);
@@ -103,6 +107,16 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
     // WindowedValue and is what downstream Beam logic must consult.
     ctx.forward(new Record<byte[], WindowedValue<byte[]>>(new byte[0], impulse, 0L));
     store.put(FIRED_KEY, Boolean.TRUE);
+    cancelPunctuator();
     LOG.debug("Impulse {} emitted single element", transformId);
+  }
+
+  /** Cancels the wall-clock punctuator after the impulse has fired to stop periodic wakeups. */
+  private void cancelPunctuator() {
+    Cancellable handle = scheduledPunctuator;
+    if (handle != null) {
+      handle.cancel();
+      scheduledPunctuator = null;
+    }
   }
 }

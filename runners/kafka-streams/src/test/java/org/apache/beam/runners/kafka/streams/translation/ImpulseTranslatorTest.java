@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -110,7 +111,7 @@ public class ImpulseTranslatorTest {
   private static class CapturingProcessor
       implements ProcessorSupplier<byte[], WindowedValue<byte[]>, byte[], WindowedValue<byte[]>> {
 
-    final List<WindowedValue<byte[]>> received = new ArrayList<>();
+    final List<WindowedValue<byte[]>> received = Collections.synchronizedList(new ArrayList<>());
 
     @Override
     public Processor<byte[], WindowedValue<byte[]>, byte[], WindowedValue<byte[]>> get() {

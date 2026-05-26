@@ -42,6 +42,7 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
 
   private final KafkaStreams kafkaStreams;
   private final CountDownLatch terminated = new CountDownLatch(1);
+  private volatile boolean cancelled = false;
 
   KafkaStreamsPortablePipelineResult(KafkaStreams kafkaStreams) {
     this.kafkaStreams = kafkaStreams;
@@ -51,15 +52,26 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
             terminated.countDown();
           }
         });
+    // Guard against the race where the KafkaStreams instance transitions to a terminal state
+    // (e.g. immediate startup failure) before the state listener is registered above. Without
+    // this check, the latch would never be counted down and waitUntilFinish() would block forever.
+    KafkaStreams.State current = kafkaStreams.state();
+    if (current == KafkaStreams.State.NOT_RUNNING || current == KafkaStreams.State.ERROR) {
+      terminated.countDown();
+    }
   }
 
   @Override
   public State getState() {
+    if (cancelled) {
+      return State.CANCELLED;
+    }
     return mapState(kafkaStreams.state());
   }
 
   @Override
   public State cancel() throws IOException {
+    cancelled = true;
     kafkaStreams.close();
     terminated.countDown();
     return getState();
