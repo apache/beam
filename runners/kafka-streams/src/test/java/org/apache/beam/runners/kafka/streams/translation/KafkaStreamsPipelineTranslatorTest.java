@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -27,18 +28,14 @@ import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.kafka.streams.TopologyDescription;
 import org.junit.Test;
 
-/**
- * Tests for {@link KafkaStreamsPipelineTranslator}.
- *
- * <p>The skeleton translator does not yet handle any transforms; these tests pin the current
- * "fail-fast with a clear URN" contract so that follow-up sub-issues can replace the assertions as
- * real translators are added.
- */
+/** Tests for {@link KafkaStreamsPipelineTranslator}. */
 public class KafkaStreamsPipelineTranslatorTest {
 
   private static final String JOB_ID = "kafka-streams-test-job";
+  private static final String OUTPUT_PCOLLECTION_ID = "impulse.out";
 
   @Test
   public void translateRejectsUnknownTransformWithUrnInMessage() {
@@ -47,15 +44,16 @@ public class KafkaStreamsPipelineTranslatorTest {
 
     RunnerApi.Pipeline pipeline =
         RunnerApi.Pipeline.newBuilder()
+            .addRootTransformIds("gbk")
             .setComponents(
                 RunnerApi.Components.newBuilder()
                     .putTransforms(
-                        "impulse",
+                        "gbk",
                         RunnerApi.PTransform.newBuilder()
-                            .setUniqueName("Impulse")
+                            .setUniqueName("GroupByKey")
                             .setSpec(
                                 RunnerApi.FunctionSpec.newBuilder()
-                                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
+                                    .setUrn(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN))
                             .build()))
             .build();
 
@@ -65,33 +63,31 @@ public class KafkaStreamsPipelineTranslatorTest {
             () -> translator.translate(context, translator.prepareForTranslation(pipeline)));
 
     assertThat(ex.getMessage(), containsString("No translator registered for URN"));
-    assertThat(ex.getMessage(), containsString(PTransformTranslation.IMPULSE_TRANSFORM_URN));
+    assertThat(ex.getMessage(), containsString(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN));
+    assertThat(ex.getMessage(), containsString("gbk"));
     assertThat(ex.getMessage(), containsString(JOB_ID));
   }
 
   @Test
-  public void translateRejectsEmptyPipeline() {
+  public void translateImpulsePipelineAddsSourceAndProcessorNodes() {
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context = newContext();
 
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(RunnerApi.Components.newBuilder().build())
-            .build();
+    RunnerApi.Pipeline pipeline = singleImpulsePipeline();
+    translator.translate(context, translator.prepareForTranslation(pipeline));
 
-    UnsupportedOperationException ex =
-        assertThrows(
-            UnsupportedOperationException.class,
-            () -> translator.translate(context, translator.prepareForTranslation(pipeline)));
+    TopologyDescription description = context.getTopology().describe();
+    String describeText = description.toString();
 
-    assertThat(ex.getMessage(), containsString("No translator registered"));
+    assertThat(describeText, containsString("impulse-source"));
+    assertThat(describeText, containsString("impulse"));
+    assertThat(context.getProcessorNameForPCollection(OUTPUT_PCOLLECTION_ID), is("impulse"));
   }
 
   @Test
   public void createTranslationContextExposesJobInfoAndOptions() {
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
-    KafkaStreamsPipelineOptions options =
-        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+    KafkaStreamsPipelineOptions options = testOptions();
     JobInfo jobInfo =
         JobInfo.create(
             JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
@@ -102,12 +98,37 @@ public class KafkaStreamsPipelineTranslatorTest {
     assertThat(context.getPipelineOptions().getBootstrapServers(), containsString("localhost"));
   }
 
-  private static KafkaStreamsTranslationContext newContext() {
-    KafkaStreamsPipelineOptions options =
-        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+  static RunnerApi.Pipeline singleImpulsePipeline() {
+    return RunnerApi.Pipeline.newBuilder()
+        .addRootTransformIds("impulse")
+        .setComponents(
+            RunnerApi.Components.newBuilder()
+                .putTransforms(
+                    "impulse",
+                    RunnerApi.PTransform.newBuilder()
+                        .setUniqueName("Impulse")
+                        .putOutputs("out", OUTPUT_PCOLLECTION_ID)
+                        .setSpec(
+                            RunnerApi.FunctionSpec.newBuilder()
+                                .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
+                        .build())
+                .putPcollections(
+                    OUTPUT_PCOLLECTION_ID,
+                    RunnerApi.PCollection.newBuilder().setUniqueName(OUTPUT_PCOLLECTION_ID).build())
+                .build())
+        .build();
+  }
+
+  static KafkaStreamsTranslationContext newContext() {
+    KafkaStreamsPipelineOptions options = testOptions();
     JobInfo jobInfo =
         JobInfo.create(
             JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
     return KafkaStreamsTranslationContext.create(jobInfo, options);
+  }
+
+  static KafkaStreamsPipelineOptions testOptions() {
+    return PipelineOptionsFactory.fromArgs("--applicationId=ks-translator-test")
+        .as(KafkaStreamsPipelineOptions.class);
   }
 }
