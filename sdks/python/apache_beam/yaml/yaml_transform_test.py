@@ -287,7 +287,7 @@ class YamlTransformE2ETest(unittest.TestCase):
       output_shard = all_output[0]
       result = pd.read_json(
           output_shard, orient='records',
-          lines=True).sort_values('rank').reindex()
+          lines=True).sort_values('rank').reset_index(drop=True)
       pd.testing.assert_frame_equal(data, result)
 
   def test_circular_reference_validation(self):
