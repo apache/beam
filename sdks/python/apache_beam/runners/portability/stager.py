@@ -770,51 +770,7 @@ class Stager(object):
         _LOGGER.info('Executing command: %s', cmd_args)
         processes.check_output(cmd_args, stderr=processes.STDOUT)
       else:
-        language_implementation_tag = 'cp'
-        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-        abi_tag = 'cp%d%d%s' % (
-            sys.version_info[0], sys.version_info[1], abi_suffix)
-        pip_version = distribution('pip').version
-        platforms = [
-            platform for platform, min_pip_version in _MANYLINUX_PLATFORMS
-            if version.parse(pip_version) >= version.parse(min_pip_version)
-        ]
-
-        last_exception = None
-        for idx, platform in enumerate(platforms):
-          attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
-          attempt_cmd_args = cmd_args + [
-              '--dest',
-              attempt_download_dir,
-              '--implementation',
-              language_implementation_tag,
-              '--abi',
-              abi_tag,
-              '--platform',
-              platform
-          ]
-          # Force binary wheel only if we have more platform fallbacks to try.
-          # For the last platform, we omit this flag so it can natively fall back
-          # to downloading a source distribution (sdist) if no matching wheel is found.
-          if idx < len(platforms) - 1:
-            attempt_cmd_args.extend(['--only-binary', ':all:'])
-
-          _LOGGER.info('Executing command: %s', attempt_cmd_args)
-          try:
-            processes.check_output(attempt_cmd_args, stderr=processes.STDOUT)
-            download_dir = attempt_download_dir
-            last_exception = None
-            break
-          except Exception as e:
-            _LOGGER.warning(
-                'Pip download failed with platform %s, trying fallback: %s',
-                platform,
-                e)
-            shutil.rmtree(attempt_download_dir)
-            last_exception = e
-
-        if last_exception:
-          raise last_exception
+        download_dir = Stager._download_pypi_packages(cmd_args, temp_directory)
 
       # Get list of downloaded packages and copy them to the cache
       downloaded_packages = set()
@@ -827,6 +783,53 @@ class Stager(object):
           shutil.copy2(src_path, dest_path)
 
       return downloaded_packages
+
+  @staticmethod
+  def _download_pypi_packages(cmd_args, temp_directory):
+    language_implementation_tag = 'cp'
+    abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+    abi_tag = 'cp%d%d%s' % (
+        sys.version_info[0], sys.version_info[1], abi_suffix)
+    pip_version = distribution('pip').version
+    platforms = [
+        platform for platform, min_pip_version in _MANYLINUX_PLATFORMS
+        if version.parse(pip_version) >= version.parse(min_pip_version)
+    ]
+
+    last_exception = None
+    for idx, platform in enumerate(platforms):
+      attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
+      attempt_cmd_args = cmd_args + [
+          '--dest',
+          attempt_download_dir,
+          '--implementation',
+          language_implementation_tag,
+          '--abi',
+          abi_tag,
+          '--platform',
+          platform
+      ]
+      # Force binary wheel only if we have more platform fallbacks to try.
+      # For the last platform, we omit this flag so it can natively fall back
+      # to downloading a source distribution (sdist) if no matching wheel is found.
+      if idx < len(platforms) - 1:
+        attempt_cmd_args.extend(['--only-binary', ':all:'])
+
+      _LOGGER.info('Executing command: %s', attempt_cmd_args)
+      try:
+        processes.check_output(attempt_cmd_args, stderr=processes.STDOUT)
+        last_exception = None
+        return attempt_download_dir
+      except Exception as e:
+        _LOGGER.warning(
+            'Pip download failed with platform %s, trying fallback: %s',
+            platform,
+            e)
+        shutil.rmtree(attempt_download_dir)
+        last_exception = e
+
+    if last_exception:
+      raise last_exception
 
   @staticmethod
   def _build_setup_package(
