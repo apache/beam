@@ -207,8 +207,9 @@ progress:
 			return context.Cause(ctx)
 		case resp = <-b.Resp:
 			bundleFinished = true
-			if b.BundleErr != nil {
-				return b.BundleErr
+			if err := b.GetErr(); err != nil {
+				slog.Error("stage.Execute aborting due to bundle error", "stage", s.ID, "bundle", rb.BundleID)
+				return err
 			}
 			if dataFinished && bundleFinished {
 				break progress // exit progress loop on close.
@@ -240,10 +241,16 @@ progress:
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
-					if b.BundleErr != nil {
-						b.BundleErr = err
+					// Safely set the split error if no primary bundle error has been set yet.
+					// Both SetErr and GetErr are synchronized under the same mutex, guaranteeing
+					// no memory races occur. The write-read inconsistency is explicitly guarded
+					// by the nil/null check inside SetErr(): if a concurrent primary error (e.g.,
+					// worker crash) was set first, it will not be overwritten and b.GetErr() will
+					// correctly preserve and return it instead of the secondary split error.
+					if !b.SetErr(err) {
+						slog.Debug("Error for bundle already set, logging dropped split error", "bundle", rb, "error", err)
 					}
-					return b.BundleErr
+					return b.GetErr()
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)

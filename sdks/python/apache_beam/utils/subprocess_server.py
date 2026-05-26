@@ -78,20 +78,25 @@ class _SharedCache:
     self._counter = 0
 
   def _next_id(self):
-    with self._lock:
-      self._counter += 1
-      return self._counter
+    # Caller must hold self._lock.
+    self._counter += 1
+    return self._counter
 
   def register(self):
-    owner = self._next_id()
-    self._live_owners.add(owner)
+    with self._lock:
+      owner = self._next_id()
+      self._live_owners.add(owner)
     return owner
 
   def purge(self, owner):
     to_delete = []
     with self._lock:
       if owner not in self._live_owners:
-        raise ValueError(f"{owner} not in {self._live_owners}")
+        _LOGGER.warning(
+            "Subprocess owner %s already purged. If this occurs during atexit "
+            "shutdown, the subprocess was already cleaned up earlier.",
+            owner)
+        return
       self._live_owners.remove(owner)
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
@@ -112,6 +117,12 @@ class _SharedCache:
       for owner in self._live_owners:
         self._cache[key].owners.add(owner)
       return self._cache[key].obj
+
+  def force_remove(self, *key):
+    with self._lock:
+      entry = self._cache.pop(key, None)
+    if entry is not None:
+      self._destructor(entry.obj)
 
 
 class JavaHelper:
@@ -218,7 +229,7 @@ class SubprocessServer(object):
       return self._stub_class(self._grpc_channel)
     except:  # pylint: disable=bare-except
       _LOGGER.exception("Error bringing up service")
-      self.stop()
+      self.stop_force()
       raise
 
   def start_process(self):
@@ -260,6 +271,20 @@ class SubprocessServer(object):
       finally:
         # Make sure _owner_id is set to None even if purge fails.
         self._owner_id = None
+    if self._grpc_channel:
+      try:
+        self._grpc_channel.close()
+      except:  # pylint: disable=bare-except
+        _LOGGER.error(
+            "Could not close the gRPC channel started with cmd %s", self._cmd)
+      finally:
+        self._grpc_channel = None
+
+  def stop_force(self):
+    try:
+      self._cache.force_remove(tuple(self._cmd), self._port, self._logger)
+    finally:
+      self._owner_id = None
     if self._grpc_channel:
       try:
         self._grpc_channel.close()

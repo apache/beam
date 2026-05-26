@@ -71,6 +71,8 @@ public abstract class ValueInSingleWindow<T> {
 
   public abstract @Nullable Context getOpenTelemetryContext();
 
+  public abstract ValueKind getValueKind();
+
   // todo #33176 specify additional metadata in the future
   public static <T> ValueInSingleWindow<T> of(
       T value,
@@ -81,6 +83,28 @@ public abstract class ValueInSingleWindow<T> {
       @Nullable Long currentRecordOffset,
       CausedByDrain causedByDrain,
       @Nullable Context openTelemetryContext) {
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        currentRecordId,
+        currentRecordOffset,
+        causedByDrain,
+        openTelemetryContext,
+        ValueKind.INSERT);
+  }
+
+  public static <T> ValueInSingleWindow<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable String currentRecordId,
+      @Nullable Long currentRecordOffset,
+      CausedByDrain causedByDrain,
+      @Nullable Context openTelemetryContext,
+      ValueKind valueKind) {
     return new AutoValue_ValueInSingleWindow<>(
         value,
         timestamp,
@@ -89,12 +113,22 @@ public abstract class ValueInSingleWindow<T> {
         currentRecordId,
         currentRecordOffset,
         causedByDrain,
-        openTelemetryContext);
+        openTelemetryContext,
+        valueKind);
   }
 
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return of(value, timestamp, window, paneInfo, null, null, CausedByDrain.NORMAL, null);
+    return of(
+        value,
+        timestamp,
+        window,
+        paneInfo,
+        null,
+        null,
+        CausedByDrain.NORMAL,
+        null,
+        ValueKind.INSERT);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -144,9 +178,9 @@ public abstract class ValueInSingleWindow<T> {
         io.opentelemetry.context.Context openTelemetryContext =
             windowedElem.getOpenTelemetryContext();
         if (openTelemetryContext != null) {
-
           OpenTelemetryContextPropagator.set(openTelemetryContext, builder);
         }
+        builder.setValueKind(ValueKindUtil.toProto(windowedElem.getValueKind()));
         BeamFnApi.Elements.ElementMetadata metadata = builder.build();
         ByteArrayCoder.of().encode(metadata.toByteArray(), outStream);
       }
@@ -168,6 +202,7 @@ public abstract class ValueInSingleWindow<T> {
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       CausedByDrain causedByDrain = CausedByDrain.NORMAL;
       io.opentelemetry.context.@Nullable Context openTelemetryContext = null;
+      ValueKind valueKind = ValueKind.INSERT;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported() && paneInfo.isElementMetadata()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             BeamFnApi.Elements.ElementMetadata.parseFrom(ByteArrayCoder.of().decode(inStream));
@@ -176,12 +211,21 @@ public abstract class ValueInSingleWindow<T> {
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
         openTelemetryContext = OpenTelemetryContextPropagator.read(elementMetadata);
+        valueKind = ValueKindUtil.fromProto(elementMetadata.getValueKind());
       }
 
       T value = valueCoder.decode(inStream, context);
       // todo #33176 specify additional metadata in the future
       return new AutoValue_ValueInSingleWindow<>(
-          value, timestamp, window, paneInfo, null, null, causedByDrain, openTelemetryContext);
+          value,
+          timestamp,
+          window,
+          paneInfo,
+          null,
+          null,
+          causedByDrain,
+          openTelemetryContext,
+          valueKind);
     }
 
     @Override
