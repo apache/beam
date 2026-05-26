@@ -109,14 +109,15 @@ class _SharedCache:
       self._destructor(value)
 
   def get(self, *key, owner=None):
-    if not self._live_owners:
-      raise RuntimeError("At least one owner must be registered.")
     with self._lock:
+      if not self._live_owners:
+        raise RuntimeError("At least one owner must be registered.")
+      if owner is not None and owner not in self._live_owners:
+        raise RuntimeError("The requesting owner must be registered.")
+
       if key not in self._cache:
         self._cache[key] = _SharedCacheEntry(self._constructor(*key), set())
       if owner is not None:
-        if owner not in self._live_owners:
-          raise RuntimeError("The requesting owner must be registered.")
         self._cache[key].owners.add(owner)
         for live_owner, is_context in self._live_owners.items():
           if is_context:
