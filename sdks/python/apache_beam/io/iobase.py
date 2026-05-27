@@ -1005,7 +1005,7 @@ class Read(ptransform.PTransform):
     if isinstance(self.source, (BoundedSource, UnboundedSource)):
       # READ.urn covers both source flavours; the IsBounded enum distinguishes
       # them. NB: today the bundle_processor.py IMPULSE_READ_TRANSFORM handler
-      # only consumes BOUNDED — the UNBOUNDED branch round-trips correctly
+      # only consumes BOUNDED - the UNBOUNDED branch round-trips correctly
       # through the protobuf graph but execution still flows through this
       # composite's expanded sub-transforms (Impulse | Map | SDF-ParDo), not
       # through the URN-handler. Runner-side UNBOUNDED dispatch is W2 work.

@@ -48,8 +48,9 @@ Out of scope for this PoC (tracked under #19137):
   * Backlog-byte reporting (``restriction_size`` is a constant 1; per-restriction
     progress is binary 0.0 / 1.0).
   * Dynamic split fractions / runner-initiated work stealing.
-  * Initial fan-out: ``RestrictionProvider.split`` ignores ``desired_num_splits``
-    and yields a single restriction.
+  * Initial fan-out uses a fixed default split count (20), matching Java's
+    wrapper default. There is no public Python SDF hook to pass a runner-chosen
+    desired split count yet.
   * Source-specific checkpoint coders threaded through the SDF restriction coder
     (the restriction coder always pickles checkpoint marks via the source's
     ``get_checkpoint_mark_coder`` captured once at ``expand()`` time, but no
@@ -103,6 +104,7 @@ _LOGGER = logging.getLogger(__name__)
 _NO_DATA = object()
 
 _DEFAULT_POLL_INTERVAL_SECONDS = 1.0
+_DEFAULT_DESIRED_NUM_SPLITS = 20
 
 # ------------------------------------------------------------------------------
 # Public abstract base classes (Java semantics, Python names). Following the
@@ -202,9 +204,10 @@ class UnboundedSource(iobase.SourceBase):
     Each returned sub-source MUST be independent and MUST NOT share mutable
     state with siblings (the runner may execute them concurrently across
     workers). Mirrors Java's ``UnboundedSource.split``. Note that the current
-    ``ReadFromUnboundedSource`` PoC ignores ``desired_num_splits`` -- this
-    method is the public API but is dead code from the SDF wrapper's
-    perspective until W2.
+    ``ReadFromUnboundedSource`` calls this during initial SDF splitting with a
+    fixed default desired split count. Dynamic re-splitting of the source itself
+    remains out of scope; once a checkpoint exists the wrapper keeps that
+    restriction intact.
     """
     raise NotImplementedError
 
@@ -242,9 +245,8 @@ class UnboundedSource(iobase.SourceBase):
 
   def default_output_coder(self) -> Coder:
     # Permissive default, matching BoundedSource (iobase.py). Override for a
-    # tighter coder. Not wired into ReadFromUnboundedSource in this PoC --
-    # this method is kept as a forward-compat hook so subclasses written
-    # against the API today will Just Work when wiring lands in W2.
+    # tighter coder. ReadFromUnboundedSource uses this coder when inferring the
+    # output PCollection type/coder.
     return coders.registry.get_coder(object)
 
 
@@ -556,11 +558,33 @@ class _UnboundedSourceRestrictionProvider(core.RestrictionProvider):
 
   def split(self, element,
             restriction) -> Iterable[_UnboundedSourceRestriction]:
-    # Minimal PoC: no initial fan-out. ``desired_num_splits`` is *not* honored
-    # and ``UnboundedSource.split(desired_num_splits, options)`` is currently
-    # dead code from this provider's perspective. Real splitting (one
-    # restriction per sub-source, e.g. one per Kafka partition) is W2 work.
-    yield restriction
+    if restriction.is_done or restriction.checkpoint_mark is not None:
+      yield restriction
+      return
+
+    try:
+      split_sources = list(
+          restriction.source.split(_DEFAULT_DESIRED_NUM_SPLITS, self._options))
+      if not split_sources:
+        yield restriction
+        return
+      for split_source in split_sources:
+        if not isinstance(split_source, UnboundedSource):
+          raise TypeError(
+              'UnboundedSource.split() produced %r, expected UnboundedSource' %
+              (split_source, ))
+      for split_source in split_sources:
+        yield dataclasses.replace(
+            restriction,
+            source=split_source,
+            checkpoint_mark=None,
+            is_done=False,
+            finalization_checkpoint_mark=None)
+    except Exception:  # pylint: disable=broad-except
+      _LOGGER.warning(
+          'Exception while splitting UnboundedSource. Source not split.',
+          exc_info=True)
+      yield restriction
 
   def restriction_size(self, element, restriction) -> int:
     # Backlog estimation is out of scope; report a constant non-negative size.
@@ -619,6 +643,7 @@ class ReadFromUnboundedSource(PTransform):
   def expand(self, pbegin):
     source = self._source
     poll_interval_seconds = self._poll_interval_seconds
+    output_coder = source.default_output_coder()
     provider = _UnboundedSourceRestrictionProvider(
         checkpoint_mark_coder=source.get_checkpoint_mark_coder())
 
@@ -705,8 +730,16 @@ class ReadFromUnboundedSource(PTransform):
                 'close on exception path skipped, relying on GC. Beam SDF '
                 'wrapper internals may have changed -- file an issue.')
 
-    return (
+    output = (
         pbegin
         | 'Impulse' >> Impulse()
         | 'EmitSource' >> core.Map(lambda _: source)
         | 'ReadUnbounded' >> core.ParDo(_ReadFromUnboundedSourceDoFn()))
+    try:
+      output.element_type = output_coder.to_type_hint()
+    except NotImplementedError:
+      pass
+    return output
+
+  def _infer_output_coder(self, input_type=None, input_coder=None):
+    return self._source.default_output_coder()
