@@ -49,6 +49,7 @@ from datetime import datetime
 from datetime import timezone
 
 from google.api_core import exceptions
+from google.api_core import client_options as client_options_lib
 from google.cloud import dataflow
 from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Struct
@@ -505,15 +506,29 @@ class DataflowApplicationClient(object):
       credentials = None
     else:
       credentials = get_service_credentials(options)
-      if credentials is None:
-        raise ValueError('Unable to find default credentials.')
-      credentials = credentials.get_google_auth_credentials()
 
-    self._jobs_client = dataflow.JobsV1Beta3Client(credentials=credentials)
+    client_options = None
+    transport = None
+    if self.google_cloud_options.dataflow_endpoint:
+      endpoint = self.google_cloud_options.dataflow_endpoint
+      if 'localhost' in endpoint:
+        transport = 'rest'
+      else:
+        endpoint = re.sub('^https?://', '', endpoint)
+      client_options = client_options_lib.ClientOptions(api_endpoint=endpoint)
+
+    self._jobs_client = dataflow.JobsV1Beta3Client(
+        credentials=credentials,
+        client_options=client_options,
+        transport=transport)
     self._messages_client = dataflow.MessagesV1Beta3Client(
-        credentials=credentials)
+        credentials=credentials,
+        client_options=client_options,
+        transport=transport)
     self._metrics_client = dataflow.MetricsV1Beta3Client(
-        credentials=credentials)
+        credentials=credentials,
+        client_options=client_options,
+        transport=transport)
     self._storage_client = create_storage_client(
         options, not self.google_cloud_options.no_auth)
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
