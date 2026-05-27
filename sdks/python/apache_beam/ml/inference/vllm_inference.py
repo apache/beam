@@ -156,6 +156,7 @@ class _VLLMModelServer():
     self._server_process = None
     self._dynamo_process = None
     self._etcd_process = None
+    self._etcd_data_dir: Optional[str] = None
     self._managed_etcd_endpoint = None
     self._server_port: int = -1
     self._server_process_lock = threading.RLock()
@@ -167,12 +168,18 @@ class _VLLMModelServer():
   def _stop_process(process: Optional[subprocess.Popen]) -> None:
     if process is None or process.poll() is not None:
       return
-    process.terminate()
+    # A process may exit between poll() and terminate() / kill(), in which
+    # case the OS raises ProcessLookupError (or another OSError). Treat that
+    # as already-stopped so we don't bail out of the broader cleanup.
     try:
-      process.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-      process.kill()
-      process.wait()
+      process.terminate()
+      try:
+        process.wait(timeout=10)
+      except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+    except OSError:
+      pass
 
   def _stop_processes(self) -> None:
     self._stop_process(self._dynamo_process)
@@ -180,7 +187,10 @@ class _VLLMModelServer():
     self._stop_process(self._etcd_process)
     if (self._managed_etcd_endpoint is not None and
         os.environ.get('ETCD_ENDPOINTS') == self._managed_etcd_endpoint):
-      del os.environ['ETCD_ENDPOINTS']
+      os.environ.pop('ETCD_ENDPOINTS', None)
+    if self._etcd_data_dir is not None:
+      shutil.rmtree(self._etcd_data_dir, ignore_errors=True)
+      self._etcd_data_dir = None
     self._dynamo_process = None
     self._server_process = None
     self._etcd_process = None
@@ -201,7 +211,13 @@ class _VLLMModelServer():
     return ', '.join(process_status) or 'no process status available'
 
   def __del__(self):
-    self._stop_processes()
+    # __del__ may run during interpreter shutdown when module globals can
+    # already be torn down; swallow any cleanup failures so we don't print
+    # a noisy traceback.
+    try:
+      self._stop_processes()
+    except Exception:  # pylint: disable=broad-except
+      pass
 
   def _uses_embedded_etcd(self) -> bool:
     return (
@@ -238,7 +254,7 @@ class _VLLMModelServer():
           "to an external etcd service.")
 
     etcd_name = f'beam-dynamo-etcd-{uuid.uuid4().hex}'
-    etcd_data_dir = f'/tmp/{etcd_name}'
+    self._etcd_data_dir = f'/tmp/{etcd_name}'
     peer_port, = subprocess_server.pick_port(None)
     etcd_cmd = [
         'etcd',
@@ -255,7 +271,7 @@ class _VLLMModelServer():
         '--initial-cluster',
         f'{etcd_name}=http://127.0.0.1:{peer_port}',
         '--data-dir',
-        etcd_data_dir,
+        self._etcd_data_dir,
         '--log-level',
         'warn',
     ]
@@ -318,7 +334,8 @@ class _VLLMModelServer():
       while (time.time() - start_time < timeout_secs and
              self._server_process.poll() is None and
              (self._dynamo_process is None or
-              self._dynamo_process.poll() is None)):
+              self._dynamo_process.poll() is None) and
+             (self._etcd_process is None or self._etcd_process.poll() is None)):
         try:
           models = client.models.list().data
           logging.info('models: %s' % models)
