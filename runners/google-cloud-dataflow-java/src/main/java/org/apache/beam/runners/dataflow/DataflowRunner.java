@@ -1254,7 +1254,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
     }
     if (useUnifiedWorker(options)) {
-        if (hasExperiment(options, "disable_runner_v2")
+      if (hasExperiment(options, "disable_runner_v2")
           || hasExperiment(options, "disable_runner_v2_until_2023")
           || hasExperiment(options, "disable_prime_runner_v2")
           || hasExperiment(options, "disable_portable_runner")
@@ -1374,10 +1374,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     options.as(SdkHarnessOptions.class).setPipelineProtoHash(pipelineProtoHash);
 
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping Dataflow Streaming Java Runner transform replacements since job will run on Dataflow Portable Runner.");
+      LOG.info(
+          "Skipping Dataflow Streaming Java Runner transform replacements since job will run on Dataflow Portable Runner.");
     } else {
-      // Now rewrite things to be as needed for Dataflow Streaming Java Runner (mutates the pipeline)
-      // This way the job submitted is valid for Dataflow Streaming Java Runner and Dataflow Portable Runner, simultaneously
+      // Now rewrite things to be as needed for Dataflow Streaming Java Runner (mutates the
+      // pipeline)
+      // This way the job submitted is valid for Dataflow Streaming Java Runner and Dataflow
+      // Portable Runner, simultaneously
       replaceV1Transforms(pipeline);
     }
     // Capture the SdkComponents for look up during step translations

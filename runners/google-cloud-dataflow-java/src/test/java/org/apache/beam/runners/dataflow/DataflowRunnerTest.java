@@ -1847,7 +1847,10 @@ public class DataflowRunnerTest implements Serializable {
         ExperimentalOptions.addExperiment(options, disabledExperiment);
         Pipeline p = Pipeline.create(options);
         p.apply(Create.of("A"));
-        assertThrows("Dataflow Portable Runner both disabled and enabled", IllegalArgumentException.class, p::run);
+        assertThrows(
+            "Dataflow Portable Runner both disabled and enabled",
+            IllegalArgumentException.class,
+            p::run);
       }
     }
   }
