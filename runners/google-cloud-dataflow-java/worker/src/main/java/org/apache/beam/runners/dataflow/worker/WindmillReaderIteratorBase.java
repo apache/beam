@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
+  private final StreamingModeExecutionContext context;
   private final Windmill.WorkItem work;
   private int bundleIndex = 0;
   private int messageIndex = -1;
@@ -42,9 +43,10 @@ public abstract class WindmillReaderIteratorBase<T>
   private static final Logger LOG = LoggerFactory.getLogger(WindmillReaderIteratorBase.class);
 
   protected WindmillReaderIteratorBase(
-      Windmill.WorkItem work, ValueProvider<Boolean> skipUndecodableElements) {
+      StreamingModeExecutionContext context, ValueProvider<Boolean> skipUndecodableElements) {
+    this.context = context;
     this.skipUndecodableElements = skipUndecodableElements;
-    this.work = work;
+    this.work = context.getWorkItem();
   }
 
   @Override
@@ -54,9 +56,14 @@ public abstract class WindmillReaderIteratorBase<T>
 
   @Override
   public boolean advance() throws IOException {
+    if (context.workIsFailed()) {
+      throw new WorkItemCancelledException(context.getWorkItem().getShardingKey());
+    }
+
     while (true) {
       if (bundleIndex >= work.getMessageBundlesCount()) {
         current = null;
+        context.finishKey();
         return false;
       }
       Windmill.InputMessageBundle bundle = work.getMessageBundles(bundleIndex);

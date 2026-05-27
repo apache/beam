@@ -104,6 +104,7 @@ public class ParDoOperationTest {
     parDoOperation.process("");
     parDoOperation.process("bob");
 
+    parDoOperation.finishKey();
     parDoOperation.finish();
 
     parDoOperation.abort();
@@ -147,6 +148,7 @@ public class ParDoOperationTest {
 
     operation.start();
     operation.process("hello");
+    operation.finishKey();
     operation.finish();
 
     InOrder inOrder =
