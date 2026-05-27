@@ -218,5 +218,4 @@ public class SolaceIOIT {
       c.output(record);
     }
   }
-
 }
