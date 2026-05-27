@@ -20,8 +20,8 @@ on:
     - cron: "0 0 * * 0" # Weekly on Sundays at 00:00 UTC
   workflow_dispatch:
   push:
-  branches:
-    - 20260527_createBOMWorkflow
+    branches:
+      - 20260527_createBOMWorkflow
 
 permissions:
   contents: write
