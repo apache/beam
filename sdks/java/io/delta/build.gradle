@@ -23,10 +23,6 @@ applyJavaNature(
     requireJavaVersion: JavaVersion.VERSION_17,
 )
 
-tasks.withType(JavaCompile) {
-    options.errorprone.enabled = false
-}
-
 description = "Apache Beam :: SDKs :: Java :: IO :: Delta Lake"
 ext.summary = "Integration with Delta Lake."
 
@@ -45,7 +41,7 @@ dependencies {
 
     implementation library.java.hadoop_common
     implementation library.java.joda_time
-    implementation library.java.slf4j_api
+    // implementation library.java.slf4j_api
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
 

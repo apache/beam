@@ -60,8 +60,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.Row;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A Splittable DoFn that processes {@link DeltaReadTask} elements, performs logical reads, and
@@ -70,27 +68,46 @@ import org.slf4j.LoggerFactory;
 @DoFn.BoundedPerElement
 class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
   @Nullable Map<String, String> hadoopConfig;
-  private @Nullable Engine engine;
+  private transient @Nullable Engine engine;
+  private transient @Nullable Configuration conf;
 
-  private static final Logger LOG = LoggerFactory.getLogger(DeltaSourceDoFn.class);
+  private transient @Nullable DeltaReadTask cachedTask;
+  private transient @Nullable List<Long> cachedRowGroupSizes;
+  private transient @Nullable List<Long> cachedBlockCountsPerFile;
 
   public DeltaSourceDoFn(@Nullable Map<String, String> hadoopConfig) {
     this.hadoopConfig = hadoopConfig;
   }
 
-  private Configuration getConfiguration() {
-    Configuration conf = new Configuration();
-    if (hadoopConfig != null) {
-      for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
-        conf.set(entry.getKey(), entry.getValue());
+  private synchronized Configuration getConfiguration() {
+    Configuration localConf = conf;
+    if (localConf == null) {
+      localConf = new Configuration();
+      if (hadoopConfig != null) {
+        for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+          localConf.set(entry.getKey(), entry.getValue());
+        }
       }
+      conf = localConf;
     }
-    return conf;
+    return localConf;
+  }
+
+  private synchronized @Nullable List<Long> getCachedBlockCounts(DeltaReadTask task) {
+    if (task.equals(cachedTask)) {
+      return cachedBlockCountsPerFile;
+    }
+    return null;
   }
 
   // Returns the sizes of the row groups for a given DeltaReadTask.
-  private List<Long> getRowGroupSizes(DeltaReadTask task) {
+  private synchronized List<Long> getRowGroupSizes(DeltaReadTask task) {
+    if (task.equals(cachedTask) && cachedRowGroupSizes != null) {
+      return cachedRowGroupSizes;
+    }
+
     List<Long> sizes = new ArrayList<>();
+    List<Long> blockCounts = new ArrayList<>();
     Configuration conf = getConfiguration();
     for (SerializableRow scanFileRow : task.getScanFileRows()) {
       String pathStr = InternalScanFileUtils.getAddFileStatus(scanFileRow).getPath();
@@ -101,13 +118,19 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
                 conf,
                 hadoopPath,
                 org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
+        long blocksInFile = metadata.getBlocks().size();
         for (org.apache.parquet.hadoop.metadata.BlockMetaData block : metadata.getBlocks()) {
           sizes.add(block.getTotalByteSize());
         }
+        blockCounts.add(blocksInFile);
       } catch (java.io.IOException e) {
         throw new RuntimeException("Failed to read Parquet footer for " + pathStr, e);
       }
     }
+
+    cachedTask = task;
+    cachedRowGroupSizes = sizes;
+    cachedBlockCountsPerFile = blockCounts;
     return sizes;
   }
 
@@ -159,55 +182,62 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
     // We have to go through files in the `DeltaReadTask` in order so that the
     // `RestrictionTracker`
     // can correctly handle the range of the current split.
-    for (SerializableRow scanFileRow : task.getScanFileRows()) {
+    List<Long> cachedBlockCounts = getCachedBlockCounts(task);
+    List<SerializableRow> scanFileRows = task.getScanFileRows();
+    for (int i = 0; i < scanFileRows.size(); i++) {
+      SerializableRow scanFileRow = scanFileRows.get(i);
       FileStatus fileStatus = InternalScanFileUtils.getAddFileStatus(scanFileRow);
 
-      org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(fileStatus.getPath());
-      org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
-          org.apache.parquet.hadoop.ParquetFileReader.readFooter(
-              getConfiguration(),
-              hadoopPath,
-              org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
-      long fileBlocks = metadata.getBlocks().size();
+      long fileBlocks;
+      if (cachedBlockCounts != null && i < cachedBlockCounts.size()) {
+        fileBlocks = cachedBlockCounts.get(i);
+      } else {
+        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(fileStatus.getPath());
+        org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
+            org.apache.parquet.hadoop.ParquetFileReader.readFooter(
+                getConfiguration(),
+                hadoopPath,
+                org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
+        fileBlocks = metadata.getBlocks().size();
+      }
 
-      CloseableIterator<FileReadResult> fileReadResults =
+      try (CloseableIterator<FileReadResult> fileReadResults =
           parquetHandler.readParquetFiles(
               Utils.singletonCloseableIterator(fileStatus),
               physicalSchema,
               Optional.empty(),
-              currentStartRgIndex);
+              currentStartRgIndex)) {
 
-      // Get the correct set of physical data for the current file that are within the
-      // range for the current `RestrictionTracker`.
-      CloseableIterator<ColumnarBatch> physicalData =
-          new CloseableIterator<ColumnarBatch>() {
-            @Override
-            public void close() throws java.io.IOException {
-              fileReadResults.close();
-            }
+        // Get the correct set of physical data for the current file that are within the
+        // range for the current `RestrictionTracker`.
+        CloseableIterator<ColumnarBatch> physicalData =
+            new CloseableIterator<ColumnarBatch>() {
+              @Override
+              public void close() throws java.io.IOException {}
 
-            @Override
-            public boolean hasNext() {
-              return fileReadResults.hasNext();
-            }
+              @Override
+              public boolean hasNext() {
+                return fileReadResults.hasNext();
+              }
 
-            @Override
-            public ColumnarBatch next() {
-              return fileReadResults.next().getData();
-            }
-          };
+              @Override
+              public ColumnarBatch next() {
+                return fileReadResults.next().getData();
+              }
+            };
 
-      // Convert physical data to logical data.
-      try (CloseableIterator<FilteredColumnarBatch> logicalBatches =
-          Scan.transformPhysicalData(beamEngine, scanStateRow, scanFileRow, physicalData)) {
+        // Convert physical data to logical data.
+        try (CloseableIterator<FilteredColumnarBatch> logicalBatches =
+            Scan.transformPhysicalData(beamEngine, scanStateRow, scanFileRow, physicalData)) {
 
-        while (logicalBatches.hasNext()) {
-          FilteredColumnarBatch batch = logicalBatches.next();
-          try (CloseableIterator<io.delta.kernel.data.Row> logicalRows = batch.getRows()) {
-            while (logicalRows.hasNext()) {
-              io.delta.kernel.data.Row deltaRow = logicalRows.next();
-              Row beamRow = toBeamRow(deltaRow, beamSchema);
-              out.output(beamRow);
+          while (logicalBatches.hasNext()) {
+            FilteredColumnarBatch batch = logicalBatches.next();
+            try (CloseableIterator<io.delta.kernel.data.Row> logicalRows = batch.getRows()) {
+              while (logicalRows.hasNext()) {
+                io.delta.kernel.data.Row deltaRow = logicalRows.next();
+                Row beamRow = toBeamRow(deltaRow, beamSchema);
+                out.output(beamRow);
+              }
             }
           }
         }

@@ -123,38 +123,42 @@ public class BeamParquetHandler implements ParquetHandler {
 
     long currentRgIndex = startRgIndex;
 
-    while (fileIter.hasNext()) {
-      FileStatus fileStatus = fileIter.next();
-      Path hadoopPath = new Path(fileStatus.getPath());
-      ParquetMetadata metadata =
-          ParquetFileReader.readFooter(conf, hadoopPath, ParquetMetadataConverter.NO_FILTER);
-      long fileBlocks = metadata.getBlocks().size();
+    try {
+      while (fileIter.hasNext()) {
+        if (currentRgIndex >= tracker.currentRestriction().getTo()) {
+          // Skipping all blocks for the remaining files since they are located after the
+          // end index of the tracker. Since currentRgIndex is monotonically increasing,
+          // we can break the loop immediately to avoid extremely expensive network I/O.
+          break;
+        }
 
-      if (currentRgIndex + fileBlocks <= tracker.currentRestriction().getFrom()) {
-        // Skipping all blocks for the current file since they are located before the
-        // start index of the tracker.
+        FileStatus fileStatus = fileIter.next();
+        Path hadoopPath = new Path(fileStatus.getPath());
+        ParquetMetadata metadata =
+            ParquetFileReader.readFooter(conf, hadoopPath, ParquetMetadataConverter.NO_FILTER);
+        long fileBlocks = metadata.getBlocks().size();
+
+        if (currentRgIndex + fileBlocks <= tracker.currentRestriction().getFrom()) {
+          // Skipping all blocks for the current file since they are located before the
+          // start index of the tracker.
+          currentRgIndex += fileBlocks;
+          continue;
+        }
+
+        results.add(
+            readParquetFileDirect(
+                fileStatus,
+                hadoopPath,
+                metadata,
+                physicalSchema,
+                hasRowIndexCol,
+                currentRgIndex,
+                fileBlocks));
+
         currentRgIndex += fileBlocks;
-        continue;
       }
-
-      if (currentRgIndex >= tracker.currentRestriction().getTo()) {
-        // Skipping all blocks for the current file since they are located after the
-        // end index of the tracker.
-        currentRgIndex += fileBlocks;
-        continue;
-      }
-
-      results.add(
-          readParquetFileDirect(
-              fileStatus,
-              hadoopPath,
-              metadata,
-              physicalSchema,
-              hasRowIndexCol,
-              currentRgIndex,
-              fileBlocks));
-
-      currentRgIndex += fileBlocks;
+    } finally {
+      fileIter.close();
     }
 
     return combineResults(results);
