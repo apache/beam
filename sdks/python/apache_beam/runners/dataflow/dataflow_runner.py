@@ -196,7 +196,7 @@ class DataflowRunner(PipelineRunner):
               dataflow_api.JobMessageImportance(m.message_importance).name
               if m.message_importance is not None else
               'JOB_MESSAGE_IMPORTANCE_UNKNOWN')
-          message = '%s: %s: %s' % (m.time, importance_name, m.message_text)
+          message = '%s: %s: %s' % (m.time, message_importance, m.message_text)
 
           if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
