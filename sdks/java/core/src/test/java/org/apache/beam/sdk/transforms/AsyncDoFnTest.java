@@ -107,6 +107,19 @@ public class AsyncDoFnTest implements Serializable {
     }
   }
 
+  private static class TimestampingDoFn extends DoFn<String, String> {
+    private final Instant outputTimestamp;
+
+    TimestampingDoFn(Instant outputTimestamp) {
+      this.outputTimestamp = outputTimestamp;
+    }
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      receiver.outputWithTimestamp(element, outputTimestamp);
+    }
+  }
+
   // Used for testing BagState thread safety.
   private static class FakeBagState<T> implements BagState<T> {
     private final List<T> items;
@@ -286,8 +299,12 @@ public class AsyncDoFnTest implements Serializable {
 
       @Override
       public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CustomIdObject)) return false;
+        if (this == o) {
+          return true;
+        }
+        if (!(o instanceof CustomIdObject)) {
+          return false;
+        }
         CustomIdObject that = (CustomIdObject) o;
         return elementId == that.elementId;
       }
@@ -873,5 +890,56 @@ public class AsyncDoFnTest implements Serializable {
 
     // Verify calling resetState() while background tasks are running finishes cleanly
     AsyncDoFn.resetState();
+  }
+
+  // Test 15: testTimestampPropagation
+  // Verifies that custom timestamps output by the wrapped DoFn are correctly propagated
+  // and not lost or replaced during async execution.
+  @Test
+  public void testTimestampPropagation() {
+    Instant customTimestamp = new Instant(123456789000L);
+    TimestampingDoFn dofn = new TimestampingDoFn(customTimestamp);
+    AsyncDoFn<String, String, String> asyncDoFn =
+        new AsyncDoFn<>(
+            dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
+    asyncDoFn.setup(null);
+
+    FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
+    FakeTimer fakeTimer = new FakeTimer();
+
+    class CapturingReceiver implements DoFn.OutputReceiver<String> {
+      final List<String> values = new ArrayList<>();
+      final List<Instant> timestamps = new ArrayList<>();
+
+      @Override
+      public org.apache.beam.sdk.values.OutputBuilder<String> builder(String value) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public void output(String output) {
+        values.add(output);
+        timestamps.add(null);
+      }
+
+      @Override
+      public void outputWithTimestamp(String output, Instant timestamp) {
+        values.add(output);
+        timestamps.add(timestamp);
+      }
+    }
+
+    CapturingReceiver capturingReceiver = new CapturingReceiver();
+
+    asyncDoFn.processDirect(
+        KV.of("key1", "val1"), GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+
+    waitForEmpty(asyncDoFn);
+
+    asyncDoFn.commitFinishedItems(
+        fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer, capturingReceiver);
+
+    assertEquals(Collections.singletonList("val1"), capturingReceiver.values);
+    assertEquals(Collections.singletonList(customTimestamp), capturingReceiver.timestamps);
   }
 }
