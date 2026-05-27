@@ -106,6 +106,9 @@ public class WriteOperation extends ReceivingOperation {
   }
 
   @Override
+  public void finishKey() throws Exception {}
+
+  @Override
   public void abort() throws Exception {
     if (writer == null) {
       // If we haven't started, or have already closed the writer, we cannot abort it.

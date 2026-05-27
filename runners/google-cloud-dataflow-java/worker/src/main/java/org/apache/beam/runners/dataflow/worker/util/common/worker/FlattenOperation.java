@@ -44,6 +44,9 @@ public class FlattenOperation extends ReceivingOperation {
   }
 
   @Override
+  public void finishKey() throws Exception {}
+
+  @Override
   public boolean supportsRestart() {
     return true;
   }
