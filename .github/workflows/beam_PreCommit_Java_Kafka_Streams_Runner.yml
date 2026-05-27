@@ -18,12 +18,14 @@ name: PreCommit Java Kafka Streams Runner
 on:
   push:
     tags: ['v*']
-    branches: ['master', 'release-*']
+    # temporarily add the feature branch
+    branches: ['master', 'release-*','feat/18479-*']
     paths:
       - "runners/kafka-streams/**"
       - ".github/workflows/beam_PreCommit_Java_Kafka_Streams_Runner.yml"
   pull_request_target:
-    branches: ['master', 'release-*']
+    # temporarily add the feature branch
+    branches: ['master', 'release-*','feat/18479-*']
     paths:
       - "runners/kafka-streams/**"
       - 'release/trigger_all_tests.json'
