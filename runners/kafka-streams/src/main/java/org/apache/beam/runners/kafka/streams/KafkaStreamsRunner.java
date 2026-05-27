@@ -31,6 +31,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// added trivial change
+
 /**
  * A {@link PipelineRunner} that submits portable jobs to an in-process or external Beam job service
  * backed by the Kafka Streams translation path.
