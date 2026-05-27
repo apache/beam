@@ -220,5 +220,83 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
     self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
 
 
+class UseSdfUnboundedSourcesTests(unittest.TestCase):
+  """Mirrors UseSdfBoundedSourcesTests for the new UnboundedSource branch in
+  iobase.Read.expand(). Uses CountingSource from unbounded_source_test as the
+  fake finite UnboundedSource (avoids dragging the network in).
+  """
+
+  def test_read_dispatches_to_read_from_unbounded_source(self):
+    from apache_beam.io.unbounded_source_test import CountingSource
+    with mock.patch(
+        'apache_beam.io.unbounded_source.ReadFromUnboundedSource.expand'
+    ) as mock_expand:
+      mock_expand.side_effect = (
+          lambda pbegin: pbegin | beam.Impulse() | beam.Map(lambda _: 'fake'))
+      with beam.Pipeline() as p:
+        out = p | beam.io.Read(CountingSource(3))
+        assert_that(out, equal_to(['fake']))
+      mock_expand.assert_called_once()
+
+  def test_read_end_to_end_unbounded(self):
+    from apache_beam.io.unbounded_source_test import CountingSource
+    with beam.Pipeline() as p:
+      out = p | beam.io.Read(CountingSource(5))
+      assert_that(out, equal_to([0, 1, 2, 3, 4]))
+
+  def test_read_unbounded_pcollection_is_unbounded(self):
+    from apache_beam.io.unbounded_source_test import CountingSource
+    with beam.Pipeline() as p:
+      out = p | beam.io.Read(CountingSource(3))
+      self.assertFalse(out.is_bounded)
+
+  def test_to_runner_api_emits_unbounded_read_payload(self):
+    """``Read.to_runner_api_parameter`` must serialize an UnboundedSource as
+    ``READ.urn`` with ``IsBounded.UNBOUNDED``. The runner-side handler is W2
+    and ignores this enum today, but the wire format must round-trip
+    consistently for pipeline persistence / cross-runner submission.
+    """
+    from apache_beam.io.unbounded_source_test import CountingSource
+    from apache_beam.portability import common_urns
+    from apache_beam.portability.api import beam_runner_api_pb2
+    from apache_beam.runners.pipeline_context import PipelineContext
+
+    read = beam.io.Read(CountingSource(5))
+    urn, payload = read.to_runner_api_parameter(PipelineContext())
+
+    self.assertEqual(urn, common_urns.deprecated_primitives.READ.urn)
+    self.assertIsInstance(payload, beam_runner_api_pb2.ReadPayload)
+    self.assertEqual(
+        payload.is_bounded, beam_runner_api_pb2.IsBounded.UNBOUNDED)
+    # The source field must be populated -- a non-empty FunctionSpec proto.
+    self.assertTrue(payload.source.urn)
+
+  def test_read_unbounded_round_trips_through_runner_api(self):
+    """Encode then decode via the runner-API protobuf. The restored
+    transform must be a ``Read`` wrapping an equivalent UnboundedSource.
+    """
+    from apache_beam.io.unbounded_source import UnboundedSource
+    from apache_beam.io.unbounded_source_test import CountingSource
+    from apache_beam.portability import common_urns
+    from apache_beam.portability.api import beam_runner_api_pb2
+    from apache_beam.runners.pipeline_context import PipelineContext
+
+    original = beam.io.Read(CountingSource(7))
+    context = PipelineContext()
+    urn, payload = original.to_runner_api_parameter(context)
+
+    transform_proto = beam_runner_api_pb2.PTransform()
+    transform_proto.spec.urn = urn
+    restored = iobase.Read.from_runner_api_parameter(
+        transform_proto, payload, context)
+
+    self.assertIsInstance(restored, iobase.Read)
+    self.assertIsInstance(restored.source, UnboundedSource)
+    self.assertIsInstance(restored.source, CountingSource)
+    self.assertFalse(restored.source.is_bounded())
+    # Verify the source's internal state survived pickle round-trip.
+    self.assertEqual(restored.source._count, 7)
+
+
 if __name__ == '__main__':
   unittest.main()

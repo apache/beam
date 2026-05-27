@@ -919,7 +919,11 @@ class Read(ptransform.PTransform):
     """Initializes a Read transform.
 
     Args:
-      source: Data source to read from.
+      source: Data source to read from. A ``BoundedSource`` is wrapped in the
+        bounded SDF reader; an ``UnboundedSource`` is dispatched through
+        :class:`apache_beam.io.unbounded_source.ReadFromUnboundedSource` with
+        the default poll interval (users wanting a custom poll cadence must
+        instantiate ``ReadFromUnboundedSource`` directly).
     """
     super().__init__()
     self.source = source
@@ -945,6 +949,16 @@ class Read(ptransform.PTransform):
           | 'EmitSource' >>
           core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
+    # Lazy import to break the iobase <-> unbounded_source cycle: the
+    # unbounded_source module imports iobase (UnboundedSource extends
+    # SourceBase). Pattern matches the _PubSubSource lazy import below.
+    from apache_beam.io.unbounded_source import (
+        ReadFromUnboundedSource, UnboundedSource)
+    if isinstance(self.source, UnboundedSource):
+      # Delegate to the dedicated SDF PTransform; identical to the user
+      # writing `p | ReadFromUnboundedSource(self.source)` directly. Custom
+      # poll_interval_seconds requires using ReadFromUnboundedSource directly.
+      return pbegin | ReadFromUnboundedSource(self.source)
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -986,7 +1000,15 @@ class Read(ptransform.PTransform):
               timestamp_attribute=self.source.timestamp_attribute,
               with_attributes=self.source.with_attributes,
               id_attribute=self.source.id_label))
-    if isinstance(self.source, BoundedSource):
+    # Lazy import to avoid the iobase <-> unbounded_source cycle.
+    from apache_beam.io.unbounded_source import UnboundedSource
+    if isinstance(self.source, (BoundedSource, UnboundedSource)):
+      # READ.urn covers both source flavours; the IsBounded enum distinguishes
+      # them. NB: today the bundle_processor.py IMPULSE_READ_TRANSFORM handler
+      # only consumes BOUNDED — the UNBOUNDED branch round-trips correctly
+      # through the protobuf graph but execution still flows through this
+      # composite's expanded sub-transforms (Impulse | Map | SDF-ParDo), not
+      # through the URN-handler. Runner-side UNBOUNDED dispatch is W2 work.
       return (
           common_urns.deprecated_primitives.READ.urn,
           beam_runner_api_pb2.ReadPayload(

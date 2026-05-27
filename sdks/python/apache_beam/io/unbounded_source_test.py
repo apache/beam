@@ -26,10 +26,16 @@ processing-time tests for the same reason).
 
 # pytype: skip-file
 
+import gc
 import logging
+import os
+import tempfile
+import threading
 import unittest
 
+import apache_beam as beam
 from apache_beam import coders
+from apache_beam.io import unbounded_source as _unbounded_source_module
 from apache_beam.io.unbounded_source import CheckpointMark
 from apache_beam.io.unbounded_source import ReadFromUnboundedSource
 from apache_beam.io.unbounded_source import UnboundedReader
@@ -43,6 +49,7 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
@@ -85,6 +92,7 @@ class _CountingReader(UnboundedReader):
     self._current = None
     self._exhausted = False
     self._finalize_log = finalize_log
+    self.closed = False
 
   def _read_next(self):
     if self._next >= self._count:
@@ -117,19 +125,24 @@ class _CountingReader(UnboundedReader):
     last = self._current if self._current is not None else self._next - 1
     return _CountingCheckpointMark(last, finalize_log=self._finalize_log)
 
+  def close(self):
+    self.closed = True
+
 
 class CountingSource(UnboundedSource):
   def __init__(self, count, finalize_log=None):
     self._count = count
     self._finalize_log = finalize_log
+    self.last_reader = None
 
   def split(self, desired_num_splits, options=None):
     return [self]
 
   def create_reader(self, options, checkpoint_mark):
     start_index = 0 if checkpoint_mark is None else checkpoint_mark.last_index + 1
-    return _CountingReader(
+    self.last_reader = _CountingReader(
         self._count, start_index, finalize_log=self._finalize_log)
+    return self.last_reader
 
   def get_checkpoint_mark_coder(self):
     return coders.PickleCoder()
@@ -165,6 +178,112 @@ class _NoDataSource(UnboundedSource):
 
   def get_checkpoint_mark_coder(self):
     return coders.PickleCoder()
+
+
+# Module-level helpers so they pickle cleanly across Beam's worker boundary.
+# The DoFnReaderCloseOnExceptionTest uses ``_set_close_marker`` to install a
+# tempfile path under a lock (so concurrent test runners cannot race on it),
+# then waits for the reader's close() to write to it.
+_READER_CLOSE_MARKER = None  # set under _READER_CLOSE_MARKER_LOCK
+_READER_CLOSE_MARKER_LOCK = threading.Lock()
+
+
+def _set_close_marker(path):
+  with _READER_CLOSE_MARKER_LOCK:
+    global _READER_CLOSE_MARKER
+    _READER_CLOSE_MARKER = path
+
+
+def _read_close_marker():
+  with _READER_CLOSE_MARKER_LOCK:
+    return _READER_CLOSE_MARKER
+
+
+class _RaisingReader(UnboundedReader):
+  def start(self):
+    return True  # first record available
+
+  def advance(self):
+    raise RuntimeError('reader.advance() boom')
+
+  def get_current(self):
+    return 'rec'
+
+  def get_current_timestamp(self):
+    return Timestamp(0)
+
+  def get_watermark(self):
+    return Timestamp(0)
+
+  def get_checkpoint_mark(self):
+    return _CountingCheckpointMark(0)
+
+  def close(self):
+    path = _read_close_marker()
+    if path is not None:
+      with open(path, 'a') as fp:
+        fp.write('closed\n')
+
+
+class _RaisingSource(UnboundedSource):
+  def split(self, desired_num_splits, options=None):
+    return [self]
+
+  def create_reader(self, options, checkpoint_mark):
+    return _RaisingReader()
+
+  def get_checkpoint_mark_coder(self):
+    return coders.PickleCoder()
+
+
+# A non-raising marker-aware source for testing DoFn-side close on the
+# *downstream* yield-raise path (where the source itself is well-behaved but a
+# downstream Map raises mid-bundle). Module-level for cloudpickle.
+class _MarkerCloseReader(UnboundedReader):
+  def __init__(self):
+    self._idx = -1
+
+  def start(self):
+    self._idx = 0
+    return True
+
+  def advance(self):
+    self._idx += 1
+    return self._idx < 3
+
+  def get_current(self):
+    return self._idx
+
+  def get_current_timestamp(self):
+    return Timestamp(self._idx)
+
+  def get_watermark(self):
+    return Timestamp(self._idx) if self._idx < 2 else MAX_TIMESTAMP
+
+  def get_checkpoint_mark(self):
+    return _CountingCheckpointMark(self._idx)
+
+  def close(self):
+    path = _read_close_marker()
+    if path is not None:
+      with open(path, 'a') as fp:
+        fp.write('closed\n')
+
+
+class _MarkerCloseSource(UnboundedSource):
+  def split(self, desired_num_splits, options=None):
+    return [self]
+
+  def create_reader(self, options, checkpoint_mark):
+    return _MarkerCloseReader()
+
+  def get_checkpoint_mark_coder(self):
+    return coders.PickleCoder()
+
+
+def _downstream_boom(_unused):
+  """Module-level so it pickles cleanly through Beam's bundle worker boundary."""
+  raise RuntimeError('downstream boom')
 
 
 def _new_tracker(source, checkpoint=None):
@@ -304,7 +423,13 @@ class RestrictionTrackerTest(unittest.TestCase):
     primary, residual = split
     self.assertTrue(primary.is_done)
     self.assertFalse(residual.is_done)
+    # Resume / finalize channel separation: primary carries only the
+    # finalize hook, residual carries only the resume state.
+    self.assertIsNone(primary.checkpoint_mark)
+    self.assertIsNotNone(primary.finalization_checkpoint_mark)
+    self.assertEqual(primary.finalization_checkpoint_mark.last_index, 1)
     self.assertEqual(residual.checkpoint_mark.last_index, 1)
+    self.assertIsNone(residual.finalization_checkpoint_mark)
     # check_done passes on the (now done) primary.
     self.assertTrue(tracker.check_done())
 
@@ -345,13 +470,15 @@ class FinalizationTest(unittest.TestCase):
   def test_finalize_checkpoint_invoked(self):
     # Authoritative finalize test at the unit level: the e2e finalize may run in
     # a worker process, so its side effect is not observable from the test.
+    # The finalize hook lives on the PRIMARY (commit channel), independent of
+    # the residual's resume state.
     finalize_log = []
     source = CountingSource(5, finalize_log=finalize_log)
     tracker = _new_tracker(source)
     _claim(tracker)  # 0
     _claim(tracker)  # 1
-    _, residual = tracker.try_split(0)
-    residual.checkpoint_mark.finalize_checkpoint()
+    primary, _ = tracker.try_split(0)
+    primary.finalization_checkpoint_mark.finalize_checkpoint()
     self.assertEqual(finalize_log, [1])
 
 
@@ -361,6 +488,569 @@ class EndToEndTest(unittest.TestCase):
       out = p | ReadFromUnboundedSource(CountingSource(5))
       self.assertFalse(out.is_bounded)
       assert_that(out, equal_to([0, 1, 2, 3, 4]))
+
+  def test_eof_lets_event_time_window_fire(self):
+    # Regression for the EOF-watermark fix: the DoFn must advance the watermark
+    # estimator to MAX_TIMESTAMP on the terminal claim so downstream FixedWindow
+    # closes. Without that advance the GBK below never fires and assert_that
+    # observes an empty output.
+    with TestPipeline() as p:
+      out = (
+          p
+          | ReadFromUnboundedSource(CountingSource(5))
+          | beam.WindowInto(FixedWindows(100))
+          | beam.Map(lambda v: ('all', v))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda _key, values: sorted(values)))
+      assert_that(out, equal_to([[0, 1, 2, 3, 4]]))
+
+  def test_read_dispatches_through_iobase_read(self):
+    # Parity check: `beam.io.Read(unbounded_source)` must produce the same
+    # records as `ReadFromUnboundedSource(unbounded_source)`. The dispatch is
+    # the elif branch added to iobase.Read.expand().
+    with TestPipeline() as p:
+      out = p | beam.io.Read(CountingSource(5))
+      self.assertFalse(out.is_bounded)
+      assert_that(out, equal_to([0, 1, 2, 3, 4]))
+
+
+# ------------------------------------------------------------------------------
+# Regression tests for the BLOCKER fixes (EOF watermark, reader close on every
+# exit path) plus contract regressions (NotImplementedError message,
+# finalize_checkpoint idempotency).
+# ------------------------------------------------------------------------------
+
+
+class ReaderCloseTest(unittest.TestCase):
+  """Reader lifecycle: close() must run on every tracker-driven exit path."""
+
+  def test_tracker_closes_reader_on_eof(self):
+    source = CountingSource(0)  # immediately exhausted
+    tracker = _new_tracker(source)
+    holder = [None]
+    self.assertFalse(tracker.try_claim(holder))
+    self.assertIsNone(tracker._reader)
+    self.assertTrue(source.last_reader.closed)
+
+  def test_tracker_closes_reader_on_split(self):
+    source = CountingSource(5)
+    tracker = _new_tracker(source)
+    _claim(tracker)  # creates reader, claims 0
+    reader = source.last_reader
+    self.assertFalse(reader.closed)
+    split = tracker.try_split(0)
+    self.assertIsNotNone(split)
+    self.assertIsNone(tracker._reader)
+    self.assertTrue(reader.closed)
+
+  def test_close_helper_is_idempotent_and_safe_on_empty_tracker(self):
+    tracker = _new_tracker(CountingSource(3))
+    # No reader yet -- helper must be a no-op.
+    tracker._close_reader_if_open()
+    _claim(tracker)
+    reader = tracker._reader
+    tracker._close_reader_if_open()
+    self.assertTrue(reader.closed)
+    self.assertIsNone(tracker._reader)
+    # Second call is a no-op (no reader to close).
+    tracker._close_reader_if_open()
+
+  def test_close_helper_swallows_reader_close_errors(self):
+    class _BoomReader(UnboundedReader):
+      def start(self):
+        return True
+
+      def advance(self):
+        return False
+
+      def get_current(self):
+        return 'x'
+
+      def get_current_timestamp(self):
+        return Timestamp(0)
+
+      def get_watermark(self):
+        return Timestamp(0)
+
+      def get_checkpoint_mark(self):
+        return CheckpointMark()
+
+      def close(self):
+        raise RuntimeError('close blew up')
+
+    class _BoomSource(UnboundedSource):
+      def split(self, desired_num_splits, options=None):
+        return [self]
+
+      def create_reader(self, options, checkpoint_mark):
+        return _BoomReader()
+
+      def get_checkpoint_mark_coder(self):
+        return coders.PickleCoder()
+
+    tracker = _new_tracker(_BoomSource())
+    _claim(tracker)
+    # Helper must not propagate the reader's close() exception, otherwise the
+    # DoFn's finally / split paths would mask the original error.
+    tracker._close_reader_if_open()
+    self.assertIsNone(tracker._reader)
+
+
+class BestPracticeRegressionTest(unittest.TestCase):
+  """Regression guards for the round-2 best-practice fixes:
+    B1: data-path watermark uses source.get_watermark(), not record event time
+    B2: finalization_checkpoint_mark separate from resume checkpoint_mark
+    H4: tracker-internal exception close on reader-method failure
+  """
+
+  def test_b1_data_path_holder_carries_source_watermark(self):
+    """The holder's 3rd slot is the SOURCE's reported watermark, not the
+    record's event time. A reader that reports event time 1000 with a source
+    watermark of 990 (out-of-order data) must surface 990 to the wrapper, not
+    1000.
+    """
+    class _LaggingReader(UnboundedReader):
+      def start(self):
+        return True
+
+      def advance(self):
+        return False
+
+      def get_current(self):
+        return 'rec'
+
+      def get_current_timestamp(self):
+        return Timestamp(1000)  # record event time
+
+      def get_watermark(self):
+        return Timestamp(990)  # source watermark lags 10us behind
+
+      def get_checkpoint_mark(self):
+        return _CountingCheckpointMark(0)
+
+    class _LaggingSource(UnboundedSource):
+      def split(self, desired_num_splits, options=None):
+        return [self]
+
+      def create_reader(self, options, checkpoint_mark):
+        return _LaggingReader()
+
+      def get_checkpoint_mark_coder(self):
+        return coders.PickleCoder()
+
+    tracker = _new_tracker(_LaggingSource())
+    claimed, record = _claim(tracker)
+    self.assertTrue(claimed)
+    self.assertIsNot(record, _NO_DATA)
+    value, record_timestamp, source_watermark = record
+    self.assertEqual(value, 'rec')
+    self.assertEqual(record_timestamp, Timestamp(1000))
+    # Critical: watermark slot is the SOURCE watermark, NOT record timestamp.
+    self.assertEqual(source_watermark, Timestamp(990))
+    self.assertNotEqual(source_watermark, record_timestamp)
+
+  def test_b2_split_separates_finalize_and_resume_channels(self):
+    source = CountingSource(5)
+    tracker = _new_tracker(source)
+    _claim(tracker)  # claim 0 so reader has progress
+    primary, residual = tracker.try_split(0)
+    # Primary carries ONLY the finalize hook -- no resume state.
+    self.assertIsNone(primary.checkpoint_mark)
+    self.assertIsNotNone(primary.finalization_checkpoint_mark)
+    self.assertTrue(primary.is_done)
+    # Residual carries ONLY the resume state -- no finalize hook (a future
+    # bundle that splits THIS residual will produce ITS own finalize mark).
+    self.assertIsNotNone(residual.checkpoint_mark)
+    self.assertIsNone(residual.finalization_checkpoint_mark)
+    self.assertFalse(residual.is_done)
+    # The two marks reference the same underlying checkpoint object.
+    self.assertEqual(
+        primary.finalization_checkpoint_mark.last_index,
+        residual.checkpoint_mark.last_index)
+
+  def test_b2_eof_populates_finalize_and_clears_resume(self):
+    # EOF transition: restriction.checkpoint_mark goes to None (no more
+    # records to resume from), finalization_checkpoint_mark carries the
+    # final commit hook.
+    source = CountingSource(0)  # immediately exhausted
+    tracker = _new_tracker(source)
+    holder = [None]
+    self.assertFalse(tracker.try_claim(holder))
+    r = tracker.current_restriction()
+    self.assertTrue(r.is_done)
+    self.assertEqual(r.watermark, MAX_TIMESTAMP)
+    self.assertIsNone(r.checkpoint_mark)
+    self.assertIsNotNone(r.finalization_checkpoint_mark)
+
+  def test_h4_tracker_closes_reader_when_advance_raises(self):
+    # If reader.advance() raises, the tracker's try_claim wraps it and
+    # closes the reader BEFORE re-raising. The DoFn's finally does not need
+    # to traverse the private SDF chain for reader-method failures.
+    class _BoomReader(UnboundedReader):
+      def __init__(self):
+        self.closed = False
+
+      def start(self):
+        return True
+
+      def advance(self):
+        raise RuntimeError('advance boom')
+
+      def get_current(self):
+        return 'first'
+
+      def get_current_timestamp(self):
+        return Timestamp(0)
+
+      def get_watermark(self):
+        return Timestamp(0)
+
+      def get_checkpoint_mark(self):
+        return _CountingCheckpointMark(0)
+
+      def close(self):
+        self.closed = True
+
+    class _BoomSource(UnboundedSource):
+      def split(self, desired_num_splits, options=None):
+        return [self]
+
+      def create_reader(self, options, checkpoint_mark):
+        return _BoomReader()
+
+      def get_checkpoint_mark_coder(self):
+        return coders.PickleCoder()
+
+    src = _BoomSource()
+    tracker = _new_tracker(src)
+    # First claim succeeds (start returns True).
+    self.assertTrue(tracker.try_claim([None]))
+    reader_after_first = tracker._reader
+    self.assertIsNotNone(reader_after_first)
+    # Second claim invokes advance() which raises. Tracker must close the
+    # reader before propagating the exception.
+    with self.assertRaises(RuntimeError):
+      tracker.try_claim([None])
+    self.assertTrue(reader_after_first.closed)
+    self.assertIsNone(tracker._reader)
+
+  def test_h4_tracker_closes_reader_when_get_watermark_raises(self):
+    # Reader method failures other than advance() also trigger close.
+    class _WatermarkBoomReader(UnboundedReader):
+      def __init__(self):
+        self.closed = False
+
+      def start(self):
+        return False  # no data -> drops into get_watermark path
+
+      def advance(self):
+        return False
+
+      def get_current(self):
+        raise AssertionError
+
+      def get_current_timestamp(self):
+        raise AssertionError
+
+      def get_watermark(self):
+        raise RuntimeError('watermark boom')
+
+      def get_checkpoint_mark(self):
+        return _CountingCheckpointMark(0)
+
+      def close(self):
+        self.closed = True
+
+    class _WatermarkBoomSource(UnboundedSource):
+      def split(self, desired_num_splits, options=None):
+        return [self]
+
+      def create_reader(self, options, checkpoint_mark):
+        return _WatermarkBoomReader()
+
+      def get_checkpoint_mark_coder(self):
+        return coders.PickleCoder()
+
+    src = _WatermarkBoomSource()
+    tracker = _new_tracker(src)
+    with self.assertRaises(RuntimeError):
+      tracker.try_claim([None])
+    self.assertIsNone(tracker._reader)
+
+
+class UnboundedSourceContractTest(unittest.TestCase):
+  def test_get_checkpoint_mark_coder_default_names_subclass(self):
+    class MySource(UnboundedSource):
+      pass
+
+    with self.assertRaises(NotImplementedError) as cm:
+      MySource().get_checkpoint_mark_coder()
+    self.assertIn('MySource', str(cm.exception))
+
+  def test_default_finalize_is_idempotent(self):
+    mark = CheckpointMark()
+    # Default no-op must tolerate repeated invocation; the SDK's bundle
+    # finalizer makes no exactly-once guarantee on this callback.
+    self.assertIsNone(mark.finalize_checkpoint())
+    self.assertIsNone(mark.finalize_checkpoint())
+
+
+class ReadFromUnboundedSourceValidationTest(unittest.TestCase):
+  def test_non_source_argument_raises(self):
+    with self.assertRaises(TypeError):
+      ReadFromUnboundedSource('not-a-source')  # type: ignore[arg-type]
+
+  def test_poll_interval_must_be_positive(self):
+    src = CountingSource(3)
+    with self.assertRaises(ValueError):
+      ReadFromUnboundedSource(src, poll_interval_seconds=0)
+    with self.assertRaises(ValueError):
+      ReadFromUnboundedSource(src, poll_interval_seconds=-1)
+    with self.assertRaises(ValueError):
+      ReadFromUnboundedSource(src, poll_interval_seconds=-0.5)
+    # Positive values OK.
+    ReadFromUnboundedSource(src, poll_interval_seconds=0.001)
+    ReadFromUnboundedSource(src, poll_interval_seconds=60)
+
+
+class CloudpicklePicklabilityTest(unittest.TestCase):
+  """The DoFn class is defined inside ``ReadFromUnboundedSource.expand`` so it
+  can close over the source-specific provider. Beam's default pickler is
+  cloudpickle; stdlib pickle would fail on a closure-defined class. This is a
+  regression guard for cross-runner portability (Dataflow / Flink portable
+  workers also use cloudpickle).
+  """
+
+  def test_transform_round_trips_through_cloudpickle(self):
+    from apache_beam.internal import pickler
+    transform = ReadFromUnboundedSource(CountingSource(5))
+    blob = pickler.dumps(transform)
+    self.assertIsInstance(blob, bytes)
+    restored = pickler.loads(blob)
+    self.assertIsInstance(restored, ReadFromUnboundedSource)
+
+  def test_source_object_round_trips_through_cloudpickle(self):
+    from apache_beam.internal import pickler
+    src = CountingSource(5)
+    restored = pickler.loads(pickler.dumps(src))
+    self.assertIsInstance(restored, CountingSource)
+    self.assertEqual(restored._count, 5)
+
+
+class CircularImportOrderTest(unittest.TestCase):
+  """`iobase.py` and `unbounded_source.py` form a cycle (UnboundedSource extends
+  iobase.SourceBase; iobase.Read.expand lazy-imports unbounded_source). All
+  three import-order scenarios must complete without ImportError. Subprocesses
+  ensure each test starts from a clean module cache.
+  """
+
+  def _run_in_subprocess(self, script):
+    import subprocess
+    import sys
+    import os
+    env = os.environ.copy()
+    beam_python = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
+            __file__)))))
+    env['PYTHONPATH'] = beam_python + os.pathsep + env.get('PYTHONPATH', '')
+    fd, path = tempfile.mkstemp(suffix='.py')
+    try:
+      with os.fdopen(fd, 'w') as fp:
+        fp.write(script)
+      return subprocess.run(
+          [sys.executable, path],
+          capture_output=True,
+          text=True,
+          env=env,
+          timeout=60)
+    finally:
+      if os.path.exists(path):
+        os.unlink(path)
+
+  def test_iobase_then_unbounded_source(self):
+    result = self._run_in_subprocess(
+        'import apache_beam.io.iobase\n'
+        'import apache_beam.io.unbounded_source\n'
+        'print("ok")\n')
+    self.assertEqual(
+        result.returncode, 0,
+        'stderr=%r stdout=%r' % (result.stderr, result.stdout))
+    self.assertIn('ok', result.stdout)
+
+  def test_unbounded_source_then_iobase(self):
+    result = self._run_in_subprocess(
+        'import apache_beam.io.unbounded_source\n'
+        'import apache_beam.io.iobase\n'
+        'print("ok")\n')
+    self.assertEqual(
+        result.returncode, 0,
+        'stderr=%r stdout=%r' % (result.stderr, result.stdout))
+    self.assertIn('ok', result.stdout)
+
+  def test_read_expand_lazy_imports_unbounded_source(self):
+    # Import only iobase, then trigger Read.expand() on an UnboundedSource.
+    # The expand() must lazy-import unbounded_source without ImportError and
+    # produce a valid expanded transform tree.
+    script = '''
+import sys
+import apache_beam as beam
+from apache_beam import coders
+import apache_beam.io.iobase as iobase
+# Now import unbounded_source AFTER iobase, then verify Read.expand
+# successfully lazy-imports ReadFromUnboundedSource:
+from apache_beam.io.unbounded_source import UnboundedSource
+
+class _S(UnboundedSource):
+  def split(self, n, options=None):
+    return [self]
+  def create_reader(self, o, cp):
+    return None
+  def get_checkpoint_mark_coder(self):
+    return coders.PickleCoder()
+
+r = iobase.Read(_S())
+p = beam.Pipeline()
+result = r.expand(p)
+assert not result.is_bounded, 'expanded PCollection should be unbounded'
+print("ok")
+'''
+    result = self._run_in_subprocess(script)
+    self.assertEqual(
+        result.returncode, 0,
+        'stderr=%r stdout=%r' % (result.stderr, result.stdout))
+    self.assertIn('ok', result.stdout)
+
+
+class DoFnReaderCloseOnDownstreamRaiseTest(unittest.TestCase):
+  """H4 second half: tracker-internal exception close (already tested in
+  ``BestPracticeRegressionTest.test_h4_*``) handles reader-method failures.
+  This test covers the OTHER half -- the source is well-behaved but a
+  downstream transform raises during ``yield``, so the exception happens
+  AFTER ``try_claim`` returns with a live reader. The DoFn's ``finally``
+  must close it via the private SDF chain.
+  """
+
+  def test_dofn_finally_closes_reader_when_downstream_yield_raises(self):
+    marker = _new_marker_path('.downstream.close.log')
+    _set_close_marker(marker)
+    try:
+      raised = False
+      try:
+        with beam.Pipeline() as p:
+          _ = (
+              p
+              | beam.io.Read(_MarkerCloseSource())
+              | 'BoomMap' >> beam.Map(_downstream_boom))
+      except Exception:  # pylint: disable=broad-except
+        raised = True
+      gc.collect()
+      self.assertTrue(
+          raised,
+          'pipeline did not surface the downstream Map exception')
+      self.assertTrue(
+          os.path.exists(marker),
+          'DoFn finally did not invoke reader.close() on the downstream '
+          'yield-raise path -- reader leaked. Private-chain close in '
+          'unbounded_source.py:expand finally may be broken.')
+    finally:
+      _set_close_marker(None)
+      if os.path.exists(marker):
+        os.unlink(marker)
+
+
+# ------------------------------------------------------------------------------
+# Stronger regression guards (added after independent second-opinion review).
+# The windowed e2e test above is suggestive but not bulletproof, because the
+# FnApiRunner watermark manager advances PCollection watermarks to MAX once a
+# bundle has no deferred work (fn_runner.py ~819 and ~969). These tests probe
+# the DoFn-level behavior directly via file-based side-channels so the BLOCKER
+# fixes cannot regress silently. (In-memory closures don't propagate across
+# Beam's cloudpickle worker boundary even when the worker runs in the same
+# process, so we go through the filesystem.)
+# ------------------------------------------------------------------------------
+
+
+def _new_marker_path(suffix):
+  """Create a fresh temp file path used as a cross-bundle side-channel.
+
+  Returns a path that does NOT exist (deleted after mkstemp). The DoFn-side
+  code writes to it; the test reads it back.
+  """
+  fd, path = tempfile.mkstemp(suffix=suffix)
+  os.close(fd)
+  os.unlink(path)
+  return path
+
+
+class DoFnWatermarkAdvanceTest(unittest.TestCase):
+  """B-1 regression: the DoFn MUST advance the watermark estimator to
+  MAX_TIMESTAMP on the terminal claim, not rely on the runner's auto-advance.
+  """
+
+  def test_eof_invokes_set_watermark_with_max_timestamp(self):
+    marker = _new_marker_path('.watermarks.log')
+
+    original = _unbounded_source_module._set_watermark_if_greater
+
+    def _recording(estimator, watermark):
+      # File side-channel: closure variables are deep-copied across Beam's
+      # bundle boundary even in embedded FnApiRunner; the filesystem is the
+      # only reliable cross-bundle assertion target.
+      with open(marker, 'a') as fp:
+        fp.write(repr(watermark) + '\n')
+      return original(estimator, watermark)
+
+    _unbounded_source_module._set_watermark_if_greater = _recording
+    try:
+      with TestPipeline() as p:
+        _ = p | ReadFromUnboundedSource(CountingSource(3))
+    finally:
+      _unbounded_source_module._set_watermark_if_greater = original
+
+    try:
+      with open(marker) as fp:
+        lines = fp.read().splitlines()
+    finally:
+      if os.path.exists(marker):
+        os.unlink(marker)
+
+    self.assertIn(
+        repr(MAX_TIMESTAMP),
+        lines,
+        '_set_watermark_if_greater was never called with MAX_TIMESTAMP -- '
+        'the EOF branch in process() is not advancing the estimator. '
+        'Captured calls: %r' % (lines, ))
+
+
+class DoFnReaderCloseOnExceptionTest(unittest.TestCase):
+  """B-2 regression: the DoFn's ``finally`` MUST close the reader even when
+  ``process()`` raises mid-bundle, otherwise we leak sockets/fds in production.
+  """
+
+  def test_reader_close_runs_when_process_raises(self):
+    marker = _new_marker_path('.close.log')
+    _set_close_marker(marker)
+    try:
+      raised = False
+      try:
+        with beam.Pipeline() as p:
+          _ = p | ReadFromUnboundedSource(_RaisingSource())
+      except Exception:  # pylint: disable=broad-except
+        raised = True
+      self.assertTrue(
+          raised, 'pipeline did not surface the reader.advance() exception')
+      # Generator finalisation (which runs the DoFn's ``finally``) may be
+      # deferred to GC inside Beam's bundle processor; force it here so the
+      # close-marker is observable.
+      gc.collect()
+      self.assertTrue(
+          os.path.exists(marker),
+          'DoFn finally did not invoke reader.close() on the exception path '
+          '-- reader leaked.')
+    finally:
+      _set_close_marker(None)
+      if os.path.exists(marker):
+        os.unlink(marker)
 
 
 if __name__ == '__main__':
