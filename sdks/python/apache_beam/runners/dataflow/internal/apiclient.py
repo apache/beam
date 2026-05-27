@@ -611,7 +611,7 @@ class DataflowApplicationClient(object):
           is_staged_role = False
         # compute sha256 even if caching is disabled.
         # This is used to check the payload integrity along with caching.
-        if not type_payload.sha256:
+        if self._enable_caching and not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:
