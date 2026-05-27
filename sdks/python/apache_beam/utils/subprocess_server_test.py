@@ -402,16 +402,16 @@ class CacheTest(unittest.TestCase):
       self.assertEqual(len(registered_callbacks), 1)
 
   def test_concurrent_purge_race_condition(self):
-    # Concurrent threads attempting to check memebership and call purge for the same owner.
-    # Here we explicitly define a synchronized set to mimic the behavior of _live_owners.
-    # This set will block two threads on __contains__, allowing us to test the race condition.
+    # Concurrent threads attempting to check membership and call purge for the same owner.
+    # Here we explicitly define a synchronized dict to mimic the behavior of _live_owners.
+    # This dict will block two threads on __contains__, allowing us to test the race condition.
     cache = subprocess_server._SharedCache(lambda x: "obj", lambda x: None)
     owner = cache.register()
 
     barrier = threading.Barrier(2)
     exceptions = []
 
-    class SynchronizedSet(set):
+    class SynchronizedDict(dict):
       def __contains__(self, item):
         res = super().__contains__(item)
         try:
@@ -421,7 +421,7 @@ class CacheTest(unittest.TestCase):
           pass
         return res
 
-    cache._live_owners = SynchronizedSet(cache._live_owners)
+    cache._live_owners = SynchronizedDict(cache._live_owners)
 
     def purge_worker():
       try:
@@ -550,6 +550,53 @@ class CacheTest(unittest.TestCase):
 
     # Clean up the other owner
     cache.purge(other_owner)
+
+  def test_non_context_owners_do_not_share_keys(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    # owner1 is a non-context owner (e.g., prism)
+    owner1 = cache.register(is_context=False)
+    a = cache.get('a', owner=owner1)
+
+    # owner2 is another non-context owner (e.g., short-lived expansion service)
+    owner2 = cache.register(is_context=False)
+    b = cache.get('b', owner=owner2)
+
+    # Verify that owner1 does not own 'b'
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
+
+    # Verify that owner2 does not own 'a'
+    self.assertNotIn(owner2, cache._cache[('a', )].owners)
+
+    # Purging owner2 should immediately destroy/remove 'b'
+    cache.purge(owner2)
+    self.assertNotIn(('b', ), cache._cache)
+
+    # 'a' is still alive because owner1 is still registered
+    self.assertIn(('a', ), cache._cache)
+
+    # Purging owner1 should destroy/remove 'a'
+    cache.purge(owner1)
+    self.assertNotIn(('a', ), cache._cache)
+
+  def test_context_owner_owns_all_keys(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    # owner1 is a non-context owner (e.g., prism)
+    owner1 = cache.register(is_context=False)
+
+    # owner2 is a context owner (e.g., cache_subprocesses)
+    owner2 = cache.register(is_context=True)
+
+    # owner3 is another non-context owner (e.g., short-lived service)
+    owner3 = cache.register(is_context=False)
+
+    # owner3 requests 'b'
+    b = cache.get('b', owner=owner3)
+
+    # owner2 (context) should own 'b'
+    self.assertIn(owner2, cache._cache[('b', )].owners)
+
+    # owner1 (non-context) should NOT own 'b'
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
 
 
 if __name__ == '__main__':
