@@ -609,9 +609,8 @@ if __name__ == '__main__':
           'p310_ml_test': [
               'datatable',
           ] + ml_base,
-          'p312_ml_test': [
-              'datatable',
-          ] + ml_base,
+          'p311_ml_test': ml_base,
+          'p312_ml_test': ml_base,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
           'p313_ml_test': ml_base + milvus_dependency,
