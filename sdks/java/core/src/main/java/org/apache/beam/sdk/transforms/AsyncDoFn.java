@@ -348,7 +348,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                                   Instant timestamp,
                                   BoundedWindow window) {
                                 throw new UnsupportedOperationException(
-                                    "Tagged output not supported in FinishBundleContext for AsyncDoFn");
+                                    "Tagged output not supported in "
+                                        + "FinishBundleContext for AsyncDoFn");
                               }
                             };
                           }
@@ -457,7 +458,12 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
           Thread.currentThread().interrupt();
           throw new RuntimeException("Interrupted while waiting for space in buffer", e);
         }
-        sleepTime *= 2;
+
+        // Prevents long overflow possibility
+        if (sleepTime < maxWaitTime.getMillis()) {
+          sleepTime *= 2;
+        }
+
         totalSleep += sleep;
       }
     }
@@ -606,8 +612,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       }
     }
 
-    // Emit completed outputs (Emit completed tasks immediately; do not wait for all active tasks to
-    // finish).
+    // Emit completed outputs
+    // (Emit completed tasks immediately; do not wait for all active tasks to finish).
     for (List<OutputT> outputs : toReturn) {
       for (OutputT out : outputs) {
         receiver.output(out);
@@ -615,7 +621,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     }
 
     LOG.info(
-        "Items finished: {}, not yet finished: {}, rescheduled: {}, cancelled: {}, in processing state: {}",
+        "Items finished: {}, not yet finished: {}, "
+            + "rescheduled: {}, cancelled: {}, in processing state: {}",
         itemsFinished,
         itemsNotYetFinished,
         itemsRescheduled,

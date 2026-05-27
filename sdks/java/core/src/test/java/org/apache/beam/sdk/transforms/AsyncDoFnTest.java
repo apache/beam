@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -271,8 +272,7 @@ public class AsyncDoFnTest implements Serializable {
   }
 
   // Test 1: testCustomIdFn
-  // Verifies key extraction custom logic. Duplicate elements (same custom ID but different payload)
-  // should be recognized as already in-flight and deduplicated.
+  // Verifies custom ID extraction and deduplication of in-flight duplicate elements.
   @Test
   public void testCustomIdFn() {
     class CustomIdObject implements Serializable {
@@ -477,9 +477,7 @@ public class AsyncDoFnTest implements Serializable {
   }
 
   // Test 6: testCancelledItem
-  // Verifies active task cancellation. If a pending element is deleted from the runner's persistent
-  // state prior to a commit (e.g., due to a rollback), the background future task must be actively
-  // cancelled.
+  // Verifies active task cancellation if a pending element is deleted from the runner's state.
   @Test
   public void testCancelledItem() {
     BasicDofn dofn = new BasicDofn();
@@ -564,7 +562,48 @@ public class AsyncDoFnTest implements Serializable {
     assertEquals(0, fakeBagState.items.size());
   }
 
-  // Test 9: testBufferCount
+  // Test 9: testSlowDuplicates
+  // Verifies that duplicate elements sent after the in-memory buffer
+  // has cleared are correctly tracked and processed.
+  @Test
+  public void testSlowDuplicates() {
+    BasicDofn dofn = new BasicDofn(5000);
+    AsyncDoFn<String, String, String> asyncDoFn =
+        new AsyncDoFn<>(
+            dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
+    asyncDoFn.setup(null);
+
+    FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
+    FakeTimer fakeTimer = new FakeTimer();
+    KV<String, String> msg = KV.of("key1", "1");
+
+    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    fakeBagState.clear();
+    List<String> result =
+        asyncDoFn.commitFinishedItemsDirect(
+            fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    checkOutput(result, Collections.emptyList());
+    assertEquals(0, fakeBagState.items.size());
+
+    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    assertEquals(1, fakeBagState.items.size());
+    waitForEmpty(asyncDoFn);
+
+    result =
+        asyncDoFn.commitFinishedItemsDirect(
+            fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    checkOutput(result, Collections.singletonList("1"));
+    assertEquals(0, fakeBagState.items.size());
+  }
+
+  // Test 10: testBufferCount
   // Verifies accurate in-flight metrics tracking.
   // The item count in the buffer must increment on task scheduling
   // and decrement immediately upon execution completion.
@@ -591,7 +630,7 @@ public class AsyncDoFnTest implements Serializable {
     checkItemsInBuffer(asyncDoFn, 0);
   }
 
-  // Test 10: testBufferStopsAcceptingItems
+  // Test 11: testBufferStopsAcceptingItems
   // Verifies queue boundaries and backpressure throttling.
   // When concurrent threads push elements exceeding the capacity limit,
   // the scheduler must block and delay submissions appropriately.
@@ -663,10 +702,8 @@ public class AsyncDoFnTest implements Serializable {
     poolExecutor.shutdown();
   }
 
-  // Test 11: testBufferWithCancellation
-  // Verifies backpressure behavior in conjunction with element cancellation.
-  // Elements that are actively cancelled during queue throttling should be dropped cleanly from the
-  // buffer.
+  // Test 12: testBufferWithCancellation
+  // Verifies actively cancelled elements are cleanly dropped from the buffer during throttling.
   @Test
   public void testBufferWithCancellation() {
     BasicDofn dofn = new BasicDofn(1000);
@@ -703,7 +740,114 @@ public class AsyncDoFnTest implements Serializable {
     checkOutput(result, Collections.singletonList("2"));
   }
 
-  // Test 12: testResetStateConcurrentTeardown
+  // Test 13: testLoadCorrectness
+  // Verifies that the async wrapper processes large concurrent volumes
+  // across multiple keys correctly under heavy multi-threaded load.
+  @Test
+  public void testLoadCorrectness() {
+    BasicDofn dofn = new BasicDofn(1000);
+    AsyncDoFn<String, String, String> asyncDoFn =
+        new AsyncDoFn<>(
+            dofn,
+            1,
+            Duration.standardSeconds(5),
+            null,
+            null,
+            Duration.millis(10),
+            null,
+            useThreadPool);
+    asyncDoFn.setup(null);
+
+    java.util.Map<String, FakeBagState<KV<String, String>>> bagStates = new java.util.HashMap<>();
+    java.util.Map<String, FakeTimer> timers = new java.util.HashMap<>();
+    java.util.Map<String, List<String>> expectedOutputs = new java.util.HashMap<>();
+
+    for (int i = 0; i < 10; i++) {
+      String key = "key" + i;
+      bagStates.put(key, new FakeBagState<>());
+      timers.put(key, new FakeTimer());
+      expectedOutputs.put(key, new ArrayList<>());
+    }
+
+    ExecutorService poolExecutor = Executors.newFixedThreadPool(10);
+    List<Future<?>> futures = new ArrayList<>();
+    Random random = new Random();
+
+    for (int i = 0; i < 100; i++) {
+      final int val = i;
+      final String key = "key" + random.nextInt(10);
+      expectedOutputs.get(key).add(String.valueOf(val));
+
+      futures.add(
+          poolExecutor.submit(
+              () -> {
+                KV<String, String> item = KV.of(key, String.valueOf(val));
+                asyncDoFn.processDirect(
+                    item,
+                    GlobalWindow.INSTANCE,
+                    Instant.now(),
+                    bagStates.get(key),
+                    timers.get(key));
+              }));
+      try {
+        Thread.sleep(random.nextInt(200));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    try {
+      Thread.sleep(3000 + random.nextInt(2000));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+
+    // Verify that all background tasks completed successfully
+    for (Future<?> future : futures) {
+      try {
+        future.get();
+      } catch (Exception e) {
+        throw new AssertionError("Background task failed", e);
+      }
+    }
+
+    boolean done = false;
+    java.util.Map<String, List<String>> results = new java.util.HashMap<>();
+    for (int i = 0; i < 10; i++) {
+      results.put("key" + i, new ArrayList<>());
+    }
+
+    while (!done) {
+      done = true;
+      for (int i = 0; i < 10; i++) {
+        String key = "key" + i;
+        results
+            .get(key)
+            .addAll(
+                asyncDoFn.commitFinishedItemsDirect(
+                    timers.get(key).getCurrentRelativeTime(), bagStates.get(key), timers.get(key)));
+        if (!bagStates.get(key).items.isEmpty()) {
+          done = false;
+        } else {
+          checkOutput(results.get(key), expectedOutputs.get(key));
+        }
+      }
+      try {
+        Thread.sleep(1000 + random.nextInt(2000));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    for (int i = 0; i < 10; i++) {
+      String key = "key" + i;
+      checkOutput(results.get(key), expectedOutputs.get(key));
+      assertEquals(0, bagStates.get(key).items.size());
+    }
+    poolExecutor.shutdown();
+  }
+
+  // Test 14: testResetStateConcurrentTeardown
   // Verifies safe resource cleanup during concurrent shutdown.
   // Resetting the global shared execution state while workers are running
   // must complete cleanly without thread or lock deadlocks.
