@@ -42,6 +42,8 @@ import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -67,6 +69,10 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
+  private final Counter messagesReceived =
+      Metrics.counter(UnboundedSolaceReader.class, "messages_received");
+  private final Counter messagesAcked =
+      Metrics.counter(UnboundedSolaceReader.class, "messages_acked");
 
   /**
    * Map to track pending checkpoints and their messages. Accessed by both reader
@@ -161,6 +167,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
     receivedMessages.add(receivedXmlMessage);
+    messagesReceived.inc();
 
     return true;
   }
@@ -198,6 +205,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
               () -> {
                 try {
                   msg.ackMessage();
+                  messagesAcked.inc();
                 } catch (IllegalStateException e) {
                   LOG.warn(
                       "SolaceIO.Read: Failed to acknowledge message with applicationMessageId={}, ackMessageId={}. Session might be closed.",
