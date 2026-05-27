@@ -750,7 +750,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           f'Expected {experiment} to disable Portable Runner')
       with self.assertRaisesRegex(
           ValueError,
-          'Disabling Dataflow Portable Runner .* no longer supported.*'):
+          'Disabling Dataflow Portable Runner no longer supported.*'):
         DataflowRunner().run_pipeline(None, options)
 
 
