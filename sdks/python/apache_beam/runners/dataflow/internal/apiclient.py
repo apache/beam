@@ -294,11 +294,12 @@ class Environment(object):
 
       _LOGGER.info('sdk_pipeline_options: %s', options_dict)
 
-      self.proto.sdk_pipeline_options = Struct(
-          fields={
-              'options': Value(struct_value=options_dict),
-              'display_data': Value(list_value=items)
-          })
+      sdk_pipeline_options_struct = Struct()
+      sdk_pipeline_options_struct.update({
+          'options': options_dict,
+          'display_data': items
+      })
+      self.proto.sdk_pipeline_options = sdk_pipeline_options_struct
 
     if self.google_cloud_options.dataflow_service_options:
       for option in self.google_cloud_options.dataflow_service_options:

@@ -134,7 +134,7 @@ class DataflowMetrics(MetricResults):
       #   for unstructured names.
       step = metric.name.context['step']
       step = self._translate_step_name(step)
-    except ValueError:
+    except (KeyError, ValueError):
       pass
 
     namespace = "dataflow/v1b3"  # Try to extract namespace or add a default.
@@ -177,7 +177,7 @@ class DataflowMetrics(MetricResults):
         #  in the service.
         # The second way is only useful for the UI, and should be ignored.
         continue
-      is_tentative = metric.name.context['tentative']
+      is_tentative = metric.name.context.get('tentative') == 'true'
       tentative_or_committed = 'tentative' if is_tentative else 'committed'
 
       metric_key = self._get_metric_key(metric)

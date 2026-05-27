@@ -192,9 +192,14 @@ class DataflowRunner(PipelineRunner):
         messages, page_token = runner.dataflow_client.list_messages(
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
+          importance_name = (
+              dataflow_api.JobMessageImportance(m.message_importance).name
+              if m.message_importance is not None
+              else 'JOB_MESSAGE_IMPORTANCE_UNKNOWN'
+          )
           message = '%s: %s: %s' % (
               m.time,
-              dataflow_api.JobMessageImportance(m.message_importance).name,
+              importance_name,
               m.message_text)
 
           if not last_message_time or m.time > last_message_time:
