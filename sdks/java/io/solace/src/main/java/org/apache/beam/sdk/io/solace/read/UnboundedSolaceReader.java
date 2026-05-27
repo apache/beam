@@ -31,7 +31,9 @@ import java.util.Queue;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -60,6 +62,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final WatermarkPolicy<T> watermarkPolicy;
   private final SempClient sempClient;
   final String readerUuid;
+  private final ExecutorService ackExecutor;
   private final Object lock = new Object();
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
@@ -116,6 +119,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
     this.readerUuid = UUID.randomUUID().toString();
+    this.ackExecutor = Executors.newFixedThreadPool(4);
   }
 
   private SessionService getSessionService() {
@@ -165,6 +169,15 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   public void close() {
     sessionServiceCache.invalidate(readerUuid);
     ActiveReadersRegistry.unregister(readerUuid);
+    ackExecutor.shutdown();
+    try {
+      if (!ackExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+        ackExecutor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      ackExecutor.shutdownNow();
+      Thread.currentThread().interrupt();
+    }
   }
 
   void finalizeCheckpoint(long checkpointId) {
@@ -178,16 +191,28 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       toAck.clear();
     }
 
+    List<CompletableFuture<Void>> futures = new ArrayList<>();
     for (BytesXMLMessage msg : messagesToAck) {
-      try {
-        msg.ackMessage();
-      } catch (IllegalStateException e) {
-        LOG.warn(
-            "SolaceIO.Read: Failed to acknowledge message with applicationMessageId={}, ackMessageId={}. Session might be closed.",
-            msg.getApplicationMessageId(),
-            msg.getAckMessageId(),
-            e);
-      }
+      futures.add(
+          CompletableFuture.runAsync(
+              () -> {
+                try {
+                  msg.ackMessage();
+                } catch (IllegalStateException e) {
+                  LOG.warn(
+                      "SolaceIO.Read: Failed to acknowledge message with applicationMessageId={}, ackMessageId={}. Session might be closed.",
+                      msg.getApplicationMessageId(),
+                      msg.getAckMessageId(),
+                      e);
+                }
+              },
+              ackExecutor));
+    }
+
+    try {
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
+    } catch (Exception e) {
+      LOG.warn("SolaceIO.Read: Exception waiting for message acknowledgements", e);
     }
   }
 
