@@ -455,7 +455,8 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        workExecutor);
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.flushState();
