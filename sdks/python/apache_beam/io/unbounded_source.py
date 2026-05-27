@@ -562,29 +562,41 @@ class _UnboundedSourceRestrictionProvider(core.RestrictionProvider):
       yield restriction
       return
 
+    # Only catch errors raised BY ``source.split`` -- that path is user code
+    # and may legitimately refuse to split (network glitch, partition fetch
+    # error, etc.). Falling back to a single restriction matches Java's
+    # ``BoundedSourceAsSDF`` behaviour.
     try:
       split_sources = list(
           restriction.source.split(_DEFAULT_DESIRED_NUM_SPLITS, self._options))
-      if not split_sources:
-        yield restriction
-        return
-      for split_source in split_sources:
-        if not isinstance(split_source, UnboundedSource):
-          raise TypeError(
-              'UnboundedSource.split() produced %r, expected UnboundedSource' %
-              (split_source, ))
-      for split_source in split_sources:
-        yield dataclasses.replace(
-            restriction,
-            source=split_source,
-            checkpoint_mark=None,
-            is_done=False,
-            finalization_checkpoint_mark=None)
     except Exception:  # pylint: disable=broad-except
       _LOGGER.warning(
           'Exception while splitting UnboundedSource. Source not split.',
           exc_info=True)
       yield restriction
+      return
+
+    if not split_sources:
+      yield restriction
+      return
+
+    # Validation lives OUTSIDE the try/except above. A non-UnboundedSource
+    # returned from ``source.split`` is a source-contract violation, not a
+    # split-refusal, and must fail loudly rather than silently running
+    # single-shard.
+    for split_source in split_sources:
+      if not isinstance(split_source, UnboundedSource):
+        raise TypeError(
+            'UnboundedSource.split() produced %r, expected UnboundedSource' %
+            (split_source, ))
+
+    for split_source in split_sources:
+      yield dataclasses.replace(
+          restriction,
+          source=split_source,
+          checkpoint_mark=None,
+          is_done=False,
+          finalization_checkpoint_mark=None)
 
   def restriction_size(self, element, restriction) -> int:
     # Backlog estimation is out of scope; report a constant non-negative size.
@@ -735,10 +747,32 @@ class ReadFromUnboundedSource(PTransform):
         | 'Impulse' >> Impulse()
         | 'EmitSource' >> core.Map(lambda _: source)
         | 'ReadUnbounded' >> core.ParDo(_ReadFromUnboundedSourceDoFn()))
+    # Wire the source's declared output coder onto the output PCollection.
+    # Setting ``element_type`` alone is not enough: the runner derives the
+    # PCollection's coder via ``coders.registry.get_coder(element_type)``,
+    # which may resolve to a registry default that does NOT match the
+    # source's declared coder (silently downgrading custom coders to pickle).
+    # Register the source-declared coder against the element type so the
+    # registry lookup returns it.
     try:
-      output.element_type = output_coder.to_type_hint()
+      type_hint = output_coder.to_type_hint()
     except NotImplementedError:
-      pass
+      type_hint = None
+    if type_hint is not None:
+      try:
+        coders.registry.register_coder(type_hint, type(output_coder))
+      except Exception:  # pylint: disable=broad-except
+        # Some Beam versions / coder classes refuse class-only registration
+        # (e.g. coders parameterised by non-default constructor args). The
+        # element_type below still flows through the registry's standard
+        # lookup; users with parameterised coders must register their coder
+        # explicitly via ``coders.registry.register_coder`` before pipeline
+        # construction. Logged so the gap is observable.
+        _LOGGER.warning(
+            'Could not register %s for element type %s; users must register '
+            'their coder explicitly for non-default coders.',
+            type(output_coder).__name__, type_hint, exc_info=True)
+      output.element_type = type_hint
     return output
 
   def _infer_output_coder(self, input_type=None, input_coder=None):

@@ -291,6 +291,14 @@ class _MarkerCloseSource(UnboundedSource):
     return coders.PickleCoder()
 
 
+def _downstream_boom(_unused):
+  """Module-level so it pickles cleanly through Beam's bundle worker boundary.
+  Used by ``DoFnReaderCloseOnDownstreamRaiseTest`` to simulate a downstream
+  transform that raises mid-bundle (the harness-driven yield-raise path).
+  """
+  raise RuntimeError('downstream boom')
+
+
 def _new_tracker(source, checkpoint=None):
   restriction = _UnboundedSourceRestriction(
       source=source, checkpoint_mark=checkpoint)
@@ -991,13 +999,25 @@ class DoFnReaderCloseOnDownstreamRaiseTest(unittest.TestCase):
   """H4 second half: tracker-internal exception close (already tested in
   ``BestPracticeRegressionTest.test_h4_*``) handles reader-method failures.
   This test covers the OTHER half -- the source is well-behaved but the
-  generator receives an exception at the ``yield`` point, so the exception
-  happens AFTER ``try_claim`` returns with a live reader. The DoFn's
-  ``finally`` must close it via the private SDF chain.
+  downstream output handler raises, so the exception happens AFTER
+  ``try_claim`` returned with a live reader. Beam's
+  ``common._OutputHandler.handle_process_outputs`` iterates the DoFn's
+  generator with ``for result in results`` and calls
+  ``receiver.receive(...)``; when a downstream receiver raises, the
+  exception is OUTSIDE the user generator. The SDK harness then drops
+  the generator (no explicit ``throw``); the generator's ``finally`` runs
+  when the generator is closed (``GeneratorExit``) or garbage collected.
+
+  We exercise that path two ways:
+    1. Unit-level: simulate the harness drop with ``generator.close()``
+       (raises ``GeneratorExit`` at the active yield, running ``finally``).
+    2. Integration: run a real pipeline with a downstream ``Map`` that
+       raises, and confirm the reader was closed before the pipeline
+       surfaced the error.
   """
 
-  def test_dofn_finally_closes_reader_when_downstream_yield_raises(self):
-    marker = _new_marker_path('.downstream.close.log')
+  def test_dofn_finally_closes_reader_on_generator_close(self):
+    marker = _new_marker_path('.gen_close.log')
     try:
       source = _MarkerCloseSource(marker)
       p = beam.Pipeline()
@@ -1014,15 +1034,46 @@ class DoFnReaderCloseOnDownstreamRaiseTest(unittest.TestCase):
           watermark_estimator=ManualWatermarkEstimator(None))
 
       next(generator)
-      try:
-        generator.throw(RuntimeError('downstream boom'))
-      except RuntimeError:
-        pass
+      # Simulate the harness dropping the generator after a downstream
+      # receiver raised. Beam's SDK harness does NOT call
+      # ``generator.throw`` -- the downstream exception happens outside
+      # the user generator, and the harness lets GC / ``close`` clean up.
+      generator.close()
       self.assertTrue(
           _wait_for_marker(marker),
-          'DoFn finally did not invoke reader.close() on the downstream '
-          'yield-raise path -- reader leaked. Private-chain close in '
-          'unbounded_source.py:expand finally may be broken.')
+          'DoFn finally did not invoke reader.close() when the generator '
+          'was closed (GeneratorExit) -- reader leaked. Private-chain '
+          'close in unbounded_source.py:expand finally may be broken.')
+    finally:
+      if os.path.exists(marker):
+        os.unlink(marker)
+
+  def test_dofn_finally_closes_reader_via_integration_pipeline(self):
+    """End-to-end harness coverage: a real pipeline with a downstream
+    ``Map`` that raises must surface the exception AND must have closed
+    the reader. This complements the unit-level ``generator.close`` test
+    above by exercising the actual SDK harness output-handler path
+    (``common._OutputHandler.handle_process_outputs``).
+    """
+    marker = _new_marker_path('.integration_close.log')
+    try:
+      raised = False
+      try:
+        with beam.Pipeline() as p:
+          _ = (
+              p
+              | ReadFromUnboundedSource(_MarkerCloseSource(marker))
+              | 'BoomMap' >> beam.Map(_downstream_boom))
+      except Exception:  # pylint: disable=broad-except
+        raised = True
+      self.assertTrue(
+          raised,
+          'pipeline did not surface the downstream Map exception')
+      self.assertTrue(
+          _wait_for_marker(marker),
+          'reader leaked across the integration pipeline -- the SDK '
+          'harness path that drops the DoFn generator on downstream '
+          'failure did not trigger our finally close.')
     finally:
       if os.path.exists(marker):
         os.unlink(marker)
