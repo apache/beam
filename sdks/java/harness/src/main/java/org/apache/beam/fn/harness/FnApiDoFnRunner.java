@@ -108,6 +108,7 @@ import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -1736,6 +1737,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputBuilder<OutputT> builder(OutputT value) {
       return WindowedValues.<OutputT>builder()
           .setValue(value)
+          .setTimestamp(currentElement.getTimestamp())
+          .setPaneInfo(currentElement.getPaneInfo())
+          .setWindows(currentElement.getWindows())
+          .setRecordOffset(currentElement.getRecordOffset())
+          .setRecordId(currentElement.getRecordId())
+          .setCausedByDrain(currentElement.causedByDrain())
+          .setValueKind(currentElement.getValueKind())
           .setReceiver(windowedValue -> outputTo(mainOutputConsumer, windowedValue));
     }
 
@@ -1820,7 +1828,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      outputTo(
+          consumer,
+          WindowedValues.of(
+              output,
+              timestamp,
+              windows,
+              paneInfo,
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              null,
+              ValueKind.INSERT));
     }
 
     @Override
@@ -2287,8 +2306,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public ValueKind valueKind() {
+      return currentElement.getValueKind();
+    }
+
+    @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return currentElement.getValueKind();
     }
   }
 

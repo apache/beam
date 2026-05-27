@@ -986,6 +986,8 @@ message UserWorkerRunnerV1Settings {
   optional ConnectivityType connectivity_type = 4
     [default = CONNECTIVITY_TYPE_DEFAULT];
 
+  optional int64 max_cached_entry_bytes = 5 [default = -1];
+
   reserved 1, 2;
 }
 

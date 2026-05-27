@@ -40,15 +40,19 @@ import static org.mockito.Mockito.withSettings;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.DefaultTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -2342,5 +2346,59 @@ public class ReduceFnRunnerTest {
     int getValue();
 
     void setValue(int value);
+  }
+
+  @Test
+  public void testNewWindowOptimization() throws Exception {
+    WindowingStrategy<?, IntervalWindow> strategy =
+        WindowingStrategy.of(FixedWindows.of(Duration.millis(10)))
+            .withTrigger(AfterPane.elementCountAtLeast(2))
+            .withMode(AccumulationMode.ACCUMULATING_FIRED_PANES);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Collections.singletonList("unstable_not_update_compatible_new_window_optimization"));
+    ReduceFnTester<Integer, Iterable<Integer>, IntervalWindow> tester =
+        ReduceFnTester.nonCombining(strategy, options);
+
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
+    assertTrue(
+        "Window should be new",
+        tester
+            .createRunner()
+            .getTriggerRunner()
+            .isNew(
+                tester.createRunner().getContextFactory().base(window, StateStyle.DIRECT).state()));
+
+    // 1. First element for a new window.
+    tester.injectElements(TimestampedValue.of(1, new Instant(1)));
+
+    BitSet bitSet =
+        tester
+            .createRunner()
+            .getTriggerRunner()
+            .getFinishedBits(
+                tester.createRunner().getContextFactory().base(window, StateStyle.DIRECT).state());
+    assertTrue("Bitset should be empty", bitSet.isEmpty());
+    assertFalse("Trigger should not be finished", bitSet.get(0));
+
+    assertFalse(
+        "Window should no longer be new",
+        tester
+            .createRunner()
+            .getTriggerRunner()
+            .isNew(
+                tester.createRunner().getContextFactory().base(window, StateStyle.DIRECT).state()));
+
+    // 2. Second element for the same window.
+    tester.injectElements(TimestampedValue.of(2, new Instant(2)));
+
+    // Extract output.
+    List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
+    // 2 elements fired at end of window.
+    assertThat(output, contains(isSingleWindowedValue(containsInAnyOrder(1, 2), 9, 0, 10)));
   }
 }

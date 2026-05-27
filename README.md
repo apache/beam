@@ -113,7 +113,7 @@ Here are some resources actively maintained by the Beam community to help you ge
 <tbody>
   <tr>
     <td><a href="https://beam.apache.org" target="_blank" rel="noopener noreferrer">Apache Beam Website</a></td>
-    <td>Offical website with documentation, concepts, and guides for Apache Beam.</td>
+    <td>Official website with documentation, concepts, and guides for Apache Beam.</td>
   </tr>
   <tr>
     <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>

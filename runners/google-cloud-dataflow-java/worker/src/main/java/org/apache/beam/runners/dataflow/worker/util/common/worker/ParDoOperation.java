@@ -45,9 +45,9 @@ public class ParDoOperation extends ReceivingOperation {
     }
   }
 
-  @Override
   // Batch mode does not use this method and instead relies on BatchModeUngroupingParDoFn
   // to process timers per key.
+  @Override
   public void finishKey() throws Exception {
     try (Closeable scope = context.enterProcessTimers()) {
       checkStarted();
