@@ -20,9 +20,11 @@ package org.apache.beam.sdk.io.solace.it;
 import static org.apache.beam.sdk.io.solace.it.SolaceContainerManager.TOPIC_NAME;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -140,6 +142,42 @@ public class SolaceIOIT {
     testWriteConnector(SolaceIO.WriterType.BATCHED);
   }
 
+  @Test
+  public void test04ReadWithNackAndTimeout() {
+    pipeline
+        .apply(
+            "Read from Solace with Timeout",
+            SolaceIO.read()
+                .from(Queue.fromName(queueName))
+                .withMaxNumConnections(1)
+                .withAckDeadline(Duration.standardSeconds(5))
+                .withSempClientFactory(
+                    BasicAuthSempClientFactory.builder()
+                        .host("http://localhost:" + solaceContainerManager.sempPortMapped)
+                        .username("admin")
+                        .password("admin")
+                        .vpnName(SolaceContainerManager.VPN_NAME)
+                        .build())
+                .withSessionServiceFactory(
+                    BasicAuthJcsmpSessionServiceFactory.builder()
+                        .host("localhost:" + solaceContainerManager.jcsmpPortMapped)
+                        .username(SolaceContainerManager.USERNAME)
+                        .password(SolaceContainerManager.PASSWORD)
+                        .vpnName(SolaceContainerManager.VPN_NAME)
+                        .build()))
+        .apply("Simulate Failure", ParDo.of(new FailOnceFn(NAMESPACE)));
+
+    PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish(Duration.standardSeconds(20));
+
+    MetricsReader metricsReader = new MetricsReader(pipelineResult, NAMESPACE);
+    long successCount = metricsReader.getCounterMetric("success_count");
+    long redeliveredCount = metricsReader.getCounterMetric("redelivered_count");
+
+    assertEquals(PUBLISH_MESSAGE_COUNT, successCount);
+    assertTrue("Expected at least one redelivered message", redeliveredCount > 0);
+  }
+
   private void testWriteConnector(SolaceIO.WriterType writerType) {
     Pipeline p = createWriterPipeline(writerType);
 
@@ -216,6 +254,31 @@ public class SolaceIOIT {
     public void processElement(@Element T record, OutputReceiver<T> c) {
       elementCounter.inc(1L);
       c.output(record);
+    }
+  }
+
+  private static class FailOnceFn extends DoFn<Solace.Record, Solace.Record> {
+    private static final AtomicBoolean hasFailed = new AtomicBoolean(false);
+    private final Counter redeliveredCounter;
+    private final Counter successCounter;
+
+    FailOnceFn(String namespace) {
+      this.redeliveredCounter = Metrics.counter(namespace, "redelivered_count");
+      this.successCounter = Metrics.counter(namespace, "success_count");
+    }
+
+    @ProcessElement
+    public void processElement(@Element Solace.Record record, OutputReceiver<Solace.Record> out) {
+      if (record.getRedelivered()) {
+        redeliveredCounter.inc();
+      }
+
+      if (hasFailed.compareAndSet(false, true)) {
+        throw new RuntimeException("Simulated transient failure for timeout/nack test");
+      }
+
+      successCounter.inc();
+      out.output(record);
     }
   }
 }

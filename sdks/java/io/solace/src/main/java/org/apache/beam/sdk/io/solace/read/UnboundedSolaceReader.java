@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.read;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.XMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
@@ -65,6 +67,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final SempClient sempClient;
   final String readerUuid;
   private final ExecutorService ackExecutor;
+  @VisibleForTesting Supplier<Long> clock = System::currentTimeMillis;
   private final Object lock = new Object();
   private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
@@ -74,11 +77,13 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final Counter messagesAcked =
       Metrics.counter(UnboundedSolaceReader.class, "messages_acked");
 
+  private final Duration ackDeadline;
+
   /**
    * Map to track pending checkpoints and their messages. Accessed by both reader
    * (getCheckpointMark) and finalizer (finalizeCheckpoint) threads.
    */
-  private final TreeMap<Long, List<BytesXMLMessage>> pendingCheckpoints = new TreeMap<>();
+  private final TreeMap<Long, PendingCheckpoint> pendingCheckpoints = new TreeMap<>();
 
   private long nextCheckpointId = 1;
 
@@ -126,6 +131,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.sempClient = currentSource.getSempClientFactory().create();
     this.readerUuid = UUID.randomUUID().toString();
     this.ackExecutor = Executors.newFixedThreadPool(4);
+    this.ackDeadline = java.time.Duration.ofMillis(currentSource.getAckDeadline().getMillis());
   }
 
   private SessionService getSessionService() {
@@ -153,6 +159,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public boolean advance() {
+    checkTimeouts();
     BytesXMLMessage receivedXmlMessage;
     try {
       receivedXmlMessage = getSessionService().getReceiver().receive();
@@ -191,9 +198,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     List<BytesXMLMessage> messagesToAck = new ArrayList<>();
 
     synchronized (lock) {
-      SortedMap<Long, List<BytesXMLMessage>> toAck = pendingCheckpoints.headMap(checkpointId, true);
-      for (List<BytesXMLMessage> msgs : toAck.values()) {
-        messagesToAck.addAll(msgs);
+      SortedMap<Long, PendingCheckpoint> toAck = pendingCheckpoints.headMap(checkpointId, true);
+      for (PendingCheckpoint cp : toAck.values()) {
+        messagesToAck.addAll(cp.messages);
       }
       toAck.clear();
     }
@@ -224,6 +231,40 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     }
   }
 
+  private void checkTimeouts() {
+    long now = clock.get();
+    List<PendingCheckpoint> expired = new ArrayList<>();
+    synchronized (lock) {
+      while (!pendingCheckpoints.isEmpty()) {
+        long oldestId = pendingCheckpoints.firstKey();
+        PendingCheckpoint oldest = pendingCheckpoints.get(oldestId);
+        if (oldest != null && now - oldest.timestamp > ackDeadline.toMillis()) {
+          pendingCheckpoints.remove(oldestId);
+          expired.add(oldest);
+        } else {
+          break;
+        }
+      }
+    }
+
+    for (PendingCheckpoint cp : expired) {
+      LOG.warn(
+          "SolaceIO.Read: Checkpoint {} timed out after {}ms. Nacking messages.",
+          cp.id,
+          now - cp.timestamp);
+      for (BytesXMLMessage msg : cp.messages) {
+        ackExecutor.execute(
+            () -> {
+              try {
+                msg.settle(XMLMessage.Outcome.FAILED);
+              } catch (Exception e) {
+                LOG.warn("SolaceIO.Read: Failed to nack message", e);
+              }
+            });
+      }
+    }
+  }
+
   @Override
   public Instant getWatermark() {
     // should be only used by a test receiver
@@ -239,7 +280,8 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     ImmutableList<BytesXMLMessage> messages = ImmutableList.copyOf(receivedMessages);
     receivedMessages.clear();
     synchronized (lock) {
-      pendingCheckpoints.put(checkpointId, messages);
+      pendingCheckpoints.put(
+          checkpointId, new PendingCheckpoint(checkpointId, messages, clock.get()));
     }
     return new SolaceCheckpointMark(readerUuid, checkpointId);
   }
@@ -289,6 +331,18 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Could not query backlog bytes. Returning BACKLOG_UNKNOWN", e);
       return BACKLOG_UNKNOWN;
+    }
+  }
+
+  private static class PendingCheckpoint {
+    final long id;
+    final List<BytesXMLMessage> messages;
+    final long timestamp;
+
+    PendingCheckpoint(long id, List<BytesXMLMessage> messages, long timestamp) {
+      this.id = id;
+      this.messages = messages;
+      this.timestamp = timestamp;
     }
   }
 }

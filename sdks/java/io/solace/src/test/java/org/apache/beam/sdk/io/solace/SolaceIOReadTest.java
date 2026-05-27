@@ -97,7 +97,8 @@ public class SolaceIOReadTest {
         spec.inferCoder(pipeline, configuration.getTypeDescriptor()),
         configuration.getTimestampFn(),
         configuration.getWatermarkIdleDurationThreshold(),
-        configuration.getParseFn());
+        configuration.getParseFn(),
+        configuration.getAckDeadline());
   }
 
   @Test
@@ -540,7 +541,7 @@ public class SolaceIOReadTest {
   @Test
   public void testDefaultCoder() {
     Coder<SolaceCheckpointMark> coder =
-        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null)
+        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, null)
             .getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
   }
