@@ -43,14 +43,14 @@ import org.junit.Test;
  * Behavioural tests for {@link ImpulseTranslator} using {@link TopologyTestDriver}.
  *
  * <p>The translator builds a topology with a real source + processor pair. The tests sit a {@link
- * CapturingProcessor} downstream so emitted {@code WindowedValue<byte[]>} elements can be inspected
+ * CapturingProcessor} downstream so emitted {@link KStreamsPayload} elements can be inspected
  * directly without going through a Kafka sink topic (the runner does not produce one because no
  * downstream PCollections exist yet).
  */
 public class ImpulseTranslatorTest {
 
   @Test
-  public void impulseEmitsExactlyOneEmptyByteArrayInGlobalWindow() {
+  public void impulseEmitsDataElementFollowedByTerminalWatermark() {
     KafkaStreamsTranslationContext context = KafkaStreamsPipelineTranslatorTest.newContext();
     new KafkaStreamsPipelineTranslator()
         .translate(context, KafkaStreamsPipelineTranslatorTest.singleImpulsePipeline());
@@ -64,16 +64,24 @@ public class ImpulseTranslatorTest {
       driver.advanceWallClockTime(Duration.ofSeconds(1));
     }
 
-    assertThat(capture.received.size(), is(1));
-    WindowedValue<byte[]> only = capture.received.get(0);
-    assertThat(only, is(notNullValue()));
-    assertThat(only.getValue().length, is(0));
-    assertThat(only.getWindows().size(), is(1));
-    assertThat(only.getTimestamp().getMillis(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+    assertThat(capture.received.size(), is(2));
+
+    KStreamsPayload<byte[]> dataPayload = capture.received.get(0);
+    assertThat(dataPayload, is(notNullValue()));
+    assertThat(dataPayload.isData(), is(true));
+    WindowedValue<byte[]> data = dataPayload.getData();
+    assertThat(data.getValue().length, is(0));
+    assertThat(data.getWindows().size(), is(1));
+    assertThat(data.getTimestamp().getMillis(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+
+    KStreamsPayload<byte[]> watermarkPayload = capture.received.get(1);
+    assertThat(watermarkPayload.isWatermark(), is(true));
+    assertThat(
+        watermarkPayload.getWatermarkMillis(), is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
   }
 
   @Test
-  public void impulseDoesNotReEmitOnRestart() {
+  public void impulseDoesNotReEmitDataOnRepeatedPunctuation() {
     KafkaStreamsTranslationContext context = KafkaStreamsPipelineTranslatorTest.newContext();
     new KafkaStreamsPipelineTranslator()
         .translate(context, KafkaStreamsPipelineTranslatorTest.singleImpulsePipeline());
@@ -84,11 +92,14 @@ public class ImpulseTranslatorTest {
 
     try (TopologyTestDriver driver = new TopologyTestDriver(topology, baseProps())) {
       driver.advanceWallClockTime(Duration.ofSeconds(1));
-      // Trigger again — should be ignored because the state store flag is set.
+      // Trigger again — the data element is gated by the state store; the punctuator should also
+      // have been cancelled after the first emission, so no further events should be captured.
       driver.advanceWallClockTime(Duration.ofSeconds(5));
     }
 
-    assertThat(capture.received.size(), is(1));
+    assertThat(capture.received.size(), is(2));
+    assertThat(capture.received.get(0).isData(), is(true));
+    assertThat(capture.received.get(1).isWatermark(), is(true));
   }
 
   private static Properties baseProps() {
@@ -103,26 +114,27 @@ public class ImpulseTranslatorTest {
   }
 
   /**
-   * Captures {@link WindowedValue} records forwarded by {@link ImpulseProcessor}. The supplier
+   * Captures {@link KStreamsPayload} records forwarded by {@link ImpulseProcessor}. The supplier
    * returns a fresh forwarder each call (required by Kafka Streams) but all forwarders write into
    * the shared {@link #received} list so the test can read the captured elements after the topology
    * is closed.
    */
   private static class CapturingProcessor
-      implements ProcessorSupplier<byte[], WindowedValue<byte[]>, byte[], WindowedValue<byte[]>> {
+      implements ProcessorSupplier<
+          byte[], KStreamsPayload<byte[]>, byte[], KStreamsPayload<byte[]>> {
 
-    final List<WindowedValue<byte[]>> received = Collections.synchronizedList(new ArrayList<>());
+    final List<KStreamsPayload<byte[]>> received = Collections.synchronizedList(new ArrayList<>());
 
     @Override
-    public Processor<byte[], WindowedValue<byte[]>, byte[], WindowedValue<byte[]>> get() {
-      return new Processor<byte[], WindowedValue<byte[]>, byte[], WindowedValue<byte[]>>() {
+    public Processor<byte[], KStreamsPayload<byte[]>, byte[], KStreamsPayload<byte[]>> get() {
+      return new Processor<byte[], KStreamsPayload<byte[]>, byte[], KStreamsPayload<byte[]>>() {
         @Override
-        public void init(@Nullable ProcessorContext<byte[], WindowedValue<byte[]>> context) {
+        public void init(@Nullable ProcessorContext<byte[], KStreamsPayload<byte[]>> context) {
           // no-op
         }
 
         @Override
-        public void process(Record<byte[], WindowedValue<byte[]>> record) {
+        public void process(Record<byte[], KStreamsPayload<byte[]>> record) {
           received.add(record.value());
         }
       };

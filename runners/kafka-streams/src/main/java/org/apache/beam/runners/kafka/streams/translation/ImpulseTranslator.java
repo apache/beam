@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
-import java.util.Iterator;
-import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
@@ -36,7 +35,9 @@ import org.apache.kafka.streams.state.Stores;
  *       a topology that has no real source topic, so the bootstrap topic exists purely to satisfy
  *       that requirement — records published to it are ignored by {@link ImpulseProcessor}.
  *   <li>The {@link ImpulseProcessor} itself, which schedules a one-shot wall-clock punctuator on
- *       {@code init} and emits a single empty {@code WindowedValue<byte[]>} downstream.
+ *       {@code init} and emits a single empty data {@link KStreamsPayload} followed by a terminal
+ *       watermark payload at {@link
+ *       org.apache.beam.sdk.transforms.windowing.BoundedWindow#TIMESTAMP_MAX_VALUE}.
  *   <li>A per-processor {@link KeyValueBytesStoreSupplier persistent state store} that records
  *       whether the impulse has already fired so task restarts do not duplicate it.
  * </ul>
@@ -60,15 +61,12 @@ class ImpulseTranslator implements PTransformTranslator {
   public void translate(
       String transformId, RunnerApi.Pipeline pipeline, KafkaStreamsTranslationContext context) {
     RunnerApi.PTransform transform = pipeline.getComponents().getTransformsOrThrow(transformId);
-    Map<String, String> outputs = transform.getOutputsMap();
-    if (outputs.size() != 1) {
-      throw new IllegalArgumentException(
-          "Impulse "
-              + transformId
-              + " must have exactly one output PCollection but had "
-              + outputs.size());
-    }
-    String outputPCollectionId = onlyValue(outputs);
+    // Impulse produces exactly one output PCollection. This is the produced-outputs map on the
+    // transform, not the consumer count — downstream transforms that consume this PCollection are
+    // modeled as separate PTransforms whose `inputs` reference the same PCollection id, and they
+    // are wired up by their own translators. Iterables.getOnlyElement throws a clear
+    // IllegalArgumentException if the proto is malformed.
+    String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
 
     Topology topology = context.getTopology();
     String sourceNodeName = transformId + SOURCE_SUFFIX;
@@ -88,10 +86,5 @@ class ImpulseTranslator implements PTransformTranslator {
         transformId);
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
-  }
-
-  private static String onlyValue(Map<String, String> map) {
-    Iterator<String> it = map.values().iterator();
-    return it.next();
   }
 }

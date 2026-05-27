@@ -34,23 +34,30 @@ import org.slf4j.LoggerFactory;
 /**
  * Kafka Streams {@link Processor} implementing Beam's {@code Impulse} transform.
  *
- * <p>Emits exactly one {@link WindowedValue} carrying an empty {@code byte[]} payload in the {@link
- * org.apache.beam.sdk.transforms.windowing.GlobalWindow}, with timestamp {@link
- * BoundedWindow#TIMESTAMP_MIN_VALUE}. The emission happens once per task and is persisted in a
- * state store keyed by the transform id so that task restarts do not re-emit.
+ * <p>For each task instance, emits exactly two {@link KStreamsPayload}s downstream:
+ *
+ * <ol>
+ *   <li>A {@link KStreamsPayload#data data} payload wrapping a {@link WindowedValue} of an empty
+ *       {@code byte[]} in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow}, with
+ *       event-time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
+ *   <li>A {@link KStreamsPayload#watermark watermark} payload at {@link
+ *       BoundedWindow#TIMESTAMP_MAX_VALUE} that tells downstream transforms the source is done.
+ * </ol>
+ *
+ * <p>A persistent state store records whether the data element has already been emitted so that
+ * task restarts do not duplicate the data. The terminal watermark, on the other hand, is re-emitted
+ * on every restart so downstream watermark holds release correctly after recovery (per Jan's review
+ * on PR #38689).
  *
  * <p>The trigger comes from a wall-clock punctuator scheduled on {@link #init} — this lets the
  * processor fire even when the dedicated bootstrap source topic is empty, which is the expected
  * production state.
  *
- * <p><b>Watermark advancement to {@code TIMESTAMP_MAX_VALUE}</b> (design doc §4.1) is intentionally
- * <em>not</em> performed here. Kafka Streams has no native Beam watermark; the output PCollection's
- * watermark moves through the (future) runner-side watermark manager rather than through the {@link
- * Record} timestamp. The forwarded Kafka Streams record carries a non-negative record timestamp
- * ({@code 0L}) because KS rejects negative record timestamps; the Beam event-time lives inside the
- * {@link WindowedValue}.
+ * <p>Kafka Streams disallows negative record timestamps, so the forwarded {@link Record} carries
+ * the Unix epoch ({@code 0L}). The Beam event-time lives inside the {@link KStreamsPayload}
+ * variant: inside the {@link WindowedValue} for data, or as the explicit watermark millis.
  */
-class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValue<byte[]>> {
+class ImpulseProcessor implements Processor<byte[], byte[], byte[], KStreamsPayload<byte[]>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ImpulseProcessor.class);
 
@@ -63,7 +70,7 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
   private final String stateStoreName;
   private final String transformId;
 
-  private @Nullable ProcessorContext<byte[], WindowedValue<byte[]>> context;
+  private @Nullable ProcessorContext<byte[], KStreamsPayload<byte[]>> context;
   private @Nullable KeyValueStore<String, Boolean> firedStore;
   private @Nullable Cancellable scheduledPunctuator;
 
@@ -73,7 +80,7 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
   }
 
   @Override
-  public void init(ProcessorContext<byte[], WindowedValue<byte[]>> context) {
+  public void init(ProcessorContext<byte[], KStreamsPayload<byte[]>> context) {
     this.context = context;
     this.firedStore = context.getStateStore(stateStoreName);
     this.scheduledPunctuator =
@@ -88,12 +95,16 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
   }
 
   private void maybeFire() {
-    ProcessorContext<byte[], WindowedValue<byte[]>> ctx = context;
+    ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx = context;
     KeyValueStore<String, Boolean> store = firedStore;
     if (ctx == null || store == null) {
       return;
     }
     if (Boolean.TRUE.equals(store.get(FIRED_KEY))) {
+      // Data was already emitted in a previous task lifetime, but downstream watermark holds may
+      // still need to be released after the restart — re-emit the terminal watermark and stop the
+      // punctuator.
+      forwardWatermarkMax(ctx);
       cancelPunctuator();
       return;
     }
@@ -101,14 +112,21 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], WindowedValu
     // The output PCollection is not keyed (PCollection<byte[]>); use an empty byte[] as a
     // placeholder key so downstream processors that adopt the byte[]-key convention see a
     // consistent shape.
-    //
-    // Kafka Streams disallows negative record timestamps, so the Record carries the Unix epoch
-    // (0L). The Beam event-time, BoundedWindow.TIMESTAMP_MIN_VALUE, lives inside the forwarded
-    // WindowedValue and is what downstream Beam logic must consult.
-    ctx.forward(new Record<byte[], WindowedValue<byte[]>>(new byte[0], impulse, 0L));
+    ctx.forward(
+        new Record<byte[], KStreamsPayload<byte[]>>(
+            new byte[0], KStreamsPayload.data(impulse), 0L));
+    forwardWatermarkMax(ctx);
     store.put(FIRED_KEY, Boolean.TRUE);
     cancelPunctuator();
-    LOG.debug("Impulse {} emitted single element", transformId);
+    LOG.debug("Impulse {} emitted single element and terminal watermark", transformId);
+  }
+
+  /** Forwards a terminal {@code TIMESTAMP_MAX_VALUE} watermark payload to downstream processors. */
+  private static void forwardWatermarkMax(ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx) {
+    long maxMillis = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
+    ctx.forward(
+        new Record<byte[], KStreamsPayload<byte[]>>(
+            new byte[0], KStreamsPayload.watermark(maxMillis), 0L));
   }
 
   /** Cancels the wall-clock punctuator after the impulse has fired to stop periodic wakeups. */
