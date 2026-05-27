@@ -199,12 +199,15 @@ class DataflowMetrics(MetricResults):
 
     if metric.scalar is not None:
       # This will always be a single value if there is any data in the field.
-      return metric.scalar
+      val = metric.scalar
+      if isinstance(val, float) and val.is_integer():
+        return int(val)
+      return val
     elif metric.distribution is not None:
-      dist_count = metric.distribution['count']
-      dist_min = metric.distribution['min']
-      dist_max = metric.distribution['max']
-      dist_sum = metric.distribution['sum']
+      dist_count = int(metric.distribution['count'])
+      dist_min = int(metric.distribution['min'])
+      dist_max = int(metric.distribution['max'])
+      dist_sum = int(metric.distribution['sum'])
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
       #TODO(https://github.com/apache/beam/issues/31788) support StringSet after

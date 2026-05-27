@@ -296,8 +296,7 @@ class Environment(object):
 
       sdk_pipeline_options_struct = Struct()
       sdk_pipeline_options_struct.update({
-          'options': options_dict,
-          'display_data': items
+          'options': options_dict, 'display_data': items
       })
       self.proto.sdk_pipeline_options = sdk_pipeline_options_struct
 
@@ -1051,16 +1050,16 @@ class DataflowApplicationClient(object):
         request.minimum_importance = (
             dataflow.JobMessageImportance.JOB_MESSAGE_DEBUG)
       elif minimum_importance == 'JOB_MESSAGE_DETAILED':
-        request.minimumImportance = (
+        request.minimum_importance = (
             dataflow.JobMessageImportance.JOB_MESSAGE_DETAILED)
       elif minimum_importance == 'JOB_MESSAGE_BASIC':
-        request.minimumImportance = (
+        request.minimum_importance = (
             dataflow.JobMessageImportance.JOB_MESSAGE_BASIC)
       elif minimum_importance == 'JOB_MESSAGE_WARNING':
-        request.minimumImportance = (
+        request.minimum_importance = (
             dataflow.JobMessageImportance.JOB_MESSAGE_WARNING)
       elif minimum_importance == 'JOB_MESSAGE_ERROR':
-        request.minimumImportance = (
+        request.minimum_importance = (
             dataflow.JobMessageImportance.JOB_MESSAGE_ERROR)
       else:
         raise RuntimeError(
