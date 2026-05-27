@@ -459,6 +459,7 @@ public class StreamingModeExecutionContextTest {
         workExecutor);
 
     stepContext.setBacklogBytes(1234.0);
+    executionContext.finishKey();
     executionContext.flushState();
 
     assertEquals(1234, outputBuilder.getSourceBacklogBytes());
