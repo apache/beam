@@ -748,29 +748,46 @@ class Stager(object):
       # Download to a temporary directory first, then copy to cache.
       # This allows us to track exactly which packages are needed for this
       # requirements file.
-      download_dir = None
+      download_dir = tempfile.mkdtemp(dir=temp_directory)
 
-      cmd_args = [
-          Stager._get_python_executable(),
-          '-m',
-          'pip',
-          'download',
-          '--find-links',
-          cache_dir,
-          '-r',
-          tmp_requirements_filepath,
-          '--exists-action',
-          'i',
-          '--no-deps'
-      ]
+      # Read packages from the requirements file
+      requirements = []
+      with open(tmp_requirements_filepath, 'r') as f:
+        for line in f:
+          line = line.strip()
+          if line and not line.startswith('#'):
+            requirements.append(line)
 
-      if populate_cache_with_sdists:
-        download_dir = tempfile.mkdtemp(dir=temp_directory)
-        cmd_args.extend(['--dest', download_dir, '--no-binary', ':all:'])
-        _LOGGER.info('Executing command: %s', cmd_args)
-        processes.check_output(cmd_args, stderr=processes.STDOUT)
-      else:
-        download_dir = Stager._download_pypi_packages(cmd_args, temp_directory)
+      for req in requirements:
+        cmd_args = [
+            Stager._get_python_executable(),
+            '-m',
+            'pip',
+            'download',
+            '--find-links',
+            cache_dir,
+            req,
+            '--exists-action',
+            'i',
+            '--no-deps'
+        ]
+
+        if populate_cache_with_sdists:
+          attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
+          cmd_args.extend(
+              ['--dest', attempt_download_dir, '--no-binary', ':all:'])
+          _LOGGER.info('Executing command: %s', cmd_args)
+          processes.check_output(cmd_args, stderr=processes.STDOUT)
+        else:
+          attempt_download_dir = Stager._download_pypi_packages(
+              cmd_args, temp_directory)
+
+        # Move downloaded packages to our common download directory
+        for pkg_file in os.listdir(attempt_download_dir):
+          src_path = os.path.join(attempt_download_dir, pkg_file)
+          dest_path = os.path.join(download_dir, pkg_file)
+          if not os.path.exists(dest_path):
+            shutil.move(src_path, dest_path)
 
       # Get list of downloaded packages and copy them to the cache
       downloaded_packages = set()
