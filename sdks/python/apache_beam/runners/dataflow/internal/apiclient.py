@@ -60,6 +60,7 @@ from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
 from apache_beam.io.gcp.gcsio import create_storage_client
+from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -274,10 +275,12 @@ class Environment(object):
 
     sdk_pipeline_options = options.get_all_options(retain_unknown_options=True)
     if sdk_pipeline_options:
-      options_dict = {
-          k: v
-          for k, v in sdk_pipeline_options.items() if v is not None
-      }
+      options_dict = {}
+      for k, v in sdk_pipeline_options.items():
+        if v is None:
+          continue
+        options_dict[k] = str(v) if isinstance(
+            v, value_provider.ValueProvider) else v
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       if pipeline_proto_hash:
         options_dict["pipelineProtoHash"] = pipeline_proto_hash
@@ -288,6 +291,8 @@ class Environment(object):
 
       dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
+
+      _LOGGER.info('sdk_pipeline_options: %s', options_dict)
 
       self.proto.sdk_pipeline_options = Struct(
           fields={
@@ -533,6 +538,7 @@ class DataflowApplicationClient(object):
         options, not self.google_cloud_options.no_auth)
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
 
+
   def _get_sdk_image_overrides(self, pipeline_options):
     worker_options = pipeline_options.view_as(WorkerOptions)
     sdk_overrides = worker_options.sdk_harness_container_image_overrides
@@ -611,7 +617,7 @@ class DataflowApplicationClient(object):
           is_staged_role = False
         # compute sha256 even if caching is disabled.
         # This is used to check the payload integrity along with caching.
-        if self._enable_caching and not type_payload.sha256:
+        if not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:
