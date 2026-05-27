@@ -19,7 +19,7 @@ import os
 
 def get_latest_bom():
     url = "https://repo1.maven.org/maven2/com/google/cloud/libraries-bom/maven-metadata.xml"
-    with urllib.request.urlopen(url) as response:
+    with urllib.request.urlopen(url, timeout=15) as response:
         xml = response.read().decode('utf-8')
     match = re.search(r'<release>([^<]+)</release>', xml)
     if match:
@@ -36,7 +36,11 @@ def get_current_bom():
     raise RuntimeError("Could not find current libraries-bom in BeamModulePlugin.groovy")
 
 def to_tuple(version_str):
-    return tuple(map(int, version_str.split('.')))
+    parts = []
+    for part in version_str.split('.'):
+        match = re.match(r'^(\d+)', part)
+        parts.append(int(match.group(1)) if match else 0)
+    return tuple(parts)
 
 def main():
     latest = get_latest_bom()
