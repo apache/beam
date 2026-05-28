@@ -79,6 +79,8 @@ jobs:
         uses: ./.github/actions/setup-action
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 17
       - name: run Jms IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
