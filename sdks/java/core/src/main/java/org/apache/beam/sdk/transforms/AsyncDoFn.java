@@ -62,7 +62,15 @@ import org.slf4j.LoggerFactory;
  * runners are optimized for latencies less than a few seconds and longer operations can result in
  * high retry rates. Async should be considered when the default parallelism is not correct and/or
  * items are expected to take longer than a few seconds to process.
- */
+  
+/*
+  * NOTE: 
+  * 1) The wrapped syncFn requires thread-safety ONLY if BOTH parallelism > 1 AND
+  *    the DoFn is stateful (keeps instance state). 
+  * 2) Tagged output multi-outputs are unsupported.
+  * 3) StartBundle/finishBundle are invoked per element so any batching or 
+  *    aggregation logic will not behave as expected.
+*/
 public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFn.class);
@@ -100,6 +108,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   private static final ConcurrentHashMap<String, ConcurrentHashMap<Object, InFlightElement<?>>>
       processingElements = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, AtomicInteger> itemsInBuffer =
+      new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, AtomicInteger> refCounts =
       new ConcurrentHashMap<>();
 
   private static final ReentrantLock lock = new ReentrantLock();
@@ -203,6 +213,9 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       @Nullable Coder<KV<K, InputT>> coder) {
     this.syncFn = syncFn;
     this.parallelism = parallelism;
+    if (timerFrequency.getMillis() <= 0) {
+      throw new IllegalArgumentException("timerFrequency must be greater than zero");
+    }
     this.timerFrequency = timerFrequency;
     this.maxItemsToBuffer =
         (maxItemsToBuffer != null)
@@ -274,6 +287,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       pool.computeIfAbsent(uuid, k -> Executors.newFixedThreadPool(parallelism));
       processingElements.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>());
       itemsInBuffer.computeIfAbsent(uuid, k -> new AtomicInteger(0));
+      refCounts.computeIfAbsent(uuid, k -> new AtomicInteger(0)).incrementAndGet();
     } finally {
       lock.unlock();
     }
@@ -283,17 +297,19 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   @Teardown
   public void teardown() {
     DoFnInvokers.invokerFor(syncFn).invokeTeardown();
-
-    ExecutorService threadPool;
+    ExecutorService threadPool = null;
     lock.lock();
     try {
-      threadPool = pool.remove(uuid);
-      processingElements.remove(uuid);
-      itemsInBuffer.remove(uuid);
+      AtomicInteger refCount = refCounts.get(uuid);
+      if (refCount != null && refCount.decrementAndGet() == 0) {
+        refCounts.remove(uuid);
+        threadPool = pool.remove(uuid);
+        processingElements.remove(uuid);
+        itemsInBuffer.remove(uuid);
+      }
     } finally {
       lock.unlock();
     }
-
     if (threadPool != null) {
       threadPool.shutdown();
       try {
@@ -598,9 +614,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
               itemsFinished++;
             } catch (Exception e) {
               LOG.error("Error executing async task for element {}", element, e);
-              finishedItems.add(element);
-              finishedElementIds.add(elementId);
-              activeElements.remove(elementId);
+              throw new RuntimeException("Error executing async task for element " + element, e);
             }
           } else {
             inFlightElementIds.add(elementId);
@@ -696,6 +710,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       pool.clear();
       processingElements.clear();
       itemsInBuffer.clear();
+      refCounts.clear();
     } finally {
       lock.unlock();
     }
