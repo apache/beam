@@ -90,8 +90,6 @@ jobs:
     steps:
       - name: Checkout code at RC tag
         uses: actions/checkout@v6
-        with:
-          ref: ${{ env.RC_TAG }}
 
       - name: Download validate_table.sh from master branch
         run: |
