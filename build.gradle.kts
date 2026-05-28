@@ -339,6 +339,7 @@ tasks.register("javaPreCommit") {
 // a precommit task build multiple IOs (except those splitting into single jobs)
 tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:amqp:build")
+  dependsOn(":sdks:java:io:arrow-flight:build")
   dependsOn(":sdks:java:io:cassandra:build")
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")

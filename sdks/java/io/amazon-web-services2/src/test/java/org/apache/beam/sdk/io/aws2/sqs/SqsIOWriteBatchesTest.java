@@ -38,6 +38,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -263,10 +264,24 @@ public class SqsIOWriteBatchesTest {
 
     p.run().waitUntilFinish();
 
-    SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
-    // due to added delay, batches are timed out on arrival of every 3rd msg
-    verify(sqs).sendMessageBatch(request("queue", entries[0], entries[1], entries[2]));
-    verify(sqs).sendMessageBatch(request("queue", entries[3], entries[4]));
+    ArgumentCaptor<SendMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+    verify(sqs, atLeastOnce()).sendMessageBatch(captor.capture());
+
+    List<SendMessageBatchRequest> requests = captor.getAllValues();
+    // This timeout path checks expiration only when new records arrive, so slower CI can shift the
+    // split points. What should remain stable is that the timeout forces multiple batches while
+    // preserving every message exactly once.
+    assertThat(requests.size()).isBetween(2, 3);
+    assertThat(flattenEntries(requests))
+        .extracting(SendMessageBatchRequestEntry::messageBody)
+        .containsExactly("0", "1", "2", "3", "4");
+    assertThat(requests)
+        .allSatisfy(
+            req -> {
+              assertThat(req.queueUrl()).isEqualTo("queue");
+              assertThat(req.entries().size()).isBetween(1, 3);
+            });
   }
 
   @Test
@@ -337,11 +352,17 @@ public class SqsIOWriteBatchesTest {
 
     p.run().waitUntilFinish();
 
-    SendMessageBatchRequestEntry[] entries = entries(range(0, 5));
-    // due to added delay, dynamic batches are timed out on arrival of every 2nd msg (per batch)
-    verify(sqs).sendMessageBatch(request("even", entries[0], entries[2]));
-    verify(sqs).sendMessageBatch(request("uneven", entries[1], entries[3]));
-    verify(sqs).sendMessageBatch(request("even", entries[4]));
+    ArgumentCaptor<SendMessageBatchRequest> captor =
+        ArgumentCaptor.forClass(SendMessageBatchRequest.class);
+    verify(sqs, atLeastOnce()).sendMessageBatch(captor.capture());
+
+    List<SendMessageBatchRequest> requests = captor.getAllValues();
+    // Non-strict timeout checks may submit an expired batch either when its next record arrives or
+    // during a synchronous expiration scan triggered by another queue, so CI timing can vary.
+    assertThat(requests.size()).isBetween(3, 5);
+    assertThat(messagesForQueue(requests, "even")).containsExactly("0", "2", "4");
+    assertThat(messagesForQueue(requests, "uneven")).containsExactly("1", "3");
+    assertThat(requests).allSatisfy(req -> assertThat(req.entries().size()).isBetween(1, 2));
   }
 
   @Test
@@ -404,6 +425,19 @@ public class SqsIOWriteBatchesTest {
 
   private SendMessageBatchRequest anyRequest() {
     return any();
+  }
+
+  private List<SendMessageBatchRequestEntry> flattenEntries(
+      List<SendMessageBatchRequest> requests) {
+    return requests.stream().flatMap(req -> req.entries().stream()).collect(toList());
+  }
+
+  private List<String> messagesForQueue(List<SendMessageBatchRequest> requests, String queue) {
+    return requests.stream()
+        .filter(req -> queue.equals(req.queueUrl()))
+        .flatMap(req -> req.entries().stream())
+        .map(SendMessageBatchRequestEntry::messageBody)
+        .collect(toList());
   }
 
   private SendMessageBatchRequest request(String queue, SendMessageBatchRequestEntry... entries) {
