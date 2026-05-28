@@ -113,6 +113,13 @@ public class MapTaskExecutor implements WorkExecutor {
   }
 
   @Override
+  public void finishKey() throws Exception {
+    for (Operation op : operations) {
+      op.finishKey();
+    }
+  }
+
+  @Override
   public NativeReader.Progress getWorkerProgress() throws Exception {
     return getReadOperation().getProgress();
   }

@@ -97,6 +97,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -643,7 +644,8 @@ public class WorkerCustomSourcesTest {
               Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
-          Windmill.WorkItemCommitRequest.newBuilder());
+          Windmill.WorkItemCommitRequest.newBuilder(),
+          mock(WorkExecutor.class));
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -1023,7 +1025,8 @@ public class WorkerCustomSourcesTest {
         dummyWork,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
-        Windmill.WorkItemCommitRequest.newBuilder());
+        Windmill.WorkItemCommitRequest.newBuilder(),
+        mock(WorkExecutor.class));
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -1038,14 +1041,19 @@ public class WorkerCustomSourcesTest {
     NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator =
         reader.iterator();
     int numReads = 0;
-    while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
-      WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();
-      assertEquals(KV.of(0, numReads), value.getValue().getValue());
-      numReads++;
-      // Fail the work item after reading two elements.
-      if (numReads == 2) {
-        dummyWork.setFailed();
+    try {
+      while ((numReads == 0) ? readerIterator.start() : readerIterator.advance()) {
+        WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> value = readerIterator.getCurrent();
+        assertEquals(KV.of(0, numReads), value.getValue().getValue());
+        numReads++;
+        // Fail the work item after reading two elements.
+        if (numReads == 2) {
+          dummyWork.setFailed();
+        }
       }
+      fail("Expected WorkItemCancelledException");
+    } catch (WorkItemCancelledException e) {
+      // Expected
     }
     assertThat(numReads, equalTo(2));
   }
