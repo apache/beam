@@ -98,7 +98,6 @@ class UtilTest(unittest.TestCase):
 
     self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
 
-
   def test_pipeline_proto_hash(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
