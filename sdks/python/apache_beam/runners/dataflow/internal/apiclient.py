@@ -512,6 +512,10 @@ class DataflowApplicationClient(object):
     else:
       credentials = get_service_credentials(options)
 
+    gapic_credentials = (
+        credentials or google.auth.credentials.AnonymousCredentials()
+    )
+
     client_options = None
     transport = None
     if self.google_cloud_options.dataflow_endpoint:
@@ -523,15 +527,15 @@ class DataflowApplicationClient(object):
       client_options = client_options_lib.ClientOptions(api_endpoint=endpoint)
 
     self._jobs_client = dataflow.JobsV1Beta3Client(
-        credentials=credentials,
+        credentials=gapic_credentials,
         client_options=client_options,
         transport=transport)
     self._messages_client = dataflow.MessagesV1Beta3Client(
-        credentials=credentials,
+        credentials=gapic_credentials,
         client_options=client_options,
         transport=transport)
     self._metrics_client = dataflow.MetricsV1Beta3Client(
-        credentials=credentials,
+        credentials=gapic_credentials,
         client_options=client_options,
         transport=transport)
     self._storage_client = create_storage_client(
