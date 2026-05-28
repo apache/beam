@@ -59,3 +59,4 @@ See the following pages for performance measures recorded when running various B
 - [TensorFlow MNIST Image Classification](/performance/tensorflowmnist)
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
 - [Table Row Inference Sklearn Batch](/performance/tablerowinference)
+- [MLTransform Generate Vocab (batch)](/performance/mltransformvocab)
