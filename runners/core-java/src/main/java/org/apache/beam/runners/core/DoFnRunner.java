@@ -64,8 +64,8 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
-   * Performs per-key cleanup or processing after all elements and timers for a key have been
-   * processed.
+   * Performs per-key cleanup or processing after all elements, timers for a key have been
+   * processed and before moving to the next key or before finishBundle for the last key.
    */
   void finishKey();
 
