@@ -22,6 +22,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Destination;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -36,15 +45,6 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -86,9 +86,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>JmsIO source returns unbounded collection of JMS records as {@code PCollection<JmsRecord>}. A
  * {@link JmsRecord} includes JMS headers and properties, along with the JMS {@link
- * javax.jms.TextMessage} payload.
+ * jakarta.jms.TextMessage} payload.
  *
- * <p>To configure a JMS source, you have to provide a {@link javax.jms.ConnectionFactory} and the
+ * <p>To configure a JMS source, you have to provide a {@link jakarta.jms.ConnectionFactory} and the
  * destination (queue or topic) where to consume. The following example illustrates various options
  * for configuring the source:
  *
@@ -102,8 +102,8 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
- * <p>It is possible to read any type of JMS {@link javax.jms.Message} into a custom POJO using the
- * following configuration:
+ * <p>It is possible to read any type of JMS {@link jakarta.jms.Message} into a custom POJO using
+ * the following configuration:
  *
  * <pre>{@code
  * pipeline.apply(JmsIO.<T>readMessage()
@@ -121,8 +121,8 @@ import org.slf4j.LoggerFactory;
  * <h3>Writing to a JMS destination</h3>
  *
  * <p>JmsIO sink supports writing text messages to a JMS destination on a broker. To configure a JMS
- * sink, you must specify a {@link javax.jms.ConnectionFactory} and a {@link javax.jms.Destination}
- * name. For instance:
+ * sink, you must specify a {@link jakarta.jms.ConnectionFactory} and a {@link
+ * jakarta.jms.Destination} name. For instance:
  *
  * <pre>{@code
  * pipeline
@@ -1053,7 +1053,7 @@ public class JmsIO {
     }
 
     /**
-     * Map the {@code EventT} object to a {@link javax.jms.Message}.
+     * Map the {@code EventT} object to a {@link jakarta.jms.Message}.
      *
      * <p>For instance:
      *
@@ -1075,7 +1075,7 @@ public class JmsIO {
      * .apply(JmsIO.write().withValueMapper(valueNapper)
      * }</pre>
      *
-     * @param valueMapper The function returning the {@link javax.jms.Message}
+     * @param valueMapper The function returning the {@link jakarta.jms.Message}
      * @return The corresponding {@link JmsIO.Write}.
      */
     public Write<EventT> withValueMapper(

@@ -19,6 +19,7 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.jms',
+  requireJavaVersion: JavaVersion.VERSION_17,
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -32,12 +33,12 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.slf4j_api
   implementation library.java.joda_time
-  implementation "org.apache.geronimo.specs:geronimo-jms_2.0_spec:1.0-alpha-2"
-  testImplementation library.java.activemq_amqp
-  testImplementation library.java.activemq_broker
-  testImplementation library.java.activemq_jaas
-  testImplementation library.java.activemq_kahadb_store
-  testImplementation library.java.activemq_client
+  implementation "jakarta.jms:jakarta.jms-api:3.1.0"
+  testImplementation library.java.activemq6_amqp
+  testImplementation library.java.activemq6_broker
+  testImplementation library.java.activemq6_jaas
+  testImplementation library.java.activemq6_kahadb_store
+  testImplementation library.java.activemq6_client
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core

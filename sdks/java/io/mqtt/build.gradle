@@ -19,6 +19,19 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
 
+// The JMS IO module pulls ActiveMQ 6.2.5 (Java 17) into the shared dependency
+// map. Because the global resolution strategy forces every mapped version,
+// that 6.2.5 would otherwise be forced onto this Java 11 module via the shared
+// org.apache.activemq coordinates. MQTT IO only needs ActiveMQ as an embedded
+// test broker, so pin it back to the Java 11-compatible 5.x line.
+configurations.all {
+  resolutionStrategy.dependencySubstitution {
+    substitute module('org.apache.activemq:activemq-broker') using module(library.java.activemq_broker)
+    substitute module('org.apache.activemq:activemq-client') using module(library.java.activemq_client)
+    substitute module('org.apache.activemq:activemq-kahadb-store') using module(library.java.activemq_kahadb_store)
+  }
+}
+
 description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
 ext.summary = "IO to read and write to a MQTT broker."
 
