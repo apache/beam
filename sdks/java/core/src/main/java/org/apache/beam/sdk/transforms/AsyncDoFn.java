@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -91,7 +90,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   private final boolean useThreadPool;
   private final String uuid;
 
-  private transient @Nullable PipelineOptions pipelineOptions;
+  private transient volatile @Nullable PipelineOptions pipelineOptions;
 
   // Shared JVM-Wide States (Static Registries)
   // Map-backed registry holding shared resources across serialized worker instances. Since runners
@@ -495,12 +494,12 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
   private Instant nextTimeToFire(@Nullable K key) {
     long seed = (key == null) ? 0 : key.hashCode();
-    Random random = new Random(seed);
+    double fractionalOffset = Math.abs(seed % 1000000) / 1000000.0;
     double timerFrequencySec = timerFrequency.getMillis() / 1000.0;
     double nowSec = System.currentTimeMillis() / 1000.0;
 
     double base = Math.floor((nowSec + timerFrequencySec) / timerFrequencySec) * timerFrequencySec;
-    double offset = random.nextDouble() * timerFrequencySec;
+    double offset = fractionalOffset * timerFrequencySec;
 
     return Instant.ofEpochMilli((long) ((base + offset) * 1000));
   }
@@ -568,7 +567,6 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     int itemsFinished = 0;
     int itemsNotYetFinished = 0;
     int itemsRescheduled = 0;
-    int itemsCancelled = 0;
 
     Set<Object> finishedElementIds = new HashSet<>();
     Set<Object> inFlightElementIds = new HashSet<>();
@@ -648,12 +646,10 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     }
 
     LOG.info(
-        "Items finished: {}, not yet finished: {}, "
-            + "rescheduled: {}, cancelled: {}, in processing state: {}",
+        "Items finished: {}, not yet finished: {}, " + "rescheduled: {}, in processing state: {}",
         itemsFinished,
         itemsNotYetFinished,
         itemsRescheduled,
-        itemsCancelled,
         itemsInProcessingState);
 
     if (itemsInProcessingState > 0) {
