@@ -513,8 +513,7 @@ class DataflowApplicationClient(object):
       credentials = get_service_credentials(options)
 
     gapic_credentials = (
-        credentials or google.auth.credentials.AnonymousCredentials()
-    )
+        credentials or google.auth.credentials.AnonymousCredentials())
 
     client_options = None
     transport = None
@@ -1265,67 +1264,3 @@ def _verify_interpreter_version_is_supported(pipeline_options):
       'using an unsupported version of Python interpreter, pass '
       '--experiment use_unsupported_python_version pipeline option.' %
       (_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW, sys.version))
-
-
-# To enable a counter on the service, add it to this dictionary.
-# This is required for the legacy python dataflow runner, as portability
-# does not communicate to the service via python code, but instead via a
-# a runner harness (in C++ or Java).
-# TODO(https://github.com/apache/beam/issues/19433) : Remove this antipattern,
-# legacy dataflow python pipelines will break whenever a new cy_combiner type
-# is used.
-structured_counter_translations = {
-    cy_combiners.CountCombineFn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.SumInt64Fn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MinInt64Fn: (
-        'Min', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MaxInt64Fn: (
-        'Max', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MeanInt64Fn: (
-        'Mean', MetricUpdateTranslators.translate_scalar_mean_int),
-    cy_combiners.SumFloatFn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MinFloatFn: (
-        'Min', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MaxFloatFn: (
-        'Max', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MeanFloatFn: (
-        'Mean', MetricUpdateTranslators.translate_scalar_mean_float),
-    cy_combiners.AllCombineFn: (
-        'And', MetricUpdateTranslators.translate_boolean),
-    cy_combiners.AnyCombineFn: (
-        'Or', MetricUpdateTranslators.translate_boolean),
-    cy_combiners.DataflowDistributionCounterFn: (
-        'Distribution', translate_distribution),
-    cy_combiners.DistributionInt64Fn: ('Distribution', translate_distribution),
-}
-
-counter_translations = {
-    cy_combiners.CountCombineFn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.SumInt64Fn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MinInt64Fn: (
-        'Min', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MaxInt64Fn: (
-        'Max', MetricUpdateTranslators.translate_scalar_counter_int),
-    cy_combiners.MeanInt64Fn: (
-        'Mean', MetricUpdateTranslators.translate_scalar_mean_int),
-    cy_combiners.SumFloatFn: (
-        'Sum', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MinFloatFn: (
-        'Min', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MaxFloatFn: (
-        'Max', MetricUpdateTranslators.translate_scalar_counter_float),
-    cy_combiners.MeanFloatFn: (
-        'Mean', MetricUpdateTranslators.translate_scalar_mean_float),
-    cy_combiners.AllCombineFn: (
-        'And', MetricUpdateTranslators.translate_boolean),
-    cy_combiners.AnyCombineFn: (
-        'Or', MetricUpdateTranslators.translate_boolean),
-    cy_combiners.DataflowDistributionCounterFn: (
-        'Distribution', translate_distribution),
-    cy_combiners.DistributionInt64Fn: ('Distribution', translate_distribution),
-}
