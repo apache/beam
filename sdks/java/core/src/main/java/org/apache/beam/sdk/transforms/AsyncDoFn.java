@@ -62,15 +62,12 @@ import org.slf4j.LoggerFactory;
  * runners are optimized for latencies less than a few seconds and longer operations can result in
  * high retry rates. Async should be considered when the default parallelism is not correct and/or
  * items are expected to take longer than a few seconds to process.
-  
-/*
-  * NOTE: 
-  * 1) The wrapped syncFn requires thread-safety ONLY if BOTH parallelism > 1 AND
-  *    the DoFn is stateful (keeps instance state). 
-  * 2) Tagged output multi-outputs are unsupported.
-  * 3) StartBundle/finishBundle are invoked per element so any batching or 
-  *    aggregation logic will not behave as expected.
-*/
+ *
+ * <p>/* NOTE: 1) The wrapped syncFn requires thread-safety ONLY if BOTH parallelism > 1 AND the
+ * DoFn is stateful (keeps instance state). 2) Tagged output multi-outputs are unsupported. 3)
+ * StartBundle/finishBundle are invoked per element so any batching or aggregation logic will not
+ * behave as expected.
+ */
 public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFn.class);
