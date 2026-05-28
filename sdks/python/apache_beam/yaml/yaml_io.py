@@ -247,8 +247,7 @@ def _create_parser(
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
     return (
-        beam_schema,
-        lambda record: covert_to_row(
+        beam_schema, lambda record: covert_to_row(
             fastavro.schemaless_reader(io.BytesIO(record), schema)))
   elif format == 'PROTO':
     _validate_schema()
