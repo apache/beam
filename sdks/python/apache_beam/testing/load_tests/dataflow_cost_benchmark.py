@@ -196,10 +196,13 @@ class DataflowCostBenchmark(LoadTest):
 
     def _point_numeric_value(point) -> float:
       value = point.value
-      # point.value is proto-plus, so use the underlying protobuf oneof.
-      raw_value = getattr(value, '_pb', None)
-      if raw_value is not None:
-        active_field = raw_value.WhichOneof('value')
+      # point.value is proto-plus; use the underlying protobuf oneof if present.
+      msg = getattr(value, '_pb', value)
+      if msg is not None:
+        try:
+          active_field = msg.WhichOneof('value')
+        except AttributeError:
+          active_field = None
         if active_field == 'double_value':
           return float(value.double_value)
         if active_field == 'int64_value':

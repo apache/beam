@@ -14,17 +14,13 @@
 # limitations under the License.
 #
 
-# Keep this benchmark requirements focused and deterministic for Dataflow
-# workers. MLTransform TFT operations require a consistent TensorFlow Transform
-# dependency set; otherwise workers can crash-loop with pandas/numpy ABI
-# mismatches during SDK harness startup.
+# Dataflow worker requirements for mltransform_generate_vocab load tests.
+# MLTransform TFT operations need a consistent TensorFlow Transform stack;
+# otherwise workers can crash-loop with pandas/numpy ABI mismatches.
 google-cloud-monitoring>=2.27.0
 tensorflow_transform>=1.14.0,<1.15.0
 tensorflow-metadata>=1.14.0,<1.15.0
 tfx-bsl>=1.14.0,<1.15.0
-# tfx-bsl / tensorflow-transform rely on pandas 1.x with numpy 1.x.
 numpy<2
 pandas<2
-# tensorflow-transform expects dill but does not hard-pin it.
 dill
-

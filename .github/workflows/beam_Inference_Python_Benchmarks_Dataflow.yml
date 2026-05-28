@@ -224,5 +224,5 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.mltransform_generate_vocab_benchmark \
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/transforms/mltransform_tests_requirements.txt \
+            -PloadTest.requirementsTxtFile=apache_beam/examples/ml_transform/mltransform_generate_vocab_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --job_name=benchmark-tests-mltransform-generate-vocab-batch-${{env.NOW_UTC}}'

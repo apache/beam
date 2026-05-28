@@ -60,13 +60,12 @@ def normalize_text(value: Any, lowercase: bool = True) -> str:
 def _parse_json_line(line: str) -> dict[str, Any]:
   try:
     parsed = json.loads(line)
+    if isinstance(parsed, dict):
+      return parsed
   except json.JSONDecodeError:
-    # Treat plain-text rows as values for the default "text" column.
-    return {'text': line}
-  if not isinstance(parsed, dict):
-    raise ValueError(
-        f'Input JSON line must decode to an object, got: {parsed!r}')
-  return parsed
+    pass
+  # Treat plain-text or non-object rows as values for the default "text" column.
+  return {'text': line}
 
 
 def _extract_column_values(row: dict[str, Any],
@@ -101,7 +100,13 @@ def _resolve_vocab_asset_path(
   pattern = (
       f'{artifact_location.rstrip("/")}'
       f'/*/transform_fn/assets/{asset_name}')
-  matches = FileSystems.match([pattern])[0].metadata_list
+  try:
+    match_results = FileSystems.match([pattern])
+    matches = match_results[0].metadata_list if match_results else []
+  except Exception as e:
+    raise ValueError(
+        f'Could not locate vocabulary artifact {asset_name!r} under '
+        f'{artifact_location!r} due to error: {e}') from e
   if not matches:
     raise ValueError(
         f'Could not locate vocabulary artifact {asset_name!r} under '
@@ -113,7 +118,7 @@ def _read_vocab_tokens(vocab_asset_path: str) -> list[str]:
   tokens = []
   with FileSystems.open(vocab_asset_path) as f:
     for raw_line in f:
-      token = raw_line.decode('utf-8').rstrip('\n')
+      token = raw_line.decode('utf-8').rstrip('\r\n')
       if token:
         tokens.append(token)
   return tokens
@@ -183,17 +188,32 @@ def validate_args(args) -> list[str]:
     raise ValueError('--min_frequency must be >= 1.')
   if args.input_expand_factor is None or args.input_expand_factor < 1:
     raise ValueError('--input_expand_factor must be >= 1.')
-  return [col.strip() for col in args.columns.split(',') if col.strip()]
+  seen = set()
+  deduped_cols = []
+  for col in (c.strip() for c in args.columns.split(',')):
+    if col and col not in seen:
+      seen.add(col)
+      deduped_cols.append(col)
+  return deduped_cols
 
 
 def run(argv=None, test_pipeline=None):
   known_args, pipeline_args = parse_known_args(argv)
   columns = validate_args(known_args)
   lowercase = parse_bool_flag(known_args.lowercase)
-  artifact_location = known_args.artifact_location or tempfile.mkdtemp(
-      prefix='mltransform_generate_vocab_artifacts_')
 
   options = PipelineOptions(pipeline_args)
+  artifact_location = known_args.artifact_location
+  if not artifact_location:
+    temp_location = options.get_all_options().get('temp_location')
+    if temp_location and (temp_location.startswith('gs://') or
+                          temp_location.startswith('s3://')):
+      artifact_location = (
+          f'{temp_location.rstrip("/")}/mltransform_vocab_artifacts')
+    else:
+      artifact_location = tempfile.mkdtemp(
+          prefix='mltransform_generate_vocab_artifacts_')
+
   pipeline = test_pipeline or beam.Pipeline(options=options)
 
   if known_args.input_file:
@@ -226,9 +246,7 @@ def run(argv=None, test_pipeline=None):
               top_k=known_args.vocab_size,
               frequency_threshold=known_args.min_frequency,
               split_string_by_delimiter=' ',
-              vocab_filename='vocab'))
-      | 'ExtractTransformedTokens' >> beam.Map(lambda row: row.text)
-      | 'FlattenTokens' >> beam.FlatMap(list))
+              vocab_filename='vocab')))
 
   result = pipeline.run()
   result.wait_until_finish()
