@@ -2819,6 +2819,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return currentTimer.getFireTimestamp();
     }
 
+    @Override
     public @Nullable Object sideInput(String tagId) {
       PCollectionView<?> view = sideInputMapping.get(tagId);
       if (view == null) {
