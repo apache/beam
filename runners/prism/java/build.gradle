@@ -185,6 +185,7 @@ def sickbayTests = [
 def createPrismValidatesRunnerTask = { name, environmentType ->
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PrismRunner Java $environmentType ValidatesRunner suite"
+    outputs.upToDateWhen { false }
     classpath = configurations.validatesRunner
 
     var prismBuildTask = dependsOn(':runners:prism:build')
