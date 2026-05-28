@@ -48,6 +48,7 @@ from copy import copy
 from datetime import datetime
 from datetime import timezone
 
+import google.auth.credentials
 from google.api_core import exceptions
 from google.api_core import client_options as client_options_lib
 from google.cloud import dataflow
