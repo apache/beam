@@ -44,6 +44,7 @@ dependencies {
 
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":runners:core-java")
   permitUnusedDeclared project(":runners:core-java")
   implementation project(":runners:java-fn-execution")
@@ -58,10 +59,10 @@ dependencies {
   implementation "org.apache.kafka:kafka-clients:$kafka_version"
   implementation "org.apache.kafka:kafka-streams:$kafka_version"
   permitUnusedDeclared "org.apache.kafka:kafka-clients:$kafka_version"
-  permitUnusedDeclared "org.apache.kafka:kafka-streams:$kafka_version"
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
+  testImplementation "org.apache.kafka:kafka-streams-test-utils:$kafka_version"
 }

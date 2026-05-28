@@ -18,18 +18,37 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.Map;
-import java.util.TreeMap;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
- * Translates a portable Beam pipeline into a Kafka Streams {@code Topology}.
+ * Translates a portable Beam pipeline into a Kafka Streams {@link
+ * org.apache.kafka.streams.Topology}.
  *
- * <p>The initial implementation only validates the graph and fails fast with an explicit message
- * for transforms that are not yet supported.
+ * <p>Walks the pipeline in topological order via {@link QueryablePipeline} and dispatches each
+ * transform to a {@link PTransformTranslator} keyed by URN. Transforms whose URN has no registered
+ * translator fail fast with a clear {@link UnsupportedOperationException} so the failure points at
+ * the exact transform that is not yet supported.
  */
 public class KafkaStreamsPipelineTranslator {
+
+  private final Map<String, PTransformTranslator> urnToTranslator;
+
+  public KafkaStreamsPipelineTranslator() {
+    this(
+        ImmutableMap.<String, PTransformTranslator>builder()
+            .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+            .build());
+  }
+
+  KafkaStreamsPipelineTranslator(Map<String, PTransformTranslator> urnToTranslator) {
+    this.urnToTranslator = urnToTranslator;
+  }
 
   public KafkaStreamsTranslationContext createTranslationContext(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
@@ -42,29 +61,27 @@ public class KafkaStreamsPipelineTranslator {
   }
 
   /**
-   * Translates the pipeline. Throws {@link UnsupportedOperationException} with a clear URN message
-   * for the first unsupported primitive encountered.
+   * Walks the pipeline in topological order and translates each transform whose URN is supported.
+   * Throws {@link UnsupportedOperationException} on the first unsupported URN.
    */
   public void translate(KafkaStreamsTranslationContext context, RunnerApi.Pipeline pipeline) {
-    Map<String, RunnerApi.PTransform> transforms = pipeline.getComponents().getTransformsMap();
-    TreeMap<String, RunnerApi.PTransform> ordered = new TreeMap<>(transforms);
-    for (Map.Entry<String, RunnerApi.PTransform> entry : ordered.entrySet()) {
-      RunnerApi.PTransform transform = entry.getValue();
-      if (!transform.hasSpec()) {
-        continue;
+    QueryablePipeline queryable =
+        QueryablePipeline.forTransforms(
+            pipeline.getRootTransformIdsList(), pipeline.getComponents());
+    for (PipelineNode.PTransformNode node : queryable.getTopologicallyOrderedTransforms()) {
+      String urn = node.getTransform().getSpec().getUrn();
+      PTransformTranslator translator = urnToTranslator.get(urn);
+      if (translator == null) {
+        throw new UnsupportedOperationException(
+            "No translator registered for URN "
+                + urn
+                + " (transformId="
+                + node.getId()
+                + ", jobId="
+                + context.getJobInfo().jobId()
+                + ")");
       }
-      String urn = transform.getSpec().getUrn();
-      if (urn.isEmpty()) {
-        continue;
-      }
-      throw new UnsupportedOperationException(
-          "No translator registered for URN "
-              + urn
-              + " (jobId="
-              + context.getJobInfo().jobId()
-              + ")");
+      translator.translate(node.getId(), pipeline, context);
     }
-    throw new UnsupportedOperationException(
-        "No translator registered for pipeline (no transform URNs found)");
   }
 }
