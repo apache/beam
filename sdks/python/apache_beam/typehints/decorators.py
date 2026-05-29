@@ -79,6 +79,7 @@ defined, or before importing a module containing type-hinted functions.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import inspect
 import itertools
 import logging

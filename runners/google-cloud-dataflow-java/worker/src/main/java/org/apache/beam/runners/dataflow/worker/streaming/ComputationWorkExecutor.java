@@ -74,7 +74,7 @@ public abstract class ComputationWorkExecutor {
       SideInputStateFetcher sideInputStateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder)
       throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder);
+    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder, workExecutor());
     workExecutor().execute();
   }
 

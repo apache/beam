@@ -21,7 +21,6 @@
 
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import Union
 from typing import cast
 
@@ -124,7 +123,7 @@ class _Bundle(common.Receiver):
       stacked: bool = True) -> None:
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
-    self._elements: List[Union[WindowedValue,
+    self._elements: list[Union[WindowedValue,
                                _Bundle._StackedWindowedValues]] = []
     self._stacked = stacked
     self._committed = False
@@ -144,7 +143,7 @@ class _Bundle(common.Receiver):
     """
     if not self._stacked:
       # we can safely assume self._elements contains only WindowedValues
-      elements = cast('List[WindowedValue]', self._elements)
+      elements = cast('list[WindowedValue]', self._elements)
       if self._committed and not make_copy:
         return elements
       return list(elements)

@@ -296,6 +296,14 @@ class RetryManager<ResultT, ContextT extends Context<ResultT>> {
     }
   }
 
+  int getRemainingOperationCount() {
+    return operations.size();
+  }
+
+  Iterable<ContextT> getRemainingContexts() {
+    return operations.stream().map(o -> o.context).collect(Collectors.toList());
+  }
+
   void await() throws Exception {
     while (!this.operations.isEmpty()) {
       Operation<ResultT, ContextT> operation = this.operations.element();

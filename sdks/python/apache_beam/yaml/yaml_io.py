@@ -562,6 +562,8 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
+    distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -611,6 +613,15 @@ def write_to_iceberg(
     only: The name of exactly one field to keep as the top level record when
       writing to the destination. All other fields are dropped. This field must
       be of row type. Mutually exclusive with drop and keep.
+    distribution_mode: Defines distribution of write data. Supported
+      distributions:
+      - none: don't shuffle rows (default)
+      - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -624,7 +635,9 @@ def write_to_iceberg(
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
-          only=only))
+          only=only,
+          distribution_mode=distribution_mode,
+          autosharding=autosharding))
 
 
 def io_providers():
@@ -710,3 +723,60 @@ def write_to_tfrecord(
           num_shards=num_shards,
           shard_name_template=shard_name_template,
           compression_type=getattr(CompressionTypes, compression_type))
+
+
+@beam.ptransform_fn
+def match_all(
+    pcoll,
+    *,
+    file_pattern: Optional[str] = None,
+    empty_match_treatment: str = 'ALLOW',
+):
+  """Matches file patterns from the input PCollection.
+
+  This transform returns a PCollection of matching files, each represented as a
+  Row with path, size_in_bytes, and last_updated_in_seconds fields.
+
+  Args:
+    file_pattern (str): The name of the field in the input PCollection that contains
+      the file pattern string. If not specified and the input PCollection has
+      exactly one field, that field will be used.
+    empty_match_treatment (str): How to treat empty matches. Possible values are
+      'ALLOW', 'DISALLOW', and 'ALLOW_IF_WILDCARD'. Defaults to 'ALLOW'.
+  """
+  from apache_beam.typehints import schemas
+
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception:
+    field_names = None
+
+  if field_names:
+    if file_pattern is not None:
+      if file_pattern not in field_names:
+        raise ValueError(
+            f"Field '{file_pattern}' not found in input schema fields: {field_names}"
+        )
+      pattern_field = file_pattern
+    elif len(field_names) == 1:
+      pattern_field = field_names[0]
+    else:
+      raise ValueError(
+          f"Input schema has multiple fields {field_names}. "
+          f"Please specify the 'file_pattern' parameter to select which field "
+          f"contains the file pattern.")
+    patterns = pcoll | beam.Map(lambda x: str(getattr(x, pattern_field)))
+  else:
+    patterns = pcoll
+
+  matched = patterns | beam.io.fileio.MatchAll(
+      empty_match_treatment=empty_match_treatment)
+
+  return matched | beam.Map(
+      lambda x: beam.Row(
+          path=str(x.path), size_in_bytes=int(x.size_in_bytes),
+          last_updated_in_seconds=float(x.last_updated_in_seconds)
+          if x.last_updated_in_seconds is not None else None))

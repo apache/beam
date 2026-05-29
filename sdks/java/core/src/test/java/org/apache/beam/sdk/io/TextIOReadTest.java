@@ -453,10 +453,12 @@ public class TextIOReadTest {
           getTextSource(path.toString(), null, 0)
               .createForSubrangeOfFile(metadata, 0, metadata.sizeBytes());
 
-      PipelineOptions options = PipelineOptionsFactory.create();
-
       // Check every possible split positions.
       for (int i = 0; i < line.length(); ++i) {
+
+        PipelineOptions options = PipelineOptionsFactory.create();
+        options.setJobName("textio-test-" + i + "-" + System.currentTimeMillis());
+
         double fraction = i * 1.0 / line.length();
         FileBasedReader<String> reader = source.createSingleFileReader(options);
 

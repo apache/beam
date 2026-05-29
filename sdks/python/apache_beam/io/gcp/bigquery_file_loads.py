@@ -134,7 +134,13 @@ def _make_new_file_writer(
   directory = fs.FileSystems.join(file_prefix, destination)
 
   if not fs.FileSystems.exists(directory):
-    fs.FileSystems.mkdirs(directory)
+    try:
+      fs.FileSystems.mkdirs(directory)
+    except IOError:
+      # Concurrent workers may race to create the same directory.
+      # Ignore the IOError if another worker successfully created it.
+      if not fs.FileSystems.exists(directory):
+        raise
 
   file_name = str(uuid.uuid4())
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)

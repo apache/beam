@@ -25,7 +25,7 @@ See the [download page](/get-started/downloads/#2720-2026-03-30) for this releas
 
 <!--more-->
 
-For more information on changes in 2.72.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/39).
+For more information on changes in 2.72.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/40).
 
 ## Highlights
 

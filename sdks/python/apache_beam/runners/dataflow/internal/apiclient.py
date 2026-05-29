@@ -97,7 +97,8 @@ class Environment(object):
       options,
       environment_version,
       proto_pipeline_staged_url,
-      proto_pipeline=None):
+      proto_pipeline=None,
+      pipeline_proto_hash=None):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
@@ -207,6 +208,11 @@ class Environment(object):
       pool.diskSizeGb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
       pool.diskType = self.worker_options.disk_type
+    if self.worker_options.disk_provisioned_iops is not None:
+      pool.diskProvisionedIops = self.worker_options.disk_provisioned_iops
+    if self.worker_options.disk_provisioned_throughput_mibps is not None:
+      pool.diskProvisionedThroughputMibps = (
+          self.worker_options.disk_provisioned_throughput_mibps)
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
@@ -279,6 +285,8 @@ class Environment(object):
           for k, v in sdk_pipeline_options.items() if v is not None
       }
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
+      if pipeline_proto_hash:
+        options_dict["pipelineProtoHash"] = pipeline_proto_hash
       # Don't pass impersonate_service_account through to the harness.
       # Though impersonation should start a job, the workers should
       # not try to modify their credentials.
@@ -597,8 +605,9 @@ class DataflowApplicationClient(object):
         else:
           remote_name = os.path.basename(type_payload.path)
           is_staged_role = False
-
-        if self._enable_caching and not type_payload.sha256:
+        # compute sha256 even if caching is disabled.
+        # This is used to check the payload integrity along with caching.
+        if not type_payload.sha256:
           type_payload.sha256 = self._compute_sha256(type_payload.path)
 
         if type_payload.sha256 and type_payload.sha256 in staged_hashes:
@@ -831,10 +840,13 @@ class DataflowApplicationClient(object):
     resources = self._stage_resources(job.proto_pipeline, job.options)
 
     # Stage proto pipeline.
+    serialized_pipeline = job.proto_pipeline.SerializeToString()
+    pipeline_proto_hash = hashlib.sha256(serialized_pipeline).hexdigest()
+
     self.stage_file_with_retry(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
-        io.BytesIO(job.proto_pipeline.SerializeToString()))
+        io.BytesIO(serialized_pipeline))
 
     job.proto.environment = Environment(
         proto_pipeline_staged_url=FileSystems.join(
@@ -843,7 +855,8 @@ class DataflowApplicationClient(object):
         packages=resources,
         options=job.options,
         environment_version=self.environment_version,
-        proto_pipeline=job.proto_pipeline).proto
+        proto_pipeline=job.proto_pipeline,
+        pipeline_proto_hash=pipeline_proto_hash).proto
     _LOGGER.debug('JOB: %s', job)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
@@ -1140,7 +1153,7 @@ def to_split_int(n):
 
 
 # TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
-# after Runner V2 transition.
+# after Dataflow Portable Runner transition.
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
@@ -1161,7 +1174,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
-# TODO: Used in legacy batch worker. Delete after Runner V2 transition.
+# TODO: Used in legacy batch worker. Delete after Dataflow Portable Runner transition.
 def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
 
@@ -1190,8 +1203,8 @@ def get_container_image_from_options(pipeline_options):
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  # Legacy and runner v2 exist in different repositories.
-  # Set to legacy format, override if runner v2
+  # Dataflow Legacy and Portable Runner exist in different repositories.
+  # Set to legacy format, override if Dataflow Portable Runner
   container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
   image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
       repository=container_repo,

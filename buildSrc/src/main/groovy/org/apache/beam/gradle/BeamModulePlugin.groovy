@@ -605,13 +605,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.42.0"
     def classgraph_version = "4.8.162"
+    def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.79.0"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
-    def google_cloud_bigdataoss_version = "2.2.26"
+    def google_cloud_bigdataoss_version = "3.1.16"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -623,7 +624,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
     def iceberg_bqms_catalog_version = "1.6.1-1.0.1"
-    def jackson_version = "2.15.4"
+    def jackson_version = "2.18.6"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
@@ -633,7 +634,8 @@ class BeamModulePlugin implements Plugin<Project> {
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
     def netty_version = "4.1.130.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
-    def opentelemetry_version = "1.51.0"
+    def opentelemetry_version = "1.56.0"
+    def opentelemetry_contrib_version = "1.52.0"
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
     def protobuf_version = "4.33.2"
@@ -649,6 +651,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
+    def spark4_version = "4.0.2"
     def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.21.4"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
@@ -658,6 +661,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
+    project.ext.spark4_version = spark4_version
     // version for BigQueryMetastore catalog (used by sdks:java:io:iceberg:bqms)
     // TODO: remove this and download the jar normally when the catalog gets
     // open-sourced (https://github.com/apache/iceberg/pull/11039)
@@ -679,8 +683,8 @@ class BeamModulePlugin implements Plugin<Project> {
         aircompressor                               : "io.airlift:aircompressor:2.0.3",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
-        avro                                        : "org.apache.avro:avro:1.11.4",
+        // TODO: upgrade post 1.12.1 once https://issues.apache.org/jira/browse/AVRO-4209 resolved
+        avro                                        : "org.apache.avro:avro:1.12.0",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
@@ -699,9 +703,9 @@ class BeamModulePlugin implements Plugin<Project> {
         aws_java_sdk2_profiles                      : "software.amazon.awssdk:profiles:$aws_java_sdk2_version",
         azure_sdk_bom                               : "com.azure:azure-sdk-bom:1.2.14",
         bigdataoss_gcsio                            : "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
-        bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:hadoop2-$google_cloud_bigdataoss_version",
+        bigdataoss_gcs_connector                    : "com.google.cloud.bigdataoss:gcs-connector:$google_cloud_bigdataoss_version",
         bigdataoss_util                             : "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
-        bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:hadoop2-$google_cloud_bigdataoss_version",
+        bigdataoss_util_hadoop                      : "com.google.cloud.bigdataoss:util-hadoop:$google_cloud_bigdataoss_version",
         byte_buddy                                  : "net.bytebuddy:byte-buddy:1.17.7",
         cassandra_driver_core                       : "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver_version",
         cassandra_driver_mapping                    : "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver_version",
@@ -726,6 +730,8 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
+        delta_kernel_api                            : "io.delta:delta-kernel-api:$delta_lake_version",
+        delta_kernel_defaults                       : "io.delta:delta-kernel-defaults:$delta_lake_version",
         envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
@@ -740,7 +746,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260118-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260503-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
@@ -820,6 +826,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jackson_datatype_jsr310                     : "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:$jackson_version",
         jackson_module_scala_2_11                   : "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
         jackson_module_scala_2_12                   : "com.fasterxml.jackson.module:jackson-module-scala_2.12:$jackson_version",
+        jackson_module_scala_2_13                   : "com.fasterxml.jackson.module:jackson-module-scala_2.13:$jackson_version",
         jamm                                        : 'com.github.jbellis:jamm:0.4.0',
         jaxb_api                                    : "jakarta.xml.bind:jakarta.xml.bind-api:$jaxb_api_version",
         jaxb_impl                                   : "com.sun.xml.bind:jaxb-impl:$jaxb_api_version",
@@ -855,8 +862,13 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
-        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // google_cloud_platform_libraries_bom sets version
+        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // opentelemetry-bom sets version
         opentelemetry_bom                           : "io.opentelemetry:opentelemetry-bom-alpha:$opentelemetry_version-alpha", // alpha required by extensions
+        opentelemetry_context                       : "io.opentelemetry:opentelemetry-context:$opentelemetry_version", // Set version explicitly as it's standalone runtime dep for Beam modules
+        opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
+        opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
+        opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
+        opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
@@ -1132,6 +1144,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.javaVersion = '17'
         } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
           project.javaVersion = '21'
+        } else if (JavaVersion.VERSION_25.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '25'
         } else {
           throw new GradleException(
           "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
@@ -1154,6 +1168,9 @@ class BeamModulePlugin implements Plugin<Project> {
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
         project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
+        project.hasProperty('java25Home')) {
+          forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
               "compile on newer Java version or pass java${project.javaVersion}Home project property")
@@ -1502,77 +1519,66 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.analyzeDependencies.enabled = false
       }
 
-      // errorprone requires java9+ compiler. It can be used with Java8 but then sets a java9+ errorproneJavac.
-      // However, the redirect ignores any task that forks and defines either a javaHome or an executable,
-      // see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-      // which means errorprone cannot run when gradle runs on Java11+ but serve `-testJavaVersion=8 -Pjava8Home` options
-      if (!(project.findProperty('testJavaVersion') == '8')) {
-        // Enable errorprone static analysis
-        project.apply plugin: 'net.ltgt.errorprone'
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
 
-        project.dependencies {
-          errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
+      project.dependencies {
+        errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
+        errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
+      }
+
+      project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
+
+      project.tasks.withType(JavaCompile) {
+        options.errorprone.disableWarningsInGeneratedCode = true
+        options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+
+        // Error Prone requires some packages to be exported/opened on Java versions that support modules,
+        // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
+        // The -J prefix is not needed if forkOptions.javaHome is unset,
+        // see http://github.com/gradle/gradle/issues/22747
+        if (options.forkOptions.javaHome == null) {
+          options.fork = true
+          options.forkOptions.jvmArgs += errorProneAddModuleOpts
         }
-
-        project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
-
-        project.tasks.withType(JavaCompile) {
-          options.errorprone.disableWarningsInGeneratedCode = true
-          options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-
-          // Error Prone requires some packages to be exported/opened on Java versions that support modules,
-          // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
-          // The -J prefix is not needed if forkOptions.javaHome is unset,
-          // see http://github.com/gradle/gradle/issues/22747
-          if (options.forkOptions.javaHome == null) {
-            options.fork = true
-            options.forkOptions.jvmArgs += errorProneAddModuleOpts
-          }
-          def disabledChecks = [
-            // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-            "AutoValueImmutableFields",
-            "AutoValueSubclassLeaked",
-            "ComparableType",
-            "DoNotMockAutoValue",
-            "EmptyBlockTag",
-            "EqualsUnsafeCast",
-            "EscapedEntity",
-            "ExtendsAutoValue",
-            "InlineMeSuggester",
-            "InvalidBlockTag",
-            "JodaConstructors",
-            "MixedMutabilityReturnType",
-            "PreferJavaTimeOverload",
-            "NonCanonicalType",
-            "Slf4jSignOnlyFormat",
-            "UnescapedEntity",
-            "UnrecognisedJavadocTag",
-            // errorprone 3.2.0+ checks
-            "DirectInvocationOnMock",
-            "JUnitIncompatibleType",
-            "MockNotUsedInProduction",
-            "NullableWildcard",
-            "SuperCallToObjectMethod",
-            // for encoding efficiency and backward compatibility
-            "EnumOrdinal",
-            // widely used in non-public methods
-            "NotJavadoc",
-            // return values used for assignments widely, and for backward compatibility.
-            "NonApiType",
-            // Used to test self equal
-            "SelfAssertion",
-            // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
-            // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-            "Slf4jLoggerShouldBeNonStatic",
-            // allow implicit Locale.Default
-            "StringCaseLocaleUsage",
-            // DoFn methods are executed reflectively at pipeline runtime
-            "UnusedMethod",
-          ]
-          disabledChecks.each {
-            options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
-          }
+        def disabledChecks = [
+          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+          "AutoValueImmutableFields",
+          "ComparableType",
+          "DoNotMockAutoValue",
+          "EmptyBlockTag",
+          "ExtendsAutoValue",
+          "InlineMeSuggester",
+          "InvalidBlockTag",
+          "JodaConstructors",
+          "MixedMutabilityReturnType",
+          "PreferJavaTimeOverload",
+          "Slf4jSignOnlyFormat",
+          "UnrecognisedJavadocTag",
+          // errorprone 3.2.0+ checks
+          "DirectInvocationOnMock",
+          "MockNotUsedInProduction",
+          "NullableWildcard",
+          "SuperCallToObjectMethod",
+          // Intended suppressions with justifications
+          // for encoding efficiency and backward compatibility
+          "EnumOrdinal",
+          // widely used in non-public methods
+          "NotJavadoc",
+          // return values used for assignments widely, and for backward compatibility.
+          "NonApiType",
+          // Used to test self equal
+          "SelfAssertion",
+          // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
+          // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+          "Slf4jLoggerShouldBeNonStatic",
+          // allow implicit Locale.Default
+          "StringCaseLocaleUsage",
+          // DoFn methods are executed reflectively at pipeline runtime
+          "UnusedMethod",
+        ]
+        disabledChecks.each {
+          options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
         }
       }
 
@@ -1582,7 +1588,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.encoding = "UTF-8"
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
-          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
           options.compilerArgs += ['--release', compatVersion]
           // TODO(https://github.com/apache/beam/issues/23901): Fix
           // optimizerOuterThis breakage
@@ -1615,16 +1621,19 @@ class BeamModulePlugin implements Plugin<Project> {
         preserveFileTimestamps(false)
       }
 
+      String testJavaVersion = project.findProperty('testJavaVersion')
+      if (!testJavaVersion && forkJavaVersion) {
+        testJavaVersion = forkJavaVersion
+      }
       // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21', '25'].contains(project.findProperty('testJavaVersion'))) {
-        String ver = project.getProperty('testJavaVersion')
-        def testJavaHome = project.getProperty("java${ver}Home")
+      if (['11', '17', '21', '25'].contains(testJavaVersion)) {
+        def testJavaHome = project.getProperty("java${testJavaVersion}Home")
 
         // redirect java compiler to specified version for compileTestJava only
         project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
-          project.ext.setJavaVerOptions(options, ver)
-          if (ver == '25') {
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, testJavaVersion)
+          project.ext.setJavaVerOptions(options, testJavaVersion)
+          if (testJavaVersion == '25') {
             // TODO: Upgrade errorprone version to support Java25. Currently compile crashes
             //  java.lang.NoSuchFieldError: Class com.sun.tools.javac.code.TypeTag does not have member field
             //  'com.sun.tools.javac.code.TypeTag UNKNOWN'

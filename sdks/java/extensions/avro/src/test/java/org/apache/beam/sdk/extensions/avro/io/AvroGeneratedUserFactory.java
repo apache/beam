@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
+
 import java.lang.reflect.Constructor;
-import org.apache.avro.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Create a {@link AvroGeneratedUser} instance with different constructors. */
 public class AvroGeneratedUserFactory {
   private static final Logger LOG = LoggerFactory.getLogger(AvroGeneratedUserFactory.class);
-  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   public static AvroGeneratedUser newInstance(
       String name, Integer favoriteNumber, String favoriteColor) {

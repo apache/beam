@@ -96,7 +96,12 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
   batch. By default every invocation uses a fresh, isolated session (stateless).
   Stateful multi-turn conversations can be achieved by passing a ``session_id``
   key inside ``inference_args``; elements sharing the same ``session_id`` will
-  continue the same conversation history.
+  continue the same conversation history. When using stateful conversations,
+  it is recommended to use a custom session_service_factory to provide a session
+  service implementation which can be managed across multiple workers (e.g.
+  :class:`~google.adk.sessions.DatabaseSessionService`). The default
+  :class:`~google.adk.sessions.InMemorySessionService` will not correctly track
+  the same session across multiple workers.
 
   Args:
     agent: A pre-constructed :class:`~google.adk.agents.Agent` instance, or a
@@ -224,17 +229,6 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     for element in batch:
       session_id: str = inference_args.get("session_id", str(uuid.uuid4()))
 
-      # Ensure a session exists for this invocation
-      try:
-        model.session_service.create_session(
-            app_name=self._app_name,
-            user_id=user_id,
-            session_id=session_id,
-        )
-      except sessions.SessionExistsError:
-        # It's okay if the session already exists for shared session IDs.
-        pass
-
       # Wrap plain strings in a Content object
       if isinstance(element, str):
         # pyrefly: ignore[bad-instantiation]
@@ -244,7 +238,8 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         message = element
 
       agent_invocations.append(
-          self._invoke_agent(model, user_id, session_id, message))
+          self._invoke_agent(
+              model, user_id, session_id, self._app_name, message))
       elements_with_sessions.append(element)
 
     # Run all agent invocations concurrently
@@ -269,6 +264,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       runner: "Runner",
       user_id: str,
       session_id: str,
+      app_name: str,
       message: genai_Content,
   ) -> Optional[str]:
     """Drives the ADK event loop and returns the final response text.
@@ -283,15 +279,30 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       The text of the agent's final response, or ``None`` if the agent
       produced no final text response.
     """
+    # Check for your specific session ID
+    try:
+      # Attempt to get the specific session
+      await runner.session_service.get_session(session_id)
+    except Exception as e:
+      await runner.session_service.create_session(
+          app_name=app_name,
+          user_id=user_id,
+          session_id=session_id,
+      )
+
     async for event in runner.run_async(
         user_id=user_id,
         session_id=session_id,
         new_message=message,
     ):
       if event.is_final_response():
-        if event.content:
-          return event.content.text
-    return None
+        if event.content and event.content.parts:
+          return "".join([p.text for p in event.content.parts])
+        raise ValueError(
+            f"Agent {runner.agent.name} did not return a response, "
+            f"final event: {event}")
+
+    raise ValueError(f"Agent {runner.agent.name} did not return a response")
 
   def get_metrics_namespace(self) -> str:
     return "ADKAgentModelHandler"

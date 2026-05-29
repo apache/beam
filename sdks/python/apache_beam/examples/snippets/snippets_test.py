@@ -333,12 +333,12 @@ class TypeHintsTest(unittest.TestCase):
     # One can assert outputs and apply them to transforms as well.
     # Helps document the contract and checks it at pipeline construction time.
     # [START type_hints_transform]
-    from typing import Tuple, TypeVar
+    from typing import TypeVar
 
     T = TypeVar('T')
 
     @beam.typehints.with_input_types(T)
-    @beam.typehints.with_output_types(Tuple[int, T])
+    @beam.typehints.with_output_types(tuple[int, T])
     class MyTransform(beam.PTransform):
       def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
@@ -351,7 +351,7 @@ class TypeHintsTest(unittest.TestCase):
 
     # pylint: disable=expression-not-assigned
     with self.assertRaises(typehints.TypeCheckError):
-      words_with_lens | beam.Map(lambda x: x).with_input_types(Tuple[int, int])
+      words_with_lens | beam.Map(lambda x: x).with_input_types(tuple[int, int])
 
   def test_bad_types_annotations(self):
     p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
@@ -394,10 +394,10 @@ class TypeHintsTest(unittest.TestCase):
     # annotation has an additional Optional for the else clause.
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_do_fn_annotations_optional]
-      from typing import List, Optional
+      from typing import Optional
 
       class FilterEvensDoubleDoFn(beam.DoFn):
-        def process(self, element: int) -> Optional[List[int]]:
+        def process(self, element: int) -> Optional[list[int]]:
           if element % 2 == 0:
             return [element, element]
           return None
@@ -461,7 +461,6 @@ class TypeHintsTest(unittest.TestCase):
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
-      from typing import Tuple
 
       class Player(object):
         def __init__(self, team, name):
@@ -487,7 +486,7 @@ class TypeHintsTest(unittest.TestCase):
       totals = (
           lines
           | beam.Map(parse_player_and_score)
-          | beam.CombinePerKey(sum).with_input_types(Tuple[Player, int]))
+          | beam.CombinePerKey(sum).with_input_types(tuple[Player, int]))
       # [END type_hints_deterministic_key]
 
       assert_that(

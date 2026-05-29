@@ -62,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -99,6 +100,7 @@ public class StreamingModeExecutionContextTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
+  @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
 
@@ -152,7 +154,7 @@ public class StreamingModeExecutionContextTest {
   }
 
   @Test
-  public void testTimerInternalsSetTimer() {
+  public void testTimerInternalsSetTimer() throws Exception {
     Windmill.WorkItemCommitRequest.Builder outputBuilder =
         Windmill.WorkItemCommitRequest.newBuilder();
     NameContext nameContext = NameContextsForTests.nameContextForTest();
@@ -168,7 +170,8 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        workExecutor);
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
@@ -179,6 +182,7 @@ public class StreamingModeExecutionContextTest {
             new Instant(5000),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
+    executionContext.finishKey();
     executionContext.flushState();
 
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
@@ -218,7 +222,8 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder);
+        outputBuilder,
+        workExecutor);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
   }
@@ -427,8 +432,36 @@ public class StreamingModeExecutionContextTest {
               Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
           stateReader,
           sideInputStateFetcher,
-          outputBuilder);
+          outputBuilder,
+          workExecutor);
       assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
     }
+  }
+
+  @Test
+  public void testSetBacklogBytes() {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    executionContext.start(
+        "key",
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        workExecutor);
+
+    stepContext.setBacklogBytes(1234.0);
+    executionContext.finishKey();
+    executionContext.flushState();
+
+    assertEquals(1234, outputBuilder.getSourceBacklogBytes());
   }
 }
