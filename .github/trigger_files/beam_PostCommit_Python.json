@@ -1,10 +1,5 @@
 {
   "comment": "Modify this file in a trivial way to cause this test suite to run.",
   "pr": "38069",
-<<<<<<< dataflowClientTesting
-  "modification": 40
+  "modification": 43
 }
-=======
-  "modification": 42
-}
->>>>>>> master
