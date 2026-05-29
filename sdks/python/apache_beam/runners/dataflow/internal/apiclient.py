@@ -1153,7 +1153,7 @@ def to_split_int(n):
 
 
 # TODO: Used in legacy batch worker. Move under MetricUpdateTranslators
-# after Runner V2 transition.
+# after Dataflow Portable Runner transition.
 def translate_distribution(distribution_update, metric_update_proto):
   """Translate metrics DistributionUpdate to dataflow distribution update.
 
@@ -1174,7 +1174,7 @@ def translate_distribution(distribution_update, metric_update_proto):
   metric_update_proto.distribution = dist_update_proto
 
 
-# TODO: Used in legacy batch worker. Delete after Runner V2 transition.
+# TODO: Used in legacy batch worker. Delete after Dataflow Portable Runner transition.
 def translate_value(value, metric_update_proto):
   metric_update_proto.integer = to_split_int(value)
 
@@ -1203,8 +1203,8 @@ def get_container_image_from_options(pipeline_options):
   if worker_options.sdk_container_image:
     return worker_options.sdk_container_image
 
-  # Legacy and runner v2 exist in different repositories.
-  # Set to legacy format, override if runner v2
+  # Dataflow Legacy and Portable Runner exist in different repositories.
+  # Set to legacy format, override if Dataflow Portable Runner
   container_repo = names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY
   image_name = '{repository}/beam_python{major}.{minor}_sdk'.format(
       repository=container_repo,
