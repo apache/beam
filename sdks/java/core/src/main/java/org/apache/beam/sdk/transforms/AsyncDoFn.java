@@ -63,10 +63,9 @@ import org.slf4j.LoggerFactory;
  * high retry rates. Async should be considered when the default parallelism is not correct and/or
  * items are expected to take longer than a few seconds to process.
  *
- * <p>/* NOTE: 1) The wrapped syncFn requires thread-safety ONLY if BOTH parallelism > 1 AND the
- * DoFn is stateful (keeps instance state). 2) Tagged output multi-outputs are unsupported. 3)
- * StartBundle/finishBundle are invoked per element so any batching or aggregation logic will not
- * behave as expected.
+ * <p>/* NOTE: 1) The wrapped syncFn REQUIRES thread-safety if BOTH parallelism > 1 and the DoFn is
+ * stateful. 2) Tagged output multi-outputs are unsupported. 3) StartBundle/finishBundle are invoked
+ * per element so any batching or aggregation logic will not behave as expected.
  */
 public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
@@ -106,9 +105,13 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       processingElements = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, AtomicInteger> itemsInBuffer =
       new ConcurrentHashMap<>();
+  // Reference counts for cloned instances sharing the same UUID. Coordinates safe,
+  // leak-free thread pool shutdown during teardown without crashing active sibling clones.
   private static final ConcurrentHashMap<String, AtomicInteger> refCounts =
       new ConcurrentHashMap<>();
 
+  // If contention becomes a bottleneck, this can be replaced with per-uuid locks
+  // in a ConcurrentHashMap
   private static final ReentrantLock lock = new ReentrantLock();
   private static final boolean verboseLogging = false;
 
@@ -123,9 +126,12 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   }
 
   private static class InFlightElement<OutputT> {
+    final @Nullable Object key;
     final CompletableFuture<List<TimestampedOutput<OutputT>>> future;
 
-    InFlightElement(CompletableFuture<List<TimestampedOutput<OutputT>>> future) {
+    InFlightElement(
+        @Nullable Object key, CompletableFuture<List<TimestampedOutput<OutputT>>> future) {
+      this.key = key;
       this.future = future;
     }
   }
@@ -450,15 +456,10 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
         CompletableFuture<List<TimestampedOutput<OutputT>>> unused =
             future.whenComplete(
                 (res, ex) -> {
-                  lock.lock();
-                  try {
-                    getItemsInBuffer().decrementAndGet();
-                  } finally {
-                    lock.unlock();
-                  }
+                  getItemsInBuffer().decrementAndGet();
                 });
 
-        activeElements.put(elementId, new InFlightElement<>(future));
+        activeElements.put(elementId, new InFlightElement<>(element.getKey(), future));
         getItemsInBuffer().incrementAndGet();
         return true;
       }
@@ -505,6 +506,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     // Timeout: element skips JVM pool but stays in BagState for timer to reschedule later.
   }
 
+  // Uses hashcode based jitter instead of random for deterministic rescheduling
+  // Satisfies lint check
   private Instant nextTimeToFire(@Nullable K key) {
     long seed = (key == null) ? 0 : key.hashCode();
     double fractionalOffset = Math.abs(seed % 1000000) / 1000000.0;
@@ -587,6 +590,28 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
     lock.lock();
     try {
+      Set<Object> stateElementIds = new HashSet<>();
+      for (KV<K, InputT> element : stateList) {
+        stateElementIds.add(idFn.apply(element.getValue()));
+      }
+
+      List<Object> toCancelIds = new ArrayList<>();
+      for (Map.Entry<Object, InFlightElement<OutputT>> entry : activeElements.entrySet()) {
+        InFlightElement<OutputT> inFlight = entry.getValue();
+        if (java.util.Objects.equals(inFlight.key, key)
+            && !stateElementIds.contains(entry.getKey())) {
+          toCancelIds.add(entry.getKey());
+        }
+      }
+
+      for (Object cancelId : toCancelIds) {
+        InFlightElement<OutputT> inFlight = activeElements.get(cancelId);
+        if (inFlight != null) {
+          inFlight.future.cancel(true);
+          activeElements.remove(cancelId);
+        }
+      }
+
       for (KV<K, InputT> element : stateList) {
         Object elementId = idFn.apply(element.getValue());
 

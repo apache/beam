@@ -33,13 +33,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.Timer;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,7 +46,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class AsyncDoFnTest implements Serializable {
 
-  @Rule public final transient TestPipeline p = TestPipeline.create();
   private final boolean useThreadPool = true;
 
   // Used for testing basic DoFn processing logic with optional latency.
