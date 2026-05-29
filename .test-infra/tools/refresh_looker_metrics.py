@@ -46,6 +46,7 @@ LOOKS_TO_DOWNLOAD = [
     ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
     ("106", ["355", "356", "357", "358", "359"]),   # Table Row Inference Sklearn Streaming
     ("107", ["360", "361", "362", "363", "364"]),  # MLTransform Generate Vocab Batch
+    ("108", ["365", "366", "367", "368", "369"])   # MLTransform One-Hot Encoding Batch
 ]
 
 def get_look(id: str) -> models.Look:

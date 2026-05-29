@@ -299,3 +299,20 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: cC75NnCbQT3mQmKVHtDxzptXpwPb64qz
           title: AvgThroughputElementsPerSec by Version
+  mltransformonehot:
+    write:
+      folder: 108
+      cost:
+        - id: 37DYwfbr5y4gt7g7g7RzRSzGTjd4Jjbj
+          title: RunTime and EstimatedCost
+      date:
+        - id: trcXrBCyPjYj2jTGc3px3d72xMXPCmZb
+          title: AvgThroughputBytesPerSec by Date
+        - id: yczZ4G8rYcP3SHjtQXz7p4BdRhGcXydx
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: mHtwwXKndpJVPjnkcHqRZpfPzfzHtT38
+          title: AvgThroughputBytesPerSec by Version
+        - id: Cn5FsXkdy2ZXCxCJshSCxcjsTW3TXf3c
+          title: AvgThroughputElementsPerSec by Version
+
