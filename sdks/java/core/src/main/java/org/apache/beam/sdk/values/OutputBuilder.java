@@ -53,5 +53,7 @@ public interface OutputBuilder<T> extends WindowedValue<T> {
 
   OutputBuilder<T> setOpenTelemetryContext(@Nullable Context openTelemetryContext);
 
+  OutputBuilder<T> setValueKind(ValueKind valueKind);
+
   void output();
 }

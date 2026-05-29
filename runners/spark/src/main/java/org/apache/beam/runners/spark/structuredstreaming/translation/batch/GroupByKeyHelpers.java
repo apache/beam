@@ -21,7 +21,6 @@ import static org.apache.beam.runners.spark.structuredstreaming.translation.util
 import static org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING;
 import static org.apache.beam.sdk.transforms.windowing.TimestampCombiner.END_OF_WINDOW;
 
-import java.util.Collection;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.Fun1;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -80,8 +79,7 @@ class GroupByKeyHelpers {
     return v -> {
       T value = valueFn.apply(v);
       K key = v.getValue().getKey();
-      Collection<BoundedWindow> windows = (Collection<BoundedWindow>) v.getWindows();
-      return ScalaInterop.scalaIterator(windows).map(w -> tuple(tuple(w, key), value));
+      return ScalaInterop.scalaIterator(v.getWindows()).map(w -> tuple(tuple(w, key), value));
     };
   }
 

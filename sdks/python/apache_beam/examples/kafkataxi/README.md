@@ -67,7 +67,7 @@ Perform Beam runner specific setup.
 
 ℹ️ Note that cross-language transforms require
 portable implementations of Spark/Flink/Direct runners. Dataflow requires
-[runner V2](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
+[Dataflow Portable Runner](https://cloud.google.com/dataflow/docs/guides/deploying-a-pipeline#dataflow-runner-v2).
 See [here](https://beam.apache.org/documentation/runners/dataflow/) for
 instructions for setting up Dataflow.
 

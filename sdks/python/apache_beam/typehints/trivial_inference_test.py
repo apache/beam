@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import dataclasses
 import types
 import unittest
 
@@ -486,6 +487,17 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[int, str],
         python_callable.PythonCallableWithSource("lambda x: (x, str(x))"),
         [int])
+
+  def testDataClassFields(self):
+    @dataclasses.dataclass
+    class MyDataClass:
+      id: int
+      name: str
+
+    self.assertReturnType(
+        typehints.Tuple[int, str],
+        python_callable.PythonCallableWithSource("lambda x: (x.id, x.name)"),
+        [MyDataClass])
 
 
 if __name__ == '__main__':

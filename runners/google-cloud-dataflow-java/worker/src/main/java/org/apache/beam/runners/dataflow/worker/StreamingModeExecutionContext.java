@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -56,6 +57,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -157,6 +159,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable UnboundedReader<?> activeReader;
 
+  private @Nullable WorkExecutor workExecutor;
+  private boolean finishKeyCalled = false;
+
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
       String computationId,
@@ -240,9 +245,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor) {
     this.key = key;
     this.work = work;
+    this.workExecutor = workExecutor;
+    this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
@@ -254,6 +262,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
             : WindmillTagEncodingV1.instance();
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
+    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
 
     Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
@@ -268,6 +277,17 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
       }
     }
+  }
+
+  public void finishKey() {
+    checkState(!finishKeyCalled, "finishKey was already called");
+    checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
+    try {
+      workExecutor.finishKey();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    this.finishKeyCalled = true;
   }
 
   /**
@@ -451,6 +471,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Map<Long, Pair<Instant, Runnable>> flushState() {
+    checkState(finishKeyCalled, "finishKey must be called before flushState");
     Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
     for (StepContext stepContext : getAllStepContexts()) {
@@ -528,6 +549,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           getWorkItem().getWorkToken(),
           activeReader);
       activeReader = null;
+    } else if (backlogBytes != UnboundedReader.BACKLOG_UNKNOWN && backlogBytes != 1L) {
+      // If activeReader is null, we might still have backlogBytes from an SDF. We ignore a reported
+      // backlogBytes of 1 since older versions of the Java SDK use this value as a default when
+      // RestrictionTracker.getProgress() or GetSize() are not defined.
+      outputBuilder.setSourceBacklogBytes(backlogBytes);
     }
     return callbacks;
   }
@@ -726,6 +752,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     public BundleFinalizer bundleFinalizer() {
       return wrapped.bundleFinalizer();
     }
+
+    @Override
+    public void setBacklogBytes(double backlogBytes) {
+      wrapped.setBacklogBytes(backlogBytes);
+    }
   }
 
   /** A {@link SideInputReader} that fetches side inputs from the streaming worker's cache. */
@@ -854,6 +885,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       stateInternals.persist(outputBuilder);
       systemTimerInternals.persistTo(outputBuilder);
       userTimerInternals.persistTo(outputBuilder);
+    }
+
+    @Override
+    public void setBacklogBytes(double backlogBytes) {
+      StreamingModeExecutionContext.this.backlogBytes = (long) backlogBytes;
     }
 
     @Override
