@@ -138,9 +138,7 @@ class DataflowMetrics(MetricResults):
       pass
 
     namespace = "dataflow/v1b3"  # Try to extract namespace or add a default.
-    carried_namespace = metric.name.context.get('namespace', None)
-    if carried_namespace:
-      namespace = carried_namespace
+    namespace = metric.name.context.get('namespace', 'dataflow/v1b3')
 
     for key in metric.name.context:
       if key in STRUCTURED_NAME_LABELS:
