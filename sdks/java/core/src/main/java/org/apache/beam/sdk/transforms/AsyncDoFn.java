@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -141,10 +140,11 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   // Buffered elements are only committed downstream once the parent task completes successfully
   // and the timer fires.
   private static class AccumulatingOutputReceiver<T> implements OutputReceiver<T> {
-    private final List<TimestampedOutput<T>> outputs =
-        Collections.synchronizedList(new ArrayList<>());
+    private final java.util.concurrent.ConcurrentLinkedQueue<TimestampedOutput<T>> outputs =
+        new java.util.concurrent.ConcurrentLinkedQueue<>();
 
-    private final Instant inputTimestamp; // <-- Store original timestamp
+    // Store original timestamp
+    private final Instant inputTimestamp;
 
     AccumulatingOutputReceiver(Instant inputTimestamp) {
       this.inputTimestamp = inputTimestamp;
@@ -185,7 +185,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     }
 
     public List<TimestampedOutput<T>> getTimestampedOutputs() {
-      return outputs;
+      return new ArrayList<>(outputs);
     }
   }
 
