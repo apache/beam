@@ -190,12 +190,12 @@ func launchSDKProcess() error {
 	experiments := getExperiments(options)
 	logger.Printf(ctx, "Experiments=%v", experiments)
 
-	pipNoBuildIsolation = false
-	if slices.Contains(experiments, "pip_no_build_isolation") {
-		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
-	} else {
+	pipNoBuildIsolation = true
+	if slices.Contains(experiments, "pip_use_build_isolation") {
+		pipNoBuildIsolation = false
 		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
 	}
 
 	// (2) Retrieve and install the staged packages.
