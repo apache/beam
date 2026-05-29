@@ -298,7 +298,7 @@ looks:
         - id: tPYwJngPDBsKjK3DNgGHGsCyTpxdfmTB
           title: AvgThroughputBytesPerSec by Version
         - id: cC75NnCbQT3mQmKVHtDxzptXpwPb64qz
-          title: AvgThroughputElementsPerSec by Version          
+          title: AvgThroughputElementsPerSec by Version
   mltransformonehot:
     write:
       folder: 108
@@ -314,4 +314,5 @@ looks:
         - id: mHtwwXKndpJVPjnkcHqRZpfPzfzHtT38
           title: AvgThroughputBytesPerSec by Version
         - id: Cn5FsXkdy2ZXCxCJshSCxcjsTW3TXf3c
+          title: AvgThroughputElementsPerSec by Version
 
