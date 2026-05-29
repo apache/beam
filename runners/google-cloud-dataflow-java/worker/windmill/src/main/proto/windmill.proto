@@ -979,7 +979,7 @@ enum ConnectivityType {
   CONNECTIVITY_TYPE_DIRECTPATH = 2;
 }
 
-// Settings to control runtime behavior of the java runner v1 user worker.
+// Settings to control runtime behavior of the Streaming Java Runner user worker.
 message UserWorkerRunnerV1Settings {
   optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
 

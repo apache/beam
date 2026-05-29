@@ -65,7 +65,7 @@ _LOGGER = logging.getLogger(__name__)
 
 BQ_SOURCE_UW_ERROR = (
     'The Read(BigQuerySource(...)) transform is not supported with newer stack '
-    'features (Fn API, Dataflow Runner V2, etc). Please use the transform '
+    'features (Fn API, Dataflow Portable Runner, etc). Please use the transform '
     'apache_beam.io.gcp.bigquery.ReadFromBigQuery instead.')
 
 
@@ -320,7 +320,7 @@ class DataflowRunner(PipelineRunner):
             raise ValueError(
                 'CombineFn.setup and CombineFn.teardown are '
                 'not supported with non-portable Dataflow '
-                'runner. Please use Dataflow Runner V2 instead.')
+                'runner. Please use Dataflow Portable Runner instead.')
 
       @staticmethod
       def _overrides_setup_or_teardown(combinefn):
@@ -342,7 +342,7 @@ class DataflowRunner(PipelineRunner):
     """Remotely executes entire pipeline or parts reachable from node."""
     if _is_runner_v2_disabled(options):
       raise ValueError(
-          'Disabling Runner V2 no longer supported '
+          'Disabling Dataflow Portable Runner no longer supported '
           'using Beam Python %s.' % beam.version.__version__)
 
     # Label goog-dataflow-notebook if job is started from notebook.
@@ -591,6 +591,8 @@ def _add_runner_v2_missing_options(options):
   debug_options.add_experiment('use_unified_worker')
   debug_options.add_experiment('use_runner_v2')
   debug_options.add_experiment('use_portable_job_submission')
+  # enable_portable_runner is not added by default as it is not documented.
+  # This behavior will be fixed in later versions.
 
 
 def _check_and_add_missing_options(options):
@@ -648,8 +650,8 @@ def _check_and_add_missing_streaming_options(options):
 
   :param options: PipelineOptions for this pipeline.
   """
-  # Streaming only supports using runner v2 (aka unified worker).
-  # Runner v2 only supports using streaming engine (aka windmill service)
+  # Streaming only supports using Dataflow Portable Runner (aka unified worker, runner v2).
+  # Dataflow Portable Runner only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
     debug_options.add_experiment('enable_streaming_engine')
@@ -659,9 +661,11 @@ def _check_and_add_missing_streaming_options(options):
 def _is_runner_v2_disabled(options):
   # Type: (PipelineOptions) -> bool
 
-  """Returns true if runner v2 is disabled."""
+  """Returns true if Dataflow Portable Runner is disabled."""
   debug_options = options.view_as(DebugOptions)
   return (
+      debug_options.lookup_experiment('disable_portable_runner') or
+      debug_options.lookup_experiment('enable_streaming_java_runner') or
       debug_options.lookup_experiment('disable_runner_v2') or
       debug_options.lookup_experiment('disable_runner_v2_until_2023') or
       debug_options.lookup_experiment('disable_runner_v2_until_v2.50') or
