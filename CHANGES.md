@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Dataflow Runner v2 has been renamed to Dataflow Portable Runner. Please refer to dataflow [pubic documentation](https://docs.cloud.google.com/dataflow/docs/runner-v2) on when to enable portable runner.
 
 ## Breaking Changes
 
