@@ -144,11 +144,17 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     private final List<TimestampedOutput<T>> outputs =
         Collections.synchronizedList(new ArrayList<>());
 
+    private final Instant inputTimestamp; // <-- Store original timestamp
+
+    AccumulatingOutputReceiver(Instant inputTimestamp) {
+      this.inputTimestamp = inputTimestamp;
+    }
+
     @Override
     public org.apache.beam.sdk.values.OutputBuilder<T> builder(T value) {
       return org.apache.beam.sdk.values.WindowedValues.<T>builder()
           .setValue(value)
-          .setTimestamp(Instant.now())
+          .setTimestamp(inputTimestamp)
           .setWindows(java.util.Collections.singletonList(GlobalWindow.INSTANCE))
           .setPaneInfo(org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING)
           .setReceiver(
@@ -162,7 +168,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     // JVM optimization to prevent garbage collection pressure under high pipeline throughput.
     @Override
     public void output(T output) {
-      outputs.add(new TimestampedOutput<>(output, null));
+      outputs.add(new TimestampedOutput<>(output, inputTimestamp));
     }
 
     @Override
@@ -287,7 +293,9 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
     lock.lock();
     try {
-      pool.computeIfAbsent(uuid, k -> Executors.newFixedThreadPool(parallelism));
+      if (useThreadPool) {
+        pool.computeIfAbsent(uuid, k -> Executors.newFixedThreadPool(parallelism));
+      }
       processingElements.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>());
       itemsInBuffer.computeIfAbsent(uuid, k -> new AtomicInteger(0));
       refCounts.computeIfAbsent(uuid, k -> new AtomicInteger(0)).incrementAndGet();
@@ -353,7 +361,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                 () -> {
                   try {
                     AccumulatingOutputReceiver<OutputT> receiver =
-                        new AccumulatingOutputReceiver<>();
+                        new AccumulatingOutputReceiver<>(timestamp);
                     DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.invokerFor(syncFn);
 
                     DoFnInvoker.ArgumentProvider<InputT, OutputT> bundleArgProvider =
@@ -577,7 +585,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
 
     List<List<TimestampedOutput<OutputT>>> toReturn = new ArrayList<>();
-    Set<KV<K, InputT>> finishedItems = new HashSet<>();
+
     List<KV<K, InputT>> toReschedule = new ArrayList<>();
 
     int itemsFinished = 0;
@@ -630,7 +638,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
               if (!inFlight.future.isCancelled()) {
                 toReturn.add(inFlight.future.get());
               }
-              finishedItems.add(element);
+
               finishedElementIds.add(elementId);
               activeElements.remove(elementId);
               itemsFinished++;
@@ -663,7 +671,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     toProcessState.clear();
     int itemsInProcessingState = 0;
     for (KV<K, InputT> element : stateList) {
-      if (!finishedItems.contains(element)) {
+      Object elementId = idFn.apply(element.getValue());
+      if (!finishedElementIds.contains(elementId)) {
         toProcessState.add(element);
         itemsInProcessingState++;
       }
@@ -710,7 +719,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
   List<OutputT> commitFinishedItemsDirect(
       Instant fireTimestamp, BagState<KV<K, InputT>> toProcessState, Timer timer) {
-    AccumulatingOutputReceiver<OutputT> receiver = new AccumulatingOutputReceiver<>();
+    AccumulatingOutputReceiver<OutputT> receiver = new AccumulatingOutputReceiver<>(fireTimestamp);
     commitFinishedItems(fireTimestamp, toProcessState, timer, receiver);
     return receiver.getOutputs();
   }
