@@ -41,6 +41,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_streaming_options
+from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
 from apache_beam.runners.internal import names
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin

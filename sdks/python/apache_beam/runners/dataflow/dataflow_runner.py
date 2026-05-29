@@ -157,7 +157,7 @@ class DataflowRunner(PipelineRunner):
       # If get() is called very soon after Create() the response may not contain
       # an initialized 'current_state' field.
       if response.current_state is not None:
-        current_state = response.current_state.name
+        current_state = response.current_state
         if current_state != last_job_state:
           if state_update_callback:
             state_update_callback(current_state)
