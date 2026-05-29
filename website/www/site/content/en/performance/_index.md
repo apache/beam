@@ -60,3 +60,4 @@ See the following pages for performance measures recorded when running various B
 - [VLLM Gemma Batch Completion Tesla T4 GPU](/performance/vllmgemmabatchtesla)
 - [Table Row Inference Sklearn Batch](/performance/tablerowinference)
 - [MLTransform Generate Vocab (batch)](/performance/mltransformvocab)
+- [MLTransform One-Hot Encoding](/performance/mltransformonehot)
