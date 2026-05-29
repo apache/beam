@@ -140,14 +140,13 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   // Buffered elements are only committed downstream once the parent task completes successfully
   // and the timer fires.
   private static class AccumulatingOutputReceiver<T> implements OutputReceiver<T> {
-    private final java.util.concurrent.ConcurrentLinkedQueue<TimestampedOutput<T>> outputs =
-        new java.util.concurrent.ConcurrentLinkedQueue<>();
-
-    // Store original timestamp
+    private final List<TimestampedOutput<T>> outputs = new ArrayList<>();
     private final Instant inputTimestamp;
+    private final BoundedWindow window;
 
-    AccumulatingOutputReceiver(Instant inputTimestamp) {
+    AccumulatingOutputReceiver(Instant inputTimestamp, BoundedWindow window) {
       this.inputTimestamp = inputTimestamp;
+      this.window = window;
     }
 
     @Override
@@ -155,7 +154,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
       return org.apache.beam.sdk.values.WindowedValues.<T>builder()
           .setValue(value)
           .setTimestamp(inputTimestamp)
-          .setWindows(java.util.Collections.singletonList(GlobalWindow.INSTANCE))
+          .setWindows(java.util.Collections.singletonList(window))
           .setPaneInfo(org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING)
           .setReceiver(
               windowedValue ->
@@ -185,7 +184,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     }
 
     public List<TimestampedOutput<T>> getTimestampedOutputs() {
-      return new ArrayList<>(outputs);
+      return outputs;
     }
   }
 
@@ -361,7 +360,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                 () -> {
                   try {
                     AccumulatingOutputReceiver<OutputT> receiver =
-                        new AccumulatingOutputReceiver<>(timestamp);
+                        new AccumulatingOutputReceiver<>(timestamp, window);
                     DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.invokerFor(syncFn);
 
                     DoFnInvoker.ArgumentProvider<InputT, OutputT> bundleArgProvider =
@@ -719,7 +718,8 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
   List<OutputT> commitFinishedItemsDirect(
       Instant fireTimestamp, BagState<KV<K, InputT>> toProcessState, Timer timer) {
-    AccumulatingOutputReceiver<OutputT> receiver = new AccumulatingOutputReceiver<>(fireTimestamp);
+    AccumulatingOutputReceiver<OutputT> receiver =
+        new AccumulatingOutputReceiver<>(fireTimestamp, GlobalWindow.INSTANCE);
     commitFinishedItems(fireTimestamp, toProcessState, timer, receiver);
     return receiver.getOutputs();
   }
