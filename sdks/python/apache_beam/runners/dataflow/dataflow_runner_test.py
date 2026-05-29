@@ -732,6 +732,25 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
 
+  def test_runner_v2_disabled_experiments_raise(self):
+    disable_experiments = [
+        'disable_portable_runner',
+        'enable_streaming_java_runner',
+        'disable_runner_v2',
+        'disable_runner_v2_until_2023',
+        'disable_runner_v2_until_v2.50',
+        'disable_prime_runner_v2',
+    ]
+    for experiment in disable_experiments:
+      options = PipelineOptions([f'--experiments={experiment}'])
+      self.assertTrue(
+          _is_runner_v2_disabled(options),
+          f'Expected {experiment} to disable Portable Runner')
+      with self.assertRaisesRegex(
+          ValueError,
+          'Disabling Dataflow Portable Runner no longer supported.*'):
+        DataflowRunner().run_pipeline(None, options)
+
 
 if __name__ == '__main__':
   unittest.main()
