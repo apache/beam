@@ -65,11 +65,13 @@ class MetricsFlag(object):
 
   Mirrors the Java SDK ``Metrics.MetricsFlag`` behavior. The flags are read
   once at worker harness initialization from pipeline experiments and apply
-  for the lifetime of the worker.
+  for the lifetime of the worker. Exposed as public class attributes so
+  Delegating* gates can read them with a single attribute load on the hot
+  path of metric emission.
   """
-  _counter_disabled = False
-  _string_set_disabled = False
-  _bounded_trie_disabled = False
+  counter_disabled = False
+  string_set_disabled = False
+  bounded_trie_disabled = False
   _initialized = False
 
   @classmethod
@@ -79,35 +81,23 @@ class MetricsFlag(object):
       return
     debug_options = options.view_as(DebugOptions)
     if debug_options.lookup_experiment('disableCounterMetrics'):
-      cls._counter_disabled = True
+      cls.counter_disabled = True
       _LOGGER.info('Counter metrics are disabled.')
     if debug_options.lookup_experiment('disableStringSetMetrics'):
-      cls._string_set_disabled = True
+      cls.string_set_disabled = True
       _LOGGER.info('StringSet metrics are disabled.')
     if debug_options.lookup_experiment('disableBoundedTrieMetrics'):
-      cls._bounded_trie_disabled = True
+      cls.bounded_trie_disabled = True
       _LOGGER.info('BoundedTrie metrics are disabled.')
     cls._initialized = True
 
   @classmethod
   def reset(cls) -> None:
     """Reset flags. Test-only."""
-    cls._counter_disabled = False
-    cls._string_set_disabled = False
-    cls._bounded_trie_disabled = False
+    cls.counter_disabled = False
+    cls.string_set_disabled = False
+    cls.bounded_trie_disabled = False
     cls._initialized = False
-
-  @classmethod
-  def counter_disabled(cls) -> bool:
-    return cls._counter_disabled
-
-  @classmethod
-  def string_set_disabled(cls) -> bool:
-    return cls._string_set_disabled
-
-  @classmethod
-  def bounded_trie_disabled(cls) -> bool:
-    return cls._bounded_trie_disabled
 
 
 class Metrics(object):
@@ -263,7 +253,7 @@ class Metrics(object):
           process_wide=process_wide)
 
     def inc(self, n: int = 1) -> None:
-      if MetricsFlag.counter_disabled():
+      if MetricsFlag.counter_disabled:
         return
       self._updater(n)
 
@@ -291,7 +281,7 @@ class Metrics(object):
       self._updater = MetricUpdater(cells.StringSetCell, metric_name)
 
     def add(self, value: str) -> None:
-      if MetricsFlag.string_set_disabled():
+      if MetricsFlag.string_set_disabled:
         return
       self._updater(value)
 
@@ -302,7 +292,7 @@ class Metrics(object):
       self._updater = MetricUpdater(cells.BoundedTrieCell, metric_name)
 
     def add(self, value) -> None:
-      if MetricsFlag.bounded_trie_disabled():
+      if MetricsFlag.bounded_trie_disabled:
         return
       self._updater(value)
 

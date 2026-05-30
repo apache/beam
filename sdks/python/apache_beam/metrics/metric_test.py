@@ -126,29 +126,29 @@ class MetricsTest(unittest.TestCase):
   def test_metrics_flag(self):
     """Mirrors Java MetricsTest.testMetricsFlag for the three disable* experiments."""
     MetricsFlag.reset()
-    self.assertFalse(MetricsFlag.counter_disabled())
-    self.assertFalse(MetricsFlag.string_set_disabled())
-    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+    self.assertFalse(MetricsFlag.counter_disabled)
+    self.assertFalse(MetricsFlag.string_set_disabled)
+    self.assertFalse(MetricsFlag.bounded_trie_disabled)
 
     options = PipelineOptions(['--experiments=disableCounterMetrics'])
     MetricsFlag.set_default_pipeline_options(options)
-    self.assertTrue(MetricsFlag.counter_disabled())
-    self.assertFalse(MetricsFlag.string_set_disabled())
-    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+    self.assertTrue(MetricsFlag.counter_disabled)
+    self.assertFalse(MetricsFlag.string_set_disabled)
+    self.assertFalse(MetricsFlag.bounded_trie_disabled)
 
     MetricsFlag.reset()
     options = PipelineOptions(['--experiments=disableStringSetMetrics'])
     MetricsFlag.set_default_pipeline_options(options)
-    self.assertFalse(MetricsFlag.counter_disabled())
-    self.assertTrue(MetricsFlag.string_set_disabled())
-    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+    self.assertFalse(MetricsFlag.counter_disabled)
+    self.assertTrue(MetricsFlag.string_set_disabled)
+    self.assertFalse(MetricsFlag.bounded_trie_disabled)
 
     MetricsFlag.reset()
     options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
     MetricsFlag.set_default_pipeline_options(options)
-    self.assertFalse(MetricsFlag.counter_disabled())
-    self.assertFalse(MetricsFlag.string_set_disabled())
-    self.assertTrue(MetricsFlag.bounded_trie_disabled())
+    self.assertFalse(MetricsFlag.counter_disabled)
+    self.assertFalse(MetricsFlag.string_set_disabled)
+    self.assertTrue(MetricsFlag.bounded_trie_disabled)
 
     MetricsFlag.reset()
     options = PipelineOptions([
@@ -157,9 +157,9 @@ class MetricsTest(unittest.TestCase):
         '--experiments=disableBoundedTrieMetrics',
     ])
     MetricsFlag.set_default_pipeline_options(options)
-    self.assertTrue(MetricsFlag.counter_disabled())
-    self.assertTrue(MetricsFlag.string_set_disabled())
-    self.assertTrue(MetricsFlag.bounded_trie_disabled())
+    self.assertTrue(MetricsFlag.counter_disabled)
+    self.assertTrue(MetricsFlag.string_set_disabled)
+    self.assertTrue(MetricsFlag.bounded_trie_disabled)
 
     MetricsFlag.reset()
 
