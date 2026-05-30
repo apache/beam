@@ -164,35 +164,65 @@ class MetricsTest(unittest.TestCase):
       MetricsFlag.reset()
 
   def test_disabled_counter_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
     MetricsFlag.reset()
-    options = PipelineOptions(['--experiments=disableCounterMetrics'])
-    MetricsFlag.set_default_pipeline_options(options)
     try:
-      counter = Metrics.counter('ns', 'disabled_counter')
-      counter.inc()
-      counter.inc(5)
-      counter.dec()
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.counter('ns', 'baseline').inc()
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableCounterMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.counter('ns', 'after_disable').inc()
+        Metrics.counter('ns', 'after_disable').inc(5)
+        Metrics.counter('ns', 'after_disable').dec()
+        self.assertEqual(len(container.metrics), 1)
     finally:
+      sampler.stop()
       MetricsFlag.reset()
 
   def test_disabled_string_set_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
     MetricsFlag.reset()
-    options = PipelineOptions(['--experiments=disableStringSetMetrics'])
-    MetricsFlag.set_default_pipeline_options(options)
     try:
-      string_set = Metrics.string_set('ns', 'disabled_set')
-      string_set.add('value')
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.string_set('ns', 'baseline').add('seed')
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableStringSetMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.string_set('ns', 'after_disable').add('value')
+        self.assertEqual(len(container.metrics), 1)
     finally:
+      sampler.stop()
       MetricsFlag.reset()
 
   def test_disabled_bounded_trie_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
     MetricsFlag.reset()
-    options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
-    MetricsFlag.set_default_pipeline_options(options)
     try:
-      bounded_trie = Metrics.bounded_trie('ns', 'disabled_trie')
-      bounded_trie.add(['a', 'b'])
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.bounded_trie('ns', 'baseline').add(['a'])
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.bounded_trie('ns', 'after_disable').add(['a', 'b'])
+        self.assertEqual(len(container.metrics), 1)
     finally:
+      sampler.stop()
       MetricsFlag.reset()
 
   def test_counter_empty_name(self):
