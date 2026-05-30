@@ -61,14 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class MetricsFlag(object):
-  """Process-wide flags controlling which user metric kinds are emitted.
-
-  Mirrors the Java SDK ``Metrics.MetricsFlag`` behavior. The flags are read
-  once at worker harness initialization from pipeline experiments and apply
-  for the lifetime of the worker. Exposed as public class attributes so
-  Delegating* gates can read them with a single attribute load on the hot
-  path of metric emission.
-  """
+  """Process-wide flags controlling which user metric kinds are emitted."""
   counter_disabled = False
   string_set_disabled = False
   bounded_trie_disabled = False
@@ -76,7 +69,6 @@ class MetricsFlag(object):
 
   @classmethod
   def set_default_pipeline_options(cls, options: 'PipelineOptions') -> None:
-    """Initialize the flags from pipeline experiments. Idempotent."""
     if cls._initialized:
       return
     debug_options = options.view_as(DebugOptions)
@@ -93,7 +85,6 @@ class MetricsFlag(object):
 
   @classmethod
   def reset(cls) -> None:
-    """Reset flags. Test-only."""
     cls.counter_disabled = False
     cls.string_set_disabled = False
     cls.bounded_trie_disabled = False
