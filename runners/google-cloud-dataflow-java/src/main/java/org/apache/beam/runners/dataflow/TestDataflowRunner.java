@@ -402,44 +402,73 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public Void call() throws Exception {
       int checkMetricsIntervalSteps = 5; // Check metrics every 15 seconds (5 * 3s)
       int steps = 0;
+      boolean cancellationPending = false;
       while (true) {
-        State jobState = job.getState();
+        try {
+          State jobState = job.getState();
 
-        if (jobState.isTerminal()) {
-          return null;
-        }
+          if (jobState.isTerminal()) {
+            return null;
+          }
 
-        // Check metrics for early success/failure cancellation
-        if (steps % checkMetricsIntervalSteps == 0) {
-          Optional<Boolean> assertionsPassed = runner.checkForPAssertSuccess(job);
-          if (assertionsPassed.isPresent()) {
-            assertionsPassedRef.set(assertionsPassed);
-            if (assertionsPassed.get()) {
-              LOG.info(
-                  "All assertions passed for streaming job {}, cancelling job.",
-                  job.getJobId());
-              job.cancel();
-              return null;
-            } else {
-              LOG.info(
-                  "Found failed assertion for streaming job {}, cancelling job.",
-                  job.getJobId());
-              job.cancel();
-              return null;
+          // Check if we should initiate cancellation based on metrics (only if assertion state is not yet known)
+          if (!assertionsPassedRef.get().isPresent() && !cancellationPending) {
+            if (steps % checkMetricsIntervalSteps == 0) {
+              try {
+                Optional<Boolean> assertionsPassed = runner.checkForPAssertSuccess(job);
+                if (assertionsPassed.isPresent()) {
+                  assertionsPassedRef.set(assertionsPassed);
+                  cancellationPending = true;
+                  if (assertionsPassed.get()) {
+                    LOG.info(
+                        "All assertions passed for streaming job {}, cancelling job.",
+                        job.getJobId());
+                  } else {
+                    LOG.info(
+                        "Found failed assertion for streaming job {}, cancelling job.",
+                        job.getJobId());
+                  }
+                }
+              } catch (Exception e) {
+                LOG.warn(
+                    "Transient error polling metrics for job {}: {}",
+                    job.getJobId(),
+                    e.getMessage());
+              }
             }
           }
-        }
 
-        // If we see a terminal error message and no assertions have passed yet, cancel and fail
-        long runningTimeMillis = steps * 3000L;
-        if (messageHandler.hasSeenError()
-            && !jobState.isTerminal()
-            && (runningTimeMillis > 300000L || runner.expectedNumberOfAssertions == 0)) {
-          LOG.info(
-              "Cancelling Dataflow job due to error messages seen: {}",
-              messageHandler.getErrorMessage());
-          job.cancel();
-          return null;
+          // Check if we should initiate cancellation based on error logs (only if not already cancellationPending)
+          if (!cancellationPending) {
+            long runningTimeMillis = steps * 3000L;
+            if (messageHandler.hasSeenError()
+                && (runningTimeMillis > 300000L || runner.expectedNumberOfAssertions == 0)) {
+              LOG.info(
+                  "Cancelling Dataflow job due to error messages seen: {}",
+                  messageHandler.getErrorMessage());
+              cancellationPending = true;
+            }
+          }
+
+          // Perform or retry cancellation if cancellation is pending
+          if (cancellationPending) {
+            try {
+              job.cancel();
+              return null; // Successful cancellation
+            } catch (Exception e) {
+              LOG.warn(
+                  "Failed to cancel Dataflow job {}. Will retry on next iteration. Error: {}",
+                  job.getJobId(),
+                  e.getMessage());
+            }
+          }
+
+        } catch (Exception e) {
+          LOG.warn(
+              "Exception in streaming job monitor loop for job {}: {}",
+              job.getJobId(),
+              e.getMessage(),
+              e);
         }
 
         Thread.sleep(3000L);

@@ -630,6 +630,8 @@ public class TestDataflowRunnerTest {
         .thenReturn(generateMockMetricResponse(true /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
     runner.run(p, mockRunner);
+
+    Mockito.verify(mockJob, Mockito.timeout(5000)).cancel();
   }
 
   @Test
@@ -653,8 +655,14 @@ public class TestDataflowRunnerTest {
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
 
-    expectedException.expect(AssertionError.class);
-    runner.run(p, mockRunner);
+    try {
+      runner.run(p, mockRunner);
+      fail("Expected AssertionError to be thrown");
+    } catch (AssertionError expected) {
+      // Expected exception
+    }
+
+    Mockito.verify(mockJob, Mockito.timeout(5000)).cancel();
   }
 
   static class TestSuccessMatcher extends BaseMatcher<PipelineResult>
