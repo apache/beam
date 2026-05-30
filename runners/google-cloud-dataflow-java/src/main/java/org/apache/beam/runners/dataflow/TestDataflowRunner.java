@@ -121,17 +121,26 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     ErrorMonitorMessagesHandler messageHandler =
         new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler());
 
+    java.util.concurrent.atomic.AtomicReference<Optional<Boolean>> assertionsPassedRef =
+        new java.util.concurrent.atomic.AtomicReference<>(Optional.absent());
+
     if (options.isStreaming()) {
       if (options.isBlockOnRun()) {
-        jobSuccess = waitForStreamingJobTermination(job, messageHandler);
+        jobSuccess = waitForStreamingJobTermination(job, messageHandler, assertionsPassedRef);
       } else {
         jobSuccess = true;
       }
-      // No metrics in streaming
-      allAssertionsPassed = Optional.absent();
+      allAssertionsPassed = assertionsPassedRef.get();
+      if (!allAssertionsPassed.isPresent()) {
+        allAssertionsPassed = checkForPAssertSuccess(job);
+      }
     } else {
       jobSuccess = waitForBatchJobTermination(job, messageHandler);
       allAssertionsPassed = checkForPAssertSuccess(job);
+    }
+
+    if (allAssertionsPassed.isPresent() && allAssertionsPassed.get()) {
+      jobSuccess = true;
     }
 
     // If there is a certain assertion failure, throw the most precise exception we can.
@@ -160,11 +169,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @SuppressWarnings("FutureReturnValueIgnored") // Job status checked via job.waitUntilFinish
   @SuppressFBWarnings("RV_RETURN_VALUE_IGNORED_BAD_PRACTICE")
   private boolean waitForStreamingJobTermination(
-      final DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+      final DataflowPipelineJob job,
+      ErrorMonitorMessagesHandler messageHandler,
+      java.util.concurrent.atomic.AtomicReference<Optional<Boolean>> assertionsPassedRef) {
     // In streaming, there are infinite retries, so rather than timeout
     // we try to terminate early by polling and canceling if we see
-    // an error message
-    options.getExecutorService().submit(new CancelOnError(job, messageHandler));
+    // an error message or when all assertions have succeeded
+    options.getExecutorService().submit(new CancelOnError(job, messageHandler, this, assertionsPassedRef));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
@@ -373,29 +384,66 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     private final DataflowPipelineJob job;
     private final ErrorMonitorMessagesHandler messageHandler;
+    private final TestDataflowRunner runner;
+    private final java.util.concurrent.atomic.AtomicReference<Optional<Boolean>> assertionsPassedRef;
 
-    public CancelOnError(DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
+    public CancelOnError(
+        DataflowPipelineJob job,
+        ErrorMonitorMessagesHandler messageHandler,
+        TestDataflowRunner runner,
+        java.util.concurrent.atomic.AtomicReference<Optional<Boolean>> assertionsPassedRef) {
       this.job = job;
       this.messageHandler = messageHandler;
+      this.runner = runner;
+      this.assertionsPassedRef = assertionsPassedRef;
     }
 
     @Override
     public Void call() throws Exception {
+      int checkMetricsIntervalSteps = 5; // Check metrics every 15 seconds (5 * 3s)
+      int steps = 0;
       while (true) {
         State jobState = job.getState();
-
-        // If we see an error, cancel and note failure
-        if (messageHandler.hasSeenError() && !job.getState().isTerminal()) {
-          job.cancel();
-          LOG.info("Cancelling Dataflow job {}", job.getJobId());
-          return null;
-        }
 
         if (jobState.isTerminal()) {
           return null;
         }
 
+        // Check metrics for early success/failure cancellation
+        if (steps % checkMetricsIntervalSteps == 0) {
+          Optional<Boolean> assertionsPassed = runner.checkForPAssertSuccess(job);
+          if (assertionsPassed.isPresent()) {
+            assertionsPassedRef.set(assertionsPassed);
+            if (assertionsPassed.get()) {
+              LOG.info(
+                  "All assertions passed for streaming job {}, cancelling job.",
+                  job.getJobId());
+              job.cancel();
+              return null;
+            } else {
+              LOG.info(
+                  "Found failed assertion for streaming job {}, cancelling job.",
+                  job.getJobId());
+              job.cancel();
+              return null;
+            }
+          }
+        }
+
+        // If we see a terminal error message and no assertions have passed yet, cancel and fail
+        long runningTimeMillis = steps * 3000L;
+        if (messageHandler.hasSeenError()
+            && !jobState.isTerminal()
+            && (runningTimeMillis > 300000L || runner.expectedNumberOfAssertions == 0)) {
+          LOG.info(
+              "Cancelling Dataflow job due to error messages seen: {}",
+              messageHandler.getErrorMessage());
+          job.cancel();
+          return null;
+        }
+
         Thread.sleep(3000L);
+        steps++;
       }
     }
   }

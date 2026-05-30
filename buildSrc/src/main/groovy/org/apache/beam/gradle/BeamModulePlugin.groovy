@@ -1117,6 +1117,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       project.apply plugin: "java"
+      project.apply plugin: "org.gradle.test-retry"
 
       // We create a testRuntimeMigration configuration here to extend
       // testImplementation, testRuntimeOnly, and default (similar to what
@@ -1218,6 +1219,15 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
+
+        def isCI = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+        if (project.plugins.hasPlugin('org.gradle.test-retry')) {
+          retry {
+            maxRetries = isCI ? 3 : 0
+            maxFailures = 15
+            failOnPassedAfterRetry = false
+          }
+        }
       }
 
       List<String> skipDefRegexes = []

@@ -79,7 +79,7 @@ jobs:
       - name: run validatesRunnerStreaming script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :runners:google-cloud-dataflow-java:validatesRunnerStreaming
+          gradle-command: :runners:google-cloud-dataflow-java:validatesRunnerStreamingEngine
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7

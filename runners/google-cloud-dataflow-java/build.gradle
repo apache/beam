@@ -232,9 +232,9 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
+    // By default throttle parallelism to 4 to avoid GHA and GCP quota exhaustion.
+    // Can be overridden via -PmaxParallelForks=N.
+    maxParallelForks project.findProperty('maxParallelForks') ? (project.findProperty('maxParallelForks') as Integer) : 4
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
@@ -265,9 +265,9 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
 
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
+    // By default throttle parallelism to 4 to avoid GHA and GCP quota exhaustion.
+    // Can be overridden via -PmaxParallelForks=N.
+    maxParallelForks project.findProperty('maxParallelForks') ? (project.findProperty('maxParallelForks') as Integer) : 4
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
