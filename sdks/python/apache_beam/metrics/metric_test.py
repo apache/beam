@@ -32,7 +32,9 @@ from apache_beam.metrics.metric import Lineage
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.metrics.metric import MetricsFlag
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.metric_result_matchers import DistributionMatcher
@@ -120,6 +122,78 @@ class MetricsTest(unittest.TestCase):
   def test_get_namespace_error(self):
     with self.assertRaises(ValueError):
       Metrics.get_namespace(object())
+
+  def test_metrics_flag(self):
+    """Mirrors Java MetricsTest.testMetricsFlag for the three disable* experiments."""
+    MetricsFlag.reset()
+    self.assertFalse(MetricsFlag.counter_disabled())
+    self.assertFalse(MetricsFlag.string_set_disabled())
+    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+
+    options = PipelineOptions(['--experiments=disableCounterMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    self.assertTrue(MetricsFlag.counter_disabled())
+    self.assertFalse(MetricsFlag.string_set_disabled())
+    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+
+    MetricsFlag.reset()
+    options = PipelineOptions(['--experiments=disableStringSetMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    self.assertFalse(MetricsFlag.counter_disabled())
+    self.assertTrue(MetricsFlag.string_set_disabled())
+    self.assertFalse(MetricsFlag.bounded_trie_disabled())
+
+    MetricsFlag.reset()
+    options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    self.assertFalse(MetricsFlag.counter_disabled())
+    self.assertFalse(MetricsFlag.string_set_disabled())
+    self.assertTrue(MetricsFlag.bounded_trie_disabled())
+
+    MetricsFlag.reset()
+    options = PipelineOptions([
+        '--experiments=disableCounterMetrics',
+        '--experiments=disableStringSetMetrics',
+        '--experiments=disableBoundedTrieMetrics',
+    ])
+    MetricsFlag.set_default_pipeline_options(options)
+    self.assertTrue(MetricsFlag.counter_disabled())
+    self.assertTrue(MetricsFlag.string_set_disabled())
+    self.assertTrue(MetricsFlag.bounded_trie_disabled())
+
+    MetricsFlag.reset()
+
+  def test_disabled_counter_is_noop(self):
+    MetricsFlag.reset()
+    options = PipelineOptions(['--experiments=disableCounterMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    try:
+      counter = Metrics.counter('ns', 'disabled_counter')
+      counter.inc()
+      counter.inc(5)
+      counter.dec()
+    finally:
+      MetricsFlag.reset()
+
+  def test_disabled_string_set_is_noop(self):
+    MetricsFlag.reset()
+    options = PipelineOptions(['--experiments=disableStringSetMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    try:
+      string_set = Metrics.string_set('ns', 'disabled_set')
+      string_set.add('value')
+    finally:
+      MetricsFlag.reset()
+
+  def test_disabled_bounded_trie_is_noop(self):
+    MetricsFlag.reset()
+    options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
+    MetricsFlag.set_default_pipeline_options(options)
+    try:
+      bounded_trie = Metrics.bounded_trie('ns', 'disabled_trie')
+      bounded_trie.add(['a', 'b'])
+    finally:
+      MetricsFlag.reset()
 
   def test_counter_empty_name(self):
     with self.assertRaises(ValueError):
