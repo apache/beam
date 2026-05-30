@@ -46,16 +46,68 @@ from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import Histogram
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metricbase import StringSet
+from apache_beam.options.pipeline_options import DebugOptions
 
 if TYPE_CHECKING:
   from apache_beam.internal.metrics.metric import MetricLogger
   from apache_beam.metrics.execution import MetricKey
   from apache_beam.metrics.metricbase import Metric
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.histogram import BucketType
 
 __all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class MetricsFlag(object):
+  """Process-wide flags controlling which user metric kinds are emitted.
+
+  Mirrors the Java SDK ``Metrics.MetricsFlag`` behavior. The flags are read
+  once at worker harness initialization from pipeline experiments and apply
+  for the lifetime of the worker.
+  """
+  _counter_disabled = False
+  _string_set_disabled = False
+  _bounded_trie_disabled = False
+  _initialized = False
+
+  @classmethod
+  def set_default_pipeline_options(cls, options: 'PipelineOptions') -> None:
+    """Initialize the flags from pipeline experiments. Idempotent."""
+    if cls._initialized:
+      return
+    debug_options = options.view_as(DebugOptions)
+    if debug_options.lookup_experiment('disableCounterMetrics'):
+      cls._counter_disabled = True
+      _LOGGER.info('Counter metrics are disabled.')
+    if debug_options.lookup_experiment('disableStringSetMetrics'):
+      cls._string_set_disabled = True
+      _LOGGER.info('StringSet metrics are disabled.')
+    if debug_options.lookup_experiment('disableBoundedTrieMetrics'):
+      cls._bounded_trie_disabled = True
+      _LOGGER.info('BoundedTrie metrics are disabled.')
+    cls._initialized = True
+
+  @classmethod
+  def reset(cls) -> None:
+    """Reset flags. Test-only."""
+    cls._counter_disabled = False
+    cls._string_set_disabled = False
+    cls._bounded_trie_disabled = False
+    cls._initialized = False
+
+  @classmethod
+  def counter_disabled(cls) -> bool:
+    return cls._counter_disabled
+
+  @classmethod
+  def string_set_disabled(cls) -> bool:
+    return cls._string_set_disabled
+
+  @classmethod
+  def bounded_trie_disabled(cls) -> bool:
+    return cls._bounded_trie_disabled
 
 
 class Metrics(object):
@@ -204,11 +256,16 @@ class Metrics(object):
     def __init__(
         self, metric_name: MetricName, process_wide: bool = False) -> None:
       super().__init__(metric_name)
-      self.inc = MetricUpdater(  # type: ignore[method-assign]
+      self._updater = MetricUpdater(
           cells.CounterCell,
           metric_name,
           default_value=1,
           process_wide=process_wide)
+
+    def inc(self, n: int = 1) -> None:
+      if MetricsFlag.counter_disabled():
+        return
+      self._updater(n)
 
   class DelegatingDistribution(Distribution):
     """Metrics Distribution Delegates functionality to MetricsEnvironment."""
@@ -231,13 +288,23 @@ class Metrics(object):
     """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
+      self._updater = MetricUpdater(cells.StringSetCell, metric_name)
+
+    def add(self, value: str) -> None:
+      if MetricsFlag.string_set_disabled():
+        return
+      self._updater(value)
 
   class DelegatingBoundedTrie(BoundedTrie):
-    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    """Metrics BoundedTrie that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
-      self.add = MetricUpdater(cells.BoundedTrieCell, metric_name)  # type: ignore[method-assign]
+      self._updater = MetricUpdater(cells.BoundedTrieCell, metric_name)
+
+    def add(self, value) -> None:
+      if MetricsFlag.bounded_trie_disabled():
+        return
+      self._updater(value)
 
 
 class MetricResults(object):
