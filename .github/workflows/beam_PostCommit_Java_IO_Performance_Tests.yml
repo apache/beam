@@ -76,7 +76,16 @@ jobs:
     - name: Get Beam latest release
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
       run: |
-        BEAM_VERSION=$(curl -s https://api.github.com/repos/apache/beam/releases/latest | jq -r '.tag_name')
+        BEAM_VERSION=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/apache/beam/releases/latest | jq -r '.tag_name')
+        if [ "$BEAM_VERSION" = "null" ] || [ -z "$BEAM_VERSION" ]; then
+          echo "Failed to fetch latest release from GitHub API. Querying git tags as fallback."
+          git fetch --tags
+          BEAM_VERSION=$(git tag -l "v[0-9]*" | sort -V | tail -n 1)
+          if [ -z "$BEAM_VERSION" ]; then
+            echo "Fallback failed. Setting to a default stable version tag."
+            BEAM_VERSION="v2.54.0"
+          fi
+        fi
         echo "BEAM_VERSION=${BEAM_VERSION}" >> $GITHUB_ENV
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
