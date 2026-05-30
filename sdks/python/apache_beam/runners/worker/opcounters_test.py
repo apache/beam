@@ -194,11 +194,11 @@ class OperationCountersTest(unittest.TestCase):
             element_type=typehints.Any,
             batch_type=typehints.List[typehints.Any]))
 
-    self.verify_counters(opcounts, 0, float('nan'))
+    self.verify_counters(opcounts, 0, math.nan)
 
     opcounts.update_from_batch(GlobalWindows.windowed_batch([]))
 
-    self.verify_counters(opcounts, 0, float('nan'))
+    self.verify_counters(opcounts, 0, math.nan)
 
   def test_should_sample(self):
     # Order of magnitude more buckets than highest constant in code under test.
