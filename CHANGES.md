@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Python SDK now honors the `disableCounterMetrics`, `disableStringSetMetrics`, and `disableBoundedTrieMetrics` pipeline experiments to opt out of emitting the corresponding user metric kinds, matching Java SDK behavior ([#38746](https://github.com/apache/beam/issues/38746)).
 
 ## Breaking Changes
 
