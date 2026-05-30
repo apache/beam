@@ -431,9 +431,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 }
               } catch (Exception e) {
                 LOG.warn(
-                    "Transient error polling metrics for job {}: {}",
+                    "Transient error polling metrics for job {}",
                     job.getJobId(),
-                    e.getMessage());
+                    e);
               }
             }
           }
@@ -457,17 +457,16 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               return null; // Successful cancellation
             } catch (Exception e) {
               LOG.warn(
-                  "Failed to cancel Dataflow job {}. Will retry on next iteration. Error: {}",
+                  "Failed to cancel Dataflow job {}. Will retry on next iteration. Error",
                   job.getJobId(),
-                  e.getMessage());
+                  e);
             }
           }
 
         } catch (Exception e) {
           LOG.warn(
-              "Exception in streaming job monitor loop for job {}: {}",
+              "Exception in streaming job monitor loop for job {}",
               job.getJobId(),
-              e.getMessage(),
               e);
         }
 

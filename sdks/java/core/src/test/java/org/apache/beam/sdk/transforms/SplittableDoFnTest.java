@@ -1001,8 +1001,9 @@ public class SplittableDoFnTest implements Serializable {
 
       long currentAttempt = tracker.currentRestriction().getFrom();
 
-      // On subsequent attempts, the previous bundle has committed, so the finalization callback
-      // should run. Poll wasFinalized with a timed wait to avoid deadlocks on single-threaded executors.
+      // On subsequent attempts, the previous bundle has committed, so the finalization
+      // callback should run. Poll wasFinalized with a timed wait to avoid deadlocks
+      // on single-threaded executors.
       if (currentAttempt > 0 && !wasFinalized.get()) {
         long limitMs = 1000;
         long start = System.currentTimeMillis();
@@ -1012,13 +1013,15 @@ public class SplittableDoFnTest implements Serializable {
         long duration = System.currentTimeMillis() - start;
         if (wasFinalized.get()) {
           LOG.info(
-              "Bundle finalization callback observed for element {} after waiting {} ms on attempt {}.",
+              "Bundle finalization callback observed for element {} after waiting {} ms "
+                  + "on attempt {}.",
               element,
               duration,
               currentAttempt);
         } else {
           LOG.warn(
-              "Bundle finalization callback not observed for element {} after waiting {} ms on attempt {}. Yielding/resuming.",
+              "Bundle finalization callback not observed for element {} after waiting {} ms "
+                  + "on attempt {}. Yielding/resuming.",
               element,
               duration,
               currentAttempt);
@@ -1038,8 +1041,8 @@ public class SplittableDoFnTest implements Serializable {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardSeconds(FINALIZATION_CALLBACK_TIMEOUT_SECS)),
             () -> wasFinalized.set(true));
-        // Return resume immediately. We already waited above on resumes, and for the first attempt,
-        // we want to commit the first bundle as fast as possible.
+        // Return resume immediately. We already waited above on resumes, and for the
+        // first attempt, we want to commit the first bundle as fast as possible.
         return resume();
       }
       WAS_FINALIZED.remove(element);
