@@ -1218,17 +1218,6 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
-
-        // Develocity Gradle plugin (applied in settings.gradle.kts) provides test retry
-        // natively. Configure it in CI to retry flaky integration tests.
-        def isCI = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
-        if (isCI) {
-          develocity.testRetry {
-            maxRetries = 3
-            maxFailures = 15
-            failOnPassedAfterRetry = false
-          }
-        }
       }
 
       List<String> skipDefRegexes = []

@@ -986,6 +986,9 @@ public class SplittableDoFnTest implements Serializable {
       };
     }
 
+    private static final org.slf4j.Logger LOG =
+        org.slf4j.LoggerFactory.getLogger(BundleFinalizingSplittableDoFn.class);
+
     @ProcessElement
     public ProcessContinuation process(
         @Element String element,
@@ -995,21 +998,48 @@ public class SplittableDoFnTest implements Serializable {
         throws InterruptedException {
       AtomicBoolean wasFinalized =
           WAS_FINALIZED.computeIfAbsent(element, (unused) -> new AtomicBoolean());
+
+      long currentAttempt = tracker.currentRestriction().getFrom();
+
+      // On subsequent attempts, the previous bundle has committed, so the finalization callback
+      // should run. Poll wasFinalized with a timed wait to avoid deadlocks on single-threaded executors.
+      if (currentAttempt > 0 && !wasFinalized.get()) {
+        long limitMs = 1000;
+        long start = System.currentTimeMillis();
+        while (!wasFinalized.get() && (System.currentTimeMillis() - start) < limitMs) {
+          sleep(10L);
+        }
+        long duration = System.currentTimeMillis() - start;
+        if (wasFinalized.get()) {
+          LOG.info(
+              "Bundle finalization callback observed for element {} after waiting {} ms on attempt {}.",
+              element,
+              duration,
+              currentAttempt);
+        } else {
+          LOG.warn(
+              "Bundle finalization callback not observed for element {} after waiting {} ms on attempt {}. Yielding/resuming.",
+              element,
+              duration,
+              currentAttempt);
+        }
+      }
+
       if (wasFinalized.get()) {
-        tracker.tryClaim(tracker.currentRestriction().getFrom() + 1);
+        tracker.tryClaim(currentAttempt + 1);
         receiver.output(element);
         WAS_FINALIZED.remove(element);
         // Claim beyond the end now that we know we have been finalized.
         tracker.tryClaim(Long.MAX_VALUE);
         return stop();
       }
-      if (tracker.tryClaim(tracker.currentRestriction().getFrom() + 1)) {
+
+      if (tracker.tryClaim(currentAttempt + 1)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardSeconds(FINALIZATION_CALLBACK_TIMEOUT_SECS)),
             () -> wasFinalized.set(true));
-        // We sleep here instead of setting a resume time since the resume time doesn't need to
-        // be honored.
-        sleep(100L);
+        // Return resume immediately. We already waited above on resumes, and for the first attempt,
+        // we want to commit the first bundle as fast as possible.
         return resume();
       }
       WAS_FINALIZED.remove(element);
