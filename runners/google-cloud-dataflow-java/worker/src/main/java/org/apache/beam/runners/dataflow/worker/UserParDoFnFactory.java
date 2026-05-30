@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 class UserParDoFnFactory implements ParDoFnFactory {
   static UserParDoFnFactory createDefault() {
-    return new UserParDoFnFactory(new UserDoFnExtractor(), SimpleDoFnRunnerFactory.INSTANCE);
+    return new UserParDoFnFactory(new UserDoFnExtractor(), SimpleDoFnRunnerFactory.INSTANCE_DONT_DELEGATE_SIDE_INPUTS);
   }
 
   interface DoFnExtractor {

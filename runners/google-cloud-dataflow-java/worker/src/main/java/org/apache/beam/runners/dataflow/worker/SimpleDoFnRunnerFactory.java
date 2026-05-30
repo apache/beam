@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
@@ -35,7 +36,13 @@ import org.apache.beam.sdk.values.WindowingStrategy;
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<InputT, OutputT> {
-  public static final SimpleDoFnRunnerFactory INSTANCE = new SimpleDoFnRunnerFactory();
+  private final boolean delegateStreamingSideInputs;
+  public static final SimpleDoFnRunnerFactory INSTANCE = new SimpleDoFnRunnerFactory(true);
+  public static final SimpleDoFnRunnerFactory INSTANCE_DONT_DELEGATE_SIDE_INPUTS = new SimpleDoFnRunnerFactory(false);
+
+  public SimpleDoFnRunnerFactory(boolean delegateStreamingSideInputs) {
+    this.delegateStreamingSideInputs = delegateStreamingSideInputs;
+  }
 
   @Override
   public DoFnRunner<InputT, OutputT> createRunner(
@@ -67,6 +74,19 @@ class SimpleDoFnRunnerFactory<InputT, OutputT> implements DoFnRunnerFactory<Inpu
             windowingStrategy,
             doFnSchemaInformation,
             sideInputMapping);
+    if (delegateStreamingSideInputs) {
+      boolean hasStreamingSideInput =
+        options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
+      if (hasStreamingSideInput) {
+        return new StreamingSideInputDoFnRunner<>(
+          fnRunner,
+          new StreamingSideInputFetcher<>(
+            sideInputViews,
+            inputCoder,
+            windowingStrategy,
+            (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext));
+      }
+    }
     return fnRunner;
   }
 }
