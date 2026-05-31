@@ -67,6 +67,11 @@ public class BoundedQueueExecutorTest {
   private BoundedQueueExecutor executor;
 
   private static ExecutableWork createWork(Consumer<Work> executeWorkFn) {
+    return createWorkWithCompId("computationId", executeWorkFn);
+  }
+
+  private static ExecutableWork createWorkWithCompId(
+      String computationId, Consumer<Work> executeWorkFn) {
     WorkItem workItem =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
@@ -80,10 +85,7 @@ public class BoundedQueueExecutorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                "computationId",
-                new FakeGetDataClient(),
-                ignored -> {},
-                mock(HeartbeatSender.class)),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
         (work, handle) -> {
@@ -402,6 +404,308 @@ public class BoundedQueueExecutorTest {
     assertEquals(3, handle1.elements());
     assertEquals(300L, handle1.bytes());
     assertFalse(handle1.isClosed());
+  }
+
+  @Test
+  public void testTombstoneExecutionAndQueueSize() throws Exception {
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            1, // 1 thread to strictly control execution order
+            DEFAULT_THREAD_EXPIRATION_SEC,
+            TimeUnit.SECONDS,
+            10,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("testTombstoneExecutionAndQueueSize-%d")
+                .setDaemon(true)
+                .build(),
+            useFairMonitor);
+
+    CountDownLatch blockerStart = new CountDownLatch(1);
+    CountDownLatch blockerStop = new CountDownLatch(1);
+    ExecutableWork blockerWork =
+        createWorkWithCompId(
+            "comp-1",
+            ignored -> {
+              blockerStart.countDown();
+              try {
+                blockerStop.await();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    CountDownLatch targetStart = new CountDownLatch(1);
+    ExecutableWork targetWork =
+        createWorkWithCompId(
+            "comp-2",
+            ignored -> {
+              targetStart.countDown();
+            });
+
+    // 1. Occupy the worker thread with blockerWork
+    testExecutor.execute(blockerWork, 0);
+    blockerStart.await();
+
+    // 2. Enqueue targetWork (goes into queue)
+    testExecutor.execute(targetWork, 1000);
+
+    // Wait a moment to ensure targetWork is registered in the queue
+    assertEquals(2, testExecutor.elementsOutstanding());
+    assertEquals(1, testExecutor.executorQueueIsEmpty() ? 0 : 1); // it is in the queue
+
+    // 3. Now steal targetWork using targeted pollWork from a "stealer" context
+    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
+      java.util.Optional<ExecutableWork> stolen = testExecutor.pollWork("comp-2", stealHandle);
+      assertTrue(stolen.isPresent());
+      assertEquals(targetWork, stolen.get());
+
+      // Since it's stolen, the budget is transferred to stealHandle.
+      // The outstanding size must still be 2 (blocker + stolen in stealHandle).
+      assertEquals(2, testExecutor.elementsOutstanding());
+
+      // 4. Run the stolen work inline in the stealer thread.
+      stolen.get().run(stealHandle);
+      targetStart.await();
+    }
+
+    // After stealHandle is closed, the outstanding size should decrement by 1 (the stolen task).
+    // Only the blocker remains.
+    while (testExecutor.elementsOutstanding() != 1) {
+      Thread.sleep(10);
+    }
+    assertEquals(1, testExecutor.elementsOutstanding());
+
+    // 5. Unblock the blocker. The executor worker thread should now pop the targetWork tombstone.
+    // Since it is cancelled (stolen), the worker thread should skip it as a no-op.
+    // The elementsOutstanding should drop to 0 after the blocker completes.
+    blockerStop.countDown();
+
+    while (testExecutor.elementsOutstanding() != 0) {
+      Thread.sleep(10);
+    }
+    assertEquals(0, testExecutor.elementsOutstanding());
+    testExecutor.shutdown();
+  }
+
+  @Test
+  public void testConcurrentStealingAndPolling() throws Exception {
+    final int numComputations = 10;
+    final int tasksPerComp = 100;
+    final int totalTasks = numComputations * tasksPerComp;
+
+    // 4 executor worker threads to execute work
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            4,
+            DEFAULT_THREAD_EXPIRATION_SEC,
+            TimeUnit.SECONDS,
+            totalTasks * 2,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("testConcurrentStealingAndPolling-%d")
+                .setDaemon(true)
+                .build(),
+            useFairMonitor);
+
+    // Latches to coordinate
+    CountDownLatch allDone = new CountDownLatch(totalTasks);
+
+    // Enqueue work for all computations
+    for (int i = 0; i < numComputations; i++) {
+      final String compId = "comp-" + i;
+      for (int j = 0; j < tasksPerComp; j++) {
+        ExecutableWork work =
+            createWorkWithCompId(
+                compId,
+                ignored -> {
+                  allDone.countDown();
+                });
+        testExecutor.execute(work, 100);
+      }
+    }
+
+    // Launch active "stealers" that target specific computations concurrently
+    Thread[] stealers = new Thread[numComputations];
+    for (int i = 0; i < numComputations; i++) {
+      final String compId = "comp-" + i;
+      stealers[i] =
+          new Thread(
+              () -> {
+                try {
+                  // Attempt to steal tasks for this computation
+                  int stolenCount = 0;
+                  while (stolenCount < tasksPerComp) {
+                    try (BoundedQueueExecutorWorkHandleImpl stealHandle =
+                        testExecutor.createBudgetHandle(0, 0L)) {
+                      java.util.Optional<ExecutableWork> stolen =
+                          testExecutor.pollWork(compId, stealHandle);
+                      if (stolen.isPresent()) {
+                        stolen.get().run(stealHandle);
+                        stolenCount++;
+                      } else {
+                        // Yield if none available
+                        Thread.sleep(1);
+                      }
+                    } catch (InterruptedException e) {
+                      break;
+                    }
+                  }
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      stealers[i].start();
+    }
+
+    // Wait for all tasks to complete (either executed by thread pool or stolen)
+    assertTrue(allDone.await(30, TimeUnit.SECONDS));
+
+    for (Thread stealer : stealers) {
+      stealer.interrupt();
+      stealer.join();
+    }
+
+    // Wait until all outstanding elements are released cleanly
+    while (testExecutor.elementsOutstanding() != 0) {
+      Thread.sleep(10);
+    }
+    assertEquals(0, testExecutor.elementsOutstanding());
+    assertEquals(0, testExecutor.bytesOutstanding());
+    testExecutor.shutdown();
+  }
+
+  @Test
+  public void testConcurrentStealingAndPollingNoWastedThreads() throws Exception {
+    final int numComputations = 10;
+    final int tasksPerComp = 100;
+    final int totalTasks = numComputations * tasksPerComp;
+
+    // 4 executor worker threads to execute work
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            4,
+            DEFAULT_THREAD_EXPIRATION_SEC,
+            TimeUnit.SECONDS,
+            totalTasks * 2,
+            MAXIMUM_BYTES_OUTSTANDING,
+            new ThreadFactoryBuilder()
+                .setNameFormat("testConcurrentStealingAndPollingNoWastedThreads-%d")
+                .setDaemon(true)
+                .build(),
+            useFairMonitor);
+
+    // Thread-safe counters for tracking executions
+    java.util.concurrent.atomic.AtomicInteger totalExecuted =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+    java.util.concurrent.atomic.AtomicInteger workerExecuted =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+    java.util.concurrent.atomic.AtomicInteger poolWorkerExecuted =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+
+    // Map to track duplicate executions
+    java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>
+        executionCounts = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // Latches to coordinate
+    CountDownLatch allDone = new CountDownLatch(totalTasks);
+
+    // Enqueue work for all computations
+    for (int i = 0; i < numComputations; i++) {
+      final String compId = "comp-" + i;
+      for (int j = 0; j < tasksPerComp; j++) {
+        final String taskId = compId + "-task-" + j;
+        ExecutableWork work =
+            createWorkWithCompId(
+                compId,
+                ignored -> {
+                  int count =
+                      executionCounts
+                          .computeIfAbsent(
+                              taskId, k -> new java.util.concurrent.atomic.AtomicInteger(0))
+                          .incrementAndGet();
+                  totalExecuted.incrementAndGet();
+                  String threadName = Thread.currentThread().getName();
+                  if (threadName.startsWith("testConcurrentStealingAndPollingNoWastedThreads-")) {
+                    poolWorkerExecuted.incrementAndGet();
+                  } else {
+                    workerExecuted.incrementAndGet();
+                  }
+                  allDone.countDown();
+                });
+        testExecutor.execute(work, 100);
+      }
+    }
+
+    // Launch active "stealers" that target specific computations concurrently
+    Thread[] stealers = new Thread[numComputations];
+    for (int i = 0; i < numComputations; i++) {
+      final String compId = "comp-" + i;
+      stealers[i] =
+          new Thread(
+              () -> {
+                try {
+                  while (!Thread.currentThread().isInterrupted()) {
+                    try (BoundedQueueExecutorWorkHandleImpl stealHandle =
+                        testExecutor.createBudgetHandle(0, 0L)) {
+                      java.util.Optional<ExecutableWork> stolen =
+                          testExecutor.pollWork(compId, stealHandle);
+                      if (stolen.isPresent()) {
+                        stolen.get().run(stealHandle);
+                      } else {
+                        Thread.sleep(1);
+                      }
+                    } catch (InterruptedException e) {
+                      break;
+                    }
+                  }
+                } catch (Exception e) {
+                  // Ignore or log
+                }
+              });
+      stealers[i].start();
+    }
+
+    // Wait for all tasks to complete (either executed by thread pool or stolen)
+    assertTrue(allDone.await(60, TimeUnit.SECONDS));
+
+    // Stop stealers
+    for (Thread stealer : stealers) {
+      stealer.interrupt();
+      stealer.join();
+    }
+
+    // Verify execution invariants
+    assertEquals("Total executions must match total tasks", totalTasks, totalExecuted.get());
+    assertEquals("No duplicate executions allowed", totalTasks, executionCounts.size());
+    for (java.util.Map.Entry<String, java.util.concurrent.atomic.AtomicInteger> entry :
+        executionCounts.entrySet()) {
+      assertEquals(
+          "Task " + entry.getKey() + " executed more than once", 1, entry.getValue().get());
+    }
+
+    // Verify that completed task count of the inner executor perfectly matches poolWorkerExecuted
+    java.lang.reflect.Field executorField = BoundedQueueExecutor.class.getDeclaredField("executor");
+    executorField.setAccessible(true);
+    java.util.concurrent.ThreadPoolExecutor innerExecutor =
+        (java.util.concurrent.ThreadPoolExecutor) executorField.get(testExecutor);
+
+    // Wait a tiny bit for any pending pool tasks to fully complete their afterExecute/bookkeeping
+    Thread.sleep(100);
+
+    long completedTasks = innerExecutor.getCompletedTaskCount();
+    assertEquals(
+        "Completed task count of the pool must perfectly match the number of worker-executed tasks (exactly 0 wasted activations)",
+        (long) poolWorkerExecuted.get(),
+        completedTasks);
+
+    // Wait until all outstanding elements are released cleanly
+    while (testExecutor.elementsOutstanding() != 0) {
+      Thread.sleep(10);
+    }
+    assertEquals(0, testExecutor.elementsOutstanding());
+    assertEquals(0, testExecutor.bytesOutstanding());
+    testExecutor.shutdown();
   }
 
   @Test

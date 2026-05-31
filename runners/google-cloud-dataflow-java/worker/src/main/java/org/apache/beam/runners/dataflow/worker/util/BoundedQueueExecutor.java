@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -94,7 +93,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            new LinkedBlockingQueue<>(),
+            new ComputationWorkQueue(),
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -277,9 +276,10 @@ public class BoundedQueueExecutor {
      * again if it is closed.
      */
     public void merge(BoundedQueueExecutorWorkHandleImpl other) {
+      checkArgumentNotNull(other);
       synchronized (this) {
         Preconditions.checkState(!closed, "Cannot merge into a closed handle");
-        synchronized (checkArgumentNotNull(other)) {
+        synchronized (other) {
           Preconditions.checkState(!other.closed, "Cannot merge a closed handle");
           this.elements += other.elements;
           this.bytes += other.bytes;
@@ -312,9 +312,9 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private static final class QueuedWork implements Runnable {
+  static final class QueuedWork implements Runnable {
 
-    private final ExecutableWork work;
+    private volatile ExecutableWork work;
     private final BoundedQueueExecutorWorkHandleImpl handle;
 
     public QueuedWork(ExecutableWork work, BoundedQueueExecutorWorkHandleImpl handle) {
@@ -328,6 +328,12 @@ public class BoundedQueueExecutor {
 
     public BoundedQueueExecutorWorkHandleImpl getHandle() {
       return handle;
+    }
+
+    public boolean isCancelled() {
+      synchronized (handle) {
+        return handle.closed;
+      }
     }
 
     @Override
@@ -375,6 +381,19 @@ public class BoundedQueueExecutor {
   @VisibleForTesting
   BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
     return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
+  }
+
+  /** Poll work for a specific computationId. */
+  public java.util.Optional<ExecutableWork> pollWork(
+      String computationId, BoundedQueueExecutorWorkHandle handle) {
+    checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
+    QueuedWork queuedWork = ((ComputationWorkQueue) executor.getQueue()).pollWork(computationId);
+    if (queuedWork == null) {
+      return java.util.Optional.empty();
+    }
+    internalHandle.merge(queuedWork.getHandle());
+    return java.util.Optional.of(queuedWork.getWork());
   }
 
   private void decrementCounters(int elements, long bytes) {

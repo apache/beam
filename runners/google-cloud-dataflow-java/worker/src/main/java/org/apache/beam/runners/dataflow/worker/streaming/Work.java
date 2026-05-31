@@ -184,6 +184,10 @@ public final class Work implements RefreshableWork {
     return serializedWorkItemSize;
   }
 
+  public String getComputationId() {
+    return processingContext.computationId();
+  }
+
   @Override
   public ShardedKey getShardedKey() {
     return shardedKey;

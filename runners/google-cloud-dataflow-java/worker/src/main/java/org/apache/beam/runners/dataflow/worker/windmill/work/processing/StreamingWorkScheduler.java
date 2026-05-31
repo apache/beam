@@ -234,7 +234,7 @@ public class StreamingWorkScheduler {
    * internally if processing fails due to uncaught {@link Exception}(s).
    *
    * @implNote This will block the calling thread during execution of user DoFns.
-   * @param handle handled to pass to BoundedQueueExecutor.pollWork, currently unused
+   * @param handle budget handle associated with the executed work
    */
   private void processWork(
       ComputationState computationState,

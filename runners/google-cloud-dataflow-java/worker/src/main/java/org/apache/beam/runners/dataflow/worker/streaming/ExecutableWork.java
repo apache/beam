@@ -74,4 +74,8 @@ public final class ExecutableWork {
   public String toString() {
     return "ExecutableWork{" + id() + "}";
   }
+
+  public final String getComputationId() {
+    return work().getComputationId();
+  }
 }

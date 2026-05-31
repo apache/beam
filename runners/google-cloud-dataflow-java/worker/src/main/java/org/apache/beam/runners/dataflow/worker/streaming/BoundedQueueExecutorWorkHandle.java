@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 /**
- * A handle to use when requesting pulling more work from @BoundedQueueExecutor
- * via @BoundedQueueExecutor.pollWork
+ * A handle to use when requesting pulling more work from {@link BoundedQueueExecutor} via {@link
+ * BoundedQueueExecutor#pollWork(String, BoundedQueueExecutorWorkHandle)}.
  */
 public interface BoundedQueueExecutorWorkHandle {}
