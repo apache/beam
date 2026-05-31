@@ -292,6 +292,7 @@ func TestTranslate(t *testing.T) {
 		Name:                           "test-job",
 		DiskProvisionedIops:            4000,
 		DiskProvisionedThroughputMibps: 200,
+		WorkerHash:                     "worker-sha256-hash",
 	}
 	workerURL := "gs://any-location/temp"
 	modelURL := "gs://any-location/temp"
@@ -311,6 +312,14 @@ func TestTranslate(t *testing.T) {
 	}
 	if wp.DiskProvisionedThroughputMibps != 200 {
 		t.Errorf("DiskProvisionedThroughputMibps = %v, want 200", wp.DiskProvisionedThroughputMibps)
+	}
+
+	// Verify worker package has Sha256
+	if len(wp.Packages) != 1 {
+		t.Fatalf("len(wp.Packages) = %v, want 1", len(wp.Packages))
+	}
+	if wp.Packages[0].Name != "worker" || wp.Packages[0].Sha256 != "worker-sha256-hash" {
+		t.Errorf("wp.Packages[0] = {Name: %q, Sha256: %q}, want {Name: %q, Sha256: %q}", wp.Packages[0].Name, wp.Packages[0].Sha256, "worker", "worker-sha256-hash")
 	}
 }
 
