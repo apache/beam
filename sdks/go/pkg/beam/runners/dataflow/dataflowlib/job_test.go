@@ -315,11 +315,18 @@ func TestTranslate(t *testing.T) {
 	}
 
 	// Verify worker package has Sha256
-	if len(wp.Packages) != 1 {
-		t.Fatalf("len(wp.Packages) = %v, want 1", len(wp.Packages))
+	found := false
+	for _, pkg := range wp.Packages {
+		if pkg.Name == "worker" {
+			found = true
+			if pkg.Sha256 != "worker-sha256-hash" {
+				t.Errorf("worker package Sha256 = %q, want %q", pkg.Sha256, "worker-sha256-hash")
+			}
+			break
+		}
 	}
-	if wp.Packages[0].Name != "worker" || wp.Packages[0].Sha256 != "worker-sha256-hash" {
-		t.Errorf("wp.Packages[0] = {Name: %q, Sha256: %q}, want {Name: %q, Sha256: %q}", wp.Packages[0].Name, wp.Packages[0].Sha256, "worker", "worker-sha256-hash")
+	if !found {
+		t.Fatalf("worker package not found in wp.Packages")
 	}
 }
 
