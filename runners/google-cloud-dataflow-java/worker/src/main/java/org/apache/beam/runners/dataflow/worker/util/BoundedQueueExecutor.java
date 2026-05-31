@@ -20,7 +20,9 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
@@ -85,6 +88,26 @@ public class BoundedQueueExecutor {
       long maximumBytesOutstanding,
       ThreadFactory threadFactory,
       boolean useFairMonitor) {
+    this(
+        initialMaximumPoolSize,
+        keepAliveTime,
+        unit,
+        maximumElementsOutstanding,
+        maximumBytesOutstanding,
+        threadFactory,
+        useFairMonitor,
+        /* useKeyGroupWorkQueue= */ true);
+  }
+
+  public BoundedQueueExecutor(
+      int initialMaximumPoolSize,
+      long keepAliveTime,
+      TimeUnit unit,
+      int maximumElementsOutstanding,
+      long maximumBytesOutstanding,
+      ThreadFactory threadFactory,
+      boolean useFairMonitor,
+      boolean useKeyGroupWorkQueue) {
     this.maximumPoolSize = initialMaximumPoolSize;
     monitor = new Monitor(useFairMonitor);
     executor =
@@ -93,7 +116,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            new ComputationWorkQueue(),
+            useKeyGroupWorkQueue ? new ComputationWorkQueue() : new LinkedBlockingQueue<>(),
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -383,17 +406,21 @@ public class BoundedQueueExecutor {
     return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
   }
 
-  /** Poll work for a specific computationId. */
-  public java.util.Optional<ExecutableWork> pollWork(
-      String computationId, BoundedQueueExecutorWorkHandle handle) {
+  /** Poll work for a specific computationId and keyGroup. */
+  public Optional<ExecutableWork> pollWork(
+      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
-    QueuedWork queuedWork = ((ComputationWorkQueue) executor.getQueue()).pollWork(computationId);
+    if (!(executor.getQueue() instanceof ComputationWorkQueue)) {
+      return Optional.empty();
+    }
+    QueuedWork queuedWork =
+        ((ComputationWorkQueue) executor.getQueue()).pollWork(computationId, keyGroup);
     if (queuedWork == null) {
-      return java.util.Optional.empty();
+      return Optional.empty();
     }
     internalHandle.merge(queuedWork.getHandle());
-    return java.util.Optional.of(queuedWork.getWork());
+    return Optional.of(queuedWork.getWork());
   }
 
   private void decrementCounters(int elements, long bytes) {

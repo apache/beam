@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -77,5 +78,9 @@ public final class ExecutableWork {
 
   public final String getComputationId() {
     return work().getComputationId();
+  }
+
+  public final Optional<Work.KeyGroup> getKeyGroup() {
+    return work().getKeyGroup();
   }
 }

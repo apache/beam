@@ -72,13 +72,25 @@ public class ComputationWorkQueueTest {
             false);
   }
 
+  private static final Work.KeyGroup DEFAULT_KEY_GROUP = Work.KeyGroup.create(1, 2);
+
   private QueuedWork createQueuedWork(String computationId, long workBytes) {
+    return createQueuedWork(computationId, DEFAULT_KEY_GROUP, workBytes);
+  }
+
+  private QueuedWork createQueuedWork(
+      String computationId, Work.KeyGroup keyGroup, long workBytes) {
     WorkItem workItem =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setShardingKey(1)
             .setWorkToken(33)
             .setCacheToken(1)
+            .setKeyGroup(
+                org.apache.beam.runners.dataflow.worker.windmill.Windmill.Uint128Proto.newBuilder()
+                    .setHigh(keyGroup.high())
+                    .setLow(keyGroup.low())
+                    .build())
             .build();
     ExecutableWork work =
         ExecutableWork.create(
@@ -200,7 +212,7 @@ public class ComputationWorkQueueTest {
     assertEquals(3, queue.size());
 
     // Targeted poll A
-    QueuedWork polledA1 = queue.pollWork("compA");
+    QueuedWork polledA1 = queue.pollWork("compA", DEFAULT_KEY_GROUP);
     assertNotNull(polledA1);
     assertEquals("compA", polledA1.getWork().getComputationId());
     assertEquals(100, polledA1.getHandle().bytes());
@@ -224,7 +236,7 @@ public class ComputationWorkQueueTest {
     queue.offer(workA1);
 
     // Steal A1
-    QueuedWork polled = queue.pollWork("compA");
+    QueuedWork polled = queue.pollWork("compA", DEFAULT_KEY_GROUP);
     assertNotNull(polled);
     assertTrue(queue.isEmpty());
 
@@ -234,7 +246,7 @@ public class ComputationWorkQueueTest {
     assertEquals(1, queue.size());
 
     // Steal B1
-    QueuedWork polledB = queue.pollWork("compB");
+    QueuedWork polledB = queue.pollWork("compB", DEFAULT_KEY_GROUP);
     assertNotNull(polledB);
     assertTrue(queue.isEmpty());
   }
@@ -283,7 +295,7 @@ public class ComputationWorkQueueTest {
                 if (consumerId % 2 == 0) {
                   // Targeted poll
                   String compId = "comp-" + (consumedCount.get() % 5);
-                  task = queue.pollWork(compId);
+                  task = queue.pollWork(compId, DEFAULT_KEY_GROUP);
                 } else {
                   // Global poll
                   task = queue.poll();
@@ -407,5 +419,36 @@ public class ComputationWorkQueueTest {
 
     assertTrue(finished2.await(2, TimeUnit.SECONDS));
     assertEquals(task, result2.get());
+  }
+
+  @Test
+  public void testPollWorkWithKeyGroup() {
+    ComputationWorkQueue queue = new ComputationWorkQueue();
+
+    Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
+    Work.KeyGroup keyGroup2 = Work.KeyGroup.create(1, 2);
+
+    QueuedWork workA1 = createQueuedWork("compA", keyGroup1, 100);
+    QueuedWork workA2 = createQueuedWork("compA", keyGroup2, 150);
+
+    queue.offer(workA1);
+    queue.offer(workA2);
+
+    assertEquals(2, queue.size());
+
+    // Poll with keyGroup2 first - should return workA2
+    QueuedWork polledA2 = queue.pollWork("compA", keyGroup2);
+    assertNotNull(polledA2);
+    assertEquals(workA2, polledA2);
+    assertEquals(1, queue.size());
+
+    // Poll with keyGroup2 again - should return null
+    assertNull(queue.pollWork("compA", keyGroup2));
+
+    // Poll with keyGroup1 - should return workA1
+    QueuedWork polledA1 = queue.pollWork("compA", keyGroup1);
+    assertNotNull(polledA1);
+    assertEquals(workA1, polledA1);
+    assertTrue(queue.isEmpty());
   }
 }

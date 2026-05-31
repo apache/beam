@@ -22,11 +22,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.QueuedWork;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A custom, thread-safe doubly-linked BlockingQueue that groups pending tasks by computation ID.
@@ -42,6 +45,7 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
   static class Node {
     final Runnable task;
     final String computationId;
+    final Work.KeyGroup keyGroup;
 
     Node prevGlobal;
     Node nextGlobal;
@@ -54,17 +58,19 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
       this.task = task;
       if (task instanceof QueuedWork) {
         this.computationId = ((QueuedWork) task).getWork().getComputationId();
+        this.keyGroup = ((QueuedWork) task).getWork().getKeyGroup().orElse(null);
       } else {
         this.computationId = null;
+        this.keyGroup = null;
       }
     }
   }
 
-  private static class ComputationList {
+  private static class KeyGroupWorkQueue {
     final Node head;
     final Node tail;
 
-    ComputationList() {
+    KeyGroupWorkQueue() {
       head = new Node(null);
       tail = new Node(null);
       head.nextComp = tail;
@@ -101,7 +107,7 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
   private final Node globalTail = new Node(null);
 
   // Map of active computation queues
-  private final Map<String, ComputationList> compLists = new HashMap<>();
+  private final Map<QueueKey, KeyGroupWorkQueue> compLists = new HashMap<>();
 
   private int size = 0;
 
@@ -128,11 +134,12 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
 
     // 2. Unlink from computation list
     if (node.computationId != null) {
-      ComputationList compList = compLists.get(node.computationId);
+      QueueKey key = QueueKey.create(node.computationId, node.keyGroup);
+      KeyGroupWorkQueue compList = compLists.get(key);
       if (compList != null) {
         compList.remove(node);
         if (compList.isEmpty()) {
-          compLists.remove(node.computationId); // Prevent memory leaks of empty keys
+          compLists.remove(key); // Prevent memory leaks of empty keys
         }
       }
     }
@@ -149,18 +156,19 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
     return first;
   }
 
-  public QueuedWork pollWork(String computationId) {
-    if (computationId == null) {
+  public QueuedWork pollWork(String computationId, Work.KeyGroup keyGroup) {
+    if (computationId == null || keyGroup == null) {
       return null;
     }
     lock.lock();
     try {
-      ComputationList compList = compLists.get(computationId);
+      QueueKey key = QueueKey.create(computationId, keyGroup);
+      KeyGroupWorkQueue compList = compLists.get(key);
       if (compList == null || compList.isEmpty()) {
         return null;
       }
 
-      // Retrieve the first pending task for this computation in O(1)
+      // Retrieve the first pending task for this computation and keyGroup in O(1)
       Node firstNode = compList.head.nextComp;
       unlinkNode(firstNode);
 
@@ -186,8 +194,8 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
 
       // Append to computation list if applicable
       if (node.computationId != null) {
-        ComputationList compList =
-            compLists.computeIfAbsent(node.computationId, k -> new ComputationList());
+        QueueKey key = QueueKey.create(node.computationId, node.keyGroup);
+        KeyGroupWorkQueue compList = compLists.computeIfAbsent(key, k -> new KeyGroupWorkQueue());
         compList.append(node);
       }
 
@@ -389,6 +397,56 @@ class ComputationWorkQueue extends AbstractQueue<Runnable> implements BlockingQu
       return java.util.Collections.unmodifiableList(snapshot).iterator();
     } finally {
       lock.unlock();
+    }
+  }
+
+  static final class QueueKey {
+    private final String computationId;
+    private final Work.@Nullable KeyGroup keyGroup;
+
+    private QueueKey(String computationId, Work.@Nullable KeyGroup keyGroup) {
+      this.computationId = Objects.requireNonNull(computationId);
+      this.keyGroup = keyGroup;
+    }
+
+    public static QueueKey create(String computationId, Work.@Nullable KeyGroup keyGroup) {
+      return new QueueKey(computationId, keyGroup);
+    }
+
+    public String computationId() {
+      return computationId;
+    }
+
+    public Work.@Nullable KeyGroup keyGroup() {
+      return keyGroup;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof QueueKey)) {
+        return false;
+      }
+      QueueKey other = (QueueKey) o;
+      return computationId.equals(other.computationId) && Objects.equals(keyGroup, other.keyGroup);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(computationId, keyGroup);
+    }
+
+    @Override
+    public String toString() {
+      return "QueueKey{"
+          + "computationId='"
+          + computationId
+          + '\''
+          + ", keyGroup="
+          + keyGroup
+          + '}';
     }
   }
 }
