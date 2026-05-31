@@ -1242,12 +1242,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
-    // to Runner v2.
+    // to Dataflow Portable Runner.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
       if (!useUnifiedWorker(options)) {
         List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
         LOG.info(
-            "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
+            "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
         options.setExperiments(
             ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
@@ -1260,7 +1260,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           || hasExperiment(options, "disable_portable_runner")
           || hasExperiment(options, "enable_streaming_java_runner")) {
         throw new IllegalArgumentException(
-            "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
+            "Dataflow Portable Runner both disabled and enabled: at least one of ['enable_portable_runner', 'beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['enable_streaming_java_runner', 'disable_portable_runner', 'disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
       }
       List<String> experiments =
           new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
@@ -1374,10 +1374,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     options.as(SdkHarnessOptions.class).setPipelineProtoHash(pipelineProtoHash);
 
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+      LOG.info(
+          "Skipping Dataflow Streaming Java Runner transform replacements since job will run on Dataflow Portable Runner.");
     } else {
-      // Now rewrite things to be as needed for v1 (mutates the pipeline)
-      // This way the job submitted is valid for v1 and v2, simultaneously
+      // Now rewrite things to be as needed for Dataflow Streaming Java Runner (mutates the
+      // pipeline)
+      // This way the job submitted is valid for Dataflow Streaming Java Runner and Dataflow
+      // Portable Runner, simultaneously
       replaceV1Transforms(pipeline);
     }
     // Capture the SdkComponents for look up during step translations
@@ -1388,7 +1391,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
-    // No need to perform transform upgrading for the Runner v1 proto.
+    // No need to perform transform upgrading for the Dataflow Streaming Java Runner proto.
     RunnerApi.Pipeline dataflowV1PipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
 
@@ -1544,7 +1547,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       options.setExperiments(experiments);
       LOG.warn(
           "The upload_graph experiment was specified, but it does not apply "
-              + "to runner v2 jobs. Option has been automatically removed.");
+              + "to Dataflow Portable Runner jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph

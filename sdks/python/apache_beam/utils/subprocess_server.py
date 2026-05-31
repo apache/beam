@@ -72,7 +72,7 @@ class _SharedCache:
   def __init__(self, constructor, destructor):
     self._constructor = constructor
     self._destructor = destructor
-    self._live_owners = set()
+    self._live_owners = {}
     self._cache = {}
     self._lock = threading.Lock()
     self._counter = 0
@@ -82,10 +82,10 @@ class _SharedCache:
     self._counter += 1
     return self._counter
 
-  def register(self):
+  def register(self, is_context=False):
     with self._lock:
       owner = self._next_id()
-      self._live_owners.add(owner)
+      self._live_owners[owner] = is_context
     return owner
 
   def purge(self, owner):
@@ -97,7 +97,7 @@ class _SharedCache:
             "shutdown, the subprocess was already cleaned up earlier.",
             owner)
         return
-      self._live_owners.remove(owner)
+      del self._live_owners[owner]
       for key, entry in list(self._cache.items()):
         if owner in entry.owners:
           entry.owners.remove(owner)
@@ -108,15 +108,30 @@ class _SharedCache:
     for value in to_delete:
       self._destructor(value)
 
-  def get(self, *key):
-    if not self._live_owners:
-      raise RuntimeError("At least one owner must be registered.")
+  def get(self, *key, owner=None):
     with self._lock:
+      if not self._live_owners:
+        raise RuntimeError("At least one owner must be registered.")
+      if owner is not None and owner not in self._live_owners:
+        raise RuntimeError("The requesting owner must be registered.")
+
       if key not in self._cache:
         self._cache[key] = _SharedCacheEntry(self._constructor(*key), set())
-      for owner in self._live_owners:
+      if owner is not None:
         self._cache[key].owners.add(owner)
+        for live_owner, is_context in self._live_owners.items():
+          if is_context:
+            self._cache[key].owners.add(live_owner)
+      else:
+        for live_owner in self._live_owners:
+          self._cache[key].owners.add(live_owner)
       return self._cache[key].obj
+
+  def force_remove(self, *key):
+    with self._lock:
+      entry = self._cache.pop(key, None)
+    if entry is not None:
+      self._destructor(entry.obj)
 
 
 class JavaHelper:
@@ -174,7 +189,7 @@ class SubprocessServer(object):
     These subprocesses may be shared with other contexts as well.
     """
     try:
-      unique_id = cls._cache.register()
+      unique_id = cls._cache.register(is_context=True)
       yield
     finally:
       cls._cache.purge(unique_id)
@@ -186,66 +201,59 @@ class SubprocessServer(object):
     self.stop()
 
   def start(self):
-    max_attempts = 3
-    for attempt in range(max_attempts):
-      try:
-        process, endpoint = self.start_process()
-        wait_secs = .1
-        channel_options = [
-            ("grpc.max_receive_message_length", -1),
-            ("grpc.max_send_message_length", -1),
-            # Default: 20000ms (20s), increased to 10 minutes for stability
-            ("grpc.keepalive_timeout_ms", 600_000),
-            # Default: 2, set to 0 to allow unlimited pings without data
-            ("grpc.http2.max_pings_without_data", 0),
-            # Default: False, set to True to allow keepalive pings when no calls
-            ("grpc.keepalive_permit_without_calls", True),
-            # Default: 2, set to 0 to allow unlimited ping strikes
-            ("grpc.http2.max_ping_strikes", 0),
-            # Default: 0 (disabled), enable socket reuse for better handling
-            ("grpc.so_reuseport", 1),
-        ]
-        self._grpc_channel = grpc.insecure_channel(
-            endpoint, options=channel_options)
-        channel_ready = grpc.channel_ready_future(self._grpc_channel)
-        while True:
-          if process is not None and process.poll() is not None:
-            _LOGGER.error("Started job service with %s", process.args)
-            raise RuntimeError(
-                'Service failed to start up with error %s' % process.poll())
-          try:
-            channel_ready.result(timeout=wait_secs)
-            break
-          except (grpc.FutureTimeoutError, grpc.RpcError):
-            wait_secs *= 1.2
-            logging.log(
-                logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                'Waiting for grpc channel to be ready at %s.',
-                endpoint)
-        return self._stub_class(self._grpc_channel)
-      except Exception as e:
-        _LOGGER.warning(
-            "Error bringing up service on attempt %d: %s",
-            attempt + 1,
-            e,
-            exc_info=True)
-        self.stop()
-        if attempt == max_attempts - 1:
-          raise
-        time.sleep(1)
+    try:
+      process, endpoint = self.start_process()
+      wait_secs = .1
+      channel_options = [
+          ("grpc.max_receive_message_length", -1),
+          ("grpc.max_send_message_length", -1),
+          # Default: 20000ms (20s), increased to 10 minutes for stability
+          ("grpc.keepalive_timeout_ms", 600_000),
+          # Default: 2, set to 0 to allow unlimited pings without data
+          ("grpc.http2.max_pings_without_data", 0),
+          # Default: False, set to True to allow keepalive pings when no calls
+          ("grpc.keepalive_permit_without_calls", True),
+          # Default: 2, set to 0 to allow unlimited ping strikes
+          ("grpc.http2.max_ping_strikes", 0),
+          # Default: 0 (disabled), enable socket reuse for better handling
+          ("grpc.so_reuseport", 1),
+      ]
+      self._grpc_channel = grpc.insecure_channel(
+          endpoint, options=channel_options)
+      channel_ready = grpc.channel_ready_future(self._grpc_channel)
+      while True:
+        if process is not None and process.poll() is not None:
+          _LOGGER.error("Failed to start job service with %s", process.args)
+          raise RuntimeError(
+              'Service failed to start up with error %s' % process.poll())
+        try:
+          channel_ready.result(timeout=wait_secs)
+          break
+        except (grpc.FutureTimeoutError, grpc.RpcError):
+          wait_secs *= 1.2
+          logging.log(
+              logging.WARNING if wait_secs > 1 else logging.DEBUG,
+              'Waiting for grpc channel to be ready at %s.',
+              endpoint)
+      return self._stub_class(self._grpc_channel)
+    except:  # pylint: disable=bare-except
+      _LOGGER.exception("Error bringing up service")
+      self.stop_force()
+      raise
 
   def start_process(self):
     if self._owner_id is not None:
       self._cache.purge(self._owner_id)
-    self._owner_id = self._cache.register()
-    return self._cache.get(tuple(self._cmd), self._port, self._logger)
+    self._owner_id = self._cache.register(is_context=False)
+    return self._cache.get(
+        tuple(self._cmd), self._port, self._logger, owner=self._owner_id)
 
   def _really_start_process(cmd, port, logger):
     if not port:
       port, = pick_port(None)
       cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
     endpoint = 'localhost:%s' % port
-    _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
+    _LOGGER.warning("Really starting service at %s with cmd: %s", endpoint, cmd)
     process = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
@@ -282,10 +290,26 @@ class SubprocessServer(object):
       finally:
         self._grpc_channel = None
 
+  def stop_force(self):
+    try:
+      self._cache.force_remove(tuple(self._cmd), self._port, self._logger)
+    finally:
+      self._owner_id = None
+    if self._grpc_channel:
+      try:
+        self._grpc_channel.close()
+      except:  # pylint: disable=bare-except
+        _LOGGER.error(
+            "Could not close the gRPC channel started with cmd %s", self._cmd)
+      finally:
+        self._grpc_channel = None
+
   def _really_stop_process(process_and_endpoint):
-    process, _ = process_and_endpoint  # pylint: disable=unpacking-non-sequence
+    process, endpoint = process_and_endpoint  # pylint: disable=unpacking-non-sequence
     if not process:
       return
+    _LOGGER.warning(
+        "Really destroying service at %s with cmd: %s", endpoint, process.args)
     for _ in range(5):
       if process.poll() is not None:
         break

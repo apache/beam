@@ -295,6 +295,22 @@ class PortableRunnerTestWithExternalEnv(PortableRunnerTest):
 class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
   _use_subprocesses = True
 
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  @classmethod
+  def setUpClass(cls):
+    cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
+    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
+    super().setUpClass()
+
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  @classmethod
+  def tearDownClass(cls):
+    if cls._old_fork_support is None:
+      os.environ.pop('GRPC_ENABLE_FORK_SUPPORT', None)
+    else:
+      os.environ['GRPC_ENABLE_FORK_SUPPORT'] = cls._old_fork_support
+    super().tearDownClass()
+
   def create_options(self):
     options = super().create_options()
     options.view_as(PortableOptions).environment_type = (
@@ -328,22 +344,6 @@ class PortableRunnerTestWithSubprocesses(PortableRunnerTest):
 class PortableRunnerTestWithSubprocessesAndMultiWorkers(
     PortableRunnerTestWithSubprocesses):
   _use_subprocesses = True
-
-  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
-  @classmethod
-  def setUpClass(cls):
-    cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
-    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
-    super().setUpClass()
-
-  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
-  @classmethod
-  def tearDownClass(cls):
-    if cls._old_fork_support is None:
-      os.environ.pop('GRPC_ENABLE_FORK_SUPPORT', None)
-    else:
-      os.environ['GRPC_ENABLE_FORK_SUPPORT'] = cls._old_fork_support
-    super().tearDownClass()
 
   def create_options(self):
     options = super() \

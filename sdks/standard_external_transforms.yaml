@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2025-06-05
+# Last updated on: 2026-05-06
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
@@ -50,6 +50,36 @@
     type: int64
   identifier: beam:schematransform:org.apache.beam:generate_sequence:v1
   name: GenerateSequence
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: The number of documents to include in each batch write.
+    name: batch_size
+    nullable: true
+    type: int64
+  - description: The MongoDB collection to write to.
+    name: collection
+    nullable: false
+    type: str
+  - description: The MongoDB database to write to.
+    name: database
+    nullable: false
+    type: str
+  - description: 'This option specifies whether and where to output unwritable rows.
+      Note: Error handling is currently limited to data conversion failures before
+      sending to the MongoDB driver, as the underlying MongoDbIO does not yet support
+      dead-letter queues for write failures.'
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: The connection URI for the MongoDB server.
+    name: uri
+    nullable: false
+    type: str
+  identifier: beam:schematransform:org.apache.beam:mongodb_write:v1
+  name: MongodbWrite
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
   destinations:
