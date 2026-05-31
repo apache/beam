@@ -19,10 +19,16 @@
 package org.apache.beam.gradle
 
 import org.gradle.api.Project
-
 class Repositories {
 
   static void register(Project project) {
+    def mirrorUrl = project.findProperty("mavenCentralMirrorUrl")
+    boolean isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    def useMirror = isCi && mirrorUrl
+
+    if (useMirror) {
+      project.logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+    }
 
     project.repositories {
       maven { url project.offlineRepositoryRoot }
@@ -36,7 +42,11 @@ class Repositories {
         return
       }
 
-      mavenCentral()
+      if (!useMirror) {
+        mavenCentral()
+      } else {
+        maven { url mirrorUrl }
+      }
       mavenLocal()
 
       // For Confluent Kafka dependencies
@@ -60,7 +70,7 @@ class Repositories {
     // Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
     // repository. This offline repository satisfies all Gradle build dependencies and Java
     // project dependencies. The offline repository is placed within $rootDir/offline-repo
-    // but can be overridden by specifying '-PofflineRepositoryRoot=/path/to/repo'.
+    // but can be overridden by specifying '-Pareas/offline-repo'.
     // Note that parallel build must be disabled when executing 'updateOfflineRepository'
     // by specifying '--no-parallel', see
     // https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
@@ -68,7 +78,11 @@ class Repositories {
     project.offlineDependencies {
       repositories {
         mavenLocal()
-        mavenCentral()
+        if (!useMirror) {
+          mavenCentral()
+        } else {
+          maven { url mirrorUrl }
+        }
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
         maven { url "https://packages.confluent.io/maven/" }

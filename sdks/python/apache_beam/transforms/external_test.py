@@ -799,7 +799,13 @@ class JavaClassLookupPayloadBuilderTest(unittest.TestCase):
 
 class JavaJarExpansionServiceTest(unittest.TestCase):
   def setUp(self):
-    SubprocessServer._cache._live_owners = set()
+    # Temporarily override _live_owners with an empty set for this test,
+    # preventing contamination of the process-wide global cache and avoiding
+    # side effects on other tests.
+    patcher = mock.patch.object(
+        SubprocessServer._cache, '_live_owners', new=set())
+    patcher.start()
+    self.addCleanup(patcher.stop)
 
   def test_classpath(self):
     with tempfile.TemporaryDirectory() as temp_dir:

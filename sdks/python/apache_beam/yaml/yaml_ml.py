@@ -322,7 +322,7 @@ class HuggingFacePipelineProvider(ModelHandlerProvider):
 
   @staticmethod
   def validate(config):
-    if not config.get('task') and not config.get('model'):
+    if not config or (not config.get('task') and not config.get('model')):
       raise ValueError(
           "HuggingFacePipeline requires either 'task' or "
           "'model' to be specified.")

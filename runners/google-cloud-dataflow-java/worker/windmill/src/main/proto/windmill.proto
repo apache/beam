@@ -421,6 +421,11 @@ message WatermarkHold {
   optional string state_family = 4;
 }
 
+message Uint128Proto {
+  required fixed64 high = 1;
+  required fixed64 low = 2;
+}
+
 // Proto describing a hot key detected on a given WorkItem.
 message HotKeyInfo {
   // The age of the hot key measured from when it was first detected.
@@ -447,6 +452,8 @@ message WorkItem {
   // elements mapped to a single key to impact pipeline performance. When
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
+
+  optional Uint128Proto key_group = 18;
 
   reserved 12, 13, 14, 15, 16;
 }
@@ -671,9 +678,24 @@ message WorkItemCommitRequest {
   reserved 6, 23;
 }
 
+message MultiKeyWorkItemCommitRequest {
+  optional Uint128Proto key_group = 7;
+
+  repeated WorkItemCommitRequest requests = 1;
+
+  repeated OutputMessageBundle output_messages = 2;
+
+  repeated PubSubMessageBundle pubsub_messages = 3;
+
+  repeated int64 finalize_ids = 4 [packed = true];
+
+  reserved 6;
+}
+
 message ComputationCommitWorkRequest {
   required string computation_id = 1;
   repeated WorkItemCommitRequest requests = 2;
+  repeated MultiKeyWorkItemCommitRequest multi_key_requests = 3;
 }
 
 message CommitWorkRequest {
@@ -899,6 +921,14 @@ message StreamingCommitRequestChunk {
   // before handing off to the WindmillHost for processing.
   optional int64 remaining_bytes_for_work_item = 4;
   optional bytes serialized_work_item_commit = 5;
+
+  enum CommitType {
+    COMMIT_TYPE_UNSPECIFIED = 0;
+    COMMIT_TYPE_SINGLE_KEY = 1;
+    COMMIT_TYPE_MULTI_KEY = 2;
+  }
+
+  optional CommitType commit_type = 7;
 }
 
 message StreamingCommitResponse {
@@ -979,12 +1009,14 @@ enum ConnectivityType {
   CONNECTIVITY_TYPE_DIRECTPATH = 2;
 }
 
-// Settings to control runtime behavior of the java runner v1 user worker.
+// Settings to control runtime behavior of the Streaming Java Runner user worker.
 message UserWorkerRunnerV1Settings {
   optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
 
   optional ConnectivityType connectivity_type = 4
     [default = CONNECTIVITY_TYPE_DEFAULT];
+
+  optional int64 max_cached_entry_bytes = 5 [default = -1];
 
   reserved 1, 2;
 }

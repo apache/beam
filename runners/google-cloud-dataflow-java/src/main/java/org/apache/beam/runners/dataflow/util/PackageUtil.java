@@ -438,6 +438,7 @@ public class PackageUtil implements Closeable {
               .toString();
       destination.setLocation(resourcePath);
       destination.setName(dest);
+      destination.setSha256(hash);
       return new AutoValue_PackageUtil_PackageAttributes(
           file, null, destination, file.length(), hash);
     }
@@ -456,6 +457,7 @@ public class PackageUtil implements Closeable {
       DataflowPackage targetPackage = new DataflowPackage();
       targetPackage.setName(target);
       targetPackage.setLocation(resourcePath);
+      targetPackage.setSha256(hashCode.toString());
 
       return new AutoValue_PackageUtil_PackageAttributes(
           null, bytes, targetPackage, size, hashCode.toString());
@@ -465,6 +467,7 @@ public class PackageUtil implements Closeable {
       DataflowPackage newDestination = new DataflowPackage();
       newDestination.setName(overridePackageName);
       newDestination.setLocation(getDestination().getLocation());
+      newDestination.setSha256(getHash());
 
       return new AutoValue_PackageUtil_PackageAttributes(
           getSource(), getBytes(), newDestination, getSize(), getHash());
