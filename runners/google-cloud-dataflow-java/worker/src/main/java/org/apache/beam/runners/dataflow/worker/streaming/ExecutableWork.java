@@ -17,23 +17,42 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import com.google.auto.value.AutoValue;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /** {@link Work} instance and a processing function used to process the work. */
-@AutoValue
-public abstract class ExecutableWork {
+public final class ExecutableWork {
 
-  public static ExecutableWork create(
+  private final Work work;
+  private final BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn;
+
+  private ExecutableWork(
       Work work, BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
+    this.work = Objects.requireNonNull(work);
+    this.executeWorkFn = Objects.requireNonNull(executeWorkFn);
   }
 
-  public abstract Work work();
+  /**
+   * Creates an {@link ExecutableWork} instance.
+   *
+   * @param executeWorkFn The function executing the work. It'll be called along with a
+   *     BoundedQueueExecutorWorkHandle. The handle needs to be passed to BoundedQueueExecutor when
+   *     requesting more work to process inline.
+   */
+  public static ExecutableWork create(
+      Work work, BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
+    return new ExecutableWork(work, executeWorkFn);
+  }
 
-  public abstract BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn();
+  public Work work() {
+    return work;
+  }
+
+  public BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn() {
+    return executeWorkFn;
+  }
 
   public void run(BoundedQueueExecutorWorkHandle handle) {
     try {
@@ -49,5 +68,10 @@ public abstract class ExecutableWork {
 
   public final Windmill.WorkItem getWorkItem() {
     return work().getWorkItem();
+  }
+
+  @Override
+  public String toString() {
+    return "ExecutableWork{" + id() + "}";
   }
 }

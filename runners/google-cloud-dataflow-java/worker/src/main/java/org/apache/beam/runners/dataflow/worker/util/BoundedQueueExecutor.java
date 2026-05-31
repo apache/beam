@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import java.util.Optional;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -244,26 +246,62 @@ public class BoundedQueueExecutor {
     }
   }
 
-  class BoundedQueueExecutorWorkHandleImpl
+  /**
+   * A handle to use when requesting pulling more work from @BoundedQueueExecutor
+   * via @BoundedQueueExecutor.pollWork. A single handle aggregates all budgets from work pulled for
+   * inline execution and releases the budget after the multi work bundle is complete.
+   */
+  final class BoundedQueueExecutorWorkHandleImpl
       implements BoundedQueueExecutorWorkHandle, AutoCloseable {
 
+    @GuardedBy("this")
     private int elements;
+
+    @GuardedBy("this")
     private long bytes;
+
+    @GuardedBy("this")
     private boolean closed = false;
 
     private BoundedQueueExecutorWorkHandleImpl(int elements, long bytes) {
+      checkArgument(elements >= 0 && bytes >= 0);
       this.elements = elements;
       this.bytes = bytes;
     }
 
-    public synchronized void addBudget(int elements, long bytes) {
-      Preconditions.checkState(!closed, "Cannot add budget to a closed WorkBudgetHandle");
-      this.elements += elements;
-      this.bytes += bytes;
+    /**
+     * Merges the budget from another handle into this handle.
+     *
+     * <p>This transfers the budget (elements and bytes) from the {@code other} handle to this
+     * handle, and marks the {@code other} handle as closed to prevent it from releasing the budget
+     * again if it is closed.
+     */
+    public void merge(BoundedQueueExecutorWorkHandleImpl other) {
+      synchronized (this) {
+        Preconditions.checkState(!closed, "Cannot merge into a closed handle");
+        synchronized (checkArgumentNotNull(other)) {
+          Preconditions.checkState(!other.closed, "Cannot merge a closed handle");
+          this.elements += other.elements;
+          this.bytes += other.bytes;
+          other.closed = true;
+          other.elements = 0;
+          other.bytes = 0;
+        }
+      }
     }
 
-    public synchronized void cancel() {
-      this.closed = true;
+    public synchronized boolean isClosed() {
+      return closed;
+    }
+
+    @VisibleForTesting
+    synchronized int elements() {
+      return elements;
+    }
+
+    @VisibleForTesting
+    synchronized long bytes() {
+      return bytes;
     }
 
     @Override
@@ -274,38 +312,29 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private static class QueuedWork implements Runnable {
+  private static final class QueuedWork implements Runnable {
 
     private final ExecutableWork work;
     private final BoundedQueueExecutorWorkHandleImpl handle;
-    private final long workBytes;
 
-    public QueuedWork(
-        ExecutableWork work, BoundedQueueExecutorWorkHandleImpl handle, long workBytes) {
+    public QueuedWork(ExecutableWork work, BoundedQueueExecutorWorkHandleImpl handle) {
       this.work = work;
       this.handle = handle;
-      this.workBytes = workBytes;
-    }
-
-    public void cancelHandle() {
-      handle.cancel();
     }
 
     public ExecutableWork getWork() {
       return work;
     }
 
-    public long getWorkBytes() {
-      return workBytes;
+    public BoundedQueueExecutorWorkHandleImpl getHandle() {
+      return handle;
     }
 
     @Override
     public void run() {
-      Preconditions.checkArgument(!handle.closed);
-      try {
+      checkArgument(!handle.isClosed());
+      try (handle) {
         work.run(handle);
-      } finally {
-        handle.close();
       }
     }
   }
@@ -317,7 +346,7 @@ public class BoundedQueueExecutor {
     BoundedQueueExecutorWorkHandleImpl handle =
         new BoundedQueueExecutorWorkHandleImpl(1, workBytes);
     try {
-      executor.execute(new QueuedWork(work, handle, workBytes));
+      executor.execute(new QueuedWork(work, handle));
     } catch (Throwable e) {
       handle.close();
       throw ExceptionUtils.propagate(e);
@@ -344,37 +373,14 @@ public class BoundedQueueExecutor {
   }
 
   @VisibleForTesting
-  BoundedQueueExecutorWorkHandleImpl createEmptyBudgetHandle() {
-    return new BoundedQueueExecutorWorkHandleImpl(0, 0L);
-  }
-
-  /**
-   * Poll additional work to be executed inline inside with the current execute(ExecutableWork work,
-   * long workBytes) call. It is the responsibility of the caller to execute or discard the returned
-   * ExecutableWork. Budget for the returned work is released when the execute() call finishes.
-   *
-   * @param handle the handle that was passed to ExecutableWork.executeWorkFn
-   */
-  public Optional<ExecutableWork> pollWork(BoundedQueueExecutorWorkHandle handle) {
-    Preconditions.checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
-    BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
-    while (true) {
-      Runnable runnable = executor.getQueue().poll();
-      if (runnable == null) {
-        return Optional.empty();
-      }
-      if (runnable instanceof QueuedWork) {
-        QueuedWork queuedWork = (QueuedWork) runnable;
-        queuedWork.cancelHandle();
-        internalHandle.addBudget(1, queuedWork.getWorkBytes());
-        return Optional.of(queuedWork.getWork());
-      }
-      // Pop and execute standard callbacks immediately on the calling thread to drain the queue
-      runnable.run();
-    }
+  BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
+    return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
   }
 
   private void decrementCounters(int elements, long bytes) {
+    // All threads queue decrements and one thread grabs the monitor and updates
+    // counters. We do this to reduce contention on monitor which is locked by
+    // GetWork thread
     decrementQueue.add(new Budget(elements, bytes));
     boolean submittedToExistingBatch = isDecrementBatchPending.getAndSet(true);
     if (submittedToExistingBatch) {
