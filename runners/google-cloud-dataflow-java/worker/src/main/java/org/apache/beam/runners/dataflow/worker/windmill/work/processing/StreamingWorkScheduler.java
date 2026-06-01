@@ -303,7 +303,7 @@ public class StreamingWorkScheduler {
         throw oom;
       } catch (Throwable t2) {
         LOG.warn("Failed to process work failure safely for work {}", work.id(), t2);
-        throw ExceptionUtils.propagate(t2);
+        throw ExceptionUtils.safeWrapThrowableAsException(t2);
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that

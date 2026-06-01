@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import javax.annotation.CheckReturnValue;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** Utility methods for simplifying work with exceptions and throwables. */
@@ -26,16 +27,17 @@ public final class ExceptionUtils {
   private ExceptionUtils() {}
 
   /**
-   * Propagates {@code throwable} as-is if it is an instance of {@link RuntimeException} or {@link
-   * Error}, or else as a last resort wraps it in a {@code RuntimeException} and then propagates.
+   * Returns the {@code throwable} as-is if it is an instance of {@link RuntimeException} throws if
+   * it is an {@link Error}, or returns the {@code throwable} wrapped in a {@code RuntimeException}.
    */
-  public static RuntimeException propagate(Throwable throwable) {
+  @CheckReturnValue
+  public static RuntimeException safeWrapThrowableAsException(Throwable throwable) {
     if (throwable instanceof RuntimeException) {
-      throw (RuntimeException) throwable;
+      return (RuntimeException) throwable;
     } else if (throwable instanceof Error) {
       throw (Error) throwable;
     } else {
-      throw new RuntimeException(throwable);
+      return new RuntimeException(throwable);
     }
   }
 }

@@ -58,7 +58,7 @@ public final class ExecutableWork {
     try {
       executeWorkFn().accept(work(), handle);
     } catch (Throwable t) {
-      throw ExceptionUtils.propagate(t);
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
     }
   }
 

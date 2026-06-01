@@ -348,9 +348,9 @@ public class BoundedQueueExecutor {
         new BoundedQueueExecutorWorkHandleImpl(1, workBytes);
     try {
       executor.execute(new QueuedWork(work, handle));
-    } catch (Throwable e) {
+    } catch (Throwable t) {
       handle.close();
-      throw ExceptionUtils.propagate(e);
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
     }
   }
 
@@ -367,9 +367,9 @@ public class BoundedQueueExecutor {
               decrementCounters(1, 0L);
             }
           });
-    } catch (Throwable e) {
+    } catch (Throwable t) {
       decrementCounters(1, 0L);
-      throw ExceptionUtils.propagate(e);
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
     }
   }
 
