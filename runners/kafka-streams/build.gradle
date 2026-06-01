@@ -61,6 +61,7 @@ dependencies {
   permitUnusedDeclared "org.apache.kafka:kafka-clients:$kafka_version"
 
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:harness")
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
