@@ -66,7 +66,11 @@ dependencies {
   dependOnProjectsAndConfigs.each {
     // For projects producing shadowjar, use the packaged jar as dependency to
     // handle redirected packages from it
-    implementation project(path: it.key, configuration: it.value)
+    if (it.value != null) {
+      implementation project(path: it.key, configuration: it.value)
+    } else {
+      implementation project(it.key)
+    }
   }
   shadow library.java.vendored_grpc_1_69_0
   shadow library.java.joda_time

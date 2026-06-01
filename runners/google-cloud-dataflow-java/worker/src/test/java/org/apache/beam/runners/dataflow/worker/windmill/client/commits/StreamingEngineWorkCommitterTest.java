@@ -474,4 +474,67 @@ public class StreamingEngineWorkCommitterTest {
 
     waitForExpectedSetSize(completeCommits, sentCommits.intValue());
   }
+
+  @Test
+  public void testCommit_multiKeyCommitFailedWork() {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    Work workA = createMockWork(101L);
+    Work workB = createMockWork(102L);
+    Work workC = createMockWork(103L);
+
+    // Mark non-primary key B as failed
+    workB.setFailed();
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workA.getWorkItem().getKey())
+                    .setShardingKey(workA.getWorkItem().getShardingKey())
+                    .setWorkToken(workA.getWorkItem().getWorkToken())
+                    .setCacheToken(workA.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workB.getWorkItem().getKey())
+                    .setShardingKey(workB.getWorkItem().getShardingKey())
+                    .setWorkToken(workB.getWorkItem().getWorkToken())
+                    .setCacheToken(workB.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workC.getWorkItem().getKey())
+                    .setShardingKey(workC.getWorkItem().getShardingKey())
+                    .setWorkToken(workC.getWorkItem().getWorkToken())
+                    .setCacheToken(workC.getWorkItem().getCacheToken())
+                    .build())
+            .build();
+
+    Commit commit =
+        Commit.createMultiKey(
+            multiKeyRequest,
+            createComputationState("computationId"),
+            org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList.of(
+                workA, workB, workC));
+
+    workCommitter.start();
+    workCommitter.commit(commit);
+
+    // The entire batch must be aborted immediately without making network calls
+    waitForExpectedSetSize(completeCommits, 3);
+
+    // Verify all three works are aborted individually
+    assertThat(completeCommits)
+        .containsExactly(
+            CompleteCommit.create(
+                "computationId", workA.getShardedKey(), workA.id(), Windmill.CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), Windmill.CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), Windmill.CommitStatus.ABORTED));
+
+    workCommitter.stop();
+  }
 }

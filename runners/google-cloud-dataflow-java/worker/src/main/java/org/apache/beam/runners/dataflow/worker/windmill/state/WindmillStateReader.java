@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -588,7 +589,7 @@ public class WindmillStateReader {
   private void consumeResponse(KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
     bytesRead += response.getSerializedSize();
     if (response.getFailed()) {
-      throw new KeyTokenInvalidException(key.toStringUtf8());
+      throw new KeyTokenInvalidException(ShardedKey.create(key, shardingKey), key.toStringUtf8());
     }
 
     if (!key.equals(response.getKey())) {

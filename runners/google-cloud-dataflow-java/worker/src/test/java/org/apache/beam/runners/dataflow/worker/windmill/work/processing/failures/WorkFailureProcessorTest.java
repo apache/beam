@@ -213,4 +213,155 @@ public class WorkFailureProcessorTest {
     runWork.await();
     assertThat(invalidWork).isEmpty();
   }
+
+  @Test
+  public void logAndProcessFailureBatch_isolatesFailureForKeyTokenInvalidException()
+      throws Throwable {
+    Set<Work> executedWork = new HashSet<>();
+    Set<Work> invalidWork = new HashSet<>();
+
+    // Setup Work A (the invalid key)
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setShardingKey(1000L)
+            .setWorkToken(100L)
+            .build();
+    ExecutableWork workA =
+        ExecutableWork.create(
+            Work.create(
+                workItemA,
+                workItemA.getSerializedSize(),
+                Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+                Work.createProcessingContext(
+                    "computationId",
+                    new FakeGetDataClient(),
+                    ignored -> {},
+                    mock(HeartbeatSender.class)),
+                false,
+                Instant::now),
+            (w, h) -> executedWork.add(w));
+
+    // Setup Work B (the healthy key in the batch)
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setShardingKey(2000L)
+            .setWorkToken(200L)
+            .build();
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork workB =
+        ExecutableWork.create(
+            Work.create(
+                workItemB,
+                workItemB.getSerializedSize(),
+                Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+                Work.createProcessingContext(
+                    "computationId",
+                    new FakeGetDataClient(),
+                    ignored -> {},
+                    mock(HeartbeatSender.class)),
+                false,
+                Instant::now),
+            (w, h) -> {
+              executedWork.add(w);
+              runWork.countDown();
+            });
+
+    WorkFailureProcessor workFailureProcessor =
+        createWorkFailureProcessor(streamingEngineFailureReporter());
+
+    java.util.List<ExecutableWork> batch = java.util.Arrays.asList(workA, workB);
+
+    // Trigger batch failure where KeyA has token invalid exception
+    org.apache.beam.runners.dataflow.worker.streaming.ShardedKey shardedKeyA =
+        org.apache.beam.runners.dataflow.worker.streaming.ShardedKey.create(
+            ByteString.copyFromUtf8("keyA"), 1000L);
+    KeyTokenInvalidException exception = new KeyTokenInvalidException(shardedKeyA, "keyA");
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID, batch, exception, invalidWork::add);
+
+    // Wait for asynchronous execution to complete
+    runWork.await(5, TimeUnit.SECONDS);
+
+    // Work A should be marked as invalid (DO_NOT_RETRY) and not rescheduled
+    assertThat(invalidWork).containsExactly(workA.work());
+    // Work B (healthy key) should be rescheduled and executed (RETRY_LOCALLY)
+    assertThat(executedWork).containsExactly(workB.work());
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_isolatesFailureForWorkItemCancelledException()
+      throws Throwable {
+    Set<Work> executedWork = new HashSet<>();
+    Set<Work> invalidWork = new HashSet<>();
+
+    // Setup Work A (the cancelled key)
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setShardingKey(1000L)
+            .setWorkToken(100L)
+            .build();
+    ExecutableWork workA =
+        ExecutableWork.create(
+            Work.create(
+                workItemA,
+                workItemA.getSerializedSize(),
+                Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+                Work.createProcessingContext(
+                    "computationId",
+                    new FakeGetDataClient(),
+                    ignored -> {},
+                    mock(HeartbeatSender.class)),
+                false,
+                Instant::now),
+            (w, h) -> executedWork.add(w));
+
+    // Setup Work B (the healthy key in the batch)
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setShardingKey(2000L)
+            .setWorkToken(200L)
+            .build();
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork workB =
+        ExecutableWork.create(
+            Work.create(
+                workItemB,
+                workItemB.getSerializedSize(),
+                Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
+                Work.createProcessingContext(
+                    "computationId",
+                    new FakeGetDataClient(),
+                    ignored -> {},
+                    mock(HeartbeatSender.class)),
+                false,
+                Instant::now),
+            (w, h) -> {
+              executedWork.add(w);
+              runWork.countDown();
+            });
+
+    WorkFailureProcessor workFailureProcessor =
+        createWorkFailureProcessor(streamingEngineFailureReporter());
+
+    java.util.List<ExecutableWork> batch = java.util.Arrays.asList(workA, workB);
+
+    // Trigger batch failure where KeyA is cancelled (takes shardingKey)
+    WorkItemCancelledException exception = new WorkItemCancelledException(1000L);
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID, batch, exception, invalidWork::add);
+
+    // Wait for asynchronous execution to complete
+    runWork.await(5, TimeUnit.SECONDS);
+
+    // Work A should be marked as invalid (DO_NOT_RETRY) and not rescheduled
+    assertThat(invalidWork).containsExactly(workA.work());
+    // Work B (healthy key) should be rescheduled and executed (RETRY_LOCALLY)
+    assertThat(executedWork).containsExactly(workB.work());
+  }
 }

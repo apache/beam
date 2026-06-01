@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
   private final StreamingModeExecutionContext context;
-  private final Windmill.WorkItem work;
+  private Windmill.WorkItem work;
   private int bundleIndex = 0;
   private int messageIndex = -1;
   private @Nullable WindowedValue<T> current = null;
@@ -57,15 +57,27 @@ public abstract class WindmillReaderIteratorBase<T>
   @Override
   public boolean advance() throws IOException {
     if (context.workIsFailed()) {
-      throw new WorkItemCancelledException(context.getWorkItem().getShardingKey());
+      throw new WorkItemCancelledException(
+          checkNotNull(context.getFailedWork()).getWorkItem().getShardingKey());
     }
 
     while (true) {
       if (bundleIndex >= work.getMessageBundlesCount()) {
+        // If elements are exhausted, try advancing the execution context to the next key in the
+        // group
+        if (context.advance()) {
+          // Transition succeeded! Update iterator references to the new work item
+          this.work = context.getWork().getWorkItem();
+          this.bundleIndex = 0;
+          this.messageIndex = -1;
+          continue;
+        }
+
+        // All work items are exhausted. Iterator returns false.
         current = null;
-        context.finishKey();
         return false;
       }
+
       Windmill.InputMessageBundle bundle = work.getMessageBundles(bundleIndex);
       ++messageIndex;
       if (messageIndex >= bundle.getMessagesCount()) {
@@ -73,6 +85,7 @@ public abstract class WindmillReaderIteratorBase<T>
         ++bundleIndex;
         continue;
       }
+
       try {
         current = checkNotNull(decodeMessage(bundle.getMessages(messageIndex)));
         return true;

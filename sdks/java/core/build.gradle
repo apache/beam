@@ -152,3 +152,12 @@ project.tasks.compileTestJava {
 test {
   useJUnit()
 }
+
+jar {
+  zip64 = false
+}
+
+shadowJar {
+  zip64 = false
+}
+

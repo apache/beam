@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -124,6 +125,58 @@ public final class WorkFailureProcessor {
     }
   }
 
+  public void logAndProcessFailureBatch(
+      String computationId,
+      List<ExecutableWork> executableWorks,
+      Throwable t,
+      Consumer<Work> onInvalidWork)
+      throws Throwable {
+    List<ExecutableWork> worksToRetryLocally = new java.util.ArrayList<>();
+
+    for (ExecutableWork executableWork : executableWorks) {
+      switch (evaluateRetry(computationId, executableWork.work(), t)) {
+        case DO_NOT_RETRY:
+          onInvalidWork.accept(executableWork.work());
+          break;
+        case RETRY_LOCALLY:
+          worksToRetryLocally.add(executableWork);
+          break;
+        case RETHROW_THROWABLE:
+          throw t;
+      }
+    }
+
+    if (!worksToRetryLocally.isEmpty()) {
+      // Sleep ONCE for the entire batch delay to avoid sequential thread blocks
+      Uninterruptibles.sleepUninterruptibly(retryLocallyDelayMs, TimeUnit.MILLISECONDS);
+      for (ExecutableWork ew : worksToRetryLocally) {
+        workUnitExecutor.forceExecute(ew, ew.work().getSerializedWorkItemSize());
+      }
+    }
+  }
+
+  private static @Nullable KeyTokenInvalidException getKeyTokenInvalidException(
+      @Nullable Throwable t) {
+    while (t != null) {
+      if (t instanceof KeyTokenInvalidException) {
+        return (KeyTokenInvalidException) t;
+      }
+      t = t.getCause();
+    }
+    return null;
+  }
+
+  private static @Nullable WorkItemCancelledException getWorkItemCancelledException(
+      @Nullable Throwable t) {
+    while (t != null) {
+      if (t instanceof WorkItemCancelledException) {
+        return (WorkItemCancelledException) t;
+      }
+      t = t.getCause();
+    }
+    return null;
+  }
+
   private String tryToDumpHeap() {
     return heapDumper
         .dumpAndGetHeap()
@@ -147,19 +200,46 @@ public final class WorkFailureProcessor {
     @Nullable final Throwable cause = t.getCause();
     Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
     if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
-      LOG.debug(
-          "Execution of work for computation '{}' on sharding key '{}' failed due to token expiration. "
-              + "Work will not be retried locally.",
-          computationId,
-          work.getWorkItem().getShardingKey());
+      KeyTokenInvalidException invalidException = getKeyTokenInvalidException(parsedException);
+      if (invalidException != null && invalidException.getShardedKey().isPresent()) {
+        if (work.getShardedKey().equals(invalidException.getShardedKey().get())) {
+          LOG.debug(
+              "Execution of work for computation '{}' on sharding key '{}' failed due to token expiration. "
+                  + "Work will not be retried locally.",
+              computationId,
+              work.getWorkItem().getShardingKey());
+          return RetryEvaluation.DO_NOT_RETRY;
+        } else {
+          LOG.debug(
+              "Execution of work for computation '{}' on sharding key '{}' aborted due to token mismatch on another key. "
+                  + "Work will be retried locally.",
+              computationId,
+              work.getWorkItem().getShardingKey());
+          return RetryEvaluation.RETRY_LOCALLY;
+        }
+      }
       return RetryEvaluation.DO_NOT_RETRY;
     }
     if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
-      LOG.debug(
-          "Execution of work for computation '{}' on sharding key '{}' failed. "
-              + "Work will not be retried locally.",
-          computationId,
-          work.getWorkItem().getShardingKey());
+      WorkItemCancelledException cancelledException =
+          getWorkItemCancelledException(parsedException);
+      if (cancelledException != null && cancelledException.getShardingKey().isPresent()) {
+        if (work.getWorkItem().getShardingKey() == cancelledException.getShardingKey().get()) {
+          LOG.debug(
+              "Execution of work for computation '{}' on sharding key '{}' failed. "
+                  + "Work will not be retried locally.",
+              computationId,
+              work.getWorkItem().getShardingKey());
+          return RetryEvaluation.DO_NOT_RETRY;
+        } else {
+          LOG.debug(
+              "Execution of work for computation '{}' on sharding key '{}' aborted due to cancellation of another key. "
+                  + "Work will be retried locally.",
+              computationId,
+              work.getWorkItem().getShardingKey());
+          return RetryEvaluation.RETRY_LOCALLY;
+        }
+      }
       return RetryEvaluation.DO_NOT_RETRY;
     }
 

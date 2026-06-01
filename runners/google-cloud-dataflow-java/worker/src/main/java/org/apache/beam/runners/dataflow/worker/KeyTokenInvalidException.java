@@ -17,12 +17,26 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 
 /** Indicates that the key token was invalid when data was attempted to be fetched. */
 public class KeyTokenInvalidException extends RuntimeException {
+  private final @Nullable ShardedKey shardedKey;
+
   public KeyTokenInvalidException(String key) {
     super("Unable to fetch data due to token mismatch for key " + key);
+    this.shardedKey = null;
+  }
+
+  public KeyTokenInvalidException(ShardedKey shardedKey, String key) {
+    super("Unable to fetch data due to token mismatch for key " + key);
+    this.shardedKey = shardedKey;
+  }
+
+  public Optional<ShardedKey> getShardedKey() {
+    return Optional.ofNullable(shardedKey);
   }
 
   /** Returns whether an exception was caused by a {@link KeyTokenInvalidException}. */

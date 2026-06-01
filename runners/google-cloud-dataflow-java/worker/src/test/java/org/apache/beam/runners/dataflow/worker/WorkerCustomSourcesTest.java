@@ -83,11 +83,14 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeySwitchListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnlyBoundedSource;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -95,6 +98,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
@@ -1056,5 +1060,124 @@ public class WorkerCustomSourcesTest {
       // Expected
     }
     assertThat(numReads, equalTo(2));
+  }
+
+  @Test
+  public void testUnboundedReaderIterator_multiKeySwitching() throws Exception {
+    CounterSet counterSet = new CounterSet();
+    StreamingModeExecutionStateRegistry executionStateRegistry =
+        new StreamingModeExecutionStateRegistry();
+    ReaderCache readerCache = new ReaderCache(Duration.standardMinutes(1), Runnable::run);
+    StreamingGlobalConfigHandle globalConfigHandle =
+        new FixedGlobalConfigHandle(StreamingGlobalConfig.builder().build());
+    StreamingModeExecutionContext context =
+        new StreamingModeExecutionContext(
+            counterSet,
+            COMPUTATION_ID,
+            readerCache,
+            /*stateNameMap=*/ ImmutableMap.of(),
+            /*stateCache=*/ null,
+            StreamingStepMetricsContainer.createRegistry(),
+            new DataflowExecutionStateTracker(
+                ExecutionStateSampler.newForTest(),
+                executionStateRegistry.getState(
+                    NameContext.forStage("stageName"), "other", null, NoopProfileScope.NOOP),
+                counterSet,
+                PipelineOptionsFactory.create(),
+                "test-work-item-id"),
+            executionStateRegistry,
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
+
+    options.setNumWorkers(5);
+    int maxElements = 2;
+    DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+    debugOptions.setUnboundedReaderMaxElements(maxElements);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build();
+
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("0000000000000001"))
+            .setWorkToken(1)
+            .setCacheToken(1)
+            .setKeyGroup(keyGroup)
+            .setSourceState(Windmill.SourceState.newBuilder().setState(ByteString.EMPTY).build())
+            .build();
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("0000000000000002"))
+            .setWorkToken(2)
+            .setCacheToken(1)
+            .setKeyGroup(keyGroup)
+            .setSourceState(Windmill.SourceState.newBuilder().setState(ByteString.EMPTY).build())
+            .build();
+
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(0)).build());
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(0)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    context.start(
+        "keyA",
+        workA,
+        mock(WindmillStateReader.class),
+        mock(SideInputStateFetcher.class),
+        Windmill.WorkItemCommitRequest.newBuilder(),
+        mock(WorkExecutor.class),
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5, // maxKeyGroupBatchSize
+        1000000000L, // maxKeyGroupBatchTimeNanos
+        10000000L, // maxKeyGroupBatchBytes
+        mock(KeySwitchListener.class));
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
+        (NativeReader)
+            WorkerCustomSources.create(
+                (CloudObject)
+                    serializeToCloudSource(new TestCountingSource(Integer.MAX_VALUE), options)
+                        .getSpec(),
+                options,
+                context);
+
+    NativeReaderIterator<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> readerIterator =
+        reader.iterator();
+
+    assertTrue(readerIterator.start());
+    WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> val1 = readerIterator.getCurrent();
+    assertEquals(Integer.valueOf(0), val1.getValue().getValue().getKey());
+
+    assertTrue(readerIterator.advance());
+    WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> val2 = readerIterator.getCurrent();
+    assertEquals(Integer.valueOf(0), val2.getValue().getValue().getKey());
+
+    assertTrue(readerIterator.advance());
+    WindowedValue<ValueWithRecordId<KV<Integer, Integer>>> val3 = readerIterator.getCurrent();
+    assertEquals(Integer.valueOf(1), val3.getValue().getValue().getKey());
+
+    assertEquals("0000000000000002", context.getKey().toString());
   }
 }

@@ -82,6 +82,7 @@ public final class Work implements RefreshableWork {
   private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
+  private volatile @Nullable Runnable onFailureListener = null;
   private final boolean drainMode;
 
   private Work(
@@ -247,8 +248,19 @@ public final class Work implements RefreshableWork {
   }
 
   @Override
-  public void setFailed() {
+  public synchronized void setFailed() {
     this.isFailed = true;
+    Runnable listener = onFailureListener;
+    if (listener != null) {
+      listener.run();
+    }
+  }
+
+  public synchronized void setOnFailureListener(@Nullable Runnable listener) {
+    this.onFailureListener = listener;
+    if (isFailed && listener != null) {
+      listener.run();
+    }
   }
 
   public boolean isCommitPending() {
@@ -271,6 +283,10 @@ public final class Work implements RefreshableWork {
   public void queueCommit(WorkItemCommitRequest commitRequest, ComputationState computationState) {
     setState(State.COMMIT_QUEUED);
     processingContext.workCommitter().accept(Commit.create(commitRequest, computationState, this));
+  }
+
+  public Consumer<Commit> workCommitter() {
+    return processingContext.workCommitter();
   }
 
   public WindmillStateReader createWindmillStateReader() {

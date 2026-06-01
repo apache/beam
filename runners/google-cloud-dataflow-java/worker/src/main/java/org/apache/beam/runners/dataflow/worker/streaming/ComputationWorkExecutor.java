@@ -24,8 +24,10 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
+import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -72,9 +74,37 @@ public abstract class ComputationWorkExecutor {
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder)
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      BoundedQueueExecutor workQueueExecutor,
+      BoundedQueueExecutorWorkHandle budgetHandle,
+      HotKeyLogger hotKeyLogger,
+      boolean hotKeyLoggingEnabled,
+      String stepName,
+      int maxKeyGroupBatchSize,
+      long maxKeyGroupBatchTimeNanos,
+      long maxKeyGroupBatchBytes,
+      @Nullable String sourceBytesProcessCounterName,
+      StreamingModeExecutionContext.KeySwitchListener keySwitchListener)
       throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder, workExecutor());
+    context()
+        .start(
+            key,
+            work,
+            stateReader,
+            sideInputStateFetcher,
+            outputBuilder,
+            workExecutor(),
+            workQueueExecutor,
+            budgetHandle,
+            hotKeyLogger,
+            hotKeyLoggingEnabled,
+            stepName,
+            keyCoder().orElse(null),
+            maxKeyGroupBatchSize,
+            maxKeyGroupBatchTimeNanos,
+            maxKeyGroupBatchBytes,
+            keySwitchListener,
+            sourceBytesProcessCounterName);
     workExecutor().execute();
   }
 

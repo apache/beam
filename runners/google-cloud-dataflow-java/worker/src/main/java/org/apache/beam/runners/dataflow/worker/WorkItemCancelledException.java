@@ -17,21 +17,33 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import java.util.Optional;
+import javax.annotation.Nullable;
+
 /** Indicates that the work item was cancelled and should not be retried. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class WorkItemCancelledException extends RuntimeException {
+  private final @Nullable Long shardingKey;
+
   public WorkItemCancelledException(long sharding_key) {
     super("Work item cancelled for key " + sharding_key);
+    this.shardingKey = sharding_key;
   }
 
   public WorkItemCancelledException(String message, Throwable cause) {
     super(message, cause);
+    this.shardingKey = null;
   }
 
   public WorkItemCancelledException(Throwable cause) {
     super(cause);
+    this.shardingKey = null;
+  }
+
+  public Optional<Long> getShardingKey() {
+    return Optional.ofNullable(shardingKey);
   }
 
   /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */

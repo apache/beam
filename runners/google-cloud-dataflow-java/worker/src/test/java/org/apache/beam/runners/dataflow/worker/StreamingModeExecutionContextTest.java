@@ -51,17 +51,21 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeySwitchListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -463,5 +467,503 @@ public class StreamingModeExecutionContextTest {
     executionContext.flushState();
 
     assertEquals(1234, outputBuilder.getSourceBacklogBytes());
+  }
+
+  @Test
+  public void testAdvanceKeySwitching() throws Exception {
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .setCacheToken(1000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .setCacheToken(2000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    java.util.concurrent.atomic.AtomicReference<Work> oldWorkRef =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    java.util.concurrent.atomic.AtomicReference<Work> newWorkRef =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    KeySwitchListener listener =
+        (oldW, newW) -> {
+          oldWorkRef.set(oldW);
+          newWorkRef.set(newW);
+        };
+
+    executionContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderA,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5, // maxKeyGroupBatchSize
+        1000000000L, // maxKeyGroupBatchTimeNanos (1s)
+        10000000L, // maxKeyGroupBatchBytes (10MB)
+        listener);
+
+    // 1. Verify primary key info
+    assertEquals("keyA", executionContext.getKey());
+    assertEquals(workA, executionContext.getWork());
+    assertEquals(1, executionContext.getExecutedWorks().size());
+    assertEquals(1, executionContext.getOutputBuilders().size());
+
+    // 2. Advance context (trigger key switch)
+    boolean advanced = executionContext.advance();
+    assertTrue(advanced);
+
+    // 3. Verify that the context has transitioned to keyB
+    assertEquals("keyB", executionContext.getKey());
+    assertEquals(workB, executionContext.getWork());
+    assertEquals(2, executionContext.getExecutedWorks().size());
+    assertEquals(2, executionContext.getOutputBuilders().size());
+
+    // Verify listener was called
+    assertEquals(workA, oldWorkRef.get());
+    assertEquals(workB, newWorkRef.get());
+
+    // 4. Advance again (should return false since pollWork returns empty)
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.empty());
+
+    boolean advancedAgain = executionContext.advance();
+    assertFalse(advancedAgain);
+  }
+
+  @Test
+  public void testAdvanceLimitThresholds() throws Exception {
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .setCacheToken(1000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .setCacheToken(2000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    // Case 1: maxKeyGroupBatchSize is 0
+    executionContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderA,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        0, // maxKeyGroupBatchSize = 0 (batch size threshold hit immediately!)
+        1000000000L,
+        10000000L,
+        (k, c) -> {});
+
+    assertFalse(executionContext.advance());
+
+    // Case 2: maxKeyGroupBatchBytes limit is exceeded
+    Windmill.WorkItemCommitRequest.Builder outputBuilderAForBytes =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("some_non_empty_key_to_increase_size"));
+
+    executionContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderAForBytes,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5,
+        1000000000L,
+        1L, // maxKeyGroupBatchBytes = 1 byte (exceeded!)
+        (k, c) -> {});
+
+    assertFalse(executionContext.advance());
+  }
+
+  @Test
+  public void testFinishKeyReentrantSafety() {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder();
+    executionContext.start(
+        "key",
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        workExecutor);
+
+    // First call
+    executionContext.finishKey();
+    // Second call - should not throw any Exception
+    executionContext.finishKey();
+  }
+
+  @Test
+  public void testWorkIsFailed_heartbeatFailureOnPolledKey() throws Exception {
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .setCacheToken(1000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .setCacheToken(2000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    executionContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderA,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5,
+        1000000000L,
+        10000000L,
+        (k, c) -> {});
+
+    // Heartbeat fails on primary work A
+    workA.setFailed();
+
+    assertTrue(executionContext.workIsFailed());
+    assertEquals(workA, executionContext.getFailedWork());
+  }
+
+  @Test
+  public void testAdvance_abortsOnFailedExecutedKey() throws Exception {
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .setCacheToken(1000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .setCacheToken(2000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    executionContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderA,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5,
+        1000000000L,
+        10000000L,
+        (k, c) -> {});
+
+    // Simulate heartbeat failure on key A before switching to key B
+    workA.setFailed();
+
+    // Advance should fail immediately and throw WorkItemCancelledException
+    boolean thrown = false;
+    try {
+      executionContext.advance();
+      org.junit.Assert.fail("Expected WorkItemCancelledException");
+    } catch (WorkItemCancelledException e) {
+      thrown = true;
+    }
+    assertTrue(thrown);
+  }
+
+  @Test
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void testInvalidateCache_clearsAllExecutedKeys() throws Exception {
+    CounterSet counterSet = new CounterSet();
+    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
+
+    // Mock stateCache
+    WindmillStateCache.ForComputation mockStateCache =
+        mock(WindmillStateCache.ForComputation.class);
+
+    // Use a real ReaderCache so we can verify interactions directly
+    ReaderCache testReaderCache =
+        new ReaderCache(Duration.standardMinutes(1), Executors.newSingleThreadExecutor());
+
+    StreamingModeExecutionContext testContext =
+        new StreamingModeExecutionContext(
+            counterSet,
+            COMPUTATION_ID,
+            testReaderCache,
+            stateNameMap,
+            mockStateCache,
+            StreamingStepMetricsContainer.createRegistry(),
+            new DataflowExecutionStateTracker(
+                ExecutionStateSampler.newForTest(),
+                executionStateRegistry.getState(
+                    NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
+                counterSet,
+                PipelineOptionsFactory.create(),
+                "test-work-item-id"),
+            executionStateRegistry,
+            globalConfigHandle,
+            Long.MAX_VALUE,
+            /*throwExceptionOnLargeOutput=*/ false);
+
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .setCacheToken(1000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workA =
+        createMockWork(
+            workItemA, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .setCacheToken(2000L)
+            .setKeyGroup(Windmill.Uint128Proto.newBuilder().setHigh(1L).setLow(2L).build())
+            .build();
+    Work workB =
+        createMockWork(
+            workItemB, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockBudget = mock(BoundedQueueExecutorWorkHandle.class);
+    ExecutableWork executableWorkB = ExecutableWork.create(workB, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(
+                    org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup.create(1L, 2L)),
+                org.mockito.Mockito.eq(mockBudget)))
+        .thenReturn(java.util.Optional.of(executableWorkB));
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
+        Windmill.WorkItemCommitRequest.newBuilder();
+
+    testContext.start(
+        "keyA",
+        workA,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilderA,
+        workExecutor,
+        mockExecutor,
+        mockBudget,
+        new HotKeyLogger(),
+        false,
+        "step1",
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        5,
+        1000000000L,
+        10000000L,
+        (k, c) -> {});
+
+    // Cache reader for keyA
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader readerA =
+        mock(org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.class);
+    org.apache.beam.sdk.io.UnboundedSource mockSourceA =
+        mock(org.apache.beam.sdk.io.UnboundedSource.class);
+    org.mockito.Mockito.when(readerA.getCurrentSource()).thenReturn(mockSourceA);
+    org.mockito.Mockito.when(readerA.getWatermark()).thenReturn(new Instant(1000));
+    testContext.setActiveReader(readerA);
+
+    // Advance to keyB (which calls finishKey() for keyA, caching readerA)
+    boolean advanced = testContext.advance();
+    assertTrue(advanced);
+
+    // Cache reader for keyB
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader readerB =
+        mock(org.apache.beam.sdk.io.UnboundedSource.UnboundedReader.class);
+    org.apache.beam.sdk.io.UnboundedSource mockSourceB =
+        mock(org.apache.beam.sdk.io.UnboundedSource.class);
+    org.mockito.Mockito.when(readerB.getCurrentSource()).thenReturn(mockSourceB);
+    org.mockito.Mockito.when(readerB.getWatermark()).thenReturn(new Instant(1000));
+    testContext.setActiveReader(readerB);
+
+    // Call finishKey() for keyB, caching readerB
+    testContext.finishKey();
+
+    // Verify both readers are now cached in testReaderCache
+    org.apache.beam.runners.dataflow.worker.WindmillComputationKey compKeyA =
+        org.apache.beam.runners.dataflow.worker.WindmillComputationKey.create(
+            COMPUTATION_ID, workA.getShardedKey());
+    org.apache.beam.runners.dataflow.worker.WindmillComputationKey compKeyB =
+        org.apache.beam.runners.dataflow.worker.WindmillComputationKey.create(
+            COMPUTATION_ID, workB.getShardedKey());
+
+    // We acquire readerA and readerB to ensure they were cached
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader<?> cachedA =
+        testReaderCache.acquireReader(compKeyA, 1000L, 100L + 1);
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader<?> cachedB =
+        testReaderCache.acquireReader(compKeyB, 2000L, 200L + 1);
+    assertEquals(readerA, cachedA);
+    assertEquals(readerB, cachedB);
+
+    // Put them back into cache
+    testReaderCache.cacheReader(compKeyA, 1000L, 100L, readerA);
+    testReaderCache.cacheReader(compKeyB, 2000L, 200L, readerB);
+
+    // Call invalidateCache()
+    testContext.invalidateCache();
+
+    // Verify both readers are invalidated from the cache (acquireReader returns null)
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader<?> clearedA =
+        testReaderCache.acquireReader(compKeyA, 1000L, 100L + 1);
+    org.apache.beam.sdk.io.UnboundedSource.UnboundedReader<?> clearedB =
+        testReaderCache.acquireReader(compKeyB, 2000L, 200L + 1);
+    org.junit.Assert.assertNull(clearedA);
+    org.junit.Assert.assertNull(clearedB);
+
+    // Verify that stateCache.invalidate was called for both keys
+    org.mockito.Mockito.verify(mockStateCache)
+        .invalidate(
+            org.mockito.Mockito.eq(workItemA.getKey()),
+            org.mockito.Mockito.eq(workItemA.getShardingKey()));
+    org.mockito.Mockito.verify(mockStateCache)
+        .invalidate(
+            org.mockito.Mockito.eq(workItemB.getKey()),
+            org.mockito.Mockito.eq(workItemB.getShardingKey()));
   }
 }

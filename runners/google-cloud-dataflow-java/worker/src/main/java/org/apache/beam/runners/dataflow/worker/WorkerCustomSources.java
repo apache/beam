@@ -457,7 +457,7 @@ public class WorkerCustomSources {
 
       context.setActiveReader(reader);
 
-      return new UnboundedReaderIterator<>(reader, context, started, options);
+      return new UnboundedReaderIterator(reader, started);
     }
 
     @Override
@@ -486,6 +486,179 @@ public class WorkerCustomSources {
         throw new IllegalArgumentException("Expected UnboundedSource, got " + rawSource.getClass());
       }
       return (UnboundedSource<T, UnboundedSource.CheckpointMark>) rawSource;
+    }
+
+    private class UnboundedReaderIterator
+        extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
+      // Do not close reader. The reader is cached in StreamingModeExecutionContext.readerCache, and
+      // will be reused until the cache is evicted, expired or invalidated.
+      // See UnboundedReader#iterator().
+      private UnboundedSource.UnboundedReader<T> reader;
+      private boolean started;
+      private final Instant endTime;
+      private final int maxElems;
+      private final FluentBackoff backoffFactory;
+      private int elemsRead = 0;
+
+      private UnboundedReaderIterator(UnboundedSource.UnboundedReader<T> reader, boolean started) {
+        this.reader = reader;
+        this.started = started;
+        DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
+        long maxReadTimeMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
+        this.endTime = Instant.now().plus(Duration.millis(maxReadTimeMs));
+        this.maxElems = debugOptions.getUnboundedReaderMaxElements();
+        this.backoffFactory =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(Duration.millis(10))
+                .withMaxCumulativeBackoff(
+                    Duration.millis(debugOptions.getUnboundedReaderMaxWaitForElementsMs()));
+      }
+
+      private void initNextKey() throws IOException {
+        @SuppressWarnings("unchecked")
+        UnboundedSource.UnboundedReader<T> nextReader =
+            (UnboundedSource.UnboundedReader<T>) context.getCachedReader();
+        this.started = nextReader != null;
+        if (nextReader == null) {
+          String key = context.getSerializedKey().toStringUtf8();
+          // Key is expected to be a zero-padded integer representing the split index.
+          int splitIndex = Integer.parseInt(key.substring(0, 16), 16) - 1;
+
+          UnboundedSource<T, UnboundedSource.CheckpointMark> splitSource = parseSource(splitIndex);
+
+          UnboundedSource.@Nullable CheckpointMark checkpoint = null;
+          if (splitSource.getCheckpointMarkCoder() != null) {
+            checkpoint = context.getReaderCheckpoint(splitSource.getCheckpointMarkCoder());
+          }
+
+          nextReader = splitSource.createReader(options, checkpoint);
+        }
+
+        context.setActiveReader(nextReader);
+        this.reader = nextReader;
+      }
+
+      @Override
+      public boolean start() throws IOException {
+        if (context.workIsFailed()) {
+          throw new WorkItemCancelledException(
+              org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions
+                  .checkNotNull(context.getFailedWork())
+                  .getWorkItem()
+                  .getShardingKey());
+        }
+        if (started) {
+          // This is a reader that has been restored from the unbounded reader cache.
+          // It has already been started, so this call to start() should delegate
+          // to advance() instead.
+          return advance();
+        }
+        try {
+          if (!reader.start()) {
+            if (context.advance()) {
+              initNextKey();
+              elemsRead = 0;
+              return advance();
+            }
+            context.finishKey();
+            return false;
+          }
+        } catch (Exception e) {
+          throw new IOException(
+              "Failed to start reading from source: " + reader.getCurrentSource(), e);
+        }
+        elemsRead++;
+        return true;
+      }
+
+      @Override
+      public boolean advance() throws IOException {
+        // Limits are placed on how much data we allow to return, how long we process the input
+        // before checkpointing and how long we block for input to be available.  This ensures
+        // that there are regular checkpoints and that state does not become too large.
+        BackOff backoff = backoffFactory.backoff();
+        while (true) {
+          if (context.workIsFailed()) {
+            throw new WorkItemCancelledException(
+                org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions
+                    .checkNotNull(context.getFailedWork())
+                    .getWorkItem()
+                    .getShardingKey());
+          }
+          if (elemsRead >= maxElems
+              || Instant.now().isAfter(endTime)
+              || context.isSinkFullHintSet()) {
+            if (context.advance()) {
+              initNextKey();
+              elemsRead = 0;
+              backoff = backoffFactory.backoff();
+              continue;
+            }
+            context.finishKey();
+            return false;
+          }
+
+          boolean hasElement;
+          try {
+            if (started) {
+              hasElement = reader.advance();
+            } else {
+              hasElement = reader.start();
+              started = true;
+            }
+          } catch (Exception e) {
+            throw new IOException("Failed to read from source: " + reader.getCurrentSource(), e);
+          }
+
+          if (hasElement) {
+            elemsRead++;
+            return true;
+          }
+
+          long nextBackoff = backoff.nextBackOffMillis();
+          if (nextBackoff == BackOff.STOP) {
+            if (context.advance()) {
+              initNextKey();
+              elemsRead = 0;
+              backoff = backoffFactory.backoff();
+              continue;
+            }
+            context.finishKey();
+            return false;
+          }
+          Uninterruptibles.sleepUninterruptibly(nextBackoff, TimeUnit.MILLISECONDS);
+        }
+      }
+
+      @Override
+      public WindowedValue<ValueWithRecordId<T>> getCurrent() throws NoSuchElementException {
+        WindowedValue<T> result =
+            WindowedValues.timestampedValueInGlobalWindow(
+                reader.getCurrent(), reader.getCurrentTimestamp());
+        return result.withValue(
+            new ValueWithRecordId<>(result.getValue(), reader.getCurrentRecordId()));
+      }
+
+      @Override
+      public void close() {
+        // Don't close reader.
+      }
+
+      @Override
+      public NativeReader.Progress getProgress() {
+        return null;
+      }
+
+      @Override
+      public NativeReader.DynamicSplitResult requestDynamicSplit(
+          NativeReader.DynamicSplitRequest request) {
+        return null;
+      }
+
+      @Override
+      public double getRemainingParallelism() {
+        return Double.NaN;
+      }
     }
   }
 
@@ -774,123 +947,6 @@ public class WorkerCustomSources {
                 + residual);
       }
       return new BoundedSourceSplit<T>(primary, residual);
-    }
-
-    @Override
-    public double getRemainingParallelism() {
-      return Double.NaN;
-    }
-  }
-
-  private static class UnboundedReaderIterator<T>
-      extends NativeReader.NativeReaderIterator<WindowedValue<ValueWithRecordId<T>>> {
-    // Do not close reader. The reader is cached in StreamingModeExecutionContext.readerCache, and
-    // will be reused until the cache is evicted, expired or invalidated.
-    // See UnboundedReader#iterator().
-    private final UnboundedSource.UnboundedReader<T> reader;
-    private final StreamingModeExecutionContext context;
-    private final boolean started;
-    private final Instant endTime;
-    private final int maxElems;
-    private final FluentBackoff backoffFactory;
-    private int elemsRead = 0;
-
-    private UnboundedReaderIterator(
-        UnboundedSource.UnboundedReader<T> reader,
-        StreamingModeExecutionContext context,
-        boolean started,
-        PipelineOptions options) {
-      this.reader = reader;
-      this.context = context;
-      this.started = started;
-      DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
-      long maxReadTimeMs = debugOptions.getUnboundedReaderMaxReadTimeMs();
-      this.endTime = Instant.now().plus(Duration.millis(maxReadTimeMs));
-      this.maxElems = debugOptions.getUnboundedReaderMaxElements();
-      this.backoffFactory =
-          FluentBackoff.DEFAULT
-              .withInitialBackoff(Duration.millis(10))
-              .withMaxCumulativeBackoff(
-                  Duration.millis(debugOptions.getUnboundedReaderMaxWaitForElementsMs()));
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      if (started) {
-        // This is a reader that has been restored from the unbounded reader cache.
-        // It has already been started, so this call to start() should delegate
-        // to advance() instead.
-        return advance();
-      }
-      try {
-        if (!reader.start()) {
-          context.finishKey();
-          return false;
-        }
-      } catch (Exception e) {
-        throw new IOException(
-            "Failed to start reading from source: " + reader.getCurrentSource(), e);
-      }
-      elemsRead++;
-      return true;
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      // Limits are placed on how much data we allow to return, how long we process the input
-      // before checkpointing and how long we block for input to be available.  This ensures
-      // that there are regular checkpoints and that state does not become too large.
-      BackOff backoff = backoffFactory.backoff();
-      while (true) {
-        if (context.workIsFailed()) {
-          throw new WorkItemCancelledException(context.getWorkItem().getShardingKey());
-        }
-        if (elemsRead >= maxElems
-            || Instant.now().isAfter(endTime)
-            || context.isSinkFullHintSet()) {
-          context.finishKey();
-          return false;
-        }
-        try {
-          if (reader.advance()) {
-            elemsRead++;
-            return true;
-          }
-        } catch (Exception e) {
-          throw new IOException("Failed to advance source: " + reader.getCurrentSource(), e);
-        }
-        long nextBackoff = backoff.nextBackOffMillis();
-        if (nextBackoff == BackOff.STOP) {
-          context.finishKey();
-          return false;
-        }
-        Uninterruptibles.sleepUninterruptibly(nextBackoff, TimeUnit.MILLISECONDS);
-      }
-    }
-
-    @Override
-    public WindowedValue<ValueWithRecordId<T>> getCurrent() throws NoSuchElementException {
-      WindowedValue<T> result =
-          WindowedValues.timestampedValueInGlobalWindow(
-              reader.getCurrent(), reader.getCurrentTimestamp());
-      return result.withValue(
-          new ValueWithRecordId<>(result.getValue(), reader.getCurrentRecordId()));
-    }
-
-    @Override
-    public void close() {
-      // Don't close reader.
-    }
-
-    @Override
-    public NativeReader.Progress getProgress() {
-      return null;
-    }
-
-    @Override
-    public NativeReader.DynamicSplitResult requestDynamicSplit(
-        NativeReader.DynamicSplitRequest request) {
-      return null;
     }
 
     @Override

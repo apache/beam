@@ -108,6 +108,13 @@ public interface WindmillStream {
           Windmill.WorkItemCommitRequest request,
           Consumer<Windmill.CommitStatus> onDone);
 
+      default boolean commitMultiKeyWorkItem(
+          String computation,
+          Windmill.MultiKeyWorkItemCommitRequest request,
+          Consumer<Windmill.CommitStatus> onDone) {
+        throw new UnsupportedOperationException();
+      }
+
       /** Flushes any pending work items to the wire. */
       void flush();
 

@@ -400,6 +400,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public RequestBatcher batcher() {
         return new RequestBatcher() {
           final List<RequestAndDone> requests = new ArrayList<>();
+          final List<MultiKeyRequestAndDone> multiKeyRequests = new ArrayList<>();
 
           @Override
           public boolean commitWorkItem(
@@ -419,6 +420,18 @@ public final class FakeWindmillServer extends WindmillServerStub {
             commitsToOffer.getOrDefault(builder.build());
 
             requests.add(new RequestAndDone(request, onDone));
+            flush();
+            return true;
+          }
+
+          @Override
+          public boolean commitMultiKeyWorkItem(
+              String computation,
+              Windmill.MultiKeyWorkItemCommitRequest request,
+              Consumer<Windmill.CommitStatus> onDone) {
+            LOG.debug("commitWorkStream::commitMultiKeyWorkItem: {}", request);
+            if (multiKeyRequests.size() > 5) return false;
+            multiKeyRequests.add(new MultiKeyRequestAndDone(request, onDone));
             flush();
             return true;
           }
@@ -445,6 +458,26 @@ public final class FakeWindmillServer extends WindmillServerStub {
                       .orElse(Windmill.CommitStatus.OK));
             }
             requests.clear();
+
+            for (MultiKeyRequestAndDone elem : multiKeyRequests) {
+              Windmill.CommitStatus status = Windmill.CommitStatus.OK;
+              for (WorkItemCommitRequest req : elem.request.getRequestsList()) {
+                commitsReceived.put(req.getWorkToken(), req);
+                Windmill.CommitStatus itemStatus =
+                    Optional.ofNullable(
+                            streamingCommitsToOffer.remove(
+                                WorkId.builder()
+                                    .setWorkToken(req.getWorkToken())
+                                    .setCacheToken(req.getCacheToken())
+                                    .build()))
+                        .orElse(Windmill.CommitStatus.OK);
+                if (itemStatus != Windmill.CommitStatus.OK) {
+                  status = itemStatus;
+                }
+              }
+              elem.onDone.accept(status);
+            }
+            multiKeyRequests.clear();
           }
 
           class RequestAndDone {
@@ -452,6 +485,18 @@ public final class FakeWindmillServer extends WindmillServerStub {
             final WorkItemCommitRequest request;
 
             RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
+              this.request = request;
+              this.onDone = onDone;
+            }
+          }
+
+          class MultiKeyRequestAndDone {
+            final Consumer<Windmill.CommitStatus> onDone;
+            final Windmill.MultiKeyWorkItemCommitRequest request;
+
+            MultiKeyRequestAndDone(
+                Windmill.MultiKeyWorkItemCommitRequest request,
+                Consumer<Windmill.CommitStatus> onDone) {
               this.request = request;
               this.onDone = onDone;
             }

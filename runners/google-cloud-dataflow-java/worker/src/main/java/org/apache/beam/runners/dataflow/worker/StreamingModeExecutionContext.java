@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -34,6 +35,7 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -50,6 +52,8 @@ import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.Ste
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -57,6 +61,12 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
@@ -162,6 +172,39 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private @Nullable WorkExecutor workExecutor;
   private boolean finishKeyCalled = false;
 
+  private @Nullable BoundedQueueExecutor workQueueExecutor;
+  private @Nullable BoundedQueueExecutorWorkHandle budgetHandle;
+  private @Nullable HotKeyLogger hotKeyLogger;
+  private boolean hotKeyLoggingEnabled = false;
+  private @Nullable String stepName;
+  private @Nullable Coder<?> keyCoder;
+
+  // Key switch listener to delegate MDC logging context, sampler metrics, and thread name updates
+  public interface KeySwitchListener {
+    void onKeySwitch(Work oldWork, Work newWork);
+  }
+
+  private @Nullable KeySwitchListener keySwitchListener;
+
+  // Configurable batch limits (defaults parsed from pipeline options/experiments)
+  private int maxKeyGroupBatchSize = 100;
+  private long maxKeyGroupBatchTimeNanos = TimeUnit.MILLISECONDS.toNanos(100);
+  private long maxKeyGroupBatchBytes = 10L * 1024 * 1024; // 10MB
+
+  // Batch-tracking state metrics
+  private int additionalWorkItemsPolled = 0;
+  private long bundleStartTimeNanos = 0;
+  private long accumulatedCommitBytes = 0;
+
+  // Centrally accumulated bundle metadata (flat-map for callbacks)
+  private final List<Work> executedWorks = new ArrayList<>();
+  private final List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = new ArrayList<>();
+  private final Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = new HashMap<>();
+  private volatile @Nullable Work failedWork = null;
+  private @Nullable WindmillStateReader activeStateReader;
+  private long stateBytesRead = 0;
+  private @Nullable String sourceBytesProcessCounterName;
+
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
       String computationId,
@@ -208,7 +251,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return work != null && work.isFailed();
+    return failedWork != null;
+  }
+
+  public @Nullable Work getFailedWork() {
+    return failedWork;
   }
 
   public boolean getDrainMode() {
@@ -247,9 +294,111 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       SideInputStateFetcher sideInputStateFetcher,
       Windmill.WorkItemCommitRequest.Builder outputBuilder,
       WorkExecutor workExecutor) {
+    start(
+        key,
+        work,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        workExecutor,
+        /* workQueueExecutor= */ null,
+        /* budgetHandle= */ null,
+        new HotKeyLogger(),
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ "",
+        /* keyCoder= */ null,
+        /* maxKeyGroupBatchSize= */ 1,
+        /* maxKeyGroupBatchTimeNanos= */ 0L,
+        /* maxKeyGroupBatchBytes= */ 0L,
+        /* keySwitchListener= */ (k, c) -> {},
+        /* sourceBytesProcessCounterName= */ null);
+  }
+
+  public void start(
+      @Nullable Object key,
+      Work work,
+      WindmillStateReader stateReader,
+      SideInputStateFetcher sideInputStateFetcher,
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor,
+      BoundedQueueExecutor workQueueExecutor,
+      BoundedQueueExecutorWorkHandle budgetHandle,
+      HotKeyLogger hotKeyLogger,
+      boolean hotKeyLoggingEnabled,
+      String stepName,
+      @Nullable Coder<?> keyCoder,
+      int maxKeyGroupBatchSize,
+      long maxKeyGroupBatchTimeNanos,
+      long maxKeyGroupBatchBytes,
+      KeySwitchListener keySwitchListener) {
+    start(
+        key,
+        work,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        workExecutor,
+        workQueueExecutor,
+        budgetHandle,
+        hotKeyLogger,
+        hotKeyLoggingEnabled,
+        stepName,
+        keyCoder,
+        maxKeyGroupBatchSize,
+        maxKeyGroupBatchTimeNanos,
+        maxKeyGroupBatchBytes,
+        keySwitchListener,
+        /* sourceBytesProcessCounterName= */ null);
+  }
+
+  public void start(
+      @Nullable Object key,
+      Work work,
+      WindmillStateReader stateReader,
+      SideInputStateFetcher sideInputStateFetcher,
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor,
+      BoundedQueueExecutor workQueueExecutor,
+      BoundedQueueExecutorWorkHandle budgetHandle,
+      HotKeyLogger hotKeyLogger,
+      boolean hotKeyLoggingEnabled,
+      String stepName,
+      @Nullable Coder<?> keyCoder,
+      int maxKeyGroupBatchSize,
+      long maxKeyGroupBatchTimeNanos,
+      long maxKeyGroupBatchBytes,
+      KeySwitchListener keySwitchListener,
+      @Nullable String sourceBytesProcessCounterName) {
     this.key = key;
     this.work = work;
     this.workExecutor = workExecutor;
+    this.workQueueExecutor = workQueueExecutor;
+    this.budgetHandle = budgetHandle;
+    this.hotKeyLogger = hotKeyLogger;
+    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
+    this.stepName = stepName;
+    this.keyCoder = keyCoder;
+
+    this.maxKeyGroupBatchSize = maxKeyGroupBatchSize;
+    this.maxKeyGroupBatchTimeNanos = maxKeyGroupBatchTimeNanos;
+    this.maxKeyGroupBatchBytes = maxKeyGroupBatchBytes;
+    this.keySwitchListener = keySwitchListener;
+
+    // Clear and initialize the accumulated metadata for the primary key
+    this.additionalWorkItemsPolled = 0;
+    this.bundleStartTimeNanos = System.nanoTime();
+    this.accumulatedCommitBytes = 0;
+
+    this.executedWorks.clear();
+    this.outputBuilders.clear();
+    this.accumulatedCallbacks.clear();
+    this.failedWork = null;
+
+    work.setOnFailureListener(() -> this.failedWork = work);
+    this.executedWorks.add(work);
+    this.outputBuilders.add(outputBuilder);
+    this.outputBuilder = outputBuilder;
+
     this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
@@ -260,10 +409,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
-    this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
+
+    this.activeStateReader = stateReader;
+    this.stateBytesRead = 0;
+    this.sourceBytesProcessCounterName = sourceBytesProcessCounterName;
 
     Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
 
@@ -280,7 +432,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public void finishKey() {
-    checkState(!finishKeyCalled, "finishKey was already called");
+    if (finishKeyCalled) {
+      return;
+    }
+    if (activeStateReader != null) {
+      this.stateBytesRead += activeStateReader.getBytesRead();
+    }
     checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     try {
       workExecutor.finishKey();
@@ -288,6 +445,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       throw new RuntimeException(e);
     }
     this.finishKeyCalled = true;
+
+    flushStateInternal();
+
+    // Accumulate commit request size to enforce the size limit threshold (10MB)
+    if (outputBuilder != null) {
+      this.accumulatedCommitBytes += outputBuilder.buildPartial().getSerializedSize();
+    }
   }
 
   /**
@@ -441,20 +605,22 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
   /** Invalidate the state and reader caches for this computation and key. */
   public void invalidateCache() {
-    ByteString key = getSerializedKey();
-    if (key != null) {
-      readerCache.invalidateReader(getComputationKey());
-      if (activeReader != null) {
-        try {
-          activeReader.close();
-        } catch (IOException e) {
-          LOG.warn(
-              "Failed to close reader for {}-{}", computationId, getWorkItem().getShardingKey(), e);
-        }
-      }
-      activeReader = null;
-      stateCache.invalidate(key, getWorkItem().getShardingKey());
+    for (Work w : executedWorks) {
+      WindmillComputationKey compKey =
+          WindmillComputationKey.create(computationId, w.getShardedKey());
+      readerCache.invalidateReader(compKey);
+      stateCache.invalidate(w.getShardedKey());
     }
+    if (activeReader != null) {
+      try {
+        activeReader.close();
+      } catch (IOException e) {
+        LOG.warn(
+            "Failed to close reader for {}-{}", computationId, getWorkItem().getShardingKey(), e);
+      }
+    }
+    activeReader = null;
+    activeStateReader = null;
   }
 
   public UnboundedSource.@Nullable CheckpointMark getReaderCheckpoint(
@@ -470,8 +636,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     }
   }
 
-  public Map<Long, Pair<Instant, Runnable>> flushState() {
-    checkState(finishKeyCalled, "finishKey must be called before flushState");
+  private void flushStateInternal() {
     Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
     for (StepContext stepContext : getAllStepContexts()) {
@@ -555,7 +720,178 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       // RestrictionTracker.getProgress() or GetSize() are not defined.
       outputBuilder.setSourceBacklogBytes(backlogBytes);
     }
-    return callbacks;
+
+    this.accumulatedCallbacks.putAll(callbacks);
+
+    if (sourceBytesProcessCounterName != null && workExecutor instanceof MapTaskExecutor) {
+      MapTaskExecutor mapTaskExecutor = (MapTaskExecutor) workExecutor;
+      ReadOperation readOperation = mapTaskExecutor.getReadOperation();
+      long sourceBytesProcessed = 0;
+      if (readOperation != null && readOperation.receivers != null) {
+        for (OutputReceiver receiver : readOperation.receivers) {
+          if (receiver != null && receiver.getOutputCounters() != null) {
+            ElementCounter elementCounter =
+                receiver.getOutputCounters().get(sourceBytesProcessCounterName);
+            if (elementCounter instanceof OutputObjectAndByteCounter) {
+              OutputObjectAndByteCounter byteCounter = (OutputObjectAndByteCounter) elementCounter;
+              if (byteCounter.getByteCount() != null) {
+                sourceBytesProcessed += byteCounter.getByteCount().getAndReset();
+              }
+            }
+          }
+        }
+      }
+      outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
+    }
+  }
+
+  public Map<Long, Pair<Instant, Runnable>> flushState() {
+    if (!finishKeyCalled) {
+      finishKey();
+    }
+    return accumulatedCallbacks;
+  }
+
+  public boolean advance() {
+    if (workIsFailed()) {
+      throw new WorkItemCancelledException(failedWork.getWorkItem().getShardingKey());
+    }
+
+    if (workQueueExecutor == null || budgetHandle == null || work == null) {
+      finishKey();
+      return false;
+    }
+
+    // 1. Check if we hit the batch count limit (default 100 additional works)
+    if (additionalWorkItemsPolled >= maxKeyGroupBatchSize) {
+      finishKey(); // Finalize and flush the last key
+      return false;
+    }
+
+    // 2. Check if we hit the batch time limit (default 100ms)
+    long elapsedNanos = System.nanoTime() - bundleStartTimeNanos;
+    if (elapsedNanos >= maxKeyGroupBatchTimeNanos) {
+      finishKey();
+      return false;
+    }
+
+    // 3. Check if we hit the batch size limit (default 10MB)
+    long currentKeyBytes =
+        outputBuilder != null ? outputBuilder.buildPartial().getSerializedSize() : 0;
+    if (accumulatedCommitBytes + currentKeyBytes >= maxKeyGroupBatchBytes) {
+      finishKey();
+      return false;
+    }
+
+    // 4. Poll next work item in the same key group
+    if (work.getKeyGroup().isPresent()) {
+      Optional<ExecutableWork> additionalWorkOpt =
+          workQueueExecutor.pollWork(computationId, work.getKeyGroup().get(), budgetHandle);
+      if (additionalWorkOpt.isPresent()) {
+        Work oldWork = work;
+        Work newWork = additionalWorkOpt.get().work();
+        additionalWorkItemsPolled++;
+
+        // 5. Conclude active key's execution and flush state atomically
+        finishKey();
+
+        // 6. Trigger listener to align MDC logging context and metrics
+        if (keySwitchListener != null) {
+          keySwitchListener.onKeySwitch(oldWork, newWork);
+        }
+
+        // 7. Bind the context to Key B internally
+        startForNewKey(newWork);
+        return true;
+      }
+    }
+
+    // No more work available. Finalize and flush the last active key atomically
+    finishKey();
+    return false;
+  }
+
+  private void startForNewKey(Work newWork) {
+    Object newKey = null;
+    if (keyCoder != null) {
+      try {
+        newKey = keyCoder.decode(newWork.getWorkItem().getKey().newInput(), Coder.Context.OUTER);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to decode key during key switch", e);
+      }
+    }
+
+    this.key = newKey;
+    this.work = newWork;
+    this.finishKeyCalled = false;
+    this.computationKey = WindmillComputationKey.create(computationId, newWork.getShardedKey());
+
+    // 1. Create a fresh output builder for the new key and append it to outputBuilders list
+    Windmill.WorkItemCommitRequest.Builder newOutputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(newWork.getWorkItem().getKey())
+            .setShardingKey(newWork.getWorkItem().getShardingKey())
+            .setWorkToken(newWork.getWorkItem().getWorkToken())
+            .setCacheToken(newWork.getWorkItem().getCacheToken());
+
+    this.outputBuilder = newOutputBuilder;
+    this.outputBuilders.add(newOutputBuilder);
+    newWork.setOnFailureListener(() -> this.failedWork = newWork);
+    this.executedWorks.add(newWork);
+
+    // 2. Detect and log hot keys for dynamically polled keys
+    if (newWork.getWorkItem().hasHotKeyInfo() && hotKeyLogger != null && stepName != null) {
+      Windmill.HotKeyInfo hotKeyInfo = newWork.getWorkItem().getHotKeyInfo();
+      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+      if (newKey != null && hotKeyLoggingEnabled) {
+        hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, newKey);
+      } else {
+        hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
+      }
+    }
+
+    // Note: We do NOT clear sideInputCache here, allowing Key B to reuse warm side inputs!
+
+    // 3. Re-initialize state cache and state/timer internals across all step contexts
+    Instant processingTime =
+        computeProcessingTime(newWork.getWorkItem().getTimers().getTimersList());
+    Collection<? extends StepContext> stepContexts = getAllStepContexts();
+    if (!stepContexts.isEmpty()) {
+      WindmillStateCache.ForKey cacheForKey =
+          stateCache.forKey(
+              getComputationKey(), newWork.getWorkItem().getCacheToken(), getWorkToken());
+      WindmillStateReader newReader = newWork.createWindmillStateReader();
+      this.activeStateReader = newReader;
+      for (StepContext stepContext : stepContexts) {
+        stepContext.start(newReader, processingTime, cacheForKey, newWork.watermarks());
+      }
+    } else {
+      this.activeStateReader = null;
+    }
+  }
+
+  public List<Work> getExecutedWorks() {
+    return executedWorks;
+  }
+
+  public long getStateBytesRead() {
+    return stateBytesRead;
+  }
+
+  public List<Windmill.WorkItemCommitRequest.Builder> getOutputBuilders() {
+    return outputBuilders;
+  }
+
+  public Map<Long, Pair<Instant, Runnable>> getAccumulatedCallbacks() {
+    return accumulatedCallbacks;
+  }
+
+  public @Nullable Object getKey() {
+    return key;
+  }
+
+  public Work getWork() {
+    return work;
   }
 
   String getStateFamily(NameContext nameContext) {
