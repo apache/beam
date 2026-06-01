@@ -217,6 +217,40 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       StreamingGlobalConfigHandle globalConfigHandle,
       long sinkByteLimit,
       boolean throwExceptionOnLargeOutput) {
+    this(
+        counterFactory,
+        computationId,
+        readerCache,
+        stateNameMap,
+        stateCache,
+        metricsContainerRegistry,
+        executionStateTracker,
+        executionStateRegistry,
+        globalConfigHandle,
+        sinkByteLimit,
+        throwExceptionOnLargeOutput,
+        new HotKeyLogger(),
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ null,
+        /* sourceBytesProcessCounterName= */ null);
+  }
+
+  public StreamingModeExecutionContext(
+      CounterFactory counterFactory,
+      String computationId,
+      ReaderCache readerCache,
+      Map<String, String> stateNameMap,
+      ForComputation stateCache,
+      MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry,
+      DataflowExecutionStateTracker executionStateTracker,
+      StreamingModeExecutionStateRegistry executionStateRegistry,
+      StreamingGlobalConfigHandle globalConfigHandle,
+      long sinkByteLimit,
+      boolean throwExceptionOnLargeOutput,
+      @Nullable HotKeyLogger hotKeyLogger,
+      boolean hotKeyLoggingEnabled,
+      @Nullable String stepName,
+      @Nullable String sourceBytesProcessCounterName) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -231,6 +265,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.stateCache = stateCache;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
+    this.hotKeyLogger = hotKeyLogger;
+    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
+    this.stepName = stepName;
+    this.sourceBytesProcessCounterName = sourceBytesProcessCounterName;
   }
 
   @VisibleForTesting
@@ -351,6 +389,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         /* sourceBytesProcessCounterName= */ null);
   }
 
+  @Deprecated
   public void start(
       @Nullable Object key,
       Work work,
@@ -369,14 +408,45 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       long maxKeyGroupBatchBytes,
       KeySwitchListener keySwitchListener,
       @Nullable String sourceBytesProcessCounterName) {
+    this.hotKeyLogger = hotKeyLogger;
+    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
+    this.stepName = stepName;
+    this.sourceBytesProcessCounterName = sourceBytesProcessCounterName;
+    start(
+        key,
+        work,
+        stateReader,
+        sideInputStateFetcher,
+        outputBuilder,
+        workExecutor,
+        workQueueExecutor,
+        budgetHandle,
+        keyCoder,
+        maxKeyGroupBatchSize,
+        maxKeyGroupBatchTimeNanos,
+        maxKeyGroupBatchBytes,
+        keySwitchListener);
+  }
+
+  public void start(
+      @Nullable Object key,
+      Work work,
+      WindmillStateReader stateReader,
+      SideInputStateFetcher sideInputStateFetcher,
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor,
+      BoundedQueueExecutor workQueueExecutor,
+      BoundedQueueExecutorWorkHandle budgetHandle,
+      @Nullable Coder<?> keyCoder,
+      int maxKeyGroupBatchSize,
+      long maxKeyGroupBatchTimeNanos,
+      long maxKeyGroupBatchBytes,
+      KeySwitchListener keySwitchListener) {
     this.key = key;
     this.work = work;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
     this.budgetHandle = budgetHandle;
-    this.hotKeyLogger = hotKeyLogger;
-    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
-    this.stepName = stepName;
     this.keyCoder = keyCoder;
 
     this.maxKeyGroupBatchSize = maxKeyGroupBatchSize;
@@ -415,7 +485,25 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     this.activeStateReader = stateReader;
     this.stateBytesRead = 0;
-    this.sourceBytesProcessCounterName = sourceBytesProcessCounterName;
+
+    LOG.warn(
+        "JETSKI_DEBUG: hasHotKeyInfo={}, hotKeyLogger={}, stepName={}, hotKeyLoggingEnabled={}, key={}",
+        work.getWorkItem().hasHotKeyInfo(),
+        this.hotKeyLogger != null,
+        this.stepName,
+        this.hotKeyLoggingEnabled,
+        key);
+
+    // Move primary key hotkey logging from StreamingWorkScheduler into start(...)
+    if (work.getWorkItem().hasHotKeyInfo() && this.hotKeyLogger != null && this.stepName != null) {
+      Windmill.HotKeyInfo hotKeyInfo = work.getWorkItem().getHotKeyInfo();
+      Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
+      if (key != null && this.hotKeyLoggingEnabled) {
+        this.hotKeyLogger.logHotKeyDetection(this.stepName, hotKeyAge, key);
+      } else {
+        this.hotKeyLogger.logHotKeyDetection(this.stepName, hotKeyAge);
+      }
+    }
 
     Instant processingTime = computeProcessingTime(work.getWorkItem().getTimers().getTimersList());
 

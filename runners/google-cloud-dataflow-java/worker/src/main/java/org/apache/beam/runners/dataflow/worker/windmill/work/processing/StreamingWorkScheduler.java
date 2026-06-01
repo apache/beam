@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
-
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
@@ -69,7 +67,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +103,6 @@ public class StreamingWorkScheduler {
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
   private final StreamingCounters streamingCounters;
-  private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final StreamingGlobalConfigHandle globalConfigHandle;
@@ -122,7 +118,6 @@ public class StreamingWorkScheduler {
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
       StreamingCounters streamingCounters,
-      HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
       StreamingGlobalConfigHandle globalConfigHandle) {
@@ -135,7 +130,6 @@ public class StreamingWorkScheduler {
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
     this.streamingCounters = streamingCounters;
-    this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
     this.globalConfigHandle = globalConfigHandle;
@@ -166,7 +160,8 @@ public class StreamingWorkScheduler {
             sampler,
             streamingCounters.pendingDeltaCounters(),
             idGenerator,
-            globalConfigHandle);
+            globalConfigHandle,
+            hotKeyLogger);
 
     return new StreamingWorkScheduler(
         options,
@@ -178,7 +173,6 @@ public class StreamingWorkScheduler {
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
-        hotKeyLogger,
         stageInfoMap,
         sampler,
         globalConfigHandle);
@@ -533,21 +527,6 @@ public class StreamingWorkScheduler {
             oldWork.setProcessingThreadName("");
           };
 
-      if (workItem.hasHotKeyInfo()) {
-        Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-        Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-
-        String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if (executionKey != null
-            && (options.isHotKeyLoggingEnabled()
-                || hasExperiment(options, "enable_hot_key_logging"))
-            && keyCoder.isPresent()) {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
-        } else {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
-        }
-      }
-
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
           executionKey,
@@ -557,13 +536,9 @@ public class StreamingWorkScheduler {
           outputBuilder,
           workExecutor,
           handle,
-          hotKeyLogger,
-          options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"),
-          getShuffleTaskStepName(computationState.getMapTask()),
           maxKeyGroupBatchSize,
           maxKeyGroupBatchTimeNanos,
           maxKeyGroupBatchBytes,
-          computationState.sourceBytesProcessCounterName(),
           keySwitchListener);
 
       StreamingModeExecutionContext context = computationWorkExecutor.context();

@@ -24,7 +24,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
-import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -77,13 +76,9 @@ public abstract class ComputationWorkExecutor {
       Windmill.WorkItemCommitRequest.Builder outputBuilder,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
-      HotKeyLogger hotKeyLogger,
-      boolean hotKeyLoggingEnabled,
-      String stepName,
       int maxKeyGroupBatchSize,
       long maxKeyGroupBatchTimeNanos,
       long maxKeyGroupBatchBytes,
-      @Nullable String sourceBytesProcessCounterName,
       StreamingModeExecutionContext.KeySwitchListener keySwitchListener)
       throws Exception {
     context()
@@ -96,15 +91,11 @@ public abstract class ComputationWorkExecutor {
             workExecutor(),
             workQueueExecutor,
             budgetHandle,
-            hotKeyLogger,
-            hotKeyLoggingEnabled,
-            stepName,
             keyCoder().orElse(null),
             maxKeyGroupBatchSize,
             maxKeyGroupBatchTimeNanos,
             maxKeyGroupBatchBytes,
-            keySwitchListener,
-            sourceBytesProcessCounterName);
+            keySwitchListener);
     workExecutor().execute();
   }
 

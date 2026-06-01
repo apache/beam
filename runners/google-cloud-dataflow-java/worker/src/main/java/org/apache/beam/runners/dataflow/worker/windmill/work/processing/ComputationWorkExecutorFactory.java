@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
+import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
@@ -97,6 +98,7 @@ final class ComputationWorkExecutorFactory {
   private final IdGenerator idGenerator;
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
+  private final HotKeyLogger hotKeyLogger;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -106,7 +108,8 @@ final class ComputationWorkExecutorFactory {
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
       IdGenerator idGenerator,
-      StreamingGlobalConfigHandle globalConfigHandle) {
+      StreamingGlobalConfigHandle globalConfigHandle,
+      HotKeyLogger hotKeyLogger) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
@@ -124,6 +127,7 @@ final class ComputationWorkExecutorFactory {
             : StreamingDataflowWorker.MAX_SINK_BYTES;
     this.throwExceptionOnLargeOutput =
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
+    this.hotKeyLogger = hotKeyLogger;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -191,8 +195,12 @@ final class ComputationWorkExecutorFactory {
 
     DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
         createExecutionStateTracker(stageInfo, mapTask, workLatencyTrackingId);
+    boolean hotKeyLoggingEnabled =
+        options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging");
+    String stepName = computationState.getMapTask().getInstructions().get(0).getName();
     StreamingModeExecutionContext context =
-        createExecutionContext(computationState, stageInfo, executionStateTracker);
+        createExecutionContext(
+            computationState, stageInfo, executionStateTracker, hotKeyLoggingEnabled, stepName);
     DataflowMapTaskExecutor mapTaskExecutor =
         createMapTaskExecutor(context, mapTask, mapTaskNetwork);
     ReadOperation readOperation = getValidatedReadOperation(mapTaskExecutor);
@@ -255,7 +263,9 @@ final class ComputationWorkExecutorFactory {
   private StreamingModeExecutionContext createExecutionContext(
       ComputationState computationState,
       StageInfo stageInfo,
-      DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker) {
+      DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker,
+      boolean hotKeyLoggingEnabled,
+      String stepName) {
     String computationId = computationState.getComputationId();
     return new StreamingModeExecutionContext(
         pendingDeltaCounters,
@@ -268,7 +278,11 @@ final class ComputationWorkExecutorFactory {
         stageInfo.executionStateRegistry(),
         globalConfigHandle,
         maxSinkBytes,
-        throwExceptionOnLargeOutput);
+        throwExceptionOnLargeOutput,
+        hotKeyLogger,
+        hotKeyLoggingEnabled,
+        stepName,
+        computationState.sourceBytesProcessCounterName());
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(
