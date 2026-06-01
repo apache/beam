@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.ReadUtils;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -63,8 +65,6 @@ import org.joda.time.Instant;
  * bounded path creates the snapshot range up front.
  */
 public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<Row>> {
-  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
-
   private final IcebergScanConfig scanConfig;
 
   public IncrementalChangelogSource(IcebergScanConfig scanConfig) {
@@ -94,9 +94,11 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
                 .withOutputTags(
                     UNIDIRECTIONAL_TASKS,
                     TupleTagList.of(LARGE_BIDIRECTIONAL_TASKS).and(SMALL_BIDIRECTIONAL_TASKS)));
-    changelogTasks.get(UNIDIRECTIONAL_TASKS).setCoder(ChangelogScanner.OUTPUT_CODER);
-    changelogTasks.get(SMALL_BIDIRECTIONAL_TASKS).setCoder(ChangelogScanner.OUTPUT_CODER);
-    changelogTasks.get(LARGE_BIDIRECTIONAL_TASKS).setCoder(ChangelogScanner.OUTPUT_CODER);
+    KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> tasksCoder =
+        ChangelogScanner.coder(scanConfig.rowIdBeamSchema());
+    changelogTasks.get(UNIDIRECTIONAL_TASKS).setCoder(tasksCoder);
+    changelogTasks.get(SMALL_BIDIRECTIONAL_TASKS).setCoder(tasksCoder);
+    changelogTasks.get(LARGE_BIDIRECTIONAL_TASKS).setCoder(tasksCoder);
 
     Schema projectedRowSchema =
         IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
@@ -133,7 +135,11 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
             .apply("CoGroupBy Primary Key", CoGroupByKey.create())
             .apply("Resolve Delete-Insert Pairs", ParDo.of(new ResolveChanges(scanConfig)))
             .setRowSchema(projectedRowSchema)
-            .apply("Re-window to Global", Window.into(new GlobalWindows()));
+            .apply(
+                "Re-window to Global",
+                Window.<Row>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes());
 
     // Merge all three paths into a single output. All three are in GlobalWindows.
     PCollection<Row> merged =
@@ -159,11 +165,9 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
    * emits per snapshot.
    */
   private PCollection<Long> unboundedSnapshots(PBegin input) {
-    Duration pollInterval =
-        MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
     return input
         .apply("Impulse", Create.of(""))
-        .apply("Watch for Snapshots", ParDo.of(new WatchForSnapshotsSdf(scanConfig, pollInterval)));
+        .apply("Watch for Snapshots", ParDo.of(new WatchForSnapshotsSdf(scanConfig)));
   }
 
   /**

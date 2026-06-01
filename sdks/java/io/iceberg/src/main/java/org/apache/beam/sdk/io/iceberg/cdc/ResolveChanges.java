@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -57,7 +54,9 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
 
   @ProcessElement
   public void processElement(
-    @Element KV<KV<Long, Row>, CoGbkResult> element, @Timestamp Instant timestamp, OutputReceiver<Row> out) {
+      @Element KV<KV<Long, Row>, CoGbkResult> element,
+      @Timestamp Instant timestamp,
+      OutputReceiver<Row> out) {
     Row primaryKey = element.getKey().getValue();
     Set<String> pkFields = new HashSet<>(primaryKey.getSchema().getFieldNames());
     CoGbkResult result = element.getValue();
@@ -92,7 +91,10 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
         if (pkFields.contains(field)) {
           continue;
         }
-        hash = 31 * hash + Objects.hashCode(element.getValue(field));
+        hash =
+            31 * hash
+                + Row.Equals.deepHashCode(
+                    element.getValue(field), element.getSchema().getField(field).getType());
       }
       return hash;
     }
@@ -107,9 +109,7 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
         }
         // return early if two values are not equal
         if (!Row.Equals.deepEquals(
-            insert.getValue(field),
-            delete.getValue(field),
-            schema.getField(field).getType())) {
+            insert.getValue(field), delete.getValue(field), schema.getField(field).getType())) {
           return false;
         }
       }

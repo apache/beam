@@ -185,8 +185,6 @@ class ChangelogScanner
   static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
       LARGE_BIDIRECTIONAL_TASKS = new TupleTag<>();
 
-  static final KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> OUTPUT_CODER =
-      KvCoder.of(ChangelogDescriptor.coder(), ListCoder.of(SerializableChangelogTask.coder()));
   private final IcebergScanConfig scanConfig;
   private @MonotonicNonNull Table table;
   private @MonotonicNonNull Snapshot snapshot;
@@ -205,6 +203,13 @@ class ChangelogScanner
 
   ChangelogScanner(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
+  }
+
+  static KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> coder(
+      org.apache.beam.sdk.schemas.Schema rowIdBeamSchema) {
+    return KvCoder.of(
+        ChangelogDescriptor.coder(rowIdBeamSchema),
+        ListCoder.of(SerializableChangelogTask.coder()));
   }
 
   @Setup

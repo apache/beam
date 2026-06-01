@@ -19,12 +19,12 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Descriptor for a set of {@link SerializableChangelogTask}s. */
@@ -35,16 +35,35 @@ public abstract class ChangelogDescriptor {
     return new AutoValue_ChangelogDescriptor.Builder();
   }
 
-  public static SchemaCoder<ChangelogDescriptor> coder() {
-    try {
-      return SchemaRegistry.createDefault().getSchemaCoder(ChangelogDescriptor.class);
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException(e);
-    }
+  @SuppressWarnings("nullness")
+  public static SchemaCoder<ChangelogDescriptor> coder(Schema overlapSchema) {
+    Schema descriptorSchema =
+        Schema.builder()
+            .addStringField("tableIdentifierString")
+            .addNullableField("overlapLower", Schema.FieldType.row(overlapSchema))
+            .addNullableField("overlapUpper", Schema.FieldType.row(overlapSchema))
+            .build();
+
+    return SchemaCoder.of(
+        descriptorSchema,
+        TypeDescriptor.of(ChangelogDescriptor.class),
+        descriptor ->
+            Row.withSchema(descriptorSchema)
+                .addValues(
+                    descriptor.getTableIdentifierString(),
+                    descriptor.getOverlapLower(),
+                    descriptor.getOverlapUpper())
+                .build(),
+        row ->
+            ChangelogDescriptor.builder()
+                .setTableIdentifierString(row.getString("tableIdentifierString"))
+                .setOverlapLower(row.getRow("overlapLower"))
+                .setOverlapUpper(row.getRow("overlapUpper"))
+                .build());
   }
 
   @SchemaFieldNumber("0")
-  abstract String getTableIdentifierString();
+  public abstract String getTableIdentifierString();
 
   @SchemaFieldNumber("1")
   public abstract @Nullable Row getOverlapLower();

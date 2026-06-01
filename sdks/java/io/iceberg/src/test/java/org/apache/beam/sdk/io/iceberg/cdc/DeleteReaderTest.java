@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.PartitionSpec;
@@ -39,6 +42,7 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructLikeSet;
 import org.junit.Test;
@@ -75,9 +79,13 @@ public class DeleteReaderTest {
           .withRecordCount(2)
           .build();
 
-  // ------------------------------------------------------------------------
-  // Test infrastructure
-  // ------------------------------------------------------------------------
+  private static final DeleteFile EQ_FILE_NAME =
+      FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+          .ofEqualityDeletes(2)
+          .withPath("/test/eq-name.parquet")
+          .withFileSizeInBytes(100)
+          .withRecordCount(2)
+          .build();
 
   /** {@link DeleteReader} that returns a stubbed {@link DeleteLoader} for tests. */
   private static class StubDeleteReader extends DeleteReader<Record> {
@@ -102,6 +110,21 @@ public class DeleteReaderTest {
       this.stub = stub;
     }
 
+    StubDeleteReader(
+        List<DeleteFile> deletes,
+        DeleteLoader stub,
+        Schema requestedSchema,
+        boolean needRowPosCol) {
+      super(
+          "/test/data.parquet",
+          deletes,
+          TABLE_SCHEMA,
+          requestedSchema,
+          needRowPosCol,
+          PreloadedDeletes.empty());
+      this.stub = stub;
+    }
+
     @Override
     protected StructLike asStructLike(Record record) {
       return record;
@@ -118,16 +141,20 @@ public class DeleteReaderTest {
     }
   }
 
-  /** {@link DeleteLoader} that returns pre-built indexes. Unused arms return empty. */
+  /** {@link DeleteLoader} that returns pre-built indexes. */
   private static class StubLoader implements DeleteLoader {
     private final PositionDeleteIndex posIndex;
-    private final StructLikeSet eqSet;
+    private final Map<Set<Integer>, StructLikeSet> eqSets;
     private int posLoadCount = 0;
     private int eqLoadCount = 0;
 
     StubLoader(PositionDeleteIndex posIndex, StructLikeSet eqSet) {
+      this(posIndex, Collections.singletonMap(Collections.singleton(1), eqSet));
+    }
+
+    StubLoader(PositionDeleteIndex posIndex, Map<Set<Integer>, StructLikeSet> eqSets) {
       this.posIndex = posIndex;
-      this.eqSet = eqSet;
+      this.eqSets = eqSets;
     }
 
     @Override
@@ -139,7 +166,9 @@ public class DeleteReaderTest {
     @Override
     public StructLikeSet loadEqualityDeletes(Iterable<DeleteFile> files, Schema schema) {
       eqLoadCount++;
-      return eqSet;
+      return eqSets.getOrDefault(
+          Sets.newHashSet(TypeUtil.getProjectedIds(new Schema(schema.asStruct().fields()))),
+          StructLikeSet.create(schema.asStruct()));
     }
   }
 
@@ -190,6 +219,17 @@ public class DeleteReaderTest {
     return set;
   }
 
+  private static StructLikeSet eqSetOfNames(String... names) {
+    Schema nameSchema = TABLE_SCHEMA.select("name");
+    StructLikeSet set = StructLikeSet.create(nameSchema.asStruct());
+    for (String name : names) {
+      GenericRecord r = GenericRecord.create(nameSchema);
+      r.setField("name", name);
+      set.add(r);
+    }
+    return set;
+  }
+
   /** Builds N records (id=0..N-1, name="v0".."vN-1") matching {@code readSchema}. */
   private static List<Record> records(Schema readSchema, int n) {
     boolean hasPos = readSchema.findField("_pos") != null;
@@ -217,8 +257,8 @@ public class DeleteReaderTest {
   /** With no delete files at all, {@code read()} emits nothing. */
   @Test
   public void noDeletesEmitsNothing() {
-    StubLoader loader = new StubLoader(posIndexOf(), eqSetOfIds());
-    StubDeleteReader reader = new StubDeleteReader(Collections.emptyList(), loader);
+    DeleteLoader loader = new StubLoader(posIndexOf(), eqSetOfIds());
+    DeleteReader<Record> reader = new StubDeleteReader(Collections.emptyList(), loader);
     List<Record> input = records(reader.requiredSchema(), 5);
 
     CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
@@ -229,8 +269,8 @@ public class DeleteReaderTest {
   /** Pos-only emits only the pos-deleted records. */
   @Test
   public void posOnlyEmitsPosDeletedRecords() {
-    StubLoader loader = new StubLoader(posIndexOf(1L, 3L), eqSetOfIds());
-    StubDeleteReader reader = new StubDeleteReader(ImmutableList.of(POS_FILE), loader);
+    DeleteLoader loader = new StubLoader(posIndexOf(1L, 3L), eqSetOfIds());
+    DeleteReader<Record> reader = new StubDeleteReader(ImmutableList.of(POS_FILE), loader);
     List<Record> input = records(reader.requiredSchema(), 5);
 
     CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
@@ -241,8 +281,8 @@ public class DeleteReaderTest {
   /** Only equality deletes, emits records matching the eq set. */
   @Test
   public void eqOnlyEmitsEqDeletedRecords() {
-    StubLoader loader = new StubLoader(posIndexOf(), eqSetOfIds(2, 4));
-    StubDeleteReader reader = new StubDeleteReader(ImmutableList.of(EQ_FILE_ID), loader);
+    DeleteLoader loader = new StubLoader(posIndexOf(), eqSetOfIds(2, 4));
+    DeleteReader<Record> reader = new StubDeleteReader(ImmutableList.of(EQ_FILE_ID), loader);
     List<Record> input = records(reader.requiredSchema(), 5);
 
     CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
@@ -253,8 +293,9 @@ public class DeleteReaderTest {
   /** Pos-deletes plus equality deletes, emit the union without duplication. */
   @Test
   public void posAndEqEmitUnion() {
-    StubLoader loader = new StubLoader(posIndexOf(0L, 4L), eqSetOfIds(2, 4));
-    StubDeleteReader reader = new StubDeleteReader(ImmutableList.of(POS_FILE, EQ_FILE_ID), loader);
+    DeleteLoader loader = new StubLoader(posIndexOf(0L, 4L), eqSetOfIds(2, 4));
+    DeleteReader<Record> reader =
+        new StubDeleteReader(ImmutableList.of(POS_FILE, EQ_FILE_ID), loader);
     List<Record> input = records(reader.requiredSchema(), 6);
 
     CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
@@ -268,7 +309,7 @@ public class DeleteReaderTest {
   public void preloadedPositionDeletesAvoidSecondLoad() {
     StubLoader loader = new StubLoader(posIndexOf(), eqSetOfIds());
     PositionDeleteIndex preloadedPosIndex = posIndexOf(1L, 3L);
-    StubDeleteReader reader =
+    DeleteReader<Record> reader =
         new StubDeleteReader(
             ImmutableList.of(POS_FILE),
             loader,
@@ -287,7 +328,7 @@ public class DeleteReaderTest {
     StubLoader loader = new StubLoader(posIndexOf(), eqSetOfIds());
     Map<Set<Integer>, StructLikeSet> preloadedEqSets = new HashMap<>();
     preloadedEqSets.put(Collections.singleton(1), eqSetOfIds(2, 4));
-    StubDeleteReader reader =
+    DeleteReader<Record> reader =
         new StubDeleteReader(
             ImmutableList.of(EQ_FILE_ID),
             loader,
@@ -297,6 +338,82 @@ public class DeleteReaderTest {
     CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
 
     assertEquals(ImmutableList.of(2, 4), idsOf(output));
+    assertEquals(0, loader.eqLoadCount);
+  }
+
+  @Test
+  public void requiredSchemaAddsUnprojectedEqualityDeleteField() {
+    Schema requestedSchema = TABLE_SCHEMA.select("id");
+    DeleteLoader loader =
+        new StubLoader(
+            posIndexOf(), Collections.singletonMap(Collections.singleton(2), eqSetOfNames("v2")));
+    DeleteReader<Record> reader =
+        new StubDeleteReader(ImmutableList.of(EQ_FILE_NAME), loader, requestedSchema, true);
+
+    assertEquals(
+        ImmutableList.of("id", "name"),
+        reader.requiredSchema().columns().stream()
+            .map(Types.NestedField::name)
+            .collect(Collectors.toList()));
+
+    List<Record> input = records(reader.requiredSchema(), 4);
+    CloseableIterable<Record> output = reader.read(CloseableIterable.withNoopClose(input));
+
+    assertEquals(ImmutableList.of(2), idsOf(output));
+  }
+
+  @Test
+  public void rowPositionColumnIsOnlyAddedWhenRequiredForPositionDeletes() {
+    DeleteLoader loader = new StubLoader(posIndexOf(1L), eqSetOfIds());
+
+    DeleteReader<Record> posReaderNeedsPos =
+        new StubDeleteReader(ImmutableList.of(POS_FILE), loader, TABLE_SCHEMA, true);
+    DeleteReader<Record> posReaderDoesNotNeedPos =
+        new StubDeleteReader(ImmutableList.of(POS_FILE), loader, TABLE_SCHEMA, false);
+    DeleteReader<Record> eqReader =
+        new StubDeleteReader(ImmutableList.of(EQ_FILE_ID), loader, TABLE_SCHEMA, true);
+
+    assertNotNull(posReaderNeedsPos.requiredSchema().findField("_pos"));
+    assertNull(posReaderDoesNotNeedPos.requiredSchema().findField("_pos"));
+    assertNull(eqReader.requiredSchema().findField("_pos"));
+  }
+
+  @Test
+  public void multipleEqualityDeleteGroupsAreOrCombined() {
+    Map<Set<Integer>, StructLikeSet> eqSets = new HashMap<>();
+    eqSets.put(Collections.singleton(1), eqSetOfIds(1));
+    eqSets.put(Collections.singleton(2), eqSetOfNames("v3"));
+    StubLoader loader = new StubLoader(posIndexOf(), eqSets);
+    DeleteReader<Record> reader =
+        new StubDeleteReader(ImmutableList.of(EQ_FILE_ID, EQ_FILE_NAME), loader);
+
+    CloseableIterable<Record> output =
+        reader.read(CloseableIterable.withNoopClose(records(reader.requiredSchema(), 5)));
+
+    assertEquals(ImmutableList.of(1, 3), idsOf(output));
+    assertEquals(2, loader.eqLoadCount);
+  }
+
+  @Test
+  public void preloadedEqualityDeleteKeysAreDefensivelyCopied() {
+    StructLikeSet idDeletes = eqSetOfIds(2);
+    Set<Integer> mutableKey = new HashSet<>(Collections.singleton(1));
+    Map<Set<Integer>, StructLikeSet> preloadedEqSets = new HashMap<>();
+    preloadedEqSets.put(mutableKey, idDeletes);
+
+    DeleteReader.PreloadedDeletes preloadedDeletes =
+        DeleteReader.PreloadedDeletes.of(null, preloadedEqSets);
+    mutableKey.add(2);
+
+    assertEquals(idDeletes, preloadedDeletes.equalityDeleteSet(Collections.singleton(1)));
+
+    StubLoader loader = new StubLoader(posIndexOf(), eqSetOfIds());
+    DeleteReader<Record> reader =
+        new StubDeleteReader(ImmutableList.of(EQ_FILE_ID), loader, preloadedDeletes);
+    CloseableIterable<Record> output =
+        reader.read(CloseableIterable.withNoopClose(records(reader.requiredSchema(), 4)));
+
+    assertEquals(ImmutableList.of(2), idsOf(output));
     assertEquals(0, loader.eqLoadCount);
   }
 }

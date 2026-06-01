@@ -420,8 +420,8 @@ public abstract class IcebergScanConfig implements Serializable {
       checkState(
           !primaryKeyIds.isEmpty(),
           "Cannot read CDC records as the table schema does not specified any primary key fields.");
-      Set<Integer> projectedPrimaryKeyIds = getProjectedSchema().identifierFieldIds();
-      primaryKeyIds.removeAll(projectedPrimaryKeyIds);
+      Set<Integer> projectedFieldIds = TypeUtil.getProjectedIds(getProjectedSchema());
+      primaryKeyIds.removeAll(projectedFieldIds);
       checkArgument(
           primaryKeyIds.isEmpty(),
           "When reading CDC records, the projected schema must not drop primary key fields. "
@@ -477,7 +477,9 @@ public abstract class IcebergScanConfig implements Serializable {
           error("'watermark_column' must be a timestamp-typed column, but '%s' has type %s"),
           watermarkColumn,
           field.type().typeId());
-      checkArgumentNotNull(getProjectedSchema().findField(watermarkColumn), "'watermark_column' column should not be dropped.");
+      checkArgumentNotNull(
+          getProjectedSchema().findField(watermarkColumn),
+          "'watermark_column' column should not be dropped.");
     }
   }
 
