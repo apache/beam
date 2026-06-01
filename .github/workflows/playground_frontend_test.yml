@@ -89,7 +89,7 @@ jobs:
         working-directory: playground/frontend
         run: flutter test
 
-      - uses: nanasess/setup-chromedriver@v2
+      - uses: nanasess/setup-chromedriver@v3
 
       - name: 'Integration tests'
         run: |
