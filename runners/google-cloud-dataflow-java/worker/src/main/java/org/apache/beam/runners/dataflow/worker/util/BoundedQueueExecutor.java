@@ -277,9 +277,10 @@ public class BoundedQueueExecutor {
      * again if it is closed.
      */
     public void merge(BoundedQueueExecutorWorkHandleImpl other) {
+      checkArgumentNotNull(other);
       synchronized (this) {
         Preconditions.checkState(!closed, "Cannot merge into a closed handle");
-        synchronized (checkArgumentNotNull(other)) {
+        synchronized (other) {
           Preconditions.checkState(!other.closed, "Cannot merge a closed handle");
           this.elements += other.elements;
           this.bytes += other.bytes;
