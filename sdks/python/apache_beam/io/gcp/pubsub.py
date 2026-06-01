@@ -573,6 +573,7 @@ class _PubSubWriteDoFn(DoFn):
     self.id_label = transform.id_label
     self.timestamp_attribute = transform.timestamp_attribute
     self.with_attributes = transform.with_attributes
+    self.with_ordering = True
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
@@ -638,10 +639,13 @@ class _PubSubWriteDoFn(DoFn):
 
   def setup(self):
     from google.cloud import pubsub
-    self._pub_client = pubsub.PublisherClient(
-        publisher_options=pubsub.types.PublisherOptions(
-            enable_message_ordering=True,
-        ))
+    if self.with_attributes:
+      self._pub_client = pubsub.PublisherClient(
+          publisher_options=pubsub.types.PublisherOptions(
+              enable_message_ordering=True,
+          ))
+    else:
+      self._pub_client = pubsub.PublisherClient()
     self._topic = self._pub_client.topic_path(
         self.project, self.short_topic_name)
 
@@ -668,21 +672,12 @@ class _PubSubWriteDoFn(DoFn):
       pubsub_msg = PubsubMessage._from_proto_str(elem)
 
       # Publish with the correct data, attributes, and ordering_key
+      kwargs = {}
       if self.with_attributes and pubsub_msg.attributes:
-        future = self._pub_client.publish(
-            self._topic,
-            pubsub_msg.data,
-            ordering_key=pubsub_msg.ordering_key
-            if pubsub_msg.ordering_key else '',
-            **pubsub_msg.attributes)
-      else:
-        if pubsub_msg.ordering_key:
-          future = self._pub_client.publish(
-              self._topic,
-              pubsub_msg.data,
-              ordering_key=pubsub_msg.ordering_key)
-        else:
-          future = self._pub_client.publish(self._topic, pubsub_msg.data)
+        kwargs.update(pubsub_msg.attributes)
+      if pubsub_msg.ordering_key:
+        kwargs['ordering_key'] = pubsub_msg.ordering_key
+      future = self._pub_client.publish(self._topic, pubsub_msg.data, **kwargs)
 
       futures.append(future)
 
