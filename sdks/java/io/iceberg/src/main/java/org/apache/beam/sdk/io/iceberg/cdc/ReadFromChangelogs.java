@@ -44,7 +44,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
-import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
@@ -55,7 +54,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueKind;
@@ -127,7 +125,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
     PCollection<Row> uniDirectionalRows =
         input
             .get(UNIDIRECTIONAL_TASKS)
-            .apply(Redistribute.arbitrarily())
+            .apply("Redistribute Uni-Directional Changes", Redistribute.arbitrarily())
             .apply(
                 "Read Uni-Directional Changes",
                 ParDo.of(ReadDoFn.unidirectional(scanConfig))
@@ -141,7 +139,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
     PCollectionTuple biDirectionalRows =
         input
             .get(LARGE_BIDIRECTIONAL_TASKS)
-            .apply(Redistribute.arbitrarily())
+            .apply("Redistribute Large Bi-Directional Changes", Redistribute.arbitrarily())
             .apply(
                 "Read Bi-Directional Changes",
                 ParDo.of(ReadDoFn.bidirectional(scanConfig))
@@ -166,13 +164,9 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
             KvCoder.of(VarLongCoder.of(), SchemaCoder.of(scanConfig.rowIdBeamSchema())),
             SchemaCoder.of(fullRowSchema));
     PCollection<KV<KV<Long, Row>, Row>> keyedInsertsWithTimestamps =
-        biDirectionalRows
-            .get(BIDIRECTIONAL_INSERTS)
-            .setCoder(keyedOutputCoder);
+        biDirectionalRows.get(BIDIRECTIONAL_INSERTS).setCoder(keyedOutputCoder);
     PCollection<KV<KV<Long, Row>, Row>> keyedDeletesWithTimestamps =
-        biDirectionalRows
-            .get(BIDIRECTIONAL_DELETES)
-            .setCoder(keyedOutputCoder);
+        biDirectionalRows.get(BIDIRECTIONAL_DELETES).setCoder(keyedOutputCoder);
 
     return new CdcOutput(
         input.getPipeline(),

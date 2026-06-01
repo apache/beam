@@ -69,6 +69,8 @@ import org.slf4j.LoggerFactory;
 @DoFn.UnboundedPerElement
 class WatchForSnapshotsSdf extends DoFn<String, Long> {
   private static final Logger LOG = LoggerFactory.getLogger(WatchForSnapshotsSdf.class);
+  private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
+
   private static final Counter snapshotsEmitted =
       Metrics.counter(WatchForSnapshotsSdf.class, "snapshotsEmitted");
   private static final Gauge latestEmittedSnapshotId =
@@ -80,9 +82,10 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
   private final IcebergScanConfig scanConfig;
   private final Duration pollInterval;
 
-  WatchForSnapshotsSdf(IcebergScanConfig scanConfig, Duration pollInterval) {
+  WatchForSnapshotsSdf(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
-    this.pollInterval = pollInterval;
+    this.pollInterval =
+        MoreObjects.firstNonNull(scanConfig.getPollInterval(), DEFAULT_POLL_INTERVAL);
   }
 
   @GetInitialRestriction

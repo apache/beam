@@ -185,12 +185,10 @@ class ChangelogScanner
   static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
       LARGE_BIDIRECTIONAL_TASKS = new TupleTag<>();
 
-  static final KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> OUTPUT_CODER =
-      KvCoder.of(ChangelogDescriptor.coder(), ListCoder.of(SerializableChangelogTask.coder()));
   private final IcebergScanConfig scanConfig;
   private @MonotonicNonNull Table table;
   private @MonotonicNonNull Snapshot snapshot;
-  private @MonotonicNonNull TaskBatcher uniBatcher;
+  private transient @MonotonicNonNull TaskBatcher uniBatcher;
   private boolean canDoPartitionOptimization = false;
   // for metrics
   private int numAddedRowsTasks = 0;
@@ -205,6 +203,13 @@ class ChangelogScanner
 
   ChangelogScanner(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
+  }
+
+  static KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> coder(
+      org.apache.beam.sdk.schemas.Schema rowIdBeamSchema) {
+    return KvCoder.of(
+        ChangelogDescriptor.coder(rowIdBeamSchema),
+        ListCoder.of(SerializableChangelogTask.coder()));
   }
 
   @Setup
@@ -1026,19 +1031,19 @@ class ChangelogScanner
       if (numUniDirTasks > 0) {
         message.append(
             format(
-                "\n\t%s splits containing %s uni-directional tasks",
+                "%n\t%s splits containing %s uni-directional tasks",
                 numUniDirSplits, numUniDirTasks));
       }
       if (numSmallBiDirTasks > 0) {
         message.append(
             format(
-                "\n\t%s splits containing %s small bi-directional tasks (for local resolution)",
+                "%n\t%s splits containing %s small bi-directional tasks (for local resolution)",
                 numSmallBiDirSplits, numSmallBiDirTasks));
       }
       if (numLargeBiDirTasks > 0) {
         message.append(
             format(
-                "\n\t%s splits containing %s large bi-directional tasks (to be shuffled)",
+                "%n\t%s splits containing %s large bi-directional tasks (to be shuffled)",
                 numLargeBiDirSplits, numLargeBiDirTasks));
       }
     }

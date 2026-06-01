@@ -130,7 +130,7 @@ public abstract class SerializableDeleteFile {
 
     abstract Builder setPartitionSpecId(int partitionSpec);
 
-    abstract Builder setSortOrderId(int sortOrderId);
+    abstract Builder setSortOrderId(@Nullable Integer sortOrderId);
 
     abstract Builder setEqualityFieldIds(List<Integer> equalityFieldIds);
 

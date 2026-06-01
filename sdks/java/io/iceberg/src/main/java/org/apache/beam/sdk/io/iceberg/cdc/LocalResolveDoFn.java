@@ -124,7 +124,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
   }
 
   /**
-   * Processes a {@link SerializableChangelogTask} and routes each record:
+   * Processes a {@link SerializableChangelogTask} and routes each record.
    *
    * <ul>
    *   <li>Out of overlap: emit directly
