@@ -77,6 +77,8 @@ jobs:
       github.event.comment.body == 'Run Spotless PreCommit'
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -91,7 +93,8 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
-          arguments: -PdisableSpotlessApply
+          arguments: -PdisableSpotlessApply ${{ github.event_name == 'schedule' && '-PdisableSpotlessRatchet=true' || '' }}
+          max-workers: 4
       - name: Upload test report
         uses: actions/upload-artifact@v7
         with:
