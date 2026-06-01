@@ -578,7 +578,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testBatchCdcReadMixedDeleteAndOverwriteSnapshots() throws Exception {
+  public void testStreamingCdcReadMixedDeleteAndOverwriteSnapshots() throws Exception {
     Table table = createCdcTable();
     DataFile firstFile =
         commitCdcAppend(
@@ -636,7 +636,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     PCollection<String> changes = rows.apply("Format CDC Changes", ParDo.of(new FormatCdcChange()));
 
-    assertThat(rows.isBounded(), equalTo(BOUNDED));
+    assertThat(rows.isBounded(), equalTo(UNBOUNDED));
     assertEquals(CDC_BEAM_SCHEMA, rows.getSchema());
     PAssert.that(changes)
         .containsInAnyOrder(
