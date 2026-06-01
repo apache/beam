@@ -73,6 +73,10 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_case }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+      with:
+        java-version: default
     - name: Get Beam latest release
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
       run: |
@@ -84,10 +88,6 @@ jobs:
       with:
         ref: ${{ env.BEAM_VERSION }}
         repository: apache/beam
-    - name: Setup environment
-      uses: ./.github/actions/setup-environment-action
-      with:
-        java-version: default
     - name: run scheduled javaPostcommitIOPerformanceTests script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
