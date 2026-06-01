@@ -605,6 +605,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cdap_version = "6.5.1"
     def checkerframework_version = "3.42.0"
     def classgraph_version = "4.8.162"
+    def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
@@ -729,6 +730,8 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_logging                             : "commons-logging:commons-logging:1.2",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
         dbcp2                                       : "org.apache.commons:commons-dbcp2:$dbcp2_version",
+        delta_kernel_api                            : "io.delta:delta-kernel-api:$delta_lake_version",
+        delta_kernel_defaults                       : "io.delta:delta-kernel-defaults:$delta_lake_version",
         envoy_control_plane_api                     : "io.envoyproxy.controlplane:api:1.0.49",
         error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:$errorprone_version",
         failsafe                                    : "dev.failsafe:failsafe:3.3.0",
@@ -743,7 +746,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20251012-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260405-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260503-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20260204-2.0.0",  // [bomupgrader] sets version
