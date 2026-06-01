@@ -29,11 +29,9 @@ import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStat
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,11 +67,9 @@ public abstract class ComputationWorkExecutor {
    * Executes DoFns for the Work. Blocks the calling thread until DoFn(s) have completed execution.
    */
   public final void executeWork(
-      @Nullable Object key,
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       int maxKeyGroupBatchSize,
@@ -83,11 +79,10 @@ public abstract class ComputationWorkExecutor {
       throws Exception {
     context()
         .start(
-            key,
+            null,
             work,
             stateReader,
             sideInputStateFetcher,
-            outputBuilder,
             workExecutor(),
             workQueueExecutor,
             budgetHandle,

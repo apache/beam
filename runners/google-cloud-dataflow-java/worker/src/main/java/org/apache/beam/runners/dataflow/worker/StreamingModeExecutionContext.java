@@ -330,14 +330,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
       WorkExecutor workExecutor) {
     start(
         key,
         work,
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor,
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,
@@ -357,7 +355,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -374,7 +371,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         work,
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor,
         workQueueExecutor,
         budgetHandle,
@@ -395,7 +391,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -417,7 +412,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         work,
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor,
         workQueueExecutor,
         budgetHandle,
@@ -433,7 +427,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -442,7 +435,17 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       long maxKeyGroupBatchTimeNanos,
       long maxKeyGroupBatchBytes,
       KeySwitchListener keySwitchListener) {
-    this.key = key;
+    if (key != null) {
+      this.key = key;
+    } else if (keyCoder != null) {
+      try {
+        this.key = keyCoder.decode(work.getWorkItem().getKey().newInput(), Coder.Context.OUTER);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to decode primary key during start", e);
+      }
+    } else {
+      this.key = null;
+    }
     this.work = work;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
@@ -466,8 +469,15 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     work.setOnFailureListener(() -> this.failedWork = work);
     this.executedWorks.add(work);
-    this.outputBuilders.add(outputBuilder);
-    this.outputBuilder = outputBuilder;
+
+    Windmill.WorkItemCommitRequest.Builder primaryOutputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(work.getWorkItem().getKey())
+            .setShardingKey(work.getWorkItem().getShardingKey())
+            .setWorkToken(work.getWorkItem().getWorkToken())
+            .setCacheToken(work.getWorkItem().getCacheToken());
+    this.outputBuilders.add(primaryOutputBuilder);
+    this.outputBuilder = primaryOutputBuilder;
 
     this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
@@ -486,20 +496,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.activeStateReader = stateReader;
     this.stateBytesRead = 0;
 
-    LOG.warn(
-        "JETSKI_DEBUG: hasHotKeyInfo={}, hotKeyLogger={}, stepName={}, hotKeyLoggingEnabled={}, key={}",
-        work.getWorkItem().hasHotKeyInfo(),
-        this.hotKeyLogger != null,
-        this.stepName,
-        this.hotKeyLoggingEnabled,
-        key);
-
     // Move primary key hotkey logging from StreamingWorkScheduler into start(...)
-    if (work.getWorkItem().hasHotKeyInfo() && this.hotKeyLogger != null && this.stepName != null) {
+    if (work.getWorkItem().hasHotKeyInfo() && this.hotKeyLogger != null) {
       Windmill.HotKeyInfo hotKeyInfo = work.getWorkItem().getHotKeyInfo();
       Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-      if (key != null && this.hotKeyLoggingEnabled) {
-        this.hotKeyLogger.logHotKeyDetection(this.stepName, hotKeyAge, key);
+      if (this.key != null && this.hotKeyLoggingEnabled) {
+        this.hotKeyLogger.logHotKeyDetection(this.stepName, hotKeyAge, this.key);
       } else {
         this.hotKeyLogger.logHotKeyDetection(this.stepName, hotKeyAge);
       }

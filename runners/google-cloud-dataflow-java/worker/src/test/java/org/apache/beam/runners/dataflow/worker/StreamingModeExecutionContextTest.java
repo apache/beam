@@ -159,8 +159,6 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testTimerInternalsSetTimer() throws Exception {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
@@ -174,7 +172,6 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor);
 
     TimerInternals timerInternals = stepContext.timerInternals();
@@ -189,6 +186,7 @@ public class StreamingModeExecutionContextTest {
     executionContext.finishKey();
     executionContext.flushState();
 
+    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
@@ -197,9 +195,6 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testTimerInternalsProcessingTimeSkew() {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
@@ -226,7 +221,6 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor);
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
@@ -425,8 +419,6 @@ public class StreamingModeExecutionContextTest {
     for (Boolean isV2Encoding : Lists.newArrayList(Boolean.TRUE, Boolean.FALSE)) {
       Class<?> expectedEncoding =
           isV2Encoding ? WindmillTagEncodingV2.class : WindmillTagEncodingV1.class;
-      Windmill.WorkItemCommitRequest.Builder outputBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
       globalConfigHandle.setConfig(
           StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
       executionContext.start(
@@ -436,7 +428,6 @@ public class StreamingModeExecutionContextTest {
               Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
           stateReader,
           sideInputStateFetcher,
-          outputBuilder,
           workExecutor);
       assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
     }
@@ -444,8 +435,6 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testSetBacklogBytes() {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
@@ -459,14 +448,13 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor);
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
     executionContext.flushState();
 
-    assertEquals(1234, outputBuilder.getSourceBacklogBytes());
+    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
   }
 
   @Test
@@ -505,9 +493,6 @@ public class StreamingModeExecutionContextTest {
                 org.mockito.Mockito.eq(mockBudget)))
         .thenReturn(java.util.Optional.of(executableWorkB));
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     java.util.concurrent.atomic.AtomicReference<Work> oldWorkRef =
         new java.util.concurrent.atomic.AtomicReference<>();
     java.util.concurrent.atomic.AtomicReference<Work> newWorkRef =
@@ -523,7 +508,6 @@ public class StreamingModeExecutionContextTest {
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderA,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -605,16 +589,12 @@ public class StreamingModeExecutionContextTest {
                 org.mockito.Mockito.eq(mockBudget)))
         .thenReturn(java.util.Optional.of(executableWorkB));
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     // Case 1: maxKeyGroupBatchSize is 0
     executionContext.start(
         "keyA",
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderA,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -630,16 +610,11 @@ public class StreamingModeExecutionContextTest {
     assertFalse(executionContext.advance());
 
     // Case 2: maxKeyGroupBatchBytes limit is exceeded
-    Windmill.WorkItemCommitRequest.Builder outputBuilderAForBytes =
-        Windmill.WorkItemCommitRequest.newBuilder()
-            .setKey(ByteString.copyFromUtf8("some_non_empty_key_to_increase_size"));
-
     executionContext.start(
         "keyA",
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderAForBytes,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -657,8 +632,6 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testFinishKeyReentrantSafety() {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
     executionContext.start(
         "key",
         createMockWork(
@@ -666,7 +639,6 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
         stateReader,
         sideInputStateFetcher,
-        outputBuilder,
         workExecutor);
 
     // First call
@@ -711,15 +683,11 @@ public class StreamingModeExecutionContextTest {
                 org.mockito.Mockito.eq(mockBudget)))
         .thenReturn(java.util.Optional.of(executableWorkB));
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     executionContext.start(
         "keyA",
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderA,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -775,15 +743,11 @@ public class StreamingModeExecutionContextTest {
                 org.mockito.Mockito.eq(mockBudget)))
         .thenReturn(java.util.Optional.of(executableWorkB));
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     executionContext.start(
         "keyA",
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderA,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -879,15 +843,11 @@ public class StreamingModeExecutionContextTest {
                 org.mockito.Mockito.eq(mockBudget)))
         .thenReturn(java.util.Optional.of(executableWorkB));
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilderA =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     testContext.start(
         "keyA",
         workA,
         stateReader,
         sideInputStateFetcher,
-        outputBuilderA,
         workExecutor,
         mockExecutor,
         mockBudget,
@@ -965,5 +925,33 @@ public class StreamingModeExecutionContextTest {
         .invalidate(
             org.mockito.Mockito.eq(workItemB.getKey()),
             org.mockito.Mockito.eq(workItemB.getShardingKey()));
+  }
+
+  @Test
+  public void testStart_internalKeyDecoding() throws Exception {
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("decodedKey"))
+            .setWorkToken(17L)
+            .build();
+    Work work =
+        createMockWork(
+            workItem, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    executionContext.start(
+        /* key= */ null,
+        work,
+        stateReader,
+        sideInputStateFetcher,
+        workExecutor,
+        /* workQueueExecutor= */ null,
+        /* budgetHandle= */ null,
+        org.apache.beam.sdk.coders.StringUtf8Coder.of(),
+        /* maxKeyGroupBatchSize= */ 1,
+        /* maxKeyGroupBatchTimeNanos= */ 0L,
+        /* maxKeyGroupBatchBytes= */ 0L,
+        /* keySwitchListener= */ (k, c) -> {});
+
+    assertEquals("decodedKey", executionContext.getKey());
   }
 }

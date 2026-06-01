@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -61,12 +60,10 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReade
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,8 +213,7 @@ public class StreamingWorkScheduler {
   }
 
   /** Resets logging context of the Thread executing the {@link Work} for logging. */
-  private void resetWorkLoggingContext(String workLatencyTrackingId) {
-    sampler.resetForWorkId(workLatencyTrackingId);
+  private void resetWorkLoggingContext() {
     DataflowWorkerLoggingMDC.setWorkId(null);
     DataflowWorkerLoggingMDC.setStageName(null);
   }
@@ -327,7 +323,9 @@ public class StreamingWorkScheduler {
         for (int i = 0; i < workBatch.size(); i++) {
           Windmill.WorkItemCommitRequest.Builder builder = outputBuilders.get(i);
           Work w = workBatch.get(i);
-          builder.addAllPerWorkItemLatencyAttributions(w.getLatencyAttributions(sampler));
+          if (i == 0) {
+            builder.addAllPerWorkItemLatencyAttributions(w.getLatencyAttributions(sampler));
+          }
 
           // Aggregate ONLY finalize IDs to the top level
           multiKeyBuilder.addAllFinalizeIds(builder.getFinalizeIdsList());
@@ -416,7 +414,8 @@ public class StreamingWorkScheduler {
         work.setOnFailureListener(null);
       }
 
-      resetWorkLoggingContext(work.getLatencyTrackingId());
+      resetWorkLoggingContext();
+      sampler.resetForWorkId(work.getLatencyTrackingId());
       work.setProcessingThreadName("");
     }
   }
@@ -477,9 +476,6 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       BoundedQueueExecutorWorkHandle handle)
       throws Exception {
-    Windmill.WorkItem workItem = work.getWorkItem();
-    ByteString key = workItem.getKey();
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
     ComputationWorkExecutor computationWorkExecutor =
         computationState
             .acquireComputationWorkExecutor()
@@ -492,12 +488,6 @@ public class StreamingWorkScheduler {
       WindmillStateReader stateReader = work.createWindmillStateReader();
       SideInputStateFetcher localSideInputStateFetcher =
           sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
-
-      Optional<Coder<?>> keyCoder = computationWorkExecutor.keyCoder();
-      @SuppressWarnings("deprecation")
-      @Nullable
-      final Object executionKey =
-          !keyCoder.isPresent() ? null : keyCoder.get().decode(key.newInput(), Coder.Context.OUTER);
 
       // Parse limits from experiments
       String batchSizeStr =
@@ -520,7 +510,7 @@ public class StreamingWorkScheduler {
       // MDC and samplers aligner callback
       StreamingModeExecutionContext.KeySwitchListener keySwitchListener =
           (oldWork, newWork) -> {
-            resetWorkLoggingContext(oldWork.getLatencyTrackingId());
+            resetWorkLoggingContext();
             setUpWorkLoggingContext(
                 newWork.getLatencyTrackingId(), computationState.getComputationId());
             newWork.setProcessingThreadName(Thread.currentThread().getName());
@@ -529,11 +519,9 @@ public class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey,
           work,
           stateReader,
           localSideInputStateFetcher,
-          outputBuilder,
           workExecutor,
           handle,
           maxKeyGroupBatchSize,

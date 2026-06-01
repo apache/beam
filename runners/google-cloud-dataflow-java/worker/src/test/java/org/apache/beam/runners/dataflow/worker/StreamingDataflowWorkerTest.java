@@ -29,6 +29,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -206,6 +207,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -571,11 +573,16 @@ public class StreamingDataflowWorkerTest {
     Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     TextFormat.merge(input, builder);
     if (metadata != null) {
-      Windmill.InputMessageBundle.Builder messageBundleBuilder =
-          builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
-      for (Windmill.Message.Builder messageBuilder :
-          messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+      for (Windmill.ComputationWorkItems.Builder compBuilder : builder.getWorkBuilderList()) {
+        for (Windmill.WorkItem.Builder workBuilder : compBuilder.getWorkBuilderList()) {
+          for (Windmill.InputMessageBundle.Builder messageBundleBuilder :
+              workBuilder.getMessageBundlesBuilderList()) {
+            for (Windmill.Message.Builder messageBuilder :
+                messageBundleBuilder.getMessagesBuilderList()) {
+              messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+            }
+          }
+        }
       }
     }
 
@@ -5017,6 +5024,215 @@ public class StreamingDataflowWorkerTest {
       Arrays.fill(chars, ' ');
       c.output(new String(chars));
     }
+  }
+
+  private Windmill.GetWorkResponse makeInputWithKeyGroup(
+      int index, long timestamp, String key, long shardingKey, long keyGroupHigh, long keyGroupLow)
+      throws Exception {
+    return buildInput(
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \""
+            + key
+            + "\""
+            + "    sharding_key: "
+            + shardingKey
+            + "    work_token: "
+            + index
+            + "    cache_token: "
+            + (index + 1)
+            + "    key_group {"
+            + "      high: "
+            + keyGroupHigh
+            + "      low: "
+            + keyGroupLow
+            + "    }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp
+            + "        data: \"data"
+            + index
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}",
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(IntervalWindow.getCoder()),
+            Collections.singletonList(DEFAULT_WINDOW)));
+  }
+
+  private Windmill.GetWorkResponse makeInputWithMultiKeys(
+      int index1,
+      long timestamp1,
+      String key1,
+      long shardingKey1,
+      int index2,
+      long timestamp2,
+      String key2,
+      long shardingKey2,
+      long keyGroupHigh,
+      long keyGroupLow)
+      throws Exception {
+    return buildInput(
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \""
+            + key1
+            + "\""
+            + "    sharding_key: "
+            + shardingKey1
+            + "    work_token: "
+            + index1
+            + "    cache_token: "
+            + (index1 + 1)
+            + "    key_group {"
+            + "      high: "
+            + keyGroupHigh
+            + "      low: "
+            + keyGroupLow
+            + "    }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp1
+            + "        data: \"data"
+            + index1
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \""
+            + key2
+            + "\""
+            + "    sharding_key: "
+            + shardingKey2
+            + "    work_token: "
+            + index2
+            + "    cache_token: "
+            + (index2 + 1)
+            + "    key_group {"
+            + "      high: "
+            + keyGroupHigh
+            + "      low: "
+            + keyGroupLow
+            + "    }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: "
+            + timestamp2
+            + "        data: \"data"
+            + index2
+            + "\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}",
+        CoderUtils.encodeToByteArray(
+            CollectionCoder.of(IntervalWindow.getCoder()),
+            Collections.singletonList(DEFAULT_WINDOW)));
+  }
+
+  @Test
+  public void testPerWorkItemLatencyAttributions_MultiKeyBundleOnlyPrimaryReports()
+      throws Exception {
+    Assume.assumeTrue(streamingEngine);
+
+    final int workToken1 = 9001;
+    final int workToken2 = 9002;
+    final long shardingKey1 = 101L;
+    final long shardingKey2 = 102L;
+    final long keyGroupHigh = 1L;
+    final long keyGroupLow = 2L;
+
+    FakeClock clock = new FakeClock();
+    // Inject processing latency on the fake clock in the worker via FakeSlowDoFn.
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(StringUtf8Coder.of()),
+            makeDoFnInstruction(
+                new FakeSlowDoFn(clock, Duration.millis(1000)), 0, StringUtf8Coder.of()),
+            makeSinkInstruction(StringUtf8Coder.of(), 0));
+
+    // We use 1 worker thread so they are processed sequentially, but they will be queued
+    // in the BoundedQueueExecutor and batched because they are in the same key group.
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--numberOfWorkerHarnessThreads=1",
+                    "--experiments=max_key_group_batch_size=5,unstable_enable_multi_key_bundle")
+                .setInstructions(instructions)
+                .setClock(clock)
+                .setExecutorSupplier(clock::newFakeScheduledExecutor)
+                .build());
+    worker.start();
+
+    ActiveWorkRefreshSink awrSink =
+        new ActiveWorkRefreshSink(StreamingDataflowWorkerTest::emptyDataResponder);
+    server.whenGetDataCalled().answerByDefault(awrSink::getData).delayEachResponseBy(Duration.ZERO);
+
+    // Queue both work items in the FakeWindmillServer before starting.
+    // They both have the same key group (high=1, low=2) but different keys ("key1", "key2") and
+    // sharding keys (101, 102).
+    server
+        .whenGetWorkCalled()
+        .thenReturn(
+            makeInputWithMultiKeys(
+                workToken1,
+                0L /* timestamp */,
+                "key1",
+                shardingKey1,
+                workToken2,
+                1000L /* timestamp */,
+                "key2",
+                shardingKey2,
+                keyGroupHigh,
+                keyGroupLow));
+
+    // Wait for both commits to complete. They should be committed together in a multi-key bundle.
+    Map<Long, WorkItemCommitRequest> commits = server.waitForAndGetCommits(2);
+
+    worker.stop();
+
+    WorkItemCommitRequest commit1 = commits.get((long) workToken1);
+    WorkItemCommitRequest commit2 = commits.get((long) workToken2);
+
+    assertNotNull(commit1);
+    assertNotNull(commit2);
+
+    // The first work item (primary) should have latency attributions populated.
+    assertTrue(commit1.getPerWorkItemLatencyAttributionsCount() > 0);
+    // Verify that we have ACTIVE state latency (which was slow due to FakeSlowDoFn).
+    boolean hasActiveLA = false;
+    for (LatencyAttribution la : commit1.getPerWorkItemLatencyAttributionsList()) {
+      if (la.getState() == State.ACTIVE) {
+        hasActiveLA = true;
+        assertEquals(2000L, la.getTotalDurationMillis());
+      }
+    }
+    assertTrue("Primary commit should have ACTIVE latency attribution", hasActiveLA);
+
+    // The second work item (secondary) should NOT have any latency attributions reported.
+    assertEquals(0, commit2.getPerWorkItemLatencyAttributionsCount());
   }
 
   @AutoValue

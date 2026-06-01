@@ -648,7 +648,6 @@ public class WorkerCustomSourcesTest {
               Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
           mock(WindmillStateReader.class),
           mock(SideInputStateFetcher.class),
-          Windmill.WorkItemCommitRequest.newBuilder(),
           mock(WorkExecutor.class));
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1029,7 +1028,6 @@ public class WorkerCustomSourcesTest {
         dummyWork,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
-        Windmill.WorkItemCommitRequest.newBuilder(),
         mock(WorkExecutor.class));
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1140,7 +1138,6 @@ public class WorkerCustomSourcesTest {
         workA,
         mock(WindmillStateReader.class),
         mock(SideInputStateFetcher.class),
-        Windmill.WorkItemCommitRequest.newBuilder(),
         mock(WorkExecutor.class),
         mockExecutor,
         mockBudget,

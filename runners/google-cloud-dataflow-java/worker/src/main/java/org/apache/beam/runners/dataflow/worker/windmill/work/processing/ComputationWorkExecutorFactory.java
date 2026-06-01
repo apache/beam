@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 
 import com.google.api.services.dataflow.model.MapTask;
+import com.google.api.services.dataflow.model.ParallelInstruction;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -197,7 +198,17 @@ final class ComputationWorkExecutorFactory {
         createExecutionStateTracker(stageInfo, mapTask, workLatencyTrackingId);
     boolean hotKeyLoggingEnabled =
         options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging");
-    String stepName = computationState.getMapTask().getInstructions().get(0).getName();
+    ParallelInstruction instruction = computationState.getMapTask().getInstructions().get(0);
+    String stepName = instruction.getName();
+    if (stepName == null) {
+      stepName = instruction.getOriginalName();
+    }
+    if (stepName == null) {
+      stepName = instruction.getSystemName();
+    }
+    if (stepName == null) {
+      stepName = "unknown-step";
+    }
     StreamingModeExecutionContext context =
         createExecutionContext(
             computationState, stageInfo, executionStateTracker, hotKeyLoggingEnabled, stepName);
