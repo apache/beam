@@ -71,6 +71,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	if err != nil {
 		return presult, err
 	}
+	opts.WorkerHash = hash
 	log.Infof(ctx, "Staged worker binary: %v", workerURL)
 
 	if err := graphx.UpdateDefaultEnvWorkerType(
