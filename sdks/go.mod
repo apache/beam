@@ -51,7 +51,7 @@ require (
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.42.0
-	github.com/tetratelabs/wazero v1.11.0
+	github.com/tetratelabs/wazero v1.12.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
 	go.mongodb.org/mongo-driver v1.17.9
@@ -71,7 +71,7 @@ require (
 require (
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/fsouza/fake-gcs-server v1.52.3
-	github.com/golang-cz/devslog v0.0.15
+	github.com/golang-cz/devslog v0.0.16
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
