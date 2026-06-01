@@ -240,9 +240,6 @@ def py_value_to_js_dict(py_value):
   elif isinstance(py_value, (datetime.datetime, datetime.date, datetime.time)):
     return {'__date__': True, 'value': py_value.isoformat()}
   elif isinstance(py_value, Decimal):
-    # Coerce Decimal to float since JavaScript's standard number type is a
-    # 64-bit float. Note that this can cause a loss of precision for
-    # high-precision decimal values.
     return float(py_value)
   elif not isinstance(py_value, str) and isinstance(py_value, abc.Iterable):
     return [py_value_to_js_dict(value) for value in list(py_value)]
