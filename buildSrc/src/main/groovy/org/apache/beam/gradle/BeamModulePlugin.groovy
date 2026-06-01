@@ -507,8 +507,40 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
+    project.ext.getRatchetBranch = {
+      ->
+      if (project.hasProperty('disableSpotlessRatchet') && project.disableSpotlessRatchet == 'true') {
+        return null
+      }
+      try {
+        def checkRef = { ref ->
+          try {
+            def res = project.exec {
+              executable 'git'
+              args 'rev-parse', '--verify', ref
+              ignoreExitValue = true
+              standardOutput = new ByteArrayOutputStream()
+              errorOutput = new ByteArrayOutputStream()
+            }
+            return res.getExitValue() == 0
+          } catch (Exception e) {
+            return false
+          }
+        }
 
-
+        if (checkRef('upstream/master')) {
+          return 'upstream/master'
+        } else if (checkRef('origin/master')) {
+          return 'origin/master'
+        } else if (checkRef('master')) {
+          return 'master'
+        } else {
+          return null
+        }
+      } catch (Exception e) {
+        return null
+      }
+    }
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
@@ -1465,6 +1497,10 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.17.0')
@@ -2391,6 +2427,10 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
           greclipse().configFile(grEclipseConfig)
