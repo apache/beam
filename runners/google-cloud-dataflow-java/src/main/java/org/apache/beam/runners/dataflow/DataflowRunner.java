@@ -101,6 +101,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -1310,6 +1311,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Experiment marking that the harness supports tag encoding v2
         // Backend will enable tag encoding v2 only if the harness supports it.
         experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        // Experiment requesting tag encoding v2 on new jobs starting with 2.75.0. During job
+        // updates old job's tag encoding version is carried over by the backend.
+        if (!StreamingOptions.updateCompatibilityVersionLessThan(options, "2.75.0")) {
+          experiments.add("enable_streaming_engine_state_tag_encoding_v2");
+        }
         options.setExperiments(ImmutableList.copyOf(experiments));
       }
 
