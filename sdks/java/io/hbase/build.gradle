@@ -29,7 +29,7 @@ test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
-    jvmArgs System.getProperty("beamSurefireArgline")
+    jvmArgs System.getProperty("beamSurefireArgline").split("\\s+")
   }
   jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
 }
@@ -55,6 +55,7 @@ configurations.all {
   resolutionStrategy {
     // TODO: remove after higher version of hbase (>2.6.5) contains this minimum version.
     force 'org.apache.commons:commons-configuration2:2.15.0'
+    force 'commons-io:commons-io:2.19.0'
   }
 }
 
