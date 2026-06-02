@@ -515,7 +515,7 @@ class _TruncatingFileHandle(object):
 
   @property
   def closed(self):
-    return False
+    return getattr(self._underlying, 'closed', False)
 
   def __iter__(self):
     # For pandas is_file_like.
@@ -584,7 +584,18 @@ class _TruncatingFileHandle(object):
     return res
 
   def flush(self):
-    self._underlying.flush()
+    if not self.closed:
+      try:
+        self._underlying.flush()
+      except ValueError:
+        pass
+
+  def close(self):
+    if not self.closed and hasattr(self._underlying, 'close'):
+      try:
+        self._underlying.close()
+      except (OSError, ValueError):
+        pass
 
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
