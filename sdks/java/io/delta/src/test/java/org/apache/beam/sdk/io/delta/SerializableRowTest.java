@@ -26,6 +26,7 @@ import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.ByteType;
 import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
 import io.delta.kernel.types.DecimalType;
 import io.delta.kernel.types.DoubleType;
 import io.delta.kernel.types.FloatType;
@@ -36,6 +37,7 @@ import io.delta.kernel.types.ShortType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -72,6 +74,8 @@ public class SerializableRowTest {
                 new StructField("string", StringType.STRING, true),
                 new StructField("binary", BinaryType.BINARY, true),
                 new StructField("decimal", new DecimalType(10, 2), true),
+                new StructField("date", DateType.DATE, true),
+                new StructField("timestamp", TimestampType.TIMESTAMP, true),
                 new StructField("struct", structSchema, true),
                 new StructField("array", new ArrayType(StringType.STRING, true), true),
                 new StructField(
@@ -88,6 +92,8 @@ public class SerializableRowTest {
     values.put("string", "hello");
     values.put("binary", new byte[] {7, 8});
     values.put("decimal", new BigDecimal("9.20"));
+    values.put("date", 16543);
+    values.put("timestamp", 16543000000L);
 
     Map<String, Object> nestedValues = new LinkedHashMap<>();
     nestedValues.put("nested_int", 42);
@@ -145,6 +151,8 @@ public class SerializableRowTest {
                 new StructField("string", StringType.STRING, true),
                 new StructField("binary", BinaryType.BINARY, true),
                 new StructField("decimal", new DecimalType(10, 2), true),
+                new StructField("date", DateType.DATE, true),
+                new StructField("timestamp", TimestampType.TIMESTAMP, true),
                 new StructField("struct", structSchema, true),
                 new StructField("array", new ArrayType(StringType.STRING, true), true),
                 new StructField(
@@ -204,6 +212,10 @@ public class SerializableRowTest {
           Assert.assertArrayEquals((byte[]) expected, row.getBinary(i));
         } else if (type instanceof DecimalType) {
           Assert.assertEquals(expected, row.getDecimal(i));
+        } else if (type instanceof DateType) {
+          Assert.assertEquals(expected, row.getInt(i));
+        } else if (type instanceof TimestampType) {
+          Assert.assertEquals(expected, row.getLong(i));
         } else if (type instanceof StructType) {
           Row actualStruct = row.getStruct(i);
           Assert.assertNotNull(actualStruct);

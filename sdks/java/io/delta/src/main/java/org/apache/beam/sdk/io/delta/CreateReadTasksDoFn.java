@@ -60,6 +60,7 @@ class CreateReadTasksDoFn extends DoFn<String, DeltaReadTask> {
     SerializableRow serializableScanState = new SerializableRow(scanState);
 
     List<SerializableRow> currentGroup = new ArrayList<>();
+    List<List<Long>> currentGroupRowGroupSizes = new ArrayList<>();
     long currentGroupSize = 0L;
 
     try (CloseableIterator<FilteredColumnarBatch> scanFiles = scan.getScanFiles(engine)) {
@@ -70,27 +71,39 @@ class CreateReadTasksDoFn extends DoFn<String, DeltaReadTask> {
             Row scanFileRow = rows.next();
             SerializableRow fileRow = new SerializableRow(scanFileRow);
             long fileSize = InternalScanFileUtils.getAddFileStatus(fileRow).getSize();
+            List<Long> fileRowGroupSizes = getRowGroupSizes(fileRow, conf);
 
             if (fileSize >= MAX_TASK_SIZE_BYTES) {
               if (!currentGroup.isEmpty()) {
-                DeltaReadTask readTask = new DeltaReadTask(currentGroup, serializableScanState);
+                DeltaReadTask readTask =
+                    new DeltaReadTask(
+                        currentGroup, serializableScanState, currentGroupRowGroupSizes);
                 out.output(readTask);
                 currentGroup = new ArrayList<>();
+                currentGroupRowGroupSizes = new ArrayList<>();
                 currentGroupSize = 0L;
               }
 
               DeltaReadTask readTask =
-                  new DeltaReadTask(Collections.singletonList(fileRow), serializableScanState);
+                  new DeltaReadTask(
+                      Collections.singletonList(fileRow),
+                      serializableScanState,
+                      Collections.singletonList(fileRowGroupSizes));
               out.output(readTask);
             } else {
               if (currentGroupSize + fileSize > MAX_TASK_SIZE_BYTES) {
-                DeltaReadTask readTask = new DeltaReadTask(currentGroup, serializableScanState);
+                DeltaReadTask readTask =
+                    new DeltaReadTask(
+                        currentGroup, serializableScanState, currentGroupRowGroupSizes);
                 out.output(readTask);
                 currentGroup = new ArrayList<>();
+                currentGroupRowGroupSizes = new ArrayList<>();
                 currentGroup.add(fileRow);
+                currentGroupRowGroupSizes.add(fileRowGroupSizes);
                 currentGroupSize = fileSize;
               } else {
                 currentGroup.add(fileRow);
+                currentGroupRowGroupSizes.add(fileRowGroupSizes);
                 currentGroupSize += fileSize;
               }
             }
@@ -100,8 +113,28 @@ class CreateReadTasksDoFn extends DoFn<String, DeltaReadTask> {
     }
 
     if (!currentGroup.isEmpty()) {
-      DeltaReadTask readTask = new DeltaReadTask(currentGroup, serializableScanState);
+      DeltaReadTask readTask =
+          new DeltaReadTask(currentGroup, serializableScanState, currentGroupRowGroupSizes);
       out.output(readTask);
     }
+  }
+
+  private List<Long> getRowGroupSizes(SerializableRow scanFileRow, Configuration conf) {
+    List<Long> sizes = new ArrayList<>();
+    String pathStr = InternalScanFileUtils.getAddFileStatus(scanFileRow).getPath();
+    try {
+      org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(pathStr);
+      org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
+          org.apache.parquet.hadoop.ParquetFileReader.readFooter(
+              conf,
+              hadoopPath,
+              org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
+      for (org.apache.parquet.hadoop.metadata.BlockMetaData block : metadata.getBlocks()) {
+        sizes.add(block.getTotalByteSize());
+      }
+    } catch (java.io.IOException e) {
+      throw new RuntimeException("Failed to read Parquet footer for " + pathStr, e);
+    }
+    return sizes;
   }
 }

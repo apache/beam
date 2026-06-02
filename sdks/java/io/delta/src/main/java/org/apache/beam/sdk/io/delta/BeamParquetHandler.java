@@ -271,11 +271,16 @@ public class BeamParquetHandler implements ParquetHandler {
 
             // Checking the range for specific row groups.
             long rgIndex = startRgIndex + currentRgOffset;
-            if (rgIndex < tracker.currentRestriction().getFrom()
-                || rgIndex >= tracker.currentRestriction().getTo()) {
+            if (rgIndex < tracker.currentRestriction().getFrom()) {
+              // Skip till we get to the first block to read.
               localReader.skipNextRowGroup();
               currentRgOffset++;
               continue;
+            } else if (rgIndex >= tracker.currentRestriction().getTo()) {
+              // Once we are past the end index of the tracker we don't have to read any more
+              // blocks.
+              isDone = true;
+              return false;
             }
 
             // We only read the row group if it's within the range for the

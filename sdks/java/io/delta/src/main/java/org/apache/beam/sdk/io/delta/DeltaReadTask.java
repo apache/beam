@@ -32,10 +32,15 @@ public class DeltaReadTask implements Serializable {
 
   private final List<SerializableRow> scanFileRows;
   private final SerializableRow scanStateRow;
+  private final List<List<Long>> rowGroupSizesPerFile;
 
-  public DeltaReadTask(List<SerializableRow> scanFileRows, SerializableRow scanStateRow) {
+  public DeltaReadTask(
+      List<SerializableRow> scanFileRows,
+      SerializableRow scanStateRow,
+      List<List<Long>> rowGroupSizesPerFile) {
     this.scanFileRows = scanFileRows;
     this.scanStateRow = scanStateRow;
+    this.rowGroupSizesPerFile = rowGroupSizesPerFile;
   }
 
   public List<SerializableRow> getScanFileRows() {
@@ -44,6 +49,10 @@ public class DeltaReadTask implements Serializable {
 
   public SerializableRow getScanStateRow() {
     return scanStateRow;
+  }
+
+  public List<List<Long>> getRowGroupSizesPerFile() {
+    return rowGroupSizesPerFile;
   }
 
   @Override
@@ -56,12 +65,13 @@ public class DeltaReadTask implements Serializable {
     }
     DeltaReadTask that = (DeltaReadTask) o;
     return Objects.equals(scanFileRows, that.scanFileRows)
-        && Objects.equals(scanStateRow, that.scanStateRow);
+        && Objects.equals(scanStateRow, that.scanStateRow)
+        && Objects.equals(rowGroupSizesPerFile, that.rowGroupSizesPerFile);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(scanFileRows, scanStateRow);
+    return Objects.hash(scanFileRows, scanStateRow, rowGroupSizesPerFile);
   }
 
   @Override
@@ -71,6 +81,8 @@ public class DeltaReadTask implements Serializable {
         + scanFileRows
         + ", scanStateRow="
         + scanStateRow
+        + ", rowGroupSizesPerFile="
+        + rowGroupSizesPerFile
         + '}';
   }
 }

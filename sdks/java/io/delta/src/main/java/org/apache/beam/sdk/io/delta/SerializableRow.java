@@ -26,6 +26,7 @@ import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.ByteType;
 import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
 import io.delta.kernel.types.DecimalType;
 import io.delta.kernel.types.DoubleType;
 import io.delta.kernel.types.FloatType;
@@ -35,6 +36,7 @@ import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.ShortType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -224,6 +226,10 @@ public class SerializableRow implements Row, Serializable {
       return row.getDecimal(index);
     } else if (type instanceof StructType) {
       return new SerializableRow(row.getStruct(index));
+    } else if (type instanceof DateType) {
+      return row.getInt(index);
+    } else if (type instanceof TimestampType) {
+      return row.getLong(index);
     } else if (type instanceof ArrayType) {
       ArrayValue arr = row.getArray(index);
       return convertArray(arr, (ArrayType) type);
@@ -266,6 +272,10 @@ public class SerializableRow implements Row, Serializable {
         childFields[j] = vector.getChild(j);
       }
       return new SerializableRow(new VectorRow(structType, childFields, index));
+    } else if (type instanceof DateType) {
+      return vector.getInt(index);
+    } else if (type instanceof TimestampType) {
+      return vector.getLong(index);
     } else if (type instanceof ArrayType) {
       ArrayValue arr = vector.getArray(index);
       return convertArray(arr, (ArrayType) type);

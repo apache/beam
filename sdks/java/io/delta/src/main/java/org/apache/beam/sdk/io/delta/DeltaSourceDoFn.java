@@ -71,10 +71,6 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
   private transient @Nullable Engine engine;
   private transient @Nullable Configuration conf;
 
-  private transient @Nullable DeltaReadTask cachedTask;
-  private transient @Nullable List<Long> cachedRowGroupSizes;
-  private transient @Nullable List<Long> cachedBlockCountsPerFile;
-
   public DeltaSourceDoFn(@Nullable Map<String, String> hadoopConfig) {
     this.hadoopConfig = hadoopConfig;
   }
@@ -93,44 +89,12 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
     return localConf;
   }
 
-  private synchronized @Nullable List<Long> getCachedBlockCounts(DeltaReadTask task) {
-    if (task.equals(cachedTask)) {
-      return cachedBlockCountsPerFile;
-    }
-    return null;
-  }
-
   // Returns the sizes of the row groups for a given DeltaReadTask.
-  private synchronized List<Long> getRowGroupSizes(DeltaReadTask task) {
-    if (task.equals(cachedTask) && cachedRowGroupSizes != null) {
-      return cachedRowGroupSizes;
-    }
-
+  private List<Long> getRowGroupSizes(DeltaReadTask task) {
     List<Long> sizes = new ArrayList<>();
-    List<Long> blockCounts = new ArrayList<>();
-    Configuration conf = getConfiguration();
-    for (SerializableRow scanFileRow : task.getScanFileRows()) {
-      String pathStr = InternalScanFileUtils.getAddFileStatus(scanFileRow).getPath();
-      try {
-        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(pathStr);
-        org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
-            org.apache.parquet.hadoop.ParquetFileReader.readFooter(
-                conf,
-                hadoopPath,
-                org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
-        long blocksInFile = metadata.getBlocks().size();
-        for (org.apache.parquet.hadoop.metadata.BlockMetaData block : metadata.getBlocks()) {
-          sizes.add(block.getTotalByteSize());
-        }
-        blockCounts.add(blocksInFile);
-      } catch (java.io.IOException e) {
-        throw new RuntimeException("Failed to read Parquet footer for " + pathStr, e);
-      }
+    for (List<Long> fileSizes : task.getRowGroupSizesPerFile()) {
+      sizes.addAll(fileSizes);
     }
-
-    cachedTask = task;
-    cachedRowGroupSizes = sizes;
-    cachedBlockCountsPerFile = blockCounts;
     return sizes;
   }
 
@@ -182,24 +146,17 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
     // We have to go through files in the `DeltaReadTask` in order so that the
     // `RestrictionTracker`
     // can correctly handle the range of the current split.
-    List<Long> cachedBlockCounts = getCachedBlockCounts(task);
     List<SerializableRow> scanFileRows = task.getScanFileRows();
+    List<List<Long>> rowGroupSizesPerFile = task.getRowGroupSizesPerFile();
     for (int i = 0; i < scanFileRows.size(); i++) {
+      if (currentStartRgIndex >= tracker.currentRestriction().getTo()) {
+        // Breaking early to prevent metadata reads.
+        break;
+      }
       SerializableRow scanFileRow = scanFileRows.get(i);
       FileStatus fileStatus = InternalScanFileUtils.getAddFileStatus(scanFileRow);
 
-      long fileBlocks;
-      if (cachedBlockCounts != null && i < cachedBlockCounts.size()) {
-        fileBlocks = cachedBlockCounts.get(i);
-      } else {
-        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(fileStatus.getPath());
-        org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
-            org.apache.parquet.hadoop.ParquetFileReader.readFooter(
-                getConfiguration(),
-                hadoopPath,
-                org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
-        fileBlocks = metadata.getBlocks().size();
-      }
+      long fileBlocks = rowGroupSizesPerFile.get(i).size();
 
       try (CloseableIterator<FileReadResult> fileReadResults =
           parquetHandler.readParquetFiles(

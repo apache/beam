@@ -190,6 +190,10 @@ public class DeltaIOTest {
 
     Files.write(commitFile.toPath(), commitContent.getBytes(StandardCharsets.UTF_8));
 
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row dummyRow = Row.withSchema(schema).addValues("test-name").build();
+    writeParquetFile(new File(tableDir, "part-00000.parquet"), dummyRow);
+
     PCollection<DeltaReadTask> output =
         writePipeline
             .apply(Create.of(tableDir.getAbsolutePath()))
@@ -227,6 +231,13 @@ public class DeltaIOTest {
             + "{\"add\":{\"path\":\"part-00004.parquet\",\"partitionValues\":{},\"size\":100,\"modificationTime\":123456789,\"dataChange\":true}}";
 
     Files.write(commitFile.toPath(), commitContent.getBytes(StandardCharsets.UTF_8));
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row dummyRow = Row.withSchema(schema).addValues("test-name").build();
+    writeParquetFile(new File(tableDir, "part-00001.parquet"), dummyRow);
+    writeParquetFile(new File(tableDir, "part-00002.parquet"), dummyRow);
+    writeParquetFile(new File(tableDir, "part-00003.parquet"), dummyRow);
+    writeParquetFile(new File(tableDir, "part-00004.parquet"), dummyRow);
 
     PCollection<DeltaReadTask> output =
         writePipeline
