@@ -17,45 +17,40 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
-import java.io.Serializable;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.bson.Document;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * An implementation of {@link TypedSchemaTransformProvider} for reading from MongoDB.
- *
- * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
- * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
- * repository.
- */
+/** An implementation of {@link TypedSchemaTransformProvider} for reading from MongoDB. */
 @AutoService(SchemaTransformProvider.class)
 public class MongoDbReadSchemaTransformProvider
-    extends TypedSchemaTransformProvider<
-        MongoDbReadSchemaTransformProvider.MongoDbReadSchemaTransformConfiguration> {
+    extends TypedSchemaTransformProvider<MongoDbReadSchemaTransformConfiguration> {
 
-  private static final String OUTPUT_TAG = "output";
+  private static final String OUTPUT_TAG_NAME = "output";
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
 
-  @Override
-  protected Class<MongoDbReadSchemaTransformConfiguration> configurationClass() {
-    return MongoDbReadSchemaTransformConfiguration.class;
-  }
+  private static final org.apache.beam.sdk.metrics.Counter errorCounter =
+      org.apache.beam.sdk.metrics.Metrics.counter(
+          MongoDbReadSchemaTransformProvider.class, "MongoDB-read-error-counter");
 
   @Override
   protected SchemaTransform from(MongoDbReadSchemaTransformConfiguration configuration) {
@@ -64,69 +59,17 @@ public class MongoDbReadSchemaTransformProvider
 
   @Override
   public String identifier() {
-    // Return a unique URN for the transform.
     return "beam:schematransform:org.apache.beam:mongodb_read:v1";
   }
 
   @Override
   public List<String> inputCollectionNames() {
-    // A read transform does not have an input PCollection.
     return Collections.emptyList();
   }
 
   @Override
   public List<String> outputCollectionNames() {
-    // The primary output is a PCollection of Rows.
-    // Error handling could be added later with a second "errors" output tag.
-    return Collections.singletonList(OUTPUT_TAG);
-  }
-
-  /** Configuration class for the MongoDB Read transform. */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class MongoDbReadSchemaTransformConfiguration implements Serializable {
-
-    @SchemaFieldDescription("The connection URI for the MongoDB server.")
-    public abstract String getUri();
-
-    @SchemaFieldDescription("The MongoDB database to read from.")
-    public abstract String getDatabase();
-
-    @SchemaFieldDescription("The MongoDB collection to read from.")
-    public abstract String getCollection();
-
-    @SchemaFieldDescription(
-        "An optional BSON filter to apply to the read. This should be a valid JSON string.")
-    @Nullable
-    public abstract String getFilter();
-
-    public void validate() {
-      checkArgument(getUri() != null && !getUri().isEmpty(), "MongoDB URI must be specified.");
-      checkArgument(
-          getDatabase() != null && !getDatabase().isEmpty(), "MongoDB database must be specified.");
-      checkArgument(
-          getCollection() != null && !getCollection().isEmpty(),
-          "MongoDB collection must be specified.");
-    }
-
-    public static Builder builder() {
-      return new AutoValue_MongoDbReadSchemaTransformProvider_MongoDbReadSchemaTransformConfiguration
-          .Builder();
-    }
-
-    /** Builder for the {@link MongoDbReadSchemaTransformConfiguration}. */
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setUri(String uri);
-
-      public abstract Builder setDatabase(String database);
-
-      public abstract Builder setCollection(String collection);
-
-      public abstract Builder setFilter(String filter);
-
-      public abstract MongoDbReadSchemaTransformConfiguration build();
-    }
+    return Collections.singletonList(OUTPUT_TAG_NAME);
   }
 
   /** The {@link SchemaTransform} that performs the read operation. */
@@ -140,54 +83,74 @@ public class MongoDbReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      // A read transform does not have an input, so we start with the pipeline.
-      PCollection<Document> mongoDocs =
-          input
-              .getPipeline()
-              .apply(
-                  "ReadFromMongoDb",
-                  MongoDbIO.read()
-                      .withUri(configuration.getUri())
-                      .withDatabase(configuration.getDatabase())
-                      .withCollection(configuration.getCollection()));
-      // TODO: Add support for .withFilter() if it exists in your MongoDbIO,
-      // using configuration.getFilter().
+      Schema schema = JsonUtils.beamSchemaFromJsonSchema(configuration.getSchema());
 
-      // Convert the BSON Document objects into Beam Row objects.
-      PCollection<Row> beamRows =
-          mongoDocs.apply("ConvertToBeamRows", ParDo.of(new MongoDocumentToRowFn()));
+      MongoDbIO.Read read =
+          MongoDbIO.read()
+              .withUri(configuration.getUri())
+              .withDatabase(configuration.getDatabase())
+              .withCollection(configuration.getCollection());
 
-      return PCollectionRowTuple.of(OUTPUT_TAG, beamRows);
+      final String filterStr = configuration.getFilter();
+      if (filterStr != null) {
+        read =
+            read.withQueryFn(
+                new SerializableFunction<MongoCollection<Document>, MongoCursor<Document>>() {
+                  @Override
+                  public MongoCursor<Document> apply(MongoCollection<Document> collection) {
+                    return collection.find(Document.parse(filterStr)).iterator();
+                  }
+                });
+      }
+
+      PCollection<Document> mongoDocs = input.getPipeline().apply("ReadFromMongoDb", read);
+
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
+      Schema errorSchema = ErrorHandling.errorSchemaBytes();
+
+      PCollectionTuple outputTuple =
+          mongoDocs.apply(
+              "ConvertToBeamRows",
+              ParDo.of(new DocumentToRowFn(schema, handleErrors, errorSchema))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      PCollection<Row> beamRows = outputTuple.get(OUTPUT_TAG).setRowSchema(schema);
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
+
+      PCollectionRowTuple output = PCollectionRowTuple.of(OUTPUT_TAG_NAME, beamRows);
+      ErrorHandling errorHandling = configuration.getErrorHandling();
+      if (handleErrors && errorHandling != null) {
+        output = output.and(errorHandling.getOutput(), errorOutput);
+      }
+      return output;
     }
   }
 
-  /**
-   * A {@link DoFn} to convert a MongoDB {@link Document} to a Beam {@link Row}.
-   *
-   * <p>This is a critical step to ensure data is in a schema-aware format.
-   */
-  private static class MongoDocumentToRowFn extends DoFn<Document, Row> {
-    // TODO: Define the Beam Schema that corresponds to your MongoDB documents.
-    // This could be made dynamic based on an inferred schema or a user-provided schema.
-    // For this skeleton, we assume a static schema.
-    // public static final Schema OUTPUT_SCHEMA = Schema.builder()...build();
+  /** Converts a MongoDB BSON {@link Document} to a Beam {@link Row}. */
+  static class DocumentToRowFn extends DoFn<Document, Row> {
+    private final Schema schema;
+    private final boolean handleErrors;
+    private final Schema errorSchema;
+
+    DocumentToRowFn(Schema schema, boolean handleErrors, Schema errorSchema) {
+      this.schema = schema;
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
+    }
 
     @ProcessElement
-    public void processElement(@Element Document doc, OutputReceiver<Row> out) {
-      // Here you will convert the BSON document to a Beam Row.
-      // This requires you to know the target schema.
-
-      // Example pseudo-code:
-      // Row.Builder rowBuilder = Row.withSchema(OUTPUT_SCHEMA);
-      // for (Map.Entry<String, Object> entry : doc.entrySet()) {
-      //   rowBuilder.addValue(entry.getValue());
-      // }
-      // out.output(rowBuilder.build());
-
-      // For a robust implementation, you would handle data type conversions
-      // between BSON types and Beam schema types.
-      throw new UnsupportedOperationException(
-          "MongoDocumentToRowFn must be implemented to convert MongoDB Documents to Beam Rows.");
+    public void processElement(@Element Document doc, MultiOutputReceiver receiver) {
+      try {
+        receiver.get(OUTPUT_TAG).output(MongoDbUtils.toRow(doc, schema));
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(
+              "Failed to convert BSON Document to Beam Row: " + doc.toJson(), e);
+        }
+        errorCounter.inc();
+        byte[] docBytes = doc.toJson().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, docBytes, e));
+      }
     }
   }
 }

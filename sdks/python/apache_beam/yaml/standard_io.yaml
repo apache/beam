@@ -406,17 +406,22 @@
   config:
     mappings:
       'ReadFromMongoDB':
-        connection_uri: "connection_uri"
+        connection_uri: "uri"
         database: "database"
         collection: "collection"
+        schema: "schema"
+        filter: "filter"
+        error_handling: "errorHandling"
       'WriteToMongoDB':
-        connection_uri: "connection_uri"
+        connection_uri: "uri"
         database: "database"
         collection: "collection"
+        batch_size: "batchSize"
+        error_handling: "errorHandling"
     underlying_provider:
       type: beamJar
       transforms:
-        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:mongodb_read:v1'
-        'WriteToBigTable': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
+        'ReadFromMongoDB': 'beam:schematransform:org.apache.beam:mongodb_read:v1'
+        'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
       config:
-        gradle_target: ':sdks:java:io:mongodb:shadowJar'
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
