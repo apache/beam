@@ -101,7 +101,7 @@ Official [source code download](https://www.apache.org/dyn/closer.lua/beam/2.74.
 [SHA-512](https://downloads.apache.org/beam/2.74.0/apache-beam-2.74.0-source-release.zip.sha512).
 [signature](https://downloads.apache.org/beam/2.74.0/apache-beam-2.74.0-source-release.zip.asc).
 
-[Release notes](https://github.com/apache/beam/releases/tag/v2.71.0)
+[Release notes](https://github.com/apache/beam/releases/tag/v2.74.0)
 
 ### Archived releases
 
@@ -111,7 +111,7 @@ Official [source code download](https://archive.apache.org/dist/beam/2.73.0/apac
 [SHA-512](https://archive.apache.org/dist/beam/2.73.0/apache-beam-2.73.0-source-release.zip.sha512).
 [signature](https://archive.apache.org/dist/beam/2.73.0/apache-beam-2.73.0-source-release.zip.asc).
 
-[Release notes](https://github.com/apache/beam/releases/tag/v2.70.0)
+[Release notes](https://github.com/apache/beam/releases/tag/v2.73.0)
 
 #### 2.72.0 (2026-03-30)
 
@@ -119,7 +119,7 @@ Official [source code download](https://archive.apache.org/dist/beam/2.72.0/apac
 [SHA-512](https://archive.apache.org/dist/beam/2.72.0/apache-beam-2.72.0-source-release.zip.sha512).
 [signature](https://archive.apache.org/dist/beam/2.72.0/apache-beam-2.72.0-source-release.zip.asc).
 
-[Release notes](https://github.com/apache/beam/releases/tag/v2.70.0)
+[Release notes](https://github.com/apache/beam/releases/tag/v2.72.0)
 
 #### 2.71.0 (2026-01-22)
 
@@ -127,7 +127,7 @@ Official [source code download](https://archive.apache.org/dist/beam/2.71.0/apac
 [SHA-512](https://archive.apache.org/dist/beam/2.71.0/apache-beam-2.71.0-source-release.zip.sha512).
 [signature](https://archive.apache.org/dist/beam/2.71.0/apache-beam-2.71.0-source-release.zip.asc).
 
-[Release notes](https://github.com/apache/beam/releases/tag/v2.70.0)
+[Release notes](https://github.com/apache/beam/releases/tag/v2.71.0)
 
 #### 2.70.0 (2025-12-16)
 
