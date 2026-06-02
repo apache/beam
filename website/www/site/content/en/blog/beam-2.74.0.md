@@ -1,11 +1,12 @@
 ---
 title:  "Apache Beam 2.74.0"
-date:   2026-05-?? 9:00:00 -0700
+date:   2026-06-02 14:00:00 -0500
 categories:
   - blog
   - release
 authors:
   - vterentev
+  - yhu
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +22,7 @@ limitations under the License.
 
 We are happy to present the new 2.74.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2740-2026-05-??) for this release.
+See the [download page](/get-started/downloads/#2740-2026-06-02) for this release.
 
 <!--more-->
 
