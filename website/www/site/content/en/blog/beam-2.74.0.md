@@ -64,11 +64,6 @@ For more information on changes in 2.74.0, check out the [detailed release notes
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
 * Added `max_batch_duration_secs` passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to `BatchElements` ([#38243](https://github.com/apache/beam/issues/38243)).
 
-### Security Fixes
-
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-## List of Contributors
-
 According to git shortlog, the following people contributed to the 2.74.0 release. Thank you to all contributors!
 
 Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Andrew Kabas, Arran Cudbard-Bell, Arun Pandian, Asish Kumar, Bentsi Leviav, Blake Jones, Bruno Volpato, Chris Jordan, Danny McCormick, Deji Ibrahim, Derrick Williams, Elia LIU, Ganesh Sivakumar, Jack McCluskey, Kenneth Knowles, Lalit Yadav, M Junaid Shaukat, Matej Aleksandrov, Prabhnoor Singh, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., Sam Whittle, Shunping Huang, Subramanya V, Tarun Annapareddy, Tobias Kaymak, TongruiLi, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, ZIHAN DAI, apanich, bambadiouf1, chenxuesdu, claudevdm, harshadkhetpal, johnjcasey, parveensania, tianz101
