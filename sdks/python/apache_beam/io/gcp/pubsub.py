@@ -573,7 +573,7 @@ class _PubSubWriteDoFn(DoFn):
     self.id_label = transform.id_label
     self.timestamp_attribute = transform.timestamp_attribute
     self.with_attributes = transform.with_attributes
-    self.with_ordering = True
+    self.with_ordering = transform.with_attributes
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
@@ -639,7 +639,7 @@ class _PubSubWriteDoFn(DoFn):
 
   def setup(self):
     from google.cloud import pubsub
-    if self.with_attributes:
+    if self.with_ordering:
       self._pub_client = pubsub.PublisherClient(
           publisher_options=pubsub.types.PublisherOptions(
               enable_message_ordering=True,
