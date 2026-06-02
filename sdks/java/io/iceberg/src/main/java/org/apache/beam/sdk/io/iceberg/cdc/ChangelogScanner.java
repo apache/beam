@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.AddedRowsScanTask;
+import org.apache.iceberg.BaseIncrementalChangelogScan;
 import org.apache.iceberg.ChangelogScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataOperations;
@@ -233,8 +234,7 @@ class ChangelogScanner
     @Nullable Expression filter = scanConfig.getFilter();
 
     IncrementalChangelogScan scan =
-        table
-            .newIncrementalChangelogScan()
+        new BaseIncrementalChangelogScan(table)
             .toSnapshot(snapshotId)
             .project(scanConfig.getProjectedSchema());
     if (fromSnapshotId != null) {
