@@ -39,6 +39,7 @@ import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryStorageWriteApiSchemaTransformProvider.BigQueryStorageWriteApiSchemaTransform;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
@@ -501,6 +502,25 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
         pipelineProto.getComponents().getTransformsMap().values().stream()
             .anyMatch(tr -> tr.getUniqueName().contains("ResdistibuteNumShards"));
     assertTrue(hasFixedNumStreamsRedistribute);
+    p.enableAbandonedNodeEnforcement(false);
+  }
+
+  @Test
+  public void testZeroNumStreamsOverridesPipelineOptionForBoundedStorageApiWrites() {
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(3);
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable("project:dataset.bounded_zero_num_streams")
+            .setNumStreams(0)
+            .build();
+
+    runWithConfig(config);
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    boolean hasFixedNumStreamsRedistribute =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .anyMatch(tr -> tr.getUniqueName().contains("ResdistibuteNumShards"));
+    assertTrue(!hasFixedNumStreamsRedistribute);
     p.enableAbandonedNodeEnforcement(false);
   }
 

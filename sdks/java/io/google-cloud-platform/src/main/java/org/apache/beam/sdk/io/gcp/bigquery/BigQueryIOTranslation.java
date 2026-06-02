@@ -534,7 +534,9 @@ public class BigQueryIOTranslation {
         fieldValues.put("max_file_size", transform.getMaxFileSize());
       }
       fieldValues.put("num_file_shards", transform.getNumFileShards());
-      fieldValues.put("num_storage_write_api_streams", transform.getNumStorageWriteApiStreams());
+      if (transform.isNumStorageWriteApiStreamsConfigured()) {
+        fieldValues.put("num_storage_write_api_streams", transform.getNumStorageWriteApiStreams());
+      }
       fieldValues.put(
           "propagate_successful_storage_api_writes",
           transform.getPropagateSuccessfulStorageApiWrites());
@@ -749,7 +751,10 @@ public class BigQueryIOTranslation {
         }
         Integer numStorageWriteApiStreams = configRow.getInt32("num_storage_write_api_streams");
         if (numStorageWriteApiStreams != null) {
-          builder = builder.setNumStorageWriteApiStreams(numStorageWriteApiStreams);
+          builder =
+              builder
+                  .setNumStorageWriteApiStreams(numStorageWriteApiStreams)
+                  .setNumStorageWriteApiStreamsConfigured(true);
         }
 
         if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") >= 0) {

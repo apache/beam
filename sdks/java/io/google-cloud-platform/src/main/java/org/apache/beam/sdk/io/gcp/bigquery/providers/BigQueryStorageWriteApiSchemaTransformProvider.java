@@ -179,10 +179,11 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       PCollection<Row> inputRows = input.getSinglePCollection();
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform(inputRows.getSchema());
-      int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+      Integer configuredStreams = configuration.getNumStreams();
+      int numStreams = configuredStreams == null ? 0 : configuredStreams;
 
-      if (numStreams > 0) {
-        write = write.withNumStorageWriteApiStreams(numStreams);
+      if (configuredStreams != null) {
+        write = write.withNumStorageWriteApiStreams(configuredStreams);
       }
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {

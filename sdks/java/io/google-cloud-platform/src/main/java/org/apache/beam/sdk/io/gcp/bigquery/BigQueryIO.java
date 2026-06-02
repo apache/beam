@@ -2483,6 +2483,7 @@ public class BigQueryIO {
         .setSchemaUpdateOptions(Collections.emptySet())
         .setNumFileShards(0)
         .setNumStorageWriteApiStreams(0)
+        .setNumStorageWriteApiStreamsConfigured(false)
         .setMethod(Write.Method.DEFAULT)
         .setExtendedErrorInfo(false)
         .setSkipInvalidRows(false)
@@ -2733,6 +2734,8 @@ public class BigQueryIO {
 
     abstract int getNumStorageWriteApiStreams();
 
+    abstract boolean isNumStorageWriteApiStreamsConfigured();
+
     abstract boolean getPropagateSuccessfulStorageApiWrites();
 
     abstract Predicate<String> getPropagateSuccessfulStorageApiWritesPredicate();
@@ -2849,6 +2852,8 @@ public class BigQueryIO {
       abstract Builder<T> setNumFileShards(int numFileShards);
 
       abstract Builder<T> setNumStorageWriteApiStreams(int numStorageApiStreams);
+
+      abstract Builder<T> setNumStorageWriteApiStreamsConfigured(boolean configured);
 
       abstract Builder<T> setPropagateSuccessfulStorageApiWrites(
           boolean propagateSuccessfulStorageApiWrites);
@@ -3405,7 +3410,10 @@ public class BigQueryIO {
      * parallelism as is, set this to zero.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
-      return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
+      return toBuilder()
+          .setNumStorageWriteApiStreams(numStorageWriteApiStreams)
+          .setNumStorageWriteApiStreamsConfigured(true)
+          .build();
     }
 
     /**
@@ -3736,7 +3744,7 @@ public class BigQueryIO {
     }
 
     private int getStorageApiNumStreams(BigQueryOptions options) {
-      if (getNumStorageWriteApiStreams() != 0) {
+      if (isNumStorageWriteApiStreamsConfigured()) {
         return getNumStorageWriteApiStreams();
       }
       return options.getNumStorageWriteApiStreams();
