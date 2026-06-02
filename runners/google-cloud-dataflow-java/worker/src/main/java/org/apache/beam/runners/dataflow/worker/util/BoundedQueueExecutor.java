@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -29,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
@@ -85,7 +87,8 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory,
-      boolean useFairMonitor) {
+      boolean useFairMonitor,
+      boolean useKeyGroupWorkQueue) {
     this.maximumPoolSize = initialMaximumPoolSize;
     monitor = new Monitor(useFairMonitor);
     executor =
@@ -94,7 +97,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            new LinkedBlockingQueue<>(),
+            useKeyGroupWorkQueue ? new KeyGroupWorkQueue() : new LinkedBlockingQueue<>(),
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -313,7 +316,7 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private static final class QueuedWork implements Runnable {
+  static final class QueuedWork implements Runnable {
 
     private final ExecutableWork work;
     private final BoundedQueueExecutorWorkHandleImpl handle;
@@ -376,6 +379,23 @@ public class BoundedQueueExecutor {
   @VisibleForTesting
   BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
     return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
+  }
+
+  /** Poll work for a specific computationId and keyGroup. */
+  public Optional<ExecutableWork> pollWork(
+      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+    checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
+    if (!(executor.getQueue() instanceof KeyGroupWorkQueue)) {
+      return Optional.empty();
+    }
+    QueuedWork queuedWork =
+        ((KeyGroupWorkQueue) executor.getQueue()).pollWork(computationId, keyGroup);
+    if (queuedWork == null) {
+      return Optional.empty();
+    }
+    internalHandle.merge(queuedWork.getHandle());
+    return Optional.of(queuedWork.getWork());
   }
 
   private void decrementCounters(int elements, long bytes) {
