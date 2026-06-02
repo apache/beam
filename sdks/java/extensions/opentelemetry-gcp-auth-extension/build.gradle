@@ -28,9 +28,11 @@ dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   implementation platform(library.java.opentelemetry_bom)
   implementation library.java.google_auth_library_oauth2_http
+  implementation library.java.vendored_guava_32_1_2_jre
   compileOnly library.java.opentelemetry_api
   compileOnly library.java.opentelemetry_extension_autoconfigure
   compileOnly library.java.opentelemetry_exporter_otlp
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
 
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
