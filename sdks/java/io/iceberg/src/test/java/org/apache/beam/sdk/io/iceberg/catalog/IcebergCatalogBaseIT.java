@@ -79,6 +79,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
@@ -532,7 +533,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testStreamingReadWithFilter() throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), CDC_ICEBERG_SCHEMA);
 
     List<Row> expectedRows =
         populateTable(table).stream()
@@ -557,7 +558,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testStreamingReadWithColumnPruning_drop() throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), CDC_ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 
@@ -713,7 +714,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testReadWriteStreaming() throws IOException {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    org.apache.iceberg.Schema schemaWithPk =
+        new org.apache.iceberg.Schema(ICEBERG_SCHEMA.columns(), ImmutableSet.of(1));
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), schemaWithPk);
     List<Row> expectedRows = populateTable(table);
 
     Map<String, Object> config = managedIcebergConfig(tableId());
@@ -1127,7 +1130,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   public void runReadBetween(boolean useSnapshotBoundary, boolean streaming) throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    org.apache.iceberg.Schema schemaWithPk =
+        new org.apache.iceberg.Schema(ICEBERG_SCHEMA.columns(), ImmutableSet.of(1));
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), schemaWithPk);
 
     populateTable(table, "a"); // first snapshot
     Thread.sleep(AFTER_UPDATE_SLEEP_MS);
@@ -1172,13 +1177,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             "1",
             TableProperties.DEFAULT_WRITE_METRICS_MODE,
             "full"));
-  }
-
-  private Map<String, Object> cdcReadConfig(long fromSnapshotId, long toSnapshotId) {
-    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("from_snapshot", fromSnapshotId);
-    config.put("to_snapshot", toSnapshotId);
-    return config;
   }
 
   private static String cdcChange(ValueKind valueKind, Snapshot snapshot, long id, String data) {
