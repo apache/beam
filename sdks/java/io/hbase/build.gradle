@@ -55,7 +55,6 @@ configurations.all {
   resolutionStrategy {
     // TODO: remove after higher version of hbase (>2.6.5) contains this minimum version.
     force 'org.apache.commons:commons-configuration2:2.15.0'
-    force 'commons-io:commons-io:2.19.0'
   }
 }
 
