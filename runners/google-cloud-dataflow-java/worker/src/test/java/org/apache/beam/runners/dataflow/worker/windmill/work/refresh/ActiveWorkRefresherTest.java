@@ -137,7 +137,9 @@ public class ActiveWorkRefresherTest {
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
             false,
             ActiveWorkRefresherTest::aLongTimeAgo),
-        processWork);
+        (work, handle) -> {
+          processWork.accept(work);
+        });
   }
 
   @Test

@@ -77,7 +77,7 @@ public class ComputationStateCacheTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        ignored -> {});
+        (work, handle) -> {});
   }
 
   @Before
