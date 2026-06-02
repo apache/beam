@@ -42,6 +42,7 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import RunInferenceDLQ
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options_context import get_pipeline_options
 
 _LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
@@ -591,7 +592,18 @@ class _JsonPickleTransformAttributeManager(_TransformAttributeManager):
   def load_attributes(artifact_location):
     with FileSystems.open(os.path.join(artifact_location, _ATTRIBUTE_FILE_NAME),
                           'rb') as f:
-      return jsonpickle.decode(f.read())
+      # load_attributes runs eagerly during MLTransform.expand() at pipeline
+      # construction time, so the pipeline's options are available via the
+      # construction-time context.
+      pipeline_options = get_pipeline_options()
+      safe = True
+      if (pipeline_options is not None and
+          pipeline_options.is_compat_version_prior_to("2.75.0")):
+        # Keep the pre-2.75.0 jsonpickle behavior (safe=False permits
+        # eval-based decoding) for backwards compatibility with already-staged
+        # artifacts.
+        safe = False
+      return jsonpickle.decode(f.read(), safe=safe)
 
 
 _transform_attribute_manager = _JsonPickleTransformAttributeManager
