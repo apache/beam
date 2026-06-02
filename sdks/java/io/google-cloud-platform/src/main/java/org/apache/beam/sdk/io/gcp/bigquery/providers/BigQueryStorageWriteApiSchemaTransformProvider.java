@@ -197,7 +197,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       : Duration.standardSeconds(triggeringFrequency));
         }
         // set num streams if specified, otherwise default to autoSharding
-        if (numStreams <= 0 && (autoSharding == null || autoSharding)) {
+        if (numStreams == 0 && (autoSharding == null || autoSharding)) {
           write = write.withAutoSharding();
         }
       }
