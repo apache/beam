@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.Map;
@@ -74,7 +75,14 @@ public class CreateTableHelpers {
       try {
         action.call();
         return;
-      } catch (ApiException | StatusRuntimeException e) {
+      } catch (ApiException | StatusRuntimeException | UncheckedExecutionException e) {
+        // The Storage Write library can wrap errors in UncheckedExecutionException
+        if (e instanceof UncheckedExecutionException) {
+          Throwable cause = e.getCause();
+          if (!(cause instanceof ApiException || cause instanceof StatusRuntimeException)) {
+            throw e;
+          }
+        }
         lastException = e;
         // TODO: Once BigQuery reliably returns a consistent error on table not found, we should
         // only try creating
