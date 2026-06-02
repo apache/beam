@@ -152,8 +152,7 @@ public abstract class BigQueryWriteConfiguration {
   public abstract Boolean getAutoSharding();
 
   @SchemaFieldDescription(
-      "Specifies the number of write streams that the Storage API sink will use. "
-          + "This parameter is only applicable when writing unbounded data.")
+      "Specifies the number of write streams that the Storage API sink will use.")
   @Nullable
   public abstract Integer getNumStreams();
 
