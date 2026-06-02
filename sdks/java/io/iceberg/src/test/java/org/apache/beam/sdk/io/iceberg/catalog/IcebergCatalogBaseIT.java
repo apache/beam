@@ -334,7 +334,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
 
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
-      beamSchemaToIcebergSchema(BEAM_SCHEMA);
+      new org.apache.iceberg.Schema(
+          beamSchemaToIcebergSchema(BEAM_SCHEMA).columns(), Collections.singleton(1));
   private static final org.apache.iceberg.Schema CDC_ICEBERG_SCHEMA =
       new org.apache.iceberg.Schema(
           beamSchemaToIcebergSchema(CDC_BEAM_SCHEMA).columns(), Collections.singleton(1));
@@ -533,7 +534,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testStreamingReadWithFilter() throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), CDC_ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows =
         populateTable(table).stream()
@@ -558,7 +559,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testStreamingReadWithColumnPruning_drop() throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), CDC_ICEBERG_SCHEMA);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
 

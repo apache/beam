@@ -40,6 +40,7 @@ public abstract class ChangelogDescriptor {
     Schema descriptorSchema =
         Schema.builder()
             .addStringField("tableIdentifierString")
+            .addInt64Field("sequenceNumber")
             .addNullableField("overlapLower", Schema.FieldType.row(overlapSchema))
             .addNullableField("overlapUpper", Schema.FieldType.row(overlapSchema))
             .build();
@@ -51,12 +52,14 @@ public abstract class ChangelogDescriptor {
             Row.withSchema(descriptorSchema)
                 .addValues(
                     descriptor.getTableIdentifierString(),
+                    descriptor.getSequenceNumber(),
                     descriptor.getOverlapLower(),
                     descriptor.getOverlapUpper())
                 .build(),
         row ->
             ChangelogDescriptor.builder()
                 .setTableIdentifierString(row.getString("tableIdentifierString"))
+                .setSequenceNumber(row.getInt64("sequenceNumber"))
                 .setOverlapLower(row.getRow("overlapLower"))
                 .setOverlapUpper(row.getRow("overlapUpper"))
                 .build());
@@ -66,14 +69,19 @@ public abstract class ChangelogDescriptor {
   public abstract String getTableIdentifierString();
 
   @SchemaFieldNumber("1")
-  public abstract @Nullable Row getOverlapLower();
+  public abstract long getSequenceNumber();
 
   @SchemaFieldNumber("2")
+  public abstract @Nullable Row getOverlapLower();
+
+  @SchemaFieldNumber("3")
   public abstract @Nullable Row getOverlapUpper();
 
   @AutoValue.Builder
   public abstract static class Builder {
     abstract Builder setTableIdentifierString(String table);
+
+    abstract Builder setSequenceNumber(long sequenceNumber);
 
     abstract Builder setOverlapLower(@Nullable Row overlapLower);
 

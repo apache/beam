@@ -41,8 +41,8 @@ import org.joda.time.Instant;
  * every downstream stage has finished processing that snapshot's records.
  *
  * <p>Two snapshots committed within the same millisecond may collapse into the same window. But
- * that's okay because {@link ReadFromChangelogs} includes snapshot id in the key before routing to
- * the CoGBK, so it won't produce incorrect joins.
+ * that's okay because {@link ReadFromChangelogs} includes snapshot sequence number in the key
+ * before routing to the CoGBK, so it won't produce incorrect joins.
  */
 public class SnapshotWindowFn extends NonMergingWindowFn<Object, IntervalWindow> {
   private static final Duration WINDOW_LENGTH = Duration.millis(1);

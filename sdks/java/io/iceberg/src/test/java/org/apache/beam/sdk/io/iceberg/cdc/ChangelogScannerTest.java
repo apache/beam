@@ -196,11 +196,11 @@ public class ChangelogScannerTest {
     SerializableChangelogTask second = serializableTask("second", 60L);
     SerializableChangelogTask third = serializableTask("third", 1L);
 
-    batcher.add(first, 40L);
-    batcher.add(second, 60L);
+    batcher.add(first, 1L, 40L);
+    batcher.add(second, 1L, 60L);
     assertThat(out.values, empty());
 
-    batcher.add(third, 1L);
+    batcher.add(third, 1L, 1L);
     assertEquals(1, out.values.size());
     batcher.flush();
 
@@ -218,7 +218,7 @@ public class ChangelogScannerTest {
         new ChangelogScanner.TaskBatcher("default.table", 1234L, 100L, out);
     SerializableChangelogTask oversize = serializableTask("oversize", 150L);
 
-    batcher.add(oversize, 150L);
+    batcher.add(oversize, 1L, 150L);
     assertThat(out.values, empty());
 
     batcher.flush();

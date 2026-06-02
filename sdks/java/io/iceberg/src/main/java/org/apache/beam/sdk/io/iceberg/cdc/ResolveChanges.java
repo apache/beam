@@ -34,8 +34,8 @@ import org.apache.iceberg.types.Types;
 import org.joda.time.Instant;
 
 /**
- * Receives a {@link CoGbkResult} containing inserts and deletes sharing the same snapshot ID and
- * Primary Key, and uses {@link CdcResolver} to identify logical updates.
+ * Receives a {@link CoGbkResult} containing inserts and deletes sharing the same snapshot sequence
+ * number and Primary Key, and uses {@link CdcResolver} to identify logical updates.
  */
 class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
   static final TupleTag<Row> DELETES = new TupleTag<>() {};

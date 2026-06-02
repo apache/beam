@@ -77,13 +77,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Records from Bi-directional batches are compared against the Primary Key overlap range:
  *       <ul>
  *         <li>if outside the overlap, emit directly as INSERT or DELETE kind
- *         <li>if inside the overlap, key by (snapshot, pk) and route to downstream {@link
+ *         <li>if inside the overlap, key by (snapshot seq#, pk) and route to downstream {@link
  *             CoGroupByKey} and final resolution by {@link ResolveChanges}
  *       </ul>
  * </ul>
  *
- * <p>We first key bi-directional rows by (snapshot id, primary key) before sending to {@link
- * CoGroupByKey} to ensure they stay isolated from other PKs or snapshots. Inserts are routed to
+ * <p>We first key bi-directional rows by (snapshot sequence number, primary key) before sending to
+ * {@link CoGroupByKey} to ensure they stay isolated from other PKs or snapshots. Inserts are routed
+ * to
  *
  * <p>A {@link ChangelogScanTask} comes in three types:
  *
@@ -243,8 +244,8 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
     }
 
     /**
-     * Used for bi-directional changes. Records are keyed by (snapshot ID, primary key) and sent to
-     * a CoGBK.
+     * Used for bi-directional changes. Records are keyed by (snapshot sequence number, primary key)
+     * and sent to a CoGBK.
      */
     static ReadDoFn<KV<KV<Long, Row>, Row>> bidirectional(IcebergScanConfig scanConfig) {
       return new ReadDoFn<>(scanConfig, true);
@@ -273,8 +274,9 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       Table table = TableCache.get(scanConfig.getTableIdentifier());
 
       List<SerializableChangelogTask> tasks = element.getValue();
-      @Nullable Row overlapLower = element.getKey().getOverlapLower();
-      @Nullable Row overlapUpper = element.getKey().getOverlapUpper();
+      ChangelogDescriptor descriptor = element.getKey();
+      @Nullable Row overlapLower = descriptor.getOverlapLower();
+      @Nullable Row overlapUpper = descriptor.getOverlapUpper();
 
       for (long l = tracker.currentRestriction().getFrom();
           l < tracker.currentRestriction().getTo();
@@ -284,7 +286,8 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         }
 
         SerializableChangelogTask task = tasks.get((int) l);
-        processTaskRecords(task, overlapLower, overlapUpper, table, out);
+        processTaskRecords(
+            descriptor.getSequenceNumber(), task, overlapLower, overlapUpper, table, out);
       }
     }
 
@@ -300,6 +303,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
      * output the record directly to {@link #UNIDIRECTIONAL_ROWS}.
      */
     private void processTaskRecords(
+        long sequenceNumber,
         SerializableChangelogTask task,
         @Nullable Row overlapLowerRow,
         @Nullable Row overlapUpperRow,
@@ -331,10 +335,9 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
             // inside overlap -- read full row and output KV
             Row row = icebergRecordToBeamRow(outputSchema, rec);
             Row pk = structToRow(scanConfig.rowIdBeamSchema(), pkProjector().wrap(rec));
-            long snapshotId = task.getCommitSnapshotId();
             outputReceiver
                 .get(taggedOutput)
-                .builder(KV.of(KV.of(snapshotId, pk), row))
+                .builder(KV.of(KV.of(sequenceNumber, pk), row))
                 .setValueKind(kind)
                 .output();
 

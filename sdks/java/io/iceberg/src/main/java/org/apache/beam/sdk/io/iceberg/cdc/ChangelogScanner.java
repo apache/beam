@@ -332,7 +332,7 @@ class ChangelogScanner
           // non-overwrite tasks are always unidirectional (the scan planner
           // skips REPLACE ops).
           if (!DataOperations.OVERWRITE.equals(snapshot.operation())) {
-            uniBatcher.add(makeTask(task, table), getLength(task));
+            uniBatcher.add(makeTask(task, table), snapshot.sequenceNumber(), getLength(task));
             numUniDirTasks++;
             continue;
           }
@@ -382,7 +382,7 @@ class ChangelogScanner
       AnalysisResult result =
           analyzeFiles(tasks, scanConfig.recordIdSchema(), scanConfig.recordIdComparator());
 
-      uniBatcher.add(result.unidirectional, table);
+      uniBatcher.add(result.unidirectional, snapshot.sequenceNumber(), table);
       numUniDirTasks += result.unidirectional.size();
 
       routeBidirectional(result, largeBiBatcher, multiOutputReceiver);
@@ -402,7 +402,7 @@ class ChangelogScanner
           // If this partition has only uni-directional changes, output to UNIDIRECTIONAL and bypass
           // file analysis
           if (partitionChangeTypes != null && !containsBiDirectionalChanges(partitionChangeTypes)) {
-            uniBatcher.add(tasksInPartition.getValue(), table);
+            uniBatcher.add(tasksInPartition.getValue(), snapshot.sequenceNumber(), table);
             numUniDirTasks += tasksInPartition.getValue().size();
             continue;
           }
@@ -414,7 +414,7 @@ class ChangelogScanner
                   scanConfig.recordIdSchema(),
                   scanConfig.recordIdComparator());
 
-          uniBatcher.add(result.unidirectional, table);
+          uniBatcher.add(result.unidirectional, snapshot.sequenceNumber(), table);
           routeBidirectional(result, largeBiBatcher, multiOutputReceiver);
 
           // metrics
@@ -666,6 +666,7 @@ class ChangelogScanner
     ChangelogDescriptor descriptor =
         ChangelogDescriptor.builder()
             .setTableIdentifierString(scanConfig.getTableIdentifier())
+            .setSequenceNumber(snapshot.sequenceNumber())
             .setOverlapLower(overlapLowerRow)
             .setOverlapUpper(overlapUpperRow)
             .build();
@@ -869,13 +870,16 @@ class ChangelogScanner
       return byteSize + sizeBytes <= maxSplitSize;
     }
 
-    void add(List<ChangelogScanTask> tasks, Table table) {
-      tasks.forEach(t -> add(makeTask(t, table), getLength(t)));
+    void add(List<ChangelogScanTask> tasks, long sequenceNumber, Table table) {
+      tasks.forEach(t -> add(makeTask(t, table), sequenceNumber, getLength(t)));
     }
 
-    void add(SerializableChangelogTask task, long sizeBytes) {
+    void add(SerializableChangelogTask task, long snapshotSequenceNumber, long sizeBytes) {
       add(
-          ChangelogDescriptor.builder().setTableIdentifierString(tableIdentifier).build(),
+          ChangelogDescriptor.builder()
+              .setTableIdentifierString(tableIdentifier)
+              .setSequenceNumber(snapshotSequenceNumber)
+              .build(),
           task,
           sizeBytes);
     }
