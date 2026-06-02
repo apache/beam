@@ -101,6 +101,12 @@ public abstract class BigQueryWriteConfiguration {
 
     Boolean autoSharding = getAutoSharding();
     Integer numStreams = getNumStreams();
+    if (numStreams != null) {
+      checkArgument(
+          numStreams >= 0,
+          invalidConfigMessage + "Number of streams must be non-negative, but was: %s",
+          numStreams);
+    }
     if (autoSharding != null && autoSharding && numStreams != null) {
       checkArgument(
           numStreams == 0,
