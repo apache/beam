@@ -32,11 +32,13 @@ from typing import Optional
 from typing import Union
 
 import fastavro
+import json
 
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
 from apache_beam.coders.row_coder import RowCoder
+from apache_beam.io import mongodbio
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
@@ -754,9 +756,6 @@ def read_from_mongodb(
     bucket_auto: If True, use MongoDB $bucketAuto aggregation to split
       collection into bundles instead of splitVector command.
   """
-  from apache_beam.io import mongodbio
-  import json
-
   if isinstance(schema, str):
     schema = json.loads(schema)
 
@@ -800,8 +799,6 @@ def write_to_mongodb(
     batch_size: Number of documents per bulk_write to MongoDB.
     extra_client_params: Optional MongoClient parameters.
   """
-  from apache_beam.io import mongodbio
-
   def row_to_dict(value):
     if value is None:
       return None
