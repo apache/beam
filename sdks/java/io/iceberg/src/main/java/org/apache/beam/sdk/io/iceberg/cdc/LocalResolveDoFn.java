@@ -154,7 +154,6 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
           }
         } else { // safe to emit directly
           emit(rec, isInsert ? ValueKind.INSERT : ValueKind.DELETE, out);
-          logEmit(isInsert ? ValueKind.INSERT : ValueKind.DELETE, rec);
         }
       }
     }
@@ -170,7 +169,6 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
           group.inserts,
           (kind, rec) -> {
             emit(rec, kind, out);
-            logEmit(kind, rec);
           });
     }
   }
@@ -204,24 +202,6 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
     @Override
     protected boolean nonPkEquals(Record delete, Record insert) {
       return nonPkComparator.compare(left.wrap(delete), right.wrap(insert)) == 0;
-    }
-  }
-
-  /** Debug-only logging hook so the existing CoW / update / extra prints survive the refactor. */
-  private static void logEmit(ValueKind kind, Record rec) {
-    switch (kind) {
-      case UPDATE_BEFORE:
-        System.out.printf("[LOCAL_RESOLVE] -- UpdateBefore:%n\t%s%n", rec);
-        break;
-      case UPDATE_AFTER:
-        System.out.printf("[LOCAL_RESOLVE] -- UpdateAfter%n\t%s%n", rec);
-        break;
-      case DELETE:
-        System.out.printf("[LOCAL_RESOLVE] -- Deleted%n%s%n", rec);
-        break;
-      case INSERT:
-        System.out.printf("[LOCAL_RESOLVE] -- Added%n%s%n", rec);
-        break;
     }
   }
 

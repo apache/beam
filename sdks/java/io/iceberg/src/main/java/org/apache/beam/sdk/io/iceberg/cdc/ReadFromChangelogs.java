@@ -338,16 +338,10 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
                 .setValueKind(kind)
                 .output();
 
-            System.out.printf(
-                "[LARGE BIIDIRECTIONAL OVERLAP] -- %s(%s)%n%s%n",
-                getKind(task.getType()), snapshotId, row);
           } else {
             // outside overlap -- get projected record and output
             StructLike projected = outputProjector().wrap(rec);
             Row row = structToRow(projectedBeamRowSchema, projected);
-            System.out.printf(
-                "[LARGE BIIDIRECTIONAL NO-OVERLAP] -- %s(%s)%n%s%n",
-                getKind(task.getType()), task.getCommitSnapshotId(), row);
             outputReceiver.get(UNIDIRECTIONAL_ROWS).builder(row).setValueKind(kind).output();
           }
         }

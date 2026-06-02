@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static java.lang.String.format;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.Type.ADDED_ROWS;
-import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getAddedDeleteFiles;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getDataFile;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getLength;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getPartition;
@@ -83,7 +82,6 @@ import org.apache.iceberg.util.PropertyUtil;
 import org.apache.iceberg.util.StructLikeMap;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,8 +219,6 @@ class ChangelogScanner
   @ProcessElement
   public void process(@Element Long snapshotId, MultiOutputReceiver out) throws IOException {
     resetLocalMetrics();
-    long millis = System.currentTimeMillis();
-    System.out.println("xxx started processing at: " + Instant.ofEpochMilli(millis));
     // not using getRefreshed because upstream Watch should have already refreshed the
     // table to a state where this snapshot exists
     this.table = SerializableTable.copyOf(TableCache.get(scanConfig.getTableIdentifier()));
@@ -258,10 +254,6 @@ class ChangelogScanner
     scan = maybeIncludeColumnStats(scan, table);
 
     createAndOutputReadTasks(scan, out);
-    long endMillis = System.currentTimeMillis();
-    System.out.printf(
-        "xxx finished processing (%s) after: %s seconds%n",
-        Instant.ofEpochMilli(endMillis), Duration.millis(endMillis - millis).getStandardSeconds());
   }
 
   private IncrementalChangelogScan maybeIncludeColumnStats(
@@ -347,15 +339,6 @@ class ChangelogScanner
 
           // Overwrite tasks need further analysis — buffer for post-loop processing
           overwriteTasks.add(spec, partition, task);
-
-          // TODO: remove debug printing
-          System.out.printf("\tBuffering overwrite task with partition '%s':%n", partition);
-          System.out.printf(
-              "\t\t(%s) DF: %s%n",
-              task.getClass().getSimpleName(), name(getDataFile(task).location()));
-          for (DeleteFile delf : getAddedDeleteFiles(task)) {
-            System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
-          }
         }
       }
     }
@@ -403,17 +386,6 @@ class ChangelogScanner
       numUniDirTasks += result.unidirectional.size();
 
       routeBidirectional(result, largeBiBatcher, multiOutputReceiver);
-
-      // TODO: remove debug printing
-      System.out.println("\t\tUnpinned spec:");
-      for (ChangelogScanTask task : tasks) {
-        System.out.printf(
-            "\t\t\t(%s) DF: %s%n",
-            task.getClass().getSimpleName(), name(getDataFile(task).location()));
-        for (DeleteFile delf : getAddedDeleteFiles(task)) {
-          System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
-        }
-      }
     } else {
       // Records are pinned to partition.
       // Narrow down by comparing the files within each partition independently.
@@ -448,17 +420,6 @@ class ChangelogScanner
           // metrics
           numUniDirTasks += result.unidirectional.size();
           numLargeBiDirTasks += result.bidirectional.size();
-
-          // TODO: remove debug printing
-          System.out.printf("\t\tPinned Partition '%s' bidirectional:%n", partition);
-          for (ChangelogScanTask task : tasksInPartition.getValue()) {
-            System.out.printf(
-                "\t\t\t(%s) DF: %s%n",
-                task.getClass().getSimpleName(), name(getDataFile(task).location()));
-            for (DeleteFile delf : getAddedDeleteFiles(task)) {
-              System.out.println("\t\t\tAdded DelF: " + name(delf.location()));
-            }
-          }
         }
       }
     }
@@ -628,31 +589,11 @@ class ChangelogScanner
     List<ChangelogScanTask> bidirectional = new ArrayList<>();
 
     for (TaskAndBounds taskAndBounds : Iterables.concat(deleteTasks, insertTasks)) {
-      String msg = "";
       if (taskAndBounds.overlaps) {
-        msg +=
-            format(
-                "overlapping task: (%s, %s)",
-                taskAndBounds.task.commitSnapshotId(),
-                taskAndBounds.task.getClass().getSimpleName());
         bidirectional.add(taskAndBounds.task);
       } else {
         unidirectional.add(taskAndBounds.task);
-        msg +=
-            format(
-                "NON-overlapping task: (%s, %s)",
-                taskAndBounds.task.commitSnapshotId(),
-                taskAndBounds.task.getClass().getSimpleName());
       }
-      msg += "\n\tDF: " + name(getDataFile(taskAndBounds.task).location());
-      msg += "\n\t\tlower: " + taskAndBounds.lowerId + ", upper: " + taskAndBounds.upperId;
-      if (!getAddedDeleteFiles(taskAndBounds.task).isEmpty()) {
-        for (DeleteFile df : getAddedDeleteFiles(taskAndBounds.task)) {
-          msg += "\n\tAdded DelF: " + name(df.location());
-          msg += "\n\t\tlower: " + taskAndBounds.lowerId + ", upper: " + taskAndBounds.upperId;
-        }
-      }
-      System.out.println(msg);
     }
 
     StructLike overlapLower = null;
@@ -740,9 +681,6 @@ class ChangelogScanner
       multiOutputReceiver
           .get(SMALL_BIDIRECTIONAL_TASKS)
           .outputWithTimestamp(KV.of(descriptor, serializedTasks), ts);
-      System.out.printf(
-          "xxx LOCAL_RESOLVE (snap=%d, %d tasks, ~%d total bytes)%n",
-          snapshot.snapshotId(), result.bidirectional.size(), totalBytes);
       numSmallBiDirTasks += result.bidirectional.size();
       numSmallBiDirSplits++;
       return;
@@ -752,9 +690,6 @@ class ChangelogScanner
     for (SerializableChangelogTask t : serializedTasks) {
       largeBiBatcher.add(descriptor, t, t.getLength());
     }
-    System.out.printf(
-        "xxx BIDIRECTIONAL (snap=%d, %d tasks, ~%d total bytes)%n",
-        snapshot.snapshotId(), result.bidirectional.size(), totalBytes);
   }
 
   private static SerializableChangelogTask makeTask(ChangelogScanTask task, Table table) {

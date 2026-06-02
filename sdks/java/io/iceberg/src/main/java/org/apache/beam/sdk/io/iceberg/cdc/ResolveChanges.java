@@ -29,7 +29,6 @@ import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.types.Types;
 import org.joda.time.Instant;
@@ -73,7 +72,6 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
             (kind, row) -> {
               Row projectedRow = rowFilter.filter(row);
               out.builder(projectedRow).setValueKind(kind).setTimestamp(timestamp).output();
-              logEmit(kind, row);
             });
   }
 
@@ -114,24 +112,6 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
         }
       }
       return true;
-    }
-  }
-
-  /** Debug-only logging hook so the existing CoW / update / extra prints survive the refactor. */
-  private static void logEmit(ValueKind kind, Row row) {
-    switch (kind) {
-      case UPDATE_BEFORE:
-        System.out.printf("[BIDIRECTIONAL] -- UpdateBefore:%n\t%s%n", row);
-        break;
-      case UPDATE_AFTER:
-        System.out.printf("[BIDIRECTIONAL] -- UpdateAfter%n\t%s%n", row);
-        break;
-      case DELETE:
-        System.out.printf("[BIDIRECTIONAL] -- Deleted%n%s%n", row);
-        break;
-      case INSERT:
-        System.out.printf("[BIDIRECTIONAL] -- Inserted%n%s%n", row);
-        break;
     }
   }
 }
