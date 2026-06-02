@@ -835,8 +835,8 @@ TableSchema schema = new TableSchema().setFields(
 {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_schema >}}
 {{< /highlight >}}
 
-For streaming pipelines, you need to set two additional parameters: the number
-of streams and the triggering frequency.
+For streaming pipelines, you need to set the triggering frequency. You can also
+set the number of streams for both batch and streaming pipelines.
 
 {{< highlight java >}}
 BigQueryIO.writeTableRows()
@@ -855,7 +855,8 @@ pipeline uses. You can set it explicitly on the transform via
 [`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
 or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
 [`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
-Please note this is only supported for streaming pipelines.
+For batch pipelines, a non-zero stream count inserts a redistribute; set it to
+0 or leave it unspecified to keep the pipeline parallelism as is.
 
 Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via
@@ -874,10 +875,10 @@ pipelines.
 
 {{< paragraph class="language-java" wrap="span">}}
 Similar to streaming inserts, `STORAGE_WRITE_API` supports dynamically determining
-the number of parallel streams to write to BigQuery (starting 2.42.0). You can
-explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
+the number of parallel streams to write to BigQuery for streaming pipelines
+(starting 2.42.0). You can explicitly enable this using [`withAutoSharding`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withAutoSharding--).
 
-`STORAGE_WRITE_API` defaults to dynamic sharding when
+For streaming writes, `STORAGE_WRITE_API` defaults to dynamic sharding when
 `numStorageWriteApiStreams` is set to 0 or is unspecified.
 
 {{< /paragraph >}}

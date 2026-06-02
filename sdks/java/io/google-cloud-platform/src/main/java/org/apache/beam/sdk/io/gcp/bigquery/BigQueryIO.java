@@ -3401,7 +3401,7 @@ public class BigQueryIO {
      * runner determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()}
      * instead.
      *
-     * <p>For batch pipelines, it inserts a redistribute. To not reshufle and keep the pipeline
+     * <p>For batch pipelines, it inserts a redistribute. To not reshuffle and keep the pipeline
      * parallelism as is, set this to zero.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
@@ -3834,13 +3834,9 @@ public class BigQueryIO {
           LOG.warn(
               "Setting the triggering frequency is only applicable to an unbounded PCollection.");
         }
-        if (getStorageApiNumStreams(bqOptions) != 0) {
-          LOG.warn(
-              "Setting the number of Storage API streams is only applicable to an unbounded PCollection.");
-        }
       }
 
-      if (method == Method.STORAGE_API_AT_LEAST_ONCE && getStorageApiNumStreams(bqOptions) != 0) {
+      if (method != Method.STORAGE_WRITE_API && getStorageApiNumStreams(bqOptions) != 0) {
         LOG.warn(
             "Setting a number of Storage API streams is only supported when using STORAGE_WRITE_API");
       }

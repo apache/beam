@@ -102,7 +102,7 @@ public interface BigQueryOptions
   void setUseStorageWriteApiAtLeastOnce(Boolean value);
 
   @Description(
-      "When writing with a streaming pipeline, the BigQueryIO.Write will default to using this number of Storage Write API streams. ")
+      "When writing with STORAGE_WRITE_API, BigQueryIO.Write will default to using this number of Storage Write API streams. ")
   @Default.Integer(0)
   Integer getNumStorageWriteApiStreams();
 

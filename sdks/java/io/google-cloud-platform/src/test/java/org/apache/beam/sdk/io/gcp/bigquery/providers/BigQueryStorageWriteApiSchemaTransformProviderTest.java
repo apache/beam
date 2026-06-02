@@ -484,6 +484,24 @@ public class BigQueryStorageWriteApiSchemaTransformProviderTest {
   }
 
   @Test
+  public void testNumStreamsAppliesToBoundedStorageApiWrites() {
+    BigQueryWriteConfiguration config =
+        BigQueryWriteConfiguration.builder()
+            .setTable("project:dataset.bounded_fixed_num_streams")
+            .setNumStreams(3)
+            .build();
+
+    runWithConfig(config);
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
+    boolean hasFixedNumStreamsRedistribute =
+        pipelineProto.getComponents().getTransformsMap().values().stream()
+            .anyMatch(tr -> tr.getUniqueName().contains("ResdistibuteNumShards"));
+    assertTrue(hasFixedNumStreamsRedistribute);
+    p.enableAbandonedNodeEnforcement(false);
+  }
+
+  @Test
   public void testManagedChoosesStorageApiForUnboundedWrites() {
     PCollection<Row> batchInput =
         p.apply(TestStream.create(SCHEMA).addElements(ROWS.get(0)).advanceWatermarkToInfinity());

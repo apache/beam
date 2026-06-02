@@ -179,11 +179,15 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       PCollection<Row> inputRows = input.getSinglePCollection();
 
       BigQueryIO.Write<Row> write = createStorageWriteApiTransform(inputRows.getSchema());
+      int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
+
+      if (numStreams > 0) {
+        write = write.withNumStorageWriteApiStreams(numStreams);
+      }
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
         Boolean autoSharding = configuration.getAutoSharding();
-        int numStreams = configuration.getNumStreams() == null ? 0 : configuration.getNumStreams();
 
         boolean useAtLeastOnceSemantics =
             configuration.getUseAtLeastOnceSemantics() != null
@@ -196,10 +200,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       ? DEFAULT_TRIGGERING_FREQUENCY
                       : Duration.standardSeconds(triggeringFrequency));
         }
-        // set num streams if specified, otherwise default to autoSharding
-        if (numStreams > 0) {
-          write = write.withNumStorageWriteApiStreams(numStreams);
-        } else if (autoSharding == null || autoSharding) {
+        // Default to autoSharding for unbounded writes when a fixed stream count is not specified.
+        if (numStreams <= 0 && (autoSharding == null || autoSharding)) {
           write = write.withAutoSharding();
         }
       }
