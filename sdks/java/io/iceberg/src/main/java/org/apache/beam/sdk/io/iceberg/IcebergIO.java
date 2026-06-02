@@ -572,6 +572,8 @@ public class IcebergIO {
 
     abstract @Nullable String getWatermarkColumn();
 
+    abstract @Nullable String getWatermarkColumnTimeUnit();
+
     abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
 
     abstract Builder toBuilder();
@@ -605,6 +607,8 @@ public class IcebergIO {
       abstract Builder setFilter(@Nullable String filter);
 
       abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
+
+      abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
 
       abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
@@ -663,6 +667,10 @@ public class IcebergIO {
       return toBuilder().setWatermarkColumn(watermarkColumn).build();
     }
 
+    public ReadRows withWatermarkColumnTimeUnit(@Nullable String timeUnit) {
+      return toBuilder().setWatermarkColumnTimeUnit(timeUnit).build();
+    }
+
     public ReadRows withMaxSnapshotDiscoveryDelay(@Nullable Duration delay) {
       return toBuilder().setMaxSnapshotDiscoveryDelay(delay).build();
     }
@@ -699,6 +707,7 @@ public class IcebergIO {
               .setDropFields(getDrop())
               .setFilterString(getFilter())
               .setWatermarkColumn(getWatermarkColumn())
+              .setWatermarkColumnTimeUnit(getWatermarkColumnTimeUnit())
               .setMaxSnapshotDiscoveryDelay(getMaxSnapshotDiscoveryDelay())
               .build();
       scanConfig.validate(table);

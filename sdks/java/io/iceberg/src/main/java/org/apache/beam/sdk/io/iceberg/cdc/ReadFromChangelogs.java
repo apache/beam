@@ -33,6 +33,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
 import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
@@ -401,16 +402,28 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       }
     }
 
+    private static final int COMPRESSED_TO_DECODED_BYTES_ESTIMATE = 4;
+
     @GetSize
     public double getSize(
         @Element KV<ChangelogDescriptor, List<SerializableChangelogTask>> element,
         @Restriction OffsetRange restriction) {
-      // TODO(ahmedabu98): this is just the compressed DataFile byte size. find a way to make a
-      // better byte size estimate
+      // TODO(ahmedabu98): can we make this estimate more accurate?
       long size = 0;
 
       for (long l = restriction.getFrom(); l < restriction.getTo(); l++) {
-        size += element.getValue().get((int) l).getDataFile().getFileSizeInBytes();
+        SerializableChangelogTask task = element.getValue().get((int) l);
+        size += task.getDataFile().getFileSizeInBytes() * COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
+        size +=
+            task.getAddedDeletes().stream()
+                    .mapToLong(SerializableDeleteFile::getFileSizeInBytes)
+                    .sum()
+                * COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
+        size +=
+            task.getExistingDeletes().stream()
+                    .mapToLong(SerializableDeleteFile::getFileSizeInBytes)
+                    .sum()
+                * COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
       }
 
       return size;
@@ -422,15 +435,13 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       return new OffsetRange(0, element.getValue().size());
     }
 
-    // commenting out for now because i think doing max split will lead to OOMs,
-    // each thread will try to buffer its task in memory at the same time
-    //    @SplitRestriction
-    //    public void splitRestriction(
-    //        @Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
-    //      // Split into individual tasks for maximum initial parallelism
-    //      for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-    //        out.output(new OffsetRange(i, i + 1));
-    //      }
-    //    }
+    @SplitRestriction
+    public void splitRestriction(
+        @Restriction OffsetRange restriction, OutputReceiver<OffsetRange> out) {
+      // Split into individual tasks for maximum initial parallelism
+      for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+        out.output(new OffsetRange(i, i + 1));
+      }
+    }
   }
 }

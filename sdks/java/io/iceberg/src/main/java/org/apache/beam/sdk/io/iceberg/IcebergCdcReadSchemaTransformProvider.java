@@ -119,7 +119,8 @@ public class IcebergCdcReadSchemaTransformProvider
               .keeping(configuration.getKeep())
               .dropping(configuration.getDrop())
               .withFilter(configuration.getFilter())
-              .withWatermarkColumn(configuration.getWatermarkColumn());
+              .withWatermarkColumn(configuration.getWatermarkColumn())
+              .withWatermarkColumnTimeUnit(configuration.getWatermarkColumnTimeUnit());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -206,6 +207,11 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable String getWatermarkColumn();
 
     @SchemaFieldDescription(
+        "Time unit used to interpret watermark column of type LONG. One of NANOSECONDS, MICROSECONDS, "
+            + "MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS. Defaults to MICROSECONDS.")
+    abstract @Nullable String getWatermarkColumnTimeUnit();
+
+    @SchemaFieldDescription(
         "Maximum expected snapshot discovery delay in seconds. While idle, the source may advance "
             + "the watermark to now() minus this delay; snapshots discovered later with older commit "
             + "timestamps may be treated as late by downstream windowing. Default: 600 seconds.")
@@ -242,6 +248,8 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setFilter(String filter);
 
       abstract Builder setWatermarkColumn(String watermarkColumn);
+
+      abstract Builder setWatermarkColumnTimeUnit(String timeUnit);
 
       abstract Builder setMaxSnapshotDiscoveryDelay(Long seconds);
 

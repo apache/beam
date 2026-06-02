@@ -226,9 +226,16 @@ class ChangelogScanner
     // not using getRefreshed because upstream Watch should have already refreshed the
     // table to a state where this snapshot exists
     this.table = SerializableTable.copyOf(TableCache.get(scanConfig.getTableIdentifier()));
-    this.snapshot =
-        checkStateNotNull(
-            table.snapshot(snapshotId), "Could not retrieve table snapshot: %s", snapshotId);
+    this.snapshot = table.snapshot(snapshotId);
+
+    // refresh on miss
+    if (this.snapshot == null) {
+      this.table =
+          SerializableTable.copyOf(TableCache.getRefreshed(scanConfig.getTableIdentifier()));
+      this.snapshot =
+          checkStateNotNull(
+              table.snapshot(snapshotId), "Could not retrieve table snapshot: %s", snapshotId);
+    }
 
     @Nullable Long fromSnapshotId = snapshot.parentId();
     @Nullable Expression filter = scanConfig.getFilter();
@@ -587,8 +594,8 @@ class ChangelogScanner
       TaskAndBounds lastDelete = deleteTasks.stream().max(upperBoundComp).orElseThrow();
 
       boolean overlapExists =
-          idComp.compare(firstDelete.lowerId, lastInsert.upperId) < 0
-              && idComp.compare(firstInsert.lowerId, lastDelete.upperId) < 0;
+          idComp.compare(firstDelete.lowerId, lastInsert.upperId) <= 0
+              && idComp.compare(firstInsert.lowerId, lastDelete.upperId) <= 0;
 
       if (overlapExists) {
         // Iterate through inserts and only check relevant deletes

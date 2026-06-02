@@ -103,7 +103,7 @@ public class ApplyWatermarkColumnTest {
             .apply(
                 Create.timestamped(TimestampedValue.of(row, inputTimestamp))
                     .withCoder(RowCoder.of(schema)))
-            .apply(ParDo.of(new ApplyWatermarkColumn("wm")));
+            .apply(ParDo.of(new ApplyWatermarkColumn("wm", "microseconds")));
     output.setCoder(RowCoder.of(schema));
 
     PAssert.that(output.apply(Reify.timestamps()))
@@ -120,7 +120,8 @@ public class ApplyWatermarkColumnTest {
     assertThrows(
         UnsupportedOperationException.class,
         () -> {
-          try (DoFnTester<Row, Row> tester = DoFnTester.of(new ApplyWatermarkColumn("wm"))) {
+          try (DoFnTester<Row, Row> tester =
+              DoFnTester.of(new ApplyWatermarkColumn("wm", "microseconds"))) {
             tester.processElement(row);
           }
         });
@@ -134,7 +135,8 @@ public class ApplyWatermarkColumnTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> {
-          try (DoFnTester<Row, Row> tester = DoFnTester.of(new ApplyWatermarkColumn("wm"))) {
+          try (DoFnTester<Row, Row> tester =
+              DoFnTester.of(new ApplyWatermarkColumn("wm", "microseconds"))) {
             tester.processElement(row);
           }
         });
@@ -145,7 +147,8 @@ public class ApplyWatermarkColumnTest {
     PCollection<Row> output =
         pipeline
             .apply(name + "Create", Create.of(row).withCoder(RowCoder.of(schema)))
-            .apply(name + "ApplyWatermark", ParDo.of(new ApplyWatermarkColumn("wm")));
+            .apply(
+                name + "ApplyWatermark", ParDo.of(new ApplyWatermarkColumn("wm", "microseconds")));
     output.setCoder(RowCoder.of(schema));
 
     PCollection<TimestampedValue<Row>> timestamps =

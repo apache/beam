@@ -61,6 +61,13 @@ import org.joda.time.Instant;
  * An Iceberg source that incrementally reads a table's changelogs, processing one snapshot at a
  * time.
  *
+ * <p>Each snapshot is resolved independently. For a given primary key, this source emits the <b>net
+ * change</b> the snapshot produces, and not its intermediate states.
+ *
+ * <p>Implications: if a writer batches several transitions for the same PK into one snapshot (for
+ * example {@code A → B, then B → C}), only the endpoints survive. The intermediate {@code B} is
+ * dropped. A round-trip within a single snapshot (for example {@code A → B → A}) is also dropped.
+ *
  * <p>The streaming path uses {@link WatchForSnapshotsSdf} for proper per-snapshot watermarks. The
  * bounded path creates the snapshot range up front.
  */
@@ -154,7 +161,10 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
     if (watermarkColumn != null) {
       merged =
           merged.apply(
-              "Apply Watermark Column", ParDo.of(new ApplyWatermarkColumn(watermarkColumn)));
+              "Apply Watermark Column",
+              ParDo.of(
+                  new ApplyWatermarkColumn(
+                      watermarkColumn, scanConfig.getWatermarkColumnTimeUnit())));
     }
 
     return merged.setRowSchema(projectedRowSchema);

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,9 +45,11 @@ import org.joda.time.Instant;
  */
 class ApplyWatermarkColumn extends DoFn<Row, Row> {
   private final String watermarkColumn;
+  private final TimeUnit timeUnit;
 
-  ApplyWatermarkColumn(String watermarkColumn) {
+  ApplyWatermarkColumn(String watermarkColumn, @Nullable String timeUnit) {
     this.watermarkColumn = watermarkColumn;
+    this.timeUnit = timeUnit != null ? TimeUnit.valueOf(timeUnit.toUpperCase()) : MICROSECONDS;
   }
 
   @ProcessElement
@@ -67,7 +70,7 @@ class ApplyWatermarkColumn extends DoFn<Row, Row> {
     }
     switch (field.getType().getTypeName()) {
       case INT64:
-        return Instant.ofEpochMilli(MICROSECONDS.toMillis((Long) value));
+        return Instant.ofEpochMilli(timeUnit.toMillis((Long) value));
       case DATETIME:
         return (Instant) value;
       case LOGICAL_TYPE:

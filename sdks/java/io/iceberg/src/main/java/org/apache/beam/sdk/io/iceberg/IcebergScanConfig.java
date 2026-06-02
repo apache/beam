@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
@@ -28,12 +29,14 @@ import static org.apache.iceberg.types.Type.TypeID.TIMESTAMP;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -48,6 +51,7 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.types.Comparators;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.util.SnapshotUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -260,6 +264,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable String getWatermarkColumn();
 
   @Pure
+  public abstract @Nullable String getWatermarkColumnTimeUnit();
+
+  @Pure
   public abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
 
   @Pure
@@ -350,6 +357,8 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
 
+    public abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
+
     public abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
     public abstract IcebergScanConfig build();
@@ -358,6 +367,7 @@ public abstract class IcebergScanConfig implements Serializable {
   @VisibleForTesting
   abstract Builder toBuilder();
 
+  @SuppressWarnings("ReturnValueIgnored")
   void validate(Table table) {
     @Nullable List<String> keep = getKeepFields();
     @Nullable List<String> drop = getDropFields();
@@ -455,6 +465,13 @@ public abstract class IcebergScanConfig implements Serializable {
           error("configured end snapshot does not exist: '%s'"),
           toSnapshotId);
     }
+    if (fromSnapshotId != null && toSnapshotId != null) {
+      checkArgument(
+          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
+          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
+          fromSnapshotId,
+          toSnapshotId);
+    }
 
     if (getPollInterval() != null) {
       checkArgument(
@@ -480,6 +497,31 @@ public abstract class IcebergScanConfig implements Serializable {
       checkArgumentNotNull(
           getProjectedSchema().findField(watermarkColumn),
           "'watermark_column' column should not be dropped.");
+    }
+
+    @Nullable String watermarkColumnTimeUnit = getWatermarkColumnTimeUnit();
+    if (watermarkColumnTimeUnit != null) {
+      checkArgument(
+          table
+                  .schema()
+                  .findField(
+                      checkStateNotNull(
+                          watermarkColumn,
+                          "watermark_column_time_unit is configured without a specified watermark_column"))
+                  .type()
+                  .typeId()
+              == LONG,
+          error("watermark_column_time_unit is only applicable for LONG columns."));
+      try {
+        TimeUnit.valueOf(watermarkColumnTimeUnit.toUpperCase());
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+            error(
+                String.format(
+                    "watermark_column_time_unit '%s' is invalid. Please choose one of: %s",
+                    watermarkColumnTimeUnit, Arrays.toString(TimeUnit.values()))),
+            e);
+      }
     }
   }
 
