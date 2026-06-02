@@ -45,6 +45,7 @@ import org.apache.iceberg.expressions.ResidualEvaluator;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.util.ContentFileUtil;
 import org.apache.iceberg.util.Pair;
+import org.apache.iceberg.util.PartitionMap;
 import org.apache.iceberg.util.PartitionSet;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.apache.iceberg.util.SortedMerge;
@@ -53,12 +54,32 @@ import org.apache.iceberg.util.Tasks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Copied over from <a href="https://github.com/apache/iceberg/pull/14264/">Iceberg PR #14264</a>.
+ */
 @SuppressWarnings("nullness")
 public class BaseIncrementalChangelogScan
     extends BaseIncrementalScan<
         IncrementalChangelogScan, ChangelogScanTask, ScanTaskGroup<ChangelogScanTask>>
     implements IncrementalChangelogScan {
-  private static final DeleteFileIndex EMPTY = DeleteFileIndex.builderFor(null).build();
+  private static final DeleteFileIndex EMPTY = createEmptyInstance();
+
+  private static DeleteFileIndex createEmptyInstance() {
+    try {
+      var constructor =
+          DeleteFileIndex.class.getDeclaredConstructor(
+              DeleteFileIndex.EqualityDeletes.class,
+              PartitionMap.class,
+              PartitionMap.class,
+              Map.class,
+              Map.class);
+      constructor.setAccessible(true);
+      return constructor.newInstance(null, null, null, null, null);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize EMPTY DeleteFileIndex", e);
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(BaseIncrementalChangelogScan.class);
 
   public BaseIncrementalChangelogScan(Table table) {

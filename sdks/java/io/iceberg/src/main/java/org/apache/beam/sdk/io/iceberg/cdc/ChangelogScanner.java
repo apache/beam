@@ -233,6 +233,8 @@ class ChangelogScanner
     @Nullable Long fromSnapshotId = snapshot.parentId();
     @Nullable Expression filter = scanConfig.getFilter();
 
+    // TODO(ahmedabu98): replace this with table.newIncrementalChangelogScan() when
+    //  https://github.com/apache/iceberg/pull/14264/ gets merged and released.
     IncrementalChangelogScan scan =
         new BaseIncrementalChangelogScan(table)
             .toSnapshot(snapshotId)
