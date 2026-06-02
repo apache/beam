@@ -17,18 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableCell;
+import com.google.cloud.bigquery.storage.v1.BigQuerySchemaUtil;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
 import com.google.protobuf.UnknownFieldSet;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -247,24 +251,29 @@ public class UpgradeTableSchema {
   }
 
   public static boolean isPayloadSchemaOutOfDate(
-      StorageApiWritePayload payload,
+      byte @Nullable [] payloadSchemaHash,
+      Supplier<byte[]> payloadSupplier,
       ThrowingSupplier<byte[]> schemaHash,
       ThrowingSupplier<Descriptors.Descriptor> schemaDescriptor)
       throws Exception {
-    byte @Nullable [] payloadSchemaHash = payload.getSchemaHash();
     if (payloadSchemaHash != null) {
       // Schema hash is only included in the payload if schema update options are set.
       HashCode lhs = HashCode.fromBytes(payloadSchemaHash);
       HashCode rhs = HashCode.fromBytes(schemaHash.get());
       if (!lhs.equals(rhs)) {
-        DynamicMessage msg =
-            DynamicMessage.newBuilder(schemaDescriptor.get())
-                .mergeFrom(payload.getPayload())
-                .buildPartial();
-        return !msg.isInitialized() || hasUnknownFields(msg);
+        return isPayloadSchemaOutOfDate(payloadSupplier, schemaDescriptor);
       }
     }
     return false;
+  }
+
+  public static boolean isPayloadSchemaOutOfDate(
+      Supplier<byte[]> payloadSupplier, ThrowingSupplier<Descriptors.Descriptor> schemaDescriptor)
+      throws Exception {
+    Descriptors.Descriptor descriptor = schemaDescriptor.get();
+    byte[] payload = payloadSupplier.get();
+    DynamicMessage msg = DynamicMessage.newBuilder(descriptor).mergeFrom(payload).buildPartial();
+    return !msg.isInitialized() || hasUnknownFields(msg);
   }
 
   private static boolean hasUnknownFields(Message message) {
@@ -303,6 +312,90 @@ public class UpgradeTableSchema {
     }
 
     // If we reach here, neither this message nor its descendants have unknown fields
+    return false;
+  }
+
+  public static boolean missingUnknownField(
+      AbstractMap<String, Object> unknownFields,
+      ThrowingSupplier<Descriptors.Descriptor> schemaDescriptor)
+      throws Exception {
+    @Nullable Object fValue = unknownFields.get("f");
+    if (fValue instanceof List) {
+      List<?> cells = (List<?>) fValue;
+      return missingUnknownField(cells, schemaDescriptor.get());
+    } else {
+      return missingUnknownField(unknownFields, schemaDescriptor.get());
+    }
+  }
+
+  public static boolean missingUnknownField(
+      List<?> unknownFields, Descriptors.Descriptor schemaDescriptor) {
+    for (int i = 0; i < unknownFields.size(); i++) {
+      Object cell = unknownFields.get(i);
+      Object value;
+      if (cell instanceof TableCell) {
+        value = ((TableCell) cell).getV();
+      } else if (cell instanceof Map) {
+        value = ((Map<?, ?>) cell).get("v");
+      } else {
+        value = cell;
+      }
+      if (i >= schemaDescriptor.getFields().size()) {
+        return true;
+      }
+      Descriptors.FieldDescriptor fieldDescriptor = schemaDescriptor.getFields().get(i);
+      if (missingUnknownFieldObject(value, fieldDescriptor)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean missingUnknownField(
+      AbstractMap<String, Object> unknownFields, Descriptors.Descriptor schemaDescriptor) {
+    for (Map.Entry<String, Object> entry : unknownFields.entrySet()) {
+      String key = entry.getKey().toLowerCase();
+      String protoFieldName =
+          BigQuerySchemaUtil.isProtoCompatible(key)
+              ? key
+              : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
+
+      Descriptors.FieldDescriptor fieldDescriptor =
+          schemaDescriptor.findFieldByName(protoFieldName);
+      if (fieldDescriptor == null) {
+        return true;
+      }
+      Object value = entry.getValue();
+      if (value == null) {
+        continue;
+      }
+      if (missingUnknownFieldObject(value, fieldDescriptor)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean missingUnknownFieldObject(
+      @Nullable Object value, Descriptors.FieldDescriptor fieldDescriptor) {
+    if (value == null) {
+      return false;
+    }
+
+    if (fieldDescriptor.getType() != Descriptors.FieldDescriptor.Type.MESSAGE) {
+      return false;
+    }
+    if (value instanceof List) {
+      for (Object element : (List<?>) value) {
+        if (missingUnknownFieldObject(element, fieldDescriptor)) {
+          return true;
+        }
+      }
+      return false;
+    } else if (value instanceof AbstractMap) {
+      return missingUnknownField(
+          (AbstractMap<String, Object>) value, fieldDescriptor.getMessageType());
+    }
     return false;
   }
 }

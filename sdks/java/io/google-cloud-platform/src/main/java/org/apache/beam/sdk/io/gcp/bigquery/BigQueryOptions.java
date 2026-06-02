@@ -260,4 +260,11 @@ public interface BigQueryOptions
   Integer getSchemaUpgradeBufferingShards();
 
   void setSchemaUpgradeBufferingShards(Integer value);
+
+  @Hidden
+  @Description("The initial retry time in milliseconds when a schema mismatch is detected.")
+  @Default.Integer(5000)
+  Integer getStorageApiInitialMismatchRetryTimeMilliSec();
+
+  void setStorageApiInitialMismatchRetryTimeMilliSec(Integer value);
 }

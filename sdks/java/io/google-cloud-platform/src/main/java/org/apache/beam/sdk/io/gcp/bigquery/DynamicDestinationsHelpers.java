@@ -216,6 +216,19 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    void setSideInputAccessorFromOnTimerContext(DoFn<?, ?>.OnTimerContext context) {
+      super.setSideInputAccessorFromOnTimerContext(context);
+      inner.setSideInputAccessorFromOnTimerContext(context);
+    }
+
+    @Override
+    void setSideInputAccessorFromOnWindowExpirationContext(
+        DoFn<?, ?>.OnWindowExpirationContext context) {
+      super.setSideInputAccessorFromOnWindowExpirationContext(context);
+      inner.setSideInputAccessorFromOnWindowExpirationContext(context);
+    }
+
+    @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
     }

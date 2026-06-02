@@ -51,6 +51,7 @@ public class BigQuerySinkMetrics {
   public static final String OK = Status.Code.OK.toString();
   static final String INTERNAL = "INTERNAL";
   public static final String PAYLOAD_TOO_LARGE = "PayloadTooLarge";
+  public static final String SCHEMA_MISMATCHED = "SchemaMismatched";
 
   // Base Metric names
   private static final String RPC_REQUESTS = "RpcRequestsCount";

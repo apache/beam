@@ -1193,6 +1193,7 @@ public class TableRowToStorageApiProto {
       if (!collectedExceptions.isEmpty()) {
         return null;
       }
+
       try {
         return builder.build();
       } catch (Exception e) {
