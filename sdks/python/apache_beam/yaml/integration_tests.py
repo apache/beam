@@ -33,11 +33,11 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
+import mysql.connector
 import psycopg2
 import pytds
 import sqlalchemy
 import yaml
-from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
@@ -60,10 +60,9 @@ from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
+from apitools.base.py.exceptions import HttpError
 
 _LOGGER = logging.getLogger(__name__)
-
-_MONGO_CONTAINER_IMAGE = 'mongo:7.0.7'
 
 
 @contextlib.contextmanager
@@ -224,11 +223,17 @@ def temp_mongodb_table():
   - collection: ${mongo_vars.COLLECTION}
   """
   _LOGGER.info("Setting up MongoDB fixture...")
-  mongo_container = MongoDbContainer(_MONGO_CONTAINER_IMAGE)
+  # Initialize and start the MongoDB container.
+  # This will pull the 'mongo:7.0.7' image if it's not available locally.
+  mongo_container = MongoDbContainer("mongo:7.0.7")
   try:
     mongo_container.start()
+
+    # Get the dynamically generated connection URI.
     mongo_uri = mongo_container.get_connection_url()
 
+    # Generate a unique database and collection name for this test run to ensure
+    # isolation between different test files.
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
 
@@ -245,6 +250,7 @@ def temp_mongodb_table():
     }
 
   finally:
+    # This block executes after the test suite finishes.
     _LOGGER.info("Tearing down MongoDB fixture...")
     mongo_container.stop()
     _LOGGER.info("MongoDB container stopped.")
@@ -335,22 +341,26 @@ def temp_mysql_database():
       Exception: Any other exception encountered during the setup process.
   """
   with MySqlContainer(init=True, dialect='pymysql') as mysql_container:
-    # Make connection to temp database and create tmp table
-    engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
-    with engine.begin() as connection:
-      connection.execute(
-          sqlalchemy.text(
-              "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
+    try:
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
 
-    # Construct the JDBC url for connections later on by tests
-    jdbc_url = (
-        f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
-        f"{mysql_container.get_exposed_port(mysql_container.port)}/"
-        f"{mysql_container.dbname}?"
-        f"user={mysql_container.username}&"
-        f"password={mysql_container.password}")
+      # Construct the JDBC url for connections later on by tests
+      jdbc_url = (
+          f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
+          f"{mysql_container.get_exposed_port(mysql_container.port)}/"
+          f"{mysql_container.dbname}?"
+          f"user={mysql_container.username}&"
+          f"password={mysql_container.password}")
 
-    yield jdbc_url
+      yield jdbc_url
+    except mysql.connector.Error as err:
+      logging.error("Error interacting with temporary MySQL DB: %s", err)
+      raise err
 
 
 @contextlib.contextmanager
@@ -769,23 +779,12 @@ def create_test_methods(spec):
                   **yaml_transform.SafeLineLoader.strip_metadata(
                       fixture.get('config', {}))))
         for pipeline_spec in spec['pipelines']:
-          try:
-            with beam.Pipeline(options=PipelineOptions(
-                pickle_library='cloudpickle',
-                **replace_recursive(
-                    yaml_transform.SafeLineLoader.strip_metadata(
-                        pipeline_spec.get('options', {})),
-                    vars))) as p:
-              yaml_transform.expand_pipeline(
-                  p, replace_recursive(pipeline_spec, vars))
-          except ValueError as exn:
-            # FnApiRunner currently does not support this requirement in
-            # some xlang scenarios (e.g. Iceberg YAML pipelines).
-            if 'beam:requirement:pardo:on_window_expiration:v1' in str(exn):
-              self.skipTest(
-                  'Runner does not support '
-                  'beam:requirement:pardo:on_window_expiration:v1')
-            raise
+          with beam.Pipeline(options=PipelineOptions(
+              pickle_library='cloudpickle',
+              **yaml_transform.SafeLineLoader.strip_metadata(pipeline_spec.get(
+                  'options', {})))) as p:
+            yaml_transform.expand_pipeline(
+                p, replace_recursive(pipeline_spec, vars))
 
     yield f'test_{suffix}', test
 
