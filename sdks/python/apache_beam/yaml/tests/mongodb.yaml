@@ -19,22 +19,32 @@ fixtures:
 
 pipelines:
   - pipeline:
-      type: chain
+      type: composite
       transforms:
         - type: Create
+          name: CreateData
           config:
             elements:
               - { name: "John", age: 30 }
               - { name: "Jane", age: 25 }
         - type: WriteToMongoDB
+          name: WriteData
+          input: CreateData
           config:
             connection_uri: '{mongo_vars[URI]}'
             database: '{mongo_vars[DATABASE]}'
             collection: '{mongo_vars[COLLECTION]}'
+            error_handling:
+              output: my_error_output
+        - type: AssertEqual
+          input: WriteData.my_error_output
+          config:
+            elements: []
   - pipeline:
-      type: chain
+      type: composite
       transforms:
         - type: ReadFromMongoDB
+          name: ReadData
           config:
             connection_uri: '{mongo_vars[URI]}'
             database: '{mongo_vars[DATABASE]}'
@@ -48,8 +58,16 @@ pipelines:
                 },
                 "required": ["name", "age"]
               }
+            error_handling:
+              output: my_error_output
         - type: AssertEqual
+          input: ReadData
           config:
             elements:
               - { name: "John", age: 30 }
               - { name: "Jane", age: 25 }
+        - type: AssertEqual
+          input: ReadData.my_error_output
+          config:
+            elements: []
+          

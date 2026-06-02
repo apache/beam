@@ -411,13 +411,13 @@
         collection: "collection"
         schema: "schema"
         filter: "filter"
-        error_handling: "errorHandling"
+        error_handling: "error_handling"
       'WriteToMongoDB':
         connection_uri: "uri"
         database: "database"
         collection: "collection"
-        batch_size: "batchSize"
-        error_handling: "errorHandling"
+        batch_size: "batch_size"
+        error_handling: "error_handling"
     underlying_provider:
       type: beamJar
       transforms:
