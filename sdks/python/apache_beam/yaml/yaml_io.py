@@ -726,6 +726,62 @@ def write_to_tfrecord(
 
 @beam.ptransform_fn
 @yaml_errors.maybe_with_exception_handling_transform_fn
+def read_from_mongodb(
+    root,
+    *,
+    database: str,
+    collection: str,
+    schema: Union[str, dict[str, Any]],
+    connection_uri: Optional[str] = None,
+    filter: Optional[dict[str, Any]] = None,
+    projection: Optional[Union[list[str], dict[str, Any]]] = None,
+    extra_client_params: Optional[dict[str, Any]] = None,
+    bucket_auto: bool = False):
+  """Reads data from MongoDB.
+
+  The resulting PCollection consists of rows with fields matching the provided
+  schema.
+
+  Args:
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    schema: JSON schema specifying the fields to select and their types.
+    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    filter: A JSON/bson mapping specifying elements which must be present.
+    projection: A list of field names that should be returned or a dict
+      specifying the fields to include/exclude.
+    extra_client_params: Optional MongoClient parameters.
+    bucket_auto: If True, use MongoDB $bucketAuto aggregation to split
+      collection into bundles instead of splitVector command.
+  """
+  from apache_beam.io import mongodbio
+  import json
+
+  if isinstance(schema, str):
+    schema = json.loads(schema)
+
+  beam_schema = json_utils.json_schema_to_beam_schema(schema)
+  beam_type = schema_pb2.FieldType(
+      row_type=schema_pb2.RowType(schema=beam_schema))
+  to_row_fn = json_utils.json_to_row(beam_type)
+
+  output = (
+      root
+      | mongodbio.ReadFromMongoDB(
+          uri=connection_uri,
+          db=database,
+          coll=collection,
+          filter=filter,
+          projection=projection,
+          extra_client_params=extra_client_params,
+          bucket_auto=bucket_auto)
+      | beam.Map(to_row_fn))
+  output.element_type = schemas.named_tuple_from_schema(beam_schema)
+  return output
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def write_to_mongodb(
     pcoll,
     *,
