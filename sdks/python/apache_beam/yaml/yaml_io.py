@@ -24,6 +24,7 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
+import json
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -32,18 +33,17 @@ from typing import Optional
 from typing import Union
 
 import fastavro
-import json
 
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
 from apache_beam.coders.row_coder import RowCoder
-from apache_beam.io import mongodbio
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
+from apache_beam.io import mongodbio
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
