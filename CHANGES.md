@@ -82,6 +82,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
 
 ## Security Fixes
 
@@ -92,7 +93,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.74.0] - 2026-XX-xx
+# [2.74.0] - 2026-06-02
 
 ## Highlights
 
@@ -101,7 +102,7 @@
 ## I/Os
 
 * IcebergIO: support declaring a table's sort order on dynamic table creation via the new `sort_fields` config ([#38269](https://github.com/apache/beam/issues/38269)).
-* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/issues/38061))).
+* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/issues/38061)).
 
 ## New Features / Improvements
 
@@ -131,7 +132,6 @@
 
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
 * Added `max_batch_duration_secs` passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to `BatchElements` ([#38243](https://github.com/apache/beam/issues/38243)).
-* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
 
 # [2.73.0] - 2026-04-29
 
