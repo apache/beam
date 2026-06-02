@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.api.services.bigquery.model.TableReference;
@@ -48,10 +50,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StreamAppendClient;
@@ -66,6 +71,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -98,6 +104,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -128,6 +136,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final Coder<DestinationT> destinationCoder;
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final boolean autoUpdateSchema;
+  private final @Nullable Duration autoUpdateSchemaStrictTimeout;
   private final boolean ignoreUnknownValues;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
   private final @Nullable Map<String, String> bigLakeConfiguration;
@@ -140,6 +149,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   private final Coder<TableRow> succussfulRowsCoder;
 
   private final TupleTag<KV<String, Operation>> flushTag = new TupleTag<>("flushTag");
+  private final boolean managedSchemaUpdate;
 
   private static final AppendClientCache<KV<String, ShardedKey<?>>> APPEND_CLIENTS =
       new AppendClientCache<>(Duration.standardMinutes(5));
@@ -160,9 +170,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       @Nullable TupleTag<TableRow> successfulRowsTag,
       Predicate<String> successfulRowsPredicate,
       boolean autoUpdateSchema,
+      @Nullable Duration autoUpdateSchemaStrictTimeout,
       boolean ignoreUnknownValues,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      @Nullable Map<String, String> bigLakeConfiguration) {
+      @Nullable Map<String, String> bigLakeConfiguration,
+      boolean managedSchemaUpdate) {
     this.dynamicDestinations = dynamicDestinations;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -174,9 +186,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     this.successfulRowsPredicate = successfulRowsPredicate;
     this.succussfulRowsCoder = successfulRowsCoder;
     this.autoUpdateSchema = autoUpdateSchema;
+    this.autoUpdateSchemaStrictTimeout = autoUpdateSchemaStrictTimeout;
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
     this.bigLakeConfiguration = bigLakeConfiguration;
+    this.managedSchemaUpdate = managedSchemaUpdate;
   }
 
   @Override
@@ -336,6 +350,33 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
     private transient @Nullable WriteStreamService writeStreamServiceInternal = null;
 
+    // Bounds the total time this DoFn instance spends blocking in onWindowExpiration,
+    // per window, across every key it handles. Window expiration fires once per key and
+    // runs synchronously on the worker thread, so a per-key budget multiplies by the
+    // number of keys and can exceed the runner's bundle execution limit during a drain.
+    //
+    // Deliberately an instance field rather than static: a static cache would share one
+    // budget across every BigQuery sink in the worker JVM.
+    //
+    // Keyed by window so a budget cannot leak from one window into the next. Today the
+    // sink is always rewindowed into the global window by StorageApiLoads, so in practice
+    // there is a single entry and expiration fires once, but nothing here enforces that
+    // and a stale deadline would silently skip the retry and dead-letter the rows.
+    //
+    // transient, and initialized lazily rather than inline: Java deserialization does not
+    // run field initializers, so an inline initializer would leave this null on workers.
+    private transient @Nullable Cache<BoundedWindow, org.joda.time.Instant> drainDeadlines = null;
+
+    private Cache<BoundedWindow, org.joda.time.Instant> getDrainDeadlines() {
+      Cache<BoundedWindow, org.joda.time.Instant> cache = drainDeadlines;
+      if (cache == null) {
+        cache =
+            CacheBuilder.newBuilder().expireAfterAccess(java.time.Duration.ofMinutes(30)).build();
+        drainDeadlines = cache;
+      }
+      return cache;
+    }
+
     // Stores the current stream for this key.
     @StateId("streamName")
     private final StateSpec<ValueState<String>> streamNameSpec = StateSpecs.value();
@@ -345,11 +386,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
     private final StateSpec<ValueState<Long>> streamOffsetSpec = StateSpecs.value();
 
     @StateId("updatedSchema")
-    private final StateSpec<ValueState<TableSchema>> updatedSchema =
+    private final StateSpec<ValueState<TableSchema>> updatedSchemaSpec =
         StateSpecs.value(ProtoCoder.of(TableSchema.class));
 
+    @StateId("mismatchedRows")
+    private final StateSpec<BagState<StoragePayloadWithDeadline>> mismatchedRowsSpec =
+        StateSpecs.bag(StoragePayloadWithDeadline.Coder.of());
+
+    @TimerId("retryMismatchedRowsTimer")
+    private final TimerSpec mismatchedRowsTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @StateId("currentMismatchedRowTimerValue")
+    private final StateSpec<ValueState<Long>> currentMismatchedRowTimerValueSpec =
+        StateSpecs.value();
+
+    @StateId("minPendingTimestamp")
+    private final StateSpec<ValueState<Long>> minPendingTimestampSpec = StateSpecs.value();
+
     @TimerId("idleTimer")
-    private final TimerSpec idleTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+    private final TimerSpec idleTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
     private final Duration streamIdleTime;
     private final long splitSize;
@@ -380,7 +435,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         String tableId,
         ValueState<String> streamName,
         ValueState<Long> streamOffset,
-        Timer streamIdleTimer,
+        @Nullable Timer streamIdleTimer,
         WriteStreamService writeStreamService,
         Callable<Boolean> tryCreateTable) {
       try {
@@ -405,7 +460,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           stream.set(streamValue);
         }
         // Reset the idle timer.
-        streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
+        if (streamIdleTimer != null) {
+          streamIdleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
+        }
 
         return stream.get();
       } catch (Exception e) {
@@ -476,8 +533,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       }
 
       AppendClientInfo get() {
-        org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState(
-            valid);
+        checkState(valid);
         return appendClientInfo;
       }
 
@@ -488,7 +544,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
     private CreateRetryManagerResult<DestinationT> createRetryManager(
         ShardedKey<DestinationT> key,
-        Iterable<SplittingIterable.Value> messages,
+        Iterable<AppendRowsPacket> messages,
         Function<AppendRowsContext<DestinationT>, ApiFuture<AppendRowsResponse>> runOperation,
         Function<Iterable<AppendRowsContext<DestinationT>>, RetryType> onError,
         Consumer<AppendRowsContext<DestinationT>> onSuccess,
@@ -505,9 +561,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = Lists.newArrayList();
       int recordsAppended = 0;
       List<Integer> histogramUpdates = Lists.newArrayList();
-      for (SplittingIterable.Value splitValue : messages) {
-        if (splitValue.getSchemaMismatchSeen()) {
+      for (AppendRowsPacket splitValue : messages) {
+        if (!splitValue.getSchemaMismatchedRows().isEmpty()) {
           return CreateRetryManagerResult.schemaMismatch();
+        }
+        if (splitValue.getProtoRows().getSerializedRowsCount() == 0) {
+          continue;
         }
         // Handle the case of a row that is too large.
         if (splitValue.getProtoRows().getSerializedSize() >= maxRequestSize) {
@@ -768,18 +827,16 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         final PipelineOptions pipelineOptions,
         @Element KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>> element,
         @Timestamp org.joda.time.Instant elementTs,
-        final @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
-        final @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
-        final @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
+        @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
+        @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
         @TimerId("idleTimer") Timer idleTimer,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
+        @TimerId("retryMismatchedRowsTimer") Timer mismatchedRowsRetryTimer,
+        @StateId("currentMismatchedRowTimerValue") ValueState<Long> mismatchedRowsRetryTimerValue,
+        @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp,
         final MultiOutputReceiver o)
         throws Exception {
-      BigQueryOptions bigQueryOptions = pipelineOptions.as(BigQueryOptions.class);
-
-      if (autoUpdateSchema) {
-        updatedSchema.readLater();
-      }
-
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       TableDestination tableDestination =
           destinations.computeIfAbsent(
@@ -794,11 +851,108 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     dest);
                 return tableDestination1;
               });
+
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          messageConverters.get(
+              element.getKey().getKey(),
+              dynamicDestinations,
+              pipelineOptions,
+              getDatasetService(pipelineOptions),
+              getWriteStreamService(pipelineOptions));
+
+      ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows =
+          mismatchedRows -> {
+            if (!Iterables.isEmpty(mismatchedRows)) {
+              AppendClientInfo info =
+                  AppendClientInfo.of(
+                      Preconditions.checkStateNotNull(messageConverter.getTableSchema()),
+                      messageConverter.getDescriptor(false),
+                      AutoCloseable::close);
+
+              Duration timerRetryDuration =
+                  Duration.millis(
+                      pipelineOptions
+                          .as(BigQueryOptions.class)
+                          .getStorageApiMismatchRetryTimeMilliSec());
+              SchemaChangeDetectorHelper.bufferMismatchedRows(
+                  mismatchedRows,
+                  mismatchedRowsBag,
+                  mismatchedRowsRetryTimer,
+                  mismatchedRowsRetryTimerValue,
+                  minPendingTimestamp,
+                  tableDestination,
+                  o.get(failedRowsTag),
+                  info,
+                  rowsSentToFailedRowsCollection,
+                  timerRetryDuration,
+                  elementTs);
+            }
+          };
+
+      org.joda.time.Instant now = org.joda.time.Instant.now();
+      // TODO: Once the processing-time clock is accessible in @OnWindowExpiration, compute
+      // targetDeadline from retryRowsTimers.getCurrentRelativeTime() instead of Instant.now() so
+      // it matches Timer.getCurrentRelativeTime() in TestStream.
+      org.joda.time.Instant targetDeadline =
+          (autoUpdateSchemaStrictTimeout != null)
+              ? now.plus(autoUpdateSchemaStrictTimeout)
+              : BoundedWindow.TIMESTAMP_MAX_VALUE;
+
+      Iterable<StoragePayloadWithDeadline> withDeadlines =
+          () ->
+              StreamSupport.stream(element.getValue().spliterator(), false)
+                  .map(p -> StoragePayloadWithDeadline.of(p, targetDeadline))
+                  .iterator();
+      processPayloads(
+          pipelineOptions,
+          element.getKey(),
+          tableDestination,
+          messageConverter,
+          withDeadlines,
+          now,
+          elementTs,
+          streamName,
+          streamOffset,
+          updatedSchema,
+          idleTimer,
+          o,
+          processMismatchedRows);
+    }
+
+    private void processPayloads(
+        final PipelineOptions pipelineOptions,
+        ShardedKey<DestinationT> shardedDestination,
+        TableDestination tableDestination,
+        StorageApiDynamicDestinations.MessageConverter<?> messageConverter,
+        Iterable<StoragePayloadWithDeadline> element,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry,
+        org.joda.time.Instant elementTs,
+        final ValueState<String> streamName,
+        final ValueState<Long> streamOffset,
+        final ValueState<TableSchema> updatedSchema,
+        @Nullable Timer idleTimer,
+        final MultiOutputReceiver o,
+        ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows)
+        throws Exception {
+      BigQueryOptions bigQueryOptions = pipelineOptions.as(BigQueryOptions.class);
+
+      if (autoUpdateSchema) {
+        updatedSchema.readLater();
+      }
+
+      final DestinationT destination = shardedDestination.getKey();
+
       final String tableId = tableDestination.getTableUrn(bigQueryOptions);
       final String shortTableId = tableDestination.getShortTableUrn();
       final TableReference tableReference = tableDestination.getTableReference();
       final DatasetService datasetService = getDatasetService(pipelineOptions);
       final WriteStreamService writeStreamService = getWriteStreamService(pipelineOptions);
+      SchemaChangeDetectorHelper schemaChangeDetectorHelper =
+          new SchemaChangeDetectorHelper(
+              autoUpdateSchema,
+              ignoreUnknownValues,
+              tableReference,
+              autoUpdateSchemaStrictTimeout != null);
 
       Lineage.getSinks()
           .add(
@@ -809,12 +963,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Coder<DestinationT> destinationCoder = dynamicDestinations.getDestinationCoder();
       Callable<Boolean> tryCreateTable =
           () -> {
-            DestinationT dest = element.getKey().getKey();
             CreateTableHelpers.possiblyCreateTable(
-                c.getPipelineOptions().as(BigQueryOptions.class),
+                bigQueryOptions,
                 tableDestination,
-                () -> dynamicDestinations.getSchema(dest),
-                () -> dynamicDestinations.getTableConstraints(dest),
+                () -> dynamicDestinations.getSchema(destination),
+                () -> dynamicDestinations.getTableConstraints(destination),
                 createDisposition,
                 destinationCoder,
                 kmsKey,
@@ -828,20 +981,16 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               getOrCreateStream(
                   tableId, streamName, streamOffset, idleTimer, writeStreamService, tryCreateTable);
 
-      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
-          messageConverters.get(
-              element.getKey().getKey(),
-              dynamicDestinations,
-              pipelineOptions,
-              datasetService,
-              writeStreamService);
       Callable<AppendClientInfo> getAppendClientInfo =
           () -> {
             @Nullable TableSchema tableSchema;
             DescriptorProtos.DescriptorProto descriptor;
+
             TableSchema updatedSchemaValue = autoUpdateSchema ? updatedSchema.read() : null;
 
-            if (autoUpdateSchema && updatedSchemaValue != null) {
+            if (autoUpdateSchema
+                && updatedSchemaValue != null
+                && autoUpdateSchemaStrictTimeout == null) {
               // This means that Vortex has told us in the past that the table schema has been
               // updated. We should use
               // this updated schema instead of the initial schema from the messageConverter.
@@ -850,22 +999,23 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   TableRowToStorageApiProto.descriptorSchemaFromTableSchema(
                       tableSchema, true, false);
             } else {
-              // Start off with the base schema. As we get notified of schema updates, we
-              // will update the descriptor.
+              if (autoUpdateSchemaStrictTimeout != null && updatedSchemaValue != null) {
+                Optional<TableSchema> updated =
+                    TableSchemaUpdateUtils.getUpdatedSchema(
+                        messageConverter.getTableSchema(), updatedSchemaValue);
+                updated.ifPresent(messageConverter::updateSchema);
+              }
+
               tableSchema = messageConverter.getTableSchema();
               descriptor = messageConverter.getDescriptor(false);
 
-              if (autoUpdateSchema) {
+              if (autoUpdateSchema && autoUpdateSchemaStrictTimeout == null) {
                 // A StreamWriter ignores table schema updates that happen prior to its creation.
                 // So before creating a StreamWriter below, we fetch the table schema to check if we
                 // missed an update. If so, use the new schema instead of the base schema.
-                // TODO: There's still a race here!
-                @Nullable TableSchema streamSchema =
-                    MoreObjects.firstNonNull(
-                        writeStreamService.getWriteStreamSchema(getOrCreateStream.get()),
-                        TableSchema.getDefaultInstance());
                 Optional<TableSchema> newSchema =
-                    TableSchemaUpdateUtils.getUpdatedSchema(tableSchema, streamSchema);
+                    schemaChangeDetectorHelper.checkUpdatedSchema(
+                        tableSchema, getOrCreateStream.get(), writeStreamService);
 
                 if (newSchema.isPresent()) {
                   tableSchema = newSchema.get();
@@ -895,8 +1045,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // cache could in
       // theory evict the object during execution and we want a pin held throughout the execution of
       // this function.
+      Iterable<StoragePayloadWithDeadline> mismatchedRows = Collections.emptyList();
       try (AppendClientHolder appendClientHolder =
-          new AppendClientHolder(element.getKey(), getAppendClientInfo)) {
+          new AppendClientHolder(shardedDestination, getAppendClientInfo)) {
         String currentStream = getOrCreateStream.get();
         if (!currentStream.equals(appendClientHolder.get().getStreamName())) {
           // Cached append client is inconsistent with persisted state. Throw away cached item and
@@ -981,53 +1132,110 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                     BigQuerySinkMetrics.throttledTimeCounter(
                         BigQuerySinkMetrics.RpcMethod.OPEN_WRITE_STREAM))
                 .backoff();
+
         CreateRetryManagerResult<DestinationT> createRetryManagerResult;
+        final Duration initialMismatchRetryTime =
+            Duration.millis(
+                bigQueryOptions.getStorageApiMismatchLocalRetryTimeMilliSec()); // Retry locally
+        Iterable<StoragePayloadWithDeadline> payloadsToIterate = element;
         do {
           // Each ProtoRows object contains at most 1MB of rows.
           // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely
           // if
           // already proto or already schema.
-          Iterable<SplittingIterable.Value> messages =
-              new SplittingIterable(
-                  element.getValue(),
-                  splitSize,
-                  // Unknown field merger
-                  (bytes, tableRow) ->
-                      appendClientHolder.get().mergeNewFields(bytes, tableRow, ignoreUnknownValues),
-                  // Convert back to TableRow
-                  bytes -> appendClientHolder.get().toTableRow(bytes, Predicates.alwaysTrue()),
-                  // Failed rows consumer
-                  (failedRow, errorMessage) -> {
+
+          // If either managedSchemaUpdate==true (implying that the schema will be updated by
+          // another branch of this
+          // same pipeline) or autoUpdateSchemaStrictTimeout != null (implying that we want to
+          // strictly buffer records
+          // until the schema is updated or the timeout expires), we want the failedRowsHandler to
+          // be a noop.
+          Function<TimestampedValue<BigQueryStorageApiInsertError>, Boolean> failedRowsHandler =
+              (autoUpdateSchemaStrictTimeout == null) && !managedSchemaUpdate
+                  ? (TimestampedValue<BigQueryStorageApiInsertError> error) -> {
                     o.get(failedRowsTag)
-                        .outputWithTimestamp(
-                            new BigQueryStorageApiInsertError(
-                                failedRow.getValue(), errorMessage, tableReference),
-                            failedRow.getTimestamp());
+                        .outputWithTimestamp(error.getValue(), error.getTimestamp());
                     rowsSentToFailedRowsCollection.inc();
                     BigQuerySinkMetrics.appendRowsRowStatusCounter(
                             BigQuerySinkMetrics.RowStatus.FAILED,
-                            BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                            BigQuerySinkMetrics.SCHEMA_MISMATCHED,
                             shortTableId)
                         .inc(1);
-                  },
-                  // Get the currently-known TableSchema hash
-                  () -> appendClientHolder.get().getTableSchemaHash(),
-                  () ->
-                      TableRowToStorageApiProto.wrapDescriptorProto(
-                          messageConverter.getDescriptor(false)),
-                  autoUpdateSchema,
-                  elementTs);
+                    return true;
+                  }
+                  : e -> false;
+          // Check payload staleness against the descriptor that will actually be used to
+          // serialize the row, i.e. the one belonging to this shard's append client.
+          //
+          // The messageConverter is shared by every shard writing to this destination, but each
+          // shard owns its own append client and its own "updatedSchema" state. When one shard
+          // detects a schema change it upgrades the shared converter, but the other shards only
+          // rebuild their append clients once their own state says the schema changed. Comparing
+          // against the converter therefore reports "no missing unknown field" for a shard that
+          // is still holding a pre-upgrade append client, so the row is treated as matching and
+          // the new column is silently dropped during serialization.
+          //
+          // Captured per iteration of the do-while loop so that messagesToProcess and
+          // mismatchedRows always evaluate against the exact same AppendClientInfo snapshot even
+          // if retryManager.run(true) later resets appendClientHolder.
+          final Iterable<AppendRowsPacket> messages =
+              new SplittingIterable(
+                  payloadsToIterate,
+                  splitSize,
+                  failedRowsHandler,
+                  elementTs,
+                  appendClientHolder.get(),
+                  schemaChangeDetectorHelper);
+          Iterable<AppendRowsPacket> messagesToProcess = messages;
 
           createRetryManagerResult =
               createRetryManager(
-                  element.getKey(),
-                  messages,
+                  shardedDestination,
+                  messagesToProcess,
                   runOperation,
                   onError,
                   onSuccess,
                   appendClientHolder.get(),
                   tableReference);
+
           if (createRetryManagerResult.getSchemaMismatchSeen()) {
+            if (autoUpdateSchemaStrictTimeout != null) {
+              if (startTimeForLocalRetry == null
+                  || !startTimeForLocalRetry
+                      .plus(initialMismatchRetryTime)
+                      .isAfter(org.joda.time.Instant.now())) {
+                // Local retry time has expired! Pull out the mismatched rows so that we can buffer
+                // them for later
+                // retrying.
+
+                mismatchedRows =
+                    () ->
+                        StreamSupport.stream(messages.spliterator(), false)
+                            .flatMap(packet -> packet.getSchemaMismatchedRows().stream())
+                            .iterator();
+
+                // Continue processing only the messages that matched the schema.
+                messagesToProcess =
+                    () ->
+                        StreamSupport.stream(messages.spliterator(), false)
+                            .map(AppendRowsPacket::getSchemaMatchedRowsOnly)
+                            .iterator();
+
+                createRetryManagerResult =
+                    createRetryManager(
+                        shardedDestination,
+                        messagesToProcess,
+                        runOperation,
+                        onError,
+                        onSuccess,
+                        appendClientHolder.get(),
+                        tableReference);
+                checkState(!createRetryManagerResult.getSchemaMismatchSeen());
+                // Break out of the loop and start processing.
+                break;
+              }
+            }
+
             // TODO: The call to updateSchemaFromTable will throttle the DoFn (both because of the
             // RPC
             // call and because
@@ -1035,12 +1243,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             LOG.info("Schema out of date: refreshing table schema for {}", tableId);
             // Force the message converter to get the schema again from the table.
             messageConverter.updateSchemaFromTable();
+            if (autoUpdateSchemaStrictTimeout != null) {
+              updatedSchema.write(messageConverter.getTableSchema());
+            }
             // Close all RPC clients that were opened with the old descriptor. Clear the cache,
             // forcing us to create a new append client with the updated descriptor.
             appendClientHolder.invalidateAndReset();
           }
         } while (createRetryManagerResult.getSchemaMismatchSeen()
             && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+        if (createRetryManagerResult.getSchemaMismatchSeen()) {
+          throw new RuntimeException("Timed out waiting for schema update");
+        }
 
         // Output any rows that failed along they way.
         createRetryManagerResult
@@ -1088,20 +1302,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
           appendSplitDistribution.update(numAppends);
           if (autoUpdateSchema) {
-            @Nullable StreamAppendClient streamAppendClient =
-                appendClientHolder.getStreamAppendClient();
+            StreamAppendClient streamAppendClient = appendClientHolder.getStreamAppendClient();
             TableSchema originalSchema = appendClientHolder.get().getTableSchema();
 
-            @Nullable TableSchema updatedSchemaReturned =
-                (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
-            // Update the table schema and clear the append client.
-            if (updatedSchemaReturned != null) {
-              Optional<TableSchema> newSchema =
-                  TableSchemaUpdateUtils.getUpdatedSchema(originalSchema, updatedSchemaReturned);
-              if (newSchema.isPresent()) {
-                APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(element.getKey()));
-                LOG.debug(
-                    "Fetched updated schema for table {}:\n\t{}", tableId, updatedSchemaReturned);
+            Optional<TableSchema> newSchema =
+                schemaChangeDetectorHelper.checkResponseForUpdatedSchema(
+                    originalSchema, streamAppendClient);
+            if (newSchema.isPresent()) {
+              APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(shardedDestination));
+              LOG.debug("Fetched updated schema for table {}:\n\t{}", tableId, newSchema.get());
+              if (autoUpdateSchemaStrictTimeout != null) {
+                messageConverter.updateSchemaFromTable();
+                updatedSchema.write(messageConverter.getTableSchema());
+              } else {
                 updatedSchema.write(newSchema.get());
               }
             }
@@ -1110,8 +1323,121 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           java.time.Duration timeElapsed = java.time.Duration.between(now, Instant.now());
           appendLatencyDistribution.update(timeElapsed.toMillis());
         }
+        processMismatchedRows.accept(mismatchedRows);
       }
-      idleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
+      if (idleTimer != null) {
+        idleTimer.offset(streamIdleTime).withNoOutputTimestamp().setRelative();
+      }
+    }
+
+    @OnTimer("retryMismatchedRowsTimer")
+    public void onMismatchedRowsTimer(
+        OnTimerContext context,
+        PipelineOptions pipelineOptions,
+        @Key ShardedKey<DestinationT> shardedDestination,
+        @Timestamp org.joda.time.Instant elementTs,
+        @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
+        @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
+        @TimerId("idleTimer") Timer idleTimer,
+        MultiOutputReceiver o,
+        @TimerId("retryMismatchedRowsTimer") Timer retryRowsTimer,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
+        @StateId("currentMismatchedRowTimerValue") ValueState<Long> currentTimerValue,
+        @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp)
+        throws Exception {
+      dynamicDestinations.setSideInputAccessorFromOnTimerContext(context);
+
+      mismatchedRowsBag.readLater();
+      currentTimerValue.readLater();
+      minPendingTimestamp.readLater();
+
+      TableDestination tableDestination =
+          destinations.computeIfAbsent(
+              shardedDestination.getKey(),
+              dest -> {
+                TableDestination tableDestination1 = dynamicDestinations.getTable(dest);
+                checkArgument(
+                    tableDestination1 != null,
+                    "DynamicDestinations.getTable() may not return null, "
+                        + "but %s returned null for destination %s",
+                    dynamicDestinations,
+                    dest);
+                return tableDestination1;
+              });
+
+      Iterable<StoragePayloadWithDeadline> payloads = mismatchedRowsBag.read();
+
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          messageConverters.get(
+              shardedDestination.getKey(),
+              dynamicDestinations,
+              pipelineOptions,
+              getDatasetService(pipelineOptions),
+              getWriteStreamService(pipelineOptions));
+      LOG.info(
+          "Schema out of date: refreshing table schema for {}",
+          tableDestination.getShortTableUrn());
+      // Force the message converter to get the schema again from the table.
+      messageConverter.updateSchemaFromTable();
+      updatedSchema.write(messageConverter.getTableSchema());
+
+      // Close all RPC clients that were opened with the old descriptor. Clear the cache,
+      // forcing us to create a new append client with the updated descriptor.
+      APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(shardedDestination));
+
+      // Try to reprocess all of these rows.
+      ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows =
+          mismatchedRows -> {
+            // TODO: Try to refactor so that we don't have to materialize this list.
+            List<StoragePayloadWithDeadline> mismatchedRowsList =
+                StreamSupport.stream(mismatchedRows.spliterator(), false)
+                    .collect(Collectors.toList());
+            // Rebuffer the ones that are still not succeeding.
+            mismatchedRowsBag.clear();
+            currentTimerValue.clear();
+            minPendingTimestamp.clear();
+            if (!Iterables.isEmpty(mismatchedRowsList)) {
+              AppendClientInfo info =
+                  AppendClientInfo.of(
+                      Preconditions.checkStateNotNull(messageConverter.getTableSchema()),
+                      messageConverter.getDescriptor(false),
+                      AutoCloseable::close);
+
+              Duration timerRetryDuration =
+                  Duration.millis(
+                      pipelineOptions
+                          .as(BigQueryOptions.class)
+                          .getStorageApiMismatchRetryTimeMilliSec());
+              SchemaChangeDetectorHelper.bufferMismatchedRows(
+                  mismatchedRowsList,
+                  mismatchedRowsBag,
+                  retryRowsTimer,
+                  currentTimerValue,
+                  minPendingTimestamp,
+                  tableDestination,
+                  o.get(failedRowsTag),
+                  info,
+                  rowsSentToFailedRowsCollection,
+                  timerRetryDuration,
+                  elementTs);
+            }
+          };
+
+      processPayloads(
+          pipelineOptions,
+          shardedDestination,
+          tableDestination,
+          messageConverter,
+          payloads,
+          null,
+          elementTs,
+          streamName,
+          streamOffset,
+          updatedSchema,
+          idleTimer,
+          o,
+          processMismatchedRows);
     }
 
     // called by the idleTimer and window-expiration handlers.
@@ -1153,13 +1479,187 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       streamsIdle.inc();
     }
 
+    /**
+     * Builds the converter used to render a drained row as a {@link TableRow} when the row carries
+     * no failsafe representation of its own. Rebuilt after each {@code updateSchemaFromTable} call,
+     * since that may change the descriptor.
+     */
+    private AppendClientInfo drainFailureConverter(
+        StorageApiDynamicDestinations.MessageConverter<?> messageConverter) throws Exception {
+      return AppendClientInfo.of(
+          Preconditions.checkStateNotNull(messageConverter.getTableSchema()),
+          messageConverter.getDescriptor(false),
+          AutoCloseable::close);
+    }
+
+    /**
+     * Routes one row that could not be written before the drain finished to the failed-rows
+     * collection.
+     *
+     * <p>Callers own the exactly-once property: a row passed here must not also be carried into a
+     * later retry round or into the final flush.
+     */
+    private void writeDrainFailure(
+        StoragePayloadWithDeadline row,
+        AppendClientInfo appendClientInfo,
+        TableDestination tableDestination,
+        org.joda.time.Instant elementTs,
+        MultiOutputReceiver o)
+        throws Exception {
+      TableRow failedRow = row.getStoragePayload().getFailsafeTableRow();
+      if (failedRow == null) {
+        failedRow =
+            appendClientInfo.toTableRow(
+                ByteString.copyFrom(row.getStoragePayload().getPayload()), Predicates.alwaysTrue());
+      }
+      BigQueryStorageApiInsertError error =
+          new BigQueryStorageApiInsertError(
+              failedRow,
+              "Timed out waiting for table schema update in OnWindowExpiration",
+              tableDestination.getTableReference());
+      o.get(failedRowsTag)
+          .outputWithTimestamp(
+              error, MoreObjects.firstNonNull(row.getStoragePayload().getTimestamp(), elementTs));
+      rowsSentToFailedRowsCollection.inc();
+      BigQuerySinkMetrics.appendRowsRowStatusCounter(
+              BigQuerySinkMetrics.RowStatus.FAILED,
+              BigQuerySinkMetrics.SCHEMA_MISMATCHED,
+              tableDestination.getShortTableUrn())
+          .inc(1);
+    }
+
     @OnWindowExpiration
     public void onWindowExpiration(
+        OnWindowExpirationContext context,
+        PipelineOptions pipelineOptions,
         @Key ShardedKey<DestinationT> key,
+        @Timestamp org.joda.time.Instant elementTs,
+        @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
         @AlwaysFetched @StateId("streamName") ValueState<String> streamName,
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
+        @AlwaysFetched @StateId("mismatchedRows")
+            BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
         MultiOutputReceiver o,
-        BoundedWindow window) {
+        BoundedWindow window)
+        throws Exception {
+      dynamicDestinations.setSideInputAccessorFromOnWindowExpirationContext(context);
+
+      TableDestination tableDestination =
+          destinations.computeIfAbsent(
+              key.getKey(),
+              dest -> {
+                TableDestination tableDestination1 = dynamicDestinations.getTable(dest);
+                checkArgument(
+                    tableDestination1 != null,
+                    "DynamicDestinations.getTable() may not return null, "
+                        + "but %s returned null for destination %s",
+                    dynamicDestinations,
+                    dest);
+                return tableDestination1;
+              });
+
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          messageConverters.get(
+              key.getKey(),
+              dynamicDestinations,
+              pipelineOptions,
+              getDatasetService(pipelineOptions),
+              getWriteStreamService(pipelineOptions));
+
+      java.time.Duration waitTime =
+          java.time.Duration.ofMillis(
+              pipelineOptions
+                  .as(BigQueryOptions.class)
+                  .getStorageApiMismatchDrainRetryTimeMilliSec());
+      AtomicReference<Iterable<StoragePayloadWithDeadline>> mismatchedRows =
+          new AtomicReference<>(mismatchedRowsBag.read());
+      if (mismatchedRows.get() != null && !Iterables.isEmpty(mismatchedRows.get())) {
+        // Shared across every key in this window; see drainDeadlines.
+        // TODO: This needs to use the internal clock instead Instant.now(), as the row deadlines
+        // are based on the
+        // internal clock. Add support for accessing the internal clock in OnWindowExpiration.
+        org.joda.time.Instant drainDeadline =
+            getDrainDeadlines()
+                .get(
+                    window,
+                    () -> org.joda.time.Instant.now().plus(Duration.millis(waitTime.toMillis())));
+        LOG.info(
+            "Draining buffered schema-mismatched rows for table {}, waiting until {} for schema update.",
+            tableDestination.getShortTableUrn(),
+            drainDeadline);
+        com.google.api.client.util.BackOff backoff =
+            new ExponentialBackOff.Builder()
+                .setMaxElapsedTimeMillis((int) waitTime.toMillis())
+                .build();
+        do {
+          messageConverter.updateSchemaFromTable();
+          APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(key));
+          final AppendClientInfo roundConverter = drainFailureConverter(messageConverter);
+          processPayloads(
+              pipelineOptions,
+              key,
+              tableDestination,
+              messageConverter,
+              mismatchedRows.get(),
+              null,
+              elementTs,
+              streamName,
+              streamOffset,
+              updatedSchema,
+              null,
+              o,
+              // Partition in a single streaming pass, inside the consumer rather than after
+              // processPayloads returns. What processPayloads hands back is a lazy view over its
+              // SplittingIterable, which resolves rows through the AppendClientHolder that
+              // processPayloads closes on its way out, so this is the only point at which it can
+              // be read at all.
+              //
+              // Splitting here also avoids snapshotting the whole round into a list purely to walk
+              // it a second time. Rows that can still be retried are the only thing retained; rows
+              // whose deadline has passed go straight to the failed-rows collection instead of
+              // accumulating in a list that lives for the rest of the drain.
+              //
+              // Every row is emitted at most once. processPayloads invokes this consumer exactly
+              // once per call, after its internal retry loop and before closing the holder; this
+              // makes a single pass over "rows" with no isEmpty() pre-check that would re-iterate;
+              // each row takes exactly one branch; and a row handed to writeDrainFailure is dropped
+              // rather than carried, so it can reappear neither in a later round nor in the final
+              // flush below.
+              rows -> {
+                org.joda.time.Instant now = org.joda.time.Instant.now();
+                List<StoragePayloadWithDeadline> stillPending = Lists.newArrayList();
+                for (StoragePayloadWithDeadline row : rows) {
+                  // This check is hard to test with DirectRunner. Ideally we should use the
+                  // injected clock, but I'm not sure how to access it from OnWindowExpiration
+                  // (it's usually accessed via the Timer object).
+                  if (row.getDeadline().isAfter(now)) {
+                    stillPending.add(row);
+                  } else {
+                    writeDrainFailure(row, roundConverter, tableDestination, elementTs, o);
+                  }
+                }
+                mismatchedRows.set(stillPending);
+              });
+          // Checked before sleeping so we never sleep past the shared deadline.
+        } while (!Iterables.isEmpty(mismatchedRows.get())
+            && org.joda.time.Instant.now().isBefore(drainDeadline)
+            && com.google.api.client.util.BackOffUtils.next(
+                com.google.api.client.util.Sleeper.DEFAULT, backoff));
+
+        // Whatever is still pending once the drain budget is gone. Rows whose deadline lapsed
+        // during a round were already written to the failed-rows collection at that point and were
+        // not carried forward, so this set cannot overlap with them.
+        if (!Iterables.isEmpty(mismatchedRows.get())) {
+          LOG.warn(
+              "Timed out waiting for table schema update during drain for table {}; routing remaining buffered rows to failed-rows collection.",
+              tableDestination.getShortTableUrn());
+          AppendClientInfo finalConverter = drainFailureConverter(messageConverter);
+          for (StoragePayloadWithDeadline row : mismatchedRows.get()) {
+            writeDrainFailure(row, finalConverter, tableDestination, elementTs, o);
+          }
+        }
+      }
+
       // Window is done - usually because the pipeline has been drained. Make sure to clean up
       // streams so that they are not leaked.
       finalizeStream(streamName, streamOffset, key, o, window.maxTimestamp());
