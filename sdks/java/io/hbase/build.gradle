@@ -50,3 +50,11 @@ dependencies {
   testImplementation("org.apache.hbase:hbase-shaded-testing-util:$hbase_version")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
+
+configurations.all {
+  resolutionStrategy {
+    // TODO: remove after higher version of hbase (>2.6.5) contains this minimum version.
+    force 'org.apache.commons:commons-configuration2:2.15.0'
+  }
+}
+
