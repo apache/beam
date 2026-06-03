@@ -26,6 +26,10 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Delta Lake"
 ext.summary = "Integration with Delta Lake."
 
+// We need to override the GCS bigdataos connector version to prevent conflicts.
+def bigdataoss_gcs_connector_version = "4.0.4"
+
+def parquet_version = "1.16.0"
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -35,5 +39,45 @@ dependencies {
     permitUnusedDeclared library.java.delta_kernel_api
     permitUnusedDeclared library.java.delta_kernel_defaults
 
+    implementation library.java.hadoop_common
+    implementation library.java.joda_time
+    // implementation library.java.slf4j_api
+    implementation "org.apache.parquet:parquet-column:$parquet_version"
+    implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
+
+    // We need to override the GCS connector version to prevent conflicts with
+    // latest Hadoop.
+    implementation "com.google.cloud.bigdataoss:gcs-connector:$bigdataoss_gcs_connector_version"
+    implementation "com.google.cloud.bigdataoss:util-hadoop:$bigdataoss_gcs_connector_version"
+    implementation "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
+    implementation "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
+    permitUnusedDeclared "com.google.cloud.bigdataoss:gcs-connector:$bigdataoss_gcs_connector_version"
+    permitUnusedDeclared "com.google.cloud.bigdataoss:util-hadoop:$bigdataoss_gcs_connector_version"
+    permitUnusedDeclared "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
+    permitUnusedDeclared "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
+
+    // For Avro conversions
+    testImplementation project(":sdks:java:extensions:avro")
+
+    testImplementation library.java.avro
     testImplementation library.java.junit
+    testImplementation library.java.hamcrest
+    testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
+    testImplementation project(":sdks:java:io:parquet")
+    testImplementation project(":sdks:java:managed")
+    testRuntimeOnly "org.yaml:snakeyaml:2.0"
+    testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+}
+
+configurations.all {
+    // Exclude conflicting logging frameworks
+    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j2-impl"
+    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j-impl"
+    exclude group: "org.slf4j", module: "slf4j-reload4j"
+
+    // Force overriding for all configurations
+    resolutionStrategy.force "com.google.cloud.bigdataoss:gcs-connector:$bigdataoss_gcs_connector_version"
+    resolutionStrategy.force "com.google.cloud.bigdataoss:util-hadoop:$bigdataoss_gcs_connector_version"
+    resolutionStrategy.force "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
+    resolutionStrategy.force "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
 }
