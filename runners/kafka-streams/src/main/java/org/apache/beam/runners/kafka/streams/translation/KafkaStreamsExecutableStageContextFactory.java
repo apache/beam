@@ -54,9 +54,13 @@ public class KafkaStreamsExecutableStageContextFactory implements ExecutableStag
             k ->
                 ReferenceCountingExecutableStageContextFactory.create(
                     DefaultExecutableStageContext::create,
-                    // Release the context synchronously once its reference count drops to zero;
-                    // the runner does not keep contexts alive across stages beyond their use.
-                    (caller) -> true));
+                    // Release the context synchronously once its reference count drops to zero,
+                    // and also drop the per-job factory entry so a long-lived JVM that runs many
+                    // jobs does not accumulate one entry per finished job.
+                    (caller) -> {
+                      jobFactories.remove(k);
+                      return true;
+                    }));
     return jobFactory.get(jobInfo);
   }
 }

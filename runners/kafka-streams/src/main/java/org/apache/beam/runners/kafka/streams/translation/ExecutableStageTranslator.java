@@ -50,9 +50,21 @@ class ExecutableStageTranslator implements PTransformTranslator {
           "Failed to parse ExecutableStagePayload for transform " + transformId, e);
     }
 
-    String inputPCollectionId = Iterables.getOnlyElement(transform.getInputsMap().values());
-    String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
-
+    // Fail fast on stage features that are not yet supported, so users get a clear message rather
+    // than a silent miss further down the harness/topology path.
+    if (stagePayload.getSideInputsCount() > 0) {
+      throw new UnsupportedOperationException(
+          "ExecutableStage "
+              + transformId
+              + " has side inputs; side inputs are not yet supported by the Kafka Streams runner.");
+    }
+    if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
+      throw new UnsupportedOperationException(
+          "ExecutableStage "
+              + transformId
+              + " uses user state or timers; stateful ParDo is not yet supported by the Kafka"
+              + " Streams runner.");
+    }
     if (transform.getOutputsMap().size() > 1) {
       throw new UnsupportedOperationException(
           "ExecutableStage "
@@ -61,6 +73,11 @@ class ExecutableStageTranslator implements PTransformTranslator {
               + transform.getOutputsMap().size()
               + " outputs; multi-output stages are not yet supported by the Kafka Streams runner.");
     }
+
+    // The payload distinguishes the main input from side inputs, so reading it from the payload
+    // is unambiguous even before we add side-input support.
+    String inputPCollectionId = stagePayload.getInput();
+    String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
     Topology topology = context.getTopology();
     topology.addProcessor(

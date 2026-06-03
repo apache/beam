@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
-import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
@@ -66,7 +66,9 @@ class ExecutableStageProcessor
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final JobInfo jobInfo;
 
-  private final Queue<WindowedValue<byte[]>> pendingOutputs = new ArrayDeque<>();
+  // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
+  // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
+  private final Queue<WindowedValue<byte[]>> pendingOutputs = new ConcurrentLinkedQueue<>();
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<byte[]>> context;
   private @Nullable ExecutableStageContext stageContext;
