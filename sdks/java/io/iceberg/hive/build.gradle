@@ -78,8 +78,4 @@ dependencies {
 configurations.all {
     // the fatjar "parquet-hadoop-bundle" conflicts with "parquet-hadoop" used by org.apache.iceberg:iceberg-parquet
     exclude group: "org.apache.parquet", module: "parquet-hadoop-bundle"
-    // TODO: remove after higher version of hbase (>2.6.5) contains this minimum version.
-    resolutionStrategy {
-        force 'org.apache.commons:commons-configuration2:2.15.0'
-    }
 }
