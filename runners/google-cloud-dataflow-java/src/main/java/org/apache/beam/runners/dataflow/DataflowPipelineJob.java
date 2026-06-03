@@ -468,13 +468,14 @@ public class DataflowPipelineJob implements PipelineResult {
                 return MonitoringUtil.toState(job.getCurrentState());
               } catch (IOException e) {
                 State state = getState();
+                String message = e.getMessage();
                 if (state.isTerminal()) {
                   LOG.warn(
                       "{} failed because job is already terminated. State is {}",
                       capitalizedAction,
                       state);
                   return state;
-                } else if (e.getMessage().contains("has terminated")) {
+                } else if (message != null && message.contains("has terminated")) {
                   // This handles the case where the getState() call above returns RUNNING but the
                   // request was rejected because the job is in fact done. Hopefully, someday we can
                   // delete this code if there is better consistency between the State and whether

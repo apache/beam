@@ -452,6 +452,32 @@ public class DataflowPipelineJobTest {
     job.cancel();
   }
 
+  @Test
+  public void testCancelUnterminatedJobWithNullFailureMessage() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(
+        "Failed to cancel job in state RUNNING, "
+            + "please go to the Developers Console to cancel it manually:");
+    job.cancel();
+  }
+
   /**
    * Test that {@link DataflowPipelineJob#cancel} doesn't throw if the Dataflow service returns
    * non-terminal state even though the cancel API call failed, which can happen in practice.
