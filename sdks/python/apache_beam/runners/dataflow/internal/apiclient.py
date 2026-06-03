@@ -520,7 +520,7 @@ class DataflowApplicationClient(object):
     transport = None
     if self.google_cloud_options.dataflow_endpoint:
       endpoint = self.google_cloud_options.dataflow_endpoint
-      if 'localhost' in endpoint:
+      if 'localhost' in endpoint or 'sandbox' in endpoint:
         transport = 'rest'
       else:
         endpoint = re.sub('^https?://', '', endpoint)
