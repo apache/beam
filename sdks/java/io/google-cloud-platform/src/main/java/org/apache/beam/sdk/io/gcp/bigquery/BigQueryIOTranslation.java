@@ -617,7 +617,10 @@ public class BigQueryIOTranslation {
           (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
 
       try {
-        BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
+        BigQueryIO.Write.Builder builder =
+            new AutoValue_BigQueryIO_Write.Builder<>()
+                .setNumStorageWriteApiStreams(0)
+                .setNumStorageWriteApiStreamsConfigured(false);
 
         String jsonTableRef = configRow.getString("json_table_ref");
         if (jsonTableRef != null) {
