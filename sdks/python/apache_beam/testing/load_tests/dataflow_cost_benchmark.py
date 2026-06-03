@@ -256,9 +256,7 @@ class DataflowCostBenchmark(LoadTest):
     return metrics
 
   def _get_streaming_throughput_metrics(
-      self,
-      project: str,
-      start_time: datetime,
+      self, project: str, start_time: datetime,
       end_time: datetime) -> dict[str, float]:
     if not self.subscription:
       return {'AvgThroughputBytes': 0.0, 'AvgThroughputElements': 0.0}
