@@ -1453,6 +1453,7 @@ _KNOWN_PRIMITIVE_TYPES: typing.Dict[type, typing.Any] = {}
 
 
 def normalize(x, none_as_type=False):
+  """Normalize a type to Beam typehint."""
   # None is inconsistantly used for Any, unknown, or NoneType.
 
   # Avoid circular imports
