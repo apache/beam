@@ -296,6 +296,17 @@ public class FnHarness {
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
+      SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+      Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+      if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+        openTelemetryProperties.forEach(
+            (k, v) -> {
+              if (k != null && v != null) {
+                System.setProperty(k, v);
+              }
+            });
+        LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+      }
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
