@@ -70,4 +70,11 @@ pipelines:
           input: ReadData.my_error_output
           config:
             elements: []
-          
+    # TODO: Remove when Java ReadFromMongoDB (MongoDbIO) is migrated from
+    # legacy BoundedSource to a DoFn/SDF-based reader.
+    providers:
+      - type: python
+        config: { }
+        transforms:
+          ReadFromMongoDB: 'apache_beam.yaml.yaml_io.read_from_mongodb'
+
