@@ -389,7 +389,8 @@ class WriteToPubSub(PTransform):
       topic: str,
       with_attributes: bool = False,
       id_label: Optional[str] = None,
-      timestamp_attribute: Optional[str] = None) -> None:
+      timestamp_attribute: Optional[str] = None,
+      enable_message_ordering: bool = False) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -405,9 +406,13 @@ class WriteToPubSub(PTransform):
         in a ReadFromPubSub PTransform to deduplicate messages.
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
+      enable_message_ordering: If True, enables message ordering on the
+        PublisherClient. Messages with an ordering_key will be delivered
+        in order. Requires messages to have ordering_key set.
     """
     super().__init__()
     self.with_attributes = with_attributes
+    self.enable_message_ordering = enable_message_ordering
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute
     self.project, self.topic_name = parse_topic(topic)
@@ -467,6 +472,9 @@ class WriteToPubSub(PTransform):
             True, label='With Attributes').drop_if_none(),
         'timestamp_attribute': DisplayDataItem(
             self.timestamp_attribute, label='Timestamp Attribute'),
+        'enable_message_ordering': DisplayDataItem(
+            self.enable_message_ordering,
+            label='Enable Message Ordering').drop_if_none(),
     }
 
 
@@ -573,7 +581,7 @@ class _PubSubWriteDoFn(DoFn):
     self.id_label = transform.id_label
     self.timestamp_attribute = transform.timestamp_attribute
     self.with_attributes = transform.with_attributes
-    self.with_ordering = transform.with_attributes
+    self.with_ordering = transform.enable_message_ordering
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.

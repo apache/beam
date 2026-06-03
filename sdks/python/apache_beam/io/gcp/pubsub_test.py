@@ -1112,7 +1112,9 @@ class TestWriteToPubSub(unittest.TestCase):
           p
           | Create(payloads)
           | WriteToPubSub(
-              'projects/fakeprj/topics/a_topic', with_attributes=True))
+              'projects/fakeprj/topics/a_topic',
+              with_attributes=True,
+              enable_message_ordering=True))
 
     # Verify that publish was called with ordering_key
     mock_pubsub.return_value.publish.assert_called()
@@ -1135,7 +1137,9 @@ class TestWriteToPubSub(unittest.TestCase):
           p
           | Create(payloads)
           | WriteToPubSub(
-              'projects/fakeprj/topics/a_topic', with_attributes=True))
+              'projects/fakeprj/topics/a_topic',
+              with_attributes=True,
+              enable_message_ordering=True))
 
     # Verify that publish was called with ordering_key
     mock_pubsub.return_value.publish.assert_called()
