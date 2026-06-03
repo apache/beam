@@ -1,4 +1,58 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.73.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.74.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.74.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2740-2026-06-02">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.74.0, check out the &lt;a href="https://github.com/apache/beam/milestone/42">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Spark 4 runner support for Java SDK (&lt;a href="https://github.com/apache/beam/issues/38255">#38255&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>IcebergIO: support declaring a table&amp;rsquo;s sort order on dynamic table creation via the new &lt;code>sort_fields&lt;/code> config (&lt;a href="https://github.com/apache/beam/issues/38269">#38269&lt;/a>).&lt;/li>
+&lt;li>IcebergIO: support writing with hash distribution mode, and with autosharding (&lt;a href="https://github.com/apache/beam/issues/38061">#38061&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Capability introduces an indicator for aggregations and timers firing during a pipeline drain, allowing users and sinks to recognize and appropriately handle potentially incomplete or partial data (&lt;a href="https://github.com/apache/beam/issues/36884">#36884&lt;/a>).&lt;/li>
+&lt;li>Added support for setting disk provisioned IOPS and throughput in Dataflow runner via &lt;code>--diskProvisionedIops&lt;/code> and &lt;code>--diskProvisionedThroughputMibps&lt;/code> pipeline options (Java/Go/Python) (&lt;a href="https://github.com/apache/beam/issues/38349">#38349&lt;/a>).&lt;/li>
+&lt;li>TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
+encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
+compatible. Both coders can decode encoded bytes from the other coder
+(&lt;a href="https://github.com/apache/beam/issues/38139">#38139&lt;/a>).&lt;/li>
+&lt;li>(Python) Added type alias for with_exception_handling to be used for typehints. (&lt;a href="https://github.com/apache/beam/issues/38173">#38173&lt;/a>).&lt;/li>
+&lt;li>(Java) BatchElements transform for Java SDK (&lt;a href="https://github.com/apache/beam/issues/38369">#38369&lt;/a>)&lt;/li>
+&lt;li>Added plugin mechanism to support different Lineage implementations (Java) (&lt;a href="https://github.com/apache/beam/issues/36790">#36790&lt;/a>).&lt;/li>
+&lt;li>(Python) Supported Python user type in Beam SQL. For example, SQL statements like &lt;code>SELECT some_field from PCOLLECTION&lt;/code> can now operate a PCollection of Beam Row containing pickable Python user type (&lt;a href="https://github.com/apache/beam/issues/20738">#20738&lt;/a>).&lt;/li>
+&lt;li>(Python) Introduced &lt;code>beam.coders.registry.register_row&lt;/code> as preferred API to register a named tuple or dataclass with a Beam Row. At pipelne runtime, the original type associated with the registered row are preserved across the serialization boundary (&lt;a href="https://github.com/apache/beam/issues/38108">#38108&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Made Beartype the default fallback type checking tool. This can be disabled with the &lt;code>--disable_beartype&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/38275">#38275&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Dropped Java 8 support (&lt;a href="https://github.com/apache/beam/issues/31678">#31678&lt;/a>).&lt;/li>
+&lt;li>Removed Samza Runner support (&lt;a href="https://github.com/apache/beam/issues/35448">#35448&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) (&lt;a href="https://github.com/apache/beam/issues/38035">#38035&lt;/a>).&lt;/li>
+&lt;li>Added &lt;code>max_batch_duration_secs&lt;/code> passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to &lt;code>BatchElements&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/38243">#38243&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;p>According to git shortlog, the following people contributed to the 2.74.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Andrew Kabas, Arran Cudbard-Bell, Arun Pandian, Asish Kumar, Bentsi Leviav, Blake Jones, Bruno Volpato, Chris Jordan, Danny McCormick, Deji Ibrahim, Derrick Williams, Elia LIU, Ganesh Sivakumar, Jack McCluskey, Kenneth Knowles, Lalit Yadav, M Junaid Shaukat, Matej Aleksandrov, Prabhnoor Singh, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., Sam Whittle, Shunping Huang, Subramanya V, Tarun Annapareddy, Tobias Kaymak, TongruiLi, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, ZIHAN DAI, apanich, bambadiouf1, chenxuesdu, claudevdm, harshadkhetpal, johnjcasey, parveensania, tianz101&lt;/p></description><link>/blog/beam-2.74.0/</link><pubDate>Tue, 02 Jun 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.74.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.73.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -783,55 +837,4 @@ significant digits related to casting.&lt;/li>
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.68.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud, Andrew Crites, Ashok Devireddy, Chamikara Jayalath, Charles Nguyen, Danny McCormick, Davda James, Derrick Williams, Diego Hernandez, Dip Patel, Dustin Rhodes, Enrique Calderon, Hai Joey Tran, Jack McCluskey, Kenneth Knowles, Keshav, Khorbaladze A., LEEKYE, Lanny Boarts, Mattie Fu, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Nathaniel Young, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, Sam Whittle, Shehab, Shingo Furuyama, Shunping Huang, Steven van Rossum, Suvrat Acharya, Svetak Sundhar, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, apanich, arnavarora2004, claudevdm, flpablo, kristynsmith, shreyakhajanchi&lt;/p></description><link>/blog/beam-2.68.0/</link><pubDate>Mon, 22 Sep 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.68.0/</guid><category>blog</category><category>release</category></item><item><title>Google Summer of Code 25 - Improving Apache Beam's Infrastructure</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>I loved contributing to Apache Beam during Google Summer of Code 2025. I worked on improving the infrastructure of Apache Beam, which included enhancing the CI/CD pipelines, automating various tasks, and improving the overall developer experience.&lt;/p>
-&lt;h2 id="motivation">Motivation&lt;/h2>
-&lt;p>Since I was in high school, I have been fascinated by computers, but when I discovered Open Source, I was amazed by the idea of people from all around the world collaborating to build software that anyone can use, just for the love of it. I started participating in open source communities, and I found it to be a great way to learn and grow as a developer.&lt;/p>
-&lt;p>When I heard about Google Summer of Code, I saw it as an opportunity to take my open source contributions to the next level. The idea of working on a real-world project while being mentored by experienced developers sounded like an amazing opportunity. I heard about Apache Beam from another contributor and ex-GSoC participant, and I was immediately drawn to the project, specifically on the infrastructure side of things, as I have a strong interest in DevOps and automation.&lt;/p>
-&lt;h2 id="the-challenge">The Challenge&lt;/h2>
-&lt;p>When searching for a project, I was told that Apache Beam&amp;rsquo;s infrastructure had several areas that could be improved. I was excited because the ideas were focused on improving the developer experience, and creating tools that could benefit not only Beam&amp;rsquo;s developers but also the wider open source community.&lt;/p>
-&lt;p>There were four main challenges:&lt;/p>
-&lt;ol>
-&lt;li>Automating the cleanup of unused cloud resources to reduce costs and improve resource management.&lt;/li>
-&lt;li>Implementing a system for managing permissions through Git, allowing for better tracking and auditing of changes.&lt;/li>
-&lt;li>Creating a tool for rotating service account keys to enhance security.&lt;/li>
-&lt;li>Developing a security monitoring system to detect and respond to potential threats.&lt;/li>
-&lt;/ol>
-&lt;h2 id="the-solution">The Solution&lt;/h2>
-&lt;p>I worked closely with my mentor to break down and define each challenge into manageable tasks, creating a plan for the summer. I started by taking a look at the current state of the infrastructure, after which I began working on each challenge one by one.&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>&lt;strong>Automating the cleanup of unused cloud resources:&lt;/strong> We noticed that some resources in the GCP project, especially Pub/Sub topics created for testing, were often forgotten, leading to unnecessary costs. Since the infrastructure is primarily for testing and development, there&amp;rsquo;s no need to keep unused resources. I developed a Python script that identifies and removes stale Pub/Sub topics that have existed for too long. This tool is now scheduled to run periodically via a GitHub Actions workflow to keep the project tidy and cost-effective.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Implementing a system for managing permissions through Git:&lt;/strong> This was more challenging, as it required a good understanding of both GCP IAM and the existing workflow. After some investigation, I learned that the current process was mostly manual and error-prone. The task involved creating a more automated and reliable system. This was achieved by using Terraform to define the desired state of IAM roles and permissions in code, which allows for better tracking and auditing of changes. This also included some custom roles, but that is still a work in progress.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Creating a tool for rotating service account keys:&lt;/strong> Key rotation is a security practice that we don&amp;rsquo;t always follow, but it is essential to ensure that service account keys are not compromised. I noticed that GCP had some APIs that could help with this, but the rotation process itself was not automated. So I wrote a Python script that automates the rotation of GCP service account keys, enhancing the security of service account credentials.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Developing a security monitoring system:&lt;/strong> To keep track of incorrect usage and potential threats, I built a log analysis tool that monitors GCP audit logs for suspicious activity, collecting and parsing logs to identify potential security threats, delivering email alerts when something unusual is detected.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;p>As an extra, and after noticing that some of these tools and policies could be ignored by developers, we also came up with the idea of an enforcement module to ensure the usage of these new tools and policies. This module would be integrated into the CI/CD pipeline, checking for compliance with the new infrastructure policies and notifying developers of any violations.&lt;/p>
-&lt;h2 id="the-impact">The Impact&lt;/h2>
-&lt;p>The tools developed during this project will have an impact on the Apache Beam community and the wider open source community. The automation of resource cleanup will help reduce costs and improve resource management, while the permission management system will provide better tracking and auditing of changes. The service account key rotation tool will enhance security, and the security monitoring system will help detect and respond to potential threats.&lt;/p>
-&lt;h2 id="wrap-up">Wrap Up&lt;/h2>
-&lt;p>This project has been an incredible learning experience for me. I have gained a better understanding of how GCP works, as well as how to use Terraform and GitHub Actions. I have also learned a lot about security best practices and how to implement them in a real-world project.&lt;/p>
-&lt;p>I also learned a lot about working in an open source community, having direct communication with such experienced developers, and the importance of collaboration and communication in a distributed team. I am grateful for the opportunity to work on such an important project and to contribute to the Apache Beam community.&lt;/p>
-&lt;p>Finally, a special thanks to my mentor, Pablo Estrada, for his guidance and support throughout the summer. I am grateful not only for his amazing technical skills but especially for his patience and encouragement on my journey contributing to open source.&lt;/p>
-&lt;p>You can find my final report &lt;a href="https://gist.github.com/ksobrenat32/b028b8303393afbe73a8fc5e17daff90">here&lt;/a> if you want to take a look at the details of my work.&lt;/p>
-&lt;h2 id="advice-for-future-participants">Advice for Future Participants&lt;/h2>
-&lt;p>If you are considering participating in Google Summer of Code, my advice would be to choose an area you are passionate about; this will make any coding challenge easier to overcome. Also, don&amp;rsquo;t be afraid to ask questions and seek help from your mentors and the community. At the start, I made that mistake, and I learned that asking for help is a sign of strength, not weakness.&lt;/p>
-&lt;p>Finally, make sure to manage your time effectively and stay organized (keeping a progress journal is a great idea). GSoC is a great opportunity to learn and grow as a developer, but it can also be time-consuming, so it&amp;rsquo;s important to stay focused and on track.&lt;/p></description><link>/blog/gsoc-25-infra/</link><pubDate>Mon, 15 Sep 2025 00:00:00 -0600</pubDate><guid>/blog/gsoc-25-infra/</guid><category>blog</category><category>gsoc</category></item></channel></rss>
+&lt;p>Ahmed Abualsaud, Andrew Crites, Ashok Devireddy, Chamikara Jayalath, Charles Nguyen, Danny McCormick, Davda James, Derrick Williams, Diego Hernandez, Dip Patel, Dustin Rhodes, Enrique Calderon, Hai Joey Tran, Jack McCluskey, Kenneth Knowles, Keshav, Khorbaladze A., LEEKYE, Lanny Boarts, Mattie Fu, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Nathaniel Young, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, Sam Whittle, Shehab, Shingo Furuyama, Shunping Huang, Steven van Rossum, Suvrat Acharya, Svetak Sundhar, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, apanich, arnavarora2004, claudevdm, flpablo, kristynsmith, shreyakhajanchi&lt;/p></description><link>/blog/beam-2.68.0/</link><pubDate>Mon, 22 Sep 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.68.0/</guid><category>blog</category><category>release</category></item></channel></rss>
