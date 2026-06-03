@@ -332,7 +332,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
         .build();
   }
 
-  private static class GlobalDataRequestCoder extends AtomicCoder<GlobalDataRequest> {
+  static class GlobalDataRequestCoder extends AtomicCoder<GlobalDataRequest> {
     private final Class<Windmill.GlobalDataRequest> protoMessageClass =
         Windmill.GlobalDataRequest.class;
     private transient Parser<Windmill.GlobalDataRequest> memoizedParser;

@@ -383,7 +383,7 @@ public class UserParDoFnFactoryTest {
 
     verify(stepContext)
         .setStateCleanupTimer(
-            SimpleParDoFn.CLEANUP_TIMER_ID,
+            SimpleParDoFnHelpers.CLEANUP_TIMER_ID,
             firstWindow,
             IntervalWindow.getCoder(),
             firstWindow.maxTimestamp().plus(Duration.millis(1L)),
@@ -443,7 +443,7 @@ public class UserParDoFnFactoryTest {
         greaterThan(BoundedWindow.TIMESTAMP_MAX_VALUE));
     verify(stepContext)
         .setStateCleanupTimer(
-            SimpleParDoFn.CLEANUP_TIMER_ID,
+            SimpleParDoFnHelpers.CLEANUP_TIMER_ID,
             globalWindow,
             GlobalWindow.Coder.INSTANCE,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
@@ -459,7 +459,7 @@ public class UserParDoFnFactoryTest {
     when(stepContext.getNextFiredTimer((Coder) GlobalWindow.Coder.INSTANCE))
         .thenReturn(
             TimerData.of(
-                SimpleParDoFn.CLEANUP_TIMER_ID,
+                SimpleParDoFnHelpers.CLEANUP_TIMER_ID,
                 globalWindowNamespace,
                 BoundedWindow.TIMESTAMP_MAX_VALUE,
                 BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1)),
@@ -535,7 +535,7 @@ public class UserParDoFnFactoryTest {
     when(stepContext.getNextFiredTimer(windowCoder))
         .thenReturn(
             TimerData.of(
-                SimpleParDoFn.CLEANUP_TIMER_ID,
+                SimpleParDoFnHelpers.CLEANUP_TIMER_ID,
                 firstWindowNamespace,
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
                 firstWindow.maxTimestamp().plus(Duration.millis(1L)),
@@ -552,7 +552,7 @@ public class UserParDoFnFactoryTest {
     when(stepContext.getNextFiredTimer((Coder) windowCoder))
         .thenReturn(
             TimerData.of(
-                SimpleParDoFn.CLEANUP_TIMER_ID,
+                SimpleParDoFnHelpers.CLEANUP_TIMER_ID,
                 secondWindowNamespace,
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),
                 secondWindow.maxTimestamp().plus(Duration.millis(1L)),

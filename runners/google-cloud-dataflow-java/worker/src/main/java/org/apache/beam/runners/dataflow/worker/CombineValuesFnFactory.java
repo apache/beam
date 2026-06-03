@@ -97,7 +97,7 @@ class CombineValuesFnFactory implements ParDoFnFactory {
         operationContext,
         doFnInfo.getDoFnSchemaInformation(),
         doFnInfo.getSideInputMapping(),
-        SimpleDoFnRunnerFactory.INSTANCE_DONT_DELEGATE_SIDE_INPUTS);
+        SimpleDoFnRunnerFactory.INSTANCE);
   }
 
   private static <K, InputT, AccumT, OutputT> DoFnInfo<?, ?> getDoFnInfo(
