@@ -173,6 +173,7 @@ public class LocalResolveDoFnIT {
         org.apache.beam.sdk.schemas.Schema.builder().addInt64Field("id").build();
     return ChangelogDescriptor.builder()
         .setTableIdentifierString(tableId.toString())
+        .setSequenceNumber(1)
         .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
         .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
         .build();
