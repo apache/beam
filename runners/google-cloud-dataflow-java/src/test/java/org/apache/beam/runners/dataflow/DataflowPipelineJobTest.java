@@ -407,6 +407,26 @@ public class DataflowPipelineJobTest {
   }
 
   @Test
+  public void testDrainUnterminatedJobThatSucceeds() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_DRAINING"));
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    assertEquals(State.DRAINING, job.drain());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_DRAINED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
+    verifyNoMoreInteractions(mockJobs);
+  }
+
+  @Test
   public void testCancelUnterminatedJobThatFails() throws IOException {
     Dataflow.Projects.Locations.Jobs.Get statusRequest =
         mock(Dataflow.Projects.Locations.Jobs.Get.class);

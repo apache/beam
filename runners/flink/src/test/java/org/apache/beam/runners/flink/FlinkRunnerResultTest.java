@@ -19,9 +19,15 @@ package org.apache.beam.runners.flink;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.joda.time.Duration;
 import org.junit.Test;
 
@@ -46,5 +52,27 @@ public class FlinkRunnerResultTest {
     FlinkRunnerResult result = new FlinkRunnerResult(Collections.emptyMap(), 100);
     result.cancel();
     assertThat(result.getState(), is(PipelineResult.State.DONE));
+  }
+
+  @Test
+  public void testDrainDoneResultDoesNotThrowAnException() throws Exception {
+    FlinkRunnerResult result = new FlinkRunnerResult(Collections.emptyMap(), 100);
+    assertThat(result.drain(), is(PipelineResult.State.DONE));
+  }
+
+  @Test
+  public void testDetachedDrainReturnsDrainingThenDrained() throws Exception {
+    JobClient jobClient = mock(JobClient.class);
+    CompletableFuture<String> drainFuture = new CompletableFuture<>();
+    when(jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT))
+        .thenReturn(drainFuture);
+    FlinkDetachedRunnerResult result = new FlinkDetachedRunnerResult(jobClient, 1);
+
+    assertThat(result.drain(), is(PipelineResult.State.DRAINING));
+    assertThat(result.getState(), is(PipelineResult.State.DRAINING));
+
+    drainFuture.complete("savepoint");
+    assertThat(result.getState(), is(PipelineResult.State.DRAINED));
+    verify(jobClient).stopWithSavepoint(true, null, SavepointFormatType.DEFAULT);
   }
 }

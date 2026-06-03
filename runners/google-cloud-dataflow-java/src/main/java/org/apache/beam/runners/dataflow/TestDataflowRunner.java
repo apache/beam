@@ -193,11 +193,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       return false;
     } else {
-      return finalState == State.DONE && !messageHandler.hasSeenError();
+      return (finalState == State.DONE || finalState == State.DRAINED)
+          && !messageHandler.hasSeenError();
     }
   }
 
-  /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */
+  /** Return {@code true} if job state is {@code State.DONE} or {@code State.DRAINED}. */
   private boolean waitForBatchJobTermination(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
     {
@@ -210,7 +211,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return false;
       }
 
-      return job.getState() == State.DONE;
+      State state = job.getState();
+      return state == State.DONE || state == State.DRAINED;
     }
   }
 

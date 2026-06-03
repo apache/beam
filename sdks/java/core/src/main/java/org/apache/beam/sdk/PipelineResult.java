@@ -44,6 +44,19 @@ public interface PipelineResult {
   State cancel() throws IOException;
 
   /**
+   * Drains the pipeline execution.
+   *
+   * <p>Draining requests that the runner stop accepting new input and finish processing data that
+   * has already entered the pipeline.
+   *
+   * @throws IOException if there is a problem executing the drain request.
+   * @throws UnsupportedOperationException if the runner does not support draining.
+   */
+  default State drain() throws IOException {
+    throw new UnsupportedOperationException("Runner does not support draining.");
+  }
+
+  /**
    * Waits until the pipeline finishes and returns the final status. It times out after the given
    * duration.
    *
@@ -93,6 +106,12 @@ public interface PipelineResult {
 
     /** The job has been updated. */
     UPDATED(true, true),
+
+    /** The job is draining its data. */
+    DRAINING(false, false),
+
+    /** The job has completed draining its data. */
+    DRAINED(true, false),
 
     /** The job state reported by a runner cannot be interpreted by the SDK. */
     UNRECOGNIZED(false, false);

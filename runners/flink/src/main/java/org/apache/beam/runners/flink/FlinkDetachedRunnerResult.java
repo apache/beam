@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
@@ -25,6 +26,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   private JobClient jobClient;
   private int jobCheckIntervalInSecs;
+  private @Nullable CompletableFuture<String> drainSavepointFuture;
 
   FlinkDetachedRunnerResult(JobClient jobClient, int jobCheckIntervalInSecs) {
     this.jobClient = jobClient;
@@ -47,6 +51,10 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   @Override
   public State getState() {
+    CompletableFuture<String> drainFuture = drainSavepointFuture;
+    if (drainFuture != null) {
+      return getDrainState(drainFuture);
+    }
     try {
       return toBeamJobState(jobClient.getJobStatus().get());
     } catch (InterruptedException | ExecutionException e) {
@@ -80,6 +88,31 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
       throw new RuntimeException("Fail to cancel flink job", e);
     }
     return getState();
+  }
+
+  @Override
+  public synchronized State drain() throws IOException {
+    CompletableFuture<String> drainFuture = drainSavepointFuture;
+    if (drainFuture == null) {
+      drainFuture = this.jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT);
+      drainSavepointFuture = drainFuture;
+    }
+    return getDrainState(drainFuture);
+  }
+
+  private State getDrainState(CompletableFuture<String> drainFuture) {
+    if (!drainFuture.isDone()) {
+      return State.DRAINING;
+    }
+    try {
+      drainFuture.get();
+      return State.DRAINED;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Fail to drain flink job", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("Fail to drain flink job", e);
+    }
   }
 
   @Override
