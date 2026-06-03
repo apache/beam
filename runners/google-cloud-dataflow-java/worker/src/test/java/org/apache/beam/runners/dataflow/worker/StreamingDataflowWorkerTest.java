@@ -373,7 +373,9 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
