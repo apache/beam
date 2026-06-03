@@ -29,7 +29,7 @@ test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
-    jvmArgs System.getProperty("beamSurefireArgline").split("\\s+")
+    jvmArgs System.getProperty("beamSurefireArgline")
   }
   jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
 }
