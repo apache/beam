@@ -32,10 +32,11 @@ import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
-import com.google.common.util.concurrent.UncheckedExecutionException;
+import com.google.common.base.Throwables;
 import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,19 +71,23 @@ public class CreateTableHelpers {
   static void createTableWrapper(Callable<Void> action, Callable<Boolean> tryCreateTable)
       throws Exception {
     BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
-    RuntimeException lastException = null;
+    Exception lastException = null;
     do {
       try {
         action.call();
         return;
-      } catch (ApiException | StatusRuntimeException | UncheckedExecutionException e) {
+      } catch (Exception e) {
         // The Storage Write library can wrap errors in UncheckedExecutionException
-        if (e instanceof UncheckedExecutionException) {
-          Throwable cause = e.getCause();
-          if (!(cause instanceof ApiException || cause instanceof StatusRuntimeException)) {
-            throw e;
-          }
+        Optional<Throwable> handledCause =
+            Throwables.getCausalChain(e).stream()
+                .filter(
+                    cause ->
+                        (cause instanceof ApiException || cause instanceof StatusRuntimeException))
+                .findAny();
+        if (!handledCause.isPresent()) {
+          throw e;
         }
+
         lastException = e;
         // TODO: Once BigQuery reliably returns a consistent error on table not found, we should
         // only try creating
