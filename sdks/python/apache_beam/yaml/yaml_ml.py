@@ -492,6 +492,7 @@ def run_inference(
           handler_config parameters, see their corresponding doc pages:
 
             - [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.VertexAIModelHandlerJSONProvider) # pylint: disable=line-too-long
+            - [HuggingFacePipelineProvider](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.HuggingFacePipelineProvider) # pylint: disable=line-too-long
     inference_tag: The tag to use for the returned inference. Default is
       'inference'.
     inference_args: Extra arguments for models whose inference call requires
