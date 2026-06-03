@@ -214,6 +214,15 @@ dependencies {
     implementation library.java.joda_time
     implementation library.java.opentelemetry_context
     implementation library.java.slf4j_api
+    implementation library.java.opentelemetry_sdk
+    implementation library.java.opentelemetry_context
+    implementation library.java.opentelemetry_exporter_otlp
+    // implementation project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+    implementation library.java.opentelemetry_extension_autoconfigure
+    permitUnusedDeclared library.java.opentelemetry_extension_autoconfigure
+    permitUnusedDeclared library.java.opentelemetry_exporter_otlp
+    // permitUnusedDeclared project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+    permitUnusedDeclared library.java.opentelemetry_sdk
     implementation library.java.vendored_grpc_1_69_0
     implementation library.java.error_prone_annotations
     permitUnusedDeclared library.java.error_prone_annotations
