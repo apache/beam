@@ -420,6 +420,7 @@ public class StreamingDataflowWorkerTest {
             CloudObjects.asCloudObject(IntervalWindowCoder.of(), /* sdkComponents= */ null)));
 
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -439,6 +440,7 @@ public class StreamingDataflowWorkerTest {
 
   private ParallelInstruction makeSourceInstruction(Coder<?> coder) {
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -3955,11 +3957,16 @@ public class StreamingDataflowWorkerTest {
         LatencyAttribution.newBuilder().setState(State.ACTIVE).setTotalDurationMillis(100);
     for (LatencyAttribution la : commit.getPerWorkItemLatencyAttributionsList()) {
       if (la.getState() == State.ACTIVE) {
-        assertThat(la.getActiveLatencyBreakdownCount(), equalTo(1));
-        assertThat(
-            la.getActiveLatencyBreakdown(0).getUserStepName(), equalTo(DEFAULT_PARDO_USER_NAME));
-        Assert.assertTrue(la.getActiveLatencyBreakdown(0).hasProcessingTimesDistribution());
-        Assert.assertFalse(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+        LatencyAttribution.ActiveLatencyBreakdown pardoBreakdown = null;
+        for (LatencyAttribution.ActiveLatencyBreakdown lb : la.getActiveLatencyBreakdownList()) {
+          if (DEFAULT_PARDO_USER_NAME.equals(lb.getUserStepName())) {
+            pardoBreakdown = lb;
+            break;
+          }
+        }
+        Assert.assertNotNull("Expected breakdown for " + DEFAULT_PARDO_USER_NAME, pardoBreakdown);
+        Assert.assertTrue(pardoBreakdown.hasProcessingTimesDistribution());
+        Assert.assertFalse(pardoBreakdown.hasActiveMessageMetadata());
       }
     }
 

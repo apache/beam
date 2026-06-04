@@ -296,6 +296,9 @@ public class StreamingModeExecutionContext
     this.workQueueExecutor = null;
     this.budgetHandle = null;
     this.keySwitchListener = null;
+    this.work = null;
+    this.key = null;
+    this.outputBuilder = null;
   }
 
   public void start(
@@ -693,6 +696,9 @@ public class StreamingModeExecutionContext
   }
 
   private void startForNewKey(Work newWork, WindmillStateReader reader) {
+    if (keySwitchListener != null && this.work != null && this.work != newWork) {
+      keySwitchListener.onKeySwitch(this.work, newWork);
+    }
     this.key = decodeKey(newWork);
     this.work = newWork;
     this.finishKeyCalled = false;
