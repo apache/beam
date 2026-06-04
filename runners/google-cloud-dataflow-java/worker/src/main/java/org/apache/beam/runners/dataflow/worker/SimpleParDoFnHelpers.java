@@ -261,7 +261,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor> sideInputProcessor)
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
           throws Exception {
         doFn.processUserTimer(timer, sideInputProcessor.get());
       }
@@ -271,7 +271,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor> sideInputProcessor)
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
           throws Exception {
         throw new UnsupportedOperationException(
             "Attempt to deliver a timer to a DoFn, but timers are not supported here.");
@@ -282,7 +282,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor> sideInputProcessor)
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
           throws Exception {
         doFn.processSystemTimer(timer, sideInputProcessor.get());
       }
@@ -291,7 +291,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
     public abstract void processTimer(
         SimpleParDoFnHelpers doFn,
         TimerInternals.TimerData timer,
-        Supplier<StreamingSideInputProcessor> sideInputProcessor)
+        Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
         throws Exception;
   };
 
