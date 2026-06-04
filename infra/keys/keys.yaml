@@ -16,11 +16,10 @@
 # Service Account Keys
 # This file contains the service account for the project, the account id
 # and the users authorized to use it
-# service_accounts:
-# - account_id: account_id
-#   display_name: account_@project_id.iam.gserviceaccount.com
-#   authorized_users:
-#     - email: "user1@google.com"
-#     - email: "user2@google.com"
+service_accounts:
+- account_id: hansel-tepal-gsoc-2026
+  display_name: "Hansel Yael Tepal Briseño GSoC 2026"
+  authorized_users:
+    - email: "hanzel.yael@hotmail.com"
+    - email: "hansmarcus14@gmail.com"
 
-service_accounts: []
