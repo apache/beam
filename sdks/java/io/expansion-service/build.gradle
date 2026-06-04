@@ -97,6 +97,7 @@ dependencies {
 
   runtimeOnly project(":sdks:java:io:datadog")
   runtimeOnly project(":sdks:java:io:mongodb")
+  runtimeOnly project(":sdks:java:io:delta")
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 
