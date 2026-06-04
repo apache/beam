@@ -32,7 +32,9 @@ from apache_beam.metrics.metric import Lineage
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.metrics.metric import MetricsFlag
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.direct.direct_runner import BundleBasedDirectRunner
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.metric_result_matchers import DistributionMatcher
@@ -120,6 +122,108 @@ class MetricsTest(unittest.TestCase):
   def test_get_namespace_error(self):
     with self.assertRaises(ValueError):
       Metrics.get_namespace(object())
+
+  def test_metrics_flag(self):
+    MetricsFlag.reset()
+    try:
+      self.assertFalse(MetricsFlag.counter_disabled)
+      self.assertFalse(MetricsFlag.string_set_disabled)
+      self.assertFalse(MetricsFlag.bounded_trie_disabled)
+
+      options = PipelineOptions(['--experiments=disableCounterMetrics'])
+      MetricsFlag.set_default_pipeline_options(options)
+      self.assertTrue(MetricsFlag.counter_disabled)
+      self.assertFalse(MetricsFlag.string_set_disabled)
+      self.assertFalse(MetricsFlag.bounded_trie_disabled)
+
+      MetricsFlag.reset()
+      options = PipelineOptions(['--experiments=disableStringSetMetrics'])
+      MetricsFlag.set_default_pipeline_options(options)
+      self.assertFalse(MetricsFlag.counter_disabled)
+      self.assertTrue(MetricsFlag.string_set_disabled)
+      self.assertFalse(MetricsFlag.bounded_trie_disabled)
+
+      MetricsFlag.reset()
+      options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
+      MetricsFlag.set_default_pipeline_options(options)
+      self.assertFalse(MetricsFlag.counter_disabled)
+      self.assertFalse(MetricsFlag.string_set_disabled)
+      self.assertTrue(MetricsFlag.bounded_trie_disabled)
+
+      MetricsFlag.reset()
+      options = PipelineOptions([
+          '--experiments=disableCounterMetrics',
+          '--experiments=disableStringSetMetrics',
+          '--experiments=disableBoundedTrieMetrics',
+      ])
+      MetricsFlag.set_default_pipeline_options(options)
+      self.assertTrue(MetricsFlag.counter_disabled)
+      self.assertTrue(MetricsFlag.string_set_disabled)
+      self.assertTrue(MetricsFlag.bounded_trie_disabled)
+    finally:
+      MetricsFlag.reset()
+
+  def test_disabled_counter_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+    MetricsFlag.reset()
+    try:
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.counter('ns', 'baseline').inc()
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableCounterMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.counter('ns', 'after_disable').inc()
+        Metrics.counter('ns', 'after_disable').inc(5)
+        Metrics.counter('ns', 'after_disable').dec()
+        self.assertEqual(len(container.metrics), 1)
+    finally:
+      sampler.stop()
+      MetricsFlag.reset()
+
+  def test_disabled_string_set_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+    MetricsFlag.reset()
+    try:
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.string_set('ns', 'baseline').add('seed')
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableStringSetMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.string_set('ns', 'after_disable').add('value')
+        self.assertEqual(len(container.metrics), 1)
+    finally:
+      sampler.stop()
+      MetricsFlag.reset()
+
+  def test_disabled_bounded_trie_is_noop(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+    MetricsFlag.reset()
+    try:
+      sampler.start()
+      with state:
+        container = MetricsEnvironment.current_container()
+        Metrics.bounded_trie('ns', 'baseline').add(['a'])
+        self.assertEqual(len(container.metrics), 1)
+        options = PipelineOptions(['--experiments=disableBoundedTrieMetrics'])
+        MetricsFlag.set_default_pipeline_options(options)
+        Metrics.bounded_trie('ns', 'after_disable').add(['a', 'b'])
+        self.assertEqual(len(container.metrics), 1)
+    finally:
+      sampler.stop()
+      MetricsFlag.reset()
 
   def test_counter_empty_name(self):
     with self.assertRaises(ValueError):
