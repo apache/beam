@@ -373,7 +373,9 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -3657,8 +3659,8 @@ public class StreamingDataflowWorkerTest {
         server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
-    assertEquals(0, BlockingFn.teardownCounter.get());
-    assertEquals(1, BlockingFn.setupCounter.get());
+    assertEquals(1, BlockingFn.teardownCounter.get());
+    assertEquals(2, BlockingFn.setupCounter.get());
 
     worker.stop();
   }

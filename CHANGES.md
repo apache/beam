@@ -55,19 +55,58 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.74.0] - Unreleased
+# [2.75.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* Spark 4 runner support for Java SDK ([#38255](https://github.com/apache/beam/issues/38255)).
+* (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing `--experiments=disable_streaming_engine_state_tag_encoding_v2` or `--updateCompatibilityVersion=2.74.0` pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. ([#38705](https://github.com/apache/beam/issues/38705)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
+  use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
+  However fixing forward is recommended.
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
+
+## Security Fixes
+
+* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
+* ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.74.0] - 2026-06-02
+
+## Highlights
+
+* Spark 4 runner support for Java SDK ([#38255](https://github.com/apache/beam/issues/38255)).
+
+## I/Os
+
 * IcebergIO: support declaring a table's sort order on dynamic table creation via the new `sort_fields` config ([#38269](https://github.com/apache/beam/issues/38269)).
-* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/issues/38061))).
+* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/issues/38061)).
 
 ## New Features / Improvements
 
@@ -87,11 +126,9 @@
 ## Breaking Changes
 
 * (Python) Made Beartype the default fallback type checking tool. This can be disabled with the `--disable_beartype` pipeline option. ([#38275](https://github.com/apache/beam/issues/38275))
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
-* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
 * Dropped Java 8 support ([#31678](https://github.com/apache/beam/issues/31678)).
 * Removed Samza Runner support ([#35448](https://github.com/apache/beam/issues/35448)).
 
@@ -99,16 +136,6 @@
 
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
 * Added `max_batch_duration_secs` passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to `BatchElements` ([#38243](https://github.com/apache/beam/issues/38243)).
-* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
-
-## Security Fixes
-
-* Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-
-## Known Issues
-
-[comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
-* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.73.0] - 2026-04-29
 

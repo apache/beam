@@ -59,6 +59,9 @@ public class ExecutorTestUtils {
       }
       return receivers;
     }
+
+    @Override
+    public void finishKey() throws Exception {}
   }
 
   /** A {@code Reader<String>} that yields a specified set of values. */

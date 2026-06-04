@@ -774,3 +774,29 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   if debug:
     print(f, id(f), input_types, '->', result)
   return result
+
+
+def resolve_dataclass_field_type(x):
+  """
+  Resolve a type to Beam typehint under global pipeline option context.
+
+  Since Beam 2.75.0, typehints of dataclass fields are honored during type
+  inferences. However, in case of breakage (possible scenarios include
+  incorrect typehints; non-deterministic or nullable types disallowed by
+  consumer transform but check disabled by Any; tests rely on Any),
+  --exclude_infer_dataclass_field_type option to instruct falling back to Any.
+  Fields of builtin primitives are always respected.
+  """
+  from apache_beam.options.pipeline_options_context import get_pipeline_options
+  options = get_pipeline_options()
+  if options:
+    from apache_beam.options.pipeline_options import TypeOptions
+    disabled = options.view_as(TypeOptions).exclude_infer_dataclass_field_type
+  else:
+    disabled = False
+
+  if not disabled:
+    return typehints.normalize(x)
+  if x in (bool, bytes, complex, float, int, str):
+    return x
+  return Any

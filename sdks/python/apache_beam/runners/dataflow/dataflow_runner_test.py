@@ -41,7 +41,7 @@ from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_options
 from apache_beam.runners.dataflow.dataflow_runner import _check_and_add_missing_streaming_options
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.dataflow.dataflow_runner import _is_runner_v2_disabled
 from apache_beam.runners.internal import names
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
@@ -51,12 +51,15 @@ from apache_beam.transforms import environments
 from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  from google.cloud import dataflow as dataflow_api
+
   from apache_beam.runners.dataflow.internal import apiclient
 except ImportError:
   apiclient = None  # type: ignore
-# pylint: enable=wrong-import-order, wrong-import-position
+  dataflow_api = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 # SpecialParDo and SpecialDoFn are used in test_remote_runner_display_data.
@@ -101,7 +104,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish_unrecognized(self, patched_time_sleep):
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    values_enum = dataflow_api.JobState
     options = PipelineOptions(self.default_properties)
 
     class MockDataflowRunner(object):
@@ -109,12 +112,12 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
         self.job.id = "test-job-id"
-        self.job.currentState = values_enum.JOB_STATE_UNKNOWN
+        self.job.current_state = values_enum.JOB_STATE_UNKNOWN
         self._states = states
         self._next_state_index = 0
 
         def get_job_side_effect(*args, **kwargs):
-          self.job.currentState = self._states[self._next_state_index]
+          self.job.current_state = self._states[self._next_state_index]
           if self._next_state_index < (len(self._states) - 1):
             self._next_state_index += 1
           return mock.DEFAULT
@@ -137,19 +140,19 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   @mock.patch('time.sleep', return_value=None)
   def test_wait_until_finish(self, patched_time_sleep):
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    values_enum = dataflow_api.JobState
     options = PipelineOptions(self.default_properties)
 
     class MockDataflowRunner(object):
       def __init__(self, states):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
-        self.job.currentState = values_enum.JOB_STATE_UNKNOWN
+        self.job.current_state = values_enum.JOB_STATE_UNKNOWN
         self._states = states
         self._next_state_index = 0
 
         def get_job_side_effect(*args, **kwargs):
-          self.job.currentState = self._states[self._next_state_index]
+          self.job.current_state = self._states[self._next_state_index]
           if self._next_state_index < (len(self._states) - 1):
             self._next_state_index += 1
           return mock.DEFAULT
@@ -222,7 +225,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
 
   @mock.patch('time.sleep', return_value=None)
   def test_cancel(self, patched_time_sleep):
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    values_enum = dataflow_api.JobState
     options = PipelineOptions(
         self.default_properties).view_as(GoogleCloudOptions)
 
@@ -230,7 +233,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       def __init__(self, state, cancel_result):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
-        self.job.currentState = state
+        self.job.current_state = state
 
         self.dataflow_client.get_job = mock.MagicMock(return_value=self.job)
         self.dataflow_client.modify_job_state = mock.MagicMock(
@@ -256,7 +259,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     terminal_result.cancel()
 
   def test_api_jobstate_to_pipeline_state(self):
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    values_enum = dataflow_api.JobState
     expected_mappings = [
         (values_enum.JOB_STATE_UNKNOWN, PipelineState.UNKNOWN),
         (values_enum.JOB_STATE_STOPPED, PipelineState.STOPPED),
@@ -269,11 +272,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         (values_enum.JOB_STATE_DRAINED, PipelineState.DRAINED),
         (values_enum.JOB_STATE_PENDING, PipelineState.PENDING),
         (values_enum.JOB_STATE_CANCELLING, PipelineState.CANCELLING),
+        (values_enum.JOB_STATE_PAUSING, PipelineState.PAUSING),
+        (values_enum.JOB_STATE_PAUSED, PipelineState.PAUSED),
         (
             values_enum.JOB_STATE_RESOURCE_CLEANING_UP,
             PipelineState.RESOURCE_CLEANING_UP),
-        (values_enum.JOB_STATE_PAUSING, PipelineState.PAUSING),
-        (values_enum.JOB_STATE_PAUSED, PipelineState.PAUSED),
     ]
 
     for api_state, pipeline_state in expected_mappings:
@@ -691,8 +694,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.io.ReadFromPubSub('projects/some-project/topics/some-topic')
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
@@ -710,8 +712,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_BATCH)
 
   @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
   @mock.patch(
@@ -730,8 +731,26 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(options=options) as p:
       _ = p | beam.Create([1, 2, 3])
     self.assertEqual(
-        p.result.job.proto.type,
-        apiclient.dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING)
+        p.result.job.proto.type, apiclient.dataflow.JobType.JOB_TYPE_STREAMING)
+
+  def test_runner_v2_disabled_experiments_raise(self):
+    disable_experiments = [
+        'disable_portable_runner',
+        'enable_streaming_java_runner',
+        'disable_runner_v2',
+        'disable_runner_v2_until_2023',
+        'disable_runner_v2_until_v2.50',
+        'disable_prime_runner_v2',
+    ]
+    for experiment in disable_experiments:
+      options = PipelineOptions([f'--experiments={experiment}'])
+      self.assertTrue(
+          _is_runner_v2_disabled(options),
+          f'Expected {experiment} to disable Portable Runner')
+      with self.assertRaisesRegex(
+          ValueError,
+          'Disabling Dataflow Portable Runner no longer supported.*'):
+        DataflowRunner().run_pipeline(None, options)
 
 
 if __name__ == '__main__':

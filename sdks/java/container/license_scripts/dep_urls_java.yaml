@@ -46,7 +46,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '26.80.0':
+  '26.83.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
@@ -69,9 +69,15 @@ opentelemetry-bom:
   '1.56.0':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.56.0/LICENSE"
     type: "Apache License 2.0"
+  '1.57.0':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.57.0/LICENSE"
+    type: "Apache License 2.0"
 opentelemetry-bom-alpha:
    '1.56.0-alpha':
     license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.56.0/LICENSE"
+    type: "Apache License 2.0"
+   '1.57.0-alpha':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.57.0/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
   '1.5.2-5':

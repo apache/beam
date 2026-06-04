@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -56,6 +57,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
@@ -157,6 +159,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private @Nullable UnboundedReader<?> activeReader;
 
+  private @Nullable WorkExecutor workExecutor;
+  private boolean finishKeyCalled = false;
+
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
       String computationId,
@@ -240,9 +245,12 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+      Windmill.WorkItemCommitRequest.Builder outputBuilder,
+      WorkExecutor workExecutor) {
     this.key = key;
     this.work = work;
+    this.workExecutor = workExecutor;
+    this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, work.getShardedKey());
     this.sideInputStateFetcher = sideInputStateFetcher;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
@@ -269,6 +277,17 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         stepContext.start(stateReader, processingTime, cacheForKey, work.watermarks());
       }
     }
+  }
+
+  public void finishKey() {
+    checkState(!finishKeyCalled, "finishKey was already called");
+    checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
+    try {
+      workExecutor.finishKey();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    this.finishKeyCalled = true;
   }
 
   /**
@@ -452,6 +471,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public Map<Long, Pair<Instant, Runnable>> flushState() {
+    checkState(finishKeyCalled, "finishKey must be called before flushState");
     Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
 
     for (StepContext stepContext : getAllStepContexts()) {

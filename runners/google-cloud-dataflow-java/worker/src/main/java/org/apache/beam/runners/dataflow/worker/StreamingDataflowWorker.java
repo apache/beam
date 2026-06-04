@@ -115,6 +115,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -1040,6 +1041,18 @@ public final class StreamingDataflowWorker {
     CoderTranslation.verifyModelCodersRegistered();
     if (DataflowRunner.hasExperiment(options, ELEMENT_METADATA_SUPPORTED_EXPERIMENT)) {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    }
+
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
     }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
