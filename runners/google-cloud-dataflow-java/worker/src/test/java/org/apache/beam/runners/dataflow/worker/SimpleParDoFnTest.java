@@ -489,7 +489,7 @@ public class SimpleParDoFnTest {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement() throws Exception {
         assertThat(startCalled, equalTo(true));
         assertThat(tracker.getCurrentState(), equalTo(operationContext.getProcessState()));
       }

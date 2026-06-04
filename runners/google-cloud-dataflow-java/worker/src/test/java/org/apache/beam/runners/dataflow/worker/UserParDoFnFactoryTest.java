@@ -323,10 +323,6 @@ public class UserParDoFnFactoryTest {
 
   private CloudObject getCloudObject(DoFn<?, ?> fn, WindowingStrategy<?, ?> windowingStrategy) {
     CloudObject object = CloudObject.forClassName("DoFn");
-    @SuppressWarnings({
-      "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-      "unchecked"
-    })
     DoFnInfo<?, ?> info =
         DoFnInfo.forFn(
             fn,
@@ -377,9 +373,10 @@ public class UserParDoFnFactoryTest {
     Receiver rcvr = new OutputReceiver();
     parDoFn.startBundle(rcvr);
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     parDoFn.processElement(
-        WindowedValues.of("foo", new Instant(1), firstWindow, PaneInfo.NO_FIRING));
+        WindowedValues.of("foo", Instant.ofEpochMilli(1), firstWindow, PaneInfo.NO_FIRING));
 
     verify(stepContext)
         .setStateCleanupTimer(
@@ -436,7 +433,7 @@ public class UserParDoFnFactoryTest {
 
     GlobalWindow globalWindow = GlobalWindow.INSTANCE;
     parDoFn.processElement(
-        WindowedValues.of("foo", new Instant(1), globalWindow, PaneInfo.NO_FIRING));
+        WindowedValues.of("foo", Instant.ofEpochMilli(1), globalWindow, PaneInfo.NO_FIRING));
 
     assertThat(
         globalWindow.maxTimestamp().plus(allowedLateness),
@@ -516,8 +513,10 @@ public class UserParDoFnFactoryTest {
     Receiver rcvr = new OutputReceiver();
     parDoFn.startBundle(rcvr);
 
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(19));
+    IntervalWindow firstWindow =
+        new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(9));
+    IntervalWindow secondWindow =
+        new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(19));
 
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
     StateNamespace firstWindowNamespace = StateNamespaces.window(windowCoder, firstWindow);

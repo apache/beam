@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -45,7 +46,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -58,6 +61,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -88,7 +92,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
-  private static TupleTag<KV<String, Integer>> mainOutputTag = new TupleTag<>();
+  private static final TupleTag<KV<String, Integer>> MAIN_OUTPUT_TAG = new TupleTag<>();
 
   private final InMemoryStateInternals<String> state = InMemoryStateInternals.forKey("a");
 
@@ -96,7 +100,6 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   @Mock private TimerInternals mockTimerInternals;
   @Mock private SideInputReader mockSideInputReader;
 
-  @SuppressWarnings({"unchecked", "rawtypes"})
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
@@ -111,17 +114,13 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
     PCollectionView<String> view = createView();
 
     when(stepContext.issueSideInputFetch(
-            eq(view),
-            any(org.apache.beam.sdk.transforms.windowing.BoundedWindow.class),
-            eq(SideInputState.UNKNOWN)))
+            eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
     when(stepContext.issueSideInputFetch(
-            eq(view),
-            any(org.apache.beam.sdk.transforms.windowing.BoundedWindow.class),
-            eq(SideInputState.KNOWN_READY)))
+            eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
         .thenReturn(true);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15L));
     StreamingKeyedWorkKitemSideInputParDoFn<String, Integer, KV<String, Integer>, IntervalWindow>
         runner = createRunner(view);
 
@@ -141,13 +140,13 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
     // Initially blocked! No output.
     assertEquals(0, receiver.outputs.size());
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(20));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(20));
     runner.processElement(
         new ValueInEmptyWindows<>(
             KeyedWorkItems.<String, Integer>timersWorkItem(
                 "a",
                 ImmutableList.of(
-                    timerData(window(10, 20), new Instant(19), Timer.Type.WATERMARK)))));
+                    timerData(window(10, 20), Instant.ofEpochMilli(19), Timer.Type.WATERMARK)))));
 
     // Timer is blocked too!
     assertEquals(0, receiver.outputs.size());
@@ -218,17 +217,13 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
     PCollectionView<String> view = createView();
 
     when(stepContext.issueSideInputFetch(
-            eq(view),
-            any(org.apache.beam.sdk.transforms.windowing.BoundedWindow.class),
-            eq(SideInputState.UNKNOWN)))
+            eq(view), any(BoundedWindow.class), eq(SideInputState.UNKNOWN)))
         .thenReturn(false);
     when(stepContext.issueSideInputFetch(
-            eq(view),
-            any(org.apache.beam.sdk.transforms.windowing.BoundedWindow.class),
-            eq(SideInputState.KNOWN_READY)))
+            eq(view), any(BoundedWindow.class), eq(SideInputState.KNOWN_READY)))
         .thenReturn(true);
 
-    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
+    when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15L));
     StreamingKeyedWorkKitemSideInputParDoFn<
             byte[], KV<Integer, String>, KV<String, Integer>, IntervalWindow>
         runner = createSplittableRunner(view);
@@ -267,7 +262,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {
-    Instant timestamp = new Instant(timestampMillis);
+    Instant timestamp = Instant.ofEpochMilli(timestampMillis);
     return WindowedValues.of(
         element, timestamp, Arrays.asList(WINDOW_FN.assignWindow(timestamp)), PaneInfo.NO_FIRING);
   }
@@ -282,7 +277,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   }
 
   private IntervalWindow window(long start, long end) {
-    return new IntervalWindow(new Instant(start), new Instant(end));
+    return new IntervalWindow(Instant.ofEpochMilli(start), Instant.ofEpochMilli(end));
   }
 
   private PCollectionView<String> createView() {
@@ -328,7 +323,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
             windowingStrategy,
             ImmutableList.of(view),
             (Coder) null,
-            mainOutputTag,
+            MAIN_OUTPUT_TAG,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
@@ -373,8 +368,8 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
         options,
         DoFnInstanceManagers.singleInstance(fnInfo),
         mockSideInputReader,
-        mainOutputTag,
-        ImmutableMap.of(mainOutputTag, 0),
+        MAIN_OUTPUT_TAG,
+        ImmutableMap.of(MAIN_OUTPUT_TAG, 0),
         stepContext,
         TestOperationContext.create(),
         DoFnSchemaInformation.create(),
@@ -388,10 +383,9 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   private StreamingKeyedWorkKitemSideInputParDoFn<
           byte[], KV<Integer, String>, KV<String, Integer>, IntervalWindow>
       createSplittableRunner(PCollectionView<String> view) throws Exception {
-    org.apache.beam.sdk.coders.ByteArrayCoder keyCoder =
-        org.apache.beam.sdk.coders.ByteArrayCoder.of();
+    ByteArrayCoder keyCoder = ByteArrayCoder.of();
     Coder<KV<Integer, String>> inputCoder =
-        org.apache.beam.sdk.coders.KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of());
+        KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of());
 
     WindowingStrategy<Integer, IntervalWindow> windowingStrategy =
         (WindowingStrategy) WindowingStrategy.of(WINDOW_FN);
@@ -406,7 +400,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
             (Coder) StringUtf8Coder.of(), // watermarkEstimatorStateCoder
             windowingStrategy,
             Collections.emptyMap());
-    processFn.setup(org.apache.beam.sdk.options.PipelineOptionsFactory.create());
+    processFn.setup(PipelineOptionsFactory.create());
 
     DoFnInfo<KeyedWorkItem<byte[], KV<Integer, String>>, KV<String, Integer>> fnInfo =
         DoFnInfo.forFn(
@@ -414,7 +408,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
             windowingStrategy,
             ImmutableList.of(view),
             (Coder) null,
-            mainOutputTag,
+            MAIN_OUTPUT_TAG,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
@@ -453,7 +447,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
                         outputManager2,
                         mainOutputTag,
                         sideInputReader,
-                        java.util.concurrent.Executors.newSingleThreadScheduledExecutor(),
+                        Executors.newSingleThreadScheduledExecutor(),
                         10000,
                         Duration.standardSeconds(10),
                         () -> null));
@@ -481,8 +475,8 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
         options,
         DoFnInstanceManagers.singleInstance(fnInfo),
         mockSideInputReader,
-        mainOutputTag,
-        ImmutableMap.of(mainOutputTag, 0),
+        MAIN_OUTPUT_TAG,
+        ImmutableMap.of(MAIN_OUTPUT_TAG, 0),
         stepContext,
         TestOperationContext.create(),
         DoFnSchemaInformation.create(),

@@ -34,10 +34,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -79,14 +82,16 @@ public class StreamingSideInputProcessorTest {
   @Test
   public void testTryUnblockElementsWithReadyWindows() {
     // Given
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow window2 = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
     Set<IntervalWindow> readyWindows = new HashSet<>(Arrays.asList(window1, window2));
 
     WindowedValue<String> element1 =
-        WindowedValues.of("e1", new Instant(5), Arrays.asList(window1), PaneInfo.NO_FIRING);
+        WindowedValues.of(
+            "e1", Instant.ofEpochMilli(5), Arrays.asList(window1), PaneInfo.NO_FIRING);
     WindowedValue<String> element2 =
-        WindowedValues.of("e2", new Instant(15), Arrays.asList(window2), PaneInfo.NO_FIRING);
+        WindowedValues.of(
+            "e2", Instant.ofEpochMilli(15), Arrays.asList(window2), PaneInfo.NO_FIRING);
 
     @SuppressWarnings("unchecked")
     BagState<WindowedValue<String>> mockBag1 = mock(BagState.class);
@@ -131,9 +136,9 @@ public class StreamingSideInputProcessorTest {
   @Test
   public void testHandleProcessElementBlocked() {
     // Given
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    IntervalWindow window = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
     WindowedValue<String> compressedElement =
-        WindowedValues.of("e", new Instant(5), Arrays.asList(window), PaneInfo.NO_FIRING);
+        WindowedValues.of("e", Instant.ofEpochMilli(5), Arrays.asList(window), PaneInfo.NO_FIRING);
 
     when(mockFetcher.storeIfBlocked(any(WindowedValue.class))).thenReturn(true);
 
@@ -151,10 +156,11 @@ public class StreamingSideInputProcessorTest {
   @Test
   public void testHandleProcessElementUnblocked() {
     // Given
-    IntervalWindow window1 = new IntervalWindow(new Instant(0), new Instant(10));
-    IntervalWindow window2 = new IntervalWindow(new Instant(10), new Instant(20));
+    IntervalWindow window1 = new IntervalWindow(Instant.ofEpochMilli(0), Instant.ofEpochMilli(10));
+    IntervalWindow window2 = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
     WindowedValue<String> compressedElement =
-        WindowedValues.of("e", new Instant(5), Arrays.asList(window1, window2), PaneInfo.NO_FIRING);
+        WindowedValues.of(
+            "e", Instant.ofEpochMilli(5), Arrays.asList(window1, window2), PaneInfo.NO_FIRING);
 
     when(mockFetcher.storeIfBlocked(any(WindowedValue.class))).thenReturn(false);
 
@@ -174,28 +180,36 @@ public class StreamingSideInputProcessorTest {
   @Test
   public void testHandleProcessTimerSuccess() {
     // Given
-    TimerData mockTimer = mock(TimerData.class);
-    when(mockFetcher.storeIfBlocked(mockTimer)).thenReturn(false);
+    TimerData testTimer =
+        TimerData.of(
+            StateNamespaces.global(),
+            Instant.ofEpochMilli(1000),
+            Instant.ofEpochMilli(2000),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
+    when(mockFetcher.storeIfBlocked(testTimer)).thenReturn(false);
 
     // When
-    processor.handleProcessTimer(mockTimer);
+    processor.handleProcessTimer(testTimer);
 
     // Then
-    verify(mockFetcher).storeIfBlocked(mockTimer);
+    verify(mockFetcher).storeIfBlocked(testTimer);
   }
 
   @Test
   public void testHandleProcessTimerThrowsPreconditionFail() {
     // Given
-    TimerData mockTimer = mock(TimerData.class);
-    when(mockFetcher.storeIfBlocked(mockTimer)).thenReturn(true);
+    TimerData testTimer =
+        TimerData.of(
+            StateNamespaces.global(),
+            Instant.ofEpochMilli(1000),
+            Instant.ofEpochMilli(2000),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
+    when(mockFetcher.storeIfBlocked(testTimer)).thenReturn(true);
 
     // When & Then
-    assertThrows(
-        IllegalStateException.class,
-        () -> {
-          processor.handleProcessTimer(mockTimer);
-        });
-    verify(mockFetcher).storeIfBlocked(mockTimer);
+    assertThrows(IllegalStateException.class, () -> processor.handleProcessTimer(testTimer));
+    verify(mockFetcher).storeIfBlocked(testTimer);
   }
 }

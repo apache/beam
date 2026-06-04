@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -318,8 +319,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   }
 
   protected void processUserTimer(
-      TimerInternals.TimerData timer, StreamingSideInputProcessor<InputT, W> sideInputProcessor)
-      throws Exception {
+      TimerInternals.TimerData timer, StreamingSideInputProcessor<InputT, W> sideInputProcessor) {
     if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
         || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {
       BoundedWindow window = ((StateNamespaces.WindowNamespace) timer.getNamespace()).getWindow();
@@ -393,7 +393,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
         }
 
         StateInternals stateInternals = userStepContext.stateInternals();
-        org.apache.beam.sdk.state.State state = stateInternals.state(timer.getNamespace(), tag);
+        State state = stateInternals.state(timer.getNamespace(), tag);
         state.clear();
       }
     }

@@ -25,9 +25,14 @@ import static org.mockito.Mockito.when;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
+import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
@@ -48,23 +53,19 @@ public class SimpleParDoFnHelpersTest {
   @Mock DoFnRunnerFactory<String, String> runnerFactory;
   @Mock DoFnRunner<String, String> mockRunner;
 
-  @Mock
-  StreamingSideInputProcessor<String, org.apache.beam.sdk.transforms.windowing.GlobalWindow>
-      sideInputProcessor;
+  @Mock StreamingSideInputProcessor<String, GlobalWindow> sideInputProcessor;
 
-  @Mock org.apache.beam.sdk.util.DoFnInfo<String, String> doFnInfo;
-  @Mock org.apache.beam.runners.dataflow.worker.counters.CounterFactory counterFactory;
+  @Mock DoFnInfo<String, String> doFnInfo;
+  @Mock CounterFactory counterFactory;
 
-  private static class TestDoFn extends org.apache.beam.sdk.transforms.DoFn<String, String> {
+  private static class TestDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement() {}
   }
 
   private TestDoFn doFn = new TestDoFn();
 
-  private SimpleParDoFnHelpers<
-          String, String, org.apache.beam.sdk.transforms.windowing.GlobalWindow>
-      helpers;
+  private SimpleParDoFnHelpers<String, String, GlobalWindow> helpers;
 
   @Before
   @SuppressWarnings("unchecked")
@@ -74,7 +75,7 @@ public class SimpleParDoFnHelpersTest {
     when(stepContext.namespacedToUser()).thenReturn(userStepContext);
     when(operationContext.counterFactory()).thenReturn(counterFactory);
 
-    when(doFnInstanceManager.get()).thenReturn((org.apache.beam.sdk.util.DoFnInfo) doFnInfo);
+    when(doFnInstanceManager.get()).thenReturn((DoFnInfo) doFnInfo);
     when(doFnInfo.getDoFn()).thenReturn(doFn);
 
     when(runnerFactory.createRunner(
@@ -98,8 +99,7 @@ public class SimpleParDoFnHelpersTest {
 
   @Test
   public void testReallyStartBundle() throws Exception {
-    helpers.startBundle(
-        mock(org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver.class));
+    helpers.startBundle(mock(Receiver.class));
     helpers.reallyStartBundle();
 
     verify(runnerFactory)
@@ -111,8 +111,7 @@ public class SimpleParDoFnHelpersTest {
 
   @Test
   public void testFinishBundle() throws Exception {
-    helpers.startBundle(
-        mock(org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver.class));
+    helpers.startBundle(mock(Receiver.class));
     helpers.reallyStartBundle();
 
     helpers.finishBundle(sideInputProcessor);
@@ -124,8 +123,7 @@ public class SimpleParDoFnHelpersTest {
 
   @Test
   public void testAbort() throws Exception {
-    helpers.startBundle(
-        mock(org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver.class));
+    helpers.startBundle(mock(Receiver.class));
     helpers.reallyStartBundle();
 
     helpers.abort();

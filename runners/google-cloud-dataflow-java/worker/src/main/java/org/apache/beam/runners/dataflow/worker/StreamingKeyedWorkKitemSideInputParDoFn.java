@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-/** Similar to {@link SimpleParDoFn} but for splittable ProcessFns. */
+/* Similar to {@link SimpleParDoFn} but for splittable ProcessFns. */
 public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W extends BoundedWindow>
     implements ParDoFn {
   private final StateTag<ValueState<K>> keyAddr;

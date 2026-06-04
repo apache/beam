@@ -34,10 +34,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterat
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** Helper class for handling elements blocked on side inputs. */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
+@SuppressWarnings("nullness" // TODO(https://github.com/apache/beam/issues/20497)
+)
 class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
   private final StreamingSideInputFetcher<InputT, W> sideInputFetcher;
 
