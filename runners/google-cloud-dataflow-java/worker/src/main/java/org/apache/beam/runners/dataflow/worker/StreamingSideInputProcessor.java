@@ -19,8 +19,9 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals;
@@ -31,7 +32,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Helper class for handling elements blocked on side inputs. */
 @SuppressWarnings({
@@ -49,23 +49,23 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
    * Handle's startBundle. If there are unblocked elements, process them and then return the set of
    * windows that were unblocked.
    */
-  Iterator<WindowedValue<InputT>> tryUnblockElements() {
+  void tryUnblockElements(Consumer<Iterable<WindowedValue<InputT>>> consumer) {
     sideInputFetcher.prefetchBlockedMap();
 
     // Find the set of ready windows.
     Set<W> readyWindows = sideInputFetcher.getReadyWindows();
 
-    Iterable<BagState<WindowedValue<InputT>>> elementsBags =
+    Iterable<BagState<WindowedValue<InputT>>> elementBags =
         sideInputFetcher.prefetchElements(readyWindows);
-
-    // Return a lazy iterator to the released elements.
-    Iterator<WindowedValue<InputT>> releasedElements =
-        new DestructivePagingIterator(elementsBags, readyWindows);
-
-    return releasedElements;
+    Iterable<WindowedValue<InputT>> releasedElements =
+        Iterables.concat(Iterables.transform(elementBags, BagState::read));
+    consumer.accept(releasedElements);
+    elementBags.forEach(BagState::clear);
+    sideInputFetcher.releaseBlockedWindows(readyWindows);
   }
 
-  Iterator<TimerInternals.TimerData> tryUnblockTimers() {
+  void tryUnblockElementsAndTimers(
+      BiConsumer<Iterable<WindowedValue<InputT>>, Iterable<TimerInternals.TimerData>> consumer) {
     sideInputFetcher.prefetchBlockedMap();
 
     // Find the set of ready windows.
@@ -73,12 +73,18 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
 
     Iterable<BagState<TimerInternals.TimerData>> timerBags =
         sideInputFetcher.prefetchTimers(readyWindows);
+    Iterable<TimerInternals.TimerData> releasedTimers =
+        Iterables.concat(
+            Iterables.transform(sideInputFetcher.prefetchTimers(readyWindows), BagState::read));
+    Iterable<BagState<WindowedValue<InputT>>> elementBags =
+        sideInputFetcher.prefetchElements(readyWindows);
+    Iterable<WindowedValue<InputT>> releasedElements =
+        Iterables.concat(Iterables.transform(elementBags, BagState::read));
 
-    // Return a lazy iterator to the released timers.
-    Iterator<TimerInternals.TimerData> releasedTimers =
-        new DestructivePagingIterator(timerBags, readyWindows);
-
-    return releasedTimers;
+    consumer.accept(releasedElements, releasedTimers);
+    timerBags.forEach(BagState::clear);
+    elementBags.forEach(BagState::clear);
+    sideInputFetcher.releaseBlockedWindows(readyWindows);
   }
 
   void handleFinishBundle() {
@@ -123,64 +129,5 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
     // unblocked once
     // we get here.
     Preconditions.checkState(!sideInputFetcher.storeIfBlocked(timer));
-  }
-
-  // This is a destructive iterator - it clears
-  // the bags after reading them. Bags can be paged in from the service, so we try to avoid
-  // materializing the whole
-  // bag into memory here.
-  private class DestructivePagingIterator<T> implements Iterator<T> {
-    private final Set<W> readyWindows;
-    Iterator<BagState<T>> bagsIterator;
-    @Nullable Iterator<T> currentBagElements;
-    @Nullable BagState<T> currentBag;
-
-    public DestructivePagingIterator(Iterable<BagState<T>> elementsBags, Set<W> readyWindows) {
-      this.readyWindows = readyWindows;
-      bagsIterator = elementsBags.iterator();
-    }
-
-    @Override
-    public boolean hasNext() {
-      do {
-        if (currentBagElements == null || !currentBagElements.hasNext()) {
-          if (!advanceBag()) {
-            // We're done iterating - release the blocked windows.
-            sideInputFetcher.releaseBlockedWindows(readyWindows);
-            return false;
-          }
-        }
-      } while (!org.apache.beam.sdk.util.Preconditions.checkStateNotNull(currentBagElements)
-          .hasNext());
-      return true;
-    }
-
-    boolean advanceBag() {
-      // Once we finish reading a bag, clear it.
-      clearCurrentBag();
-      if (bagsIterator.hasNext()) {
-        currentBag = bagsIterator.next();
-        currentBagElements = currentBag.read().iterator();
-        return true;
-      } else {
-        return false;
-      }
-    }
-
-    void clearCurrentBag() {
-      if (currentBag != null) {
-        currentBag.clear();
-        currentBag = null;
-        currentBagElements = null;
-      }
-    }
-
-    @Override
-    public T next() {
-      if (!hasNext()) {
-        throw new NoSuchElementException();
-      }
-      return org.apache.beam.sdk.util.Preconditions.checkStateNotNull(currentBagElements).next();
-    }
   }
 }

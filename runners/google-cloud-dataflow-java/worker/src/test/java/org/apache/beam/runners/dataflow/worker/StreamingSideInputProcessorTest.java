@@ -19,13 +19,12 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,10 +69,9 @@ public class StreamingSideInputProcessorTest {
     when(mockFetcher.getReadyWindows()).thenReturn(Collections.emptySet());
 
     // When
-    Iterator<WindowedValue<String>> unblocked = processor.tryUnblockElements();
+    processor.tryUnblockElements(unblocked -> assertThat(unblocked, emptyIterable()));
 
     // Then
-    assertFalse(unblocked.hasNext());
     verify(mockFetcher).prefetchBlockedMap();
     verify(mockFetcher).getReadyWindows();
   }
@@ -104,12 +102,10 @@ public class StreamingSideInputProcessorTest {
     doNothing().when(mockFetcher).releaseBlockedWindows(readyWindows);
 
     // When
-    Iterable<WindowedValue<String>> unblocked = () -> processor.tryUnblockElements();
+    processor.tryUnblockElements(
+        unblocked -> assertThat(unblocked, containsInAnyOrder(element1, element2)));
 
     // Then
-    verify(mockBag1, never()).clear();
-    verify(mockFetcher, never()).releaseBlockedWindows(anySet());
-    assertThat(unblocked, containsInAnyOrder(element1, element2));
     verify(mockFetcher).prefetchBlockedMap();
     verify(mockFetcher).getReadyWindows();
     verify(mockFetcher).prefetchElements(readyWindows);

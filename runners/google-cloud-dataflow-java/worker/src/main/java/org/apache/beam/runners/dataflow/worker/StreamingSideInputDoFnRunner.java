@@ -48,11 +48,12 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
-    Iterator<WindowedValue<InputT>> unblocked = sideInputProcessor.tryUnblockElements();
-    for (Iterator<WindowedValue<InputT>> it = unblocked; it.hasNext(); ) {
-      WindowedValue<InputT> elem = it.next();
-      simpleDoFnRunner.processElement(elem);
-    }
+    sideInputProcessor.tryUnblockElements(
+        unblocked -> {
+          for (WindowedValue<InputT> elem : unblocked) {
+            simpleDoFnRunner.processElement(elem);
+          }
+        });
   }
 
   @Override

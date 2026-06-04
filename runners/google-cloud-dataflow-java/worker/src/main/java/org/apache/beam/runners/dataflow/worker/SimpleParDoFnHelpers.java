@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-public class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
+class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   private static final Logger LOG = LoggerFactory.getLogger(SimpleParDoFnHelpers.class);
 
   // TODO: Remove once Distributions has shipped.

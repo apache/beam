@@ -104,18 +104,19 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
                       helpers.userStepContext));
 
       boolean hasState = helpers.hasState();
-      Iterator<WindowedValue<InputT>> unblockedElements = sideInputProcessor.tryUnblockElements();
-      for (Iterator<WindowedValue<InputT>> it = unblockedElements; it.hasNext(); ) {
-        WindowedValue<InputT> unblockedElement = it.next();
-        helpers.fnRunner.processElement(unblockedElement);
-        if (hasState) {
-          // These elements are now processed. Register cleanup timers for all the unblocked
-          // windows.
-          helpers.registerStateCleanup(
-              (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
-              (Collection<W>) unblockedElement.getWindows());
-        }
-      }
+      sideInputProcessor.tryUnblockElements(
+          unblockedElements -> {
+            for (WindowedValue<InputT> unblockedElement : unblockedElements) {
+              helpers.fnRunner.processElement(unblockedElement);
+              if (hasState) {
+                // These elements are now processed. Register cleanup timers for all the unblocked
+                // windows.
+                helpers.registerStateCleanup(
+                    (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(),
+                    (Collection<W>) unblockedElement.getWindows());
+              }
+            }
+          });
     }
   }
 

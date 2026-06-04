@@ -426,7 +426,7 @@ public class SplittableDoFnTest implements Serializable {
 
   @Test
   @Category({ValidatesRunner.class, UsesBoundedSplittableParDo.class, UsesSideInputs.class})
-  public void testSideInputBounded() {
+  public void tBounded() {
     testSideInput(IsBounded.BOUNDED);
   }
 
