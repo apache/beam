@@ -53,14 +53,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 /* Similar to {@link SimpleParDoFn} but for splittable ProcessFns. */
-public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W extends BoundedWindow>
+public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extends BoundedWindow>
     implements ParDoFn {
   private final StateTag<ValueState<K>> keyAddr;
   private final Coder<InputT> inputCoder;
   private final SimpleParDoFnHelpers<KeyedWorkItem<K, InputT>, OutputT, W> helpers;
   protected @Nullable StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
-  StreamingKeyedWorkKitemSideInputParDoFn(
+  StreamingKeyedWorkItemSideInputParDoFn(
       PipelineOptions options,
       DoFnInstanceManager doFnInstanceManager,
       SideInputReader sideInputReader,
@@ -120,27 +120,28 @@ public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W exten
       boolean hasState = helpers.hasState();
 
       // TODO(relax): We should be able to get this without writing it to state!
-      K key = keyValue().read();
-
-      sideInputProcessor.tryUnblockElementsAndTimers(
-          (unblockedElements, unblockedTimers) -> {
-            if (!Iterables.isEmpty(unblockedElements) || !Iterables.isEmpty(unblockedTimers)) {
-              helpers.fnRunner.processElement(
-                  new ValueInEmptyWindows<>(
-                      KeyedWorkItems.workItem(key, unblockedTimers, unblockedElements)));
-            }
-            if (hasState) {
-              List<W> windows =
-                  (List<W>)
-                      StreamSupport.stream(unblockedElements.spliterator(), false)
-                          .flatMap(wv -> wv.getWindows().stream())
-                          .collect(Collectors.toList());
-              // These elements are now processed. Register cleanup timers for all the unblocked
-              // windows.
-              helpers.registerStateCleanup(
-                  (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windows);
-            }
-          });
+      @Nullable K key = keyValue().read();
+      if (key != null) {
+        sideInputProcessor.tryUnblockElementsAndTimers(
+            (unblockedElements, unblockedTimers) -> {
+              if (!Iterables.isEmpty(unblockedElements) || !Iterables.isEmpty(unblockedTimers)) {
+                helpers.fnRunner.processElement(
+                    new ValueInEmptyWindows<>(
+                        KeyedWorkItems.workItem(key, unblockedTimers, unblockedElements)));
+              }
+              if (hasState) {
+                List<W> windows =
+                    (List<W>)
+                        StreamSupport.stream(unblockedElements.spliterator(), false)
+                            .flatMap(wv -> wv.getWindows().stream())
+                            .collect(Collectors.toList());
+                // These elements are now processed. Register cleanup timers for all the unblocked
+                // windows.
+                helpers.registerStateCleanup(
+                    (WindowingStrategy<?, W>) getDoFnInfo().getWindowingStrategy(), windows);
+              }
+            });
+      }
     }
   }
 
@@ -183,13 +184,13 @@ public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W exten
         helpers.userStepContext,
         windowCoder,
         this::onStartKey,
-        sideInputProcessor);
+        () -> sideInputProcessor);
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.SYSTEM,
         helpers.stepContext,
         windowCoder,
         this::onStartKey,
-        sideInputProcessor);
+        () -> sideInputProcessor);
   }
 
   @Override
@@ -212,17 +213,14 @@ public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W exten
     Collection<W> windowsProcessed;
     if (sideInputProcessor != null) {
       windowsProcessed = hasState ? Lists.newArrayList() : Collections.emptyList();
-      KeyedWorkItem<K, InputT> unblocked = sideInputProcessor.handleProcessKeyedWorkItem(elem);
-      if (!Iterables.isEmpty(unblocked.elementsIterable())
-          || !Iterables.isEmpty(unblocked.timersIterable())) {
-        helpers.fnRunner.processElement(elem.withValue(unblocked));
+      WindowedValue<KeyedWorkItem<K, InputT>> unblocked =
+          sideInputProcessor.handleProcessKeyedWorkItem(elem);
+      if (!Iterables.isEmpty(unblocked.getValue().elementsIterable())
+          || !Iterables.isEmpty(unblocked.getValue().timersIterable())) {
+        helpers.fnRunner.processElement(unblocked);
       }
       if (hasState) {
-        windowsProcessed =
-            (Collection<W>)
-                StreamSupport.stream(unblocked.elementsIterable().spliterator(), false)
-                    .flatMap(wv -> wv.getWindows().stream())
-                    .collect(Collectors.toList());
+        windowsProcessed.addAll((Collection<W>) unblocked.getWindows());
       }
     } else {
       helpers.fnRunner.processElement(elem);

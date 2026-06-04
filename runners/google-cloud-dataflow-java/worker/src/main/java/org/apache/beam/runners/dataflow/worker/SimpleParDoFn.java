@@ -186,13 +186,13 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
         helpers.userStepContext,
         windowCoder,
         this::onStartKey,
-        sideInputProcessor);
+        () -> sideInputProcessor);
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.SYSTEM,
         helpers.stepContext,
         windowCoder,
         this::onStartKey,
-        sideInputProcessor);
+        () -> sideInputProcessor);
   }
 
   @Override

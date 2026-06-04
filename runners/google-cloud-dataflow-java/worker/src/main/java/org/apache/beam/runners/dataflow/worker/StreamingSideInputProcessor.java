@@ -102,7 +102,7 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
         (WindowedValue<InputT> e) -> !sideInputFetcher.storeIfBlocked(e));
   }
 
-  <K> KeyedWorkItem<K, InputT> handleProcessKeyedWorkItem(
+  <K> WindowedValue<KeyedWorkItem<K, InputT>> handleProcessKeyedWorkItem(
       WindowedValue<KeyedWorkItem<K, InputT>> elem) {
     List<WindowedValue<InputT>> readyInputs =
         Lists.newArrayList(
@@ -117,7 +117,8 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
                 timer -> !sideInputFetcher.storeIfBlocked(timer)));
     KeyedWorkItem<K, InputT> keyedWorkItem =
         KeyedWorkItems.workItem(elem.getValue().key(), readyTimers, readyInputs);
-    return keyedWorkItem;
+
+    return elem.withValue(keyedWorkItem);
   }
 
   void handleProcessTimer(TimerInternals.TimerData timer) {

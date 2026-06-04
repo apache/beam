@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -260,9 +261,9 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          StreamingSideInputProcessor sideInputProcessor)
+          Supplier<StreamingSideInputProcessor> sideInputProcessor)
           throws Exception {
-        doFn.processUserTimer(timer, sideInputProcessor);
+        doFn.processUserTimer(timer, sideInputProcessor.get());
       }
     },
     FAIL_USER {
@@ -270,7 +271,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          StreamingSideInputProcessor sideInputProcessor)
+          Supplier<StreamingSideInputProcessor> sideInputProcessor)
           throws Exception {
         throw new UnsupportedOperationException(
             "Attempt to deliver a timer to a DoFn, but timers are not supported here.");
@@ -281,16 +282,16 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          StreamingSideInputProcessor sideInputProcessor)
+          Supplier<StreamingSideInputProcessor> sideInputProcessor)
           throws Exception {
-        doFn.processSystemTimer(timer, sideInputProcessor);
+        doFn.processSystemTimer(timer, sideInputProcessor.get());
       }
     };
 
     public abstract void processTimer(
         SimpleParDoFnHelpers doFn,
         TimerInternals.TimerData timer,
-        StreamingSideInputProcessor sideInputProcessor)
+        Supplier<StreamingSideInputProcessor> sideInputProcessor)
         throws Exception;
   };
 
@@ -299,7 +300,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       DataflowExecutionContext.DataflowStepContext context,
       Coder<BoundedWindow> windowCoder,
       Runnable startKey,
-      StreamingSideInputProcessor<?, ?> sideInputProcessor)
+      Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
       throws Exception {
     TimerInternals.TimerData timer = context.getNextFiredTimer(windowCoder);
 

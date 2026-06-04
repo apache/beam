@@ -88,9 +88,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Unit tests for {@link StreamingKeyedWorkKitemSideInputParDoFn}. */
+/** Unit tests for {@link StreamingKeyedWorkItemSideInputParDoFn}. */
 @RunWith(JUnit4.class)
-public class StreamingKeyedWorkKitemSideInputParDoFnTest {
+public class StreamingKeyedWorkItemSideInputParDoFnTest {
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
   private static final TupleTag<KV<String, Integer>> MAIN_OUTPUT_TAG = new TupleTag<>();
 
@@ -121,7 +121,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
         .thenReturn(true);
 
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15L));
-    StreamingKeyedWorkKitemSideInputParDoFn<String, Integer, KV<String, Integer>, IntervalWindow>
+    StreamingKeyedWorkItemSideInputParDoFn<String, Integer, KV<String, Integer>, IntervalWindow>
         runner = createRunner(view);
 
     TestReceiver receiver = new TestReceiver();
@@ -224,7 +224,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
         .thenReturn(true);
 
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(Instant.ofEpochMilli(15L));
-    StreamingKeyedWorkKitemSideInputParDoFn<
+    StreamingKeyedWorkItemSideInputParDoFn<
             byte[], KV<Integer, String>, KV<String, Integer>, IntervalWindow>
         runner = createSplittableRunner(view);
 
@@ -298,7 +298,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   }
 
   @SuppressWarnings("unchecked")
-  private StreamingKeyedWorkKitemSideInputParDoFn<
+  private StreamingKeyedWorkItemSideInputParDoFn<
           String, Integer, KV<String, Integer>, IntervalWindow>
       createRunner(PCollectionView<String> view) throws Exception {
     Coder<String> keyCoder = StringUtf8Coder.of();
@@ -364,7 +364,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.as(StreamingOptions.class).setStreaming(true);
 
-    return new StreamingKeyedWorkKitemSideInputParDoFn<>(
+    return new StreamingKeyedWorkItemSideInputParDoFn<>(
         options,
         DoFnInstanceManagers.singleInstance(fnInfo),
         mockSideInputReader,
@@ -380,7 +380,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
   }
 
   @SuppressWarnings("unchecked")
-  private StreamingKeyedWorkKitemSideInputParDoFn<
+  private StreamingKeyedWorkItemSideInputParDoFn<
           byte[], KV<Integer, String>, KV<String, Integer>, IntervalWindow>
       createSplittableRunner(PCollectionView<String> view) throws Exception {
     ByteArrayCoder keyCoder = ByteArrayCoder.of();
@@ -471,7 +471,7 @@ public class StreamingKeyedWorkKitemSideInputParDoFnTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.as(StreamingOptions.class).setStreaming(true);
 
-    return new StreamingKeyedWorkKitemSideInputParDoFn<>(
+    return new StreamingKeyedWorkItemSideInputParDoFn<>(
         options,
         DoFnInstanceManagers.singleInstance(fnInfo),
         mockSideInputReader,

@@ -159,7 +159,7 @@ class UserParDoFnFactory implements ParDoFnFactory {
       if (streamingKeyedWorkItem && hasStreamingSideInput) {
         KeyedWorkItemCoder<byte[], KV<?, ?>> kwiCoder =
             (KeyedWorkItemCoder<byte[], KV<?, ?>>) doFnInfo.getInputCoder();
-        return new StreamingKeyedWorkKitemSideInputParDoFn<>(
+        return new StreamingKeyedWorkItemSideInputParDoFn<>(
             options,
             instanceManager,
             sideInputReader,
