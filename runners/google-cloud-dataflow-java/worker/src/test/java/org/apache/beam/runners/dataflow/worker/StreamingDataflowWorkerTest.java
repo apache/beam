@@ -529,6 +529,7 @@ public class StreamingDataflowWorkerTest {
     CloudObject spec = CloudObject.forClass(WindmillSink.class);
     addString(spec, "stream_id", streamId);
     return new ParallelInstruction()
+        .setName(streamId)
         .setSystemName(DEFAULT_SINK_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SINK_ORIGINAL_NAME)
         .setWrite(
@@ -2502,6 +2503,7 @@ public class StreamingDataflowWorkerTest {
 
     return Arrays.asList(
         new ParallelInstruction()
+            .setName("Read")
             .setSystemName("Read")
             .setOriginalName("OriginalReadName")
             .setRead(
