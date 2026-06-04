@@ -178,9 +178,8 @@ public class StreamingKeyedWorkKitemSideInputParDoFn<K, InputT, OutputT, W exten
                 .getWindowingStrategy()
                 .getWindowFn()
                 .windowCoder();
-    // TODO: WE SHOULD FAIL HERE
     helpers.processTimers(
-        SimpleParDoFnHelpers.TimerType.USER,
+        SimpleParDoFnHelpers.TimerType.FAIL_USER,
         helpers.userStepContext,
         windowCoder,
         this::onStartKey,
