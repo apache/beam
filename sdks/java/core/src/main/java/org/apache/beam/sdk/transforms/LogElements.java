@@ -22,6 +22,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -148,7 +149,8 @@ public class LogElements<T> extends PTransform<PCollection<T>, PCollection<T>> {
     return builder.toString();
   }
 
-  private static void log(Level level, String message) {
+  @VisibleForTesting
+  static void log(Level level, String message) {
     switch (level) {
       case TRACE:
         LOG.trace("{}", message);

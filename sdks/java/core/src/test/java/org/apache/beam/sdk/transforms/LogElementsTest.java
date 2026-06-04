@@ -75,25 +75,18 @@ public class LogElementsTest {
   }
 
   @Test
-  @Category(NeedsRunner.class)
   public void testLogElementsLogsAtConfiguredLevels() {
-    applyLogElements("Trace", LogElements.<String>trace().withPrefix("trace: "), "trace-element");
-    applyLogElements("Debug", LogElements.<String>debug().withPrefix("debug: "), "debug-element");
-    applyLogElements("Info", LogElements.<String>info().withPrefix("info: "), "info-element");
-    applyLogElements("Warn", LogElements.<String>warn().withPrefix("warn: "), "warn-element");
-    applyLogElements("Error", LogElements.<String>error().withPrefix("error: "), "error-element");
-
-    pipeline.run();
+    LogElements.log(Level.TRACE, "trace: trace-element");
+    LogElements.log(Level.DEBUG, "debug: debug-element");
+    LogElements.log(Level.INFO, "info: info-element");
+    LogElements.log(Level.WARN, "warn: warn-element");
+    LogElements.log(Level.ERROR, "error: error-element");
 
     expectedLogs.verifyTrace("trace: trace-element");
     expectedLogs.verifyDebug("debug: debug-element");
     expectedLogs.verifyInfo("info: info-element");
     expectedLogs.verifyWarn("warn: warn-element");
     expectedLogs.verifyError("error: error-element");
-  }
-
-  private void applyLogElements(String name, LogElements<String> transform, String element) {
-    pipeline.apply("Create" + name, Create.of(element)).apply("Log" + name, transform);
   }
 
   @Test
