@@ -16,10 +16,10 @@
 #
 
 """
-Upgrade the pip wheel bundled in ensurepip for Python 3.12+.
+Upgrade the pip wheel bundled in ensurepip for Python 3.14.
 
 The script is executed within Docker after the image pip has been upgraded.
-upgrade_ensurepip expects setuptools to be bundled as well, but CPython 3.12+
+upgrade_ensurepip expects setuptools to be bundled as well, but Python 3.14
 only ships pip in ensurepip/_bundled.
 """
 
