@@ -18,21 +18,16 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import com.google.auto.value.AutoValue;
-import java.util.HashMap;
 import java.util.Optional;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
-import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
-import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,13 +63,23 @@ public abstract class ComputationWorkExecutor {
    * Executes DoFns for the Work. Blocks the calling thread until DoFn(s) have completed execution.
    */
   public final void executeWork(
-      @Nullable Object key,
       Work work,
       WindmillStateReader stateReader,
       SideInputStateFetcher sideInputStateFetcher,
-      Windmill.WorkItemCommitRequest.Builder outputBuilder)
+      BoundedQueueExecutor workQueueExecutor,
+      BoundedQueueExecutorWorkHandle budgetHandle,
+      StreamingModeExecutionContext.KeySwitchListener keySwitchListener)
       throws Exception {
-    context().start(key, work, stateReader, sideInputStateFetcher, outputBuilder, workExecutor());
+    context()
+        .start(
+            work,
+            stateReader,
+            sideInputStateFetcher,
+            workExecutor(),
+            workQueueExecutor,
+            budgetHandle,
+            keyCoder().orElse(null),
+            keySwitchListener);
     workExecutor().execute();
   }
 
@@ -84,23 +89,12 @@ public abstract class ComputationWorkExecutor {
    */
   public final void invalidate() {
     context().invalidateCache();
+    context().clear();
     try {
       workExecutor().close();
     } catch (Exception e) {
       LOG.warn("Failed to close map task executor: ", e);
     }
-  }
-
-  public final long computeSourceBytesProcessed(String sourceBytesCounterName) {
-    HashMap<String, ElementCounter> counters =
-        ((DataflowMapTaskExecutor) workExecutor())
-            .getReadOperation()
-            .receivers[0]
-            .getOutputCounters();
-
-    return Optional.ofNullable(counters.get(sourceBytesCounterName))
-        .map(counter -> ((OutputObjectAndByteCounter) counter).getByteCount().getAndReset())
-        .orElse(0L);
   }
 
   @AutoValue.Builder

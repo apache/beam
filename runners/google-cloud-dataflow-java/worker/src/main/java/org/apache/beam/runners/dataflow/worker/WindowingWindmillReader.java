@@ -151,51 +151,65 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
             && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
     final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
 
-    // Return a noop iterator when current workitem is an empty workitem.
-    if (isEmptyWorkItem) {
-      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
-        @Override
-        public boolean start() throws IOException {
-          context.finishKey();
+    return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
+      private @Nullable WindowedValue<KeyedWorkItem<K, T>> current = null;
+      private boolean started = false;
+
+      @Override
+      public boolean start() throws IOException {
+        if (context.workIsFailed()) {
+          throw new WorkItemCancelledException(
+              checkStateNotNull(context.getWorkItem()).getShardingKey());
+        }
+        if (started) {
           return false;
         }
+        started = true;
+        if (isEmptyWorkItem) {
+          return advance(); // Try to transition immediately if the first key is empty!
+        }
+        current = value;
+        return true;
+      }
 
-        @Override
-        public boolean advance() throws IOException {
-          return false;
+      @Override
+      public boolean advance() throws IOException {
+        if (context.workIsFailed()) {
+          throw new WorkItemCancelledException(
+              checkStateNotNull(context.getWorkItem()).getShardingKey());
         }
 
-        @Override
-        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
-          throw new NoSuchElementException();
-        }
-      };
-    } else {
-      return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
-        private @Nullable WindowedValue<KeyedWorkItem<K, T>> current = null;
-
-        @Override
-        public boolean start() throws IOException {
-          current = value;
+        context.finishKey();
+        if (context.advance()) {
+          @SuppressWarnings("unchecked")
+          K newKey = (K) context.getKey();
+          KeyedWorkItem<K, T> newKeyedWorkItem =
+              new WindmillKeyedWorkItem<>(
+                  newKey,
+                  context.getWork().getWorkItem(),
+                  windowCoder,
+                  windowsCoder,
+                  valueCoder,
+                  context.getWindmillTagEncoding(),
+                  context.getDrainMode(),
+                  skipUndecodableElements.isAccessible()
+                      && Boolean.TRUE.equals(skipUndecodableElements.get()));
+          current = new ValueInEmptyWindows<>(newKeyedWorkItem);
           return true;
         }
 
-        @Override
-        public boolean advance() throws IOException {
-          current = null;
-          context.finishKey();
-          return false;
-        }
+        current = null;
+        return false;
+      }
 
-        @Override
-        public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
-          if (current == null) {
-            throw new NoSuchElementException();
-          }
-          return value;
+      @Override
+      public WindowedValue<KeyedWorkItem<K, T>> getCurrent() {
+        if (current == null) {
+          throw new NoSuchElementException();
         }
-      };
-    }
+        return current;
+      }
+    };
   }
 
   @Override

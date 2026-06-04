@@ -209,6 +209,18 @@ public class WorkerCustomSourcesTest {
         Instant::now);
   }
 
+  private void startContext(StreamingModeExecutionContext context, Work work) {
+    context.start(
+        work,
+        mock(WindmillStateReader.class),
+        mock(SideInputStateFetcher.class),
+        mock(WorkExecutor.class),
+        /* workQueueExecutor= */ null,
+        /* budgetHandle= */ null,
+        /* keyCoder= */ null,
+        /* keySwitchListener= */ mock(StreamingModeExecutionContext.KeySwitchListener.class));
+  }
+
   private static class SourceProducingSubSourcesInSplit extends MockSource {
     int numDesiredBundle;
     int sourceObjectSize;
@@ -620,7 +632,11 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            new HotKeyLogger(),
+            /*hotKeyLoggingEnabled=*/ false,
+            /*stepName=*/ "stepName",
+            "sourceBytesProcessCounterName");
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -631,8 +647,8 @@ public class WorkerCustomSourcesTest {
     for (int i = 0; i < 10 * maxElements;
     /* Incremented in inner loop */ ) {
       // Initialize streaming context with state from previous iteration.
-      context.start(
-          "key",
+      startContext(
+          context,
           createMockWork(
               Windmill.WorkItem.newBuilder()
                   .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
@@ -641,11 +657,7 @@ public class WorkerCustomSourcesTest {
                   .setSourceState(
                       Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
                   .build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
-          mock(WindmillStateReader.class),
-          mock(SideInputStateFetcher.class),
-          Windmill.WorkItemCommitRequest.newBuilder(),
-          mock(WorkExecutor.class));
+              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()));
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -992,7 +1004,11 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            new HotKeyLogger(),
+            /*hotKeyLoggingEnabled=*/ false,
+            /*stepName=*/ "stepName",
+            "sourceBytesProcessCounterName");
 
     options.setNumWorkers(5);
     int maxElements = 100;
@@ -1020,13 +1036,7 @@ public class WorkerCustomSourcesTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now);
-    context.start(
-        "key",
-        dummyWork,
-        mock(WindmillStateReader.class),
-        mock(SideInputStateFetcher.class),
-        Windmill.WorkItemCommitRequest.newBuilder(),
-        mock(WorkExecutor.class));
+    startContext(context, dummyWork);
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =

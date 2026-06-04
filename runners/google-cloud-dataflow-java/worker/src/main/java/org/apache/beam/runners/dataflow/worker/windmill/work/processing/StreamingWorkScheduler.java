@@ -17,22 +17,23 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
-
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
-import java.util.Optional;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
@@ -57,12 +58,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReade
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +78,6 @@ public class StreamingWorkScheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingWorkScheduler.class);
 
-  private final DataflowWorkerHarnessOptions options;
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
   private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
@@ -86,33 +85,31 @@ public class StreamingWorkScheduler {
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
   private final StreamingCounters streamingCounters;
-  private final HotKeyLogger hotKeyLogger;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final StreamingGlobalConfigHandle globalConfigHandle;
+  private final BoundedQueueExecutor workExecutor;
 
   public StreamingWorkScheduler(
-      DataflowWorkerHarnessOptions options,
       Supplier<Instant> clock,
+      BoundedQueueExecutor workExecutor,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
       SideInputStateFetcherFactory sideInputStateFetcherFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
       StreamingCounters streamingCounters,
-      HotKeyLogger hotKeyLogger,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
       StreamingGlobalConfigHandle globalConfigHandle) {
-    this.options = options;
     this.clock = clock;
+    this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
     this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
     this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
     this.streamingCounters = streamingCounters;
-    this.hotKeyLogger = hotKeyLogger;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
     this.globalConfigHandle = globalConfigHandle;
@@ -143,18 +140,18 @@ public class StreamingWorkScheduler {
             sampler,
             streamingCounters.pendingDeltaCounters(),
             idGenerator,
-            globalConfigHandle);
+            globalConfigHandle,
+            hotKeyLogger);
 
     return new StreamingWorkScheduler(
-        options,
         clock,
+        workExecutor,
         computationWorkExecutorFactory,
         SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
-        hotKeyLogger,
         stageInfoMap,
         sampler,
         globalConfigHandle);
@@ -191,15 +188,8 @@ public class StreamingWorkScheduler {
     DataflowWorkerLoggingMDC.setStageName(computationId);
   }
 
-  private static String getShuffleTaskStepName(MapTask mapTask) {
-    // The MapTask instruction is ordered by dependencies, such that the first element is
-    // always going to be the shuffle task.
-    return mapTask.getInstructions().get(0).getName();
-  }
-
   /** Resets logging context of the Thread executing the {@link Work} for logging. */
-  private void resetWorkLoggingContext(String workLatencyTrackingId) {
-    sampler.resetForWorkId(workLatencyTrackingId);
+  private void resetWorkLoggingContext() {
     DataflowWorkerLoggingMDC.setWorkId(null);
     DataflowWorkerLoggingMDC.setStageName(null);
   }
@@ -246,10 +236,9 @@ public class StreamingWorkScheduler {
   }
 
   private void processWork(
-      ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle unusedHandle) {
+      ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle handle) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
-    ByteString key = workItem.getKey();
     work.setProcessingThreadName(Thread.currentThread().getName());
     work.setState(Work.State.PROCESSING);
     setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
@@ -258,37 +247,36 @@ public class StreamingWorkScheduler {
     // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
     // cleanup should be done before this, since we might exit early here.
     commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
+
     if (workItem.getSourceState().getOnlyFinalize()) {
-      Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
-      outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
-      work.setState(Work.State.COMMIT_QUEUED);
-      work.queueCommit(outputBuilder.build(), computationState);
+      handleOnlyFinalize(computationState, work, workItem);
       return;
     }
 
     long processingStartTimeNanos = System.nanoTime();
-    MapTask mapTask = computationState.getMapTask();
-    StageInfo stageInfo =
-        stageInfoMap.computeIfAbsent(
-            mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName()));
+    StageInfo stageInfo = getStageInfo(computationState);
 
+    List<Work> worksToCleanup = null;
     try {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
       }
 
-      // Execute the user code for the Work.
-      ExecuteWorkResult executeWorkResult = executeWork(work, stageInfo, computationState);
-      Windmill.WorkItemCommitRequest.Builder commitRequest = executeWorkResult.commitWorkRequest();
+      // Execute the user code for the Work batch.
+      ExecuteWorkResult executeWorkResult = executeWork(work, stageInfo, computationState, handle);
+      List<Work> workBatch = executeWorkResult.workBatch();
+      worksToCleanup = workBatch;
+      List<Windmill.WorkItemCommitRequest.Builder> outputBuilders =
+          executeWorkResult.outputBuilders();
+      Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks =
+          executeWorkResult.accumulatedCallbacks();
 
-      // Validate the commit request, possibly requesting truncation if the commitSize is too large.
-      Windmill.WorkItemCommitRequest validatedCommitRequest =
-          validateCommitRequestSize(commitRequest.build(), computationId, workItem);
+      commitFinalizer.cacheCommitFinalizers(accumulatedCallbacks);
 
-      // Queue the commit.
-      work.queueCommit(validatedCommitRequest, computationState);
-      recordProcessingStats(commitRequest, workItem, executeWorkResult);
-      LOG.debug("Processing done for work token: {}", workItem.getWorkToken());
+      commitWorkBatch(computationState, workBatch, outputBuilders);
+
+      recordProcessingStats(workBatch, outputBuilders, executeWorkResult.stateBytesRead());
+      LOG.debug("Processing done for work batch size: {}", workBatch.size());
     } catch (Throwable t) {
       // OutOfMemoryError that are caught will be rethrown and trigger jvm termination.
       try {
@@ -306,22 +294,10 @@ public class StreamingWorkScheduler {
         throw ExceptionUtils.safeWrapThrowableAsException(t2);
       }
     } finally {
-      // Update total processing time counters. Updating in finally clause ensures that
-      // work items causing exceptions are also accounted in time spent.
-      long processingTimeMsecs =
-          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
-      stageInfo.totalProcessingMsecs().addValue(processingTimeMsecs);
+      recordProcessingTime(stageInfo, worksToCleanup, work, processingStartTimeNanos);
 
-      // Attribute all the processing to timers if the work item contains any timers.
-      // Tests show that work items rarely contain both timers and message bundles. It should
-      // be a fairly close approximation.
-      // Another option: Derive time split between messages and timers based on recent totals.
-      // either here or in DFE.
-      if (work.getWorkItem().hasTimers()) {
-        stageInfo.timerProcessingMsecs().addValue(processingTimeMsecs);
-      }
-
-      resetWorkLoggingContext(work.getLatencyTrackingId());
+      resetWorkLoggingContext();
+      sampler.resetForWorkId(work.getLatencyTrackingId());
       work.setProcessingThreadName("");
     }
   }
@@ -354,27 +330,35 @@ public class StreamingWorkScheduler {
   }
 
   private void recordProcessingStats(
-      Windmill.WorkItemCommitRequest.Builder outputBuilder,
-      Windmill.WorkItem workItem,
-      ExecuteWorkResult executeWorkResult) {
-    // Compute shuffle and state byte statistics these will be flushed asynchronously.
-    long stateBytesWritten =
-        outputBuilder
-            .clearOutputMessages()
-            .clearPerWorkItemLatencyAttributions()
-            .build()
-            .getSerializedSize();
-
-    streamingCounters.windmillShuffleBytesRead().addValue(computeShuffleBytesRead(workItem));
-    streamingCounters.windmillStateBytesRead().addValue(executeWorkResult.stateBytesRead());
-    streamingCounters.windmillStateBytesWritten().addValue(stateBytesWritten);
+      List<Work> workBatch,
+      List<Windmill.WorkItemCommitRequest.Builder> outputBuilders,
+      long totalStateBytesRead) {
+    long totalStateBytesWritten = 0;
+    long totalShuffleBytesRead = 0;
+    for (int i = 0; i < workBatch.size(); i++) {
+      Windmill.WorkItem workItem = workBatch.get(i).getWorkItem();
+      Windmill.WorkItemCommitRequest.Builder outputBuilder = outputBuilders.get(i);
+      // Compute shuffle and state byte statistics these will be flushed asynchronously.
+      long stateBytesWritten =
+          outputBuilder
+              .clearOutputMessages()
+              .clearPerWorkItemLatencyAttributions()
+              .build()
+              .getSerializedSize();
+      totalStateBytesWritten += stateBytesWritten;
+      totalShuffleBytesRead += computeShuffleBytesRead(workItem);
+    }
+    streamingCounters.windmillShuffleBytesRead().addValue(totalShuffleBytesRead);
+    streamingCounters.windmillStateBytesRead().addValue(totalStateBytesRead);
+    streamingCounters.windmillStateBytesWritten().addValue(totalStateBytesWritten);
   }
 
   private ExecuteWorkResult executeWork(
-      Work work, StageInfo stageInfo, ComputationState computationState) throws Exception {
-    Windmill.WorkItem workItem = work.getWorkItem();
-    ByteString key = workItem.getKey();
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
+      Work work,
+      StageInfo stageInfo,
+      ComputationState computationState,
+      BoundedQueueExecutorWorkHandle handle)
+      throws Exception {
     ComputationWorkExecutor computationWorkExecutor =
         computationState
             .acquireComputationWorkExecutor()
@@ -388,86 +372,143 @@ public class StreamingWorkScheduler {
       SideInputStateFetcher localSideInputStateFetcher =
           sideInputStateFetcherFactory.createSideInputStateFetcher(work::fetchSideInput);
 
-      // If the read output KVs, then we can decode Windmill's byte key into userland
-      // key object and provide it to the execution context for use with per-key state.
-      // Otherwise, we pass null.
-      //
-      // The coder type that will be present is:
-      //     WindowedValueCoder(TimerOrElementCoder(KvCoder))
-      Optional<Coder<?>> keyCoder = computationWorkExecutor.keyCoder();
-      @SuppressWarnings("deprecation")
-      @Nullable
-      final Object executionKey =
-          !keyCoder.isPresent() ? null : keyCoder.get().decode(key.newInput(), Coder.Context.OUTER);
-
-      if (workItem.hasHotKeyInfo()) {
-        Windmill.HotKeyInfo hotKeyInfo = workItem.getHotKeyInfo();
-        Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
-
-        String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if (executionKey != null
-            && (options.isHotKeyLoggingEnabled()
-                || hasExperiment(options, "enable_hot_key_logging"))
-            && keyCoder.isPresent()) {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
-        } else {
-          hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge);
-        }
-      }
+      StreamingModeExecutionContext.KeySwitchListener keySwitchListener =
+          createKeySwitchListener(computationState);
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          executionKey, work, stateReader, localSideInputStateFetcher, outputBuilder);
+          work, stateReader, localSideInputStateFetcher, workExecutor, handle, keySwitchListener);
 
-      if (work.isFailed()) {
-        throw new WorkItemCancelledException(workItem.getShardingKey());
+      StreamingModeExecutionContext context = computationWorkExecutor.context();
+      if (context.workIsFailed()) {
+        throw new WorkItemCancelledException(
+            Preconditions.checkNotNull(context.getWorkItem()).getShardingKey());
       }
 
-      // Reports source bytes processed to WorkItemCommitRequest if available.
-      try {
-        long sourceBytesProcessed =
-            computationWorkExecutor.computeSourceBytesProcessed(
-                computationState.sourceBytesProcessCounterName());
-        outputBuilder.setSourceBytesProcessed(sourceBytesProcessed);
-      } catch (Exception e) {
-        LOG.error("{}", e.toString());
-      }
+      // Retrieve executed works, output builders, and accumulated callbacks from execution context
+      List<Work> workBatch = context.getExecutedWorks();
+      List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = context.getOutputBuilders();
+      Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = context.getAccumulatedCallbacks();
 
-      commitFinalizer.cacheCommitFinalizers(computationWorkExecutor.context().flushState());
-
+      context.clear();
       // Release the execution state for another thread to use.
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
       computationWorkExecutor = null;
 
-      work.setState(Work.State.COMMIT_QUEUED);
-      outputBuilder.addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler));
-
       return ExecuteWorkResult.create(
-          outputBuilder, stateReader.getBytesRead() + localSideInputStateFetcher.getBytesRead());
+          workBatch,
+          outputBuilders,
+          accumulatedCallbacks,
+          context.getStateBytesRead() + localSideInputStateFetcher.getBytesRead());
     } catch (Throwable t) {
       if (computationWorkExecutor != null) {
         // If processing failed due to a thrown exception, close the executionState. Do not
         // return/release the executionState back to computationState as that will lead to this
         // executionState instance being reused.
-        LOG.debug("Invalidating executor after work item {} failed", workItem.getWorkToken(), t);
+        LOG.debug(
+            "Invalidating executor after work item {} failed",
+            work.getWorkItem().getWorkToken(),
+            t);
         computationWorkExecutor.invalidate();
       }
-
-      // Re-throw the exception, it will be caught and handled by workFailureProcessor downstream.
       throw t;
     }
   }
 
+  private void handleOnlyFinalize(
+      ComputationState computationState, Work work, Windmill.WorkItem workItem) {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        initializeOutputBuilder(workItem.getKey(), workItem);
+    outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
+    work.setState(Work.State.COMMIT_QUEUED);
+    work.queueCommit(outputBuilder.build(), computationState);
+  }
+
+  private StageInfo getStageInfo(ComputationState computationState) {
+    MapTask mapTask = computationState.getMapTask();
+    return stageInfoMap.computeIfAbsent(
+        mapTask.getStageName(), s -> StageInfo.create(s, mapTask.getSystemName()));
+  }
+
+  private void commitWorkBatch(
+      ComputationState computationState,
+      List<Work> workBatch,
+      List<Windmill.WorkItemCommitRequest.Builder> outputBuilders) {
+    Preconditions.checkState(
+        workBatch.size() == 1, "Expected single-key work batch, got: " + workBatch.size());
+    commitSingleKeyWork(computationState, workBatch.get(0), outputBuilders.get(0));
+  }
+
+  private void commitSingleKeyWork(
+      ComputationState computationState,
+      Work work,
+      Windmill.WorkItemCommitRequest.Builder commitRequestBuilder) {
+    // Validate the commit request, possibly requesting truncation if the commitSize is too large.
+    Windmill.WorkItemCommitRequest validatedCommitRequest =
+        validateCommitRequestSize(
+            commitRequestBuilder.build(), computationState.getComputationId(), work.getWorkItem());
+    work.setState(Work.State.COMMIT_QUEUED);
+    validatedCommitRequest =
+        validatedCommitRequest
+            .toBuilder()
+            .addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler))
+            .build();
+    work.queueCommit(validatedCommitRequest, computationState);
+  }
+
+  private void recordProcessingTime(
+      StageInfo stageInfo,
+      @Nullable List<Work> worksToCleanup,
+      Work work,
+      long processingStartTimeNanos) {
+    // Update total processing time counters. Updating in finally clause ensures that
+    // work items causing exceptions are also accounted in time spent.
+    long processingTimeMsecs =
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
+    stageInfo.totalProcessingMsecs().addValue(processingTimeMsecs);
+    if (anyWorkHasTimers(worksToCleanup, work)) {
+      // Attribute all the processing to timers if the work item contains any timers.
+      // Tests show that work items rarely contain both timers and message bundles. It should
+      // be a fairly close approximation.
+      // Another option: Derive time split between messages and timers based on recent totals.
+      // either here or in DFE.
+      stageInfo.timerProcessingMsecs().addValue(processingTimeMsecs);
+    }
+  }
+
+  private static boolean anyWorkHasTimers(@Nullable List<Work> works, Work primaryWork) {
+    if (works != null && !works.isEmpty()) {
+      return works.stream().anyMatch(w -> w.getWorkItem().hasTimers());
+    }
+    return primaryWork.getWorkItem().hasTimers();
+  }
+
+  private StreamingModeExecutionContext.KeySwitchListener createKeySwitchListener(
+      ComputationState computationState) {
+    return (oldWork, newWork) -> {
+      resetWorkLoggingContext();
+      setUpWorkLoggingContext(newWork.getLatencyTrackingId(), computationState.getComputationId());
+      newWork.setProcessingThreadName(Thread.currentThread().getName());
+      oldWork.setProcessingThreadName("");
+    };
+  }
+
   @AutoValue
   abstract static class ExecuteWorkResult {
-
-    private static ExecuteWorkResult create(
-        Windmill.WorkItemCommitRequest.Builder commitWorkRequest, long stateBytesRead) {
+    static ExecuteWorkResult create(
+        List<Work> workBatch,
+        List<Windmill.WorkItemCommitRequest.Builder> outputBuilders,
+        Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks,
+        long stateBytesRead) {
       return new AutoValue_StreamingWorkScheduler_ExecuteWorkResult(
-          commitWorkRequest, stateBytesRead);
+          workBatch, outputBuilders, accumulatedCallbacks, stateBytesRead);
     }
 
-    abstract Windmill.WorkItemCommitRequest.Builder commitWorkRequest();
+    abstract List<Work> workBatch();
+
+    abstract List<Windmill.WorkItemCommitRequest.Builder> outputBuilders();
+
+    abstract Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks();
 
     abstract long stateBytesRead();
   }
