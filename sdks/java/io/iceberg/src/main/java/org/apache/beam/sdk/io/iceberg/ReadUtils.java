@@ -45,7 +45,6 @@ import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
@@ -90,12 +89,9 @@ public class ReadUtils {
       long start,
       long length,
       Expression residual) {
-    InputFile inputFile;
-    try (FileIO io = table.io()) {
-      EncryptedInputFile encryptedInput =
-          EncryptedFiles.encryptedInput(io.newInputFile(file.location()), file.keyMetadata());
-      inputFile = table.encryption().decrypt(encryptedInput);
-    }
+    EncryptedInputFile encryptedInput =
+        EncryptedFiles.encryptedInput(table.io().newInputFile(file.location()), file.keyMetadata());
+    InputFile inputFile = table.encryption().decrypt(encryptedInput);
     Map<Integer, ?> idToConstants = PartitionUtils.constantsMap(spec, file, fileSequenceNumber);
 
     ParquetReadOptions.Builder optionsBuilder;

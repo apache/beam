@@ -25,7 +25,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -236,10 +235,13 @@ public abstract class SerializableDeleteFile {
         deleteFileBuilder = deleteFileBuilder.ofPositionDeletes();
         break;
       case EQUALITY_DELETES:
-        int[] equalityFieldIds =
-            Objects.requireNonNullElse(getEqualityFieldIds(), new ArrayList<Integer>()).stream()
-                .mapToInt(Integer::intValue)
-                .toArray();
+        List<Integer> fieldIds = getEqualityFieldIds();
+        int[] equalityFieldIds = new int[fieldIds != null ? fieldIds.size() : 0];
+        if (fieldIds != null) {
+          for (int i = 0; i < fieldIds.size(); i++) {
+            equalityFieldIds[i] = fieldIds.get(i);
+          }
+        }
         SortOrder sortOrder = SortOrder.unsorted();
         if (sortOrders != null) {
           sortOrder =

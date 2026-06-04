@@ -103,7 +103,7 @@ final class CdcOutputUtils {
       List<String> metadataColumns,
       Schema outputSchema,
       long commitSnapshotId,
-      long snapshotSequentNumber,
+      long snapshotSequenceNumber,
       Row dataAndRowMetadata) {
     if (metadataColumns.isEmpty()
         || metadataColumns.stream().allMatch(IcebergCdcMetadataColumns::isRowMetadataColumn)) {
@@ -120,7 +120,7 @@ final class CdcOutputUtils {
     for (String metadataColumn : metadataColumns) {
       values.add(
           metadataValue(
-              metadataColumn, commitSnapshotId, snapshotSequentNumber, dataAndRowMetadata));
+              metadataColumn, commitSnapshotId, snapshotSequenceNumber, dataAndRowMetadata));
     }
     return Row.withSchema(outputSchema).addValues(values).build();
   }
