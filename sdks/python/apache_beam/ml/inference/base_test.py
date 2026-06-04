@@ -1044,6 +1044,25 @@ class RunInferenceBaseTest(unittest.TestCase):
     self.assertEqual(load_model_latency.result.count, 1)
     self.assertEqual(load_model_latency.result.mean, 500)
 
+  def test_setup_caches_model_load_metrics_until_finish_bundle(self):
+    fake_clock = FakeClock()
+    dofn = base._RunInferenceDoFn(
+        FakeModelHandler(clock=fake_clock), fake_clock, None)
+    metrics_collector = unittest.mock.Mock(spec=base._MetricsCollector)
+    dofn.get_metrics_collector = unittest.mock.Mock(
+        return_value=metrics_collector)
+
+    with unittest.mock.patch.object(
+        base, '_get_current_process_memory_in_bytes', side_effect=[100, 125]):
+      dofn.setup()
+
+    metrics_collector.cache_load_model_metrics.assert_called_once_with(500, 25)
+    metrics_collector.update_metrics_with_cache.assert_not_called()
+
+    dofn.finish_bundle()
+
+    metrics_collector.update_metrics_with_cache.assert_called_once_with()
+
   def test_forwards_batch_args(self):
     examples = list(range(100))
     with TestPipeline('FnApiRunner') as pipeline:

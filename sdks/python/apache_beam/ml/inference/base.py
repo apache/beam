@@ -1705,7 +1705,8 @@ class _MetricsCollector:
     self._load_model_latency_milli_secs = beam.metrics.Metrics.distribution(
         namespace, prefix + 'load_model_latency_milli_secs')
 
-    # Metrics cache
+    # Model load can happen during setup(), before bundle-scoped metric updates
+    # are tracked. Cache those values and flush them once finish_bundle() runs.
     self._load_model_latency_milli_secs_cache = None
     self._model_byte_size_cache = None
 
@@ -2133,8 +2134,8 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     return self._run_inference(batch, inference_args)
 
   def finish_bundle(self):
-    # TODO(https://github.com/apache/beam/issues/21435): Figure out why there
-    # is a cache.
+    # setup() may load the model before bundle-scoped metrics are active, so
+    # flush the cached model load metrics once the bundle lifecycle is running.
     if self._metrics_collector:
       self._metrics_collector.update_metrics_with_cache()
 
