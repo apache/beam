@@ -116,6 +116,7 @@
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
     'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
+    'ReadFromDelta': 'apache_beam.yaml.yaml_io.read_from_delta'
 
 
 # General File Formats
@@ -447,24 +448,6 @@
       type: beamJar
       transforms:
         'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
-      config:
-        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
-
-#Delta Lake
-- type: renaming
-  transforms:
-    'ReadFromDelta': 'ReadFromDelta'
-  config:
-    mappings:
-      'ReadFromDelta':
-        table_path: 'table_path'
-        version: 'version'
-        timestamp: 'timestamp'
-        hadoop_config: 'hadoop_config'
-    underlying_provider:
-      type: beamJar
-      transforms:
-        'ReadFromDelta': 'beam:schematransform:org.apache.beam:delta_read:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
