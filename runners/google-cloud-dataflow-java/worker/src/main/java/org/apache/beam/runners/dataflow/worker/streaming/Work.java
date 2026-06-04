@@ -241,7 +241,7 @@ public final class Work implements RefreshableWork {
   }
 
   @Override
-  public synchronized void setFailed() {
+  public void setFailed() {
     this.isFailed = true;
     Runnable listener = onFailureListener;
     if (listener != null) {
@@ -249,7 +249,7 @@ public final class Work implements RefreshableWork {
     }
   }
 
-  public synchronized void setOnFailureListener(@Nullable Runnable listener) {
+  public void setOnFailureListener(@Nullable Runnable listener) {
     this.onFailureListener = listener;
     if (isFailed && listener != null) {
       listener.run();
