@@ -824,10 +824,9 @@ def parse_test_files(filepattern):
               yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
       suite_class = type(suite_name, (unittest.TestCase, ), methods)
       if filename in _SICKBAY_TESTS:
-        suite_class = unittest.skip(
-            f"Sickbayed: {_SICKBAY_TESTS[filename]}")(suite_class)
+        suite_class = unittest.skip(f"Sickbayed: {_SICKBAY_TESTS[filename]}")(
+            suite_class)
       globals()[suite_name] = suite_class
-
 
 
 # Logging setups
