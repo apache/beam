@@ -98,7 +98,9 @@ public class WorkFailureProcessorTest {
                 mock(HeartbeatSender.class)),
             false,
             clock),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private static ExecutableWork createWork(Consumer<Work> processWorkFn) {

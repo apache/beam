@@ -48,6 +48,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -1326,6 +1327,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
+    }
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    if (ExperimentalOptions.hasExperiment(options, "enable_otel_defaults")) {
+      Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+      if (openTelemetryProperties == null) {
+        openTelemetryProperties = new HashMap<>();
+        openTelemetryProperties.put("google.cloud.project", options.getProject());
+        openTelemetryProperties.put(
+            "otel.exporter.otlp.endpoint", "https://telemetry.googleapis.com");
+        openTelemetryProperties.put("otel.traces.exporter", "otlp");
+        openTelemetryProperties.put("otel.java.global-autoconfigure.enabled", "true");
+        openTelemetryProperties.put("otel.traces.sampler.arg", "0.01");
+        openTelemetryProperties.put("otel.service.name", options.getAppName());
+        sdkHarnessOptions.setOpenTelemetryProperties(openTelemetryProperties);
+      }
     }
 
     LOG.info(

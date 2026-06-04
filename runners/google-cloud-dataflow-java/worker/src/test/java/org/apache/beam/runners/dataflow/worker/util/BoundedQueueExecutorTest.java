@@ -32,6 +32,7 @@ import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.BoundedQueueExecutorWorkHandleImpl;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -85,18 +86,21 @@ public class BoundedQueueExecutorTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        executeWorkFn);
+        (work, handle) -> {
+          executeWorkFn.accept(work);
+        });
   }
 
-  private Runnable createSleepProcessWorkFn(CountDownLatch start, CountDownLatch stop) {
-    return () -> {
-      start.countDown();
-      try {
-        stop.await();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    };
+  private ExecutableWork createSleepProcessWork(CountDownLatch start, CountDownLatch stop) {
+    return createWork(
+        ignored -> {
+          start.countDown();
+          try {
+            stop.await();
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   @Before
@@ -123,9 +127,9 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStop2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     CountDownLatch processStop3 = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
-    Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, processStop1);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, processStop2);
+    ExecutableWork m3 = createSleepProcessWork(processStart3, processStop3);
 
     executor.execute(m1, 1);
     processStart1.await();
@@ -152,8 +156,8 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStop1 = new CountDownLatch(1);
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStop2 = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, processStop1);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, processStop2);
 
     executor.execute(m1, 10000000);
     processStart1.await();
@@ -187,9 +191,9 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     CountDownLatch stop = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
-    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, stop);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, stop);
+    ExecutableWork m3 = createSleepProcessWork(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
@@ -225,9 +229,9 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     CountDownLatch stop = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
-    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, stop);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, stop);
+    ExecutableWork m3 = createSleepProcessWork(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
@@ -264,9 +268,9 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStart2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     CountDownLatch stop = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, stop);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, stop);
-    Runnable m3 = createSleepProcessWorkFn(processStart3, stop);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, stop);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, stop);
+    ExecutableWork m3 = createSleepProcessWork(processStart3, stop);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
@@ -308,9 +312,9 @@ public class BoundedQueueExecutorTest {
     CountDownLatch processStop2 = new CountDownLatch(1);
     CountDownLatch processStart3 = new CountDownLatch(1);
     CountDownLatch processStop3 = new CountDownLatch(1);
-    Runnable m1 = createSleepProcessWorkFn(processStart1, processStop1);
-    Runnable m2 = createSleepProcessWorkFn(processStart2, processStop2);
-    Runnable m3 = createSleepProcessWorkFn(processStart3, processStop3);
+    ExecutableWork m1 = createSleepProcessWork(processStart1, processStop1);
+    ExecutableWork m2 = createSleepProcessWork(processStart2, processStop2);
+    ExecutableWork m3 = createSleepProcessWork(processStart3, processStop3);
 
     // Initial state.
     assertEquals(0, executor.activeCount());
@@ -349,6 +353,55 @@ public class BoundedQueueExecutorTest {
     // since when the second task was running it reached the new max pool size.
     assertThat(executor.allThreadsActiveTime(), greaterThan(0L));
     executor.shutdown();
+  }
+
+  @Test
+  public void testRunnableExceptionPropagationDecrementsCounters() throws Exception {
+    CountDownLatch processStart = new CountDownLatch(1);
+    CountDownLatch processStop = new CountDownLatch(1);
+
+    Runnable work =
+        () -> {
+          processStart.countDown();
+          try {
+            processStop.await();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          throw new RuntimeException("Simulated finalizer processing exception");
+        };
+
+    executor.forceExecute(work);
+    processStart.await();
+
+    assertEquals(1, executor.elementsOutstanding());
+
+    processStop.countDown();
+
+    // Wait until outstanding elements are released
+    while (executor.elementsOutstanding() != 0) {
+      Thread.sleep(10);
+    }
+
+    assertEquals(0, executor.elementsOutstanding());
+  }
+
+  @Test
+  public void testHandleMerge() throws Exception {
+    BoundedQueueExecutorWorkHandleImpl handle1 = executor.createBudgetHandle(1, 100L);
+    BoundedQueueExecutorWorkHandleImpl handle2 = executor.createBudgetHandle(2, 200L);
+
+    handle1.merge(handle2);
+
+    // Verify that handle2 has 0 budget and is closed.
+    assertEquals(0, handle2.elements());
+    assertEquals(0, handle2.bytes());
+    assertTrue(handle2.isClosed());
+
+    // Verify that handle1 has the combined budget and is not closed.
+    assertEquals(3, handle1.elements());
+    assertEquals(300L, handle1.bytes());
+    assertFalse(handle1.isClosed());
   }
 
   @Test
