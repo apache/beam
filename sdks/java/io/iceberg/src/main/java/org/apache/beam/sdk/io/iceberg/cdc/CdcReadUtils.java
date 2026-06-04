@@ -204,6 +204,10 @@ public final class CdcReadUtils {
    * compare all record columns to accurately identify updates. Otherwise, user-configured
    * projection may drop a column that contains real updates. If this happens, the downstream
    * resolver will mistakenly determine the (delete, insert) pair to be a duplicate.
+   *
+   * <p>If CDC metadata columns are requested, this method only adds row-sourced metadata columns
+   * ({@code _row_id}, {@code _last_updated_sequence_number}) to the Iceberg read schema. Commit
+   * metadata columns are added later by {@link CdcOutputUtils#outputRow}.
    */
   public static CloseableIterable<Record> changelogRecordsForTask(
       SerializableChangelogTask task,
@@ -211,7 +215,10 @@ public final class CdcReadUtils {
       IcebergScanConfig scanConfig,
       boolean useProjectedSchema) {
     String dataFilePath = task.getDataFile().getPath();
-    Schema outputSchema = useProjectedSchema ? scanConfig.getRequiredSchema() : table.schema();
+    Schema outputSchema =
+        CdcOutputUtils.readSchemaWithRowMetadata(
+            scanConfig.getMetadataColumns(),
+            useProjectedSchema ? scanConfig.getRequiredSchema() : table.schema());
     switch (task.getType()) {
       case ADDED_ROWS:
         DeleteFilter<Record> addedDeletesFilter =

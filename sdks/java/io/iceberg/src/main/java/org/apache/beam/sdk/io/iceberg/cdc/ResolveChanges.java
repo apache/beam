@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
+import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -37,27 +38,38 @@ import org.joda.time.Instant;
  * Receives a {@link CoGbkResult} containing inserts and deletes sharing the same snapshot sequence
  * number and Primary Key, and uses {@link CdcResolver} to identify logical updates.
  */
-class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
+class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
   static final TupleTag<Row> DELETES = new TupleTag<>() {};
   static final TupleTag<Row> INSERTS = new TupleTag<>() {};
+  private final IcebergScanConfig scanConfig;
   private final RowFilter rowFilter;
+  private final Schema outputSchema;
 
   ResolveChanges(IcebergScanConfig scanConfig) {
+    this.scanConfig = scanConfig;
     this.rowFilter =
-        new RowFilter(scanConfig.getSchema())
+        new RowFilter(
+                CdcOutputUtils.readBeamSchemaWithRowMetadata(
+                    scanConfig.getMetadataColumns(), scanConfig.getSchema()))
             .keep(
-                scanConfig.getProjectedSchema().columns().stream()
+                CdcOutputUtils.readSchemaWithRowMetadata(
+                        scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema())
+                    .columns().stream()
                     .map(Types.NestedField::name)
                     .collect(Collectors.toList()));
+    this.outputSchema =
+        CdcOutputUtils.outputSchema(
+            scanConfig, IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
   }
 
   @ProcessElement
   public void processElement(
-      @Element KV<KV<Long, Row>, CoGbkResult> element,
+      @Element KV<CdcRowDescriptor, CoGbkResult> element,
       @Timestamp Instant timestamp,
       OutputReceiver<Row> out) {
-    Row primaryKey = element.getKey().getValue();
-    Set<String> pkFields = new HashSet<>(primaryKey.getSchema().getFieldNames());
+    CdcRowDescriptor descriptor = element.getKey();
+
+    Set<String> pkFields = new HashSet<>(descriptor.getPrimaryKey().getSchema().getFieldNames());
     CoGbkResult result = element.getValue();
 
     // should be okay to materialize these lists. a PK collision will likely be a handful of records
@@ -65,28 +77,41 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
     List<Row> deletes = Lists.newArrayList(result.getAll(DELETES));
     List<Row> inserts = Lists.newArrayList(result.getAll(INSERTS));
 
-    new RowResolver(pkFields)
+    new RowResolver(pkFields, scanConfig.getMetadataColumns())
         .resolve(
             deletes,
             inserts,
             (kind, row) -> {
               Row projectedRow = rowFilter.filter(row);
-              out.builder(projectedRow).setValueKind(kind).setTimestamp(timestamp).output();
+              out.builder(
+                      CdcOutputUtils.outputRow(
+                          scanConfig.getMetadataColumns(),
+                          outputSchema,
+                          descriptor.getCommitSnapshotId(),
+                          descriptor.getSnapshotSequenceNumber(),
+                          projectedRow))
+                  .setValueKind(kind)
+                  .setTimestamp(timestamp)
+                  .output();
             });
   }
 
   private static final class RowResolver extends CdcResolver<Row> {
     private final Set<String> pkFields;
+    private final List<String> metadataColumns;
 
-    RowResolver(Set<String> pkFields) {
+    RowResolver(Set<String> pkFields, List<String> metadataColumns) {
       this.pkFields = pkFields;
+      this.metadataColumns = metadataColumns;
     }
 
     @Override
     protected int nonPkHash(Row element) {
       int hash = 1;
       for (String field : element.getSchema().getFieldNames()) {
-        if (pkFields.contains(field)) {
+        if (pkFields.contains(field)
+            || (IcebergCdcMetadataColumns.isSupportedColumn(field)
+                && metadataColumns.contains(field))) {
           continue;
         }
         hash =
@@ -102,7 +127,9 @@ class ResolveChanges extends DoFn<KV<KV<Long, Row>, CoGbkResult>, Row> {
       Schema schema = insert.getSchema();
       for (String field : schema.getFieldNames()) {
         // we already know PK values are equal
-        if (pkFields.contains(field)) {
+        if (pkFields.contains(field)
+            || (IcebergCdcMetadataColumns.isSupportedColumn(field)
+                && metadataColumns.contains(field))) {
           continue;
         }
         // return early if two values are not equal

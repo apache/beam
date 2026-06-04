@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
@@ -96,8 +95,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Each of these types need to be processed differently. More details in {@link
  * CdcReadUtils#changelogRecordsForTask}.
+ *
+ * <p>CDC metadata has two entry points in this transform. Row metadata columns are requested from
+ * the Iceberg reader by {@link CdcReadUtils} and travel inside intermediate rows until final output
+ * assembly. Commit metadata columns come from the {@link ChangelogDescriptor} / {@link
+ * CdcRowDescriptor} carried with each task or shuffled row. Final user-visible rows are assembled
+ * by {@link CdcOutputUtils#outputRow}, which appends all requested metadata as top-level columns in
+ * the configured order.
  */
-class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs.CdcOutput> {
+public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs.Output> {
   private static final Counter numAddedRowsScanTasksCompleted =
       Metrics.counter(ReadFromChangelogs.class, "numAddedRowsScanTasksCompleted");
   private static final Counter numDeletedRowsScanTasksCompleted =
@@ -106,8 +112,8 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       Metrics.counter(ReadFromChangelogs.class, "numDeletedDataFileScanTasksCompleted");
 
   private static final TupleTag<Row> UNIDIRECTIONAL_ROWS = new TupleTag<>();
-  private static final TupleTag<KV<KV<Long, Row>, Row>> BIDIRECTIONAL_INSERTS = new TupleTag<>();
-  private static final TupleTag<KV<KV<Long, Row>, Row>> BIDIRECTIONAL_DELETES = new TupleTag<>();
+  private static final TupleTag<KV<CdcRowDescriptor, Row>> BIDIRECTIONAL_INSERTS = new TupleTag<>();
+  private static final TupleTag<KV<CdcRowDescriptor, Row>> BIDIRECTIONAL_DELETES = new TupleTag<>();
 
   private final IcebergScanConfig scanConfig;
 
@@ -116,10 +122,14 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
   }
 
   @Override
-  public CdcOutput expand(PCollectionTuple input) {
-    Schema fullRowSchema = scanConfig.getSchema();
+  public org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.Output expand(
+      PCollectionTuple input) {
+    Schema fullRowSchema =
+        CdcOutputUtils.readBeamSchemaWithRowMetadata(
+            scanConfig.getMetadataColumns(), scanConfig.getSchema());
     Schema projectedRowSchema =
         IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
+    Schema outputRowSchema = CdcOutputUtils.outputSchema(scanConfig, projectedRowSchema);
 
     // === UNIDIRECTIONAL tasks ===
     // (i.e. only deletes, or only inserts)
@@ -133,7 +143,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
                 ParDo.of(ReadDoFn.unidirectional(scanConfig))
                     .withOutputTags(UNIDIRECTIONAL_ROWS, TupleTagList.empty()))
             .get(UNIDIRECTIONAL_ROWS)
-            .setRowSchema(projectedRowSchema);
+            .setRowSchema(outputRowSchema);
 
     // === BIDIRECTIONAL tasks ===
     // (i.e. a task group containing a mix of deletes and inserts)
@@ -150,7 +160,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
                         TupleTagList.of(BIDIRECTIONAL_DELETES).and(UNIDIRECTIONAL_ROWS)));
     // Collect pruned (non-overlapping) rows from bi-directional reader
     PCollection<Row> nonOverlappingRowsFromBiDirTasks =
-        biDirectionalRows.get(UNIDIRECTIONAL_ROWS).setRowSchema(projectedRowSchema);
+        biDirectionalRows.get(UNIDIRECTIONAL_ROWS).setRowSchema(outputRowSchema);
 
     // Flatten uni-directional rows from both sources
     PCollection<Row> allUniDirectionalRows =
@@ -161,33 +171,32 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
     // Reify to preserve each record's timestamp (CoGBK overwrites timestamps with the window's
     // end-of-window)
     // Note: element timestamps are snapshot commit timestamp
-    KvCoder<KV<Long, Row>, Row> keyedOutputCoder =
+    KvCoder<CdcRowDescriptor, Row> keyedOutputCoder =
         KvCoder.of(
-            KvCoder.of(VarLongCoder.of(), SchemaCoder.of(scanConfig.rowIdBeamSchema())),
-            SchemaCoder.of(fullRowSchema));
-    PCollection<KV<KV<Long, Row>, Row>> keyedInsertsWithTimestamps =
+            CdcRowDescriptor.coder(scanConfig.rowIdBeamSchema()), SchemaCoder.of(fullRowSchema));
+    PCollection<KV<CdcRowDescriptor, Row>> keyedInsertsWithTimestamps =
         biDirectionalRows.get(BIDIRECTIONAL_INSERTS).setCoder(keyedOutputCoder);
-    PCollection<KV<KV<Long, Row>, Row>> keyedDeletesWithTimestamps =
+    PCollection<KV<CdcRowDescriptor, Row>> keyedDeletesWithTimestamps =
         biDirectionalRows.get(BIDIRECTIONAL_DELETES).setCoder(keyedOutputCoder);
 
-    return new CdcOutput(
+    return new org.apache.beam.sdk.io.iceberg.cdc.ReadFromChangelogs.Output(
         input.getPipeline(),
         allUniDirectionalRows,
         keyedInsertsWithTimestamps,
         keyedDeletesWithTimestamps);
   }
 
-  public static class CdcOutput implements POutput {
+  public static class Output implements POutput {
     private final Pipeline pipeline;
     private final PCollection<Row> uniDirectionalRows;
-    private final PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts;
-    private final PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes;
+    private final PCollection<KV<CdcRowDescriptor, Row>> biDirectionalInserts;
+    private final PCollection<KV<CdcRowDescriptor, Row>> biDirectionalDeletes;
 
-    CdcOutput(
+    Output(
         Pipeline p,
         PCollection<Row> uniDirectionalRows,
-        PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts,
-        PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes) {
+        PCollection<KV<CdcRowDescriptor, Row>> biDirectionalInserts,
+        PCollection<KV<CdcRowDescriptor, Row>> biDirectionalDeletes) {
       this.pipeline = p;
       this.uniDirectionalRows = uniDirectionalRows;
       this.biDirectionalInserts = biDirectionalInserts;
@@ -198,11 +207,11 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       return uniDirectionalRows;
     }
 
-    PCollection<KV<KV<Long, Row>, Row>> biDirectionalInserts() {
+    PCollection<KV<CdcRowDescriptor, Row>> biDirectionalInserts() {
       return biDirectionalInserts;
     }
 
-    PCollection<KV<KV<Long, Row>, Row>> biDirectionalDeletes() {
+    PCollection<KV<CdcRowDescriptor, Row>> biDirectionalDeletes() {
       return biDirectionalDeletes;
     }
 
@@ -233,6 +242,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
     private final IcebergScanConfig scanConfig;
     private final boolean keyedOutput;
     private final Schema projectedBeamRowSchema;
+    private final Schema outputBeamRowSchema;
     private final Schema fullBeamRowSchema;
     private transient @MonotonicNonNull OverlapRange overlap;
     private transient @MonotonicNonNull StructProjection outputProjector;
@@ -247,7 +257,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
      * Used for bi-directional changes. Records are keyed by (snapshot sequence number, primary key)
      * and sent to a CoGBK.
      */
-    static ReadDoFn<KV<KV<Long, Row>, Row>> bidirectional(IcebergScanConfig scanConfig) {
+    static ReadDoFn<KV<CdcRowDescriptor, Row>> bidirectional(IcebergScanConfig scanConfig) {
       return new ReadDoFn<>(scanConfig, true);
     }
 
@@ -255,8 +265,15 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       this.scanConfig = scanConfig;
       this.keyedOutput = keyedOutput;
 
-      this.projectedBeamRowSchema = icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
-      this.fullBeamRowSchema = scanConfig.getSchema();
+      this.projectedBeamRowSchema =
+          CdcOutputUtils.readBeamSchemaWithRowMetadata(
+              scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema());
+      this.outputBeamRowSchema =
+          CdcOutputUtils.outputSchema(
+              scanConfig, icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+      this.fullBeamRowSchema =
+          CdcOutputUtils.readBeamSchemaWithRowMetadata(
+              scanConfig.getMetadataColumns(), scanConfig.getSchema());
     }
 
     @Setup
@@ -286,8 +303,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
         }
 
         SerializableChangelogTask task = tasks.get((int) l);
-        processTaskRecords(
-            descriptor.getSequenceNumber(), task, overlapLower, overlapUpper, table, out);
+        processTaskRecords(descriptor, task, overlapLower, overlapUpper, table, out);
       }
     }
 
@@ -303,7 +319,7 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
      * output the record directly to {@link #UNIDIRECTIONAL_ROWS}.
      */
     private void processTaskRecords(
-        long sequenceNumber,
+        ChangelogDescriptor descriptor,
         SerializableChangelogTask task,
         @Nullable Row overlapLowerRow,
         @Nullable Row overlapUpperRow,
@@ -315,29 +331,44 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       @Nullable StructLike overlapUpper = ovl.toStructLike(overlapUpperRow);
 
       boolean isInsert = task.getType() == ADDED_ROWS;
-      TupleTag<KV<KV<Long, Row>, Row>> taggedOutput =
+      TupleTag<KV<CdcRowDescriptor, Row>> taggedOutput =
           isInsert ? BIDIRECTIONAL_INSERTS : BIDIRECTIONAL_DELETES;
       ValueKind kind = isInsert ? ValueKind.INSERT : ValueKind.DELETE;
+      long commitSnapshotId = descriptor.getCommitSnapshotId();
+      long commitSnapshotSequenceNumber = descriptor.getSnapshotSequenceNumber();
 
-      Schema outputSchema = keyedOutput ? fullBeamRowSchema : projectedBeamRowSchema;
+      Schema readSchema = keyedOutput ? fullBeamRowSchema : projectedBeamRowSchema;
       try (CloseableIterable<Record> records =
           CdcReadUtils.changelogRecordsForTask(task, table, scanConfig, !keyedOutput)) {
         for (Record rec : records) {
           // uni-directional -- just output records (they are already projected by read pushdown)
           if (!keyedOutput) {
             Row row = icebergRecordToBeamRow(projectedBeamRowSchema, rec);
-            outputReceiver.get(UNIDIRECTIONAL_ROWS).builder(row).setValueKind(kind).output();
+            outputReceiver
+                .get(UNIDIRECTIONAL_ROWS)
+                .builder(
+                    CdcOutputUtils.outputRow(
+                        scanConfig.getMetadataColumns(), outputBeamRowSchema, descriptor, row))
+                .setValueKind(kind)
+                .output();
             continue;
           }
 
           // bi-directional -- compare overlap
           if (ovl.contains(rec, overlapLower, overlapUpper)) {
             // inside overlap -- read full row and output KV
-            Row row = icebergRecordToBeamRow(outputSchema, rec);
+            Row row = icebergRecordToBeamRow(readSchema, rec);
             Row pk = structToRow(scanConfig.rowIdBeamSchema(), pkProjector().wrap(rec));
             outputReceiver
                 .get(taggedOutput)
-                .builder(KV.of(KV.of(sequenceNumber, pk), row))
+                .builder(
+                    KV.of(
+                        CdcRowDescriptor.builder()
+                            .setCommitSnapshotId(commitSnapshotId)
+                            .setSnapshotSequenceNumber(commitSnapshotSequenceNumber)
+                            .setPrimaryKey(pk)
+                            .build(),
+                        row))
                 .setValueKind(kind)
                 .output();
 
@@ -345,7 +376,13 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
             // outside overlap -- get projected record and output
             StructLike projected = outputProjector().wrap(rec);
             Row row = structToRow(projectedBeamRowSchema, projected);
-            outputReceiver.get(UNIDIRECTIONAL_ROWS).builder(row).setValueKind(kind).output();
+            outputReceiver
+                .get(UNIDIRECTIONAL_ROWS)
+                .builder(
+                    CdcOutputUtils.outputRow(
+                        scanConfig.getMetadataColumns(), outputBeamRowSchema, descriptor, row))
+                .setValueKind(kind)
+                .output();
           }
         }
       }
@@ -357,8 +394,11 @@ class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs
       if (outputProjector == null) {
         outputProjector =
             StructProjection.create(
-                TableCache.get(scanConfig.getTableIdentifier()).schema(),
-                scanConfig.getProjectedSchema());
+                CdcOutputUtils.readSchemaWithRowMetadata(
+                    scanConfig.getMetadataColumns(),
+                    TableCache.get(scanConfig.getTableIdentifier()).schema()),
+                CdcOutputUtils.readSchemaWithRowMetadata(
+                    scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema()));
       }
       return outputProjector;
     }

@@ -74,6 +74,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableChangelogTask>>, Row> {
   private final IcebergScanConfig scanConfig;
   private final org.apache.beam.sdk.schemas.Schema projectedBeamSchema;
+  private final org.apache.beam.sdk.schemas.Schema outputBeamSchema;
 
   private transient @MonotonicNonNull OverlapRange overlap;
   private transient @MonotonicNonNull List<Types.NestedField> nonPkFields;
@@ -81,24 +82,35 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
 
   LocalResolveDoFn(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
-    this.projectedBeamSchema = icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
+    this.projectedBeamSchema =
+        CdcOutputUtils.readBeamSchemaWithRowMetadata(
+            scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema());
+    this.outputBeamSchema =
+        CdcOutputUtils.outputSchema(
+            scanConfig, icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
   }
 
   @Setup
   public void setup() {
     TableCache.setup(scanConfig);
-    Schema fullSchema = TableCache.get(scanConfig.getTableIdentifier()).schema();
+    Schema tableSchema = TableCache.get(scanConfig.getTableIdentifier()).schema();
+    Schema fullReadSchema =
+        CdcOutputUtils.readSchemaWithRowMetadata(scanConfig.getMetadataColumns(), tableSchema);
     this.overlap = OverlapRange.forScanConfig(scanConfig);
     Set<String> pkFieldNames = new HashSet<>(overlap.recordIdSchema().identifierFieldNames());
     // The dedup logic only inspects non-PK fields, so precompute them once.
     List<Types.NestedField> nonPk = new ArrayList<>();
-    for (Types.NestedField f : fullSchema.columns()) {
+    for (Types.NestedField f : tableSchema.columns()) {
       if (!pkFieldNames.contains(f.name())) {
         nonPk.add(f);
       }
     }
     this.nonPkFields = nonPk;
-    this.projector = StructProjection.create(fullSchema, scanConfig.getProjectedSchema());
+    this.projector =
+        StructProjection.create(
+            fullReadSchema,
+            CdcOutputUtils.readSchemaWithRowMetadata(
+                scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema()));
   }
 
   @ProcessElement
@@ -117,10 +129,10 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
     @Nullable StructLike overlapLower = ovl.toStructLike(descriptor.getOverlapLower());
     @Nullable StructLike overlapUpper = ovl.toStructLike(descriptor.getOverlapUpper());
     for (SerializableChangelogTask task : element.getValue()) {
-      readAndRoute(task, table, overlapLower, overlapUpper, pkGroups, out);
+      readAndRoute(descriptor, task, table, overlapLower, overlapUpper, pkGroups, out);
     }
 
-    resolveAndEmit(pkGroups, table.schema(), out);
+    resolveAndEmit(descriptor, pkGroups, table.schema(), out);
   }
 
   /**
@@ -132,6 +144,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
    * </ul>
    */
   private void readAndRoute(
+      ChangelogDescriptor descriptor,
       SerializableChangelogTask task,
       Table table,
       @Nullable StructLike overlapLower,
@@ -153,7 +166,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
             group.deletes.add(rec);
           }
         } else { // safe to emit directly
-          emit(rec, isInsert ? ValueKind.INSERT : ValueKind.DELETE, out);
+          emit(descriptor, rec, isInsert ? ValueKind.INSERT : ValueKind.DELETE, out);
         }
       }
     }
@@ -161,14 +174,17 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
 
   /** Resolves each PK group using {@link CdcResolver}. */
   private void resolveAndEmit(
-      StructLikeMap<PkGroup> pkGroups, Schema fullSchema, OutputReceiver<Row> out) {
+      ChangelogDescriptor descriptor,
+      StructLikeMap<PkGroup> pkGroups,
+      Schema fullSchema,
+      OutputReceiver<Row> out) {
     CdcResolver<Record> resolver = new RecordResolver(checkStateNotNull(nonPkFields), fullSchema);
     for (PkGroup group : pkGroups.values()) {
       resolver.resolve(
           group.deletes,
           group.inserts,
           (kind, rec) -> {
-            emit(rec, kind, out);
+            emit(descriptor, rec, kind, out);
           });
     }
   }
@@ -206,9 +222,13 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
   }
 
   /** Prune to get the final projected record then output as a Beam Row. */
-  private void emit(Record rec, ValueKind kind, OutputReceiver<Row> out) {
+  private void emit(
+      ChangelogDescriptor descriptor, Record rec, ValueKind kind, OutputReceiver<Row> out) {
     StructLike projected = checkStateNotNull(projector).wrap(rec);
-    out.builder(IcebergUtils.structToRow(projectedBeamSchema, projected))
+    Row record = IcebergUtils.structToRow(projectedBeamSchema, projected);
+    out.builder(
+            CdcOutputUtils.outputRow(
+                scanConfig.getMetadataColumns(), outputBeamSchema, descriptor, record))
         .setValueKind(kind)
         .output();
   }

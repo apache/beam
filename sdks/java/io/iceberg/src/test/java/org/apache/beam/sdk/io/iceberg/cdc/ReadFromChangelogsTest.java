@@ -135,7 +135,7 @@ public class ReadFromChangelogsTest {
                 table,
                 100L));
 
-    ReadFromChangelogs.CdcOutput output =
+    ReadFromChangelogs.Output output =
         input(ImmutableList.of(KV.of(descriptor(), tasks)), ImmutableList.of())
             .apply(new ReadFromChangelogs(scanConfig));
 
@@ -184,17 +184,17 @@ public class ReadFromChangelogsTest {
                 table,
                 200L));
 
-    ReadFromChangelogs.CdcOutput output =
-        input(ImmutableList.of(), ImmutableList.of(KV.of(descriptor(1L, 1L), tasks)))
+    ReadFromChangelogs.Output output =
+        input(ImmutableList.of(), ImmutableList.of(KV.of(descriptor(200L, 200L, 1L, 1L), tasks)))
             .apply(new ReadFromChangelogs(scanConfig));
 
     PAssert.that(output.uniDirectionalRows()).empty();
     PAssert.that(
             output.biDirectionalDeletes().apply("Format Deletes", ParDo.of(new FormatKeyedRow())))
-        .containsInAnyOrder("DELETE:200:1:shown:old-hidden:3");
+        .containsInAnyOrder("DELETE:200:200:1:shown:old-hidden:3");
     PAssert.that(
             output.biDirectionalInserts().apply("Format Inserts", ParDo.of(new FormatKeyedRow())))
-        .containsInAnyOrder("INSERT:200:1:shown:new-hidden:3");
+        .containsInAnyOrder("INSERT:200:200:1:shown:new-hidden:3");
 
     pipeline.run().waitUntilFinish();
   }
@@ -241,13 +241,20 @@ public class ReadFromChangelogsTest {
   }
 
   private ChangelogDescriptor descriptor() {
-    return ChangelogDescriptor.builder().setTableIdentifierString(tableId().toString()).build();
+    return ChangelogDescriptor.builder()
+        .setTableIdentifierString(tableId().toString())
+        .setSnapshotSequenceNumber(100L)
+        .setCommitSnapshotId(100L)
+        .build();
   }
 
-  private ChangelogDescriptor descriptor(long lowerInclusive, long upperInclusive) {
+  private ChangelogDescriptor descriptor(
+      long sequenceNumber, long snapshotId, long lowerInclusive, long upperInclusive) {
     Schema pkSchema = Schema.builder().addInt64Field("id").build();
     return ChangelogDescriptor.builder()
         .setTableIdentifierString(tableId().toString())
+        .setSnapshotSequenceNumber(sequenceNumber)
+        .setCommitSnapshotId(snapshotId)
         .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
         .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
         .build();
@@ -334,17 +341,20 @@ public class ReadFromChangelogsTest {
     }
   }
 
-  private static class FormatKeyedRow extends DoFn<KV<KV<Long, Row>, Row>, String> {
+  private static class FormatKeyedRow extends DoFn<KV<CdcRowDescriptor, Row>, String> {
     @ProcessElement
     public void process(
-        @Element KV<KV<Long, Row>, Row> element, ValueKind kind, OutputReceiver<String> out) {
+        @Element KV<CdcRowDescriptor, Row> element, ValueKind kind, OutputReceiver<String> out) {
       Row row = element.getValue();
+      CdcRowDescriptor descriptor = element.getKey();
       out.output(
           kind.name()
               + ":"
-              + element.getKey().getKey()
+              + descriptor.getCommitSnapshotId()
               + ":"
-              + element.getKey().getValue().getInt64("id")
+              + descriptor.getSnapshotSequenceNumber()
+              + ":"
+              + descriptor.getPrimaryKey().getInt64("id")
               + ":"
               + row.getString("visible")
               + ":"

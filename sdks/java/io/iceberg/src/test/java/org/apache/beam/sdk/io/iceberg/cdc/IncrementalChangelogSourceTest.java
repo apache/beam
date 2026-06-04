@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
@@ -50,6 +51,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
@@ -117,6 +119,94 @@ public class IncrementalChangelogSourceTest {
             Row.withSchema(projectedSchema).addValue(3L).build());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void metadataColumnsAreAppendedToProjectedRecord() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tablePropertiesV3());
+    DataFile file1 =
+        commitAppend(
+            table,
+            testName.getMethodName() + "file1.parquet",
+            Arrays.asList(
+                record(1L, "one"), record(2L, "two"), record(3L, "three"), record(4L, "four")));
+
+    DataFile file2 =
+        warehouse.writeRecords(
+            testName.getMethodName() + "file2.parquet",
+            table.schema(),
+            PartitionSpec.unpartitioned(),
+            null,
+            ImmutableList.of(record(3L, "three_new"), record(4L, "four_new")));
+    table.newOverwrite().deleteFile(file1).addFile(file2).commit();
+    table.refresh();
+
+    List<Snapshot> snapshots = Lists.newArrayList(table.snapshots());
+    long snap1Id = snapshots.get(0).snapshotId();
+    long snap1Seq = snapshots.get(0).sequenceNumber();
+    long file1Seq = snapshots.get(0).sequenceNumber();
+    long snap1FirstRowId = snapshots.get(0).firstRowId();
+
+    long snap2Id = snapshots.get(1).snapshotId();
+    long snap2Seq = snapshots.get(1).sequenceNumber();
+    long file2Seq = snapshots.get(1).sequenceNumber();
+    long snap2FirstRowId = snapshots.get(1).firstRowId();
+
+    IcebergScanConfig scanConfig =
+        baseConfigBuilder(table, tableId)
+            .setKeepFields(ImmutableList.of("id"))
+            .setFromSnapshotInclusive(snapshots.get(0).snapshotId())
+            .setToSnapshot(snapshots.get(1).snapshotId())
+            .setMetadataColumns(
+                ImmutableList.of(
+                    IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
+                    IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
+                    IcebergCdcMetadataColumns.ROW_ID,
+                    IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER))
+            .build();
+    Schema outputSchema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID)
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
+            .addNullableField(IcebergCdcMetadataColumns.ROW_ID, Schema.FieldType.INT64)
+            .addNullableField(
+                IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER, Schema.FieldType.INT64)
+            .build();
+
+    PCollection<Row> rows = pipeline.apply(new IncrementalChangelogSource(scanConfig));
+
+    assertEquals(outputSchema, rows.getSchema());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            // snapshot 1: insert data file 1
+            row(1L, snap1Id, snap1Seq, snap1FirstRowId, file1Seq, outputSchema),
+            row(2L, snap1Id, snap1Seq, snap1FirstRowId + 1, file1Seq, outputSchema),
+            row(3L, snap1Id, snap1Seq, snap1FirstRowId + 2, file1Seq, outputSchema),
+            row(4L, snap1Id, snap1Seq, snap1FirstRowId + 3, file1Seq, outputSchema),
+            // snapshot 2: delete data file 1
+            row(1L, snap2Id, snap2Seq, snap1FirstRowId, file1Seq, outputSchema),
+            row(2L, snap2Id, snap2Seq, snap1FirstRowId + 1, file1Seq, outputSchema),
+            row(3L, snap2Id, snap2Seq, snap1FirstRowId + 2, file1Seq, outputSchema),
+            row(4L, snap2Id, snap2Seq, snap1FirstRowId + 3, file1Seq, outputSchema),
+            // snapshot 2: insert data file 2
+            row(3L, snap2Id, snap2Seq, snap2FirstRowId, file2Seq, outputSchema),
+            row(4L, snap2Id, snap2Seq, snap2FirstRowId + 1, file2Seq, outputSchema));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private Row row(
+      long id,
+      long snapshotId,
+      long snapshotSequence,
+      long rowId,
+      long lastUpdatedSequence,
+      Schema outputSchema) {
+    return Row.withSchema(outputSchema)
+        .addValues(id, snapshotId, snapshotSequence, rowId, lastUpdatedSequence)
+        .build();
   }
 
   @Test
@@ -244,6 +334,10 @@ public class IncrementalChangelogSourceTest {
 
   private static Map<String, String> tableProperties() {
     return ImmutableMap.of(TableProperties.FORMAT_VERSION, "2");
+  }
+
+  private static Map<String, String> tablePropertiesV3() {
+    return ImmutableMap.of(TableProperties.FORMAT_VERSION, "3");
   }
 
   private DataFile commitAppend(Table table, String fileName, List<Record> records)

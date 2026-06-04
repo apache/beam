@@ -56,6 +56,7 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
@@ -655,6 +656,54 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
+  public void testCdcReadWithMetadataColumns() throws Exception {
+    Table table =
+        catalog.createTable(
+            TableIdentifier.parse(tableId()),
+            CDC_ICEBERG_SCHEMA,
+            PartitionSpec.unpartitioned(),
+            ImmutableMap.of(TableProperties.FORMAT_VERSION, "3"));
+    commitCdcAppend(
+        table,
+        "metadata-columns.parquet",
+        Arrays.asList(cdcRecord(table.schema(), 1L, "one"), cdcRecord(table.schema(), 2L, "two")));
+    Snapshot snapshot = checkStateNotNull(table.currentSnapshot());
+    long firstRowId = checkStateNotNull(snapshot.firstRowId());
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("to_snapshot", snapshot.snapshotId());
+    config.put(
+        "include_metadata_columns",
+        Arrays.asList(
+            IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
+            IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
+            IcebergCdcMetadataColumns.ROW_ID,
+            IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER));
+
+    Schema outputSchema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("data")
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID)
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
+            .addNullableField(IcebergCdcMetadataColumns.ROW_ID, Schema.FieldType.INT64)
+            .addNullableField(
+                IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER, Schema.FieldType.INT64)
+            .build();
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
+
+    assertEquals(BOUNDED, rows.isBounded());
+    assertEquals(outputSchema, rows.getSchema());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            cdcMetadataRow(1L, "one", snapshot, firstRowId, outputSchema),
+            cdcMetadataRow(2L, "two", snapshot, firstRowId + 1, outputSchema));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testBatchReadBetweenSnapshots() throws Exception {
     runReadBetween(true, false);
   }
@@ -1182,6 +1231,19 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   private static String cdcChange(ValueKind valueKind, Snapshot snapshot, long id, String data) {
     return String.format("%s:%d:%d:%s", valueKind, snapshot.timestampMillis(), id, data);
+  }
+
+  private static Row cdcMetadataRow(
+      long id, String data, Snapshot snapshot, long rowId, Schema outputSchema) {
+    return Row.withSchema(outputSchema)
+        .addValues(
+            id,
+            data,
+            snapshot.snapshotId(),
+            snapshot.sequenceNumber(),
+            rowId,
+            snapshot.sequenceNumber())
+        .build();
   }
 
   private static Record cdcRecord(org.apache.iceberg.Schema schema, long id, String data) {

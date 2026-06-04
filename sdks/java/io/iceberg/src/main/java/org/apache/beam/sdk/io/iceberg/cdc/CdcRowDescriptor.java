@@ -25,82 +25,65 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Descriptor for a set of {@link SerializableChangelogTask}s.
+ * Shuffle key for bidirectional CDC rows.
  *
- * <p>This carries commit-sourced metadata for all rows produced from the task group. These values
- * are not read from data files; they are appended to final CDC output rows by {@link
- * CdcOutputUtils#outputRow} when requested.
+ * <p>The primary key isolates rows for update resolution. The snapshot sequence number and commit
+ * snapshot id carry commit-sourced metadata through {@link ResolveChanges}, where they can be
+ * appended to final output rows if requested.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-public abstract class ChangelogDescriptor {
-  public static Builder builder() {
-    return new AutoValue_ChangelogDescriptor.Builder();
-  }
-
+public abstract class CdcRowDescriptor {
   @SuppressWarnings("nullness")
-  public static SchemaCoder<ChangelogDescriptor> coder(Schema overlapSchema) {
+  public static SchemaCoder<CdcRowDescriptor> coder(Schema identifierSchema) {
     Schema descriptorSchema =
         Schema.builder()
-            .addStringField("tableIdentifierString")
             .addInt64Field("snapshotSequenceNumber")
             .addInt64Field("commitSnapshotId")
-            .addNullableField("overlapLower", Schema.FieldType.row(overlapSchema))
-            .addNullableField("overlapUpper", Schema.FieldType.row(overlapSchema))
+            .addRowField("primaryKey", identifierSchema)
             .build();
 
     return SchemaCoder.of(
         descriptorSchema,
-        TypeDescriptor.of(ChangelogDescriptor.class),
+        TypeDescriptor.of(CdcRowDescriptor.class),
         descriptor ->
             Row.withSchema(descriptorSchema)
                 .addValues(
-                    descriptor.getTableIdentifierString(),
                     descriptor.getSnapshotSequenceNumber(),
                     descriptor.getCommitSnapshotId(),
-                    descriptor.getOverlapLower(),
-                    descriptor.getOverlapUpper())
+                    descriptor.getPrimaryKey())
                 .build(),
         row ->
-            ChangelogDescriptor.builder()
-                .setTableIdentifierString(row.getString("tableIdentifierString"))
+            CdcRowDescriptor.builder()
                 .setSnapshotSequenceNumber(row.getInt64("snapshotSequenceNumber"))
                 .setCommitSnapshotId(row.getInt64("commitSnapshotId"))
-                .setOverlapLower(row.getRow("overlapLower"))
-                .setOverlapUpper(row.getRow("overlapUpper"))
+                .setPrimaryKey(row.getRow("primaryKey"))
                 .build());
   }
 
-  @SchemaFieldNumber("0")
-  public abstract String getTableIdentifierString();
+  public static Builder builder() {
+    return new AutoValue_CdcRowDescriptor.Builder();
+  }
 
-  @SchemaFieldNumber("1")
+  @SchemaFieldNumber("0")
   public abstract long getSnapshotSequenceNumber();
 
-  @SchemaFieldNumber("2")
+  @SchemaFieldNumber("1")
   public abstract long getCommitSnapshotId();
 
-  @SchemaFieldNumber("3")
-  public abstract @Nullable Row getOverlapLower();
-
-  @SchemaFieldNumber("4")
-  public abstract @Nullable Row getOverlapUpper();
+  @SchemaFieldNumber("2")
+  public abstract Row getPrimaryKey();
 
   @AutoValue.Builder
   public abstract static class Builder {
-    abstract Builder setTableIdentifierString(String table);
-
     abstract Builder setSnapshotSequenceNumber(long sequenceNumber);
 
     abstract Builder setCommitSnapshotId(long snapshotId);
 
-    abstract Builder setOverlapLower(@Nullable Row overlapLower);
+    abstract Builder setPrimaryKey(Row primaryKey);
 
-    abstract Builder setOverlapUpper(@Nullable Row overlapUpper);
-
-    abstract ChangelogDescriptor build();
+    abstract CdcRowDescriptor build();
   }
 }

@@ -666,7 +666,8 @@ class ChangelogScanner
     ChangelogDescriptor descriptor =
         ChangelogDescriptor.builder()
             .setTableIdentifierString(scanConfig.getTableIdentifier())
-            .setSequenceNumber(snapshot.sequenceNumber())
+            .setSnapshotSequenceNumber(snapshot.sequenceNumber())
+            .setCommitSnapshotId(snapshot.snapshotId())
             .setOverlapLower(overlapLowerRow)
             .setOverlapUpper(overlapUpperRow)
             .build();
@@ -878,7 +879,8 @@ class ChangelogScanner
       add(
           ChangelogDescriptor.builder()
               .setTableIdentifierString(tableIdentifier)
-              .setSequenceNumber(snapshotSequenceNumber)
+              .setSnapshotSequenceNumber(snapshotSequenceNumber)
+              .setCommitSnapshotId(task.getCommitSnapshotId())
               .build(),
           task,
           sizeBytes);

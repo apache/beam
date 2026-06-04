@@ -120,7 +120,8 @@ public class IcebergCdcReadSchemaTransformProvider
               .dropping(configuration.getDrop())
               .withFilter(configuration.getFilter())
               .withWatermarkColumn(configuration.getWatermarkColumn())
-              .withWatermarkColumnTimeUnit(configuration.getWatermarkColumnTimeUnit());
+              .withWatermarkColumnTimeUnit(configuration.getWatermarkColumnTimeUnit())
+              .withMetadataColumns(configuration.getIncludeMetadataColumns());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -217,6 +218,14 @@ public class IcebergCdcReadSchemaTransformProvider
             + "timestamps may be treated as late by downstream windowing. Default: 600 seconds.")
     abstract @Nullable Long getMaxSnapshotDiscoveryDelay();
 
+    @SchemaFieldDescription(
+        "List of top-level metadata columns to include with CDC output rows. Supported columns: \n"
+            + "- `_row_id`\n"
+            + "- `_last_updated_sequence_number`"
+            + "- `_commit_snapshot_id`\n"
+            + "- `_commit_snapshot_sequence_number`\n")
+    abstract @Nullable List<String> getIncludeMetadataColumns();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -252,6 +261,8 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setWatermarkColumnTimeUnit(String timeUnit);
 
       abstract Builder setMaxSnapshotDiscoveryDelay(Long seconds);
+
+      abstract Builder setIncludeMetadataColumns(List<String> metadataColumns);
 
       abstract Configuration build();
     }

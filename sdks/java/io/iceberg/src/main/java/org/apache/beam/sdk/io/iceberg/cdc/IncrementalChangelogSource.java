@@ -109,10 +109,10 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
 
     Schema projectedRowSchema =
         IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
+    Schema outputRowSchema = CdcOutputUtils.outputSchema(scanConfig, projectedRowSchema);
 
     // reads UNIDIRECTIONAL and BIDIRECTIONAL tags and produces rows.
-    ReadFromChangelogs.CdcOutput outputRows =
-        changelogTasks.apply(new ReadFromChangelogs(scanConfig));
+    ReadFromChangelogs.Output outputRows = changelogTasks.apply(new ReadFromChangelogs(scanConfig));
 
     // Small overlapping groups get resolved entirely in memory with no shuffle.
     PCollection<Row> smallBidirectionalCdcRows =
@@ -120,28 +120,28 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
             .get(SMALL_BIDIRECTIONAL_TASKS)
             .apply("Redistribute Small Bidirectional Changes", Redistribute.arbitrarily())
             .apply("Resolve Locally", ParDo.of(new LocalResolveDoFn(scanConfig)))
-            .setRowSchema(projectedRowSchema);
+            .setRowSchema(outputRowSchema);
 
     // BIDIRECTIONAL records go through a CoGBK and ResolveChanges
     // We window locally using a custom WindowFn based on the snapsot's commit time. Each snapshot
     // exists in its own window.
     // We re-window the resolved output back to GlobalWindows before the final Flatten
     // to align with the other branches.
-    Window<KV<KV<Long, Row>, Row>> keyedWindowing =
-        Window.<KV<KV<Long, Row>, Row>>into(new SnapshotWindowFn())
+    Window<KV<CdcRowDescriptor, Row>> keyedWindowing =
+        Window.<KV<CdcRowDescriptor, Row>>into(new SnapshotWindowFn())
             .triggering(AfterWatermark.pastEndOfWindow())
             .withAllowedLateness(Duration.ZERO)
             .discardingFiredPanes();
-    PCollection<KV<KV<Long, Row>, Row>> keyedInserts =
+    PCollection<KV<CdcRowDescriptor, Row>> keyedInserts =
         outputRows.biDirectionalInserts().apply("Window Inserts", keyedWindowing);
-    PCollection<KV<KV<Long, Row>, Row>> keyedDeletes =
+    PCollection<KV<CdcRowDescriptor, Row>> keyedDeletes =
         outputRows.biDirectionalDeletes().apply("Window Deletes", keyedWindowing);
     PCollection<Row> biDirectionalCdcRows =
         KeyedPCollectionTuple.of(INSERTS, keyedInserts)
             .and(DELETES, keyedDeletes)
             .apply("CoGroupBy Primary Key", CoGroupByKey.create())
             .apply("Resolve Delete-Insert Pairs", ParDo.of(new ResolveChanges(scanConfig)))
-            .setRowSchema(projectedRowSchema)
+            .setRowSchema(outputRowSchema)
             .apply(
                 "Re-window to Global",
                 Window.<Row>into(new GlobalWindows())
@@ -167,7 +167,7 @@ public class IncrementalChangelogSource extends PTransform<PBegin, PCollection<R
                       watermarkColumn, scanConfig.getWatermarkColumnTimeUnit())));
     }
 
-    return merged.setRowSchema(projectedRowSchema);
+    return merged.setRowSchema(outputRowSchema);
   }
 
   /**

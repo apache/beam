@@ -171,10 +171,18 @@ public class ResolveChangesTest {
       throws Exception {
     CoGbkResult result =
         CoGbkResult.of(ResolveChanges.DELETES, deletes).and(ResolveChanges.INSERTS, inserts);
-    try (DoFnTester<KV<KV<Long, Row>, CoGbkResult>, Row> tester =
+    try (DoFnTester<KV<CdcRowDescriptor, CoGbkResult>, Row> tester =
         DoFnTester.of(new ResolveChanges(scanConfig(icebergSchema)))) {
       tester.processTimestampedElement(
-          TimestampedValue.of(KV.of(KV.of(101L, pk), result), timestamp));
+          TimestampedValue.of(
+              KV.of(
+                  CdcRowDescriptor.builder()
+                      .setCommitSnapshotId(123)
+                      .setSnapshotSequenceNumber(456)
+                      .setPrimaryKey(pk)
+                      .build(),
+                  result),
+              timestamp));
       return tester.getMutableOutput(tester.getMainOutputTag());
     }
   }

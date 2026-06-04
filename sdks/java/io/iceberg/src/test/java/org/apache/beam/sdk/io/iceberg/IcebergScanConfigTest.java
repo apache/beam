@@ -25,6 +25,7 @@ import static org.junit.Assert.assertThrows;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -117,6 +118,62 @@ public class IcebergScanConfigTest {
     assertEquals(
         ImmutableSet.of("id", "data", "category"),
         ImmutableSet.copyOf(fieldNames(scanConfig.getRequiredSchema())));
+  }
+
+  @Test
+  public void metadataColumnsRequireCdcMode() {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    IcebergScanConfig scanConfig =
+        scanConfigBuilder(tableId, CDC_SCHEMA)
+            .setMetadataColumns(ImmutableList.of(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID))
+            .build();
+
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, () -> scanConfig.validate(table));
+    assertThat(thrown.getMessage(), containsString("metadata_columns"));
+  }
+
+  @Test
+  public void metadataColumnsRejectUnsupportedAndDuplicateNames() {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+
+    IcebergScanConfig unsupported =
+        scanConfigBuilder(tableId, CDC_SCHEMA)
+            .setUseCdc(true)
+            .setMetadataColumns(ImmutableList.of("_missing_metadata"))
+            .build();
+    IllegalArgumentException unsupportedThrown =
+        assertThrows(IllegalArgumentException.class, () -> unsupported.validate(table));
+    assertThat(unsupportedThrown.getMessage(), containsString("unsupported metadata_columns"));
+
+    IcebergScanConfig duplicate =
+        scanConfigBuilder(tableId, CDC_SCHEMA)
+            .setUseCdc(true)
+            .setMetadataColumns(
+                ImmutableList.of(
+                    IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
+                    IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID))
+            .build();
+    IllegalArgumentException duplicateThrown =
+        assertThrows(IllegalArgumentException.class, () -> duplicate.validate(table));
+    assertThat(duplicateThrown.getMessage(), containsString("duplicate"));
+  }
+
+  @Test
+  public void rowLineageMetadataRequiresFormatV3Table() {
+    TableIdentifier tableId = uniqueTableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA);
+    IcebergScanConfig scanConfig =
+        scanConfigBuilder(tableId, CDC_SCHEMA)
+            .setUseCdc(true)
+            .setMetadataColumns(ImmutableList.of(IcebergCdcMetadataColumns.ROW_ID))
+            .build();
+
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, () -> scanConfig.validate(table));
+    assertThat(thrown.getMessage(), containsString("format v3+"));
   }
 
   @Test

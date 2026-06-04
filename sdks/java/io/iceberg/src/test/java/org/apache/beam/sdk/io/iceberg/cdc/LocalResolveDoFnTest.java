@@ -59,7 +59,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration tests for {@link LocalResolveDoFn}. */
 @RunWith(JUnit4.class)
-public class LocalResolveDoFnIT {
+public class LocalResolveDoFnTest {
   private static final org.apache.iceberg.Schema CDC_SCHEMA =
       new org.apache.iceberg.Schema(
           ImmutableList.of(
@@ -128,7 +128,7 @@ public class LocalResolveDoFnIT {
             timestamp);
 
     assertThat(
-        output.stream().map(LocalResolveDoFnIT::kindAndProjectedRow).collect(Collectors.toList()),
+        output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
         contains("UPDATE_BEFORE:1:shown:2", "UPDATE_AFTER:1:shown:2"));
     assertEquals(
         ImmutableList.of(timestamp, timestamp),
@@ -173,7 +173,8 @@ public class LocalResolveDoFnIT {
         org.apache.beam.sdk.schemas.Schema.builder().addInt64Field("id").build();
     return ChangelogDescriptor.builder()
         .setTableIdentifierString(tableId.toString())
-        .setSequenceNumber(1)
+        .setSnapshotSequenceNumber(1)
+        .setCommitSnapshotId(1)
         .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
         .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
         .build();

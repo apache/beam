@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -534,6 +535,7 @@ public class IcebergIO {
     return new AutoValue_IcebergIO_ReadRows.Builder()
         .setCatalogConfig(catalogConfig)
         .setUseCdc(false)
+        .setMetadataColumns(ImmutableList.of())
         .build();
   }
 
@@ -576,6 +578,8 @@ public class IcebergIO {
 
     abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
 
+    abstract List<String> getMetadataColumns();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -611,6 +615,8 @@ public class IcebergIO {
       abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
 
       abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
+
+      abstract Builder setMetadataColumns(List<String> metadataColumns);
 
       abstract ReadRows build();
     }
@@ -675,6 +681,23 @@ public class IcebergIO {
       return toBuilder().setMaxSnapshotDiscoveryDelay(delay).build();
     }
 
+    /**
+     * Appends top-level metadata columns to CDC output rows.
+     *
+     * <p>Supported values are {@code _commit_snapshot_id}, {@code
+     * _commit_snapshot_sequence_number}, {@code _row_id}, and {@code
+     * _last_updated_sequence_number}. The row metadata columns are read from Iceberg data files and
+     * require a row-lineage table. The commit metadata columns come from the changelog snapshot
+     * context and are appended when final Beam rows are emitted.
+     *
+     * <p>This option is only valid {@link #withCdc()}.
+     */
+    public ReadRows withMetadataColumns(@Nullable List<String> metadataColumns) {
+      return toBuilder()
+          .setMetadataColumns(metadataColumns == null ? ImmutableList.of() : metadataColumns)
+          .build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -709,6 +732,7 @@ public class IcebergIO {
               .setWatermarkColumn(getWatermarkColumn())
               .setWatermarkColumnTimeUnit(getWatermarkColumnTimeUnit())
               .setMaxSnapshotDiscoveryDelay(getMaxSnapshotDiscoveryDelay())
+              .setMetadataColumns(getMetadataColumns())
               .build();
       scanConfig.validate(table);
 
