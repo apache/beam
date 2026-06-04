@@ -70,8 +70,10 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
    * <p>This is an optional method that can be used by runners as a hook to reset any per key state
    * before moving to a different key in the same bundle. Currently used only by the Dataflow
    * Streaming runner.
+   *
+   * @param key current key to clean up or finish processing
    */
-  void finishKey();
+  <KeyT extends @Nullable Object> void finishKey(KeyT key);
 
   /**
    * Returns the underlying fn instance.

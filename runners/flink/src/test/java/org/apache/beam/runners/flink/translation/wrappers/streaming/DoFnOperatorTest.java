@@ -524,7 +524,7 @@ public class DoFnOperatorTest {
               }
 
               @Override
-              public void finishKey() {}
+              public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
               @Override
               public <KeyT> void onWindowExpiration(

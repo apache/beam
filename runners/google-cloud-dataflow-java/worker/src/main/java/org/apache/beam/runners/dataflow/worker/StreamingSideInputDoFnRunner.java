@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -97,8 +98,8 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   }
 
   @Override
-  public void finishKey() {
-    simpleDoFnRunner.finishKey();
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    simpleDoFnRunner.finishKey(key);
     sideInputFetcher.persist();
   }
 

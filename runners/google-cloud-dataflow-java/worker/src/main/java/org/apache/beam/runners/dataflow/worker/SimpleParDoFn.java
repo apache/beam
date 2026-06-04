@@ -364,9 +364,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   @Override
-  public void finishKey() throws Exception {
+  public void finishKey(Object key) throws Exception {
     if (fnRunner != null) {
-      fnRunner.finishKey();
+      fnRunner.finishKey(key);
     }
   }
 

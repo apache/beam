@@ -150,7 +150,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
-    runner.finishKey();
+    runner.finishKey("key");
     runner.finishBundle();
 
     assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
@@ -215,7 +215,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(elem);
-    runner.finishKey();
+    runner.finishKey("key");
     runner.finishBundle();
 
     assertTrue(outputManager.getOutput(mainOutputTag).isEmpty());
@@ -319,7 +319,7 @@ public class StreamingSideInputDoFnRunnerTest {
     when(mockSideInputReader.get(eq(view), any(BoundedWindow.class))).thenReturn("data");
 
     runner.startBundle();
-    runner.finishKey();
+    runner.finishKey("key");
     runner.finishBundle();
 
     assertThat(outputManager.getOutput(mainOutputTag), contains(createDatum("e:data", 0)));
@@ -376,7 +376,7 @@ public class StreamingSideInputDoFnRunnerTest {
 
     runner.startBundle();
     runner.processElement(createDatum("e2", 2));
-    runner.finishKey();
+    runner.finishKey("key");
     runner.finishBundle();
 
     assertThat(

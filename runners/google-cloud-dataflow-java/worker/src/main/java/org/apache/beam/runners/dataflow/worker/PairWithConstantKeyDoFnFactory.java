@@ -99,7 +99,7 @@ public class PairWithConstantKeyDoFnFactory implements ParDoFnFactory {
     public void processTimers() {}
 
     @Override
-    public void finishKey() throws Exception {}
+    public void finishKey(Object key) throws Exception {}
 
     @Override
     public void finishBundle() {}

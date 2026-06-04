@@ -48,8 +48,8 @@ public abstract class ForwardingParDoFn implements ParDoFn {
   }
 
   @Override
-  public void finishKey() throws Exception {
-    delegate.finishKey();
+  public void finishKey(Object key) throws Exception {
+    delegate.finishKey(key);
   }
 
   @Override

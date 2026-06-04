@@ -283,7 +283,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     checkState(!finishKeyCalled, "finishKey was already called");
     checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     try {
-      workExecutor.finishKey();
+      workExecutor.finishKey(key);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -129,8 +130,8 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void finishKey() {
-    simpleRunner.finishKey();
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    simpleRunner.finishKey(key);
   }
 
   @Override

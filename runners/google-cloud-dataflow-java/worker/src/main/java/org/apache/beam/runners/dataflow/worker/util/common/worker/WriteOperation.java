@@ -106,7 +106,7 @@ public class WriteOperation extends ReceivingOperation {
   }
 
   @Override
-  public void finishKey() throws Exception {}
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public void abort() throws Exception {

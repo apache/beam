@@ -74,7 +74,7 @@ public class StreamingPCollectionViewWriterParDoFn implements ParDoFn {
   public void processTimers() {}
 
   @Override
-  public void finishKey() throws Exception {}
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {}
