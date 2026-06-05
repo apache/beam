@@ -365,7 +365,9 @@ public class CalciteUtils {
    * SQL-Java type mapping, with specified Beam rules: <br>
    * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
    * 2. For a list, the component type is needed to create a Sql array type. <br>
-   * 3. For a Map, the component type is needed to create a Sql map type.
+   * 3. For a Map, the component type is needed to create a Sql map type. <br>
+   * 4. For standard Java classes (String, Integer, etc.), map them to corresponding Calcite SQL
+   * type with appropriate nullability.
    *
    * @param type
    * @return Calcite RelDataType
@@ -395,6 +397,55 @@ public class CalciteUtils {
               + type
               + ". This is currently unsupported, use List instead "
               + "of Array.");
+    }
+    if (type instanceof Class) {
+      Class<?> clazz = (Class<?>) type;
+      if (clazz == String.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.VARCHAR), true);
+      } else if (clazz == Integer.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.INTEGER), true);
+      } else if (clazz == int.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+      } else if (clazz == Long.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), true);
+      } else if (clazz == long.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), false);
+      } else if (clazz == Double.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
+      } else if (clazz == double.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
+      } else if (clazz == Float.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.FLOAT), true);
+      } else if (clazz == float.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.FLOAT), false);
+      } else if (clazz == Short.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.SMALLINT), true);
+      } else if (clazz == short.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.SMALLINT), false);
+      } else if (clazz == Byte.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.TINYINT), true);
+      } else if (clazz == byte.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.TINYINT), false);
+      } else if (clazz == Boolean.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BOOLEAN), true);
+      } else if (clazz == boolean.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BOOLEAN), false);
+      }
     }
     return typeFactory.createJavaType((Class) type);
   }
