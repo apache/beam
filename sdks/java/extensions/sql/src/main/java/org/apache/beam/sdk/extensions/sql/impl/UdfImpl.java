@@ -87,7 +87,7 @@ class UdfImpl {
         } else {
           int cmp =
               Integer.compare(
-                  method.getParameterTypes().length, bestMethod.getParameterTypes().length);
+                  method.getParameterCount(), bestMethod.getParameterCount());
           if (cmp > 0 || (cmp == 0 && method.toString().compareTo(bestMethod.toString()) < 0)) {
             bestMethod = method;
           }
