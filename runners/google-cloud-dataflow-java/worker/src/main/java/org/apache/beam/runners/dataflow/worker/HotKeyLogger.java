@@ -85,7 +85,7 @@ public class HotKeyLogger {
   protected boolean isThrottled() {
     // Throttle logging the HotKeyDetection to every 5 minutes.
     long nowMs = clock.currentTimeMillis();
-    synchronized(this) {
+    synchronized (this) {
       if (nowMs - prevHotKeyDetectionLogMs < loggingPeriod.getMillis()) {
         return true;
       }
