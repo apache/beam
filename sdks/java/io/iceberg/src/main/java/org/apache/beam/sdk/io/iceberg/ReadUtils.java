@@ -158,7 +158,7 @@ public class ReadUtils {
     }
   }
 
-  static @Nullable Long getFromSnapshotExclusive(Table table, IcebergScanConfig scanConfig) {
+  public static @Nullable Long getFromSnapshotInclusive(Table table, IcebergScanConfig scanConfig) {
     @Nullable StartingStrategy startingStrategy = scanConfig.getStartingStrategy();
     boolean isStreaming = MoreObjects.firstNonNull(scanConfig.getStreaming(), false);
     if (startingStrategy == null) {
@@ -179,17 +179,23 @@ public class ReadUtils {
         fromSnapshot = currentSnapshot.snapshotId();
       }
     }
+
+    return fromSnapshot;
+  }
+
+  public static @Nullable Long getFromSnapshotExclusive(Table table, IcebergScanConfig scanConfig) {
+    @Nullable Long fromSnapshot = getFromSnapshotInclusive(table, scanConfig);
     // incremental append scan can only be configured with an *exclusive* starting snapshot,
     // so we need to provide this snapshot's parent id.
     if (fromSnapshot != null) {
       fromSnapshot = table.snapshot(fromSnapshot).parentId();
     }
 
-    // 4. if snapshot is still null, the scan will default to the oldest snapshot, i.e. EARLIEST
+    // if snapshot is still null, the scan will default to the oldest snapshot, i.e. EARLIEST
     return fromSnapshot;
   }
 
-  static @Nullable Long getToSnapshot(Table table, IcebergScanConfig scanConfig) {
+  public static @Nullable Long getToSnapshot(Table table, IcebergScanConfig scanConfig) {
     // 1. fetch from to_snapshot
     @Nullable Long toSnapshot = scanConfig.getToSnapshot();
     // 2. fetch from to_timestamp
