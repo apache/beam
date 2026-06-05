@@ -824,7 +824,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
                   String description = status.getDescription();
                   schemaMismatchError =
-                      description != null && description.contains("incompatible fields");
+                      description != null
+                          && (description.contains("incompatible fields")
+                              || description.contains("extra proto fields"));
                 }
               }
               if (schemaMismatchError) {
