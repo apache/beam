@@ -381,8 +381,7 @@ public class StreamingWorkScheduler {
 
       StreamingModeExecutionContext context = computationWorkExecutor.context();
       if (context.workIsFailed()) {
-        throw new WorkItemCancelledException(
-            Preconditions.checkNotNull(context.getWorkItem()).getShardingKey());
+        throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
       }
 
       // Retrieve executed works, output builders, and accumulated callbacks from execution context
@@ -411,6 +410,7 @@ public class StreamingWorkScheduler {
             t);
         computationWorkExecutor.invalidate();
       }
+      // Re-throw the exception, it will be caught and handled by workFailureProcessor downstream.
       throw t;
     }
   }
