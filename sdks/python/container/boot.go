@@ -32,6 +32,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -380,6 +381,16 @@ func launchSDKProcess() error {
 
 			bufLogger := tools.NewBufferedLogger(logger)
 			errorCount := 0
+			jobId := opts.Options.JobId
+			if jobId == "" {
+				jobId = "BEAM_JOB"
+			}
+			hostname, _ := os.Hostname()
+			if hostname == "" {
+				hostname = "default-worker"
+			}
+			stopProfilingSentinel := filepath.Join(profileTempLocation, fmt.Sprintf(".profiler_completed_%s_%s", jobId, hostname))
+
 			for {
 				childPids.mu.Lock()
 				if childPids.canceled {
@@ -391,7 +402,12 @@ func launchSDKProcess() error {
 				currentArgs := []string{"-m", sdkHarnessEntrypoint}
 				currentEnv := map[string]string{"WORKER_ID": workerId}
 
-				if opts.Options.ProfilerAgent != "" {
+				enableProfiler := opts.Options.ProfilerAgent != ""
+				if _, err := os.Stat(stopProfilingSentinel); err == nil {
+					enableProfiler = false
+				}
+
+				if enableProfiler {
 					if opts.Options.ProfilerAgent == "memray" {
 						timeSuffix := time.Now().Format("20060102150405")
 						memrayFile := filepath.Join(profileTempLocation, fmt.Sprintf("memray-%s-%s.bin", workerId, timeSuffix))
@@ -437,7 +453,39 @@ func launchSDKProcess() error {
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
-				if err := cmd.Wait(); err != nil {
+				var timer *time.Timer
+				var profilingTimedOut atomic.Bool
+
+				if enableProfiler && opts.Options.ProfilerStopAfterMin > 0 {
+					duration := time.Duration(opts.Options.ProfilerStopAfterMin) * time.Minute
+					timer = time.AfterFunc(duration, func() {
+						childPids.mu.Lock()
+						defer childPids.mu.Unlock()
+						if cmd.Process != nil {
+							logger.Printf(ctx, "Profiling timeout of %d minutes reached. Sending SIGINT to worker %s",
+								opts.Options.ProfilerStopAfterMin, workerId)
+							profilingTimedOut.Store(true)
+							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+						}
+					})
+				}
+
+				err := cmd.Wait()
+				if timer != nil {
+					timer.Stop()
+				}
+
+				if err != nil {
+					if profilingTimedOut.Load() {
+						if f, err := os.Create(stopProfilingSentinel); err == nil {
+							f.Close()
+						}
+						bufLogger.FlushAtDebug(ctx)
+						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
+						// Error is not counted toward error budget.
+						continue
+					}
+
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
