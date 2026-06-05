@@ -141,6 +141,7 @@ type OptionsData struct {
 	ProfileTempLocation  string   `json:"profile_temp_location"`
 	ProfileSyncPeriodSec int      `json:"profile_sync_period_sec"`
 	ProfilerStopAfterMin int      `json:"profiler_stop_after_min"`
+	JobId                string   `json:"jobId,omitempty"`
 }
 
 func getExperiments(options string) []string {
@@ -226,6 +227,32 @@ func launchSDKProcess() error {
 		logger.Printf(ctx, "ProfilerStopAfterMin: %v", opts.Options.ProfilerStopAfterMin)
 		if err := os.MkdirAll(profileTempLocation, 0755); err != nil {
 			logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
+		}
+
+		if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
+			if _, err := exec.LookPath("gcloud"); err != nil {
+				logger.Errorf(ctx, "gcloud is not available, profiles will not be synced.")
+			} else {
+				jobId := opts.Options.JobId
+				if jobId == "" {
+					jobId = "BEAM_JOB"
+				}
+				hostname, _ := os.Hostname()
+				if hostname == "" {
+					hostname = "default-worker"
+				}
+				baseGcsDest := strings.TrimSuffix(opts.Options.ProfileLocation, "/")
+				gcsDestPath := fmt.Sprintf("%s/%s/%s", baseGcsDest, jobId, hostname)
+
+				if opts.Options.ProfileSyncPeriodSec > 0 {
+					ticker := time.NewTicker(time.Duration(opts.Options.ProfileSyncPeriodSec) * time.Second)
+					go func() {
+						for range ticker.C {
+							syncProfilesToGCS(ctx, logger, profileTempLocation, gcsDestPath)
+						}
+					}()
+				}
+			}
 		}
 	}
 
@@ -603,4 +630,21 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	}
 	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
+}
+
+// syncProfilesToGCS uploads newly created local memory profiles to the designated GCS target path using gcloud storage.
+func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsDest string) {
+	entries, err := os.ReadDir(localDir)
+	if err != nil || len(entries) == 0 {
+		return
+	}
+
+	logger.Printf(ctx, "Syncing profiles from %s to %s", localDir, gcsDest)
+
+	cmd := exec.Command("gcloud", "storage", "rsync", localDir, gcsDest)
+	if err := cmd.Run(); err != nil {
+		logger.Warnf(ctx, "Failed to sync profiles to GCS: %v", err)
+	} else {
+		logger.Printf(ctx, "Successfully synced profiles to GCS.")
+	}
 }
