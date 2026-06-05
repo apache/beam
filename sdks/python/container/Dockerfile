@@ -86,6 +86,7 @@ RUN  \
     rm -rf /root/.cache/pip && \
 
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
+    # upgrade_ensurepip is not maintained for Python 3.12+ (ensurepip no longer bundles setuptools).
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
         pip install upgrade_ensurepip; \
         python3 -m upgrade_ensurepip; \
