@@ -451,7 +451,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Row> expectedRows = populateTable(table);
 
-    List<String> fieldsToKeep = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    List<String> fieldsToKeep = Arrays.asList("row", "modulo_5", "nullable_long");
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(fieldsToKeep);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
