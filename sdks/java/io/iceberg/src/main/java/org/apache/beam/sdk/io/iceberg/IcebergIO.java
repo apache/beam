@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.iceberg.cdc.IncrementalChangelogSource;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -569,6 +570,10 @@ public class IcebergIO {
 
     abstract @Nullable String getFilter();
 
+    abstract @Nullable String getWatermarkColumn();
+
+    abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -598,6 +603,10 @@ public class IcebergIO {
       abstract Builder setDrop(@Nullable List<String> fields);
 
       abstract Builder setFilter(@Nullable String filter);
+
+      abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
+
+      abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
       abstract ReadRows build();
     }
@@ -650,12 +659,27 @@ public class IcebergIO {
       return toBuilder().setFilter(filter).build();
     }
 
+    public ReadRows withWatermarkColumn(@Nullable String watermarkColumn) {
+      return toBuilder().setWatermarkColumn(watermarkColumn).build();
+    }
+
+    public ReadRows withMaxSnapshotDiscoveryDelay(Duration delay) {
+      return toBuilder().setMaxSnapshotDiscoveryDelay(delay).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
           checkStateNotNull(getTableIdentifier(), "Must set a table to read from.");
-
-      Table table = getCatalogConfig().catalog().loadTable(tableId);
+      Table table;
+      try {
+        table = getCatalogConfig().catalog().loadTable(tableId);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Could not fetch table at expansion time. Doing so is needed to "
+                + "determine the output Row schema.",
+            e);
+      }
 
       IcebergScanConfig scanConfig =
           IcebergScanConfig.builder()
@@ -674,12 +698,15 @@ public class IcebergIO {
               .setKeepFields(getKeep())
               .setDropFields(getDrop())
               .setFilterString(getFilter())
+              .setWatermarkColumn(getWatermarkColumn())
+              .setMaxSnapshotDiscoveryDelay(getMaxSnapshotDiscoveryDelay())
               .build();
       scanConfig.validate(table);
 
       PTransform<PBegin, PCollection<Row>> source =
           getUseCdc()
-              ? new IncrementalScanSource(scanConfig)
+              ? new IncrementalChangelogSource(scanConfig)
+              //              ? new IncrementalScanSource(scanConfig)
               : Read.from(new ScanSource(scanConfig));
 
       return input.apply(source);
