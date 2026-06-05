@@ -82,9 +82,15 @@ class UdfImpl {
     Method bestMethod = null;
     for (Method method : clazz.getMethods()) {
       if (method.getName().equals(name) && !method.isBridge()) {
-        if (bestMethod == null
-            || method.getParameterTypes().length > bestMethod.getParameterTypes().length) {
+        if (bestMethod == null) {
           bestMethod = method;
+        } else {
+          int cmp =
+              Integer.compare(
+                  method.getParameterTypes().length, bestMethod.getParameterTypes().length);
+          if (cmp > 0 || (cmp == 0 && method.toString().compareTo(bestMethod.toString()) < 0)) {
+            bestMethod = method;
+          }
         }
       }
     }

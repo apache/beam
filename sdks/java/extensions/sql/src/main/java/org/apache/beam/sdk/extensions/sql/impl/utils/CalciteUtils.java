@@ -400,51 +400,43 @@ public class CalciteUtils {
     }
     if (type instanceof Class) {
       Class<?> clazz = (Class<?>) type;
-      if (clazz == String.class) {
+      SqlTypeName sqlTypeName = null;
+      switch (clazz.getName()) {
+        case "java.lang.String":
+          sqlTypeName = SqlTypeName.VARCHAR;
+          break;
+        case "java.lang.Integer":
+        case "int":
+          sqlTypeName = SqlTypeName.INTEGER;
+          break;
+        case "java.lang.Long":
+        case "long":
+          sqlTypeName = SqlTypeName.BIGINT;
+          break;
+        case "java.lang.Double":
+        case "double":
+          sqlTypeName = SqlTypeName.DOUBLE;
+          break;
+        case "java.lang.Float":
+        case "float":
+          sqlTypeName = SqlTypeName.FLOAT;
+          break;
+        case "java.lang.Short":
+        case "short":
+          sqlTypeName = SqlTypeName.SMALLINT;
+          break;
+        case "java.lang.Byte":
+        case "byte":
+          sqlTypeName = SqlTypeName.TINYINT;
+          break;
+        case "java.lang.Boolean":
+        case "boolean":
+          sqlTypeName = SqlTypeName.BOOLEAN;
+          break;
+      }
+      if (sqlTypeName != null) {
         return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.VARCHAR), true);
-      } else if (clazz == Integer.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.INTEGER), true);
-      } else if (clazz == int.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.INTEGER), false);
-      } else if (clazz == Long.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.BIGINT), true);
-      } else if (clazz == long.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.BIGINT), false);
-      } else if (clazz == Double.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
-      } else if (clazz == double.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
-      } else if (clazz == Float.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.FLOAT), true);
-      } else if (clazz == float.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.FLOAT), false);
-      } else if (clazz == Short.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.SMALLINT), true);
-      } else if (clazz == short.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.SMALLINT), false);
-      } else if (clazz == Byte.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.TINYINT), true);
-      } else if (clazz == byte.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.TINYINT), false);
-      } else if (clazz == Boolean.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.BOOLEAN), true);
-      } else if (clazz == boolean.class) {
-        return typeFactory.createTypeWithNullability(
-            typeFactory.createSqlType(SqlTypeName.BOOLEAN), false);
+            typeFactory.createSqlType(sqlTypeName), !clazz.isPrimitive());
       }
     }
     return typeFactory.createJavaType((Class) type);
