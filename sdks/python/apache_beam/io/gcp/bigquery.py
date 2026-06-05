@@ -2155,8 +2155,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
       num_storage_api_streams: Specifies the number of write streams that the
-        Storage API sink will use. This parameter is only applicable when
-        writing unbounded data.
+        Storage API sink will use.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
