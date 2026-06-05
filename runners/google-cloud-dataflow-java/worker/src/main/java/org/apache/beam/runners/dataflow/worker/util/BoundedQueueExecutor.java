@@ -30,6 +30,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
@@ -80,6 +81,7 @@ public class BoundedQueueExecutor {
   @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
+  // If set the keyGroupWorkQueue is used by the underlying executor.
   private final @Nullable KeyGroupWorkQueue keyGroupWorkQueue;
 
   public BoundedQueueExecutor(
@@ -387,6 +389,7 @@ public class BoundedQueueExecutor {
   public @Nullable ExecutableWork pollWork(
       String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    checkArgument(computationId != null && !KeyGroup.DEFAULT.equals(keyGroup));
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     if (keyGroupWorkQueue == null) {
       return null;

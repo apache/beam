@@ -461,27 +461,4 @@ public class KeyGroupWorkQueueTest {
     assertEquals(workA1, polledA1);
     assertTrue(queue.isEmpty());
   }
-
-  @Test
-  public void testDefaultKeyGroupNotIndexedInKeyGroupQueue() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
-
-    // Work item with explicit KeyGroup.DEFAULT
-    QueuedWork workExplicitDefault = createQueuedWork("compA", Work.KeyGroup.DEFAULT, 100);
-    // Work item with implicit KeyGroup.DEFAULT (null passed to helper)
-    QueuedWork workImplicitDefault = createQueuedWork("compA", null, 150);
-
-    queue.offer(workExplicitDefault);
-    queue.offer(workImplicitDefault);
-
-    assertEquals(2, queue.size());
-
-    // Verify they cannot be retrieved via pollWork with KeyGroup.DEFAULT
-    assertNull(queue.pollWork("compA", Work.KeyGroup.DEFAULT));
-
-    // Verify they can still be retrieved via global poll in FIFO order
-    assertEquals(workExplicitDefault, queue.poll());
-    assertEquals(workImplicitDefault, queue.poll());
-    assertTrue(queue.isEmpty());
-  }
 }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -32,8 +33,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.QueuedWork;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jspecify.annotations.NonNull;
@@ -44,8 +45,14 @@ import org.jspecify.annotations.NonNull;
  */
 class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue<Runnable> {
 
+  public static final Runnable SENTINEL_RUNNABLE =
+      () -> {
+        throw new IllegalStateException("sentinel runnable called");
+      };
+
   static class Node {
-    final @Nullable Runnable task;
+    // If keyGroup is non-null, task is an instance of QueuedWork
+    final Runnable task;
     final @Nullable String computationId;
     final Work.@Nullable KeyGroup keyGroup;
     // cached keyGroupList if the Node is part of one.
@@ -60,7 +67,7 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     @Nullable Node prevKeyGroupNode;
     @Nullable Node nextKeyGroupNode;
 
-    Node(@Nullable Runnable task) {
+    Node(Runnable task) {
       this.task = task;
       if (task instanceof QueuedWork) {
         this.computationId = ((QueuedWork) task).getWork().getComputationId();
@@ -74,8 +81,8 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
 
   /** Double linked list implementing key group level queue */
   private static class KeyGroupWorkList {
-    final Node head = new Node(null);
-    final Node tail = new Node(null);
+    final Node head = new Node(SENTINEL_RUNNABLE);
+    final Node tail = new Node(SENTINEL_RUNNABLE);
 
     KeyGroupWorkList() {
       head.nextKeyGroupNode = tail;
@@ -87,10 +94,7 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     }
 
     void append(Node node) {
-      @Nullable Node last = tail.prevKeyGroupNode;
-      if (last == null) {
-        throw new NullPointerException("tail.prevComp is null");
-      }
+      Node last = checkStateNotNull(tail.prevKeyGroupNode);
       node.prevKeyGroupNode = last;
       node.nextKeyGroupNode = tail;
       last.nextKeyGroupNode = node;
@@ -114,10 +118,10 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
 
   // Sentinels for the global list
   @GuardedBy("lock")
-  private final Node globalHead = new Node(null);
+  private final Node globalHead = new Node(SENTINEL_RUNNABLE);
 
   @GuardedBy("lock")
-  private final Node globalTail = new Node(null);
+  private final Node globalTail = new Node(SENTINEL_RUNNABLE);
 
   @GuardedBy("lock")
   private final Map<QueueKey, KeyGroupWorkList> keyGroupQueueMap = new HashMap<>();
@@ -160,8 +164,8 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
 
   @GuardedBy("lock")
   private @Nullable Node removeFirstGlobal() {
-    @Nullable Node first = globalHead.nextNode;
-    if (first == null || first == globalTail) {
+    Node first = checkStateNotNull(globalHead.nextNode);
+    if (first == globalTail) {
       return null;
     }
     unlinkNode(first);
@@ -169,14 +173,13 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
   }
 
   /**
-   * Remove and Return QueuedWork for the computationId, keyGroup in the FIFO order Returns null, if
-   * there are no matches.
+   * Remove and Return QueuedWork for the computationId, keyGroup in the FIFO order. Returns null,
+   * if there are no matches.
+   *
+   * @param keyGroup should not be equal to KeyGroup.DEFAULT
    */
   public @Nullable QueuedWork pollWork(String computationId, Work.KeyGroup keyGroup) {
-    Preconditions.checkArgument(computationId != null && keyGroup != null);
-    if (keyGroup.equals(Work.KeyGroup.DEFAULT)) {
-      return null;
-    }
+    checkArgument(computationId != null && !KeyGroup.DEFAULT.equals(keyGroup));
     QueueKey key = new QueueKey(computationId, keyGroup);
     lock.lock();
     try {
@@ -186,8 +189,8 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
       }
 
       // Retrieve the first pending task for this computation and keyGroup in O(1)
-      @Nullable Node firstNode = keyGroupWorkList.head.nextKeyGroupNode;
-      if (firstNode == null || firstNode == keyGroupWorkList.tail) {
+      Node firstNode = checkStateNotNull(keyGroupWorkList.head.nextKeyGroupNode);
+      if (firstNode == keyGroupWorkList.tail) {
         return null;
       }
       unlinkNode(firstNode);
@@ -259,7 +262,7 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
       }
       @Nullable Node node = removeFirstGlobal();
       checkStateNotNull(node, "Queue is empty but size was " + size);
-      return checkStateNotNull(node.task, "Encountered null task in queue");
+      return node.task;
     } finally {
       lock.unlock();
     }
@@ -287,8 +290,8 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
   public @Nullable Runnable peek() {
     lock.lock();
     try {
-      @Nullable Node first = globalHead.nextNode;
-      if (first == null || first == globalTail) {
+      Node first = checkStateNotNull(globalHead.nextNode);
+      if (first == globalTail) {
         return null;
       }
       return first.task;
@@ -323,13 +326,13 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     lock.lock();
     try {
       // Walk the global queue in O(N) to find and unlink the node
-      @Nullable Node curr = globalHead.nextNode;
-      while (curr != null && curr != globalTail) {
+      Node curr = checkStateNotNull(globalHead.nextNode);
+      while (curr != globalTail) {
         if (o.equals(curr.task)) {
           unlinkNode(curr);
           return true;
         }
-        curr = curr.nextNode;
+        curr = checkStateNotNull(curr.nextNode);
       }
       return false;
     } finally {
@@ -342,12 +345,12 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     if (o == null) return false;
     lock.lock();
     try {
-      @Nullable Node curr = globalHead.nextNode;
-      while (curr != null && curr != globalTail) {
+      Node curr = checkStateNotNull(globalHead.nextNode);
+      while (curr != globalTail) {
         if (o.equals(curr.task)) {
           return true;
         }
-        curr = curr.nextNode;
+        curr = checkStateNotNull(curr.nextNode);
       }
       return false;
     } finally {
@@ -373,15 +376,13 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     lock.lock();
     try {
       int added = 0;
-      @Nullable Node curr = globalHead.nextNode;
-      while (curr != null && curr != globalTail && added < maxElements) {
-        @Nullable Node next = curr.nextNode;
+      Node curr = checkStateNotNull(globalHead.nextNode);
+      while (curr != globalTail && added < maxElements) {
+        Node next = checkStateNotNull(curr.nextNode);
         unlinkNode(curr);
         Runnable task = curr.task;
-        if (task != null) {
-          c.add(task);
-          ++added;
-        }
+        c.add(task);
+        ++added;
         curr = next;
       }
       return added;
@@ -394,9 +395,9 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
   public void clear() {
     lock.lock();
     try {
-      @Nullable Node curr = globalHead.nextNode;
-      while (curr != null && curr != globalTail) {
-        @Nullable Node next = curr.nextNode;
+      Node curr = checkStateNotNull(globalHead.nextNode);
+      while (curr != globalTail) {
+        Node next = checkStateNotNull(curr.nextNode);
         unlinkNode(curr);
         curr = next;
       }
@@ -410,12 +411,10 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     lock.lock();
     try {
       ImmutableList.Builder<Runnable> builder = ImmutableList.builderWithExpectedSize(size);
-      @Nullable Node curr = globalHead.nextNode;
-      while (curr != null && curr != globalTail) {
-        if (curr.task != null) {
-          builder.add(curr.task);
-        }
-        curr = curr.nextNode;
+      Node curr = checkStateNotNull(globalHead.nextNode);
+      while (curr != globalTail) {
+        builder.add(curr.task);
+        curr = checkStateNotNull(curr.nextNode);
       }
       return builder.build().iterator();
     } finally {

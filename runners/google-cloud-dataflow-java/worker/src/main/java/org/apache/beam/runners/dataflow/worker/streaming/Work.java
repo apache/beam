@@ -438,7 +438,7 @@ public final class Work implements RefreshableWork {
    */
   public static final class KeyGroup {
 
-    // The default 0 key group. Work items with 0 keyGroup will always be executed
+    // Work items equaling to the default keyGroup will always be executed
     // separately and not in a multi-key bundle
     public static final KeyGroup DEFAULT = new KeyGroup(0, 0);
 
