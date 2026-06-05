@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,26 +71,28 @@ public class KeyGroupWorkQueueTest {
             /*useKeyGroupWorkQueue=*/ true);
   }
 
-  private static final Work.KeyGroup DEFAULT_KEY_GROUP = Work.KeyGroup.create(1, 2);
+  private static final Work.KeyGroup TEST_KEY_GROUP = Work.KeyGroup.create(1, 2);
 
   private QueuedWork createQueuedWork(String computationId, long workBytes) {
-    return createQueuedWork(computationId, DEFAULT_KEY_GROUP, workBytes);
+    return createQueuedWork(computationId, TEST_KEY_GROUP, workBytes);
   }
 
   private QueuedWork createQueuedWork(
-      String computationId, Work.KeyGroup keyGroup, long workBytes) {
-    WorkItem workItem =
+      String computationId, Work.@Nullable KeyGroup keyGroup, long workBytes) {
+    WorkItem.Builder workItemBuilder =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setShardingKey(1)
             .setWorkToken(33)
-            .setCacheToken(1)
-            .setKeyGroup(
-                org.apache.beam.runners.dataflow.worker.windmill.Windmill.Uint128Proto.newBuilder()
-                    .setHigh(keyGroup.high())
-                    .setLow(keyGroup.low())
-                    .build())
-            .build();
+            .setCacheToken(1);
+    if (keyGroup != null) {
+      workItemBuilder.setKeyGroup(
+          org.apache.beam.runners.dataflow.worker.windmill.Windmill.Uint128Proto.newBuilder()
+              .setHigh(keyGroup.high())
+              .setLow(keyGroup.low())
+              .build());
+    }
+    WorkItem workItem = workItemBuilder.build();
     ExecutableWork work =
         ExecutableWork.create(
             Work.create(
@@ -125,7 +128,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testBasicOfferAndPoll() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     assertTrue(queue.isEmpty());
     assertEquals(0, queue.size());
 
@@ -144,7 +147,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testRemove() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
 
@@ -159,7 +162,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testDrainTo() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
     queue.offer(task1);
@@ -175,7 +178,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testIteratorSafeTraversalAndImmutable() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
     queue.offer(task1);
@@ -202,7 +205,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWorkTargeted() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
 
     QueuedWork workA1 = createQueuedWork("compA", 100);
     QueuedWork workB1 = createQueuedWork("compB", 200);
@@ -215,7 +218,7 @@ public class KeyGroupWorkQueueTest {
     assertEquals(3, queue.size());
 
     // Targeted poll A
-    QueuedWork polledA1 = queue.pollWork("compA", DEFAULT_KEY_GROUP);
+    QueuedWork polledA1 = queue.pollWork("compA", TEST_KEY_GROUP);
     assertNotNull(polledA1);
     assertEquals("compA", polledA1.getWork().getComputationId());
     assertEquals(100, polledA1.getHandle().bytes());
@@ -234,12 +237,12 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testMemoryPruningLeavesZeroLeaks() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     QueuedWork workA1 = createQueuedWork("compA", 100);
     queue.offer(workA1);
 
     // Steal A1
-    QueuedWork polled = queue.pollWork("compA", DEFAULT_KEY_GROUP);
+    QueuedWork polled = queue.pollWork("compA", TEST_KEY_GROUP);
     assertNotNull(polled);
     assertTrue(queue.isEmpty());
 
@@ -249,14 +252,14 @@ public class KeyGroupWorkQueueTest {
     assertEquals(1, queue.size());
 
     // Steal B1
-    QueuedWork polledB = queue.pollWork("compB", DEFAULT_KEY_GROUP);
+    QueuedWork polledB = queue.pollWork("compB", TEST_KEY_GROUP);
     assertNotNull(polledB);
     assertTrue(queue.isEmpty());
   }
 
   @Test
   public void testConcurrentStress() throws InterruptedException, ExecutionException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     final int producerThreads = 4;
     final int consumerThreads = 4;
     final int tasksPerProducer = 1000;
@@ -301,7 +304,7 @@ public class KeyGroupWorkQueueTest {
                     if (consumerId % 2 == 0) {
                       // Targeted poll
                       String compId = "comp-" + (consumedCount.get() % 5);
-                      task = queue.pollWork(compId, DEFAULT_KEY_GROUP);
+                      task = queue.pollWork(compId, TEST_KEY_GROUP);
                     } else {
                       // Global poll
                       task = queue.poll();
@@ -335,7 +338,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testTakeBlocksAndWakesUp() throws InterruptedException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     final MockRunnable task = new MockRunnable("take-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
@@ -369,7 +372,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWithTimeout() throws InterruptedException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
     final MockRunnable task = new MockRunnable("poll-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
@@ -430,7 +433,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWorkWithKeyGroup() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue();
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
 
     Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
     Work.KeyGroup keyGroup2 = Work.KeyGroup.create(1, 2);
@@ -456,6 +459,29 @@ public class KeyGroupWorkQueueTest {
     QueuedWork polledA1 = queue.pollWork("compA", keyGroup1);
     assertNotNull(polledA1);
     assertEquals(workA1, polledA1);
+    assertTrue(queue.isEmpty());
+  }
+
+  @Test
+  public void testDefaultKeyGroupNotIndexedInKeyGroupQueue() {
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+
+    // Work item with explicit KeyGroup.DEFAULT
+    QueuedWork workExplicitDefault = createQueuedWork("compA", Work.KeyGroup.DEFAULT, 100);
+    // Work item with implicit KeyGroup.DEFAULT (null passed to helper)
+    QueuedWork workImplicitDefault = createQueuedWork("compA", null, 150);
+
+    queue.offer(workExplicitDefault);
+    queue.offer(workImplicitDefault);
+
+    assertEquals(2, queue.size());
+
+    // Verify they cannot be retrieved via pollWork with KeyGroup.DEFAULT
+    assertNull(queue.pollWork("compA", Work.KeyGroup.DEFAULT));
+
+    // Verify they can still be retrieved via global poll in FIFO order
+    assertEquals(workExplicitDefault, queue.poll());
+    assertEquals(workImplicitDefault, queue.poll());
     assertTrue(queue.isEmpty());
   }
 }

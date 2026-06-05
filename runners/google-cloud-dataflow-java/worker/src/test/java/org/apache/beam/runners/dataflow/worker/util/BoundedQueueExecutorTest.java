@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -487,22 +489,20 @@ public class BoundedQueueExecutorTest {
 
     // Steal work2 using pollWork with compA and keyGroup2
     try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      java.util.Optional<ExecutableWork> stolen =
-          testExecutor.pollWork("compA", keyGroup2, stealHandle);
-      assertTrue(stolen.isPresent());
-      assertEquals(work2, stolen.get());
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle);
+      assertNotNull(stolen);
+      assertEquals(work2, stolen);
 
       // Run the stolen task
-      stolen.get().run(stealHandle);
+      stolen.run(stealHandle);
       targetStart.await();
     }
 
     // Steal work1 using pollWork with compA and keyGroup1
     try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      java.util.Optional<ExecutableWork> stolen =
-          testExecutor.pollWork("compA", keyGroup1, stealHandle);
-      assertTrue(stolen.isPresent());
-      assertEquals(work1, stolen.get());
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup1, stealHandle);
+      assertNotNull(stolen);
+      assertEquals(work1, stolen);
     }
 
     // Unblock the blocker and shut down
@@ -546,9 +546,8 @@ public class BoundedQueueExecutorTest {
     testExecutor.execute(work, 100);
 
     try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      java.util.Optional<ExecutableWork> stolen =
-          testExecutor.pollWork("compA", keyGroup, stealHandle);
-      assertFalse(stolen.isPresent());
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
+      assertNull(stolen);
     }
 
     blockerStop.countDown();

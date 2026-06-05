@@ -76,7 +76,7 @@ public final class Work implements RefreshableWork {
   private final Instant startTime;
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
-  private final Optional<KeyGroup> keyGroup;
+  private final KeyGroup keyGroup;
   private final String latencyTrackingId;
   private final long serializedWorkItemSize;
   private volatile TimedState currentState;
@@ -106,9 +106,8 @@ public final class Work implements RefreshableWork {
     this.id = WorkId.of(workItem);
     this.keyGroup =
         workItem.hasKeyGroup()
-            ? Optional.of(
-                KeyGroup.create(workItem.getKeyGroup().getHigh(), workItem.getKeyGroup().getLow()))
-            : Optional.empty();
+            ? KeyGroup.create(workItem.getKeyGroup().getHigh(), workItem.getKeyGroup().getLow())
+            : KeyGroup.DEFAULT;
     this.latencyTrackingId =
         Long.toHexString(workItem.getShardingKey())
             + '-'
@@ -395,7 +394,7 @@ public final class Work implements RefreshableWork {
     return processingContext.computationId();
   }
 
-  public Optional<KeyGroup> getKeyGroup() {
+  public KeyGroup getKeyGroup() {
     return keyGroup;
   }
 
@@ -433,7 +432,16 @@ public final class Work implements RefreshableWork {
     }
   }
 
+  /**
+   * WorkItems with same key group and computation are eligible to be executed together in a
+   * multi-key bundle.
+   */
   public static final class KeyGroup {
+
+    // The default 0 key group. Work items with 0 keyGroup will always be executed
+    // separately and not in a multi-key bundle
+    public static final KeyGroup DEFAULT = new KeyGroup(0, 0);
+
     private final long high;
     private final long low;
 
@@ -473,7 +481,7 @@ public final class Work implements RefreshableWork {
 
     @Override
     public String toString() {
-      return "KeyGroup{" + "high=" + high + ", low=" + low + '}';
+      return String.format("%016x%016x", high, low);
     }
   }
 }
