@@ -318,7 +318,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
 
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
-      beamSchemaToIcebergSchema(BEAM_SCHEMA);
+      new org.apache.iceberg.Schema(
+          beamSchemaToIcebergSchema(BEAM_SCHEMA).columns(), Collections.singleton(1));
   protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
