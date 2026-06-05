@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFn} that writes side input data using {@link
@@ -74,7 +75,7 @@ public class StreamingPCollectionViewWriterParDoFn implements ParDoFn {
   public void processTimers() {}
 
   @Override
-  public void finishKey(Object key) throws Exception {}
+  public void finishKey(@Nullable Object key) throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {}

@@ -286,7 +286,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
       }
 
       @Override
-      public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
+      public void finishKey(@Nullable Object key) {}
 
       @Override
       public DoFn<InT, T> getFn() {

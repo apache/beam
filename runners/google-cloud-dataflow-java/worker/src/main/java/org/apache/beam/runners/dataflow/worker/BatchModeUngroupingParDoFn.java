@@ -21,6 +21,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -74,7 +75,7 @@ class BatchModeUngroupingParDoFn<K, V> implements ParDoFn {
   }
 
   @Override
-  public void finishKey(Object key) throws Exception {}
+  public void finishKey(@Nullable Object key) throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {

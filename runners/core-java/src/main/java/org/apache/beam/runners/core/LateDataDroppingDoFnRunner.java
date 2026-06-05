@@ -103,7 +103,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
-  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+  public void finishKey(@Nullable Object key) {
     doFnRunner.finishKey(key);
   }
 

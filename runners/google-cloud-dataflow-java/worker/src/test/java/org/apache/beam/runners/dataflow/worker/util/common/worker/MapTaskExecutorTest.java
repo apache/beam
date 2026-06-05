@@ -66,6 +66,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,7 +103,7 @@ public class MapTaskExecutorTest {
     }
 
     @Override
-    public void finishKey(Object key) throws Exception {}
+    public void finishKey(@Nullable Object key) throws Exception {}
   }
 
   // A mock ReadOperation fed to a MapTaskExecutor in test.
@@ -218,7 +219,7 @@ public class MapTaskExecutorTest {
     public void abort() {}
 
     @Override
-    public void finishKey(Object key) throws Exception {}
+    public void finishKey(@Nullable Object key) throws Exception {}
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */
@@ -317,7 +318,7 @@ public class MapTaskExecutorTest {
               }
 
               @Override
-              public void finishKey(Object key) throws Exception {}
+              public void finishKey(@Nullable Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context2) {
               @Override
@@ -329,7 +330,7 @@ public class MapTaskExecutorTest {
               }
 
               @Override
-              public void finishKey(Object key) throws Exception {}
+              public void finishKey(@Nullable Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context3) {
               @Override
@@ -341,7 +342,7 @@ public class MapTaskExecutorTest {
               }
 
               @Override
-              public void finishKey(Object key) throws Exception {}
+              public void finishKey(@Nullable Object key) throws Exception {}
             });
 
     assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());

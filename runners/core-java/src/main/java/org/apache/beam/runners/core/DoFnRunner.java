@@ -71,9 +71,9 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
    * before moving to a different key in the same bundle. Currently used only by the Dataflow
    * Streaming runner.
    *
-   * @param key current key to clean up or finish processing
+   * @param key current key to clean up or finish processing, key can be null on keyless stages
    */
-  <KeyT extends @Nullable Object> void finishKey(KeyT key);
+  void finishKey(@Nullable Object key);
 
   /**
    * Returns the underlying fn instance.

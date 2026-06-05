@@ -120,7 +120,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
     }
 
     @Override
-    public void finishKey(Object key) throws Exception {}
+    public void finishKey(@Nullable Object key) throws Exception {}
 
     @Override
     public void finishBundle() throws Exception {
