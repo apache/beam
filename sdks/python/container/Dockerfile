@@ -85,20 +85,22 @@ RUN  \
     # Remove pip cache.
     rm -rf /root/.cache/pip && \
 
-    # Update ensurepip bundled wheels (security). upgrade_ensurepip needs setuptools in
-    # ensurepip; only Python 3.10/3.11 still bundle setuptools (3.12+ is pip-only).
+    # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
-        pip install upgrade_ensurepip && \
-        python3 -m upgrade_ensurepip && \
-        find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete && \
-        find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete && \
-        pip uninstall upgrade_ensurepip -y && \
-        python3 -m ensurepip; \
+        pip install upgrade_ensurepip; \
+        python3 -m upgrade_ensurepip; \
     else \
-        python3 /tmp/upgrade_bundled_pip.py && \
-        find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete && \
-        python3 -m ensurepip; \
-    fi
+        python3 /tmp/upgrade_bundled_pip.py; \
+    fi; \
+    # setuptools is not bundled with ensurepip in Python 3.12+
+    if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
+        find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
+    fi; \
+    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
+    if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
+        pip uninstall upgrade_ensurepip -y; \
+    fi; \
+    python3 -m ensurepip;
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
