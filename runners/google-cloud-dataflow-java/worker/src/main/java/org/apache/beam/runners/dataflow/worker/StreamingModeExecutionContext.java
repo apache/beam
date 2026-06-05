@@ -560,8 +560,9 @@ public class StreamingModeExecutionContext
       try {
         activeReader.close();
       } catch (IOException e) {
-        LOG.warn(
-            "Failed to close reader for {}-{}", computationId, getWorkItem().getShardingKey(), e);
+        Windmill.WorkItem workItem = getWorkItem();
+        long shardingKey = workItem != null ? workItem.getShardingKey() : -1L;
+        LOG.warn("Failed to close reader for {}-{}", computationId, shardingKey, e);
       }
     }
     activeReader = null;
