@@ -50,6 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
@@ -160,6 +161,7 @@ public class IncrementalChangelogSourceTest {
             .setToSnapshot(snapshots.get(1).snapshotId())
             .setMetadataColumns(
                 ImmutableList.of(
+                    IcebergCdcMetadataColumns.CHANGE_TYPE,
                     IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
                     IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
                     IcebergCdcMetadataColumns.ROW_ID,
@@ -168,6 +170,7 @@ public class IncrementalChangelogSourceTest {
     Schema outputSchema =
         Schema.builder()
             .addInt64Field("id")
+            .addStringField(IcebergCdcMetadataColumns.CHANGE_TYPE)
             .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID)
             .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
             .addNullableField(IcebergCdcMetadataColumns.ROW_ID, Schema.FieldType.INT64)
@@ -181,31 +184,102 @@ public class IncrementalChangelogSourceTest {
     PAssert.that(rows)
         .containsInAnyOrder(
             // snapshot 1: insert data file 1
-            row(1L, snap1Id, snap1Seq, snap1FirstRowId, file1Seq, outputSchema),
-            row(2L, snap1Id, snap1Seq, snap1FirstRowId + 1, file1Seq, outputSchema),
-            row(3L, snap1Id, snap1Seq, snap1FirstRowId + 2, file1Seq, outputSchema),
-            row(4L, snap1Id, snap1Seq, snap1FirstRowId + 3, file1Seq, outputSchema),
+            row(
+                1L,
+                ChangelogOperation.INSERT,
+                snap1Id,
+                snap1Seq,
+                snap1FirstRowId,
+                file1Seq,
+                outputSchema),
+            row(
+                2L,
+                ChangelogOperation.INSERT,
+                snap1Id,
+                snap1Seq,
+                snap1FirstRowId + 1,
+                file1Seq,
+                outputSchema),
+            row(
+                3L,
+                ChangelogOperation.INSERT,
+                snap1Id,
+                snap1Seq,
+                snap1FirstRowId + 2,
+                file1Seq,
+                outputSchema),
+            row(
+                4L,
+                ChangelogOperation.INSERT,
+                snap1Id,
+                snap1Seq,
+                snap1FirstRowId + 3,
+                file1Seq,
+                outputSchema),
             // snapshot 2: delete data file 1
-            row(1L, snap2Id, snap2Seq, snap1FirstRowId, file1Seq, outputSchema),
-            row(2L, snap2Id, snap2Seq, snap1FirstRowId + 1, file1Seq, outputSchema),
-            row(3L, snap2Id, snap2Seq, snap1FirstRowId + 2, file1Seq, outputSchema),
-            row(4L, snap2Id, snap2Seq, snap1FirstRowId + 3, file1Seq, outputSchema),
+            row(
+                1L,
+                ChangelogOperation.DELETE,
+                snap2Id,
+                snap2Seq,
+                snap1FirstRowId,
+                file1Seq,
+                outputSchema),
+            row(
+                2L,
+                ChangelogOperation.DELETE,
+                snap2Id,
+                snap2Seq,
+                snap1FirstRowId + 1,
+                file1Seq,
+                outputSchema),
+            row(
+                3L,
+                ChangelogOperation.UPDATE_BEFORE,
+                snap2Id,
+                snap2Seq,
+                snap1FirstRowId + 2,
+                file1Seq,
+                outputSchema),
+            row(
+                4L,
+                ChangelogOperation.UPDATE_BEFORE,
+                snap2Id,
+                snap2Seq,
+                snap1FirstRowId + 3,
+                file1Seq,
+                outputSchema),
             // snapshot 2: insert data file 2
-            row(3L, snap2Id, snap2Seq, snap2FirstRowId, file2Seq, outputSchema),
-            row(4L, snap2Id, snap2Seq, snap2FirstRowId + 1, file2Seq, outputSchema));
+            row(
+                3L,
+                ChangelogOperation.UPDATE_AFTER,
+                snap2Id,
+                snap2Seq,
+                snap2FirstRowId,
+                file2Seq,
+                outputSchema),
+            row(
+                4L,
+                ChangelogOperation.UPDATE_AFTER,
+                snap2Id,
+                snap2Seq,
+                snap2FirstRowId + 1,
+                file2Seq,
+                outputSchema));
 
     pipeline.run().waitUntilFinish();
   }
 
   private Row row(
       long id,
+      ChangelogOperation operation,
       long snapshotId,
       long snapshotSequence,
       long rowId,
       long lastUpdatedSequence,
       Schema outputSchema) {
     return Row.withSchema(outputSchema)
-        .addValues(id, snapshotId, snapshotSequence, rowId, lastUpdatedSequence)
+        .addValues(id, operation.name(), snapshotId, snapshotSequence, rowId, lastUpdatedSequence)
         .build();
   }
 

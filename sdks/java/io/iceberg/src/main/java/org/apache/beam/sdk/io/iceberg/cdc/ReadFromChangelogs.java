@@ -98,10 +98,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>CDC metadata has two entry points in this transform. Row metadata columns are requested from
  * the Iceberg reader by {@link CdcReadUtils} and travel inside intermediate rows until final output
- * assembly. Commit metadata columns come from the {@link ChangelogDescriptor} / {@link
- * CdcRowDescriptor} carried with each task or shuffled row. Final user-visible rows are assembled
- * by {@link CdcOutputUtils#outputRow}, which appends all requested metadata as top-level columns in
- * the configured order.
+ * assembly. Snapshot metadata columns come from the {@link ChangelogDescriptor} / {@link
+ * CdcRowDescriptor} carried with each task or shuffled row, and {@code _change_type} comes from the
+ * emitted change kind. Final user-visible rows are assembled by {@link CdcOutputUtils#outputRow},
+ * which appends all requested metadata as top-level columns in the configured order.
  */
 public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromChangelogs.Output> {
   private static final Counter numAddedRowsScanTasksCompleted =
@@ -348,7 +348,11 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
                 .get(UNIDIRECTIONAL_ROWS)
                 .builder(
                     CdcOutputUtils.outputRow(
-                        scanConfig.getMetadataColumns(), outputBeamRowSchema, descriptor, row))
+                        scanConfig.getMetadataColumns(),
+                        outputBeamRowSchema,
+                        descriptor,
+                        kind,
+                        row))
                 .setValueKind(kind)
                 .output();
             continue;
@@ -380,7 +384,11 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
                 .get(UNIDIRECTIONAL_ROWS)
                 .builder(
                     CdcOutputUtils.outputRow(
-                        scanConfig.getMetadataColumns(), outputBeamRowSchema, descriptor, row))
+                        scanConfig.getMetadataColumns(),
+                        outputBeamRowSchema,
+                        descriptor,
+                        kind,
+                        row))
                 .setValueKind(kind)
                 .output();
           }

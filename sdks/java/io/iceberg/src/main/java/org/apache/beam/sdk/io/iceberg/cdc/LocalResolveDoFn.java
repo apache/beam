@@ -228,7 +228,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
     Row record = IcebergUtils.structToRow(projectedBeamSchema, projected);
     out.builder(
             CdcOutputUtils.outputRow(
-                scanConfig.getMetadataColumns(), outputBeamSchema, descriptor, record))
+                scanConfig.getMetadataColumns(), outputBeamSchema, descriptor, kind, record))
         .setValueKind(kind)
         .output();
   }

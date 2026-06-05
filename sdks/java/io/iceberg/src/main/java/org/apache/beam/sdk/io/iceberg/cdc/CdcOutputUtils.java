@@ -23,6 +23,8 @@ import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -32,7 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>CDC metadata is handled in two phases. Row metadata, such as {@code _row_id} and {@code
  * _last_updated_sequence_number}, is added to intermediate read schemas so Iceberg readers can
  * populate those values. Commit metadata, such as {@code _commit_snapshot_id} and {@code
- * _commit_snapshot_sequence_number}, is carried separately in CDC descriptors.
+ * _commit_snapshot_sequence_number}, is carried separately in CDC descriptors. The {@code
+ * _change_type} metadata column comes from the resolved Beam output {@link ValueKind}.
  *
  * <p>The public output shape is assembled only when final Beam {@link Row}s are emitted. This keeps
  * the read path table-shaped while still exposing all requested metadata as top-level output
@@ -97,12 +100,14 @@ final class CdcOutputUtils {
       List<String> metadataColumns,
       Schema outputSchema,
       ChangelogDescriptor descriptor,
+      ValueKind valueKind,
       Row dataAndRowMetadata) {
     return outputRow(
         metadataColumns,
         outputSchema,
         descriptor.getCommitSnapshotId(),
         descriptor.getSnapshotSequenceNumber(),
+        valueKind,
         dataAndRowMetadata);
   }
 
@@ -118,6 +123,7 @@ final class CdcOutputUtils {
       Schema outputSchema,
       long commitSnapshotId,
       long snapshotSequentNumber,
+      ValueKind valueKind,
       Row dataAndRowMetadata) {
     if (metadataColumns.isEmpty()
         || metadataColumns.stream().allMatch(IcebergCdcMetadataColumns::isRowMetadataColumn)) {
@@ -134,7 +140,11 @@ final class CdcOutputUtils {
     for (String metadataColumn : metadataColumns) {
       values.add(
           metadataValue(
-              metadataColumn, commitSnapshotId, snapshotSequentNumber, dataAndRowMetadata));
+              metadataColumn,
+              commitSnapshotId,
+              snapshotSequentNumber,
+              valueKind,
+              dataAndRowMetadata));
     }
     return Row.withSchema(outputSchema).addValues(values).build();
   }
@@ -149,7 +159,11 @@ final class CdcOutputUtils {
       String metadataColumn,
       long commitSnapshotId,
       long commitSnapshotSequenceNumber,
+      ValueKind valueKind,
       Row dataAndRowMetadata) {
+    if (IcebergCdcMetadataColumns.CHANGE_TYPE.equals(metadataColumn)) {
+      return changelogOperation(valueKind).name();
+    }
     if (IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID.equals(metadataColumn)) {
       return commitSnapshotId;
     }
@@ -160,5 +174,20 @@ final class CdcOutputUtils {
       return dataAndRowMetadata.getValue(metadataColumn);
     }
     return null;
+  }
+
+  private static ChangelogOperation changelogOperation(ValueKind valueKind) {
+    switch (valueKind) {
+      case INSERT:
+        return ChangelogOperation.INSERT;
+      case DELETE:
+        return ChangelogOperation.DELETE;
+      case UPDATE_BEFORE:
+        return ChangelogOperation.UPDATE_BEFORE;
+      case UPDATE_AFTER:
+        return ChangelogOperation.UPDATE_AFTER;
+      default:
+        throw new IllegalArgumentException("Unsupported CDC ValueKind: " + valueKind);
+    }
   }
 }

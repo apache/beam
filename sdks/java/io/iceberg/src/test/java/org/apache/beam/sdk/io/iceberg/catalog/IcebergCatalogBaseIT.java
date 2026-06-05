@@ -82,6 +82,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
@@ -675,6 +676,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     config.put(
         "include_metadata_columns",
         Arrays.asList(
+            IcebergCdcMetadataColumns.CHANGE_TYPE,
             IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
             IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
             IcebergCdcMetadataColumns.ROW_ID,
@@ -684,6 +686,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         Schema.builder()
             .addInt64Field("id")
             .addStringField("data")
+            .addStringField(IcebergCdcMetadataColumns.CHANGE_TYPE)
             .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID)
             .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
             .addNullableField(IcebergCdcMetadataColumns.ROW_ID, Schema.FieldType.INT64)
@@ -1239,6 +1242,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         .addValues(
             id,
             data,
+            ChangelogOperation.INSERT.name(),
             snapshot.snapshotId(),
             snapshot.sequenceNumber(),
             rowId,

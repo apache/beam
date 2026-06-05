@@ -684,11 +684,11 @@ public class IcebergIO {
     /**
      * Appends top-level metadata columns to CDC output rows.
      *
-     * <p>Supported values are {@code _commit_snapshot_id}, {@code
+     * <p>Supported values are {@code _change_type}, {@code _commit_snapshot_id}, {@code
      * _commit_snapshot_sequence_number}, {@code _row_id}, and {@code
      * _last_updated_sequence_number}. The row metadata columns are read from Iceberg data files and
-     * require a row-lineage table. The commit metadata columns come from the changelog snapshot
-     * context and are appended when final Beam rows are emitted.
+     * require a row-lineage table. The changelog metadata columns come from the emitted change kind
+     * and snapshot context and are appended when final Beam rows are emitted.
      *
      * <p>This option is only valid {@link #withCdc()}.
      */

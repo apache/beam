@@ -89,6 +89,7 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
                           outputSchema,
                           descriptor.getCommitSnapshotId(),
                           descriptor.getSnapshotSequenceNumber(),
+                          kind,
                           projectedRow))
                   .setValueKind(kind)
                   .setTimestamp(timestamp)

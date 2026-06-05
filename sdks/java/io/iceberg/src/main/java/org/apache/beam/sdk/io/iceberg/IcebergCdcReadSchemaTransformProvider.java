@@ -220,8 +220,9 @@ public class IcebergCdcReadSchemaTransformProvider
 
     @SchemaFieldDescription(
         "List of top-level metadata columns to include with CDC output rows. Supported columns: \n"
+            + "- `_change_type`\n"
             + "- `_row_id`\n"
-            + "- `_last_updated_sequence_number`"
+            + "- `_last_updated_sequence_number`\n"
             + "- `_commit_snapshot_id`\n"
             + "- `_commit_snapshot_sequence_number`\n")
     abstract @Nullable List<String> getIncludeMetadataColumns();
