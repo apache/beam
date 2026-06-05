@@ -263,46 +263,44 @@ configurations.implementation.canBeResolved = true
     logging.warning('opentelemetry_version not found in BeamModulePlugin')
     return None
 
-  @staticmethod
-  def _opentelemetry_license_yaml_block(version):
-    license_url = (
-        'https://raw.githubusercontent.com/open-telemetry/'
-        'opentelemetry-java/v{}/LICENSE'.format(version))
-    return (
-        'opentelemetry-bom:\n'
-        "  '{version}':\n"
-        '    license: "{license_url}"\n'
-        '    type: "Apache License 2.0"\n'
-        'opentelemetry-bom-alpha:\n'
-        "   '{version}-alpha':\n"
-        '    license: "{license_url}"\n'
-        '    type: "Apache License 2.0"\n'.format(
-            version=version, license_url=license_url))
-
   def write_license_script(self):
     logging.info("-----Update dep_urls_java.yaml-----")
     license_path = os.path.join(self.project_root, self.LICENSE_SC_PATH)
     with open(license_path, 'r') as fin:
-      content = fin.read()
-
-    content = re.sub(
-        r"(libraries-bom:\n)(\s*['\"])\d[\d\.]+(['\"])",
-        r"\1\2{}\3".format(self.bom_version),
-        content,
-        count=1)
+      lines = fin.readlines()
 
     otel_version = self._get_opentelemetry_version()
+    otel_license_url = (
+        'https://raw.githubusercontent.com/open-telemetry/'
+        'opentelemetry-java/v{}/LICENSE'.format(otel_version)
+        if otel_version else None)
+    otel_license_line = '    license: "{}"\n'.format(otel_license_url)
+
+    for idx, line in enumerate(lines):
+      stripped = line.strip()
+      if stripped == 'libraries-bom:':
+        lines[idx + 1] = re.sub(
+            r'[\'"]\d[\d\.]+[\'"]', "'{}'".format(self.bom_version),
+            lines[idx + 1])
+        continue
+      if otel_version and stripped == 'opentelemetry-bom:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+'", "'{}'".format(otel_version), lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+        continue
+      if otel_version and stripped == 'opentelemetry-bom-alpha:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+-alpha'", "'{}-alpha'".format(otel_version),
+            lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+
     if otel_version:
-      content = re.sub(
-          r'opentelemetry-bom:.*?(?=\nzstd-jni:)',
-          self._opentelemetry_license_yaml_block(otel_version),
-          content,
-          flags=re.DOTALL)
       logging.info(
           'Updated opentelemetry-bom license entries to %s', otel_version)
 
     with open(license_path, 'w') as fout:
-      fout.write(content)
+      for line in lines:
+        fout.write(line)
 
   def run(self):
     self.check_dependencies()
