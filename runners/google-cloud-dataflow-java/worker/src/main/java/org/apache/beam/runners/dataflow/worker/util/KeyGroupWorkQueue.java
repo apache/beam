@@ -179,7 +179,7 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
    * @param keyGroup should not be equal to KeyGroup.DEFAULT
    */
   public @Nullable QueuedWork pollWork(String computationId, Work.KeyGroup keyGroup) {
-    checkArgument(computationId != null && !KeyGroup.DEFAULT.equals(keyGroup));
+    checkArgument(computationId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT));
     QueueKey key = new QueueKey(computationId, keyGroup);
     lock.lock();
     try {
@@ -216,7 +216,7 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
       // Append to key group list if applicable
       String compId = node.computationId;
       Work.KeyGroup keyGroup = node.keyGroup;
-      if (compId != null && keyGroup != null && !keyGroup.equals(Work.KeyGroup.DEFAULT)) {
+      if (compId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT)) {
         QueueKey key = new QueueKey(compId, keyGroup);
         KeyGroupWorkList keyGroupWorkList =
             keyGroupQueueMap.computeIfAbsent(key, k -> new KeyGroupWorkList());

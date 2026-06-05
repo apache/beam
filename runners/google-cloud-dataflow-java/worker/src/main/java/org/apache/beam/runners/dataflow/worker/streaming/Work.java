@@ -451,6 +451,9 @@ public final class Work implements RefreshableWork {
     }
 
     public static KeyGroup create(long high, long low) {
+      if (high == 0 && low == 0) {
+        return DEFAULT;
+      }
       return new KeyGroup(high, low);
     }
 

@@ -389,7 +389,7 @@ public class BoundedQueueExecutor {
   public @Nullable ExecutableWork pollWork(
       String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
-    checkArgument(computationId != null && !KeyGroup.DEFAULT.equals(keyGroup));
+    checkArgument(computationId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT));
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     if (keyGroupWorkQueue == null) {
       return null;
