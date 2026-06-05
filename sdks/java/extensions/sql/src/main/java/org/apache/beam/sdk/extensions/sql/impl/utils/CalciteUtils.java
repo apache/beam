@@ -170,6 +170,25 @@ public class CalciteUtils {
           FieldType.DATETIME, SqlTypeName.TIMESTAMP,
           FieldType.STRING, SqlTypeName.VARCHAR);
 
+  private static final Map<Class<?>, SqlTypeName> JAVA_TO_SQL_TYPE_MAPPING =
+      ImmutableMap.<Class<?>, SqlTypeName>builder()
+          .put(String.class, SqlTypeName.VARCHAR)
+          .put(Integer.class, SqlTypeName.INTEGER)
+          .put(int.class, SqlTypeName.INTEGER)
+          .put(Long.class, SqlTypeName.BIGINT)
+          .put(long.class, SqlTypeName.BIGINT)
+          .put(Double.class, SqlTypeName.DOUBLE)
+          .put(double.class, SqlTypeName.DOUBLE)
+          .put(Float.class, SqlTypeName.FLOAT)
+          .put(float.class, SqlTypeName.FLOAT)
+          .put(Short.class, SqlTypeName.SMALLINT)
+          .put(short.class, SqlTypeName.SMALLINT)
+          .put(Byte.class, SqlTypeName.TINYINT)
+          .put(byte.class, SqlTypeName.TINYINT)
+          .put(Boolean.class, SqlTypeName.BOOLEAN)
+          .put(boolean.class, SqlTypeName.BOOLEAN)
+          .build();
+
   // Associating FieldType to generated RelDataType objects for Beam logical types. Used for
   // recovering the original type in output schema after full Beam FieldType->Calcite Type->Beam
   // FieldType trip
@@ -400,40 +419,7 @@ public class CalciteUtils {
     }
     if (type instanceof Class) {
       Class<?> clazz = (Class<?>) type;
-      SqlTypeName sqlTypeName = null;
-      switch (clazz.getName()) {
-        case "java.lang.String":
-          sqlTypeName = SqlTypeName.VARCHAR;
-          break;
-        case "java.lang.Integer":
-        case "int":
-          sqlTypeName = SqlTypeName.INTEGER;
-          break;
-        case "java.lang.Long":
-        case "long":
-          sqlTypeName = SqlTypeName.BIGINT;
-          break;
-        case "java.lang.Double":
-        case "double":
-          sqlTypeName = SqlTypeName.DOUBLE;
-          break;
-        case "java.lang.Float":
-        case "float":
-          sqlTypeName = SqlTypeName.FLOAT;
-          break;
-        case "java.lang.Short":
-        case "short":
-          sqlTypeName = SqlTypeName.SMALLINT;
-          break;
-        case "java.lang.Byte":
-        case "byte":
-          sqlTypeName = SqlTypeName.TINYINT;
-          break;
-        case "java.lang.Boolean":
-        case "boolean":
-          sqlTypeName = SqlTypeName.BOOLEAN;
-          break;
-      }
+      SqlTypeName sqlTypeName = JAVA_TO_SQL_TYPE_MAPPING.get(clazz);
       if (sqlTypeName != null) {
         return typeFactory.createTypeWithNullability(
             typeFactory.createSqlType(sqlTypeName), !clazz.isPrimitive());
