@@ -82,6 +82,31 @@ _FILE_TRIGGERING_BATCHING_DURATION_SECS = 1
 _SLEEP_DURATION_BETWEEN_POLLS = 10
 
 
+def _has_partitioning_load_parameters(additional_parameters):
+  return ('timePartitioning' in additional_parameters or
+          'rangePartitioning' in additional_parameters)
+
+
+def _add_destination_partitioning_load_parameters(
+    additional_parameters, destination_table):
+  if not isinstance(destination_table, bigquery_tools.bigquery.Table):
+    return additional_parameters
+
+  additional_parameters = dict(additional_parameters)
+
+  if ('timePartitioning' not in additional_parameters and
+      getattr(destination_table, 'timePartitioning', None) is not None):
+    additional_parameters['timePartitioning'] = (
+        destination_table.timePartitioning)
+
+  if ('rangePartitioning' not in additional_parameters and
+      getattr(destination_table, 'rangePartitioning', None) is not None):
+    additional_parameters['rangePartitioning'] = (
+        destination_table.rangePartitioning)
+
+  return additional_parameters
+
+
 def _generate_job_name(job_name, job_type, step_name):
   return bigquery_tools.generate_bq_job_name(
       job_name=job_name,
@@ -716,6 +741,7 @@ class TriggerLoadJobs(beam.DoFn):
       additional_parameters = self.additional_bq_parameters.get()
     else:
       additional_parameters = self.additional_bq_parameters
+    additional_parameters = dict(additional_parameters or {})
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
@@ -735,19 +761,36 @@ class TriggerLoadJobs(beam.DoFn):
 
     create_disposition = self.create_disposition
     if self.temporary_tables:
+      destination_table = None
+      hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
+      should_lookup_destination_table = (
+          schema is None or
+          not _has_partitioning_load_parameters(additional_parameters))
+      if should_lookup_destination_table:
+        try:
+          destination_table = self.bq_wrapper.get_table(
+              project_id=table_reference.projectId,
+              dataset_id=table_reference.datasetId,
+              table_id=table_reference.tableId)
+        except Exception as e:
+          if schema is None:
+            _LOGGER.warning(
+                "Input schema is absent and could not fetch the final "
+                "destination table's schema [%s]. Creating temp table [%s] "
+                "will likely fail: %s",
+                hashed_dest,
+                job_name,
+                e)
+          destination_table = None
+
       # we need to create temp tables, so we need a schema.
       # if there is no input schema, fetch the destination table's schema
       if schema is None:
-        hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
         if hashed_dest in self.schema_cache:
           schema = self.schema_cache[hashed_dest]
-        else:
+        elif destination_table is not None:
           try:
-            schema = bigquery_tools.table_schema_to_dict(
-                bigquery_tools.BigQueryWrapper().get_table(
-                    project_id=table_reference.projectId,
-                    dataset_id=table_reference.datasetId,
-                    table_id=table_reference.tableId).schema)
+            schema = bigquery_tools.table_schema_to_dict(destination_table.schema)
             self.schema_cache[hashed_dest] = schema
           except Exception as e:
             _LOGGER.warning(
@@ -757,6 +800,11 @@ class TriggerLoadJobs(beam.DoFn):
                 hashed_dest,
                 job_name,
                 e)
+
+      if (destination_table is not None and
+          not _has_partitioning_load_parameters(additional_parameters)):
+        additional_parameters = _add_destination_partitioning_load_parameters(
+            additional_parameters, destination_table)
 
       # If we are using temporary tables, then we must always create the
       # temporary tables, so we replace the create_disposition.
