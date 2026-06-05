@@ -26,6 +26,7 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -50,10 +51,18 @@ import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class KeyGroupWorkQueueTest {
+
+  @Parameters(name = "fairQueue={0}")
+  public static Iterable<Object[]> data() {
+    return Arrays.asList(new Object[][] {{true}, {false}});
+  }
+
+  @Parameterized.Parameter public boolean fairQueue;
 
   private BoundedQueueExecutor executor;
 
@@ -67,7 +76,7 @@ public class KeyGroupWorkQueueTest {
             100,
             10000000,
             new ThreadFactoryBuilder().setNameFormat("Test-%d").setDaemon(true).build(),
-            false,
+            fairQueue,
             /*useKeyGroupWorkQueue=*/ true);
   }
 
@@ -128,7 +137,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testBasicOfferAndPoll() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     assertTrue(queue.isEmpty());
     assertEquals(0, queue.size());
 
@@ -147,7 +156,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testRemove() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
 
@@ -162,7 +171,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testDrainTo() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
     queue.offer(task1);
@@ -178,7 +187,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testIteratorSafeTraversalAndImmutable() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     MockRunnable task1 = new MockRunnable("1");
     MockRunnable task2 = new MockRunnable("2");
     queue.offer(task1);
@@ -205,7 +214,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWorkTargeted() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
 
     QueuedWork workA1 = createQueuedWork("compA", 100);
     QueuedWork workB1 = createQueuedWork("compB", 200);
@@ -237,7 +246,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testMemoryPruningLeavesZeroLeaks() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     QueuedWork workA1 = createQueuedWork("compA", 100);
     queue.offer(workA1);
 
@@ -259,7 +268,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testConcurrentStress() throws InterruptedException, ExecutionException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     final int producerThreads = 4;
     final int consumerThreads = 4;
     final int tasksPerProducer = 1000;
@@ -338,7 +347,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testTakeBlocksAndWakesUp() throws InterruptedException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     final MockRunnable task = new MockRunnable("take-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
@@ -372,7 +381,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWithTimeout() throws InterruptedException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
     final MockRunnable task = new MockRunnable("poll-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
@@ -433,7 +442,7 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testPollWorkWithKeyGroup() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(false);
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
 
     Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
     Work.KeyGroup keyGroup2 = Work.KeyGroup.create(1, 2);
