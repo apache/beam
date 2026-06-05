@@ -210,7 +210,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         // When no limit is specified (count == -1), we must sort the entire dataset.
         // To achieve this globally, we key all rows by a single dummy key, group them together
         // using GroupByKey to ensure they are processed together, and then sort them in-memory
-        // via SortInMemoryFn. Note: This can be memory-intensive for large datasets.
+        // via SortInMemoryFn. Note: This can be memory-intensive for large datasets. It should
+        // only be done as a final step when the remaining data is small
         if (count == -1) {
           BeamSqlRowComparator comparator =
               new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
