@@ -101,6 +101,12 @@ public abstract class BigQueryWriteConfiguration {
 
     Boolean autoSharding = getAutoSharding();
     Integer numStreams = getNumStreams();
+    if (numStreams != null) {
+      checkArgument(
+          numStreams >= 0,
+          invalidConfigMessage + "numStreams must be non-negative, but was: %s",
+          numStreams);
+    }
     if (autoSharding != null && autoSharding && numStreams != null) {
       checkArgument(
           numStreams == 0,
@@ -152,8 +158,7 @@ public abstract class BigQueryWriteConfiguration {
   public abstract Boolean getAutoSharding();
 
   @SchemaFieldDescription(
-      "Specifies the number of write streams that the Storage API sink will use. "
-          + "This parameter is only applicable when writing unbounded data.")
+      "Specifies the number of write streams that the Storage API sink will use.")
   @Nullable
   public abstract Integer getNumStreams();
 
