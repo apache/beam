@@ -34,13 +34,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Iceberg row metadata: {@code _row_id} and {@code _last_updated_sequence_number}. These are
  *       requested from the physical Iceberg reader and are only available for row-lineage tables
  *       (v3+).
- *   <li>Commit context metadata: {@code _commit_snapshot_id} and {@code
+ *   <li>Changelog context metadata: {@code _change_type}, {@code _commit_snapshot_id}, and {@code
  *       _commit_snapshot_sequence_number}. These are known from the changelog snapshot/task context
  *       and are appended when Beam output rows are built.
  * </ul>
  */
 @Internal
 public final class IcebergCdcMetadataColumns {
+  public static final String CHANGE_TYPE = MetadataColumns.CHANGE_TYPE.name();
   public static final String COMMIT_SNAPSHOT_SEQUENCE_NUMBER = "_commit_snapshot_sequence_number";
   public static final String COMMIT_SNAPSHOT_ID = MetadataColumns.COMMIT_SNAPSHOT_ID.name();
   public static final String ROW_ID = MetadataColumns.ROW_ID.name();
@@ -49,6 +50,7 @@ public final class IcebergCdcMetadataColumns {
 
   public static final ImmutableList<String> SUPPORTED_COLUMNS =
       ImmutableList.of(
+          CHANGE_TYPE,
           COMMIT_SNAPSHOT_ID,
           COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
           ROW_ID,
@@ -66,6 +68,9 @@ public final class IcebergCdcMetadataColumns {
   }
 
   public static Schema.Field beamField(String name) {
+    if (CHANGE_TYPE.equals(name)) {
+      return Schema.Field.of(name, Schema.FieldType.STRING);
+    }
     if (COMMIT_SNAPSHOT_ID.equals(name) || COMMIT_SNAPSHOT_SEQUENCE_NUMBER.equals(name)) {
       return Schema.Field.of(name, Schema.FieldType.INT64);
     }

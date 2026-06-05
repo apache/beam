@@ -67,9 +67,6 @@ import org.slf4j.LoggerFactory;
  * Read-side helpers specific to the CDC source. Keeps {@link ReadUtils} focused on the
  * general-purpose append-only read path; everything that takes a {@link SerializableChangelogTask},
  * references {@link DeleteReader}, or implements the delete-pushdown row-group skipping lives here.
- *
- * <p>This class still delegates to {@link ReadUtils} for the low-level Parquet reader construction
- * — the goal is decoupling, not duplication.
  */
 public final class CdcReadUtils {
   private static final Logger LOG = LoggerFactory.getLogger(CdcReadUtils.class);
@@ -206,8 +203,8 @@ public final class CdcReadUtils {
    * resolver will mistakenly determine the (delete, insert) pair to be a duplicate.
    *
    * <p>If CDC metadata columns are requested, this method only adds row-sourced metadata columns
-   * ({@code _row_id}, {@code _last_updated_sequence_number}) to the Iceberg read schema. Commit
-   * metadata columns are added later by {@link CdcOutputUtils#outputRow}.
+   * ({@code _row_id}, {@code _last_updated_sequence_number}) to the Iceberg read schema. Changelog
+   * context columns are added later by {@link CdcOutputUtils#outputRow}.
    */
   public static CloseableIterable<Record> changelogRecordsForTask(
       SerializableChangelogTask task,
