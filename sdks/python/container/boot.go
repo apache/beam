@@ -141,8 +141,9 @@ type OptionsData struct {
 	ProfileLocation      string   `json:"profile_location"`
 	ProfileTempLocation  string   `json:"profile_temp_location"`
 	ProfileSyncPeriodSec int      `json:"profile_sync_period_sec"`
-	ProfilerStopAfterMin int      `json:"profiler_stop_after_min"`
-	JobId                string   `json:"jobId,omitempty"`
+	ProfilerStopAfterMin          int      `json:"profiler_stop_after_min"`
+	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
+	JobId                         string   `json:"jobId,omitempty"`
 }
 
 func getExperiments(options string) []string {
@@ -389,7 +390,7 @@ func launchSDKProcess() error {
 			if hostname == "" {
 				hostname = "default-worker"
 			}
-			stopProfilingSentinel := filepath.Join(profileTempLocation, fmt.Sprintf(".profiler_completed_%s_%s", jobId, hostname))
+			stopProfilingSentinel := filepath.Join(profileTempLocation, fmt.Sprintf(".profiler_disengaged_%s_%s", jobId, hostname))
 
 			for {
 				childPids.mu.Lock()
@@ -484,6 +485,13 @@ func launchSDKProcess() error {
 						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
 						// Error is not counted toward error budget.
 						continue
+					}
+
+					if enableProfiler && opts.Options.ProfilerStopAfterCrash {
+						if f, err := os.Create(stopProfilingSentinel); err == nil {
+							f.Close()
+						}
+						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
 					}
 
 					// Retry on fatal errors, like OOMs and segfaults, not just

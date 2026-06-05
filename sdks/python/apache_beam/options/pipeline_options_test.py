@@ -684,8 +684,6 @@ class PipelineOptionsTest(unittest.TestCase):
     errors = validator.validate()
     self.assertTrue(any('--profiler_agent is mutually exclusive' in err for err in errors))
 
-
-
   def test_add_experiment(self):
     options = PipelineOptions([])
     options.view_as(DebugOptions).add_experiment('new_experiment')

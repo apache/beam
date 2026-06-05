@@ -1700,6 +1700,13 @@ class ProfilingOptions(PipelineOptions):
         help=(
             'Time limit (in minutes) for profiling a single process. When exceeded, '
             'the worker process is restarted without the profiler.'))
+    parser.add_argument(
+        '--profiler_stop_after_crash',
+        action='store_true',
+        default=False,
+        help=(
+            'If True, the profiling agent won\'t be re-enabled after a worker '
+            'process crash.'))
 
   def validate(self, validator):
     errors = []
