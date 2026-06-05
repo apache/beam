@@ -114,22 +114,11 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   private static final ReentrantLock lock = new ReentrantLock();
   private static final boolean verboseLogging = false;
 
-  private static class TimestampedOutput<T> {
-    final T value;
-    final @Nullable Instant timestamp;
-
-    TimestampedOutput(T value, @Nullable Instant timestamp) {
-      this.value = value;
-      this.timestamp = timestamp;
-    }
-  }
-
   private static class InFlightElement<OutputT> {
     final @Nullable Object key;
-    final CompletableFuture<List<TimestampedOutput<OutputT>>> future;
+    final CompletableFuture<List<OutputT>> future;
 
-    InFlightElement(
-        @Nullable Object key, CompletableFuture<List<TimestampedOutput<OutputT>>> future) {
+    InFlightElement(@Nullable Object key, CompletableFuture<List<OutputT>> future) {
       this.key = key;
       this.future = future;
     }
@@ -140,50 +129,30 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
   // Buffered elements are only committed downstream once the parent task completes successfully
   // and the timer fires.
   private static class AccumulatingOutputReceiver<T> implements OutputReceiver<T> {
-    private final List<TimestampedOutput<T>> outputs = new ArrayList<>();
-    private final Instant inputTimestamp;
-    private final BoundedWindow window;
+    private final List<T> outputs = new ArrayList<>();
 
-    AccumulatingOutputReceiver(Instant inputTimestamp, BoundedWindow window) {
-      this.inputTimestamp = inputTimestamp;
-      this.window = window;
-    }
+    AccumulatingOutputReceiver() {}
 
     @Override
     public org.apache.beam.sdk.values.OutputBuilder<T> builder(T value) {
       return org.apache.beam.sdk.values.WindowedValues.<T>builder()
           .setValue(value)
-          .setTimestamp(inputTimestamp)
-          .setWindows(java.util.Collections.singletonList(window))
-          .setPaneInfo(org.apache.beam.sdk.transforms.windowing.PaneInfo.NO_FIRING)
-          .setReceiver(
-              windowedValue ->
-                  outputs.add(
-                      new TimestampedOutput<>(
-                          windowedValue.getValue(), windowedValue.getTimestamp())));
+          .setReceiver(windowedValue -> outputs.add(windowedValue.getValue()));
     }
 
     // Bypasses the nested anonymous OutputBuilder instantiation for standard outputs.
     // JVM optimization to prevent garbage collection pressure under high pipeline throughput.
     @Override
     public void output(T output) {
-      outputs.add(new TimestampedOutput<>(output, inputTimestamp));
+      outputs.add(output);
     }
 
     @Override
     public void outputWithTimestamp(T output, Instant timestamp) {
-      outputs.add(new TimestampedOutput<>(output, timestamp));
+      outputs.add(output);
     }
 
     public List<T> getOutputs() {
-      List<T> rawOutputs = new ArrayList<>();
-      for (TimestampedOutput<T> out : outputs) {
-        rawOutputs.add(out.value);
-      }
-      return rawOutputs;
-    }
-
-    public List<TimestampedOutput<T>> getTimestampedOutputs() {
       return outputs;
     }
   }
@@ -355,12 +324,12 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
             useThreadPool ? getThreadPool() : java.util.concurrent.ForkJoinPool.commonPool();
 
         // Pending asynchronous task that will produce a list of outputs
-        CompletableFuture<List<TimestampedOutput<OutputT>>> future =
+        CompletableFuture<List<OutputT>> future =
             CompletableFuture.supplyAsync(
                 () -> {
                   try {
                     AccumulatingOutputReceiver<OutputT> receiver =
-                        new AccumulatingOutputReceiver<>(timestamp, window);
+                        new AccumulatingOutputReceiver<>();
                     DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.invokerFor(syncFn);
 
                     DoFnInvoker.ArgumentProvider<InputT, OutputT> bundleArgProvider =
@@ -451,7 +420,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                     invoker.invokeProcessElement(processArgProvider);
                     invoker.invokeFinishBundle(bundleArgProvider);
 
-                    return receiver.getTimestampedOutputs();
+                    return receiver.getOutputs();
                   } catch (Exception e) {
                     throw new CompletionException(e);
                   }
@@ -460,7 +429,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
         // Assigned to 'unused' to satisfy ErrorProne while preserving parent future for
         // cancellation
-        CompletableFuture<List<TimestampedOutput<OutputT>>> unused =
+        CompletableFuture<List<OutputT>> unused =
             future.whenComplete(
                 (res, ex) -> {
                   getItemsInBuffer().decrementAndGet();
@@ -583,7 +552,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
     ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
 
-    List<List<TimestampedOutput<OutputT>>> toReturn = new ArrayList<>();
+    List<List<OutputT>> toReturn = new ArrayList<>();
 
     List<KV<K, InputT>> toReschedule = new ArrayList<>();
 
@@ -679,13 +648,10 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
     // Emit completed outputs
     // (Emit completed tasks immediately; do not wait for all active tasks to finish).
-    for (List<TimestampedOutput<OutputT>> outputs : toReturn) {
-      for (TimestampedOutput<OutputT> out : outputs) {
-        if (out.timestamp != null) {
-          receiver.outputWithTimestamp(out.value, out.timestamp);
-        } else {
-          receiver.output(out.value);
-        }
+    // Outputs use processing-time timestamps matching Python behavior
+    for (List<OutputT> outputs : toReturn) {
+      for (OutputT out : outputs) {
+        receiver.output(out);
       }
     }
 
@@ -718,8 +684,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
   List<OutputT> commitFinishedItemsDirect(
       Instant fireTimestamp, BagState<KV<K, InputT>> toProcessState, Timer timer) {
-    AccumulatingOutputReceiver<OutputT> receiver =
-        new AccumulatingOutputReceiver<>(fireTimestamp, GlobalWindow.INSTANCE);
+    AccumulatingOutputReceiver<OutputT> receiver = new AccumulatingOutputReceiver<>();
     commitFinishedItems(fireTimestamp, toProcessState, timer, receiver);
     return receiver.getOutputs();
   }
