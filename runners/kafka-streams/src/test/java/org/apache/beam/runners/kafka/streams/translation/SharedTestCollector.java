@@ -42,9 +42,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * otherwise-empty instance. The instance itself is cheaply {@link Serializable}; clones still carry
  * the same {@code UUID} and therefore see the same backing list in the static {@link #REGISTRY}.
  *
+ * <p>Implements {@link AutoCloseable} so tests can use try-with-resources to drop the per-UUID
+ * entry from {@link #REGISTRY} once they finish reading the recorded elements — without {@code
+ * close}, a long-lived JVM running many tests would accumulate one orphan entry per test.
+ *
  * @param <T> element type
  */
-final class SharedTestCollector<T> implements Serializable {
+final class SharedTestCollector<T> implements Serializable, AutoCloseable {
 
   private static final long serialVersionUID = 1L;
 
@@ -75,8 +79,14 @@ final class SharedTestCollector<T> implements Serializable {
     }
   }
 
-  /** Clears the backing storage for this collector. Useful for {@code @Before} resets. */
-  void reset() {
+  /**
+   * Removes the per-UUID entry from the static registry. After {@code close}, any subsequent {@link
+   * #recorded()} call returns an empty list and {@link #record(Object)} will repopulate the entry
+   * for any new writes — but the typical use is to call {@code close} once at the end of the test
+   * (via try-with-resources) to keep {@link #REGISTRY} from accumulating orphan entries.
+   */
+  @Override
+  public void close() {
     REGISTRY.remove(id);
   }
 }

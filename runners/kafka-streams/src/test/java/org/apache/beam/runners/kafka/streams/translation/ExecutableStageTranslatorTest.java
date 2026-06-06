@@ -83,37 +83,37 @@ public class ExecutableStageTranslatorTest {
 
   @Test
   public void impulseThenParDoExecutesDoFnInHarnessOncePerImpulseElement() throws Exception {
-    SharedTestCollector<Integer> collector = SharedTestCollector.create();
-    collector.reset();
+    try (SharedTestCollector<Integer> collector = SharedTestCollector.create()) {
+      Pipeline pipeline = Pipeline.create(pipelineOptions());
+      pipeline
+          .apply("impulse", Impulse.create())
+          .apply("pardo", ParDo.of(new RecordingFn(collector)));
 
-    Pipeline pipeline = Pipeline.create(pipelineOptions());
-    pipeline
-        .apply("impulse", Impulse.create())
-        .apply("pardo", ParDo.of(new RecordingFn(collector)));
+      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
 
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
+      KafkaStreamsPipelineOptions options =
+          pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
+      KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
+      JobInfo jobInfo =
+          JobInfo.create(
+              JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
+      KafkaStreamsTranslationContext context =
+          translator.createTranslationContext(jobInfo, options);
 
-    KafkaStreamsPipelineOptions options =
-        pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
-    KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
-    JobInfo jobInfo =
-        JobInfo.create(
-            JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
-    KafkaStreamsTranslationContext context = translator.createTranslationContext(jobInfo, options);
+      translator.translate(context, translator.prepareForTranslation(pipelineProto));
 
-    translator.translate(context, translator.prepareForTranslation(pipelineProto));
+      Topology topology = context.getTopology();
+      try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
+        driver.advanceWallClockTime(Duration.ofSeconds(1));
+        driver.advanceWallClockTime(Duration.ofSeconds(1));
+      }
 
-    Topology topology = context.getTopology();
-    try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
-      driver.advanceWallClockTime(Duration.ofSeconds(1));
-      driver.advanceWallClockTime(Duration.ofSeconds(1));
+      List<Integer> recorded = collector.recorded();
+      // Impulse emits exactly one empty byte[] in the GlobalWindow, so the DoFn must run exactly
+      // once and see a zero-length input.
+      assertThat(recorded.size(), is(1));
+      assertThat(recorded.get(0), is(0));
     }
-
-    List<Integer> recorded = collector.recorded();
-    // Impulse emits exactly one empty byte[] in the GlobalWindow, so the DoFn must run exactly
-    // once and see a zero-length input.
-    assertThat(recorded.size(), is(1));
-    assertThat(recorded.get(0), is(0));
   }
 
   private static PipelineOptions pipelineOptions() {

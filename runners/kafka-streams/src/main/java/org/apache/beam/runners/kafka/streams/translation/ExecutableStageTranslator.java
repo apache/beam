@@ -66,6 +66,9 @@ class ExecutableStageTranslator implements PTransformTranslator {
               + " Streams runner.");
     }
     if (transform.getOutputsMap().size() > 1) {
+      // Multi-output stages (DoFns with side outputs, etc.) are a planned follow-up — they need
+      // an output-tag dispatch in the processor + per-output PCollection routing. The current
+      // rejection just fails loudly until that's wired in.
       throw new UnsupportedOperationException(
           "ExecutableStage "
               + transformId

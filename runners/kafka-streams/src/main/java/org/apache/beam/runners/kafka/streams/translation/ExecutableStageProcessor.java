@@ -158,16 +158,22 @@ class ExecutableStageProcessor
       currentBundle = null;
     }
     ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx = checkInitialized(context);
-    WindowedValue<byte[]> output;
-    while ((output = pendingOutputs.poll()) != null) {
-      ctx.forward(
-          new Record<byte[], KStreamsPayload<byte[]>>(
-              record.key(), KStreamsPayload.data(output), record.timestamp()));
-    }
+    // The harness has finished the bundle (close() returned) so no further enqueues happen.
+    // ConcurrentLinkedQueue's weakly-consistent iterator is therefore safe to drain via forEach.
+    pendingOutputs.forEach(
+        output ->
+            ctx.forward(
+                new Record<byte[], KStreamsPayload<byte[]>>(
+                    record.key(), KStreamsPayload.data(output), record.timestamp())));
+    pendingOutputs.clear();
   }
 
   private void forwardWatermark(
       Record<byte[], KStreamsPayload<byte[]>> record, long watermarkMillis) {
+    // TODO(#38743 / WatermarkManager): a watermark must reach every parallel instance of every
+    // downstream processor, but ctx.forward routes to one downstream partition per Kafka Streams'
+    // partitioning. The simplest correct approach is to fan the watermark out to all downstream
+    // partitions; that wiring lands with the WatermarkManager sub-issue (per Jan on PR #38764).
     ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx = checkInitialized(context);
     ctx.forward(
         new Record<byte[], KStreamsPayload<byte[]>>(
