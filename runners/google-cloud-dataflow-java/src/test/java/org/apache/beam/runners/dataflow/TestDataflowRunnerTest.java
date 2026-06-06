@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -211,16 +212,10 @@ public class TestDataflowRunnerTest {
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    try {
-      runner.run(p, mockRunner);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("FooException"));
-      verify(mockJob, never()).cancel();
-      return;
-    }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError expected");
+    AssertionError expected =
+        assertThrows(AssertionError.class, () -> runner.run(p, mockRunner));
+    assertThat(expected.getMessage(), containsString("FooException"));
+    verify(mockJob, never()).cancel();
   }
 
   /** A streaming job that terminates with no error messages is a success. */
@@ -568,14 +563,9 @@ public class TestDataflowRunnerTest {
 
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
-    try {
-      runner.run(p, mockRunner);
-    } catch (AssertionError expected) {
-      verify(mockJob, Mockito.times(1))
-          .waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class));
-      return;
-    }
-    fail("Expected an exception on pipeline failure.");
+    assertThrows(AssertionError.class, () -> runner.run(p, mockRunner));
+    verify(mockJob, Mockito.times(1))
+        .waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class));
   }
 
   /**
@@ -655,12 +645,7 @@ public class TestDataflowRunnerTest {
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
 
-    try {
-      runner.run(p, mockRunner);
-      fail("Expected AssertionError to be thrown");
-    } catch (AssertionError expected) {
-      // Expected exception
-    }
+    assertThrows(AssertionError.class, () -> runner.run(p, mockRunner));
 
     Mockito.verify(mockJob, Mockito.timeout(5000)).cancel();
   }
