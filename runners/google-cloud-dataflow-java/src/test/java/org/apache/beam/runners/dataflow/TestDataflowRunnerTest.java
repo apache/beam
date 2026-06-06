@@ -607,9 +607,20 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getState()).thenReturn(State.CANCELLED);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
+    java.util.concurrent.CountDownLatch cancelLatch = new java.util.concurrent.CountDownLatch(1);
+    try {
+      Mockito.doAnswer(invocation -> {
+        cancelLatch.countDown();
+        return null;
+      }).when(mockJob).cancel();
+    } catch (Exception e) {}
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenReturn(State.CANCELLED);
+        .thenAnswer(
+            invocation -> {
+              cancelLatch.await();
+              return State.CANCELLED;
+            });
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 
@@ -632,9 +643,20 @@ public class TestDataflowRunnerTest {
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
 
     DataflowPipelineJob mockJob = Mockito.mock(DataflowPipelineJob.class);
-    when(mockJob.getState()).thenReturn(State.CANCELLED);
+    when(mockJob.getState()).thenReturn(State.RUNNING);
+    java.util.concurrent.CountDownLatch cancelLatch = new java.util.concurrent.CountDownLatch(1);
+    try {
+      Mockito.doAnswer(invocation -> {
+        cancelLatch.countDown();
+        return null;
+      }).when(mockJob).cancel();
+    } catch (Exception e) {}
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenReturn(State.CANCELLED);
+        .thenAnswer(
+            invocation -> {
+              cancelLatch.await();
+              return State.CANCELLED;
+            });
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
 

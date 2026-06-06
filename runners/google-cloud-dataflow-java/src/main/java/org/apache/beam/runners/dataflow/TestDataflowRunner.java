@@ -140,7 +140,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (allAssertionsPassed.isPresent() && allAssertionsPassed.get()) {
-      jobSuccess = true;
+      if (job.getState() != State.FAILED && !messageHandler.hasSeenError()) {
+        jobSuccess = true;
+      }
     }
 
     // If there is a certain assertion failure, throw the most precise exception we can.
@@ -175,7 +177,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // In streaming, there are infinite retries, so rather than timeout
     // we try to terminate early by polling and canceling if we see
     // an error message or when all assertions have succeeded
-    options.getExecutorService().submit(new CancelOnError(job, messageHandler, this, assertionsPassedRef));
+    java.util.concurrent.Future<Void> monitorFuture =
+        options.getExecutorService().submit(new CancelOnError(job, messageHandler, this, assertionsPassedRef));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
@@ -188,6 +191,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } catch (InterruptedException e) {
       Thread.interrupted();
       return false;
+    } finally {
+      monitorFuture.cancel(true);
     }
 
     // Getting the final state may have timed out; it may not indicate a failure.
@@ -413,7 +418,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
           // Check if we should initiate cancellation based on metrics (only if assertion state is not yet known)
           if (!assertionsPassedRef.get().isPresent() && !cancellationPending) {
-            if (steps % checkMetricsIntervalSteps == 0) {
+            if (runner.expectedNumberOfAssertions > 0 && steps % checkMetricsIntervalSteps == 0) {
               try {
                 Optional<Boolean> assertionsPassed = runner.checkForPAssertSuccess(job);
                 if (assertionsPassed.isPresent()) {
