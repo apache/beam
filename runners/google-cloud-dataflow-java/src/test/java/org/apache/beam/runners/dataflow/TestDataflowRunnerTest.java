@@ -409,7 +409,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(mockClient.getJobMetrics(anyString()))
-        .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
+        .thenReturn(buildJobMetrics(java.util.Collections.emptyList()));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
 
     expectedException.expect(RuntimeException.class);
@@ -610,11 +610,16 @@ public class TestDataflowRunnerTest {
     when(mockJob.getState()).thenReturn(State.RUNNING);
     java.util.concurrent.CountDownLatch cancelLatch = new java.util.concurrent.CountDownLatch(1);
     try {
-      Mockito.doAnswer(invocation -> {
-        cancelLatch.countDown();
-        return null;
-      }).when(mockJob).cancel();
-    } catch (Exception e) {}
+      Mockito.doAnswer(
+              invocation -> {
+                cancelLatch.countDown();
+                return null;
+              })
+          .when(mockJob)
+          .cancel();
+    } catch (Exception e) {
+      // Ignore
+    }
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenAnswer(
             invocation -> {
@@ -646,11 +651,16 @@ public class TestDataflowRunnerTest {
     when(mockJob.getState()).thenReturn(State.RUNNING);
     java.util.concurrent.CountDownLatch cancelLatch = new java.util.concurrent.CountDownLatch(1);
     try {
-      Mockito.doAnswer(invocation -> {
-        cancelLatch.countDown();
-        return null;
-      }).when(mockJob).cancel();
-    } catch (Exception e) {}
+      Mockito.doAnswer(
+              invocation -> {
+                cancelLatch.countDown();
+                return null;
+              })
+          .when(mockJob)
+          .cancel();
+    } catch (Exception e) {
+      // Ignore
+    }
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenAnswer(
             invocation -> {

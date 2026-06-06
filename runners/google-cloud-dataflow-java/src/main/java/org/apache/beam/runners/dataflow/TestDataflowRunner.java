@@ -178,7 +178,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // we try to terminate early by polling and canceling if we see
     // an error message or when all assertions have succeeded
     java.util.concurrent.Future<Void> monitorFuture =
-        options.getExecutorService().submit(new CancelOnError(job, messageHandler, this, assertionsPassedRef));
+        options
+            .getExecutorService()
+            .submit(new CancelOnError(job, messageHandler, this, assertionsPassedRef));
 
     // Whether we canceled or not, this gets the final state of the job or times out
     State finalState;
