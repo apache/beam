@@ -83,8 +83,9 @@ _SLEEP_DURATION_BETWEEN_POLLS = 10
 
 
 def _has_partitioning_load_parameters(additional_parameters):
-  return ('timePartitioning' in additional_parameters or
-          'rangePartitioning' in additional_parameters)
+  return (
+      'timePartitioning' in additional_parameters or
+      'rangePartitioning' in additional_parameters)
 
 
 def _add_destination_partitioning_load_parameters(
@@ -790,7 +791,8 @@ class TriggerLoadJobs(beam.DoFn):
           schema = self.schema_cache[hashed_dest]
         elif destination_table is not None:
           try:
-            schema = bigquery_tools.table_schema_to_dict(destination_table.schema)
+            schema = bigquery_tools.table_schema_to_dict(
+                destination_table.schema)
             self.schema_cache[hashed_dest] = schema
           except Exception as e:
             _LOGGER.warning(

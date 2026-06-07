@@ -706,15 +706,13 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_temporary_table_load_inherits_destination_time_partitioning(self):
     destination = 'project1:dataset1.table1'
     partition = (destination, (0, ['gs://bucket/file1']))
-    job_reference = bigquery_api.JobReference(projectId='project1',
-                                              jobId='job_name1')
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
     destination_table = bigquery_api.Table(
         timePartitioning=bigquery_api.TimePartitioning(type='DAY'))
 
     dofn = bqfl.TriggerLoadJobs(
-        schema=_ELEMENTS_SCHEMA,
-        test_client=mock.Mock(),
-        temporary_tables=True)
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
     dofn.start_bundle()
     dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
     dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
@@ -730,15 +728,13 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_temporary_table_load_inherits_destination_range_partitioning(self):
     destination = 'project1:dataset1.table1'
     partition = (destination, (0, ['gs://bucket/file1']))
-    job_reference = bigquery_api.JobReference(projectId='project1',
-                                              jobId='job_name1')
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
     destination_table = bigquery_api.Table(
         rangePartitioning=bigquery_api.RangePartitioning())
 
     dofn = bqfl.TriggerLoadJobs(
-        schema=_ELEMENTS_SCHEMA,
-        test_client=mock.Mock(),
-        temporary_tables=True)
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
     dofn.start_bundle()
     dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
     dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
@@ -755,8 +751,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     destination = 'project1:dataset1.table1'
     partition = (destination, (0, ['gs://bucket/file1']))
     explicit_partitioning = {'timePartitioning': {'type': 'DAY'}}
-    job_reference = bigquery_api.JobReference(projectId='project1',
-                                              jobId='job_name1')
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
 
     dofn = bqfl.TriggerLoadJobs(
         schema=_ELEMENTS_SCHEMA,
@@ -770,8 +766,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
 
     load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
-    self.assertEqual(load_call['additional_load_parameters'],
-                     explicit_partitioning)
+    self.assertEqual(
+        load_call['additional_load_parameters'], explicit_partitioning)
     dofn.bq_wrapper.get_table.assert_not_called()
 
   def test_multiple_partition_files(self):
