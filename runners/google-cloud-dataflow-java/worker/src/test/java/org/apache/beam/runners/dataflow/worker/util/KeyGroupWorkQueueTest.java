@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
+import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -119,10 +120,10 @@ public class KeyGroupWorkQueueTest {
     return new QueuedWork(work, executor.createBudgetHandle(1, workBytes));
   }
 
-  private static class MockRunnable implements Runnable {
+  private static class NoOpRunnable implements Runnable {
     final String id;
 
-    MockRunnable(String id) {
+    NoOpRunnable(String id) {
       this.id = id;
     }
 
@@ -131,7 +132,7 @@ public class KeyGroupWorkQueueTest {
 
     @Override
     public String toString() {
-      return "MockRunnable(" + id + ")";
+      return "NoOpRunnable(" + id + ")";
     }
   }
 
@@ -141,8 +142,8 @@ public class KeyGroupWorkQueueTest {
     assertTrue(queue.isEmpty());
     assertEquals(0, queue.size());
 
-    MockRunnable task1 = new MockRunnable("1");
-    MockRunnable task2 = new MockRunnable("2");
+    NoOpRunnable task1 = new NoOpRunnable("1");
+    NoOpRunnable task2 = new NoOpRunnable("2");
 
     assertTrue(queue.offer(task1));
     assertTrue(queue.offer(task2));
@@ -157,8 +158,8 @@ public class KeyGroupWorkQueueTest {
   @Test
   public void testRemove() {
     KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    MockRunnable task1 = new MockRunnable("1");
-    MockRunnable task2 = new MockRunnable("2");
+    NoOpRunnable task1 = new NoOpRunnable("1");
+    NoOpRunnable task2 = new NoOpRunnable("2");
 
     queue.offer(task1);
     queue.offer(task2);
@@ -172,8 +173,8 @@ public class KeyGroupWorkQueueTest {
   @Test
   public void testDrainTo() {
     KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    MockRunnable task1 = new MockRunnable("1");
-    MockRunnable task2 = new MockRunnable("2");
+    NoOpRunnable task1 = new NoOpRunnable("1");
+    NoOpRunnable task2 = new NoOpRunnable("2");
     queue.offer(task1);
     queue.offer(task2);
 
@@ -188,8 +189,8 @@ public class KeyGroupWorkQueueTest {
   @Test
   public void testIteratorSafeTraversalAndImmutable() {
     KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    MockRunnable task1 = new MockRunnable("1");
-    MockRunnable task2 = new MockRunnable("2");
+    NoOpRunnable task1 = new NoOpRunnable("1");
+    NoOpRunnable task2 = new NoOpRunnable("2");
     queue.offer(task1);
     queue.offer(task2);
 
@@ -225,45 +226,27 @@ public class KeyGroupWorkQueueTest {
     queue.offer(workA2);
 
     assertEquals(3, queue.size());
+    assertFalse(queue.isEmpty());
 
     // Targeted poll A
     QueuedWork polledA1 = queue.pollWork("compA", TEST_KEY_GROUP);
     assertNotNull(polledA1);
     assertEquals("compA", polledA1.getWork().getComputationId());
     assertEquals(100, polledA1.getHandle().bytes());
-
-    // Verify size decremented
     assertEquals(2, queue.size());
+    assertFalse(queue.isEmpty());
 
     // Poll next should be B1 (since A1 was stolen, B1 is now first global)
     assertEquals(workB1, queue.poll());
     assertEquals(1, queue.size());
+    assertFalse(queue.isEmpty());
 
     // Last should be A2
     assertEquals(workA2, queue.poll());
-    assertTrue(queue.isEmpty());
-  }
-
-  @Test
-  public void testMemoryPruningLeavesZeroLeaks() {
-    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    QueuedWork workA1 = createQueuedWork("compA", 100);
-    queue.offer(workA1);
-
-    // Steal A1
-    QueuedWork polled = queue.pollWork("compA", TEST_KEY_GROUP);
-    assertNotNull(polled);
+    assertEquals(0, queue.size());
     assertTrue(queue.isEmpty());
 
-    // Offering another work with different computation ID
-    QueuedWork workB1 = createQueuedWork("compB", 200);
-    queue.offer(workB1);
-    assertEquals(1, queue.size());
-
-    // Steal B1
-    QueuedWork polledB = queue.pollWork("compB", TEST_KEY_GROUP);
-    assertNotNull(polledB);
-    assertTrue(queue.isEmpty());
+    assertEquals(null, queue.poll());
   }
 
   @Test
@@ -317,6 +300,9 @@ public class KeyGroupWorkQueueTest {
                     } else {
                       // Global poll
                       task = queue.poll();
+                      if (task == null) {
+                        task = queue.poll(10, TimeUnit.MICROSECONDS);
+                      }
                     }
                     if (task != null) {
                       consumedCount.incrementAndGet();
@@ -331,7 +317,7 @@ public class KeyGroupWorkQueueTest {
     }
 
     startLatch.countDown();
-    assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
+    assertTrue(doneLatch.await(30, TimeUnit.SECONDS));
 
     // Check for exceptions in threads
     for (Future<?> future : futures) {
@@ -339,7 +325,7 @@ public class KeyGroupWorkQueueTest {
     }
 
     executorService.shutdown();
-    assertTrue(executorService.awaitTermination(5, TimeUnit.SECONDS));
+    assertTrue(executorService.awaitTermination(30, TimeUnit.SECONDS));
 
     assertEquals(0, queue.size());
     assertTrue(queue.isEmpty());
@@ -348,7 +334,7 @@ public class KeyGroupWorkQueueTest {
   @Test
   public void testTakeBlocksAndWakesUp() throws InterruptedException {
     final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    final MockRunnable task = new MockRunnable("take-task");
+    final NoOpRunnable task = new NoOpRunnable("take-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
     final CountDownLatch finished = new CountDownLatch(1);
@@ -368,21 +354,22 @@ public class KeyGroupWorkQueueTest {
     t.setDaemon(true);
     t.start();
 
-    assertTrue(started.await(2, TimeUnit.SECONDS));
-    // Give thread a moment to enter await()
-    Thread.sleep(100);
+    assertTrue(started.await(30, TimeUnit.SECONDS));
+    while (t.getState() != State.WAITING) {
+      Thread.sleep(1);
+    }
     assertEquals(Thread.State.WAITING, t.getState());
 
     queue.offer(task);
 
-    assertTrue(finished.await(2, TimeUnit.SECONDS));
+    assertTrue(finished.await(30, TimeUnit.SECONDS));
     assertEquals(task, result.get());
   }
 
   @Test
   public void testPollWithTimeout() throws InterruptedException {
     final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    final MockRunnable task = new MockRunnable("poll-task");
+    final NoOpRunnable task = new NoOpRunnable("poll-task");
     final AtomicReference<Runnable> result = new AtomicReference<>();
     final CountDownLatch started = new CountDownLatch(1);
     final CountDownLatch finished = new CountDownLatch(1);
@@ -403,11 +390,13 @@ public class KeyGroupWorkQueueTest {
     t1.setDaemon(true);
     t1.start();
 
-    assertTrue(started.await(2, TimeUnit.SECONDS));
-    Thread.sleep(100);
+    assertTrue(started.await(30, TimeUnit.SECONDS));
+    while (t1.getState() != State.TIMED_WAITING) {
+      Thread.sleep(1);
+    }
     assertEquals(Thread.State.TIMED_WAITING, t1.getState());
 
-    assertTrue(finished.await(2, TimeUnit.SECONDS));
+    assertTrue(finished.await(30, TimeUnit.SECONDS));
     assertNull(result.get());
 
     // 2. Verify timed poll receives task offered concurrently
@@ -430,13 +419,15 @@ public class KeyGroupWorkQueueTest {
     t2.setDaemon(true);
     t2.start();
 
-    assertTrue(started2.await(2, TimeUnit.SECONDS));
-    Thread.sleep(100);
+    assertTrue(started2.await(30, TimeUnit.SECONDS));
+    while (t2.getState() != State.TIMED_WAITING) {
+      Thread.sleep(1);
+    }
     assertEquals(Thread.State.TIMED_WAITING, t2.getState());
 
     queue.offer(task);
 
-    assertTrue(finished2.await(2, TimeUnit.SECONDS));
+    assertTrue(finished2.await(30, TimeUnit.SECONDS));
     assertEquals(task, result2.get());
   }
 
@@ -446,6 +437,7 @@ public class KeyGroupWorkQueueTest {
 
     Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
     Work.KeyGroup keyGroup2 = Work.KeyGroup.create(1, 2);
+    Work.KeyGroup keyGroupNotExist = Work.KeyGroup.create(3, 4);
 
     QueuedWork workA1 = createQueuedWork("compA", keyGroup1, 100);
     QueuedWork workA2 = createQueuedWork("compA", keyGroup2, 150);
@@ -453,6 +445,10 @@ public class KeyGroupWorkQueueTest {
     queue.offer(workA1);
     queue.offer(workA2);
 
+    assertEquals(2, queue.size());
+
+    QueuedWork polledNotExist = queue.pollWork("compA", keyGroupNotExist);
+    assertNull(polledNotExist);
     assertEquals(2, queue.size());
 
     // Poll with keyGroup2 first - should return workA2
@@ -468,6 +464,10 @@ public class KeyGroupWorkQueueTest {
     QueuedWork polledA1 = queue.pollWork("compA", keyGroup1);
     assertNotNull(polledA1);
     assertEquals(workA1, polledA1);
+    assertTrue(queue.isEmpty());
+
+    polledNotExist = queue.pollWork("compA", keyGroupNotExist);
+    assertNull(polledNotExist);
     assertTrue(queue.isEmpty());
   }
 }

@@ -38,9 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An executor for executing work on windmill items. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BoundedQueueExecutor {
 
   private final ThreadPoolExecutor executor;
@@ -394,7 +391,7 @@ public class BoundedQueueExecutor {
     if (keyGroupWorkQueue == null) {
       return null;
     }
-    QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
+    @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
     if (queuedWork == null) {
       return null;
     }
