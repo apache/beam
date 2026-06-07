@@ -36,7 +36,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
@@ -251,18 +250,68 @@ public class KeyGroupWorkQueueTest {
 
   @Test
   public void testConcurrentStress() throws InterruptedException, ExecutionException {
-    final KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
-    final int producerThreads = 4;
-    final int consumerThreads = 4;
-    final int tasksPerProducer = 1000;
-    final int totalTasks = producerThreads * tasksPerProducer;
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
+    int producerThreads = 4;
+    int consumerThreads = 4;
+    int tasksPerProducer = 1000;
+    int totalTasks = producerThreads * tasksPerProducer;
+    Runnable poisonPill =
+        new Runnable() {
+          @Override
+          public void run() {}
+
+          @Override
+          public String toString() {
+            return "POISON_PILL";
+          }
+        };
 
     ExecutorService executorService =
         Executors.newFixedThreadPool(producerThreads + consumerThreads);
-    final CountDownLatch startLatch = new CountDownLatch(1);
-    final CountDownLatch doneLatch = new CountDownLatch(producerThreads + consumerThreads);
-    final AtomicInteger consumedCount = new AtomicInteger(0);
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch producersDoneLatch = new CountDownLatch(producerThreads);
+    CountDownLatch consumersDoneLatch = new CountDownLatch(consumerThreads);
+    CountDownLatch consumedLatch = new CountDownLatch(totalTasks);
     List<Future<?>> futures = new ArrayList<>();
+
+    // Start consumers
+    for (int i = 0; i < consumerThreads; i++) {
+      int consumerId = i;
+      futures.add(
+          executorService.submit(
+              () -> {
+                try {
+                  startLatch.await();
+                  int iteration = consumerId % 4;
+                  while (true) {
+                    int strategy = iteration;
+                    iteration = (iteration + 1) % 4;
+                    Runnable task = null;
+                    if (strategy == 0) {
+                      String compId = "comp-" + (consumedLatch.getCount() % 5);
+                      task = queue.pollWork(compId, TEST_KEY_GROUP);
+                    } else if (strategy == 1) {
+                      task = queue.poll();
+                    } else if (strategy == 2) {
+                      task = queue.poll(10, TimeUnit.MICROSECONDS);
+                    } else if (strategy == 3) {
+                      task = queue.take();
+                    }
+
+                    if (task == poisonPill) {
+                      break;
+                    }
+                    if (task != null) {
+                      consumedLatch.countDown();
+                    }
+                  }
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                } finally {
+                  consumersDoneLatch.countDown();
+                }
+              }));
+    }
 
     // Start producers
     for (int i = 0; i < producerThreads; i++) {
@@ -278,46 +327,26 @@ public class KeyGroupWorkQueueTest {
                 } catch (Exception e) {
                   throw new RuntimeException(e);
                 } finally {
-                  doneLatch.countDown();
+                  producersDoneLatch.countDown();
                 }
               }));
     }
 
-    // Start consumers (mix of poll and pollWork)
-    for (int i = 0; i < consumerThreads; i++) {
-      final int consumerId = i;
-      futures.add(
-          executorService.submit(
-              () -> {
-                try {
-                  startLatch.await();
-                  while (consumedCount.get() < totalTasks) {
-                    Runnable task;
-                    if (consumerId % 2 == 0) {
-                      // Targeted poll
-                      String compId = "comp-" + (consumedCount.get() % 5);
-                      task = queue.pollWork(compId, TEST_KEY_GROUP);
-                    } else {
-                      // Global poll
-                      task = queue.poll();
-                      if (task == null) {
-                        task = queue.poll(10, TimeUnit.MICROSECONDS);
-                      }
-                    }
-                    if (task != null) {
-                      consumedCount.incrementAndGet();
-                    }
-                  }
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                } finally {
-                  doneLatch.countDown();
-                }
-              }));
-    }
-
+    // Release the start latch to start the test
     startLatch.countDown();
-    assertTrue(doneLatch.await(30, TimeUnit.SECONDS));
+
+    // Wait for all tasks to be consumed
+    assertTrue(consumedLatch.await(30, TimeUnit.SECONDS));
+
+    // Send poison pills to stop all consumers
+    for (int i = 0; i < consumerThreads; i++) {
+      queue.offer(poisonPill);
+    }
+
+    // Wait for consumers to finish
+    assertTrue(consumersDoneLatch.await(30, TimeUnit.SECONDS));
+    // Wait for producers to finish
+    assertTrue(producersDoneLatch.await(30, TimeUnit.SECONDS));
 
     // Check for exceptions in threads
     for (Future<?> future : futures) {
@@ -355,10 +384,7 @@ public class KeyGroupWorkQueueTest {
     t.start();
 
     assertTrue(started.await(30, TimeUnit.SECONDS));
-    while (t.getState() != State.WAITING) {
-      Thread.sleep(1);
-    }
-    assertEquals(Thread.State.WAITING, t.getState());
+    waitForThreadState(t, State.WAITING);
 
     queue.offer(task);
 
@@ -391,10 +417,7 @@ public class KeyGroupWorkQueueTest {
     t1.start();
 
     assertTrue(started.await(30, TimeUnit.SECONDS));
-    while (t1.getState() != State.TIMED_WAITING) {
-      Thread.sleep(1);
-    }
-    assertEquals(Thread.State.TIMED_WAITING, t1.getState());
+    waitForThreadState(t1, State.TIMED_WAITING);
 
     assertTrue(finished.await(30, TimeUnit.SECONDS));
     assertNull(result.get());
@@ -420,10 +443,7 @@ public class KeyGroupWorkQueueTest {
     t2.start();
 
     assertTrue(started2.await(30, TimeUnit.SECONDS));
-    while (t2.getState() != State.TIMED_WAITING) {
-      Thread.sleep(1);
-    }
-    assertEquals(Thread.State.TIMED_WAITING, t2.getState());
+    waitForThreadState(t2, State.TIMED_WAITING);
 
     queue.offer(task);
 
@@ -469,5 +489,16 @@ public class KeyGroupWorkQueueTest {
     polledNotExist = queue.pollWork("compA", keyGroupNotExist);
     assertNull(polledNotExist);
     assertTrue(queue.isEmpty());
+  }
+
+  private void waitForThreadState(Thread t, State state) throws InterruptedException {
+    long timeoutMs = 30000;
+    long start = System.currentTimeMillis();
+    while (t.getState() != state) {
+      if (System.currentTimeMillis() - start > timeoutMs) {
+        fail("Thread did not reach " + state + " state within " + timeoutMs + "ms");
+      }
+      Thread.sleep(1);
+    }
   }
 }
