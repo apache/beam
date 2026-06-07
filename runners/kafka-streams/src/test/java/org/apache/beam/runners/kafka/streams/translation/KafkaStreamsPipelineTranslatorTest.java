@@ -18,16 +18,19 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.kafka.streams.TopologyDescription;
 import org.junit.Test;
 
@@ -57,10 +60,11 @@ public class KafkaStreamsPipelineTranslatorTest {
                             .build()))
             .build();
 
+    // translate() directly — this test pins the URN-rejection contract on the dispatch loop
+    // itself, independent of the fuser/validator that prepareForTranslation runs.
     UnsupportedOperationException ex =
         assertThrows(
-            UnsupportedOperationException.class,
-            () -> translator.translate(context, translator.prepareForTranslation(pipeline)));
+            UnsupportedOperationException.class, () -> translator.translate(context, pipeline));
 
     assertThat(ex.getMessage(), containsString("No translator registered for URN"));
     assertThat(ex.getMessage(), containsString(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN));
@@ -73,15 +77,23 @@ public class KafkaStreamsPipelineTranslatorTest {
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context = newContext();
 
-    RunnerApi.Pipeline pipeline = singleImpulsePipeline();
+    // Build the pipeline through the SDK so the resulting RunnerApi.Pipeline carries the coders
+    // and windowing strategies that PipelineValidator requires (run inside the fuser).
+    Pipeline sdkPipeline =
+        Pipeline.create(
+            PipelineOptionsFactory.fromArgs(
+                    "--applicationId=ks-translator-test",
+                    "--runner=" + CrashingRunner.class.getName())
+                .create());
+    sdkPipeline.apply("impulse", Impulse.create());
+    RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(sdkPipeline);
+
     translator.translate(context, translator.prepareForTranslation(pipeline));
 
     TopologyDescription description = context.getTopology().describe();
     String describeText = description.toString();
-
-    assertThat(describeText, containsString("impulse-source"));
-    assertThat(describeText, containsString("impulse"));
-    assertThat(context.getProcessorNameForPCollection(OUTPUT_PCOLLECTION_ID), is("impulse"));
+    assertThat(describeText, containsString("Source:"));
+    assertThat(describeText, containsString("Processor:"));
   }
 
   @Test

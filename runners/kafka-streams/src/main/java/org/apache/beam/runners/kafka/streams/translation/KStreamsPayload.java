@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.Objects;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -121,6 +122,12 @@ public final class KStreamsPayload<T> {
 
   @Override
   public String toString() {
-    return kind == Kind.DATA ? "Data{" + data + "}" : "Watermark{" + watermarkMillis + "}";
+    MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this).add("kind", kind);
+    if (kind == Kind.DATA) {
+      helper.add("data", data);
+    } else {
+      helper.add("watermarkMillis", watermarkMillis);
+    }
+    return helper.toString();
   }
 }

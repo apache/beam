@@ -22,6 +22,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -43,6 +45,7 @@ public class KafkaStreamsPipelineTranslator {
     this(
         ImmutableMap.<String, PTransformTranslator>builder()
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+            .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());
   }
 
@@ -55,9 +58,21 @@ public class KafkaStreamsPipelineTranslator {
     return KafkaStreamsTranslationContext.create(jobInfo, pipelineOptions);
   }
 
-  /** Returns the pipeline to translate (placeholder for future fusion / expansion steps). */
+  /**
+   * Fuses the pipeline so that stateless user code is grouped into {@code ExecutableStage} nodes.
+   *
+   * <p>Runner-executed primitives that have their own translator (e.g. Impulse) are left intact;
+   * everything else is fused. If the pipeline already contains {@code ExecutableStage} transforms
+   * it is returned unchanged.
+   */
   public RunnerApi.Pipeline prepareForTranslation(RunnerApi.Pipeline pipeline) {
-    return pipeline;
+    boolean alreadyFused =
+        pipeline.getComponents().getTransformsMap().values().stream()
+            .anyMatch(t -> ExecutableStage.URN.equals(t.getSpec().getUrn()));
+    if (alreadyFused) {
+      return pipeline;
+    }
+    return GreedyPipelineFuser.fuse(pipeline).toPipeline();
   }
 
   /**
