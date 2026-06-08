@@ -77,7 +77,8 @@ public class DaoFactory implements Serializable, AutoCloseable {
     }
   }
 
-  public void setReadChangeStreamTimeout(@Nullable ValueProvider<Duration> readChangeStreamTimeout) {
+  public void setReadChangeStreamTimeout(
+      @Nullable ValueProvider<Duration> readChangeStreamTimeout) {
     this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
