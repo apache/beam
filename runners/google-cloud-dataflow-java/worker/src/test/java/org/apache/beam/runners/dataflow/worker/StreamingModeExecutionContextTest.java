@@ -48,6 +48,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -61,7 +62,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -99,7 +100,6 @@ import org.mockito.MockitoAnnotations;
 public class StreamingModeExecutionContextTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
   @Mock private WorkExecutor workExecutor;
 
@@ -203,15 +203,18 @@ public class StreamingModeExecutionContextTest {
   }
 
   private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
+    SideInputStateFetcherFactory sideInputStateFetcherFactory =
+        SideInputStateFetcherFactory.fromOptions(
+            options.as(DataflowStreamingPipelineOptions.class));
     context.start(
         work,
         stateReader,
-        sideInputStateFetcher,
+        sideInputStateFetcherFactory,
         workExecutor,
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,
         keyCoder,
-        /* keySwitchListener= */ (k, c) -> {});
+        /* keyTransitionListener= */ (k, c) -> {});
   }
 
   @Test

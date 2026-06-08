@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -80,7 +82,8 @@ public final class Work implements RefreshableWork {
   private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
-  private volatile @Nullable Runnable onFailureListener = null;
+  private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
+      new AtomicReference<>(null);
   private final boolean drainMode;
 
   private Work(
@@ -243,16 +246,18 @@ public final class Work implements RefreshableWork {
   @Override
   public void setFailed() {
     this.isFailed = true;
-    Runnable listener = onFailureListener;
+    AtomicBoolean listener = onFailureListener.get();
     if (listener != null) {
-      listener.run();
+      listener.set(true);
     }
   }
 
-  public void setOnFailureListener(@Nullable Runnable listener) {
-    this.onFailureListener = listener;
+  // Sets the passed in boolean to true if the work fails
+  // Supports registering only one boolean at a time.
+  public void setOnFailureListener(@Nullable AtomicBoolean listener) {
+    onFailureListener.set(listener);
     if (isFailed && listener != null) {
-      listener.run();
+      listener.set(true);
     }
   }
 

@@ -35,6 +35,7 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -58,6 +59,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
@@ -149,6 +151,7 @@ public class StreamingModeExecutionContext
 
   private @Nullable Work work;
   private WindmillComputationKey computationKey;
+  private SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private SideInputStateFetcher sideInputStateFetcher;
   // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
   // be used for processing many work items and these values can change during the context's
@@ -174,22 +177,24 @@ public class StreamingModeExecutionContext
   private @Nullable BoundedQueueExecutorWorkHandle budgetHandle;
 
   private final HotKeyLogger hotKeyLogger;
-  private boolean hotKeyLoggingEnabled = false;
+  private final boolean hotKeyLoggingEnabled;
   private final String stepName;
   private @Nullable Coder<?> keyCoder;
 
   // Key switch listener to delegate MDC logging context and thread name updates
-  public interface KeySwitchListener {
-    void onKeySwitch(Work oldWork, Work newWork);
+  public interface KeyTransitionListener {
+    void onKeyTransition(Work oldWork, Work newWork);
   }
 
   @SuppressWarnings("UnusedVariable")
-  private @Nullable KeySwitchListener keySwitchListener;
+  private @Nullable KeyTransitionListener keyTransitionListener;
 
   private List<Work> executedWorks = new ArrayList<>();
   private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = new ArrayList<>();
+
+  // Map<finalizerId, Pair<callbackExpiration, callback>>
   private Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = new HashMap<>();
-  private volatile boolean workIsFailed = false;
+  private final AtomicBoolean workIsFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
   private final String sourceBytesProcessCounterName;
@@ -248,7 +253,7 @@ public class StreamingModeExecutionContext
   }
 
   public boolean workIsFailed() {
-    return workIsFailed;
+    return workIsFailed.get();
   }
 
   public boolean getDrainMode() {
@@ -287,7 +292,7 @@ public class StreamingModeExecutionContext
     this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
     this.accumulatedCallbacks = new HashMap<>();
-    this.workIsFailed = false;
+    this.workIsFailed.set(false);
     this.sideInputCache.clear();
     this.activeStateReader = null;
     this.activeReader = null;
@@ -295,31 +300,32 @@ public class StreamingModeExecutionContext
     this.workExecutor = null;
     this.workQueueExecutor = null;
     this.budgetHandle = null;
-    this.keySwitchListener = null;
+    this.keyTransitionListener = null;
     this.work = null;
     this.key = null;
     this.outputBuilder = null;
+    this.sideInputStateFetcherFactory = null;
+    this.sideInputStateFetcher = null;
+    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
+    clearSinkFullHint();
+    this.stateBytesRead = 0;
   }
 
   public void start(
       Work work,
       WindmillStateReader stateReader,
-      SideInputStateFetcher sideInputStateFetcher,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
-      KeySwitchListener keySwitchListener) {
+      KeyTransitionListener keyTransitionListener) {
     clear();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
     this.budgetHandle = budgetHandle;
-    this.keySwitchListener = keySwitchListener;
-
-    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
-    clearSinkFullHint();
-    this.stateBytesRead = 0;
+    this.keyTransitionListener = keyTransitionListener;
 
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
@@ -328,7 +334,7 @@ public class StreamingModeExecutionContext
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
-    this.sideInputStateFetcher = sideInputStateFetcher;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
 
     startForNewKey(work, stateReader);
   }
@@ -387,6 +393,9 @@ public class StreamingModeExecutionContext
     }
     if (activeStateReader != null) {
       this.stateBytesRead += activeStateReader.getBytesRead();
+    }
+    if (sideInputStateFetcher != null) {
+      this.stateBytesRead += sideInputStateFetcher.getBytesRead();
     }
     checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     try {
@@ -697,8 +706,9 @@ public class StreamingModeExecutionContext
   }
 
   private void startForNewKey(Work newWork, WindmillStateReader reader) {
-    if (keySwitchListener != null && this.work != null && this.work != newWork) {
-      keySwitchListener.onKeySwitch(this.work, newWork);
+    newWork.setState(Work.State.PROCESSING);
+    if (keyTransitionListener != null && this.work != null && this.work != newWork) {
+      keyTransitionListener.onKeyTransition(this.work, newWork);
     }
     this.key = decodeKey(newWork);
     this.work = newWork;
@@ -707,10 +717,15 @@ public class StreamingModeExecutionContext
 
     this.outputBuilder = createOutputBuilder(newWork);
     this.outputBuilders.add(this.outputBuilder);
-    newWork.setOnFailureListener(() -> this.workIsFailed = true);
+    newWork.setOnFailureListener(this.workIsFailed);
     this.executedWorks.add(newWork);
 
     logHotKeyIfDetected(newWork, this.key);
+
+    this.sideInputStateFetcher =
+        sideInputStateFetcherFactory.createSideInputStateFetcher(newWork::fetchSideInput);
+    this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
+    this.activeReader = null;
 
     // Note: We do NOT clear sideInputCache here, allowing Key B to reuse warm side inputs!
 
@@ -738,8 +753,12 @@ public class StreamingModeExecutionContext
     return stateBytesRead;
   }
 
-  public List<Windmill.WorkItemCommitRequest.Builder> getOutputBuilders() {
-    return outputBuilders;
+  public List<Windmill.WorkItemCommitRequest> getWorkItemCommits() {
+    List<Windmill.WorkItemCommitRequest> commits = new ArrayList<>(outputBuilders.size());
+    for (Windmill.WorkItemCommitRequest.Builder builder : outputBuilders) {
+      commits.add(builder.build());
+    }
+    return commits;
   }
 
   public Map<Long, Pair<Instant, Runnable>> getAccumulatedCallbacks() {

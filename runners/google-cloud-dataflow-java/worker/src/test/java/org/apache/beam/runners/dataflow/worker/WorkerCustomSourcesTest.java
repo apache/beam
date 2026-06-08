@@ -80,9 +80,11 @@ import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnlyBoundedSource;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -93,7 +95,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
@@ -210,15 +212,18 @@ public class WorkerCustomSourcesTest {
   }
 
   private void startContext(StreamingModeExecutionContext context, Work work) {
+    SideInputStateFetcherFactory sideInputStateFetcherFactory =
+        SideInputStateFetcherFactory.fromOptions(
+            options.as(DataflowStreamingPipelineOptions.class));
     context.start(
         work,
         mock(WindmillStateReader.class),
-        mock(SideInputStateFetcher.class),
+        sideInputStateFetcherFactory,
         mock(WorkExecutor.class),
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,
         /* keyCoder= */ null,
-        /* keySwitchListener= */ mock(StreamingModeExecutionContext.KeySwitchListener.class));
+        /* keyTransitionListener= */ mock(KeyTransitionListener.class));
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
