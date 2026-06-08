@@ -94,6 +94,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterat
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -106,7 +107,6 @@ import org.slf4j.LoggerFactory;
  * different WorkItems for the same computation.
  */
 @SuppressWarnings({"deprecation"})
-// TODO(m-trieu) fix nullability issues in StreamingModeExecutionContext.java
 @NotThreadSafe
 @Internal
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
@@ -813,9 +813,9 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     private final @Nullable String stateFamily;
     private final Supplier<Closeable> scopedReadStateSupplier;
-    private @Nullable WindmillStateInternals<Object> stateInternals;
-    private @Nullable WindmillTimerInternals systemTimerInternals;
-    private @Nullable WindmillTimerInternals userTimerInternals;
+    private @MonotonicNonNull WindmillStateInternals<Object> stateInternals;
+    private @MonotonicNonNull WindmillTimerInternals systemTimerInternals;
+    private @MonotonicNonNull WindmillTimerInternals userTimerInternals;
     // Lazily initialized
     private @Nullable Iterator<TimerData> cachedFiredSystemTimers = null;
     // Lazily initialized
@@ -900,6 +900,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> @Nullable TimerData getNextFiredTimer(Coder<W> windowCoder) {
+      if (stateFamily == null) {
+        // no timers on stateless stages
+        return null;
+      }
       Iterator<TimerData> firedSystemTimers = cachedFiredSystemTimers;
       if (firedSystemTimers == null) {
         firedSystemTimers =
@@ -960,6 +964,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     public <W extends BoundedWindow> @Nullable TimerData getNextFiredUserTimer(
         Coder<W> windowCoder) {
+      if (stateFamily == null) {
+        // no timers on stateless stages
+        return null;
+      }
+
       PeekingIterator<TimerData> firedUserTimers = cachedFiredUserTimers;
       if (firedUserTimers == null) {
         // This is the first call to getNextFiredUserTimer in this bundle. Extract any user timers
