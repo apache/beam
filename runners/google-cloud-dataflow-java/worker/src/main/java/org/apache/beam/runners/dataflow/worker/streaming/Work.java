@@ -25,6 +25,7 @@ import java.util.EnumMap;
 import java.util.IntSummaryStatistics;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -77,6 +78,7 @@ public final class Work implements RefreshableWork {
   private final Instant startTime;
   private final Map<LatencyAttribution.State, Duration> totalDurationPerState;
   private final WorkId id;
+  private final KeyGroup keyGroup;
   private final String latencyTrackingId;
   private final long serializedWorkItemSize;
   private volatile TimedState currentState;
@@ -106,6 +108,10 @@ public final class Work implements RefreshableWork {
     // keyUniverse inside EnumMap every time.
     this.totalDurationPerState = new EnumMap<>(EMPTY_ENUM_MAP);
     this.id = WorkId.of(workItem);
+    this.keyGroup =
+        workItem.hasKeyGroup()
+            ? KeyGroup.create(workItem.getKeyGroup().getHigh(), workItem.getKeyGroup().getLow())
+            : KeyGroup.DEFAULT;
     this.latencyTrackingId =
         Long.toHexString(workItem.getShardingKey())
             + '-'
@@ -409,6 +415,14 @@ public final class Work implements RefreshableWork {
     abstract Instant startTime();
   }
 
+  public String getComputationId() {
+    return processingContext.computationId();
+  }
+
+  public KeyGroup getKeyGroup() {
+    return keyGroup;
+  }
+
   @AutoValue
   public abstract static class ProcessingContext {
 
@@ -440,6 +454,62 @@ public final class Work implements RefreshableWork {
 
     private Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest request) {
       return Optional.ofNullable(getDataClient().getStateData(computationId(), request));
+    }
+  }
+
+  /**
+   * WorkItems with same key group and computation are eligible to be executed together in a
+   * multi-key bundle.
+   */
+  public static final class KeyGroup {
+
+    // Work items equaling to the default keyGroup will always be executed
+    // separately and not in a multi-key bundle
+    public static final KeyGroup DEFAULT = new KeyGroup(0, 0);
+
+    private final long high;
+    private final long low;
+
+    private KeyGroup(long high, long low) {
+      this.high = high;
+      this.low = low;
+    }
+
+    public static KeyGroup create(long high, long low) {
+      if (high == 0 && low == 0) {
+        return DEFAULT;
+      }
+      return new KeyGroup(high, low);
+    }
+
+    public long high() {
+      return high;
+    }
+
+    public long low() {
+      return low;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof KeyGroup)) {
+        return false;
+      }
+      KeyGroup other = (KeyGroup) o;
+      return high == other.high && low == other.low;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(high, low);
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%016x%016x", high, low);
     }
   }
 }
