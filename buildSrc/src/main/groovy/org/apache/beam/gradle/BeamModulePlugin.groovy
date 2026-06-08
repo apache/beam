@@ -3139,15 +3139,13 @@ class BeamModulePlugin implements Plugin<Project> {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
           def packages = "gcp,test,aws,azure,dataframe"
           def extra = project.findProperty('beamPythonExtra')
+          def installTargets = "${distTarBall}[${packages}]"
+          if (extra) {
+            installTargets = "${distTarBall}[${packages},${extra}]"
+          }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${packages}]"
-          }
-          if (extra) {
-            project.exec {
-              executable 'sh'
-              args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${extra}]"
-            }
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install uv && uv pip install --pre ${installTargets}"
           }
         }
       }
