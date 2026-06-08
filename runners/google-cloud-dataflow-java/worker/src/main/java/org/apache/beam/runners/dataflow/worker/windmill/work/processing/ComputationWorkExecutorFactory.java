@@ -49,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -99,6 +100,7 @@ final class ComputationWorkExecutorFactory {
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private final HotKeyLogger hotKeyLogger;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -109,7 +111,8 @@ final class ComputationWorkExecutorFactory {
       CounterSet pendingDeltaCounters,
       IdGenerator idGenerator,
       StreamingGlobalConfigHandle globalConfigHandle,
-      HotKeyLogger hotKeyLogger) {
+      HotKeyLogger hotKeyLogger,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
@@ -128,6 +131,7 @@ final class ComputationWorkExecutorFactory {
     this.throwExceptionOnLargeOutput =
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
     this.hotKeyLogger = hotKeyLogger;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -282,7 +286,8 @@ final class ComputationWorkExecutorFactory {
         hotKeyLogger,
         hotKeyLoggingEnabled,
         stepName,
-        computationState.sourceBytesProcessCounterName());
+        computationState.sourceBytesProcessCounterName(),
+        sideInputStateFetcherFactory);
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(

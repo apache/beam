@@ -80,7 +80,6 @@ import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
@@ -212,13 +211,9 @@ public class WorkerCustomSourcesTest {
   }
 
   private void startContext(StreamingModeExecutionContext context, Work work) {
-    SideInputStateFetcherFactory sideInputStateFetcherFactory =
-        SideInputStateFetcherFactory.fromOptions(
-            options.as(DataflowStreamingPipelineOptions.class));
     context.start(
         work,
         mock(WindmillStateReader.class),
-        sideInputStateFetcherFactory,
         mock(WorkExecutor.class),
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,
@@ -641,7 +636,8 @@ public class WorkerCustomSourcesTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
-            "sourceBytesProcessCounterName");
+            "sourceBytesProcessCounterName",
+            SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -1013,7 +1009,8 @@ public class WorkerCustomSourcesTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
-            "sourceBytesProcessCounterName");
+            "sourceBytesProcessCounterName",
+            SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
     int maxElements = 100;

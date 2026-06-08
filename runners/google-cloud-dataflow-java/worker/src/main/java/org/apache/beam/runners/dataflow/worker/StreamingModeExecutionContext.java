@@ -151,7 +151,7 @@ public class StreamingModeExecutionContext
 
   private @Nullable Work work;
   private WindmillComputationKey computationKey;
-  private SideInputStateFetcherFactory sideInputStateFetcherFactory;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private SideInputStateFetcher sideInputStateFetcher;
   // OperationalLimits is updated in start() because a StreamingModeExecutionContext can
   // be used for processing many work items and these values can change during the context's
@@ -214,7 +214,8 @@ public class StreamingModeExecutionContext
       HotKeyLogger hotKeyLogger,
       boolean hotKeyLoggingEnabled,
       String stepName,
-      String sourceBytesProcessCounterName) {
+      String sourceBytesProcessCounterName,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     super(
         counterFactory,
         metricsContainerRegistry,
@@ -233,6 +234,7 @@ public class StreamingModeExecutionContext
     this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
     this.stepName = checkNotNull(stepName);
     this.sourceBytesProcessCounterName = checkNotNull(sourceBytesProcessCounterName);
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
   }
 
   @VisibleForTesting
@@ -304,7 +306,6 @@ public class StreamingModeExecutionContext
     this.work = null;
     this.key = null;
     this.outputBuilder = null;
-    this.sideInputStateFetcherFactory = null;
     this.sideInputStateFetcher = null;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
@@ -314,7 +315,6 @@ public class StreamingModeExecutionContext
   public void start(
       Work work,
       WindmillStateReader stateReader,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -334,7 +334,6 @@ public class StreamingModeExecutionContext
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
-    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
 
     startForNewKey(work, stateReader);
   }

@@ -80,7 +80,6 @@ public class StreamingWorkScheduler {
 
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
@@ -94,7 +93,6 @@ public class StreamingWorkScheduler {
       Supplier<Instant> clock,
       BoundedQueueExecutor workExecutor,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
@@ -105,7 +103,6 @@ public class StreamingWorkScheduler {
     this.clock = clock;
     this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
-    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
     this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
@@ -131,6 +128,9 @@ public class StreamingWorkScheduler {
       IdGenerator idGenerator,
       StreamingGlobalConfigHandle globalConfigHandle,
       ConcurrentMap<String, StageInfo> stageInfoMap) {
+    SideInputStateFetcherFactory sideInputStateFetcherFactory =
+        SideInputStateFetcherFactory.fromOptions(options);
+
     ComputationWorkExecutorFactory computationWorkExecutorFactory =
         new ComputationWorkExecutorFactory(
             options,
@@ -141,13 +141,13 @@ public class StreamingWorkScheduler {
             streamingCounters.pendingDeltaCounters(),
             idGenerator,
             globalConfigHandle,
-            hotKeyLogger);
+            hotKeyLogger,
+            sideInputStateFetcherFactory);
 
     return new StreamingWorkScheduler(
         clock,
         workExecutor,
         computationWorkExecutorFactory,
-        SideInputStateFetcherFactory.fromOptions(options),
         failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
@@ -388,12 +388,7 @@ public class StreamingWorkScheduler {
 
       // Blocks while executing work.
       computationWorkExecutor.executeWork(
-          work,
-          stateReader,
-          sideInputStateFetcherFactory,
-          workExecutor,
-          handle,
-          keyTransitionListener);
+          work, stateReader, workExecutor, handle, keyTransitionListener);
 
       List<Work> workBatch;
       List<Windmill.WorkItemCommitRequest> workItemCommits;

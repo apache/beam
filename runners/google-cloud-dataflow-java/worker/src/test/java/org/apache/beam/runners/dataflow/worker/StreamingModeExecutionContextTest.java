@@ -48,7 +48,6 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
-import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -144,7 +143,8 @@ public class StreamingModeExecutionContextTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
-            "sourceBytesProcessCounterName");
+            "sourceBytesProcessCounterName",
+            SideInputStateFetcherFactory.fromOptions(options));
   }
 
   private StreamingModeExecutionContext createTestExecutionContext(
@@ -176,7 +176,8 @@ public class StreamingModeExecutionContextTest {
         new HotKeyLogger(),
         /*hotKeyLoggingEnabled=*/ false,
         /*stepName=*/ "stepName",
-        "sourceBytesProcessCounterName");
+        "sourceBytesProcessCounterName",
+        SideInputStateFetcherFactory.fromOptions(options));
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -203,13 +204,9 @@ public class StreamingModeExecutionContextTest {
   }
 
   private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
-    SideInputStateFetcherFactory sideInputStateFetcherFactory =
-        SideInputStateFetcherFactory.fromOptions(
-            options.as(DataflowStreamingPipelineOptions.class));
     context.start(
         work,
         stateReader,
-        sideInputStateFetcherFactory,
         workExecutor,
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,

@@ -24,7 +24,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
@@ -66,7 +65,6 @@ public abstract class ComputationWorkExecutor {
   public final void executeWork(
       Work work,
       WindmillStateReader stateReader,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       KeyTransitionListener keyTransitionListener)
@@ -75,7 +73,6 @@ public abstract class ComputationWorkExecutor {
         .start(
             work,
             stateReader,
-            sideInputStateFetcherFactory,
             workExecutor(),
             workQueueExecutor,
             budgetHandle,
