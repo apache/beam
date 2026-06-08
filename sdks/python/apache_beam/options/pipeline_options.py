@@ -1687,18 +1687,18 @@ class ProfilingOptions(PipelineOptions):
             'Directory path on the worker where local profiles are saved. '
             'Defaults to ${semi_persist_dir}/profiles if not specified.'))
     parser.add_argument(
-        '--profile_sync_period_sec',
+        '--profile_upload_interval_sec',
         type=int,
-        default=0,
+        default=300,
         help=(
-            'Frequency (in seconds) at which the local profiles are synced to GCS. '
-            'Defaults to 0 (sync disabled).'))
+            'Frequency (in seconds) at which the local profiles are uploaded to GCS. '
+            'Defaults to 300 (5 min).'))
     parser.add_argument(
-        '--profiler_stop_after_min',
+        '--profiler_stop_after_sec',
         type=int,
         default=0,
         help=(
-            'Time limit (in minutes) for profiling a single process. When exceeded, '
+            'Time limit (in seconds) for profiling a single process. When exceeded, '
             'the worker process is restarted without the profiler.'))
     parser.add_argument(
         '--profiler_stop_after_crash',
@@ -1710,10 +1710,10 @@ class ProfilingOptions(PipelineOptions):
     parser.add_argument(
         '--profile_postprocess_interval_sec',
         type=int,
-        default=300,
+        default=600,
         help=(
             'Frequency (in seconds) at which the local profiles are post-processed '
-            'on-the-fly. Defaults to 300 (5 minutes). Set to 0 to disable.'))
+            'on-the-fly. Defaults to 600 (10 minutes). Set to 0 to disable.'))
 
   def validate(self, validator):
     errors = []

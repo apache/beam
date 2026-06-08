@@ -140,8 +140,8 @@ type OptionsData struct {
 	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
 	ProfileLocation               string   `json:"profile_location"`
 	ProfileTempLocation           string   `json:"profile_temp_location"`
-	ProfileSyncPeriodSec          int      `json:"profile_sync_period_sec"`
-	ProfilerStopAfterMin          int      `json:"profiler_stop_after_min"`
+	ProfileUploadIntervalSec      int      `json:"profile_upload_interval_sec"`
+	ProfilerStopAfterSec          int      `json:"profiler_stop_after_sec"`
 	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
 	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
 	JobId                         string   `json:"jobId,omitempty"`
@@ -226,15 +226,15 @@ func launchSDKProcess() error {
 		logger.Printf(ctx, "ProfilerExtraEnvVars: %v", opts.Options.ProfilerExtraEnvVars)
 		logger.Printf(ctx, "ProfileLocation: %v", opts.Options.ProfileLocation)
 		logger.Printf(ctx, "ProfileTempLocation: %v", profileTempLocation)
-		logger.Printf(ctx, "ProfileSyncPeriodSec: %v", opts.Options.ProfileSyncPeriodSec)
-		logger.Printf(ctx, "ProfilerStopAfterMin: %v", opts.Options.ProfilerStopAfterMin)
+		logger.Printf(ctx, "ProfileUploadIntervalSec: %v", opts.Options.ProfileUploadIntervalSec)
+		logger.Printf(ctx, "ProfilerStopAfterSec: %v", opts.Options.ProfilerStopAfterSec)
 		if err := os.MkdirAll(profileTempLocation, 0755); err != nil {
 			logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
 		}
 
 		if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
 			if _, err := exec.LookPath("gcloud"); err != nil {
-				logger.Errorf(ctx, "gcloud is not available, profiles will not be synced.")
+				logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
 			} else {
 				jobId := opts.Options.JobId
 				if jobId == "" {
@@ -247,8 +247,8 @@ func launchSDKProcess() error {
 				baseGcsDest := strings.TrimSuffix(opts.Options.ProfileLocation, "/")
 				gcsDestPath := fmt.Sprintf("%s/%s/%s", baseGcsDest, jobId, hostname)
 
-				if opts.Options.ProfileSyncPeriodSec > 0 {
-					ticker := time.NewTicker(time.Duration(opts.Options.ProfileSyncPeriodSec) * time.Second)
+				if opts.Options.ProfileUploadIntervalSec > 0 {
+					ticker := time.NewTicker(time.Duration(opts.Options.ProfileUploadIntervalSec) * time.Second)
 					go func() {
 						for range ticker.C {
 							syncProfilesToGCS(ctx, logger, profileTempLocation, gcsDestPath)
@@ -462,14 +462,14 @@ func launchSDKProcess() error {
 				var timer *time.Timer
 				var profilingTimedOut atomic.Bool
 
-				if enableProfiler && opts.Options.ProfilerStopAfterMin > 0 {
-					duration := time.Duration(opts.Options.ProfilerStopAfterMin) * time.Minute
+				if enableProfiler && opts.Options.ProfilerStopAfterSec > 0 {
+					duration := time.Duration(opts.Options.ProfilerStopAfterSec) * time.Second
 					timer = time.AfterFunc(duration, func() {
 						childPids.mu.Lock()
 						defer childPids.mu.Unlock()
 						if cmd.Process != nil {
-							logger.Printf(ctx, "Profiling timeout of %d minutes reached. Sending SIGINT to worker %s",
-								opts.Options.ProfilerStopAfterMin, workerId)
+							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
+								opts.Options.ProfilerStopAfterSec, workerId)
 							profilingTimedOut.Store(true)
 							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
 						}
