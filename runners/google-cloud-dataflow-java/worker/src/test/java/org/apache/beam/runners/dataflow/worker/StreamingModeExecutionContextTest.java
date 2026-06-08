@@ -430,8 +430,6 @@ public class StreamingModeExecutionContextTest {
           new FakeGlobalConfigHandle(
               StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
       StreamingModeExecutionContext context = createExecutionContext(configHandle);
-      Windmill.WorkItemCommitRequest.Builder outputBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
       assertEquals(expectedEncoding, context.getWindmillTagEncoding().getClass());
     }
   }
