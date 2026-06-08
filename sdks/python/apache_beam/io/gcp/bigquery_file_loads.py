@@ -94,16 +94,16 @@ def _add_destination_partitioning_load_parameters(
     return additional_parameters
 
   additional_parameters = dict(additional_parameters)
+  time_partitioning = getattr(destination_table, 'timePartitioning', None)
+  range_partitioning = getattr(destination_table, 'rangePartitioning', None)
 
   if ('timePartitioning' not in additional_parameters and
-      getattr(destination_table, 'timePartitioning', None) is not None):
-    additional_parameters['timePartitioning'] = (
-        destination_table.timePartitioning)
+      isinstance(time_partitioning, bigquery_tools.bigquery.TimePartitioning)):
+    additional_parameters['timePartitioning'] = time_partitioning
 
-  if ('rangePartitioning' not in additional_parameters and
-      getattr(destination_table, 'rangePartitioning', None) is not None):
-    additional_parameters['rangePartitioning'] = (
-        destination_table.rangePartitioning)
+  if ('rangePartitioning' not in additional_parameters and isinstance(
+      range_partitioning, bigquery_tools.bigquery.RangePartitioning)):
+    additional_parameters['rangePartitioning'] = range_partitioning
 
   return additional_parameters
 

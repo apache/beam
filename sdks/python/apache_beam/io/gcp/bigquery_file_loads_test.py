@@ -828,6 +828,32 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         load_call['additional_load_parameters']['timePartitioning'],
         destination_table.timePartitioning)
 
+  def test_temporary_table_load_ignores_invalid_mock_partitioning_metadata(
+      self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    destination_table = mock.Mock()
+    destination_table.timePartitioning = mock.Mock()
+    destination_table.rangePartitioning = mock.Mock()
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertNotIn(
+        'timePartitioning', load_call['additional_load_parameters'])
+    self.assertNotIn(
+        'rangePartitioning', load_call['additional_load_parameters'])
+    dofn.bq_wrapper.get_table.assert_called_once_with(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+
   def test_multiple_partition_files(self):
     destination = 'project1:dataset1.table1'
 
