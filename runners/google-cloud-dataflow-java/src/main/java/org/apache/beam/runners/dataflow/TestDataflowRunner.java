@@ -392,7 +392,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     private final DataflowPipelineJob job;
     private final ErrorMonitorMessagesHandler messageHandler;
     private final TestDataflowRunner runner;
-    private final java.util.concurrent.atomic.AtomicReference<Optional<Boolean>> assertionsPassedRef;
+    private final java.util.concurrent.atomic.AtomicReference<Optional<Boolean>>
+        assertionsPassedRef;
 
     public CancelOnError(
         DataflowPipelineJob job,
@@ -418,7 +419,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             return null;
           }
 
-          // Check if we should initiate cancellation based on metrics (only if assertion state is not yet known)
+          // Check if we should initiate cancellation based on metrics (only if assertion state is
+          // not yet known)
           if (!assertionsPassedRef.get().isPresent() && !cancellationPending) {
             if (runner.expectedNumberOfAssertions > 0 && steps % checkMetricsIntervalSteps == 0) {
               try {
@@ -437,15 +439,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   }
                 }
               } catch (Exception e) {
-                LOG.warn(
-                    "Transient error polling metrics for job {}",
-                    job.getJobId(),
-                    e);
+                LOG.warn("Transient error polling metrics for job {}", job.getJobId(), e);
               }
             }
           }
 
-          // Check if we should initiate cancellation based on error logs (only if not already cancellationPending)
+          // Check if we should initiate cancellation based on error logs (only if not already
+          // cancellationPending)
           if (!cancellationPending) {
             long runningTimeMillis = steps * 3000L;
             if (messageHandler.hasSeenError()
@@ -471,10 +471,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           }
 
         } catch (Exception e) {
-          LOG.warn(
-              "Exception in streaming job monitor loop for job {}",
-              job.getJobId(),
-              e);
+          LOG.warn("Exception in streaming job monitor loop for job {}", job.getJobId(), e);
         }
 
         Thread.sleep(3000L);

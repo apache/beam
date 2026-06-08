@@ -212,8 +212,7 @@ public class TestDataflowRunnerTest {
     when(mockClient.getJobMetrics(anyString()))
         .thenReturn(generateMockMetricResponse(false /* success */, true /* tentative */));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
-    AssertionError expected =
-        assertThrows(AssertionError.class, () -> runner.run(p, mockRunner));
+    AssertionError expected = assertThrows(AssertionError.class, () -> runner.run(p, mockRunner));
     assertThat(expected.getMessage(), containsString("FooException"));
     verify(mockJob, never()).cancel();
   }
