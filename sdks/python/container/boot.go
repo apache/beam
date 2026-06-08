@@ -763,16 +763,27 @@ func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesD
 
 		if shouldProcess {
 			wg.Add(1)
-			go func(bin, html, filename string) {
+			go func(bin string) {
 				defer wg.Done()
 
-				cmd := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
-				if err := cmd.Run(); err != nil {
-					logger.Warnf(ctx, "Failed to generate flamegraph for %s: %v", filename, err)
-				} else {
-					logger.Printf(ctx, "Successfully generated/updated flamegraph: %s", filepath.Base(html))
+				html := strings.TrimSuffix(bin, ".bin") + ".html"
+				filename := filepath.Base(bin)
+
+				// 1. Peak Flamegraph
+				cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
+				if err := cmd1.Run(); err != nil {
+					logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
 				}
-			}(binPath, htmlPath, name)
+
+				// 2. Leaks Flamegraph
+				leaksHtml := strings.TrimSuffix(bin, ".bin") + "_leaks.html"
+				cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, bin)
+				if err := cmd2.Run(); err != nil {
+					logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
+				}
+
+				logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
+			}(binPath)
 		}
 	}
 
