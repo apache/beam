@@ -415,10 +415,6 @@ public final class Work implements RefreshableWork {
     abstract Instant startTime();
   }
 
-  public String getComputationId() {
-    return processingContext.computationId();
-  }
-
   public KeyGroup getKeyGroup() {
     return keyGroup;
   }

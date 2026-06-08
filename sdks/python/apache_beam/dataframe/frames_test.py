@@ -2955,19 +2955,26 @@ class AllowNonParallelTest(unittest.TestCase):
       self._use_non_parallel_operation()
 
 
+_CONSTRUCTION_TIME_TEST_COLUMNS = [
+    'str_col', 'int_col', 'flt_col', 'cat_col', 'datetime_col'
+]
+
+
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
-  DF = pd.DataFrame({
-      'str_col': ['foo', 'bar'] * 3,
-      'int_col': [1, 2] * 3,
-      'flt_col': [1.1, 2.2] * 3,
-      'cat_col': pd.Series(list('aabbca'), dtype="category"),
-      'datetime_col': pd.Series(
-          pd.date_range(
-              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
-  })
-  DEFERRED_DF = frame_base.DeferredFrame.wrap(
-      expressions.PlaceholderExpression(DF.iloc[:0]))
+  @classmethod
+  def setUpClass(cls):
+    cls.DF = pd.DataFrame({
+        'str_col': ['foo', 'bar'] * 3,
+        'int_col': [1, 2] * 3,
+        'flt_col': [1.1, 2.2] * 3,
+        'cat_col': pd.Series(list('aabbca'), dtype="category"),
+        'datetime_col': pd.Series(
+            pd.date_range(
+                '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
+    })
+    cls.DEFERRED_DF = frame_base.DeferredFrame.wrap(
+        expressions.PlaceholderExpression(cls.DF.iloc[:0]))
 
   def _run_test(self, fn):
     expected = fn(self.DF)
@@ -2982,11 +2989,11 @@ class ConstructionTimeTest(unittest.TestCase):
     else:
       self.assertEqual(expected, actual)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_name(self, col_name):
     self._run_test(lambda df: df[col_name].name)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_dtype(self, col_name):
     self._run_test(lambda df: df[col_name].dtype)
     self._run_test(lambda df: df[col_name].dtypes)

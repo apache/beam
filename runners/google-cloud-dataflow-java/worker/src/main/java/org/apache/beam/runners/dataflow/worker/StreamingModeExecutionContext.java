@@ -135,7 +135,7 @@ public class StreamingModeExecutionContext
    */
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
-  private WindmillTagEncoding windmillTagEncoding;
+  private final WindmillTagEncoding windmillTagEncoding;
   /**
    * The current user-facing key for this execution context.
    *
@@ -334,10 +334,6 @@ public class StreamingModeExecutionContext
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
     this.operationalLimits = config.operationalLimits();
-    this.windmillTagEncoding =
-        config.enableStateTagEncodingV2()
-            ? WindmillTagEncodingV2.instance()
-            : WindmillTagEncodingV1.instance();
 
     startForNewKey(work, stateReader);
   }
