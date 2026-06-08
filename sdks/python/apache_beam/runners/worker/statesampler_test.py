@@ -19,6 +19,7 @@
 # pytype: skip-file
 
 import logging
+import threading
 import time
 import unittest
 from unittest import mock
@@ -319,7 +320,6 @@ class StateSamplerTest(unittest.TestCase):
     from a secondary Python thread, while the background sampler thread is concurrently
     updating counter states.
     """
-    import threading
     if not statesampler.FAST_SAMPLER:
       self.skipTest('Requires FAST_SAMPLER')
 
