@@ -73,7 +73,7 @@ public abstract class WindmillReaderIteratorBase<T>
           continue;
         }
 
-        // All work items are exhausted. Iterator returns false.
+        // All work items are exhausted.
         current = null;
         return false;
       }

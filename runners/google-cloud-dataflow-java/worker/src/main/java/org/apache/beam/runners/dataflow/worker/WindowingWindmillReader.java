@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.ValueInEmptyWindows;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -49,7 +48,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWorkItem<K, T>>> {
 
-  private final Coder<K> keyCoder;
   private final Coder<T> valueCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
@@ -66,7 +64,6 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     this.windowCoder = inputCoder.getWindowCoder();
     WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<K, T> keyedWorkItemCoder =
         (WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<K, T>) inputCoder.getValueCoder();
-    this.keyCoder = keyedWorkItemCoder.getKeyCoder();
     this.valueCoder = keyedWorkItemCoder.getElementCoder();
     this.context = context;
     this.skipUndecodableElements = skipUndecodableElements;
@@ -129,27 +126,32 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
     return new WindowingWindmillReader<>(coder, context, skipUndecodableElements);
   }
 
+  private KeyedWorkItem<K, T> createKeyedWorkItem() {
+    @SuppressWarnings("unchecked")
+    @Nullable K key = (K) context.getKey();
+    return new WindmillKeyedWorkItem<>(
+        key,
+        context.getWorkItem(),
+        windowCoder,
+        windowsCoder,
+        valueCoder,
+        context.getWindmillTagEncoding(),
+        context.getDrainMode(),
+        skipUndecodableElements.isAccessible()
+            && Boolean.TRUE.equals(skipUndecodableElements.get()));
+  }
+
+  private boolean isEmpty(KeyedWorkItem<K, T> keyedWorkItem) {
+    return Iterables.isEmpty(keyedWorkItem.timersIterable())
+        && Iterables.isEmpty(keyedWorkItem.elementsIterable());
+  }
+
   @Override
   public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
-    final K key =
-        keyCoder.decode(
-            checkStateNotNull(context.getSerializedKey()).newInput(), Coder.Context.OUTER);
-    final WorkItem workItem = context.getWorkItem();
-    KeyedWorkItem<K, T> keyedWorkItem =
-        new WindmillKeyedWorkItem<>(
-            key,
-            workItem,
-            windowCoder,
-            windowsCoder,
-            valueCoder,
-            context.getWindmillTagEncoding(),
-            context.getDrainMode(),
-            skipUndecodableElements.isAccessible()
-                && Boolean.TRUE.equals(skipUndecodableElements.get()));
-    final boolean isEmptyWorkItem =
-        (Iterables.isEmpty(keyedWorkItem.timersIterable())
-            && Iterables.isEmpty(keyedWorkItem.elementsIterable()));
-    final WindowedValue<KeyedWorkItem<K, T>> value = new ValueInEmptyWindows<>(keyedWorkItem);
+    final KeyedWorkItem<K, T> firstKeyedWorkItem = createKeyedWorkItem();
+    final boolean firstKeyIsEmpty = isEmpty(firstKeyedWorkItem);
+    final WindowedValue<KeyedWorkItem<K, T>> firstValue =
+        new ValueInEmptyWindows<>(firstKeyedWorkItem);
 
     return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
       private @Nullable WindowedValue<KeyedWorkItem<K, T>> current = null;
@@ -165,10 +167,10 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
           return false;
         }
         started = true;
-        if (isEmptyWorkItem) {
+        if (firstKeyIsEmpty) {
           return advance(); // Try to transition immediately if the first key is empty!
         }
-        current = value;
+        current = firstValue;
         return true;
       }
 
@@ -179,27 +181,20 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
               checkStateNotNull(context.getWorkItem()).getShardingKey());
         }
 
-        context.finishKey();
-        if (context.advance()) {
-          @SuppressWarnings("unchecked")
-          K newKey = (K) context.getKey();
-          KeyedWorkItem<K, T> newKeyedWorkItem =
-              new WindmillKeyedWorkItem<>(
-                  newKey,
-                  context.getWork().getWorkItem(),
-                  windowCoder,
-                  windowsCoder,
-                  valueCoder,
-                  context.getWindmillTagEncoding(),
-                  context.getDrainMode(),
-                  skipUndecodableElements.isAccessible()
-                      && Boolean.TRUE.equals(skipUndecodableElements.get()));
-          current = new ValueInEmptyWindows<>(newKeyedWorkItem);
-          return true;
-        }
+        while (true) {
+          context.finishKey();
+          if (context.advance()) {
+            KeyedWorkItem<K, T> newKeyedWorkItem = createKeyedWorkItem();
+            if (isEmpty(newKeyedWorkItem)) {
+              continue;
+            }
+            current = new ValueInEmptyWindows<>(newKeyedWorkItem);
+            return true;
+          }
 
-        current = null;
-        return false;
+          current = null;
+          return false;
+        }
       }
 
       @Override
