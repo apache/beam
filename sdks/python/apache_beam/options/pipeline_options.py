@@ -889,6 +889,15 @@ class TypeOptions(PipelineOptions):
         action='store_true',
         help='Disable the use of beartype for type checking.')
     parser.add_argument(
+        '--exclude_infer_dataclass_field_type',
+        default=False,
+        action='store_true',
+        help='Exclude certain typehint inference involving dataclass fields '
+        'and resolve to Any (as in beam<=2.74.0). NOTE: this option is '
+        'for backward compatibility only and the exclusion scenarios are '
+        'subject to change or remove in a future version. For details see: '
+        'https://beam.apache.org/releases/pydoc/current/apache_beam.typehints.trivial_inference.html#apache_beam.typehints.trivial_inference.resolve_dataclass_field_type')  # pylint: disable=line-too-long
+    parser.add_argument(
         '--runtime_type_check',
         default=False,
         action='store_true',
