@@ -134,15 +134,16 @@ type PipelineOptionsData struct {
 }
 
 type OptionsData struct {
-	Experiments          []string `json:"experiments"`
-	ProfilerAgent        string   `json:"profiler_agent"`
-	ProfilerExtraArgs    []string `json:"profiler_extra_args"`
-	ProfilerExtraEnvVars []string `json:"profiler_extra_env_vars"`
-	ProfileLocation      string   `json:"profile_location"`
-	ProfileTempLocation  string   `json:"profile_temp_location"`
-	ProfileSyncPeriodSec int      `json:"profile_sync_period_sec"`
+	Experiments                   []string `json:"experiments"`
+	ProfilerAgent                 string   `json:"profiler_agent"`
+	ProfilerExtraArgs             []string `json:"profiler_extra_args"`
+	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
+	ProfileLocation               string   `json:"profile_location"`
+	ProfileTempLocation           string   `json:"profile_temp_location"`
+	ProfileSyncPeriodSec          int      `json:"profile_sync_period_sec"`
 	ProfilerStopAfterMin          int      `json:"profiler_stop_after_min"`
 	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
+	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
 	JobId                         string   `json:"jobId,omitempty"`
 }
 
@@ -255,6 +256,10 @@ func launchSDKProcess() error {
 					}()
 				}
 			}
+		}
+
+		if opts.Options.ProfilerAgent == "memray" {
+			go postProcessProfilesLoop(ctx, logger, profileTempLocation, opts.Options.ProfilePostprocessIntervalSec)
 		}
 	}
 
@@ -703,4 +708,73 @@ func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsD
 	} else {
 		logger.Printf(ctx, "Successfully synced profiles to GCS.")
 	}
+}
+
+// postProcessProfilesLoop runs a background loop that periodically triggers profile post-processing if enabled.
+func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
+	if intervalSec <= 0 {
+		return
+	}
+
+	for {
+		runPostProcessingSweep(ctx, logger, profilesDir, intervalSec)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(intervalSec) * time.Second):
+			// Block until the sleep completes before starting the next sweep
+		}
+	}
+}
+
+// runPostProcessingSweep scans the profiles directory and launches concurrent postprocessing for newly updated profiles.
+func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
+	files, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, file := range files {
+		name := file.Name()
+		if !strings.HasSuffix(name, ".bin") || strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		binPath := filepath.Join(profilesDir, name)
+		binInfo, err := os.Stat(binPath)
+		if err != nil || binInfo.Size() == 0 {
+			continue
+		}
+
+		htmlPath := strings.TrimSuffix(binPath, ".bin") + ".html"
+		htmlInfo, err := os.Stat(htmlPath)
+
+		shouldProcess := false
+		if os.IsNotExist(err) {
+			shouldProcess = true
+		} else if err == nil {
+			// Don't regenerate when there were no updates to the profile.
+			if binInfo.ModTime().After(htmlInfo.ModTime().Add(time.Duration(intervalSec) * time.Second)) {
+				shouldProcess = true
+			}
+		}
+
+		if shouldProcess {
+			wg.Add(1)
+			go func(bin, html, filename string) {
+				defer wg.Done()
+
+				cmd := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
+				if err := cmd.Run(); err != nil {
+					logger.Warnf(ctx, "Failed to generate flamegraph for %s: %v", filename, err)
+				} else {
+					logger.Printf(ctx, "Successfully generated/updated flamegraph: %s", filepath.Base(html))
+				}
+			}(binPath, htmlPath, name)
+		}
+	}
+
+	wg.Wait()
 }

@@ -1707,6 +1707,13 @@ class ProfilingOptions(PipelineOptions):
         help=(
             'If True, the profiling agent won\'t be re-enabled after a worker '
             'process crash.'))
+    parser.add_argument(
+        '--profile_postprocess_interval_sec',
+        type=int,
+        default=300,
+        help=(
+            'Frequency (in seconds) at which the local profiles are post-processed '
+            'on-the-fly. Defaults to 300 (5 minutes). Set to 0 to disable.'))
 
   def validate(self, validator):
     errors = []
