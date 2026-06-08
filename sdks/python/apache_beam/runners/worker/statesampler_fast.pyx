@@ -218,9 +218,10 @@ cdef class ScopedState(object):
   @property
   def nsecs(self):
     cdef int64_t val
-    pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
-    val = self._nsecs
-    pythread.PyThread_release_lock(self.sampler.lock)
+    with nogil:
+      pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
+      val = self._nsecs
+      pythread.PyThread_release_lock(self.sampler.lock)
     return val
 
   def sampled_seconds(self):
