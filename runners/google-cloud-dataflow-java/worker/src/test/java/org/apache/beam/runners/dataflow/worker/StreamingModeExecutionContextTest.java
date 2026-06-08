@@ -61,6 +61,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -110,36 +111,40 @@ public class StreamingModeExecutionContextTest {
   DataflowWorkerHarnessOptions options;
   private FakeGlobalConfigHandle globalConfigHandle;
 
+  private StreamingModeExecutionContext createExecutionContext(
+      StreamingGlobalConfigHandle configHandle) {
+    CounterSet counterSet = new CounterSet();
+    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
+    return new StreamingModeExecutionContext(
+        counterSet,
+        COMPUTATION_ID,
+        new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
+        stateNameMap,
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .build()
+            .forComputation("comp"),
+        StreamingStepMetricsContainer.createRegistry(),
+        new DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(),
+            executionStateRegistry.getState(
+                NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
+            counterSet,
+            PipelineOptionsFactory.create(),
+            "test-work-item-id"),
+        executionStateRegistry,
+        configHandle,
+        Long.MAX_VALUE,
+        /*throwExceptionOnLargeOutput=*/ false);
+  }
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    CounterSet counterSet = new CounterSet();
-    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
-    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
-    executionContext =
-        new StreamingModeExecutionContext(
-            counterSet,
-            COMPUTATION_ID,
-            new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
-            stateNameMap,
-            WindmillStateCache.builder()
-                .setSizeMb(options.getWorkerCacheMb())
-                .build()
-                .forComputation("comp"),
-            StreamingStepMetricsContainer.createRegistry(),
-            new DataflowExecutionStateTracker(
-                ExecutionStateSampler.newForTest(),
-                executionStateRegistry.getState(
-                    NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
-                counterSet,
-                PipelineOptionsFactory.create(),
-                "test-work-item-id"),
-            executionStateRegistry,
-            globalConfigHandle,
-            Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+    executionContext = createExecutionContext(globalConfigHandle);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -421,20 +426,11 @@ public class StreamingModeExecutionContextTest {
     for (Boolean isV2Encoding : Lists.newArrayList(Boolean.TRUE, Boolean.FALSE)) {
       Class<?> expectedEncoding =
           isV2Encoding ? WindmillTagEncodingV2.class : WindmillTagEncodingV1.class;
-      Windmill.WorkItemCommitRequest.Builder outputBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
-      globalConfigHandle.setConfig(
-          StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
-      executionContext.start(
-          "key",
-          createMockWork(
-              Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
-          stateReader,
-          sideInputStateFetcher,
-          outputBuilder,
-          workExecutor);
-      assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
+      FakeGlobalConfigHandle configHandle =
+          new FakeGlobalConfigHandle(
+              StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
+      StreamingModeExecutionContext context = createExecutionContext(configHandle);
+      assertEquals(expectedEncoding, context.getWindmillTagEncoding().getClass());
     }
   }
 
