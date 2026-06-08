@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
