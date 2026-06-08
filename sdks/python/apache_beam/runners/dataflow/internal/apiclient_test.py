@@ -1327,7 +1327,8 @@ class UtilTest(unittest.TestCase):
               'apache_beam.runners.dataflow.internal.apiclient.dataflow'
               '.MetricsV1Beta3Client'):
             apiclient.DataflowApplicationClient(pipeline_options)
-            called_kwargs = mock_jobs.call_args[1]
+            mock_jobs.assert_called_once()
+            called_kwargs = mock_jobs.call_args.kwargs
             client_opts = called_kwargs.get('client_options')
             self.assertIsNotNone(client_opts)
             self.assertEqual(client_opts.api_endpoint, expected_ep)
