@@ -519,11 +519,12 @@ class DataflowApplicationClient(object):
     client_options = None
     transport = None
     if self.google_cloud_options.dataflow_endpoint:
-      endpoint = self.google_cloud_options.dataflow_endpoint
+      endpoint = self.google_cloud_options.dataflow_endpoint.strip()
       if 'localhost' in endpoint or 'sandbox' in endpoint:
         transport = 'rest'
       else:
         endpoint = re.sub('^https?://', '', endpoint)
+      endpoint = endpoint.rstrip('/')
       client_options = client_options_lib.ClientOptions(api_endpoint=endpoint)
 
     self._jobs_client = dataflow.JobsV1Beta3Client(
