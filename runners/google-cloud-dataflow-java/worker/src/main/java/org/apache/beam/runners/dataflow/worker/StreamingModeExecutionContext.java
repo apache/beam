@@ -127,7 +127,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
    */
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
-  private WindmillTagEncoding windmillTagEncoding;
+  private final WindmillTagEncoding windmillTagEncoding;
   /**
    * The current user-facing key for this execution context.
    *
@@ -187,13 +187,10 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     this.throwExceptionOnLargeOutput = throwExceptionOnLargeOutput;
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     this.operationalLimits = config.operationalLimits();
-    this.windmillTagEncoding = getWindmillTagEncoding(config);
-  }
-
-  private static WindmillTagEncoding getWindmillTagEncoding(StreamingGlobalConfig config) {
-    return config.enableStateTagEncodingV2()
-        ? WindmillTagEncodingV2.instance()
-        : WindmillTagEncodingV1.instance();
+    this.windmillTagEncoding =
+        config.enableStateTagEncodingV2()
+            ? WindmillTagEncodingV2.instance()
+            : WindmillTagEncodingV1.instance();
   }
 
   @VisibleForTesting
@@ -262,7 +259,6 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
     this.operationalLimits = config.operationalLimits();
-    this.windmillTagEncoding = getWindmillTagEncoding(config);
     this.outputBuilder = outputBuilder;
     this.sideInputCache.clear();
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
