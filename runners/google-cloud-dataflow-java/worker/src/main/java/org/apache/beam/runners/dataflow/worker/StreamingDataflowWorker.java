@@ -179,6 +179,9 @@ public final class StreamingDataflowWorker {
   // Experiment make the monitor within BoundedQueueExecutor fair
   public static final String BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT =
       "windmill_bounded_queue_executor_use_fair_monitor";
+  // Don't use. Experiment guarding multi key bundles. The feature is work in progress and
+  // incomplete.
+  private static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
 
   private final WindmillStateCache stateCache;
   private AtomicReference<StreamingWorkerStatusPages> statusPages = new AtomicReference<>();
@@ -1018,6 +1021,8 @@ public final class StreamingDataflowWorker {
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
+    boolean useKeyGroupWorkQueue =
+        DataflowRunner.hasExperiment(options, UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1025,7 +1030,8 @@ public final class StreamingDataflowWorker {
         chooseMaxBundlesOutstanding(options),
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        useFairMonitor);
+        useFairMonitor,
+        useKeyGroupWorkQueue);
   }
 
   public static void main(String[] args) throws Exception {

@@ -421,6 +421,11 @@ message WatermarkHold {
   optional string state_family = 4;
 }
 
+message Uint128Proto {
+  required fixed64 high = 1;
+  required fixed64 low = 2;
+}
+
 // Proto describing a hot key detected on a given WorkItem.
 message HotKeyInfo {
   // The age of the hot key measured from when it was first detected.
@@ -447,6 +452,8 @@ message WorkItem {
   // elements mapped to a single key to impact pipeline performance. When
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
+
+  optional Uint128Proto key_group = 18;
 
   reserved 12, 13, 14, 15, 16;
 }
