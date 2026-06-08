@@ -36,8 +36,8 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.QueuedWork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.jspecify.annotations.NonNull;
 
 /**
  * A custom, thread-safe doubly-linked BlockingQueue. In addition to global FIFO ordering, the queue
