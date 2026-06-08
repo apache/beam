@@ -312,12 +312,12 @@ class StateSamplerTest(unittest.TestCase):
         actual_value, state_duration_ms * (1.0 - margin_of_error))
     _LOGGER.info("Exception test finished successfully.")
 
-  def test_concurrent_nsecs_reads_without_deadlock(self):
-    """Verify that concurrent reads of nsecs do not cause deadlocks.
+  def test_concurrent_nsecs_reads(self):
+    """Verify that concurrent reads of nsecs behave correctly under thread contention.
 
     This test runs state transitions on the main thread and reads `nsecs` properties
     from a secondary Python thread, while the background sampler thread is concurrently
-    acquiring the sampler lock and updating counter states.
+    updating counter states.
     """
     import threading
     if not statesampler.FAST_SAMPLER:
