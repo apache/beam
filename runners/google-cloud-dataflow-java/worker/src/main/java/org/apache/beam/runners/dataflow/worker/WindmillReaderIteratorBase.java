@@ -36,8 +36,8 @@ public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
   private final StreamingModeExecutionContext context;
   private Windmill.WorkItem work;
-  private int bundleIndex = 0;
-  private int messageIndex = -1;
+  private int bundleIndex;
+  private int messageIndex;
   private @Nullable WindowedValue<T> current = null;
   private final ValueProvider<Boolean> skipUndecodableElements;
   private static final Logger LOG = LoggerFactory.getLogger(WindmillReaderIteratorBase.class);
@@ -46,7 +46,7 @@ public abstract class WindmillReaderIteratorBase<T>
       StreamingModeExecutionContext context, ValueProvider<Boolean> skipUndecodableElements) {
     this.context = context;
     this.skipUndecodableElements = skipUndecodableElements;
-    this.work = context.getWorkItem();
+    resetWorkFromContext();
   }
 
   @Override
@@ -67,9 +67,7 @@ public abstract class WindmillReaderIteratorBase<T>
         context.finishKey();
         if (context.advance()) {
           // Transition succeeded! Update iterator references to the new work item
-          this.work = context.getWork().getWorkItem();
-          this.bundleIndex = 0;
-          this.messageIndex = -1;
+          resetWorkFromContext();
           continue;
         }
 
@@ -102,6 +100,12 @@ public abstract class WindmillReaderIteratorBase<T>
         throw e;
       }
     }
+  }
+
+  private void resetWorkFromContext() {
+    this.work = context.getWork().getWorkItem();
+    this.bundleIndex = 0;
+    this.messageIndex = -1;
   }
 
   protected abstract WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException;
