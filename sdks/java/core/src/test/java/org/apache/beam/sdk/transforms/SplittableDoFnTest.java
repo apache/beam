@@ -1048,8 +1048,7 @@ public class SplittableDoFnTest implements Serializable {
       WAS_FINALIZED.remove(element);
       throw new RuntimeException(
           String.format(
-              "Bundle finalization callback was not observed after %d checkpoints.",
-              MAX_ATTEMPTS));
+              "Bundle finalization callback was not observed after %d checkpoints.", MAX_ATTEMPTS));
     }
 
     @GetInitialRestriction

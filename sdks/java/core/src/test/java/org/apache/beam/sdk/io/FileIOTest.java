@@ -291,7 +291,7 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
             .apply(
@@ -299,7 +299,7 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchUpdatedMetadata =
         p.apply(
             "match updated",
@@ -307,7 +307,7 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("first").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)),
                     true));
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
         p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
@@ -316,7 +316,7 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)),
                         true));
 
     // write one file at the beginning. This will trigger the first output for matchAll
