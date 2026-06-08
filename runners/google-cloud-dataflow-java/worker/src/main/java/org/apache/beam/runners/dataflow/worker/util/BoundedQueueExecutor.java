@@ -29,15 +29,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An executor for executing work on windmill items. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BoundedQueueExecutor {
 
   private final ThreadPoolExecutor executor;
@@ -78,6 +78,9 @@ public class BoundedQueueExecutor {
   @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
+  // If set the keyGroupWorkQueue is used by the underlying executor.
+  private final @Nullable KeyGroupWorkQueue keyGroupWorkQueue;
+
   public BoundedQueueExecutor(
       int initialMaximumPoolSize,
       long keepAliveTime,
@@ -85,7 +88,9 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory,
-      boolean useFairMonitor) {
+      boolean useFairMonitor,
+      boolean useKeyGroupWorkQueue) {
+    this.keyGroupWorkQueue = useKeyGroupWorkQueue ? new KeyGroupWorkQueue(useFairMonitor) : null;
     this.maximumPoolSize = initialMaximumPoolSize;
     monitor = new Monitor(useFairMonitor);
     executor =
@@ -94,7 +99,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            new LinkedBlockingQueue<>(),
+            keyGroupWorkQueue != null ? keyGroupWorkQueue : new LinkedBlockingQueue<>(),
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -313,7 +318,7 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private static final class QueuedWork implements Runnable {
+  static final class QueuedWork implements Runnable {
 
     private final ExecutableWork work;
     private final BoundedQueueExecutorWorkHandleImpl handle;
@@ -376,6 +381,22 @@ public class BoundedQueueExecutor {
   @VisibleForTesting
   BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
     return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
+  }
+
+  public @Nullable ExecutableWork pollWork(
+      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+    checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    checkArgument(computationId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT));
+    BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
+    if (keyGroupWorkQueue == null) {
+      return null;
+    }
+    @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
+    if (queuedWork == null) {
+      return null;
+    }
+    internalHandle.merge(queuedWork.getHandle());
+    return queuedWork.getWork();
   }
 
   private void decrementCounters(int elements, long bytes) {

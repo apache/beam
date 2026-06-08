@@ -62,16 +62,24 @@ public final class ExecutableWork {
     }
   }
 
-  public final WorkId id() {
+  public WorkId id() {
     return work().id();
   }
 
-  public final Windmill.WorkItem getWorkItem() {
+  public Windmill.WorkItem getWorkItem() {
     return work().getWorkItem();
   }
 
   @Override
   public String toString() {
     return "ExecutableWork{" + id() + "}";
+  }
+
+  public String getComputationId() {
+    return work().getComputationId();
+  }
+
+  public Work.KeyGroup getKeyGroup() {
+    return work().getKeyGroup();
   }
 }
