@@ -705,11 +705,35 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Read withAttemptTimeout(Duration timeout) {
-      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+    public Read withAttemptTimeout(ValueProvider<Duration> timeout) {
       BigtableReadOptions readOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(readOptions.toBuilder().setAttemptTimeout(timeout).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+      return withAttemptTimeout(StaticValueProvider.of(timeout));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Read} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withOperationTimeout(ValueProvider<Duration> timeout) {
+      BigtableReadOptions readOptions = getBigtableReadOptions();
+      return toBuilder()
+          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeout).build())
           .build();
     }
 
@@ -722,10 +746,7 @@ public class BigtableIO {
      */
     public Read withOperationTimeout(Duration timeout) {
       checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
-      BigtableReadOptions readOptions = getBigtableReadOptions();
-      return toBuilder()
-          .setBigtableReadOptions(readOptions.toBuilder().setOperationTimeout(timeout).build())
-          .build();
+      return withOperationTimeout(StaticValueProvider.of(timeout));
     }
 
     Read withServiceFactory(BigtableServiceFactory factory) {
@@ -1043,11 +1064,35 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public Write withAttemptTimeout(Duration timeout) {
-      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+    public Write withAttemptTimeout(ValueProvider<Duration> timeout) {
       BigtableWriteOptions options = getBigtableWriteOptions();
       return toBuilder()
           .setBigtableWriteOptions(options.toBuilder().setAttemptTimeout(timeout).build())
+          .build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the attempt timeout. Attempt timeout controls the
+     * timeout for each remote call.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withAttemptTimeout(Duration timeout) {
+      checkArgument(timeout.isLongerThan(Duration.ZERO), "attempt timeout must be positive");
+      return withAttemptTimeout(StaticValueProvider.of(timeout));
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.Write} with the operation timeout. Operation timeout has
+     * ultimate control over how long the logic should keep trying the remote call until it gives up
+     * completely.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withOperationTimeout(ValueProvider<Duration> timeout) {
+      BigtableWriteOptions options = getBigtableWriteOptions();
+      return toBuilder()
+          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeout).build())
           .build();
     }
 
@@ -1060,10 +1105,7 @@ public class BigtableIO {
      */
     public Write withOperationTimeout(Duration timeout) {
       checkArgument(timeout.isLongerThan(Duration.ZERO), "operation timeout must be positive");
-      BigtableWriteOptions options = getBigtableWriteOptions();
-      return toBuilder()
-          .setBigtableWriteOptions(options.toBuilder().setOperationTimeout(timeout).build())
-          .build();
+      return withOperationTimeout(StaticValueProvider.of(timeout));
     }
 
     /**
@@ -2183,7 +2225,7 @@ public class BigtableIO {
 
     abstract @Nullable Duration getBacklogReplicationAdjustment();
 
-    abstract @Nullable Duration getReadChangeStreamTimeout();
+    abstract @Nullable ValueProvider<Duration> getReadChangeStreamTimeout();
 
     abstract @Nullable Boolean getValidateConfig();
 
@@ -2403,8 +2445,21 @@ public class BigtableIO {
      *
      * <p>Does not modify this object.
      */
-    public ReadChangeStream withReadChangeStreamTimeout(Duration timeout) {
+    public ReadChangeStream withReadChangeStreamTimeout(ValueProvider<Duration> timeout) {
       return toBuilder().setReadChangeStreamTimeout(timeout).build();
+    }
+
+    /**
+     * Returns a new {@link BigtableIO.ReadChangeStream} that overrides timeout for ReadChangeStream
+     * remote calls.
+     *
+     * <p>This is useful to override the default of 15s timeout if the checkpoint duration is longer
+     * than 15s.
+     *
+     * <p>Does not modify this object.
+     */
+    public ReadChangeStream withReadChangeStreamTimeout(Duration timeout) {
+      return withReadChangeStreamTimeout(StaticValueProvider.of(timeout));
     }
 
     /**
@@ -2599,7 +2654,7 @@ public class BigtableIO {
 
       abstract ReadChangeStream.Builder setBacklogReplicationAdjustment(Duration adjustment);
 
-      abstract ReadChangeStream.Builder setReadChangeStreamTimeout(Duration timeout);
+      abstract ReadChangeStream.Builder setReadChangeStreamTimeout(ValueProvider<Duration> timeout);
 
       abstract ReadChangeStream.Builder setValidateConfig(boolean validateConfig);
 
