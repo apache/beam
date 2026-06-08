@@ -597,7 +597,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.19.2"
+    def activemq_version = "6.2.5"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -641,7 +641,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def protobuf_version = "4.33.2"
     // TODO(https://github.com/apache/beam/issues/37637): Remove this once the Bom has been updated to at least reach this version
     def bigtable_version = "2.73.1"
-    def qpid_jms_client_version = "0.61.0"
+    def qpid_jms_client_version = "2.10.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
