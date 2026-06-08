@@ -90,7 +90,7 @@ def _has_partitioning_load_parameters(additional_parameters):
 
 def _add_destination_partitioning_load_parameters(
     additional_parameters, destination_table):
-  if not isinstance(destination_table, bigquery_tools.bigquery.Table):
+  if destination_table is None:
     return additional_parameters
 
   additional_parameters = dict(additional_parameters)
@@ -714,6 +714,7 @@ class TriggerLoadJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
     self.schema_cache = {}
+    self.destination_table_cache = {}
 
   def process(
       self,
@@ -764,17 +765,21 @@ class TriggerLoadJobs(beam.DoFn):
     if self.temporary_tables:
       destination_table = None
       hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
-      should_lookup_destination_table = (
-          schema is None or
-          not _has_partitioning_load_parameters(additional_parameters))
-      if should_lookup_destination_table:
+      need_schema = schema is None and hashed_dest not in self.schema_cache
+      need_partitioning = not _has_partitioning_load_parameters(
+          additional_parameters)
+      if need_schema or need_partitioning:
         try:
-          destination_table = self.bq_wrapper.get_table(
-              project_id=table_reference.projectId,
-              dataset_id=table_reference.datasetId,
-              table_id=table_reference.tableId)
+          if hashed_dest in self.destination_table_cache:
+            destination_table = self.destination_table_cache[hashed_dest]
+          else:
+            destination_table = self.bq_wrapper.get_table(
+                project_id=table_reference.projectId,
+                dataset_id=table_reference.datasetId,
+                table_id=table_reference.tableId)
+            self.destination_table_cache[hashed_dest] = destination_table
         except Exception as e:
-          if schema is None:
+          if need_schema:
             _LOGGER.warning(
                 "Input schema is absent and could not fetch the final "
                 "destination table's schema [%s]. Creating temp table [%s] "
