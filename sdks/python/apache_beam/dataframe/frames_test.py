@@ -2956,12 +2956,12 @@ class AllowNonParallelTest(unittest.TestCase):
 
 
 _CONSTRUCTION_TIME_TEST_COLUMNS = [
-    'str_col', 'int_col', 'flt_col', 'cat_col', 'datetime_col']
+    'str_col', 'int_col', 'flt_col', 'cat_col', 'datetime_col'
+]
 
 
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
-
   @classmethod
   def setUpClass(cls):
     cls.DF = pd.DataFrame({
