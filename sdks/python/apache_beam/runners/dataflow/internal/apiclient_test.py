@@ -1298,6 +1298,42 @@ class UtilTest(unittest.TestCase):
           self.assertFalse(template_obj.get('steps'))
           self.assertTrue(template_obj['stepsLocation'])
 
+  def test_dataflow_endpoint_clean(self):
+    endpoints_and_expectations = [
+        # (input_endpoint, expected_endpoint, expected_transport)
+        ('https://dataflow.googleapis.com/', 'dataflow.googleapis.com', None),
+        ('https://dataflow.googleapis.com   ', 'dataflow.googleapis.com', None),
+        ('dataflow.googleapis.com/', 'dataflow.googleapis.com', None),
+        ('http://localhost:8080/', 'http://localhost:8080', 'rest'),
+        ('localhost:8080/', 'localhost:8080', 'rest'),
+    ]
+
+    for input_ep, expected_ep, expected_transport in endpoints_and_expectations:
+      pipeline_options = PipelineOptions([
+          '--project',
+          'test-project',
+          '--temp_location',
+          'gs://test-location/temp',
+          '--dataflow_endpoint',
+          input_ep,
+          '--no_auth',
+      ])
+      with mock.patch('apache_beam.runners.dataflow.internal.apiclient.dataflow'
+                      '.JobsV1Beta3Client') as mock_jobs:
+        with mock.patch(
+            'apache_beam.runners.dataflow.internal.apiclient.dataflow'
+            '.MessagesV1Beta3Client'):
+          with mock.patch(
+              'apache_beam.runners.dataflow.internal.apiclient.dataflow'
+              '.MetricsV1Beta3Client'):
+            apiclient.DataflowApplicationClient(pipeline_options)
+            mock_jobs.assert_called_once()
+            called_kwargs = mock_jobs.call_args.kwargs
+            client_opts = called_kwargs.get('client_options')
+            self.assertIsNotNone(client_opts)
+            self.assertEqual(client_opts.api_endpoint, expected_ep)
+            self.assertEqual(called_kwargs.get('transport'), expected_transport)
+
   def test_stage_resources(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
