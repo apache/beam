@@ -192,7 +192,7 @@ public class StreamingModeExecutionContext
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
   private Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = new HashMap<>();
-  private final AtomicBoolean workIsFailed = new AtomicBoolean(false);
+  private final AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
   private final String sourceBytesProcessCounterName;
@@ -259,7 +259,7 @@ public class StreamingModeExecutionContext
   }
 
   public boolean workIsFailed() {
-    return workIsFailed.get();
+    return workBatchFailed.get();
   }
 
   public boolean getDrainMode() {
@@ -298,7 +298,7 @@ public class StreamingModeExecutionContext
     this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
     this.accumulatedCallbacks = new HashMap<>();
-    this.workIsFailed.set(false);
+    this.workBatchFailed.set(false);
     this.sideInputCache.clear();
     this.activeStateReader = null;
     this.activeReader = null;
@@ -715,7 +715,7 @@ public class StreamingModeExecutionContext
 
     this.outputBuilder = createOutputBuilder(newWork);
     this.outputBuilders.add(this.outputBuilder);
-    newWork.setOnFailureListener(this.workIsFailed);
+    newWork.setOnFailureListener(this.workBatchFailed);
     this.executedWorks.add(newWork);
 
     logHotKeyIfDetected(newWork, this.key);
