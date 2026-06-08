@@ -790,6 +790,11 @@ def create_test_methods(spec):
     yield f'test_{suffix}', test
 
 
+_SICKBAY_TESTS = {
+    'ml_transform.yaml': 'Requires broken TFT dependency types (e.g. ScaleTo01)',
+}
+
+
 def parse_test_files(filepattern):
   """Parses YAML test files and dynamically creates test cases.
 
@@ -810,13 +815,18 @@ def parse_test_files(filepattern):
   """
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+      filename = os.path.basename(path)
+      suite_name = os.path.splitext(filename)[0].title().replace(
           '-', '') + 'Test'
       print(path, suite_name)
       methods = dict(
           create_test_methods(
               yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+      suite_class = type(suite_name, (unittest.TestCase, ), methods)
+      if filename in _SICKBAY_TESTS:
+        suite_class = unittest.skip(f"Sickbayed: {_SICKBAY_TESTS[filename]}")(
+            suite_class)
+      globals()[suite_name] = suite_class
 
 
 # Logging setups
