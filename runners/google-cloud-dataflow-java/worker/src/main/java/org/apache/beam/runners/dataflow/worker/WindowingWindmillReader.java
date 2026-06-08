@@ -128,7 +128,8 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
 
   private KeyedWorkItem<K, T> createKeyedWorkItem() {
     @SuppressWarnings("unchecked")
-    @Nullable K key = (K) context.getKey();
+    @Nullable
+    K key = (K) context.getKey();
     return new WindmillKeyedWorkItem<>(
         key,
         context.getWorkItem(),
