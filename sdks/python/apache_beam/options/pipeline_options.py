@@ -1722,6 +1722,16 @@ class ProfilingOptions(PipelineOptions):
         errors.append(
             '--profiler_agent is mutually exclusive with --profile_cpu '
             'and --profile_memory.')
+
+      if self.profile_location and self.profile_location.lower() == 'none':
+        self.profile_location = None
+      elif not self.profile_location:
+        temp_location = self.view_as(GoogleCloudOptions).temp_location
+        if temp_location:
+          self.profile_location = temp_location.rstrip('/') + '/profiles'
+          _LOGGER.info(
+              'Setting --profile_location to %s since profiling is enabled.',
+              self.profile_location)
     return errors
 
 
