@@ -82,8 +82,7 @@ public class KafkaCommitOffset<K, V>
       consumerFactoryFn = readSourceDescriptors.getConsumerFactoryFn();
     }
 
-    @SuppressWarnings(
-        "Slf4jDoNotLogMessageOfExceptionExplicitly") // for tests checking error message
+    @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
     @RequiresStableInput
     @ProcessElement
     public void processElement(@Element KV<KafkaSourceDescriptor, Long> element) {
@@ -137,6 +136,7 @@ public class KafkaCommitOffset<K, V>
     private static class OffsetAndTimestamp {
 
       OffsetAndTimestamp(long offset, Instant timestamp) {
+
         this.offset = offset;
         this.timestamp = timestamp;
       }
@@ -167,7 +167,7 @@ public class KafkaCommitOffset<K, V>
 
     @RequiresStableInput
     @ProcessElement
-    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
+    @SuppressWarnings("nullness")
     public void processElement(
         @Element KV<KafkaSourceDescriptor, KafkaRecord<K, V>> element,
         @Timestamp Instant timestamp) {
@@ -182,12 +182,13 @@ public class KafkaCommitOffset<K, V>
             }
 
             v.merge(offset, timestamp);
+
             return v;
           });
     }
 
     @FinishBundle
-    @SuppressWarnings("nullness") // startBundle guaranteed to initialize
+    @SuppressWarnings("nullness")
     public void finishBundle(FinishBundleContext context) {
 
       maxObserved.forEach(
@@ -211,8 +212,6 @@ public class KafkaCommitOffset<K, V>
 
       } else {
 
-        // Reduce the amount of data to combine by calculating a max within the generally dense
-        // bundles of reading from a Kafka partition.
         offsets = input.apply(ParDo.of(new MaxOffsetFn<>()));
       }
 
