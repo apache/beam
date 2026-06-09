@@ -46,7 +46,9 @@ public abstract class WindmillReaderIteratorBase<T>
       StreamingModeExecutionContext context, ValueProvider<Boolean> skipUndecodableElements) {
     this.context = context;
     this.skipUndecodableElements = skipUndecodableElements;
-    resetWorkFromContext();
+    this.work = context.getWorkItem();
+    this.bundleIndex = 0;
+    this.messageIndex = -1;
   }
 
   @Override
@@ -103,7 +105,7 @@ public abstract class WindmillReaderIteratorBase<T>
   }
 
   private void resetWorkFromContext() {
-    this.work = context.getWork().getWorkItem();
+    this.work = context.getWorkItem();
     this.bundleIndex = 0;
     this.messageIndex = -1;
   }

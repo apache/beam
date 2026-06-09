@@ -171,8 +171,6 @@ public class WindmillReaderIteratorBaseTest {
                     .build())
             .build();
 
-    Work mockWorkB = createMockWork(workItemB);
-
     // Set up context.advance() to mock transition
     when(mockContext.advance())
         .thenAnswer(
@@ -183,7 +181,7 @@ public class WindmillReaderIteratorBaseTest {
               public Boolean answer(org.mockito.invocation.InvocationOnMock invocation) {
                 if (count == 0) {
                   count++;
-                  when(mockContext.getWork()).thenReturn(mockWorkB);
+                  when(mockContext.getWorkItem()).thenReturn(workItemB);
                   return true;
                 }
                 return false;
