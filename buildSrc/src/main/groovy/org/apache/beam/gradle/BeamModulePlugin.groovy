@@ -3145,7 +3145,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install uv && uv pip install --pre ${installTargets}"
+            // uv times out on its cache lock when py310/py314 installGcpTest run in parallel.
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${installTargets}"
           }
         }
       }
