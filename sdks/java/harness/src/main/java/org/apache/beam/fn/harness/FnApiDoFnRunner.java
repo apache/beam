@@ -2251,6 +2251,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnWindowExpirationContext outside of @OnWindowExpiration methods.");
+    }
+
+    @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       return currentTracker;
     }
@@ -2468,6 +2475,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     private final OnWindowExpirationContext.Context context =
         new OnWindowExpirationContext.Context();
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      return context;
+    }
 
     @Override
     public BoundedWindow window() {
