@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -193,11 +194,49 @@ public class BeamCoGBKJoinRel extends BeamJoinRel {
     }
 
     // Flatten the lhs and rhs fields into a single row.
+    FieldAccessDescriptor flattenFields =
+        FieldAccessDescriptor.withFieldNames(
+            org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*",
+            org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*");
+
+    // Reconcile the desired output schema (which carries the Calcite-derived field names and the
+    // correct top-level, outer-join-aware nullability) with the types the data actually carries.
+    // Calcite's join row-type derivation can report a different nullability than the rows hold --
+    // in particular it can mark the fields nested inside a struct column as nullable even when the
+    // joined rows still keep them NOT NULL. Forcing the Calcite schema verbatim then trips Select's
+    // type-equality guard. The flatten emits the lhs struct's fields followed by the rhs struct's
+    // fields, so walk the Calcite output positionally against those data fields, keeping Calcite's
+    // names and top-level nullability but adopting the data's (possibly deeper) field types.
+    Schema calciteSchema = CalciteUtils.toSchema(getRowType());
+    Schema joinedSchema = joinedRows.getSchema();
+    List<Schema.Field> dataFields = new java.util.ArrayList<>();
+    dataFields.addAll(
+        Preconditions.checkArgumentNotNull(joinedSchema.getField(0).getType().getRowSchema())
+            .getFields());
+    dataFields.addAll(
+        Preconditions.checkArgumentNotNull(joinedSchema.getField(1).getType().getRowSchema())
+            .getFields());
+
+    if (calciteSchema.getFieldCount() != dataFields.size()) {
+      throw new IllegalStateException(
+          String.format(
+              "Field count mismatch: Calcite schema has %d fields, but data schema has %d fields",
+              calciteSchema.getFieldCount(), dataFields.size()));
+    }
+
+    Schema.Builder reconciled = Schema.builder();
+    for (int i = 0; i < calciteSchema.getFieldCount(); i++) {
+      Schema.Field calciteField = calciteSchema.getField(i);
+      // Keep the data's type verbatim -- including the nullability of fields nested inside struct
+      // columns, which Calcite's join row-type derivation can report incorrectly -- but honour
+      // Calcite's top-level nullability so outer-join columns stay nullable.
+      reconciled.addField(
+          calciteField.withType(
+              dataFields.get(i).getType().withNullable(calciteField.getType().getNullable())));
+    }
+
     return joinedRows.apply(
-        Select.<Row>fieldNames(
-                org.apache.beam.sdk.schemas.transforms.Join.LHS_TAG + ".*",
-                org.apache.beam.sdk.schemas.transforms.Join.RHS_TAG + ".*")
-            .withOutputSchema(CalciteUtils.toSchema(getRowType())));
+        Select.<Row>fieldAccess(flattenFields).withOutputSchema(reconciled.build()));
   }
 
   @Override

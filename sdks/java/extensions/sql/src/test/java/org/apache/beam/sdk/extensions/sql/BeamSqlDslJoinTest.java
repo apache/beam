@@ -325,6 +325,107 @@ public class BeamSqlDslJoinTest {
         .buildUnbounded();
   }
 
+  @Test
+  public void testLeftOuterJoinWithNestedRows() {
+    Schema nestedSchema =
+        Schema.builder().addInt32Field("nested_int").addStringField("nested_str").build();
+    Schema lhsSchema = Schema.builder().addInt32Field("id").addStringField("val").build();
+    Schema rhsSchema =
+        Schema.builder().addInt32Field("id").addRowField("nested", nestedSchema).build();
+
+    PCollection<Row> lhs =
+        pipeline.apply(
+            "lhs",
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(lhsSchema).addValues(1, "lhs1").build(),
+                    Row.withSchema(lhsSchema).addValues(2, "lhs2").build())
+                .withRowSchema(lhsSchema));
+
+    PCollection<Row> rhs =
+        pipeline.apply(
+            "rhs",
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(rhsSchema)
+                        .addValues(1, Row.withSchema(nestedSchema).addValues(10, "nested1").build())
+                        .build())
+                .withRowSchema(rhsSchema));
+
+    String sql =
+        "SELECT lhs.id, lhs.val, rhs.nested FROM lhs LEFT OUTER JOIN rhs ON lhs.id = rhs.id";
+
+    PCollection<Row> result =
+        PCollectionTuple.of("lhs", lhs).and("rhs", rhs).apply("sql", SqlTransform.query(sql));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addStringField("val")
+            .addNullableField("nested", Schema.FieldType.row(nestedSchema))
+            .build();
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(expectedSchema)
+                .addValues(1, "lhs1", Row.withSchema(nestedSchema).addValues(10, "nested1").build())
+                .build(),
+            Row.withSchema(expectedSchema).addValues(2, "lhs2", null).build());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testLeftOuterJoinWithArrayOfNestedRows() {
+    Schema nestedSchema =
+        Schema.builder().addInt32Field("nested_int").addStringField("nested_str").build();
+    Schema lhsSchema = Schema.builder().addInt32Field("id").addStringField("val").build();
+    Schema rhsSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addArrayField("nested_list", Schema.FieldType.row(nestedSchema))
+            .build();
+
+    PCollection<Row> lhs =
+        pipeline.apply(
+            "lhs",
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(lhsSchema).addValues(1, "lhs1").build(),
+                    Row.withSchema(lhsSchema).addValues(2, "lhs2").build())
+                .withRowSchema(lhsSchema));
+
+    java.util.List<Row> nestedRows =
+        java.util.Arrays.asList(
+            Row.withSchema(nestedSchema).addValues(10, "nested1").build(),
+            Row.withSchema(nestedSchema).addValues(20, "nested2").build());
+
+    PCollection<Row> rhs =
+        pipeline.apply(
+            "rhs",
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(rhsSchema).addValues(1, nestedRows).build())
+                .withRowSchema(rhsSchema));
+
+    String sql =
+        "SELECT lhs.id, lhs.val, rhs.nested_list FROM lhs LEFT OUTER JOIN rhs ON lhs.id = rhs.id";
+
+    PCollection<Row> result =
+        PCollectionTuple.of("lhs", lhs).and("rhs", rhs).apply("sql", SqlTransform.query(sql));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addStringField("val")
+            .addNullableField(
+                "nested_list", Schema.FieldType.array(Schema.FieldType.row(nestedSchema)))
+            .build();
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(expectedSchema).addValues(1, "lhs1", nestedRows).build(),
+            Row.withSchema(expectedSchema).addValues(2, "lhs2", null).build());
+
+    pipeline.run();
+  }
+
   private PCollection<Row> queryFromOrderTables(String sql) {
     return tuple(
             "ORDER_DETAILS1",
