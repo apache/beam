@@ -66,9 +66,9 @@ import org.slf4j.LoggerFactory;
  * stateful. 2) Tagged output multi-outputs are unsupported. 3) StartBundle/finishBundle are invoked
  * per element so any batching or aggregation logic will not behave as expected.
  */
-public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
+public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AsyncDoFn.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PerKeyConcurrentDoFn.class);
 
   private static final int DEFAULT_MIN_BUFFER_CAPACITY = 10;
   private static final int DEFAULT_TIMEOUT_SEC = 1;
@@ -157,7 +157,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
     }
   }
 
-  public AsyncDoFn(
+  public PerKeyConcurrentDoFn(
       DoFn<InputT, OutputT> syncFn,
       int parallelism,
       Duration timerFrequency,
@@ -178,7 +178,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
         null);
   }
 
-  public AsyncDoFn(
+  public PerKeyConcurrentDoFn(
       DoFn<InputT, OutputT> syncFn,
       int parallelism,
       Duration timerFrequency,
@@ -251,7 +251,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
               @Override
               public String getErrorContext() {
-                return "AsyncDoFn/Setup";
+                return "PerKeyConcurrentDoFn/Setup";
               }
             });
 
@@ -366,14 +366,14 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
                                   BoundedWindow window) {
                                 throw new UnsupportedOperationException(
                                     "Tagged output not supported in "
-                                        + "FinishBundleContext for AsyncDoFn");
+                                        + "FinishBundleContext for PerKeyConcurrentDoFn");
                               }
                             };
                           }
 
                           @Override
                           public String getErrorContext() {
-                            return "AsyncDoFn/Bundle";
+                            return "PerKeyConcurrentDoFn/Bundle";
                           }
                         };
 
@@ -413,7 +413,7 @@ public class AsyncDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> 
 
                           @Override
                           public String getErrorContext() {
-                            return "AsyncDoFn/Process";
+                            return "PerKeyConcurrentDoFn/Process";
                           }
                         };
 

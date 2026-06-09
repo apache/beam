@@ -44,7 +44,7 @@ import org.junit.runners.JUnit4;
 
 /** Tests for verifying async processing structures and logic. */
 @RunWith(JUnit4.class)
-public class AsyncDoFnTest implements Serializable {
+public class PerKeyConcurrentDoFnTest implements Serializable {
 
   private final boolean useThreadPool = true;
 
@@ -222,16 +222,16 @@ public class AsyncDoFnTest implements Serializable {
 
   @Before
   public void setUp() {
-    AsyncDoFn.resetState();
+    PerKeyConcurrentDoFn.resetState();
   }
 
-  private void waitForEmpty(AsyncDoFn<?, ?, ?> asyncDoFn) {
-    waitForEmpty(asyncDoFn, 10);
+  private void waitForEmpty(PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn) {
+    waitForEmpty(perKeyConcurrentDoFn, 10);
   }
 
-  private void waitForEmpty(AsyncDoFn<?, ?, ?> asyncDoFn, int timeoutSeconds) {
+  private void waitForEmpty(PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int timeoutSeconds) {
     int count = 0;
-    while (!asyncDoFn.isEmpty()) {
+    while (!perKeyConcurrentDoFn.isEmpty()) {
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -264,8 +264,8 @@ public class AsyncDoFnTest implements Serializable {
     assertEquals(expectedStr, resultStr);
   }
 
-  private void checkItemsInBuffer(AsyncDoFn<?, ?, ?> asyncDoFn, int expectedCount) {
-    assertEquals(expectedCount, asyncDoFn.getItemsInBufferCount());
+  private void checkItemsInBuffer(PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int expectedCount) {
+    assertEquals(expectedCount, perKeyConcurrentDoFn.getItemsInBufferCount());
   }
 
   // Test 1: testCustomIdFn
@@ -312,8 +312,8 @@ public class AsyncDoFnTest implements Serializable {
     }
 
     CustomIdDofn dofn = new CustomIdDofn();
-    AsyncDoFn<String, CustomIdObject, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, CustomIdObject, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn,
             1,
             Duration.standardSeconds(5),
@@ -322,7 +322,7 @@ public class AsyncDoFnTest implements Serializable {
             null,
             x -> x.elementId,
             useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, CustomIdObject>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
@@ -330,13 +330,13 @@ public class AsyncDoFnTest implements Serializable {
     KV<String, CustomIdObject> msg1 = KV.of("key1", new CustomIdObject(1, "a"));
     KV<String, CustomIdObject> msg2 = KV.of("key1", new CustomIdObject(1, "b"));
 
-    asyncDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    asyncDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("a"));
     assertEquals(0, fakeBagState.items.size());
@@ -348,24 +348,24 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testBasic() {
     BasicDofn dofn = new BasicDofn();
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     assertEquals(1, fakeBagState.items.size());
     assertNotEquals(Instant.EPOCH, fakeTimer.getCurrentRelativeTime());
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("1"));
     assertEquals(1, dofn.getProcessed());
@@ -379,10 +379,10 @@ public class AsyncDoFnTest implements Serializable {
   public void testMultiKey() {
     for (boolean useThreadPool : new boolean[] {true, false}) {
       BasicDofn dofn = new BasicDofn();
-      AsyncDoFn<String, String, String> asyncDoFn =
-          new AsyncDoFn<>(
+      PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+          new PerKeyConcurrentDoFn<>(
               dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-      asyncDoFn.setup(null);
+      perKeyConcurrentDoFn.setup(null);
 
       FakeBagState<KV<String, String>> fakeBagStateKey1 = new FakeBagState<>();
       FakeBagState<KV<String, String>> fakeBagStateKey2 = new FakeBagState<>();
@@ -391,22 +391,22 @@ public class AsyncDoFnTest implements Serializable {
       KV<String, String> msg1 = KV.of("key1", "1");
       KV<String, String> msg2 = KV.of("key2", "2");
 
-      asyncDoFn.processDirect(
+      perKeyConcurrentDoFn.processDirect(
           msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagStateKey1, fakeTimer);
-      asyncDoFn.processDirect(
+      perKeyConcurrentDoFn.processDirect(
           msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagStateKey2, fakeTimer);
 
-      waitForEmpty(asyncDoFn);
+      waitForEmpty(perKeyConcurrentDoFn);
 
       List<String> result =
-          asyncDoFn.commitFinishedItemsDirect(
+          perKeyConcurrentDoFn.commitFinishedItemsDirect(
               fakeTimer.getCurrentRelativeTime(), fakeBagStateKey2, fakeTimer);
       checkOutput(result, Collections.singletonList("2"));
       assertEquals(1, fakeBagStateKey1.items.size());
       assertEquals(0, fakeBagStateKey2.items.size());
 
       result =
-          asyncDoFn.commitFinishedItemsDirect(
+          perKeyConcurrentDoFn.commitFinishedItemsDirect(
               fakeTimer.getCurrentRelativeTime(), fakeBagStateKey1, fakeTimer);
       checkOutput(result, Collections.singletonList("1"));
       assertEquals(0, fakeBagStateKey1.items.size());
@@ -420,28 +420,28 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testLongItem() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.emptyList());
     assertEquals(0, dofn.getProcessed());
     assertEquals(1, fakeBagState.items.size());
 
-    waitForEmpty(asyncDoFn, 20);
+    waitForEmpty(perKeyConcurrentDoFn, 20);
 
     result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("1"));
     assertEquals(1, dofn.getProcessed());
@@ -455,24 +455,24 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testLostItem() {
     BasicDofn dofn = new BasicDofn();
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>(msg);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.emptyList());
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("1"));
   }
@@ -482,26 +482,26 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testCancelledItem() {
     BasicDofn dofn = new BasicDofn();
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     KV<String, String> msg1 = KV.of("key1", "1");
     KV<String, String> msg2 = KV.of("key1", "2");
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    asyncDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    asyncDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     fakeBagState.clear();
     fakeBagState.add(msg2);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("2"));
     assertEquals(0, fakeBagState.items.size());
@@ -513,21 +513,21 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testMultiElementDofn() {
     MultiElementDoFn dofn = new MultiElementDoFn();
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Arrays.asList("1", "1", "bundle end"));
     assertEquals(0, fakeBagState.items.size());
@@ -539,25 +539,25 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testDuplicates() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
     fakeBagState.clear();
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     assertEquals(1, fakeBagState.items.size());
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("1"));
     assertEquals(0, fakeBagState.items.size());
@@ -569,16 +569,16 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testSlowDuplicates() {
     BasicDofn dofn = new BasicDofn(5000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     try {
       Thread.sleep(10000);
@@ -588,17 +588,17 @@ public class AsyncDoFnTest implements Serializable {
 
     fakeBagState.clear();
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.emptyList());
     assertEquals(0, fakeBagState.items.size());
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
     assertEquals(1, fakeBagState.items.size());
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.singletonList("1"));
     assertEquals(0, fakeBagState.items.size());
@@ -611,24 +611,24 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testBufferCount() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     KV<String, String> msg = KV.of("key1", "1");
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    asyncDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    checkItemsInBuffer(asyncDoFn, 1);
+    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 1);
 
-    waitForEmpty(asyncDoFn);
-    checkItemsInBuffer(asyncDoFn, 0);
+    waitForEmpty(perKeyConcurrentDoFn);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 0);
 
-    asyncDoFn.commitFinishedItemsDirect(
+    perKeyConcurrentDoFn.commitFinishedItemsDirect(
         fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
-    checkItemsInBuffer(asyncDoFn, 0);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 0);
   }
 
   // Test 11: testBufferStopsAcceptingItems
@@ -638,8 +638,8 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testBufferStopsAcceptingItems() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn,
             1,
             Duration.standardSeconds(5),
@@ -648,7 +648,7 @@ public class AsyncDoFnTest implements Serializable {
             null,
             null,
             useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
@@ -664,7 +664,7 @@ public class AsyncDoFnTest implements Serializable {
           poolExecutor.submit(
               () -> {
                 KV<String, String> item = KV.of("key", String.valueOf(idx));
-                asyncDoFn.processDirect(
+                perKeyConcurrentDoFn.processDirect(
                     item, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
               }));
     }
@@ -675,9 +675,9 @@ public class AsyncDoFnTest implements Serializable {
       Thread.currentThread().interrupt();
     }
 
-    assertEquals(5, asyncDoFn.getItemsInBufferCount());
+    assertEquals(5, perKeyConcurrentDoFn.getItemsInBufferCount());
 
-    waitForEmpty(asyncDoFn, 100);
+    waitForEmpty(perKeyConcurrentDoFn, 100);
 
     // Verify that all background tasks completed successfully without throwing exceptions
     for (Future<?> future : futures) {
@@ -689,17 +689,17 @@ public class AsyncDoFnTest implements Serializable {
     }
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
 
-    waitForEmpty(asyncDoFn, 100);
+    waitForEmpty(perKeyConcurrentDoFn, 100);
 
     result.addAll(
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer));
 
     checkOutput(result, expectedOutput);
-    checkItemsInBuffer(asyncDoFn, 0);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 0);
     poolExecutor.shutdown();
   }
 
@@ -708,36 +708,36 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testBufferWithCancellation() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     KV<String, String> msg1 = KV.of("key1", "1");
     KV<String, String> msg2 = KV.of("key1", "2");
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    asyncDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    asyncDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
-    checkItemsInBuffer(asyncDoFn, 2);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 2);
 
     fakeBagState.clear();
     fakeBagState.add(msg2);
 
     List<String> result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
     checkOutput(result, Collections.emptyList());
     assertEquals(1, fakeBagState.items.size());
 
-    waitForEmpty(asyncDoFn);
+    waitForEmpty(perKeyConcurrentDoFn);
 
     result =
-        asyncDoFn.commitFinishedItemsDirect(
+        perKeyConcurrentDoFn.commitFinishedItemsDirect(
             fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
-    checkItemsInBuffer(asyncDoFn, 0);
+    checkItemsInBuffer(perKeyConcurrentDoFn, 0);
     checkOutput(result, Collections.singletonList("2"));
   }
 
@@ -747,8 +747,8 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testLoadCorrectness() {
     BasicDofn dofn = new BasicDofn(1000);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn,
             1,
             Duration.standardSeconds(5),
@@ -757,7 +757,7 @@ public class AsyncDoFnTest implements Serializable {
             Duration.millis(10),
             null,
             useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     java.util.Map<String, FakeBagState<KV<String, String>>> bagStates = new java.util.HashMap<>();
     java.util.Map<String, FakeTimer> timers = new java.util.HashMap<>();
@@ -783,7 +783,7 @@ public class AsyncDoFnTest implements Serializable {
           poolExecutor.submit(
               () -> {
                 KV<String, String> item = KV.of(key, String.valueOf(val));
-                asyncDoFn.processDirect(
+                perKeyConcurrentDoFn.processDirect(
                     item,
                     GlobalWindow.INSTANCE,
                     Instant.now(),
@@ -825,7 +825,7 @@ public class AsyncDoFnTest implements Serializable {
         results
             .get(key)
             .addAll(
-                asyncDoFn.commitFinishedItemsDirect(
+                perKeyConcurrentDoFn.commitFinishedItemsDirect(
                     timers.get(key).getCurrentRelativeTime(), bagStates.get(key), timers.get(key)));
         if (!bagStates.get(key).items.isEmpty()) {
           done = false;
@@ -855,15 +855,15 @@ public class AsyncDoFnTest implements Serializable {
   @Test
   public void testResetStateConcurrentTeardown() {
     BasicDofn dofn = new BasicDofn(500);
-    AsyncDoFn<String, String, String> asyncDoFn =
-        new AsyncDoFn<>(
+    PerKeyConcurrentDoFn<String, String, String> perKeyConcurrentDoFn =
+        new PerKeyConcurrentDoFn<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
-    asyncDoFn.setup(null);
+    perKeyConcurrentDoFn.setup(null);
 
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
     FakeTimer fakeTimer = new FakeTimer();
 
-    asyncDoFn.processDirect(
+    perKeyConcurrentDoFn.processDirect(
         KV.of("key1", "1"), GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     try {
@@ -873,6 +873,6 @@ public class AsyncDoFnTest implements Serializable {
     }
 
     // Verify calling resetState() while background tasks are running finishes cleanly
-    AsyncDoFn.resetState();
+    PerKeyConcurrentDoFn.resetState();
   }
 }
