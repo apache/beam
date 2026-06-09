@@ -229,7 +229,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     waitForEmpty(perKeyConcurrentDoFn, 10);
   }
 
-  private void waitForEmpty(PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int timeoutSeconds) {
+  private void waitForEmpty(
+      PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int timeoutSeconds) {
     int count = 0;
     while (!perKeyConcurrentDoFn.isEmpty()) {
       try {
@@ -264,7 +265,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     assertEquals(expectedStr, resultStr);
   }
 
-  private void checkItemsInBuffer(PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int expectedCount) {
+  private void checkItemsInBuffer(
+      PerKeyConcurrentDoFn<?, ?, ?> perKeyConcurrentDoFn, int expectedCount) {
     assertEquals(expectedCount, perKeyConcurrentDoFn.getItemsInBufferCount());
   }
 
@@ -330,8 +332,10 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     KV<String, CustomIdObject> msg1 = KV.of("key1", new CustomIdObject(1, "a"));
     KV<String, CustomIdObject> msg2 = KV.of("key1", new CustomIdObject(1, "b"));
 
-    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     waitForEmpty(perKeyConcurrentDoFn);
 
@@ -357,7 +361,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     assertEquals(1, fakeBagState.items.size());
     assertNotEquals(Instant.EPOCH, fakeTimer.getCurrentRelativeTime());
@@ -429,7 +434,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     List<String> result =
         perKeyConcurrentDoFn.commitFinishedItemsDirect(
@@ -492,8 +498,10 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     waitForEmpty(perKeyConcurrentDoFn);
 
@@ -522,7 +530,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     waitForEmpty(perKeyConcurrentDoFn);
 
@@ -548,9 +557,11 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
     fakeBagState.clear();
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     assertEquals(1, fakeBagState.items.size());
 
@@ -578,7 +589,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     KV<String, String> msg = KV.of("key1", "1");
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     try {
       Thread.sleep(10000);
@@ -593,7 +605,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     checkOutput(result, Collections.emptyList());
     assertEquals(0, fakeBagState.items.size());
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
     assertEquals(1, fakeBagState.items.size());
     waitForEmpty(perKeyConcurrentDoFn);
 
@@ -620,7 +633,8 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    perKeyConcurrentDoFn.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
     checkItemsInBuffer(perKeyConcurrentDoFn, 1);
 
     waitForEmpty(perKeyConcurrentDoFn);
@@ -718,8 +732,10 @@ public class PerKeyConcurrentDoFnTest implements Serializable {
     FakeTimer fakeTimer = new FakeTimer();
     FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
 
-    perKeyConcurrentDoFn.processDirect(msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
-    perKeyConcurrentDoFn.processDirect(msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg1, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    perKeyConcurrentDoFn.processDirect(
+        msg2, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     checkItemsInBuffer(perKeyConcurrentDoFn, 2);
 
