@@ -325,7 +325,7 @@ class StateSamplerTest(unittest.TestCase):
 
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler(
-        'basic', counter_factory, sampling_period_ms=1)
+        'concurrent', counter_factory, sampling_period_ms=1)
 
     sampler.start()
     reader_thread = None
