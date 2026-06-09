@@ -191,18 +191,16 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
 
   @OnWindowExpiration
   public void onWindowExpiration(
-      //   OnWindowExpirationContext context,
+      OnWindowExpirationContext context,
       @Key ShardedKey<DestinationT> key,
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
       MultiOutputReceiver o)
       throws Exception {
-    // TODO: Beam doesn't current support OnWindowExpirationContext. Reenable after this is fixed.
-    // https://github.com/apache/beam/issues/38875
-    // convertMessagesDoFn
-    //     .getDynamicDestinations()
-    //     .setSideInputAccessorFromOnWindowExpirationContext(context);
+    convertMessagesDoFn
+        .getDynamicDestinations()
+        .setSideInputAccessorFromOnWindowExpirationContext(context);
 
     // This can happen on test completion or drain. We can't set any more timers in window
     // expiration, so we just have to loop until the schema is updated.

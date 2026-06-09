@@ -222,7 +222,6 @@ public class DoFnSignatures {
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
           ImmutableList.of(
-              Parameter.OnWindowExpirationContextParameter.class,
               Parameter.WindowParameter.class,
               Parameter.PipelineOptionsParameter.class,
               Parameter.OutputReceiverParameter.class,
