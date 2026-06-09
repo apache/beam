@@ -7335,11 +7335,15 @@ public class ParDoTest implements Serializable {
             @OnWindowExpiration
             public void onWindowExpiration(
                 @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                BoundedWindow window,
                 @Key String key,
+                OnWindowExpirationContext context,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               // verify state
               assertEquals(1, (int) currentValue);
+              Preconditions.checkNotNull(context);
+              assertEquals(window, context.window());
               // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }

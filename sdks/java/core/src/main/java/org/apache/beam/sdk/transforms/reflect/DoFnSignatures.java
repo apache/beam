@@ -229,7 +229,8 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
               Parameter.KeyParameter.class,
-              Parameter.SideInputParameter.class);
+              Parameter.SideInputParameter.class,
+              Parameter.OnWindowExpirationContextParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
