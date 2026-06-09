@@ -163,13 +163,13 @@ class ExecutableStageProcessor
     }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     // The harness has finished the bundle (close() returned) so no further enqueues happen.
-    // ConcurrentLinkedQueue's weakly-consistent iterator is therefore safe to drain via forEach.
-    pendingOutputs.forEach(
-        output ->
-            ctx.forward(
-                new Record<byte[], KStreamsPayload<?>>(
-                    record.key(), KStreamsPayload.data(output), record.timestamp())));
-    pendingOutputs.clear();
+    // Drain via poll() so each element is removed as it is forwarded.
+    WindowedValue<?> output;
+    while ((output = pendingOutputs.poll()) != null) {
+      ctx.forward(
+          new Record<byte[], KStreamsPayload<?>>(
+              record.key(), KStreamsPayload.data(output), record.timestamp()));
+    }
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
