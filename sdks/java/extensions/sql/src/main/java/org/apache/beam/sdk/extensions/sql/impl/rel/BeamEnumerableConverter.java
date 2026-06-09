@@ -159,9 +159,26 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     if (node instanceof BeamIOSinkRel) {
       throw new UnsupportedOperationException("Does not support BeamIOSinkRel in toRowList.");
     } else if (isLimitQuery(node)) {
-      throw new UnsupportedOperationException("Does not support queries with LIMIT in toRowList.");
+      return limitRowList(options, node);
     }
     return collectRows(options, node).stream().collect(Collectors.toList());
+  }
+
+  private static List<Row> limitRowList(PipelineOptions options, BeamRelNode node) {
+    long id = options.getOptionsId();
+    ConcurrentLinkedQueue<Row> values = new ConcurrentLinkedQueue<>();
+    int limitCount = getLimitCount(node);
+
+    Collector.globalValues.put(id, values);
+    limitRun(options, node, new Collector(), values, limitCount);
+    Collector.globalValues.remove(id);
+
+    // remove extra retrieved values
+    while (values.size() > limitCount) {
+      values.remove();
+    }
+
+    return values.stream().collect(Collectors.toList());
   }
 
   static Enumerable<Object> toEnumerable(PipelineOptions options, BeamRelNode node) {

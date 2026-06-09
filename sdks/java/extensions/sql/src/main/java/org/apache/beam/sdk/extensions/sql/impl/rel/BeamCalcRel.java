@@ -269,7 +269,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         List<String> jarPaths,
         FieldAccessDescriptor fieldAccess,
         boolean collectErrors) {
-      this.processElementBlock = processElementBlock;
+      this.processElementBlock =
+          processElementBlock.replace(
+              "(byte[]) org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions.concat",
+              "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions.concat");
       this.outputSchema = outputSchema;
       this.verifyRowValues = verifyRowValues;
       this.jarPaths = jarPaths;
@@ -277,7 +280,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       this.collectErrors = collectErrors;
 
       // validate generated code
-      compile(processElementBlock, jarPaths);
+      compile(this.processElementBlock, jarPaths);
     }
 
     private static ScriptEvaluator compile(String processElementBlock, List<String> jarPaths) {

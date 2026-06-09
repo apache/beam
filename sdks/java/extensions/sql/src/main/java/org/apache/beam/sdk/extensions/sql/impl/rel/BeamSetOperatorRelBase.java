@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
@@ -59,14 +57,27 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
 
   @Override
   public PCollection<Row> expand(PCollectionList<Row> inputs) {
-    checkArgument(
-        inputs.size() == 2,
-        "Wrong number of arguments to %s: %s",
-        beamRelNode.getClass().getSimpleName(),
-        inputs);
-    PCollection<Row> leftRows = inputs.get(0);
-    PCollection<Row> rightRows = inputs.get(1);
+    // Reverted Flatten optimization as it fails when inputs have slightly different schemas (e.g.
+    // NULL vs VARCHAR)
+    // if (opType == OpType.UNION && all) {
+    //   return inputs.apply("UnionAllFlatten", Flatten.pCollections());
+    // }
 
+    if (inputs.size() == 2) {
+      return expandPair(inputs.get(0), inputs.get(1));
+    } else if (inputs.size() > 2) {
+      PCollection<Row> result = inputs.get(0);
+      for (int i = 1; i < inputs.size(); i++) {
+        result = expandPair(result, inputs.get(i));
+      }
+      return result;
+    } else {
+      throw new IllegalArgumentException(
+          "Too few arguments to " + beamRelNode.getClass().getSimpleName());
+    }
+  }
+
+  private PCollection<Row> expandPair(PCollection<Row> leftRows, PCollection<Row> rightRows) {
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();
     if (!leftWindow.isCompatible(rightWindow)) {

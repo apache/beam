@@ -57,6 +57,12 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
       return this.getBeamNodeStats((BeamRelNode) rel, bmq);
     }
 
+    if (rel instanceof org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Values) {
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Values values =
+          (org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Values) rel;
+      return NodeStats.create(values.getTuples().size());
+    }
+
     // We can later define custom methods for all different RelNodes to prevent hitting this point.
     // Similar to RelMdRowCount in calcite.
 

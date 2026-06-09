@@ -151,13 +151,14 @@ public class BeamRuleSets {
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
 
   public static Collection<RuleSet> getRuleSets() {
+    return ImmutableList.of(RuleSets.ofList(getAllRules()));
+  }
 
-    return ImmutableList.of(
-        RuleSets.ofList(
-            ImmutableList.<RelOptRule>builder()
-                .addAll(BEAM_CONVERTERS)
-                .addAll(BEAM_TO_ENUMERABLE)
-                .addAll(LOGICAL_OPTIMIZATIONS)
-                .build()));
+  public static List<RelOptRule> getAllRules() {
+    return ImmutableList.<RelOptRule>builder()
+        .addAll(BEAM_CONVERTERS)
+        .addAll(BEAM_TO_ENUMERABLE)
+        .addAll(LOGICAL_OPTIMIZATIONS)
+        .build();
   }
 }

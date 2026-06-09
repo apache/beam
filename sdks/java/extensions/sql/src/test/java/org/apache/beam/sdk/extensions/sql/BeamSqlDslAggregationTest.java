@@ -1133,4 +1133,36 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PAssert.that(result).containsInAnyOrder(rowResult);
     pipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void testCorrelatedScalarSubqueryWithSingleValue() {
+    Schema schema = Schema.builder().addInt32Field("id").addStringField("name").build();
+    PCollection<Row> input =
+        pipeline.apply(
+            "input",
+            Create.of(
+                    Row.withSchema(schema).addValues(1, "a").build(),
+                    Row.withSchema(schema).addValues(2, "b").build())
+                .withRowSchema(schema));
+
+    // Correlated subquery. Calcite should decorrelate this into a LEFT JOIN
+    // and use SINGLE_VALUE aggregation on the subquery side.
+    String sql =
+        "SELECT t1.id, (SELECT t2.name FROM PCOLLECTION t2 WHERE t2.id = t1.id) FROM PCOLLECTION t1";
+
+    PCollection<Row> result = input.apply("sql_subquery", SqlTransform.query(sql));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addInt32Field("id")
+            .addNullableField("name", Schema.FieldType.STRING)
+            .build();
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(expectedSchema).addValues(1, "a").build(),
+            Row.withSchema(expectedSchema).addValues(2, "b").build());
+
+    pipeline.run();
+  }
 }
