@@ -167,6 +167,7 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -184,6 +185,7 @@ def runnerV2CommonPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
