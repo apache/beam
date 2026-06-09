@@ -18,12 +18,33 @@
 package org.apache.beam.sdk.io.delta;
 
 import com.google.auto.value.AutoValue;
+import io.delta.kernel.Table;
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
+import io.delta.kernel.types.ArrayType;
+import io.delta.kernel.types.BinaryType;
+import io.delta.kernel.types.BooleanType;
+import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
+import io.delta.kernel.types.DoubleType;
+import io.delta.kernel.types.FloatType;
+import io.delta.kernel.types.IntegerType;
+import io.delta.kernel.types.LongType;
+import io.delta.kernel.types.MapType;
+import io.delta.kernel.types.StringType;
+import io.delta.kernel.types.StructField;
+import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -83,9 +104,74 @@ public class DeltaIO {
 
     @Override
     public PCollection<Row> expand(PBegin input) {
-      // TODO(https://github.com/apache/beam/issues/38551): Implement expansion for
-      // Delta Lake ReadRows
-      throw new UnsupportedOperationException("Not implemented yet.");
+      String path = getTablePath();
+      if (path == null) {
+        throw new IllegalArgumentException("Table path must be set.");
+      }
+
+      Configuration conf = new Configuration();
+      Map<String, String> hadoopConfig = getHadoopConfig();
+      if (hadoopConfig != null) {
+        for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+          conf.set(entry.getKey(), entry.getValue());
+        }
+      }
+      Engine engine = DefaultEngine.create(conf);
+      Table table = Table.forPath(engine, path);
+      io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
+      StructType deltaSchema = snapshot.getSchema();
+      if (deltaSchema == null) {
+        throw new IllegalStateException("Table schema is null.");
+      }
+      Schema beamSchema = convertToBeamSchema(deltaSchema);
+
+      return input
+          .apply("Create Path", Create.of(path))
+          .apply("Plan Files", ParDo.of(new CreateReadTasksDoFn(hadoopConfig)))
+          .apply("Read Logical Data", ParDo.of(new DeltaSourceDoFn(hadoopConfig)))
+          .setRowSchema(beamSchema);
+    }
+
+    static Schema convertToBeamSchema(StructType deltaSchema) {
+      Schema.Builder builder = Schema.builder();
+      for (StructField field : deltaSchema.fields()) {
+        builder.addField(field.getName(), convertToBeamFieldType(field.getDataType()));
+      }
+      return builder.build();
+    }
+
+    static Schema.FieldType convertToBeamFieldType(DataType deltaType) {
+      if (deltaType instanceof StringType) {
+        return Schema.FieldType.STRING;
+      } else if (deltaType instanceof IntegerType) {
+        return Schema.FieldType.INT32;
+      } else if (deltaType instanceof LongType) {
+        return Schema.FieldType.INT64;
+      } else if (deltaType instanceof FloatType) {
+        return Schema.FieldType.FLOAT;
+      } else if (deltaType instanceof DoubleType) {
+        return Schema.FieldType.DOUBLE;
+      } else if (deltaType instanceof BooleanType) {
+        return Schema.FieldType.BOOLEAN;
+      } else if (deltaType instanceof BinaryType) {
+        return Schema.FieldType.BYTES;
+      } else if (deltaType instanceof TimestampType) {
+        return Schema.FieldType.DATETIME;
+      } else if (deltaType instanceof DateType) {
+        return Schema.FieldType.DATETIME;
+      } else if (deltaType instanceof ArrayType) {
+        DataType elementType = ((ArrayType) deltaType).getElementType();
+        return Schema.FieldType.iterable(convertToBeamFieldType(elementType));
+      } else if (deltaType instanceof MapType) {
+        DataType keyType = ((MapType) deltaType).getKeyType();
+        DataType valueType = ((MapType) deltaType).getValueType();
+        return Schema.FieldType.map(
+            convertToBeamFieldType(keyType), convertToBeamFieldType(valueType));
+      } else if (deltaType instanceof StructType) {
+        return Schema.FieldType.row(convertToBeamSchema((StructType) deltaType));
+      } else {
+        throw new UnsupportedOperationException("Unsupported Delta type: " + deltaType.getClass());
+      }
     }
   }
 }

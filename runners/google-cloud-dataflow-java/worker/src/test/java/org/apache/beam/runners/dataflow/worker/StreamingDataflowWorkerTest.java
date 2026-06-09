@@ -373,7 +373,9 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -3034,7 +3036,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3095,7 +3098,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3165,7 +3169,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3239,7 +3244,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(

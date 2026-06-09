@@ -85,6 +85,9 @@ type JobOptions struct {
 	// Worker is the worker binary override.
 	Worker string
 
+	// WorkerHash is the SHA-256 hash of the worker binary.
+	WorkerHash string
+
 	// -- Internal use only. Not supported in public Dataflow. --
 
 	TeardownPolicy string
@@ -136,6 +139,7 @@ func Translate(ctx context.Context, p *pipepb.Pipeline, opts *JobOptions, worker
 	packages := []*df.Package{{
 		Name:     "worker",
 		Location: workerURL,
+		Sha256:   opts.WorkerHash,
 	}}
 
 	for _, url := range opts.ArtifactURLs {
