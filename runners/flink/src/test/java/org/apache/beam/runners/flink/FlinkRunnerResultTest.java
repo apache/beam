@@ -66,18 +66,18 @@ public class FlinkRunnerResultTest {
   }
 
   @Test
-  public void testDetachedDrainReturnsDrainingThenDrained() throws Exception {
+  public void testDetachedDrainReturnsRunningThenDone() throws Exception {
     JobClient jobClient = mock(JobClient.class);
     CompletableFuture<String> drainFuture = new CompletableFuture<>();
     when(jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT))
         .thenReturn(drainFuture);
     FlinkDetachedRunnerResult result = new FlinkDetachedRunnerResult(jobClient, 1);
 
-    assertThat(result.drain(), is(PipelineResult.State.DRAINING));
-    assertThat(result.getState(), is(PipelineResult.State.DRAINING));
+    assertThat(result.drain(), is(PipelineResult.State.RUNNING));
+    assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 
     drainFuture.complete("savepoint");
-    assertThat(result.getState(), is(PipelineResult.State.DRAINED));
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
     verify(jobClient).stopWithSavepoint(true, null, SavepointFormatType.DEFAULT);
   }
 
@@ -132,11 +132,11 @@ public class FlinkRunnerResultTest {
       result.drain();
       fail("Expected IOException");
     } catch (IOException expected) {
-      assertThat(result.drain(), is(PipelineResult.State.DRAINING));
+      assertThat(result.drain(), is(PipelineResult.State.RUNNING));
     }
 
     retryDrainFuture.complete("savepoint");
-    assertThat(result.getState(), is(PipelineResult.State.DRAINED));
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
     verify(jobClient, times(2)).stopWithSavepoint(true, null, SavepointFormatType.DEFAULT);
   }
 }

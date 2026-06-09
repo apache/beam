@@ -107,12 +107,6 @@ public interface PipelineResult {
     /** The job has been updated. */
     UPDATED(true, true),
 
-    /** The job is draining its data. */
-    DRAINING(false, false),
-
-    /** The job has completed draining its data. */
-    DRAINED(true, false),
-
     /** The job state reported by a runner cannot be interpreted by the SDK. */
     UNRECOGNIZED(false, false);
 

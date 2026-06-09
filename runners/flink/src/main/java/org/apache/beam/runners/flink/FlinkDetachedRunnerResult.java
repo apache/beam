@@ -110,11 +110,11 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   private State getDrainState(CompletableFuture<String> drainFuture) throws IOException {
     if (!drainFuture.isDone()) {
-      return State.DRAINING;
+      return State.RUNNING;
     }
     try {
       drainFuture.get();
-      return State.DRAINED;
+      return State.DONE;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Failed to drain Flink job", e);

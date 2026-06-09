@@ -364,7 +364,6 @@ public class DataflowPipelineJob implements PipelineResult {
   private void logTerminalState(State state) {
     switch (state) {
       case DONE:
-      case DRAINED:
       case CANCELLED:
         LOG.info("Job {} finished with status {}.", getJobId(), state);
         break;
