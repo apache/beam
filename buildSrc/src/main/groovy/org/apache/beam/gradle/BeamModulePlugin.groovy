@@ -43,6 +43,7 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
@@ -1471,6 +1472,9 @@ class BeamModulePlugin implements Plugin<Project> {
         showViolations = true
         maxErrors = 0
         toolVersion = "8.23"
+      }
+      project.tasks.withType(Checkstyle).configureEach {
+        classpath = project.files()
       }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
