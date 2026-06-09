@@ -650,6 +650,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnWindowExpirationContext outside of @OnWindowExpiration methods.");
+    }
+
+    @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
     }
@@ -956,6 +963,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       return this;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnWindowExpirationContext outside of @OnWindowExpiration methods.");
     }
 
     @Override
@@ -1297,6 +1311,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("OnTimerContext parameters are not supported.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      return this;
     }
 
     @Override
