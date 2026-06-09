@@ -101,16 +101,32 @@ tasks.register("generateManagedIOPage") {
   }
 }
 
+tasks.register("prepareExpansionServicesForYamlDocs") {
+  description "Builds all expansion services referenced in apache_beam/yaml/*.*"
+
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+
+  doLast {
+    // Copy expansion service jar into cache path (.apache_beam/cache/jars/).
+    copy {
+      from project.tasks.findByPath(":sdks:java:extensions:schemaio-expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:extensions:sql:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+      into "${System.getProperty('user.home')}/.apache_beam/cache/jars/"
+    }
+  }
+}
+
 tasks.register("generateYamlDocs") {
   description "Generates the reference documentation for all YAML transforms."
 
   dependsOn buildPython
-  // Need to build all expansion services referenced in apache_beam/yaml/*.*
-  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
-  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
-  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn prepareExpansionServicesForYamlDocs
+
   def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
 
   doLast {
