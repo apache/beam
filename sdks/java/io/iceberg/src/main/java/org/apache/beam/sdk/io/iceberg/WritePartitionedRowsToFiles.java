@@ -22,11 +22,8 @@ import static org.apache.beam.sdk.io.iceberg.AssignDestinationsAndPartitions.PAR
 import static org.apache.beam.sdk.io.iceberg.RecordWriterManager.getPartitionDataPath;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -37,8 +34,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionField;
@@ -91,8 +86,8 @@ class WritePartitionedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final Schema dataSchema;
-    static final Cache<TableIdentifier, LastRefreshedTable> LAST_REFRESHED_TABLE_CACHE =
-        CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
+    private int specId = Integer.MIN_VALUE;
+    private Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
 
     WriteDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -113,9 +108,8 @@ class WritePartitionedRowsToFiles
       String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
-      LastRefreshedTable lastRefreshedTable = getOrCreateTable(destination, dataSchema);
-      Table table = lastRefreshedTable.table;
-      partitionPath = getPartitionDataPath(partitionPath, lastRefreshedTable.partitionFieldMap);
+      Table table = getOrCreateTable(destination, dataSchema);
+      partitionPath = getPartitionDataPath(partitionPath, getPartitionFieldMap(table));
 
       StructLike partitionData =
           table.spec().isPartitioned()
@@ -146,60 +140,30 @@ class WritePartitionedRowsToFiles
               .build());
     }
 
-    static final class LastRefreshedTable {
-      final Table table;
-      volatile Instant lastRefreshTime;
-      static final Duration STALENESS_THRESHOLD = Duration.ofMinutes(2);
-      private int specId;
-      volatile Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
-
-      LastRefreshedTable(Table table, Instant lastRefreshTime) {
-        this.table = table;
-        this.specId = table.spec().specId();
-        this.lastRefreshTime = lastRefreshTime;
-        for (PartitionField partitionField : table.spec().fields()) {
-          partitionFieldMap.put(partitionField.name(), partitionField);
-        }
+    private Map<String, PartitionField> getPartitionFieldMap(Table table) {
+      if (table.spec().specId() == this.specId) {
+        return partitionFieldMap;
       }
-
-      /**
-       * Refreshes the table metadata if it is considered stale (older than 2 minutes).
-       *
-       * <p>This method first performs a non-synchronized check on the table's freshness. This
-       * provides a lock-free fast path that avoids synchronization overhead in the common case
-       * where the table does not need to be refreshed. If the table might be stale, it then enters
-       * a synchronized block to ensure that only one thread performs the refresh operation.
-       */
-      void refreshIfStale() {
-        // Fast path: Avoid entering the synchronized block if the table is not stale.
-        if (lastRefreshTime.isAfter(Instant.now().minus(STALENESS_THRESHOLD))) {
-          return;
-        }
-        synchronized (this) {
-          if (lastRefreshTime.isBefore(Instant.now().minus(STALENESS_THRESHOLD))) {
-            table.refresh();
-            lastRefreshTime = Instant.now();
-            if (table.spec().specId() != this.specId) {
-              partitionFieldMap = Maps.newHashMap();
-              for (PartitionField partitionField : table.spec().fields()) {
-                partitionFieldMap.put(partitionField.name(), partitionField);
-              }
-              this.specId = table.spec().specId();
-            }
-          }
-        }
+      Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
+      for (PartitionField partitionField : table.spec().fields()) {
+        partitionFieldMap.put(partitionField.name(), partitionField);
       }
+      this.specId = table.spec().specId();
+      this.partitionFieldMap = partitionFieldMap;
+      return partitionFieldMap;
     }
 
-    LastRefreshedTable getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
       TableIdentifier identifier = destination.getTableIdentifier();
-      @Nullable
-      LastRefreshedTable lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
-      if (lastRefreshedTable != null) {
-        lastRefreshedTable.refreshIfStale();
-        return lastRefreshedTable;
-      }
+      return TableCache.getAndRefreshIfStale(
+          catalogConfig,
+          identifier,
+          () -> loadOrCreateTable(catalogConfig.catalog(), destination, dataSchema));
+    }
 
+    private Table loadOrCreateTable(
+        Catalog catalog, IcebergDestination destination, Schema dataSchema) {
+      TableIdentifier identifier = destination.getTableIdentifier();
       Namespace namespace = identifier.namespace();
       @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
       PartitionSpec partitionSpec =
@@ -209,55 +173,43 @@ class WritePartitionedRowsToFiles
               ? createConfig.getTableProperties()
               : Maps.newHashMap();
 
-      @Nullable Table table = null;
-      synchronized (LAST_REFRESHED_TABLE_CACHE) {
-        lastRefreshedTable = LAST_REFRESHED_TABLE_CACHE.getIfPresent(identifier);
-        if (lastRefreshedTable != null) {
-          lastRefreshedTable.refreshIfStale();
-          return lastRefreshedTable;
-        }
-
-        Catalog catalog = catalogConfig.catalog();
-        // Create namespace if it does not exist yet
-        if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
-          SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
-          if (!supportsNamespaces.namespaceExists(namespace)) {
-            try {
-              supportsNamespaces.createNamespace(namespace);
-              LOG.info("Created new namespace '{}'.", namespace);
-            } catch (AlreadyExistsException ignored) {
-              // race condition: another worker already created this namespace
-              LOG.info("Namespace `{}` already exists.", namespace);
-            }
-          }
-        }
-
-        // If table exists, just load it
-        // Note: the implementation of catalog.tableExists() will load the table to check its
-        // existence. We don't use it here to avoid double loadTable() calls.
-        try {
-          table = catalog.loadTable(identifier);
-        } catch (NoSuchTableException e) { // Otherwise, create the table
-          org.apache.iceberg.Schema tableSchema =
-              IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+      // Create namespace if it does not exist yet
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
+        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
+        if (!supportsNamespaces.namespaceExists(namespace)) {
           try {
-            table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
-            LOG.info(
-                "Created Iceberg table '{}' with schema: {}\n"
-                    + ", partition spec: {}, table properties: {}",
-                identifier,
-                tableSchema,
-                partitionSpec,
-                tableProperties);
+            supportsNamespaces.createNamespace(namespace);
+            LOG.info("Created new namespace '{}'.", namespace);
           } catch (AlreadyExistsException ignored) {
-            // race condition: another worker already created this table
-            table = catalog.loadTable(identifier);
+            // race condition: another worker already created this namespace
+            LOG.info("Namespace `{}` already exists.", namespace);
           }
         }
       }
-      lastRefreshedTable = new LastRefreshedTable(table, Instant.now());
-      LAST_REFRESHED_TABLE_CACHE.put(identifier, lastRefreshedTable);
-      return lastRefreshedTable;
+
+      // If table exists, just load it
+      // Note: the implementation of catalog.tableExists() will load the table to check its
+      // existence. We don't use it here to avoid double loadTable() calls.
+      try {
+        return catalog.loadTable(identifier);
+      } catch (NoSuchTableException e) { // Otherwise, create the table
+        org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+        try {
+          Table table =
+              catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+          LOG.info(
+              "Created Iceberg table '{}' with schema: {}\n"
+                  + ", partition spec: {}, table properties: {}",
+              identifier,
+              tableSchema,
+              partitionSpec,
+              tableProperties);
+          return table;
+        } catch (AlreadyExistsException ignored) {
+          // race condition: another worker already created this table
+          return catalog.loadTable(identifier);
+        }
+      }
     }
   }
 }
