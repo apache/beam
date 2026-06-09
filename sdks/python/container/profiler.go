@@ -22,7 +22,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
@@ -251,14 +250,13 @@ func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profiles
 	}
 }
 
-// runPostProcessingSweep scans the profiles directory and launches concurrent postprocessing for newly updated profiles.
+// runPostProcessingSweep scans the profiles directory and launches sequential postprocessing for newly updated profiles.
 func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
 	files, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return
 	}
 
-	var wg sync.WaitGroup
 	for _, file := range files {
 		name := file.Name()
 		if !strings.HasSuffix(name, ".bin") || strings.HasPrefix(name, ".") {
@@ -285,30 +283,23 @@ func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesD
 		}
 
 		if shouldProcess {
-			wg.Add(1)
-			go func(bin string) {
-				defer wg.Done()
+			html := strings.TrimSuffix(binPath, ".bin") + ".html"
+			filename := filepath.Base(binPath)
 
-				html := strings.TrimSuffix(bin, ".bin") + ".html"
-				filename := filepath.Base(bin)
+			// 1. Peak Flamegraph
+			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, binPath)
+			if err := cmd1.Run(); err != nil {
+				logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
+			}
 
-				// 1. Peak Flamegraph
-				cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
-				if err := cmd1.Run(); err != nil {
-					logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
-				}
+			// 2. Leaks Flamegraph
+			leaksHtml := strings.TrimSuffix(binPath, ".bin") + "_leaks.html"
+			cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, binPath)
+			if err := cmd2.Run(); err != nil {
+				logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
+			}
 
-				// 2. Leaks Flamegraph
-				leaksHtml := strings.TrimSuffix(bin, ".bin") + "_leaks.html"
-				cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, bin)
-				if err := cmd2.Run(); err != nil {
-					logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
-				}
-
-				logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
-			}(binPath)
+			logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
 		}
 	}
-
-	wg.Wait()
 }
