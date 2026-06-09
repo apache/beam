@@ -2363,6 +2363,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return stateAccessor.get(view, currentWindow);
+      }
+
+      @Override
       public OutputBuilder<OutputT> builder(OutputT value) {
         return WindowedValues.<OutputT>builder()
             .setValue(value)
@@ -2487,6 +2492,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public K key() {
       return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view = sideInputMapping.get(tagId);
+      if (view == null) {
+        throw new IllegalArgumentException("Unknown side input: " + tagId);
+      }
+      return stateAccessor.get(view, currentWindow);
     }
 
     @Override
@@ -2650,6 +2664,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return stateAccessor.get(view, currentWindow);
+      }
+
+      @Override
       public CausedByDrain causedByDrain() {
         return causedByDrain;
       }
@@ -2798,6 +2817,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
       return currentTimer.getFireTimestamp();
+    }
+
+    @Override
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view = sideInputMapping.get(tagId);
+      if (view == null) {
+        throw new IllegalArgumentException("Unknown side input: " + tagId);
+      }
+      return stateAccessor.get(view, currentWindow);
     }
 
     @Override
