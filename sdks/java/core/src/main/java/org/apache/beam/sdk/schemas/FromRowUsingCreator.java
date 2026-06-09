@@ -82,10 +82,10 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
       return null;
     }
     if (row instanceof RowWithGetters) {
-      Object target = ((RowWithGetters) row).getGetterTarget();
-      if (target.getClass().equals(typeDescriptor.getRawType())) {
+      RowWithGetters rowWithGetters = (RowWithGetters) row;
+      if (rowWithGetters.getGetterTargetType().equals(typeDescriptor)) {
         // Efficient path: simply extract the underlying object instead of creating a new one.
-        return (T) target;
+        return (T) rowWithGetters.getGetterTarget();
       }
     }
     if (fieldConverters == null) {
