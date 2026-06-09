@@ -214,54 +214,8 @@ func launchSDKProcess() error {
 		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
 	}
 
-	profileTempLocation := opts.Options.ProfileTempLocation
-	if profileTempLocation == "" {
-		profileTempLocation = filepath.Join(*semiPersistDir, "profiles")
-	}
-
-	if opts.Options.ProfilerAgent != "" {
-		logger.Printf(ctx, "Worker will be configured with profiler agent enabled.")
-		logger.Printf(ctx, "ProfilerAgent: %v", opts.Options.ProfilerAgent)
-		logger.Printf(ctx, "ProfilerExtraArgs: %v", opts.Options.ProfilerExtraArgs)
-		logger.Printf(ctx, "ProfilerExtraEnvVars: %v", opts.Options.ProfilerExtraEnvVars)
-		logger.Printf(ctx, "ProfileLocation: %v", opts.Options.ProfileLocation)
-		logger.Printf(ctx, "ProfileTempLocation: %v", profileTempLocation)
-		logger.Printf(ctx, "ProfileUploadIntervalSec: %v", opts.Options.ProfileUploadIntervalSec)
-		logger.Printf(ctx, "ProfilerStopAfterSec: %v", opts.Options.ProfilerStopAfterSec)
-		if err := os.MkdirAll(profileTempLocation, 0755); err != nil {
-			logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
-		}
-
-		if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
-			if _, err := exec.LookPath("gcloud"); err != nil {
-				logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
-			} else {
-				jobId := opts.Options.JobId
-				if jobId == "" {
-					jobId = "BEAM_JOB"
-				}
-				hostname, _ := os.Hostname()
-				if hostname == "" {
-					hostname = "default-worker"
-				}
-				baseGcsDest := strings.TrimSuffix(opts.Options.ProfileLocation, "/")
-				gcsDestPath := fmt.Sprintf("%s/%s/%s", baseGcsDest, jobId, hostname)
-
-				if opts.Options.ProfileUploadIntervalSec > 0 {
-					ticker := time.NewTicker(time.Duration(opts.Options.ProfileUploadIntervalSec) * time.Second)
-					go func() {
-						for range ticker.C {
-							syncProfilesToGCS(ctx, logger, profileTempLocation, gcsDestPath)
-						}
-					}()
-				}
-			}
-		}
-
-		if opts.Options.ProfilerAgent == "memray" {
-			go postProcessProfilesLoop(ctx, logger, profileTempLocation, opts.Options.ProfilePostprocessIntervalSec)
-		}
-	}
+	ctx = setupProfilerConfig(ctx, logger, &opts)
+	startProfilerBackgroundTasks(ctx, logger)
 
 	// (2) Retrieve and install the staged packages.
 	//
@@ -387,16 +341,6 @@ func launchSDKProcess() error {
 
 			bufLogger := tools.NewBufferedLogger(logger)
 			errorCount := 0
-			jobId := opts.Options.JobId
-			if jobId == "" {
-				jobId = "BEAM_JOB"
-			}
-			hostname, _ := os.Hostname()
-			if hostname == "" {
-				hostname = "default-worker"
-			}
-			stopProfilingSentinel := filepath.Join(profileTempLocation, fmt.Sprintf(".profiler_disengaged_%s_%s", jobId, hostname))
-
 			for {
 				childPids.mu.Lock()
 				if childPids.canceled {
@@ -408,41 +352,10 @@ func launchSDKProcess() error {
 				currentArgs := []string{"-m", sdkHarnessEntrypoint}
 				currentEnv := map[string]string{"WORKER_ID": workerId}
 
-				enableProfiler := opts.Options.ProfilerAgent != ""
-				if _, err := os.Stat(stopProfilingSentinel); err == nil {
-					enableProfiler = false
-				}
-
-				if enableProfiler {
-					if opts.Options.ProfilerAgent == "memray" {
-						timeSuffix := time.Now().Format("20060102150405")
-						memrayFile := filepath.Join(profileTempLocation, fmt.Sprintf("memray-%s-%s.bin", workerId, timeSuffix))
-						currentArgs = []string{"-m", "memray", "run"}
-						currentArgs = append(currentArgs, opts.Options.ProfilerExtraArgs...)
-						currentArgs = append(currentArgs, "-o", memrayFile, "-m", sdkHarnessEntrypoint)
-					} else if opts.Options.ProfilerAgent == "tcmalloc" {
-						tcmallocHeapPath := filepath.Join(profileTempLocation, fmt.Sprintf("tcmalloc-%s", workerId))
-						existingPreload := os.Getenv("LD_PRELOAD")
-						if existingPreload != "" {
-							currentEnv["LD_PRELOAD"] = existingPreload + ":/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
-						} else {
-							currentEnv["LD_PRELOAD"] = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
-						}
-						currentEnv["HEAPPROFILE"] = tcmallocHeapPath
-					} else {
-						currentProg = opts.Options.ProfilerAgent
-						currentArgs = append(append([]string{}, opts.Options.ProfilerExtraArgs...), "python", "-m", sdkHarnessEntrypoint)
-					}
-
-					for _, envVar := range opts.Options.ProfilerExtraEnvVars {
-						parts := strings.SplitN(envVar, "=", 2)
-						if len(parts) == 2 {
-							currentEnv[parts[0]] = parts[1]
-						} else {
-							logger.Errorf(ctx, "Failed to parse profiler extra environment variable: %v. Expected format KEY=VALUE", envVar)
-						}
-					}
-				}
+				profilingActive := false
+				currentProg, currentArgs, currentEnv, profilingActive = maybeWithProfiler(
+					ctx, logger, workerId, currentProg, currentArgs, currentEnv,
+				)
 
 				var envStr string
 				if len(currentEnv) > 0 {
@@ -462,14 +375,15 @@ func launchSDKProcess() error {
 				var timer *time.Timer
 				var profilingTimedOut atomic.Bool
 
-				if enableProfiler && opts.Options.ProfilerStopAfterSec > 0 {
-					duration := time.Duration(opts.Options.ProfilerStopAfterSec) * time.Second
+				pcfg := getProfilerConfig(ctx)
+				if profilingActive && pcfg != nil && pcfg.StopAfterSec > 0 {
+					duration := time.Duration(pcfg.StopAfterSec) * time.Second
 					timer = time.AfterFunc(duration, func() {
 						childPids.mu.Lock()
 						defer childPids.mu.Unlock()
 						if cmd.Process != nil {
 							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
-								opts.Options.ProfilerStopAfterSec, workerId)
+								pcfg.StopAfterSec, workerId)
 							profilingTimedOut.Store(true)
 							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
 						}
@@ -483,19 +397,15 @@ func launchSDKProcess() error {
 
 				if err != nil {
 					if profilingTimedOut.Load() {
-						if f, err := os.Create(stopProfilingSentinel); err == nil {
-							f.Close()
-						}
+						stopProfiling(ctx)
 						bufLogger.FlushAtDebug(ctx)
 						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
 						// Error is not counted toward error budget.
 						continue
 					}
 
-					if enableProfiler && opts.Options.ProfilerStopAfterCrash {
-						if f, err := os.Create(stopProfilingSentinel); err == nil {
-							f.Close()
-						}
+					if profilingActive && pcfg != nil && pcfg.StopAfterCrash {
+						stopProfiling(ctx)
 						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
 					}
 
@@ -693,99 +603,4 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	return nil
 }
 
-// syncProfilesToGCS uploads newly created local memory profiles to the designated GCS target path using gcloud storage.
-func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsDest string) {
-	entries, err := os.ReadDir(localDir)
-	if err != nil || len(entries) == 0 {
-		return
-	}
 
-	logger.Printf(ctx, "Syncing profiles from %s to %s", localDir, gcsDest)
-
-	cmd := exec.Command("gcloud", "storage", "rsync", localDir, gcsDest)
-	if err := cmd.Run(); err != nil {
-		logger.Warnf(ctx, "Failed to sync profiles to GCS: %v", err)
-	} else {
-		logger.Printf(ctx, "Successfully synced profiles to GCS.")
-	}
-}
-
-// postProcessProfilesLoop runs a background loop that periodically triggers profile post-processing if enabled.
-func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
-	if intervalSec <= 0 {
-		return
-	}
-
-	for {
-		runPostProcessingSweep(ctx, logger, profilesDir, intervalSec)
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Duration(intervalSec) * time.Second):
-			// Block until the sleep completes before starting the next sweep
-		}
-	}
-}
-
-// runPostProcessingSweep scans the profiles directory and launches concurrent postprocessing for newly updated profiles.
-func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
-	files, err := os.ReadDir(profilesDir)
-	if err != nil {
-		return
-	}
-
-	var wg sync.WaitGroup
-	for _, file := range files {
-		name := file.Name()
-		if !strings.HasSuffix(name, ".bin") || strings.HasPrefix(name, ".") {
-			continue
-		}
-
-		binPath := filepath.Join(profilesDir, name)
-		binInfo, err := os.Stat(binPath)
-		if err != nil || binInfo.Size() == 0 {
-			continue
-		}
-
-		htmlPath := strings.TrimSuffix(binPath, ".bin") + ".html"
-		htmlInfo, err := os.Stat(htmlPath)
-
-		shouldProcess := false
-		if os.IsNotExist(err) {
-			shouldProcess = true
-		} else if err == nil {
-			// Don't regenerate when there were no updates to the profile.
-			if binInfo.ModTime().After(htmlInfo.ModTime().Add(time.Duration(intervalSec) * time.Second)) {
-				shouldProcess = true
-			}
-		}
-
-		if shouldProcess {
-			wg.Add(1)
-			go func(bin string) {
-				defer wg.Done()
-
-				html := strings.TrimSuffix(bin, ".bin") + ".html"
-				filename := filepath.Base(bin)
-
-				// 1. Peak Flamegraph
-				cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
-				if err := cmd1.Run(); err != nil {
-					logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
-				}
-
-				// 2. Leaks Flamegraph
-				leaksHtml := strings.TrimSuffix(bin, ".bin") + "_leaks.html"
-				cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, bin)
-				if err := cmd2.Run(); err != nil {
-					logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
-				}
-
-				logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
-			}(binPath)
-		}
-	}
-
-	wg.Wait()
-}

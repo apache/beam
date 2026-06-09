@@ -1,0 +1,314 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/apache/beam/sdks/v2/go/container/tools"
+)
+
+type profilerConfigKeyType int
+
+const profilerConfigKey profilerConfigKeyType = iota
+
+// ProfilerConfig holds all pre-computed profiling parameters.
+type ProfilerConfig struct {
+	Enabled                bool
+	Agent                  string
+	ExtraArgs              []string
+	ExtraEnvVars           []string
+	Location               string
+	TempLocation           string
+	StopSentinelPath       string
+	GcsDestPath            string
+	UploadIntervalSec      int
+	StopAfterSec           int
+	StopAfterCrash         bool
+	PostprocessIntervalSec int
+}
+
+// setupProfilerConfig parses PipelineOptionsData and stores a resolved ProfilerConfig in the context.
+func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *PipelineOptionsData) context.Context {
+	agent := opts.Options.ProfilerAgent
+	if agent == "" {
+		return ctx
+	}
+
+	tempLocation := opts.Options.ProfileTempLocation
+	if tempLocation == "" {
+		tempLocation = filepath.Join(*semiPersistDir, "profiles")
+	}
+
+	jobId := opts.Options.JobId
+	if jobId == "" {
+		jobId = "BEAM_JOB"
+	}
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "default-worker"
+	}
+	sentinelPath := filepath.Join(tempLocation, fmt.Sprintf(".profiler_disengaged_%s_%s", jobId, hostname))
+
+	var gcsDestPath string
+	if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
+		baseGcsDest := strings.TrimSuffix(opts.Options.ProfileLocation, "/")
+		gcsDestPath = fmt.Sprintf("%s/%s/%s", baseGcsDest, jobId, hostname)
+	}
+
+	config := &ProfilerConfig{
+		Enabled:                true,
+		Agent:                  agent,
+		ExtraArgs:              opts.Options.ProfilerExtraArgs,
+		ExtraEnvVars:           opts.Options.ProfilerExtraEnvVars,
+		Location:               opts.Options.ProfileLocation,
+		TempLocation:           tempLocation,
+		StopSentinelPath:       sentinelPath,
+		GcsDestPath:            gcsDestPath,
+		UploadIntervalSec:      opts.Options.ProfileUploadIntervalSec,
+		StopAfterSec:           opts.Options.ProfilerStopAfterSec,
+		StopAfterCrash:         opts.Options.ProfilerStopAfterCrash,
+		PostprocessIntervalSec: opts.Options.ProfilePostprocessIntervalSec,
+	}
+
+	return context.WithValue(ctx, profilerConfigKey, config)
+}
+
+// getProfilerConfig extracts the ProfilerConfig from the context.
+func getProfilerConfig(ctx context.Context) *ProfilerConfig {
+	if cfg, ok := ctx.Value(profilerConfigKey).(*ProfilerConfig); ok {
+		return cfg
+	}
+	return nil
+}
+
+// startProfilerBackgroundTasks initializes profiling locations and runs background tasks (GCS sync, post-processing loops) if profiling is enabled.
+func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
+	pcfg := getProfilerConfig(ctx)
+	if pcfg == nil {
+		return
+	}
+
+	logger.Printf(ctx, "Worker will be configured with profiler agent enabled.")
+	logger.Printf(ctx, "ProfilerAgent: %v", pcfg.Agent)
+	logger.Printf(ctx, "ProfilerExtraArgs: %v", pcfg.ExtraArgs)
+	logger.Printf(ctx, "ProfilerExtraEnvVars: %v", pcfg.ExtraEnvVars)
+	logger.Printf(ctx, "ProfileLocation: %v", pcfg.Location)
+	logger.Printf(ctx, "ProfileTempLocation: %v", pcfg.TempLocation)
+	logger.Printf(ctx, "ProfileUploadIntervalSec: %v", pcfg.UploadIntervalSec)
+	logger.Printf(ctx, "ProfilerStopAfterSec: %v", pcfg.StopAfterSec)
+	logger.Printf(ctx, "ProfilerStopAfterCrash: %v", pcfg.StopAfterCrash)
+	logger.Printf(ctx, "ProfilePostprocessIntervalSec: %v", pcfg.PostprocessIntervalSec)
+	if err := os.MkdirAll(pcfg.TempLocation, 0755); err != nil {
+		logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
+	}
+
+	if pcfg.GcsDestPath != "" {
+		if _, err := exec.LookPath("gcloud"); err != nil {
+			logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
+		} else {
+			if pcfg.UploadIntervalSec > 0 {
+				ticker := time.NewTicker(time.Duration(pcfg.UploadIntervalSec) * time.Second)
+				go func() {
+					for range ticker.C {
+						syncProfilesToGCS(ctx, logger, pcfg.TempLocation, pcfg.GcsDestPath)
+					}
+				}()
+			}
+		}
+	}
+
+	if pcfg.Agent == "memray" {
+		go postProcessProfilesLoop(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+	}
+}
+
+// maybeWithProfiler builds the execution arguments and environment variables if profiling is enabled and active.
+func maybeWithProfiler(
+	ctx context.Context,
+	logger *tools.Logger,
+	workerId string,
+	currentProg string,
+	currentArgs []string,
+	currentEnv map[string]string,
+) (string, []string, map[string]string, bool) {
+	pcfg := getProfilerConfig(ctx)
+	if pcfg == nil {
+		return currentProg, currentArgs, currentEnv, false
+	}
+
+	if _, err := os.Stat(pcfg.StopSentinelPath); err == nil {
+		return currentProg, currentArgs, currentEnv, false
+	}
+
+	prog := currentProg
+	var args []string
+	// Copy env
+	env := make(map[string]string)
+	for k, v := range currentEnv {
+		env[k] = v
+	}
+
+	if pcfg.Agent == "memray" {
+		timeSuffix := time.Now().Format("20060102150405")
+		memrayFile := filepath.Join(pcfg.TempLocation, fmt.Sprintf("memray-%s-%s.bin", workerId, timeSuffix))
+		args = []string{"-m", "memray", "run"}
+		args = append(args, pcfg.ExtraArgs...)
+		args = append(args, "-o", memrayFile, "-m", sdkHarnessEntrypoint)
+	} else if pcfg.Agent == "tcmalloc" {
+		tcmallocHeapPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("tcmalloc-%s", workerId))
+		existingPreload := os.Getenv("LD_PRELOAD")
+		if existingPreload != "" {
+			env["LD_PRELOAD"] = existingPreload + ":/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+		} else {
+			env["LD_PRELOAD"] = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+		}
+		env["HEAPPROFILE"] = tcmallocHeapPath
+		args = currentArgs
+	} else {
+		prog = pcfg.Agent
+		args = append(append([]string{}, pcfg.ExtraArgs...), currentProg)
+		args = append(args, currentArgs...)
+	}
+
+	for _, envVar := range pcfg.ExtraEnvVars {
+		parts := strings.SplitN(envVar, "=", 2)
+		if len(parts) == 2 {
+			env[parts[0]] = parts[1]
+		} else {
+			logger.Errorf(ctx, "Failed to parse profiler extra environment variable: %v. Expected format KEY=VALUE", envVar)
+		}
+	}
+
+	return prog, args, env, true
+}
+
+// stopProfiling creates a dummy file at StopSentinelPath to signal that profiling should stop.
+func stopProfiling(ctx context.Context) error {
+	pcfg := getProfilerConfig(ctx)
+	if pcfg == nil {
+		return nil
+	}
+	f, err := os.Create(pcfg.StopSentinelPath)
+	if err == nil {
+		f.Close()
+	}
+	return err
+}
+
+// syncProfilesToGCS uploads newly created local memory profiles to the designated GCS target path using gcloud storage.
+func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsDest string) {
+	entries, err := os.ReadDir(localDir)
+	if err != nil || len(entries) == 0 {
+		return
+	}
+
+	logger.Printf(ctx, "Syncing profiles from %s to %s", localDir, gcsDest)
+
+	cmd := exec.Command("gcloud", "storage", "rsync", localDir, gcsDest)
+	if err := cmd.Run(); err != nil {
+		logger.Warnf(ctx, "Failed to sync profiles to GCS: %v", err)
+	} else {
+		logger.Printf(ctx, "Successfully synced profiles to GCS.")
+	}
+}
+
+// postProcessProfilesLoop runs a background loop that periodically triggers profile post-processing if enabled.
+func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
+	if intervalSec <= 0 {
+		return
+	}
+
+	for {
+		runPostProcessingSweep(ctx, logger, profilesDir, intervalSec)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(intervalSec) * time.Second):
+			// Block until the sleep completes before starting the next sweep
+		}
+	}
+}
+
+// runPostProcessingSweep scans the profiles directory and launches concurrent postprocessing for newly updated profiles.
+func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
+	files, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return
+	}
+
+	var wg sync.WaitGroup
+	for _, file := range files {
+		name := file.Name()
+		if !strings.HasSuffix(name, ".bin") || strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		binPath := filepath.Join(profilesDir, name)
+		binInfo, err := os.Stat(binPath)
+		if err != nil || binInfo.Size() == 0 {
+			continue
+		}
+
+		htmlPath := strings.TrimSuffix(binPath, ".bin") + ".html"
+		htmlInfo, err := os.Stat(htmlPath)
+
+		shouldProcess := false
+		if os.IsNotExist(err) {
+			shouldProcess = true
+		} else if err == nil {
+			// Don't regenerate when there were no updates to the profile.
+			if binInfo.ModTime().After(htmlInfo.ModTime().Add(time.Duration(intervalSec) * time.Second)) {
+				shouldProcess = true
+			}
+		}
+
+		if shouldProcess {
+			wg.Add(1)
+			go func(bin string) {
+				defer wg.Done()
+
+				html := strings.TrimSuffix(bin, ".bin") + ".html"
+				filename := filepath.Base(bin)
+
+				// 1. Peak Flamegraph
+				cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, bin)
+				if err := cmd1.Run(); err != nil {
+					logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
+				}
+
+				// 2. Leaks Flamegraph
+				leaksHtml := strings.TrimSuffix(bin, ".bin") + "_leaks.html"
+				cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, bin)
+				if err := cmd2.Run(); err != nil {
+					logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
+				}
+
+				logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
+			}(binPath)
+		}
+	}
+
+	wg.Wait()
+}
