@@ -128,6 +128,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
   private final WindmillTagEncoding windmillTagEncoding;
+
   /**
    * The current user-facing key for this execution context.
    *
@@ -556,8 +557,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     return callbacks;
   }
 
-  @Nullable
-  String getStateFamily(NameContext nameContext) {
+  @Nullable String getStateFamily(NameContext nameContext) {
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 

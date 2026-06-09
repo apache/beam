@@ -3036,8 +3036,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useFairMonitor= */ false,
+            /* useKeyGroupWorkQueue= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3098,8 +3098,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useFairMonitor= */ false,
+            /* useKeyGroupWorkQueue= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3169,8 +3169,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useFairMonitor= */ false,
+            /* useKeyGroupWorkQueue= */ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3244,8 +3244,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false,
-            /*useKeyGroupWorkQueue=*/ false);
+            /* useFairMonitor= */ false,
+            /* useKeyGroupWorkQueue= */ false);
 
     ComputationState computationState =
         new ComputationState(
