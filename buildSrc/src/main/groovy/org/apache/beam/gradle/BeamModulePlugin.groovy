@@ -3147,7 +3147,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             executable 'sh'
             // Default uv cache is global; py310/py314 installGcpTest fight over the same lock.
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install uv && uv pip install --cache-dir ${uvCacheDir} --pre ${installTargets}"
+            args '-c', ". \"${project.ext.envdir}/bin/activate\" && pip install uv && uv pip install --cache-dir \"${uvCacheDir}\" --pre \"${installTargets}\""
           }
         }
       }
