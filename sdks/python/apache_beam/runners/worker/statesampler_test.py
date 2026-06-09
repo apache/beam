@@ -321,36 +321,38 @@ class StateSamplerTest(unittest.TestCase):
     updating counter states.
     """
     if not statesampler.FAST_SAMPLER:
-      self.skipTest('Requires FAST_SAMPLER')
+      self.skipTest('test_concurrent_nsecs_reads requires FAST_SAMPLER')
 
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler(
-        'concurrent', counter_factory, sampling_period_ms=1)
+        'basic', counter_factory, sampling_period_ms=1)
 
     sampler.start()
-    state_a = sampler.scoped_state('step1', 'statea')
-    state_b = sampler.scoped_state('step1', 'stateb')
-
-    stop_signal = False
-
-    def read_nsecs_loop():
-      while not stop_signal:
-        _ = state_a.nsecs
-        _ = state_b.nsecs
-        time.sleep(0.001)
-
-    reader_thread = threading.Thread(target=read_nsecs_loop)
-    reader_thread.start()
-
+    reader_thread = None
     try:
+      state_a = sampler.scoped_state('step1', 'statea')
+      state_b = sampler.scoped_state('step1', 'stateb')
+
+      stop_signal = False
+
+      def read_nsecs_loop():
+        while not stop_signal:
+          _ = state_a.nsecs
+          _ = state_b.nsecs
+          time.sleep(0.001)
+
+      reader_thread = threading.Thread(target=read_nsecs_loop)
+      reader_thread.start()
+
       for _ in range(100):
         with state_a:
           time.sleep(0.001)
           with state_b:
             time.sleep(0.001)
     finally:
-      stop_signal = True
-      reader_thread.join()
+      if reader_thread is not None:
+        stop_signal = True
+        reader_thread.join()
       sampler.stop()
 
 
