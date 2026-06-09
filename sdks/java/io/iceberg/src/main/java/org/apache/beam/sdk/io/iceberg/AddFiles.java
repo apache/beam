@@ -524,7 +524,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
-      TableIdentifier tableId = TableIdentifier.parse(identifier);
+      TableIdentifier tableId = IcebergUtils.parseTableIdentifier(identifier);
       try {
         return catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
@@ -544,7 +544,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           }
           return builder.create();
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+          return catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
         }
       }
     }
@@ -679,7 +679,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         return;
       }
       if (table == null) {
-        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+        table = catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
       }
 
       PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getKey()));
@@ -764,7 +764,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       }
       String commitId = commitHash(manifests);
       if (table == null) {
-        table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
+        table = catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
       }
       table.refresh();
       ensureNameMappingPresent(table);

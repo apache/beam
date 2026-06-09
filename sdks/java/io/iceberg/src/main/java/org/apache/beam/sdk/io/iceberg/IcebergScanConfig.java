@@ -69,7 +69,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public Table getTable() {
     if (cachedTable == null) {
       cachedTable =
-          getCatalogConfig().catalog().loadTable(TableIdentifier.parse(getTableIdentifier()));
+          getCatalogConfig()
+              .catalog()
+              .loadTable(IcebergUtils.parseTableIdentifier(getTableIdentifier()));
     }
     return cachedTable;
   }
@@ -260,7 +262,7 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setTableIdentifier(String tableIdentifier);
 
     public Builder setTableIdentifier(TableIdentifier tableIdentifier) {
-      return this.setTableIdentifier(tableIdentifier.toString());
+      return this.setTableIdentifier(IcebergUtils.tableIdentifierToString(tableIdentifier));
     }
 
     public Builder setTableIdentifier(String... names) {

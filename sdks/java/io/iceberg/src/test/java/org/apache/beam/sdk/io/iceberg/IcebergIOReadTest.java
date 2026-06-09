@@ -306,7 +306,8 @@ public class IcebergIOReadTest {
   @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+        TableIdentifier.of(
+            "default", "table.with.dots" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
