@@ -418,7 +418,6 @@
         catalog_properties: 'catalog_properties'
         config_properties: 'config_properties'
         triggering_frequency_seconds: 'triggering_frequency_seconds'
-        append_batch_size: 'append_batch_size'
         location_prefix: 'location_prefix'
         partition_fields: 'partition_fields'
         table_properties: 'table_properties'
