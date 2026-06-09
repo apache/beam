@@ -153,7 +153,25 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
-        .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
+        .operatorTable(
+            SqlOperatorTables.chain(
+                opTab0,
+                // The Spark/PostgreSQL infix cast `expr::TYPE` parses (via the InfixCast grammar
+                // production) to a SqlCall on SqlLibraryOperators.INFIX_CAST, so the validator's
+                // operator table must contain it (the standard table does not). The Spark call-form
+                // collection constructors `ARRAY(...)` / `MAP(...)` likewise parse (via the core
+                // ArrayConstructor/MapConstructor productions) to SqlLibraryOperators.ARRAY/.MAP,
+                // which are SPARK-library operators absent from the standard table; register them
+                // so validation resolves the call form (the bracket form `ARRAY[...]` uses the
+                // standard value-constructors and needs no registration).
+                SqlOperatorTables.of(
+                    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun
+                        .SqlLibraryOperators.INFIX_CAST,
+                    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun
+                        .SqlLibraryOperators.ARRAY,
+                    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun
+                        .SqlLibraryOperators.MAP),
+                catalogReader))
         .sqlToRelConverterConfig(sqlToRelConfig)
         .build();
   }

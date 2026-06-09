@@ -451,12 +451,23 @@ data: {
       # Return type of method implementation should be "SqlTypeNameSpec".
       # Example: SqlParseTimeStampZ().
       dataTypeParserMethods: [
+        # Spark angle-bracket collection/struct spellings (array<..>, map<..,..>, struct<f:T,..>) so
+        # they parse anywhere Calcite accepts a DataType (e.g. CAST(x AS array<int>)), not only on the
+        # '::' RHS. Returns SqlTypeNameSpec; emitted first in the core TypeName() choice under
+        # LOOKAHEAD(2). Each branch is decidable in <=2 tokens (ARRAY / MAP / IDENTIFIER-then-'<'), so
+        # a bare core type or a user-defined-type identifier never enters and falls through to core.
+        "SparkAngleType()"
       ]
 
       # List of methods for parsing builtin function calls.
       # Return type of method implementation should be "SqlNode".
       # Example: DateFunctionCall().
       builtinFunctionCallMethods: [
+        # Spark numeric type-constructor functions float(x)/double(x).
+        # FLOAT/DOUBLE are RESERVED keyword tokens, so they can never reach NamedFunctionCall and
+        # cannot be registered as UDFs (unlike DATE()/TIMESTAMP()) -- a grammar production is the only
+        # native route. Emits a standard CAST, which RexImpTable lowers natively.
+        "SparkTypeConstructorCall()"
       ]
 
       # List of methods for parsing extensions to "ALTER <scope>" calls.
@@ -491,11 +502,17 @@ data: {
       ]
 
       # Binary operators tokens
+      # Spark/PostgreSQL infix cast token. Injected into the OPERATORS block across all lexer
+      # states. Maximal-munch guarantees "::" beats single ":" (COLON); the grammar's only COLON
+      # use is a single-colon k/v separator, so nothing is stolen.
       binaryOperatorsTokens: [
+        "< DOUBLE_COLON: \"::\" >"
       ]
 
       # Binary operators initialization
+      # InfixCast(list, exprContext, s): emits SqlLibraryOperators.INFIX_CAST for "expr :: TYPE".
       extraBinaryExpressions: [
+        "InfixCast"
       ]
 
       # List of files in @includes directory that have parser method
