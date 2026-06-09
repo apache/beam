@@ -28,10 +28,7 @@ repositories {
  * We configure spotless here once in order to only check these java sources once.
  */
 spotless {
-  def ratchetBranch = project.rootProject.hasProperty('getRatchetBranch') ? project.rootProject.ext.getRatchetBranch() : null
-  if (ratchetBranch != null) {
-    ratchetFrom ratchetBranch
-  }
+
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
     googleJavaFormat('1.17.0')
