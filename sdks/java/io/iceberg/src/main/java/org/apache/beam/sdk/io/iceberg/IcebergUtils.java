@@ -643,29 +643,36 @@ public class IcebergUtils {
 
   /** Parses either Iceberg's JSON table identifier representation or the legacy dotted form. */
   public static TableIdentifier parseTableIdentifier(String table) {
-    if (startsWithJsonObject(table)) {
+    if (looksLikeJsonObject(table)) {
       return TableIdentifierParser.fromJson(table);
     }
 
     return TableIdentifier.parse(table);
   }
 
-  private static boolean startsWithJsonObject(@Nullable String value) {
+  private static boolean looksLikeJsonObject(@Nullable String value) {
     if (value == null) {
       return false;
     }
 
-    for (int i = 0; i < value.length(); i++) {
-      if (!Character.isWhitespace(value.charAt(i))) {
-        return value.charAt(i) == '{';
-      }
+    int start = 0;
+    while (start < value.length() && Character.isWhitespace(value.charAt(start))) {
+      start++;
+    }
+    if (start == value.length() || value.charAt(start) != '{') {
+      return false;
     }
 
-    return false;
+    int end = value.length() - 1;
+    while (end >= 0 && Character.isWhitespace(value.charAt(end))) {
+      end--;
+    }
+
+    return end >= 0 && value.charAt(end) == '}';
   }
 
   private static boolean requiresJsonTableIdentifier(TableIdentifier identifier) {
-    if (startsWithJsonObject(identifier.toString())) {
+    if (looksLikeJsonObject(identifier.toString())) {
       return true;
     }
 

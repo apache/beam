@@ -104,7 +104,7 @@ public class IcebergUtilsTest {
 
     @Test
     public void tableIdentifierToStringUsesJsonForLegacyStringsThatLookLikeJson() {
-      TableIdentifier expected = TableIdentifier.of("{dogs}", "food");
+      TableIdentifier expected = TableIdentifier.of("{dogs}");
 
       assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
     }
