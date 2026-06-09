@@ -418,9 +418,11 @@
         catalog_properties: 'catalog_properties'
         config_properties: 'config_properties'
         triggering_frequency_seconds: 'triggering_frequency_seconds'
+        manifest_file_size: 'manifest_file_size'
         location_prefix: 'location_prefix'
         partition_fields: 'partition_fields'
         table_properties: 'table_properties'
+        sort_fields: 'sort_fields'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
