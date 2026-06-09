@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.kafka.common.serialization.Serdes;
@@ -107,7 +108,24 @@ public class ChainedExecutableStageTest {
       KafkaStreamsTranslationContext context =
           translator.createTranslationContext(jobInfo, options);
 
-      translator.translate(context, translator.prepareForTranslation(pipelineProto));
+      RunnerApi.Pipeline preparedPipeline = translator.prepareForTranslation(pipelineProto);
+
+      // Verify the Redistribute boundary actually split the user code into two separate stages.
+      // Without this, the test could pass even if the fuser collapsed MapElements and the
+      // RecordingFn into one stage — in which case the Integer payload would flow through user
+      // code inside a single stage and never cross the runner-side ExecutableStage edge that
+      // this test exists to exercise.
+      long executableStageCount =
+          preparedPipeline.getComponents().getTransformsMap().values().stream()
+              .filter(t -> ExecutableStage.URN.equals(t.getSpec().getUrn()))
+              .count();
+      assertThat(
+          "expected two ExecutableStages (upstream MapElements + downstream RecordingFn ParDo) "
+              + "separated by the Redistribute boundary",
+          executableStageCount,
+          is(2L));
+
+      translator.translate(context, preparedPipeline);
 
       Topology topology = context.getTopology();
       try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
