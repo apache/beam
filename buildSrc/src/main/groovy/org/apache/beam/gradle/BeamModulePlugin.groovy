@@ -1504,12 +1504,8 @@ class BeamModulePlugin implements Plugin<Project> {
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.17.0')
-          target project.fileTree(project.projectDir) {
-            include 'src/*/java/**/*.java'
-            exclude '**/build/**'
-            exclude '**/.gradle/**'
-            exclude '**/DefaultPackageTest.java'
-          }
+          target 'src/main/java/**/*.java', 'src/test/java/**/*.java'
+          targetExclude '**/DefaultPackageTest.java'
           // For spotless:off and spotless:on
           toggleOffOn()
         }
@@ -2434,11 +2430,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
           greclipse().configFile(grEclipseConfig)
-          target project.fileTree(project.projectDir) {
-            include '**/*.groovy'
-            exclude '**/build/**'
-            exclude '**/.gradle/**'
-          }
+          target 'src/main/groovy/**/*.groovy', 'src/test/groovy/**/*.groovy'
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
