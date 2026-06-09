@@ -70,17 +70,24 @@ class UdfImpl {
   }
 
   /*
-   * Finds a method in a given class by name.
+   * Finds a method in a given class by name. In case of overloaded methods with the same name,
+   * this prioritizes the overload with the maximum number of parameters. This ensures Calcite
+   * can resolve optional/default trailing parameters correctly when binding UDF overloads.
+   *
    * @param clazz class to search method in
    * @param name name of the method to find
-   * @return the first method with matching name or null when no method found
+   * @return the matching method with the highest parameter count or null when no method found
    */
   static @Nullable Method findMethod(Class<?> clazz, String name) {
+    Method bestMethod = null;
     for (Method method : clazz.getMethods()) {
       if (method.getName().equals(name) && !method.isBridge()) {
-        return method;
+        if (bestMethod == null
+            || method.getParameterTypes().length > bestMethod.getParameterTypes().length) {
+          bestMethod = method;
+        }
       }
     }
-    return null;
+    return bestMethod;
   }
 }

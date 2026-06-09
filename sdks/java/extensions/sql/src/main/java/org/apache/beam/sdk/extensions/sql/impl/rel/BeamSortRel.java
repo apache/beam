@@ -40,6 +40,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
@@ -134,11 +135,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
 
     if (fetch == null) {
-      throw new UnsupportedOperationException("ORDER BY without a LIMIT is not supported!");
+      count = -1;
+    } else {
+      RexLiteral fetchLiteral = (RexLiteral) fetch;
+      count = ((BigDecimal) fetchLiteral.getValue()).intValue();
     }
-
-    RexLiteral fetchLiteral = (RexLiteral) fetch;
-    count = ((BigDecimal) fetchLiteral.getValue()).intValue();
 
     if (offset != null) {
       RexLiteral offsetLiteral = (RexLiteral) offset;
@@ -207,6 +208,20 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               String.format(
                   "`ORDER BY` is only supported for %s, actual windowing strategy: %s",
                   GlobalWindows.class.getSimpleName(), windowingStrategy));
+        }
+
+        // When no limit is specified (count == -1), we must sort the entire dataset.
+        // To achieve this globally, we key all rows by a single dummy key, group them together
+        // using GroupByKey to ensure they are processed together, and then sort them in-memory
+        // via SortInMemoryFn. Note: This can be memory-intensive for large datasets.
+        if (count == -1) {
+          BeamSqlRowComparator comparator =
+              new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+          return upstream
+              .apply("WithDummyKey", WithKeys.of("DummyKey"))
+              .apply("GroupByKey", GroupByKey.create())
+              .apply("SortInMemory", ParDo.of(new SortInMemoryFn(comparator)))
+              .setRowSchema(CalciteUtils.toSchema(getRowType()));
         }
 
         ReversedBeamSqlRowComparator comparator =
@@ -340,9 +355,16 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
-          fieldRet = -1 * (nullsFirst.get(i) ? -1 : 1);
+          // NULL placement is absolute: NULLS FIRST means the null row always sorts before the
+          // non-null row regardless of ASC/DESC, and NULLS LAST means it always sorts after. Do
+          // NOT apply the ASC/DESC orientation flip here — that flip only governs value-vs-value
+          // ordering (handled below). Mixing the two reversed NULLS LAST under ascending sorts
+          // (and NULLS FIRST under descending sorts), placing nulls on the wrong end.
+          fieldRet = nullsFirst.get(i) ? -1 : 1;
+          return fieldRet;
         } else if (!isValue1Null && isValue2Null) {
-          fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
+          fieldRet = nullsFirst.get(i) ? 1 : -1;
+          return fieldRet;
         } else {
           switch (sqlTypeName) {
             case TINYINT:
@@ -351,9 +373,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case BIGINT:
             case FLOAT:
             case DOUBLE:
+            case DECIMAL:
+            case BOOLEAN:
             case VARCHAR:
+            case CHAR:
             case DATE:
+            case TIME:
             case TIMESTAMP:
+              // All of the above map to Java types that implement Comparable (Boolean, BigDecimal,
+              // LocalTime, etc.), so a uniform Comparable comparison yields the correct SQL
+              // ordering
+              // (false < true for BOOLEAN). The base value is extracted via Comparable.class.
               Comparable v1 = row1.getBaseValue(fieldIndex, Comparable.class);
               Comparable v2 = row2.getBaseValue(fieldIndex, Comparable.class);
               fieldRet = v1.compareTo(v2);
@@ -371,6 +401,27 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         }
       }
       return 0;
+    }
+  }
+
+  private static class SortInMemoryFn extends DoFn<KV<String, Iterable<Row>>, Row> {
+    private final BeamSqlRowComparator comparator;
+
+    public SortInMemoryFn(BeamSqlRowComparator comparator) {
+      this.comparator = comparator;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      Iterable<Row> input = ctx.element().getValue();
+      List<Row> list = new ArrayList<>();
+      for (Row r : input) {
+        list.add(r);
+      }
+      list.sort(comparator);
+      for (Row r : list) {
+        ctx.output(r);
+      }
     }
   }
 

@@ -294,6 +294,28 @@ public class BeamSortRelTest extends BaseRelTest {
   }
 
   @Test
+  public void testOrderBy_withoutLimit() {
+    String sql =
+        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+            + " order_id, site_id, price "
+            + "FROM ORDER_DETAILS "
+            + "ORDER BY order_id asc, site_id desc";
+
+    PCollection<Row> rows = compilePipeline(sql, pipeline);
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                    Schema.FieldType.INT64, "order_id",
+                    Schema.FieldType.INT32, "site_id",
+                    Schema.FieldType.DOUBLE, "price")
+                .addRows(
+                    1L, 2, 1.0, 1L, 1, 2.0, 2L, 4, 3.0, 2L, 1, 4.0, 5L, 5, 5.0, 6L, 6, 6.0, 7L, 7,
+                    7.0, 8L, 8888, 8.0, 8L, 999, 9.0, 10L, 100, 10.0)
+                .getRows());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testNodeStatsEstimation() {
     String sql =
         "SELECT order_id, site_id, price, order_time "

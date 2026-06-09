@@ -27,6 +27,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
@@ -137,6 +138,7 @@ public class CalciteUtils {
           .put(TIME_WITH_LOCAL_TZ, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
           .put(TIMESTAMP, SqlTypeName.TIMESTAMP)
           .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put(FieldType.logicalType(new NanosDuration()), SqlTypeName.INTERVAL_DAY_SECOND)
           .build();
 
   private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
@@ -161,6 +163,8 @@ public class CalciteUtils {
           .put(SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE, TIME_WITH_LOCAL_TZ)
           .put(SqlTypeName.TIMESTAMP, TIMESTAMP)
           .put(SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TZ)
+          .put(SqlTypeName.NULL, VARCHAR)
+          .put(SqlTypeName.INTERVAL_DAY_SECOND, FieldType.logicalType(new NanosDuration()))
           .build();
 
   // Since there are multiple Calcite type that correspond to a single Beam type, this is the
@@ -395,6 +399,55 @@ public class CalciteUtils {
               + type
               + ". This is currently unsupported, use List instead "
               + "of Array.");
+    }
+    if (type instanceof Class) {
+      Class<?> clazz = (Class<?>) type;
+      if (clazz == String.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.VARCHAR), true);
+      } else if (clazz == Integer.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.INTEGER), true);
+      } else if (clazz == int.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.INTEGER), false);
+      } else if (clazz == Long.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), true);
+      } else if (clazz == long.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BIGINT), false);
+      } else if (clazz == Double.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.DOUBLE), true);
+      } else if (clazz == double.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.DOUBLE), false);
+      } else if (clazz == Float.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.FLOAT), true);
+      } else if (clazz == float.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.FLOAT), false);
+      } else if (clazz == Short.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.SMALLINT), true);
+      } else if (clazz == short.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.SMALLINT), false);
+      } else if (clazz == Byte.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.TINYINT), true);
+      } else if (clazz == byte.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.TINYINT), false);
+      } else if (clazz == Boolean.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BOOLEAN), true);
+      } else if (clazz == boolean.class) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(SqlTypeName.BOOLEAN), false);
+      }
     }
     return typeFactory.createJavaType((Class) type);
   }
