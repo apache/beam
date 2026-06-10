@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.Configuration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -67,7 +68,8 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
     private final Configuration configuration;
 
     DeltaReadSchemaTransform(Configuration configuration) {
-      this.configuration = configuration;
+      this.configuration =
+          java.util.Objects.requireNonNull(configuration, "configuration cannot be null");
     }
 
     Row getConfigurationRow() {
