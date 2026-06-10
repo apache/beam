@@ -30,6 +30,7 @@ from unittest.mock import MagicMock
 import grpc
 
 import apache_beam as beam
+from apache_beam.io.unbounded_source_test import UnboundedCountingSource
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -47,6 +48,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
+from apache_beam.transforms import window
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -208,6 +210,30 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
           | beam.ParDo(Input())
           | beam.ParDo(AddIndex()),
           equal_to(expected))
+
+  def test_unbounded_source_read(self):
+    """Reads a self-terminating UnboundedSource through the job service.
+
+    Complements the DirectRunner tests in apache_beam.io.unbounded_source_test
+    by exercising the runner-API round trip and the EOF ``MAX_TIMESTAMP``
+    watermark propagation that lets the downstream window fire.
+    """
+    if type(self).__name__ == 'SparkRunnerTest':
+      # Portable Spark does not execute SDFs, so SparkRunnerTest skips every
+      # SDF test (see its test_sdf* overrides).
+      raise unittest.SkipTest('https://github.com/apache/beam/issues/19468')
+    with self.create_pipeline() as p:
+      out = p | beam.io.Read(UnboundedCountingSource(5))
+      self.assertFalse(out.is_bounded)
+      assert_that(out, equal_to([0, 1, 2, 3, 4]), label='assert_elements')
+      windowed = (
+          out
+          | beam.WindowInto(window.FixedWindows(100))
+          | beam.Map(lambda v: ('all', v))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda _key, values: sorted(values)))
+      assert_that(
+          windowed, equal_to([[0, 1, 2, 3, 4]]), label='assert_windowed')
 
   # Inherits all other tests from fn_api_runner_test.FnApiRunnerTest
 
