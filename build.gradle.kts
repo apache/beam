@@ -26,6 +26,35 @@ plugins {
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
   id("org.sonarqube") version "3.0"
+  id("com.diffplug.spotless")
+}
+
+val mavenCentralMirrorUrl = project.findProperty("mavenCentralMirrorUrl") as String?
+val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
+
+repositories {
+  if (useMirror) {
+    maven { url = uri(mavenCentralMirrorUrl!!) }
+  } else {
+    mavenCentral()
+  }
+}
+
+spotless {
+  predeclareDeps()
+}
+
+configure<com.diffplug.gradle.spotless.SpotlessExtensionPredeclare> {
+  java {
+    googleJavaFormat("1.17.0")
+  }
+  groovy {
+    greclipse()
+  }
+  groovyGradle {
+    greclipse()
+  }
 }
 
 /*************************************************************************************************/

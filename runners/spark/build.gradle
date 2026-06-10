@@ -19,7 +19,13 @@
 apply plugin: 'com.diffplug.spotless'
 
 repositories {
-  mavenCentral()
+  def mirrorUrl = project.findProperty("mavenCentralMirrorUrl")
+  def isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+  if (isCi && mirrorUrl) {
+    maven { url mirrorUrl }
+  } else {
+    mavenCentral()
+  }
 }
 
 /*
