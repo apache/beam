@@ -88,13 +88,8 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:sql_server_read:v1"];
     SQL_SERVER_WRITE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:sql_server_write:v1"];
-<<<<<<< HEAD
     DELTA_LAKE_READ = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:delta_lake_read:v1"];
-=======
-    DELTA_READ = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
-      "beam:schematransform:org.apache.beam:delta_read:v1"];
->>>>>>> 7bce23329c5 (add managed)
   }
 }
 
