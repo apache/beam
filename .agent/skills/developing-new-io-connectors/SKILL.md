@@ -337,9 +337,9 @@ Create integration tests to test end-to-end data processing against real system 
 * Add GitHub Actions to trigger your tests when changes are made to your connector code. Consider adding one for pre-commit and one for post-commit.
 
 ### 4. Documentation
-Add any necessary documentation for your connector under the `http://website/www/site/content/en/documentation/io/built-in/` directory.
+Add any necessary documentation for your connector under the `website/www/site/content/en/documentation/io/built-in/` directory.
 
 ---
 
 > [!TIP]
-> **Canonical Reference Implementations:** When developing a new connector, we highly recommend studying **Apache Iceberg** ([IcebergIO.java](file:///Users/chamikara/code/beam_checkout_3/beam/sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg/IcebergIO.java)) and **Delta Lake** ([DeltaIO.java](file:///Users/chamikara/code/beam_checkout_3/beam/sdks/java/io/delta/src/main/java/org/apache/beam/sdk/io/delta/DeltaIO.java)) as state-of-the-art reference implementations.
+> **Canonical Reference Implementations:** When developing a new connector, we highly recommend studying **Apache Iceberg** ([IcebergIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg/IcebergIO.java)) and **Delta Lake** ([DeltaIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/delta/src/main/java/org/apache/beam/sdk/io/delta/DeltaIO.java)) as state-of-the-art reference implementations.
