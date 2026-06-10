@@ -116,6 +116,7 @@
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
     'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
+    'ReadFromDelta': 'apache_beam.yaml.yaml_io.read_from_delta'
 
 
 # General File Formats
@@ -449,3 +450,4 @@
         'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
