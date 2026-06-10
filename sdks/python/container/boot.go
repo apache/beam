@@ -376,7 +376,7 @@ func launchSDKProcess() error {
 				var profilingTimedOut atomic.Bool
 
 				pcfg := getProfilerConfig(ctx)
-				if profilingActive && pcfg != nil && pcfg.StopAfterSec > 0 {
+				if profilingActive && pcfg.StopAfterSec > 0 {
 					duration := time.Duration(pcfg.StopAfterSec) * time.Second
 					timer = time.AfterFunc(duration, func() {
 						childPids.mu.Lock()
@@ -404,7 +404,7 @@ func launchSDKProcess() error {
 						continue
 					}
 
-					if profilingActive && pcfg != nil && pcfg.StopAfterCrash {
+					if profilingActive && pcfg.StopAfterCrash {
 						stopProfiling(ctx)
 						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
 					}

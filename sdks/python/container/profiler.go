@@ -27,9 +27,9 @@ import (
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 )
 
-type profilerConfigKeyType int
+type profilerConfigKeyType struct{}
 
-const profilerConfigKey profilerConfigKeyType = iota
+var profilerConfigKey profilerConfigKeyType
 
 // ProfilerConfig holds all pre-computed profiling parameters.
 type ProfilerConfig struct {
@@ -288,11 +288,10 @@ func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesD
 		}
 
 		if shouldProcess {
-			html := strings.TrimSuffix(binPath, ".bin") + ".html"
 			filename := filepath.Base(binPath)
 
 			// 1. Peak Flamegraph
-			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", html, binPath)
+			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", htmlPath, binPath)
 			if err := cmd1.Run(); err != nil {
 				logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
 			}
