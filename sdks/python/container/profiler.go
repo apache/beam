@@ -127,10 +127,15 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 			logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
 		} else {
 			if pcfg.UploadIntervalSec > 0 {
-				ticker := time.NewTicker(time.Duration(pcfg.UploadIntervalSec) * time.Second)
 				go func() {
-					for range ticker.C {
-						syncProfilesToGCS(ctx, logger, pcfg.TempLocation, pcfg.GcsDestPath)
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-time.After(time.Duration(pcfg.UploadIntervalSec) * time.Second):
+							// TODO(tvalentyn): Consider a periodic cleanup as well to save local disk space.
+							syncProfilesToGCS(ctx, logger, pcfg.TempLocation, pcfg.GcsDestPath)
+						}
 					}
 				}()
 			}
@@ -224,7 +229,7 @@ func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsD
 
 	logger.Printf(ctx, "Syncing profiles from %s to %s", localDir, gcsDest)
 
-	cmd := exec.Command("gcloud", "storage", "rsync", localDir, gcsDest)
+	cmd := exec.CommandContext(ctx, "gcloud", "storage", "rsync", localDir, gcsDest)
 	if err := cmd.Run(); err != nil {
 		logger.Warnf(ctx, "Failed to sync profiles to GCS: %v", err)
 	} else {
