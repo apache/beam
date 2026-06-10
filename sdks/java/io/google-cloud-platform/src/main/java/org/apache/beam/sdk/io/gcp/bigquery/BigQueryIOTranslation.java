@@ -583,9 +583,11 @@ public class BigQueryIOTranslation {
       fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
-      fieldValues.put(
-          "auto_schema_update_strict_timeout_ms",
-          transform.getAutoSchemaUpdateStrictTimeout().getMillis());
+      if (transform.getAutoSchemaUpdateStrictTimeout() != null) {
+        fieldValues.put(
+            "auto_schema_update_strict_timeout_ms",
+            transform.getAutoSchemaUpdateStrictTimeout().getMillis());
+      }
       if (transform.getWriteProtosClass() != null) {
         fieldValues.put("write_protos_class", toByteArray(transform.getWriteProtosClass()));
       }
