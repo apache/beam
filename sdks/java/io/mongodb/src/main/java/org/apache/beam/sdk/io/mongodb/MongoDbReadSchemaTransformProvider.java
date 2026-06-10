@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import com.google.auto.service.AutoService;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -30,7 +28,6 @@ import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -94,13 +91,7 @@ public class MongoDbReadSchemaTransformProvider
       final String filterStr = configuration.getFilter();
       if (filterStr != null) {
         read =
-            read.withQueryFn(
-                new SerializableFunction<MongoCollection<Document>, MongoCursor<Document>>() {
-                  @Override
-                  public MongoCursor<Document> apply(MongoCollection<Document> collection) {
-                    return collection.find(Document.parse(filterStr)).iterator();
-                  }
-                });
+            read.withQueryFn(collection -> collection.find(Document.parse(filterStr)).iterator());
       }
 
       PCollection<Document> mongoDocs = input.getPipeline().apply("ReadFromMongoDb", read);

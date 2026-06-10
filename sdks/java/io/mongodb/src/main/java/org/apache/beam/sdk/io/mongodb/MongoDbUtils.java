@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -78,8 +77,11 @@ public class MongoDbUtils {
     return value;
   }
 
-  /** Converts a BSON {@link Document} to a Beam {@link Row} matching the given {@link Schema}. */
-  public static Row toRow(Document doc, Schema schema) {
+  /**
+   * Converts a BSON {@link Document} (or any Map representing fields) to a Beam {@link Row}
+   * matching the given {@link Schema}.
+   */
+  public static Row toRow(Map<?, ?> doc, Schema schema) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Field field : schema.getFields()) {
       Object value = doc.get(field.getName());
@@ -88,7 +90,7 @@ public class MongoDbUtils {
     return rowBuilder.build();
   }
 
-  @SuppressWarnings({"nullness", "JavaUtilDate"})
+  @SuppressWarnings("JavaUtilDate")
   private static @Nullable Object convertFromBsonValue(
       @Nullable Object value, FieldType fieldType) {
     if (value == null || value instanceof BsonNull) {
@@ -149,27 +151,36 @@ public class MongoDbUtils {
       case ARRAY:
       case ITERABLE:
         Iterable<?> iterable = (Iterable<?>) value;
-        List<Object> rowList = new ArrayList<>();
-        FieldType elementType = Objects.requireNonNull(fieldType.getCollectionElementType());
+        List<@Nullable Object> rowList = new ArrayList<>();
+        FieldType elementType = fieldType.getCollectionElementType();
+        if (elementType == null) {
+          throw new IllegalArgumentException(
+              "Collection element type cannot be null for type: " + fieldType);
+        }
         for (Object item : iterable) {
           rowList.add(convertFromBsonValue(item, elementType));
         }
         return rowList;
       case MAP:
         Map<?, ?> map = (Map<?, ?>) value;
-        Map<String, Object> rowMap = new HashMap<>();
-        FieldType valueType = Objects.requireNonNull(fieldType.getMapValueType());
+        Map<String, @Nullable Object> rowMap = new HashMap<>();
+        FieldType valueType = fieldType.getMapValueType();
+        if (valueType == null) {
+          throw new IllegalArgumentException(
+              "Map value type cannot be null for type: " + fieldType);
+        }
         for (Map.Entry<?, ?> entry : map.entrySet()) {
           rowMap.put(
               String.valueOf(entry.getKey()), convertFromBsonValue(entry.getValue(), valueType));
         }
         return rowMap;
       case ROW:
-        Schema rowSchema = Objects.requireNonNull(fieldType.getRowSchema());
-        if (value instanceof Document) {
-          return toRow((Document) value, rowSchema);
-        } else if (value instanceof Map) {
-          return toRow(new Document((Map<String, Object>) value), rowSchema);
+        Schema rowSchema = fieldType.getRowSchema();
+        if (rowSchema == null) {
+          throw new IllegalArgumentException("Row schema cannot be null for type: " + fieldType);
+        }
+        if (value instanceof Map) {
+          return toRow((Map<?, ?>) value, rowSchema);
         } else {
           throw new IllegalArgumentException("Cannot convert value to Row: " + value);
         }
