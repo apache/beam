@@ -171,20 +171,9 @@ public class BeamFileSystemClient implements FileSystemClient {
   }
 
   private static void readFully(ReadableByteChannel channel, ByteBuffer buffer) throws IOException {
-    int zeroReadCount = 0;
     while (buffer.hasRemaining()) {
-      int read = channel.read(buffer);
-      if (read < 0) {
+      if (channel.read(buffer) < 0) {
         throw new EOFException("Unexpected end of file");
-      } else if (read == 0) {
-        zeroReadCount++;
-        if (zeroReadCount > 10) {
-          throw new IOException(
-            "Read stuck: channel repeatedly returned zero bytes; channel may be stalled or corrupted");
-        }
-        Thread.yield();
-      } else {
-        zeroReadCount = 0;
       }
     }
   }
