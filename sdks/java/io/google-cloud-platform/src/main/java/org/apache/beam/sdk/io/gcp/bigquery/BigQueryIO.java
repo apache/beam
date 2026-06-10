@@ -4061,7 +4061,7 @@ public class BigQueryIO {
         checkArgument(
             getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
                 || hasTableCreationMetadata,
-            "CreateDisposition is CREATE_IF_NEEDED, however no schema or clone source was provided.");
+            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided and no clone source was provided.");
       }
 
       Coder<DestinationT> destinationCoder;
