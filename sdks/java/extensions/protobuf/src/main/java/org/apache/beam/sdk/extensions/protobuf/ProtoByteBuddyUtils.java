@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getFieldNumber;
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
@@ -55,7 +56,6 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
@@ -546,7 +546,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(protoClass))
           .getLoaded()
           .getDeclaredConstructor(List.class, OneOfType.class)
           .newInstance(getters, oneOfType);
@@ -598,7 +598,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(protoBuilderClass))
           .getLoaded()
           .getDeclaredConstructor(List.class)
           .newInstance(setters);
@@ -1116,7 +1116,7 @@ class ProtoByteBuddyUtils {
                   new AsmVisitorWrapper.ForDeclaredMethods()
                       .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
-              .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+              .load(ReflectHelpers.findClassLoader(), getClassLoadingStrategy(builderClass))
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();
