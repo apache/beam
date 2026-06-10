@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -66,9 +67,9 @@ import org.slf4j.LoggerFactory;
  * stateful. 2) Tagged output multi-outputs are unsupported. 3) StartBundle/finishBundle are invoked
  * per element so any batching or aggregation logic will not behave as expected.
  */
-public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
+public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(PerKeyConcurrentDoFn.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncWrapper.class);
 
   private static final int DEFAULT_MIN_BUFFER_CAPACITY = 10;
   private static final int DEFAULT_TIMEOUT_SEC = 1;
@@ -76,6 +77,8 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
   private static final int TEARDOWN_AWAIT_SEC = 5;
   private static final int INITIAL_BACKOFF_SLEEP_MS = 10;
   private static final int BACKPRESSURE_LOG_THRESHOLD_MS = 10000;
+  private static final double HASH_MODULO_LIMIT = 1000000.0;
+  private static final double MS_PER_SEC = 1000.0;
 
   @StateId("to_process")
   private final StateSpec<BagState<KV<K, InputT>>> toProcessSpec;
@@ -157,7 +160,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
     }
   }
 
-  public PerKeyConcurrentDoFn(
+  public AsyncWrapper(
       DoFn<InputT, OutputT> syncFn,
       int parallelism,
       Duration timerFrequency,
@@ -178,7 +181,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
         null);
   }
 
-  public PerKeyConcurrentDoFn(
+  public AsyncWrapper(
       DoFn<InputT, OutputT> syncFn,
       int parallelism,
       Duration timerFrequency,
@@ -236,6 +239,9 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
     return buffer;
   }
 
+  // Setup is called by the runner exactly once on each worker node when this DoFn is initialized.
+  // It is responsible for setting up the wrapped synchronous DoFn
+  // and initializing the shared JVM-wide thread pool and registries.
   @Setup
   public void setup(PipelineOptions options) {
     this.pipelineOptions = options;
@@ -251,7 +257,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
 
               @Override
               public String getErrorContext() {
-                return "PerKeyConcurrentDoFn/Setup";
+                return "AsyncWrapper/Setup";
               }
             });
 
@@ -314,7 +320,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
       Object elementId = idFn.apply(element.getValue());
 
       if (activeElements.containsKey(elementId)) {
-        LOG.info("Item {} already in processing elements", element);
+        logDuplicateElement(element);
         return true;
       }
 
@@ -333,90 +339,11 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
                     DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.invokerFor(syncFn);
 
                     DoFnInvoker.ArgumentProvider<InputT, OutputT> bundleArgProvider =
-                        new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
-                          @Override
-                          public PipelineOptions pipelineOptions() {
-                            PipelineOptions options = pipelineOptions;
-                            if (options == null) {
-                              throw new IllegalStateException("PipelineOptions not set");
-                            }
-                            return options;
-                          }
-
-                          @Override
-                          public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
-                              DoFn<InputT, OutputT> doFn) {
-                            return doFn.new FinishBundleContext() {
-                              @Override
-                              public PipelineOptions getPipelineOptions() {
-                                return pipelineOptions();
-                              }
-
-                              @Override
-                              public void output(
-                                  OutputT output, Instant timestamp, BoundedWindow window) {
-                                receiver.outputWithTimestamp(output, timestamp);
-                              }
-
-                              @Override
-                              public <T> void output(
-                                  TupleTag<T> tag,
-                                  T output,
-                                  Instant timestamp,
-                                  BoundedWindow window) {
-                                throw new UnsupportedOperationException(
-                                    "Tagged output not supported in "
-                                        + "FinishBundleContext for PerKeyConcurrentDoFn");
-                              }
-                            };
-                          }
-
-                          @Override
-                          public String getErrorContext() {
-                            return "PerKeyConcurrentDoFn/Bundle";
-                          }
-                        };
+                        bundleArgProvider(receiver);
+                    DoFnInvoker.ArgumentProvider<InputT, OutputT> processArgProvider =
+                        processArgProvider(element, window, timestamp, receiver);
 
                     invoker.invokeStartBundle(bundleArgProvider);
-
-                    DoFnInvoker.ArgumentProvider<InputT, OutputT> processArgProvider =
-                        new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
-                          @Override
-                          public InputT element(DoFn<InputT, OutputT> doFn) {
-                            return element.getValue();
-                          }
-
-                          @Override
-                          public OutputReceiver<OutputT> outputReceiver(
-                              DoFn<InputT, OutputT> doFn) {
-                            return receiver;
-                          }
-
-                          @Override
-                          public BoundedWindow window() {
-                            return window;
-                          }
-
-                          @Override
-                          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                            return timestamp;
-                          }
-
-                          @Override
-                          public PipelineOptions pipelineOptions() {
-                            PipelineOptions options = pipelineOptions;
-                            if (options == null) {
-                              throw new IllegalStateException("PipelineOptions not set");
-                            }
-                            return options;
-                          }
-
-                          @Override
-                          public String getErrorContext() {
-                            return "PerKeyConcurrentDoFn/Process";
-                          }
-                        };
-
                     invoker.invokeProcessElement(processArgProvider);
                     invoker.invokeFinishBundle(bundleArgProvider);
 
@@ -435,17 +362,144 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
                   getItemsInBuffer().decrementAndGet();
                 });
 
+        // Add element to active elements map and increment buffer counter
         activeElements.put(elementId, new InFlightElement<>(element.getKey(), future));
         getItemsInBuffer().incrementAndGet();
         return true;
       }
-
       return false;
     } finally {
       lock.unlock();
     }
   }
 
+  private DoFnInvoker.ArgumentProvider<InputT, OutputT> bundleArgProvider(
+      AccumulatingOutputReceiver<OutputT> receiver) {
+    return new BundleArgProvider(receiver);
+  }
+
+  private DoFnInvoker.ArgumentProvider<InputT, OutputT> processArgProvider(
+      KV<K, InputT> element,
+      BoundedWindow window,
+      Instant timestamp,
+      OutputReceiver<OutputT> receiver) {
+    return new ProcessArgProvider(element, window, timestamp, receiver);
+  }
+
+  // Named BaseArgumentProvider supplying bundle-level lifecycle context to the invoker.
+  private class BundleArgProvider extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
+    private final AccumulatingOutputReceiver<OutputT> receiver;
+
+    BundleArgProvider(AccumulatingOutputReceiver<OutputT> receiver) {
+      this.receiver = receiver;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      PipelineOptions options = pipelineOptions;
+      if (options == null) {
+        throw new IllegalStateException("PipelineOptions not set");
+      }
+      return options;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
+      return new AsyncFinishBundleContext(doFn, receiver);
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "AsyncWrapper/Bundle";
+    }
+  }
+
+  // FinishBundleContext subclass bound to the enclosing DoFn instance to prevent compiler crashes.
+  private class AsyncFinishBundleContext extends DoFn<InputT, OutputT>.FinishBundleContext {
+    private final AccumulatingOutputReceiver<OutputT> receiver;
+
+    AsyncFinishBundleContext(
+        DoFn<InputT, OutputT> doFn, AccumulatingOutputReceiver<OutputT> receiver) {
+      doFn.super();
+      this.receiver = receiver;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      PipelineOptions options = pipelineOptions;
+      if (options == null) {
+        throw new IllegalStateException("PipelineOptions not set");
+      }
+      return options;
+    }
+
+    @Override
+    public void output(OutputT output, Instant timestamp, BoundedWindow window) {
+      receiver.outputWithTimestamp(output, timestamp);
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
+      throw new UnsupportedOperationException(
+          "Tagged output not supported in FinishBundleContext for AsyncWrapper");
+    }
+  }
+
+  // BaseArgumentProvider supplying element-level context to the invoker.
+  private class ProcessArgProvider extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
+    private final KV<K, InputT> element;
+    private final BoundedWindow window;
+    private final Instant timestamp;
+    private final OutputReceiver<OutputT> receiver;
+
+    ProcessArgProvider(
+        KV<K, InputT> element,
+        BoundedWindow window,
+        Instant timestamp,
+        OutputReceiver<OutputT> receiver) {
+      this.element = element;
+      this.window = window;
+      this.timestamp = timestamp;
+      this.receiver = receiver;
+    }
+
+    @Override
+    public InputT element(DoFn<InputT, OutputT> doFn) {
+      return element.getValue();
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return receiver;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return timestamp;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      PipelineOptions options = pipelineOptions;
+      if (options == null) {
+        throw new IllegalStateException("PipelineOptions not set");
+      }
+      return options;
+    }
+
+    @Override
+    public String getErrorContext() {
+      return "AsyncWrapper/Process";
+    }
+  }
+
+  // Schedule an element to the thread pool, retries with backoff if the buffer is full.
   private void scheduleItem(KV<K, InputT> element, BoundedWindow window, Instant timestamp) {
     boolean done = false;
     long sleepTime = INITIAL_BACKOFF_SLEEP_MS;
@@ -456,14 +510,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
       done = scheduleIfRoom(element, window, timestamp, false);
       if (!done) {
         long sleep = Math.min(maxWaitTime.getMillis(), sleepTime);
-        if (verboseLogging || totalSleep > BACKPRESSURE_LOG_THRESHOLD_MS) {
-          LOG.info(
-              "buffer is full for item {}, {} waiting {} ms. Have waited for {} ms.",
-              element,
-              getItemsInBuffer().get(),
-              sleep,
-              totalSleep);
-        }
+        logBackpressure(element, sleep, totalSleep);
         try {
           Thread.sleep(sleep);
         } catch (InterruptedException e) {
@@ -486,14 +533,14 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
   // Satisfies lint check
   private Instant nextTimeToFire(@Nullable K key) {
     long seed = (key == null) ? 0 : key.hashCode();
-    double fractionalOffset = Math.abs(seed % 1000000) / 1000000.0;
-    double timerFrequencySec = timerFrequency.getMillis() / 1000.0;
-    double nowSec = System.currentTimeMillis() / 1000.0;
+    double fractionalOffset = Math.abs(seed % (long) HASH_MODULO_LIMIT) / HASH_MODULO_LIMIT;
+    double timerFrequencySec = timerFrequency.getMillis() / MS_PER_SEC;
+    double nowSec = System.currentTimeMillis() / MS_PER_SEC;
 
     double base = Math.floor((nowSec + timerFrequencySec) / timerFrequencySec) * timerFrequencySec;
     double offset = fractionalOffset * timerFrequencySec;
 
-    return Instant.ofEpochMilli((long) ((base + offset) * 1000));
+    return Instant.ofEpochMilli((long) ((base + offset) * MS_PER_SEC));
   }
 
   @ProcessElement
@@ -537,8 +584,8 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
 
     // Since fireTimestamp is key-scoped, we determine the current key from the first element in
     // state
-    List<KV<K, InputT>> stateList = new ArrayList<>();
     K key = null;
+    List<KV<K, InputT>> stateList = new ArrayList<>();
     for (KV<K, InputT> element : toProcessLocal) {
       stateList.add(element);
       if (key == null) {
@@ -546,14 +593,10 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
       }
     }
 
-    if (verboseLogging) {
-      LOG.info("processing timer for key: {}", key);
-    }
+    logProcessingTimer(key);
 
     ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
-
     List<List<OutputT>> toReturn = new ArrayList<>();
-
     List<KV<K, InputT>> toReschedule = new ArrayList<>();
 
     int itemsFinished = 0;
@@ -619,8 +662,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
             itemsNotYetFinished++;
           }
         } else {
-          LOG.info(
-              "Item {} found in state but not in local active elements, scheduling now", element);
+          logRescheduling(element);
           toReschedule.add(element);
           rescheduledElementIds.add(elementId);
           itemsRescheduled++;
@@ -655,12 +697,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
       }
     }
 
-    LOG.info(
-        "Items finished: {}, not yet finished: {}, " + "rescheduled: {}, in processing state: {}",
-        itemsFinished,
-        itemsNotYetFinished,
-        itemsRescheduled,
-        itemsInProcessingState);
+    logFinishedItems(itemsFinished, itemsNotYetFinished, itemsRescheduled, itemsInProcessingState);
 
     if (itemsInProcessingState > 0) {
       Instant timeToFire = nextTimeToFire(key);
@@ -668,8 +705,49 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
     }
   }
 
+  private void logProcessingTimer(@Nullable K key) {
+    if (verboseLogging) {
+      LOG.info("processing timer for key: {}", key);
+    }
+  }
+
+  private void logDuplicateElement(KV<K, InputT> element) {
+    if (verboseLogging) {
+      LOG.info("Item {} already in processing elements", element);
+    }
+  }
+
+  private void logBackpressure(KV<K, InputT> element, long sleep, long totalSleep) {
+    if (verboseLogging || totalSleep > BACKPRESSURE_LOG_THRESHOLD_MS) {
+      LOG.info(
+          "buffer is full for item {}, {} waiting {} ms. Have waited for {} ms.",
+          element,
+          getItemsInBuffer().get(),
+          sleep,
+          totalSleep);
+    }
+  }
+
+  private void logRescheduling(KV<K, InputT> element) {
+    if (verboseLogging) {
+      LOG.info("Item {} found in state but not in local active elements, scheduling now", element);
+    }
+  }
+
+  private void logFinishedItems(int finished, int active, int rescheduled, int state) {
+    if (verboseLogging) {
+      LOG.info(
+          "Items finished: {}, not yet finished: {}, rescheduled: {}, in processing state: {}",
+          finished,
+          active,
+          rescheduled,
+          state);
+    }
+  }
+
   // Package-private helper methods for testing direct execution without Pipeline / ProcessContext
   // boilerplate
+  @VisibleForTesting
   void processDirect(
       KV<K, InputT> element,
       BoundedWindow window,
@@ -682,6 +760,7 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
     timer.set(timeToFire);
   }
 
+  @VisibleForTesting
   List<OutputT> commitFinishedItemsDirect(
       Instant fireTimestamp, BagState<KV<K, InputT>> toProcessState, Timer timer) {
     AccumulatingOutputReceiver<OutputT> receiver = new AccumulatingOutputReceiver<>();
@@ -689,14 +768,17 @@ public class PerKeyConcurrentDoFn<K, InputT, OutputT> extends DoFn<KV<K, InputT>
     return receiver.getOutputs();
   }
 
+  @VisibleForTesting
   boolean isEmpty() {
     return getItemsInBuffer().get() == 0;
   }
 
+  @VisibleForTesting
   int getItemsInBufferCount() {
     return getItemsInBuffer().get();
   }
 
+  @VisibleForTesting
   static void resetState() {
     lock.lock();
     try {
