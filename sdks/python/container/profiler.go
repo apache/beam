@@ -274,50 +274,60 @@ func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesD
 			continue
 		}
 
-		htmlPath := strings.TrimSuffix(binPath, ".bin") + ".html"
-		htmlInfo, err := os.Stat(htmlPath)
+		peakHtml := strings.TrimSuffix(binPath, ".bin") + ".html"
+		leaksHtml := strings.TrimSuffix(binPath, ".bin") + "_leaks.html"
 
-		shouldProcess := false
-		if os.IsNotExist(err) {
-			shouldProcess = true
-		} else if err == nil {
-			// Don't regenerate when there were no updates to the profile.
-			if binInfo.ModTime().After(htmlInfo.ModTime().Add(time.Duration(intervalSec) * time.Second)) {
-				shouldProcess = true
-			}
+		filename := filepath.Base(binPath)
+		peakReportStale := needsProcessing(binInfo, peakHtml)
+		leakReportStale := needsProcessing(binInfo, leaksHtml)
+
+		if peakReportStale || leakReportStale {
+			binSizeMb := float64(binInfo.Size()) / (1024 * 1024)
+			logger.Printf(ctx, "Post-processing profile %s of size %.2f MB", filename, binSizeMb)
 		}
 
-		if shouldProcess {
-			filename := filepath.Base(binPath)
-
-			// 1. Peak Flamegraph
-			tmpHtmlPath := htmlPath + ".tmp"
-			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", tmpHtmlPath, binPath)
+		// 1. Peak Flamegraph
+		if peakReportStale {
+			tmpPath := peakHtml + ".tmp"
+			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", tmpPath, binPath)
 			if err := cmd1.Run(); err != nil {
 				logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
-				os.Remove(tmpHtmlPath)
 			} else {
-				if err := os.Rename(tmpHtmlPath, htmlPath); err != nil {
+				if err := os.Rename(tmpPath, peakHtml); err != nil {
 					logger.Warnf(ctx, "Failed to rename peak flamegraph for %s: %v", filename, err)
-					os.Remove(tmpHtmlPath)
+				} else {
+					logger.Printf(ctx, "Successfully updated peak flamegraph for %s", filename)
+					_ = os.Chtimes(peakHtml, binInfo.ModTime(), binInfo.ModTime())
 				}
 			}
+		}
 
-			// 2. Leaks Flamegraph
-			leaksHtml := strings.TrimSuffix(binPath, ".bin") + "_leaks.html"
-			tmpLeaksHtml := leaksHtml + ".tmp"
-			cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", tmpLeaksHtml, binPath)
+		// 2. Leaks Flamegraph
+		if leakReportStale {
+			tmpPath := leaksHtml + ".tmp"
+			cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", tmpPath, binPath)
 			if err := cmd2.Run(); err != nil {
 				logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
-				os.Remove(tmpLeaksHtml)
 			} else {
-				if err := os.Rename(tmpLeaksHtml, leaksHtml); err != nil {
+				if err := os.Rename(tmpPath, leaksHtml); err != nil {
 					logger.Warnf(ctx, "Failed to rename leaks flamegraph for %s: %v", filename, err)
-					os.Remove(tmpLeaksHtml)
+				} else {
+					logger.Printf(ctx, "Successfully updated leaks flamegraph for %s", filename)
+					_ = os.Chtimes(leaksHtml, binInfo.ModTime(), binInfo.ModTime())
 				}
 			}
-
-			logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
 		}
 	}
+}
+
+func needsProcessing(binInfo os.FileInfo, path string) bool {
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return true
+	}
+	if err != nil {
+		return true
+	}
+	// Don't regenerate when there were no updates to the profile.
+	return binInfo.ModTime().After(info.ModTime())
 }
