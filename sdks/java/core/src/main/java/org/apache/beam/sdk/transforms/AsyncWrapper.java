@@ -320,7 +320,7 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
       Object elementId = idFn.apply(element.getValue());
 
       if (activeElements.containsKey(elementId)) {
-        logDuplicateElement(element);
+        logInfo("Item " + element + " already in processing elements");
         return true;
       }
 
@@ -593,7 +593,7 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
       }
     }
 
-    logProcessingTimer(key);
+    logInfo("processing timer for key: " + key);
 
     ConcurrentHashMap<Object, InFlightElement<OutputT>> activeElements = getProcessingElements();
     List<List<OutputT>> toReturn = new ArrayList<>();
@@ -662,7 +662,10 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
             itemsNotYetFinished++;
           }
         } else {
-          logRescheduling(element);
+          logInfo(
+              "Item "
+                  + element
+                  + " found in state but not in local active elements, scheduling now");
           toReschedule.add(element);
           rescheduledElementIds.add(elementId);
           itemsRescheduled++;
@@ -697,7 +700,10 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
       }
     }
 
-    logFinishedItems(itemsFinished, itemsNotYetFinished, itemsRescheduled, itemsInProcessingState);
+    logInfo(
+        String.format(
+            "Items finished: %d, not yet finished: %d, rescheduled: %d, in processing state: %d",
+            itemsFinished, itemsNotYetFinished, itemsRescheduled, itemsInProcessingState));
 
     if (itemsInProcessingState > 0) {
       Instant timeToFire = nextTimeToFire(key);
@@ -705,15 +711,9 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
     }
   }
 
-  private void logProcessingTimer(@Nullable K key) {
+  private void logInfo(String s) {
     if (verboseLogging) {
-      LOG.info("processing timer for key: {}", key);
-    }
-  }
-
-  private void logDuplicateElement(KV<K, InputT> element) {
-    if (verboseLogging) {
-      LOG.info("Item {} already in processing elements", element);
+      LOG.info("{}", s);
     }
   }
 
@@ -725,23 +725,6 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
           getItemsInBuffer().get(),
           sleep,
           totalSleep);
-    }
-  }
-
-  private void logRescheduling(KV<K, InputT> element) {
-    if (verboseLogging) {
-      LOG.info("Item {} found in state but not in local active elements, scheduling now", element);
-    }
-  }
-
-  private void logFinishedItems(int finished, int active, int rescheduled, int state) {
-    if (verboseLogging) {
-      LOG.info(
-          "Items finished: {}, not yet finished: {}, rescheduled: {}, in processing state: {}",
-          finished,
-          active,
-          rescheduled,
-          state);
     }
   }
 
