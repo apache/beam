@@ -48,6 +48,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,8 +87,9 @@ class WritePartitionedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final Schema dataSchema;
-    private int specId = Integer.MIN_VALUE;
-    private Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
+    private transient @MonotonicNonNull Map<TableIdentifier, Integer> specIds;
+    private transient @MonotonicNonNull Map<TableIdentifier, Map<String, PartitionField>>
+        partitionFieldMaps;
 
     WriteDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -100,6 +102,12 @@ class WritePartitionedRowsToFiles
       this.dataSchema = dataSchema;
     }
 
+    @Setup
+    public void setup() {
+      partitionFieldMaps = Maps.newHashMap();
+      specIds = Maps.newHashMap();
+    }
+
     @ProcessElement
     public void processElement(
         @Element KV<Row, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
@@ -109,7 +117,9 @@ class WritePartitionedRowsToFiles
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       Table table = getOrCreateTable(destination, dataSchema);
-      partitionPath = getPartitionDataPath(partitionPath, getPartitionFieldMap(table));
+      partitionPath =
+          getPartitionDataPath(
+              partitionPath, getPartitionFieldMap(destination.getTableIdentifier(), table));
 
       StructLike partitionData =
           table.spec().isPartitioned()
@@ -140,16 +150,18 @@ class WritePartitionedRowsToFiles
               .build());
     }
 
-    private Map<String, PartitionField> getPartitionFieldMap(Table table) {
-      if (table.spec().specId() == this.specId) {
-        return partitionFieldMap;
+    private Map<String, PartitionField> getPartitionFieldMap(
+        TableIdentifier identifier, Table table) {
+      @Nullable Integer specId = checkStateNotNull(specIds).get(identifier);
+      if (specId != null && specId == table.spec().specId()) {
+        return checkStateNotNull(checkStateNotNull(partitionFieldMaps).get(identifier));
       }
       Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
       for (PartitionField partitionField : table.spec().fields()) {
         partitionFieldMap.put(partitionField.name(), partitionField);
       }
-      this.specId = table.spec().specId();
-      this.partitionFieldMap = partitionFieldMap;
+      checkStateNotNull(specIds).put(identifier, table.spec().specId());
+      checkStateNotNull(partitionFieldMaps).put(identifier, partitionFieldMap);
       return partitionFieldMap;
     }
 
