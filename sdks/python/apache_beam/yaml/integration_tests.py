@@ -20,7 +20,6 @@
 import contextlib
 import copy
 import glob
-import tempfile
 import itertools
 import logging
 import os
@@ -28,6 +27,7 @@ import random
 import secrets
 import sqlite3
 import string
+import tempfile
 import unittest
 import uuid
 from datetime import datetime
@@ -35,10 +35,10 @@ from datetime import timezone
 
 import mock
 import psycopg2
-import pytds
-import sqlalchemy
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytds
+import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
