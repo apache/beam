@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * receivers.
  */
 class ExecutableStageProcessor
-    implements Processor<byte[], KStreamsPayload<byte[]>, byte[], KStreamsPayload<byte[]>> {
+    implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExecutableStageProcessor.class);
 
@@ -68,9 +68,13 @@ class ExecutableStageProcessor
 
   // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
   // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
-  private final Queue<WindowedValue<byte[]>> pendingOutputs = new ConcurrentLinkedQueue<>();
+  // The element type is intentionally wildcarded: the runner does not need to know the runtime
+  // value type — the bundle factory handles all coder application at the Fn-API boundary using
+  // the PCollection coders from the ExecutableStagePayload. Pretending the type was byte[] was
+  // only safe because the Impulse output coder happens to be ByteArrayCoder.
+  private final Queue<WindowedValue<?>> pendingOutputs = new ConcurrentLinkedQueue<>();
 
-  private @Nullable ProcessorContext<byte[], KStreamsPayload<byte[]>> context;
+  private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable ExecutableStageContext stageContext;
   private @Nullable StageBundleFactory stageBundleFactory;
   private @Nullable RemoteBundle currentBundle;
@@ -81,7 +85,7 @@ class ExecutableStageProcessor
   }
 
   @Override
-  public void init(ProcessorContext<byte[], KStreamsPayload<byte[]>> context) {
+  public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
     this.stageContext = KafkaStreamsExecutableStageContextFactory.getInstance().get(jobInfo);
@@ -89,8 +93,8 @@ class ExecutableStageProcessor
   }
 
   @Override
-  public void process(Record<byte[], KStreamsPayload<byte[]>> record) {
-    KStreamsPayload<byte[]> payload = record.value();
+  public void process(Record<byte[], KStreamsPayload<?>> record) {
+    KStreamsPayload<?> payload = record.value();
     if (payload.isWatermark()) {
       // NOTE: flushing the bundle on every received watermark is provisional. Once the
       // WatermarkManager lands, a stage will receive watermarks from multiple parent instances and
@@ -122,7 +126,7 @@ class ExecutableStageProcessor
             // after the bundle closes.
             return receivedElement -> {
               if (receivedElement != null) {
-                pendingOutputs.add((WindowedValue<byte[]>) receivedElement);
+                pendingOutputs.add((WindowedValue<?>) receivedElement);
               }
             };
           }
@@ -143,7 +147,7 @@ class ExecutableStageProcessor
     return receiver;
   }
 
-  private void closeBundleAndFlush(Record<byte[], KStreamsPayload<byte[]>> record) {
+  private void closeBundleAndFlush(Record<byte[], KStreamsPayload<?>> record) {
     RemoteBundle bundle = currentBundle;
     if (bundle == null) {
       return;
@@ -157,26 +161,25 @@ class ExecutableStageProcessor
     } finally {
       currentBundle = null;
     }
-    ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx = checkInitialized(context);
+    ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     // The harness has finished the bundle (close() returned) so no further enqueues happen.
-    // ConcurrentLinkedQueue's weakly-consistent iterator is therefore safe to drain via forEach.
-    pendingOutputs.forEach(
-        output ->
-            ctx.forward(
-                new Record<byte[], KStreamsPayload<byte[]>>(
-                    record.key(), KStreamsPayload.data(output), record.timestamp())));
-    pendingOutputs.clear();
+    // Drain via poll() so each element is removed as it is forwarded.
+    WindowedValue<?> output;
+    while ((output = pendingOutputs.poll()) != null) {
+      ctx.forward(
+          new Record<byte[], KStreamsPayload<?>>(
+              record.key(), KStreamsPayload.data(output), record.timestamp()));
+    }
   }
 
-  private void forwardWatermark(
-      Record<byte[], KStreamsPayload<byte[]>> record, long watermarkMillis) {
+  private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
     // TODO(#38743 / WatermarkManager): a watermark must reach every parallel instance of every
     // downstream processor, but ctx.forward routes to one downstream partition per Kafka Streams'
     // partitioning. The simplest correct approach is to fan the watermark out to all downstream
     // partitions; that wiring lands with the WatermarkManager sub-issue (per Jan on PR #38764).
-    ProcessorContext<byte[], KStreamsPayload<byte[]>> ctx = checkInitialized(context);
+    ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(
-        new Record<byte[], KStreamsPayload<byte[]>>(
+        new Record<byte[], KStreamsPayload<?>>(
             record.key(), KStreamsPayload.watermark(watermarkMillis), record.timestamp()));
   }
 

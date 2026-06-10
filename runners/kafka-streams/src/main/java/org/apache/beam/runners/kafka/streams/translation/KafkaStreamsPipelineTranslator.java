@@ -17,16 +17,21 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import com.google.auto.service.AutoService;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.sdk.util.construction.NativeTransforms;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
+import org.apache.beam.sdk.util.construction.graph.TrivialNativeTransformExpander;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
 /**
  * Translates a portable Beam pipeline into a Kafka Streams {@link
@@ -45,6 +50,7 @@ public class KafkaStreamsPipelineTranslator {
     this(
         ImmutableMap.<String, PTransformTranslator>builder()
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
+            .put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, new RedistributeTranslator())
             .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());
   }
@@ -59,11 +65,28 @@ public class KafkaStreamsPipelineTranslator {
   }
 
   /**
-   * Fuses the pipeline so that stateless user code is grouped into {@code ExecutableStage} nodes.
+   * Returns the set of URNs this translator handles natively. {@link
+   * TrivialNativeTransformExpander} uses this set to strip the sub-transforms of runner-native
+   * composites (e.g. {@code Redistribute.arbitrarily}) before fusion, so they survive into
+   * translation as leaves instead of being expanded into primitives the runner does not implement
+   * yet (e.g. GroupByKey).
+   */
+  public Set<String> knownUrns() {
+    return urnToTranslator.keySet();
+  }
+
+  /**
+   * Prepares the pipeline for translation:
    *
-   * <p>Runner-executed primitives that have their own translator (e.g. Impulse) are left intact;
-   * everything else is fused. If the pipeline already contains {@code ExecutableStage} transforms
-   * it is returned unchanged.
+   * <ol>
+   *   <li>Trim sub-transforms of runner-native composites listed in {@link #knownUrns()} so the
+   *       fuser leaves them as primitives.
+   *   <li>Fuse remaining stateless user code into {@code ExecutableStage} nodes via {@link
+   *       GreedyPipelineFuser}.
+   * </ol>
+   *
+   * <p>If the pipeline already contains {@code ExecutableStage} transforms it is returned
+   * unchanged.
    */
   public RunnerApi.Pipeline prepareForTranslation(RunnerApi.Pipeline pipeline) {
     boolean alreadyFused =
@@ -72,7 +95,8 @@ public class KafkaStreamsPipelineTranslator {
     if (alreadyFused) {
       return pipeline;
     }
-    return GreedyPipelineFuser.fuse(pipeline).toPipeline();
+    RunnerApi.Pipeline trimmed = TrivialNativeTransformExpander.forKnownUrns(pipeline, knownUrns());
+    return GreedyPipelineFuser.fuse(trimmed).toPipeline();
   }
 
   /**
@@ -97,6 +121,25 @@ public class KafkaStreamsPipelineTranslator {
                 + ")");
       }
       translator.translate(node.getId(), pipeline, context);
+    }
+  }
+
+  /**
+   * Tells the SDK that URNs handled directly by the Kafka Streams runner should be treated as
+   * primitives by {@link QueryablePipeline}. Mirrors Flink's {@code IsFlinkNativeTransform}
+   * pattern. Without this, {@link TrivialNativeTransformExpander} strips a composite's
+   * sub-transforms but {@link QueryablePipeline} still does not recognise the composite itself as a
+   * producer of its outputs, and pipeline validation fails with "consumed but never produced".
+   */
+  @AutoService(NativeTransforms.IsNativeTransform.class)
+  public static class IsKafkaStreamsNativeTransform implements NativeTransforms.IsNativeTransform {
+    private static final Set<String> URNS =
+        ImmutableSet.of(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN);
+
+    @Override
+    public boolean test(RunnerApi.PTransform pTransform) {
+      String urn = PTransformTranslation.urnForTransformOrNull(pTransform);
+      return urn != null && URNS.contains(urn);
     }
   }
 }
