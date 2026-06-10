@@ -178,9 +178,9 @@ func maybeWithProfiler(
 		tcmallocHeapPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("tcmalloc-%s", workerId))
 		existingPreload := os.Getenv("LD_PRELOAD")
 		if existingPreload != "" {
-			env["LD_PRELOAD"] = existingPreload + ":/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+			env["LD_PRELOAD"] = existingPreload + ":libtcmalloc.so.4"
 		} else {
-			env["LD_PRELOAD"] = "/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4"
+			env["LD_PRELOAD"] = "libtcmalloc.so.4"
 		}
 		env["HEAPPROFILE"] = tcmallocHeapPath
 		args = currentArgs
