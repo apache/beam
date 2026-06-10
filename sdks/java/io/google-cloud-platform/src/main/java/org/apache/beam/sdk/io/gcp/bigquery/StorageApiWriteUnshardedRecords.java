@@ -1114,6 +1114,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 tableDestination1,
                 () -> dynamicDestinations.getSchema(destination),
                 () -> dynamicDestinations.getTableConstraints(destination),
+                () -> dynamicDestinations.getCloneSource(destination),
                 createDisposition,
                 destinationCoder,
                 kmsKey,

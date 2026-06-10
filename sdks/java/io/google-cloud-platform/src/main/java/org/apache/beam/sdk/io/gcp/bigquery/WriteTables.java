@@ -197,8 +197,20 @@ class WriteTables<DestinationT extends @NonNull Object>
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
+      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      checkArgument(
+          tableDestination != null,
+          "DynamicDestinations.getTable() may not return null, "
+              + "but %s returned null for destination %s",
+          dynamicDestinations,
+          destination);
+      @Nullable
+      TableReference cloneSource =
+          tempTable ? null : dynamicDestinations.getCloneSource(destination);
       TableSchema tableSchema;
       if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
+        tableSchema = null;
+      } else if (cloneSource != null) {
         tableSchema = null;
       } else if (jsonSchemas.containsKey(destination)) {
         // tableSchema for the destination stored in cache (jsonSchemas)
@@ -219,13 +231,6 @@ class WriteTables<DestinationT extends @NonNull Object>
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 
-      TableDestination tableDestination = dynamicDestinations.getTable(destination);
-      checkArgument(
-          tableDestination != null,
-          "DynamicDestinations.getTable() may not return null, "
-              + "but %s returned null for destination %s",
-          dynamicDestinations,
-          destination);
       boolean destinationCoderSupportsClustering =
           !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
       checkArgument(
@@ -278,6 +283,20 @@ class WriteTables<DestinationT extends @NonNull Object>
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
         writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
+      }
+
+      if (cloneSource != null && createDisposition != CreateDisposition.CREATE_NEVER) {
+        CreateTableHelpers.possiblyCreateTable(
+            c.getPipelineOptions().as(BigQueryOptions.class),
+            tableDestination,
+            () -> dynamicDestinations.getSchema(destination),
+            () -> dynamicDestinations.getTableConstraints(destination),
+            () -> cloneSource,
+            createDisposition,
+            dynamicDestinations.getDestinationCoder(),
+            kmsKey,
+            bqServices,
+            null);
       }
 
       BigQueryHelpers.PendingJob retryJob =

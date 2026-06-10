@@ -180,6 +180,11 @@ class DynamicDestinationsHelpers {
     }
 
     @Override
+    public @Nullable TableReference getCloneSource(DestinationT destination) {
+      return inner.getCloneSource(destination);
+    }
+
+    @Override
     public @Nullable TableConstraints getTableConstraints(DestinationT destination) {
       return inner.getTableConstraints(destination);
     }
@@ -218,6 +223,34 @@ class DynamicDestinationsHelpers {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("inner", inner).toString();
+    }
+  }
+
+  /** Returns the same clone source for every table. */
+  static class ConstantCloneSourceDestinations<T, DestinationT>
+      extends DelegatingDynamicDestinations<T, DestinationT> {
+    private final ValueProvider<String> jsonCloneSource;
+
+    ConstantCloneSourceDestinations(
+        DynamicDestinations<T, DestinationT> inner, ValueProvider<String> jsonCloneSource) {
+      super(inner);
+      Preconditions.checkArgumentNotNull(jsonCloneSource, "jsonCloneSource can not be null");
+      this.jsonCloneSource = jsonCloneSource;
+    }
+
+    @Override
+    public TableReference getCloneSource(DestinationT destination) {
+      String jsonCloneSource = this.jsonCloneSource.get();
+      checkArgument(jsonCloneSource != null, "jsonCloneSource can not be null");
+      return BigQueryHelpers.fromJsonString(jsonCloneSource, TableReference.class);
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("inner", inner)
+          .add("jsonCloneSource", jsonCloneSource)
+          .toString();
     }
   }
 
@@ -478,15 +511,22 @@ class DynamicDestinationsHelpers {
     public TableDestination getTable(DestinationT destination) {
       TableDestination wrappedDestination = super.getTable(destination);
       Table existingTable = getBigQueryTable(wrappedDestination.getTableReference());
+      Table tableToMatch = existingTable;
+      if (tableToMatch == null) {
+        @Nullable TableReference cloneSource = super.getCloneSource(destination);
+        if (cloneSource != null) {
+          tableToMatch = getBigQueryTable(cloneSource);
+        }
+      }
 
-      if (existingTable == null) {
+      if (tableToMatch == null) {
         return wrappedDestination;
       } else {
         return new TableDestination(
             wrappedDestination.getTableSpec(),
-            existingTable.getDescription(),
-            existingTable.getTimePartitioning(),
-            existingTable.getClustering());
+            tableToMatch.getDescription(),
+            tableToMatch.getTimePartitioning(),
+            tableToMatch.getClustering());
       }
     }
 
@@ -501,6 +541,15 @@ class DynamicDestinationsHelpers {
       if (existingTable == null
           || existingTable.getSchema() == null
           || existingTable.getSchema().isEmpty()) {
+        @Nullable TableReference cloneSource = super.getCloneSource(destination);
+        if (cloneSource != null) {
+          @Nullable Table cloneSourceTable = getBigQueryTable(cloneSource);
+          if (cloneSourceTable != null
+              && cloneSourceTable.getSchema() != null
+              && !cloneSourceTable.getSchema().isEmpty()) {
+            return cloneSourceTable.getSchema();
+          }
+        }
         return super.getSchema(destination);
       } else {
         return existingTable.getSchema();

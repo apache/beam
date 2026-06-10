@@ -129,6 +129,7 @@ public class CreateTables<DestinationT, ElementT>
                     tableDestination1,
                     schemaSupplier,
                     tableConstraintsSupplier,
+                    () -> dynamicDestinations.getCloneSource(dest),
                     createDisposition,
                     dynamicDestinations.getDestinationCoder(),
                     kmsKey,

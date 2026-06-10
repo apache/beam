@@ -148,6 +148,21 @@ public class UpdateSchemaDestination<DestinationT>
       DestinationT destination = entry.getKey();
       TableDestination tableDestination = getTableWithDefaultProject(destination);
       outputs.add(KV.of(tableDestination, entry.getValue()));
+      @Nullable TableReference cloneSource = dynamicDestinations.getCloneSource(destination);
+      if (cloneSource != null
+          && createDisposition != BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+        CreateTableHelpers.possiblyCreateTable(
+            context.getPipelineOptions().as(BigQueryOptions.class),
+            tableDestination,
+            () -> dynamicDestinations.getSchema(destination),
+            () -> dynamicDestinations.getTableConstraints(destination),
+            () -> cloneSource,
+            createDisposition,
+            dynamicDestinations.getDestinationCoder(),
+            kmsKey,
+            bqServices,
+            null);
+      }
       if (pendingJobs.containsKey(destination)) {
         // zero load job for this destination is already set
         continue;
