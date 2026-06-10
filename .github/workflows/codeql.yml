@@ -113,17 +113,16 @@ jobs:
       run: |
         if [ "${{ matrix.language }}" = "go" ]; then
           echo "Building sdks module..."
-          go build -C sdks ./...
+          (cd sdks && go build ./...)
 
           echo "Building playground/backend module..."
-          go build -C playground/backend ./...
+          (cd playground/backend && go build ./...)
 
           echo "Building learning/katas/go module..."
-          go mod tidy -C learning/katas/go
-          go build -C learning/katas/go ./...
+          (cd learning/katas/go && go mod tidy && go build ./...)
 
           echo "Building learning/tour-of-beam/backend module..."
-          go build -C learning/tour-of-beam/backend ./cmd/... ./internal/... ./playground_api/...
+          (cd learning/tour-of-beam/backend && go build ./cmd/... ./internal/... ./playground_api/...)
         else
           echo "No manual build steps defined for ${{ matrix.language }}"
           exit 1
