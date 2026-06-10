@@ -137,6 +137,9 @@ public abstract class Operation {
     }
   }
 
+  /** Called when all elements for a specific key have been processed. */
+  public abstract void finishKey() throws Exception;
+
   /** Aborts this Operation's execution. */
   public void abort() throws Exception {
     synchronized (initializationStateLock) {

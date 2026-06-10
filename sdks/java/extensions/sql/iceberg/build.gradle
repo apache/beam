@@ -48,6 +48,7 @@ dependencies {
   testImplementation library.java.google_api_services_bigquery
   testImplementation "org.apache.iceberg:iceberg-api:1.9.2"
   testImplementation "org.apache.iceberg:iceberg-core:1.9.2"
+  testRuntimeOnly library.java.bigdataoss_util_hadoop
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
 }

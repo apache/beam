@@ -198,7 +198,8 @@ ml_base_core = [
     # Drop this cap once transformers updates the CLIP call site to
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
-    'torch',
+    # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
+    'torch<2.12.0',
     # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
@@ -368,6 +369,7 @@ if __name__ == '__main__':
         'apache_beam/runners/worker/operations.py',
         'apache_beam/transforms/cy_combiners.py',
         'apache_beam/transforms/stats.py',
+        'apache_beam/utils/byte_limited_queue.py',
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ])
