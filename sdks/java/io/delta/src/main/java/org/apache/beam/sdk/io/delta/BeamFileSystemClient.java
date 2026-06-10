@@ -53,11 +53,13 @@ public class BeamFileSystemClient implements FileSystemClient {
     String glob = globForSiblings(path);
     List<FileStatus> statuses = new ArrayList<>();
     String normalizedInput = FileSystems.matchNewResource(path, false).toString();
-
     for (MatchResult.Metadata metadata :
-        FileSystems.match(glob, EmptyMatchTreatment.ALLOW).metadata()) {
+      FileSystems.match(glob, EmptyMatchTreatment.ALLOW).metadata()) {
+      if (metadata.resourceId().isDirectory()) {
+        continue;
+      }
       String metadataPath = metadata.resourceId().toString();
-      if (normalizeForOrdering(metadataPath).compareTo(normalizeForOrdering(path)) >= 0) {
+      if (normalizeForOrdering(metadataPath).compareTo(normalizeForOrdering(normalizedInput)) >= 0) {
         statuses.add(toDeltaFileStatus(metadata));
       }
     }
@@ -151,7 +153,7 @@ public class BeamFileSystemClient implements FileSystemClient {
   }
 
   private static ByteArrayInputStream readRange(String path, int startOffset, int readLength)
-      throws IOException {
+    throws IOException {
     ResourceId resourceId = FileSystems.matchNewResource(path, false);
     try (ReadableByteChannel channel = FileSystems.open(resourceId)) {
       byte[] data = new byte[readLength];
@@ -160,12 +162,8 @@ public class BeamFileSystemClient implements FileSystemClient {
         readFully(channel, ByteBuffer.wrap(data));
       } else {
         try (InputStream stream = Channels.newInputStream(channel)) {
-          stream.skipNBytes(startOffset);
-          int read = stream.readNBytes(data, 0, readLength);
-          if (read != readLength) {
-            throw new EOFException(
-                String.format("Expected %s bytes from %s but read %s", readLength, path, read));
-          }
+          com.google.common.io.ByteStreams.skipFully(stream, startOffset);
+          com.google.common.io.ByteStreams.readFully(stream, data);
         }
       }
       return new ByteArrayInputStream(data);
@@ -173,9 +171,20 @@ public class BeamFileSystemClient implements FileSystemClient {
   }
 
   private static void readFully(ReadableByteChannel channel, ByteBuffer buffer) throws IOException {
+    int zeroReadCount = 0;
     while (buffer.hasRemaining()) {
-      if (channel.read(buffer) < 0) {
+      int read = channel.read(buffer);
+      if (read < 0) {
         throw new EOFException("Unexpected end of file");
+      } else if (read == 0) {
+        zeroReadCount++;
+        if (zeroReadCount > 10) {
+          throw new IOException(
+            "Read stuck: channel repeatedly returned zero bytes; channel may be stalled or corrupted");
+        }
+        Thread.yield();
+      } else {
+        zeroReadCount = 0;
       }
     }
   }
