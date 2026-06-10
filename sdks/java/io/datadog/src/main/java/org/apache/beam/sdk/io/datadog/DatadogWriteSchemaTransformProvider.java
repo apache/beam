@@ -192,11 +192,11 @@ public class DatadogWriteSchemaTransformProvider
 
   static final Schema DATADOG_EVENT_SCHEMA =
       Schema.builder()
-          .addNullableField("ddsource", Schema.FieldType.STRING)
-          .addNullableField("ddtags", Schema.FieldType.STRING)
-          .addNullableField("hostname", Schema.FieldType.STRING)
-          .addNullableField("service", Schema.FieldType.STRING)
-          .addNullableField("message", Schema.FieldType.STRING)
+          .addNullableField(DatadogEvent.SOURCE, Schema.FieldType.STRING)
+          .addNullableField(DatadogEvent.TAGS, Schema.FieldType.STRING)
+          .addNullableField(DatadogEvent.HOSTNAME, Schema.FieldType.STRING)
+          .addNullableField(DatadogEvent.SERVICE, Schema.FieldType.STRING)
+          .addNullableField(DatadogEvent.MESSAGE, Schema.FieldType.STRING)
           .build();
 
   static Row eventToRow(DatadogEvent event) {
@@ -213,23 +213,27 @@ public class DatadogWriteSchemaTransformProvider
     DatadogEvent.Builder builder = DatadogEvent.newBuilder();
     Schema schema = row.getSchema();
 
-    String ddsource = schema.hasField("ddsource") ? row.getString("ddsource") : null;
+    String ddsource =
+        schema.hasField(DatadogEvent.SOURCE) ? row.getString(DatadogEvent.SOURCE) : null;
     if (ddsource != null) {
       builder.withSource(ddsource);
     }
-    String ddtags = schema.hasField("ddtags") ? row.getString("ddtags") : null;
+    String ddtags = schema.hasField(DatadogEvent.TAGS) ? row.getString(DatadogEvent.TAGS) : null;
     if (ddtags != null) {
       builder.withTags(ddtags);
     }
-    String hostname = schema.hasField("hostname") ? row.getString("hostname") : null;
+    String hostname =
+        schema.hasField(DatadogEvent.HOSTNAME) ? row.getString(DatadogEvent.HOSTNAME) : null;
     if (hostname != null) {
       builder.withHostname(hostname);
     }
-    String service = schema.hasField("service") ? row.getString("service") : null;
+    String service =
+        schema.hasField(DatadogEvent.SERVICE) ? row.getString(DatadogEvent.SERVICE) : null;
     if (service != null) {
       builder.withService(service);
     }
-    String message = schema.hasField("message") ? row.getString("message") : null;
+    String message =
+        schema.hasField(DatadogEvent.MESSAGE) ? row.getString(DatadogEvent.MESSAGE) : null;
     builder.withMessage(checkNotNull(message, "Message is required."));
 
     return builder.build();
@@ -269,6 +273,11 @@ public class DatadogWriteSchemaTransformProvider
     }
   }
 
+  /**
+   * A {@link DoFn} that throws a {@link RuntimeException} when a write error is encountered,
+   * causing the pipeline to fail. This is the default error handling behavior when no error output
+   * is configured.
+   */
   static class FailOnWriteErrorFn extends DoFn<DatadogWriteError, Void> {
     @ProcessElement
     public void processElement(@Element DatadogWriteError error) {
