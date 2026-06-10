@@ -291,16 +291,30 @@ func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesD
 			filename := filepath.Base(binPath)
 
 			// 1. Peak Flamegraph
-			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", htmlPath, binPath)
+			tmpHtmlPath := htmlPath + ".tmp"
+			cmd1 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "-o", tmpHtmlPath, binPath)
 			if err := cmd1.Run(); err != nil {
 				logger.Warnf(ctx, "Failed to generate peak flamegraph for %s: %v", filename, err)
+				os.Remove(tmpHtmlPath)
+			} else {
+				if err := os.Rename(tmpHtmlPath, htmlPath); err != nil {
+					logger.Warnf(ctx, "Failed to rename peak flamegraph for %s: %v", filename, err)
+					os.Remove(tmpHtmlPath)
+				}
 			}
 
 			// 2. Leaks Flamegraph
 			leaksHtml := strings.TrimSuffix(binPath, ".bin") + "_leaks.html"
-			cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", leaksHtml, binPath)
+			tmpLeaksHtml := leaksHtml + ".tmp"
+			cmd2 := exec.CommandContext(ctx, "python", "-m", "memray", "flamegraph", "-f", "--leaks", "-o", tmpLeaksHtml, binPath)
 			if err := cmd2.Run(); err != nil {
 				logger.Warnf(ctx, "Failed to generate leaks flamegraph for %s: %v", filename, err)
+				os.Remove(tmpLeaksHtml)
+			} else {
+				if err := os.Rename(tmpLeaksHtml, leaksHtml); err != nil {
+					logger.Warnf(ctx, "Failed to rename leaks flamegraph for %s: %v", filename, err)
+					os.Remove(tmpLeaksHtml)
+				}
 			}
 
 			logger.Printf(ctx, "Successfully updated flamegraphs for %s (Peak & Leaks)", filename)
