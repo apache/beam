@@ -615,9 +615,6 @@ public class IcebergWriteSchemaTransformProviderTest {
     PAssert.that(result)
         .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
     testPipeline.run().waitUntilFinish();
-    IcebergGenerics.read(warehouse.loadTable(TableIdentifier.parse(identifier)))
-        .build()
-        .forEach(System.out::println);
 
     // Read back and check records are correct
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
