@@ -1663,14 +1663,17 @@ class ProfilingOptions(PipelineOptions):
         default=None,
         help=(
             'Specifies the profiling agent to launch the SDK worker harness '
-            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'))
+            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'
+        ))
     parser.add_argument(
         '--profiler_extra_arg',
         '--profiler_extra_args',
         dest='profiler_extra_args',
         action=_CommaSeparatedListAction,
         default=None,
-        help='Comma-separated list of extra arguments to pass to the profiler agent.')
+        help=
+        'Comma-separated list of extra arguments to pass to the profiler agent.'
+    )
     parser.add_argument(
         '--profiler_extra_env_var',
         '--profiler_extra_env_vars',
@@ -1733,7 +1736,6 @@ class ProfilingOptions(PipelineOptions):
               'Setting --profile_location to %s since profiling is enabled.',
               self.profile_location)
     return errors
-
 
 
 class SetupOptions(PipelineOptions):

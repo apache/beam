@@ -64,7 +64,6 @@ class PipelineOptionsValidator(object):
       WorkerOptions
   ]
 
-
   # Mutually exclusive options for different types of portable environments.
   REQUIRED_ENVIRONMENT_OPTIONS = {
       'DOCKER': [],
