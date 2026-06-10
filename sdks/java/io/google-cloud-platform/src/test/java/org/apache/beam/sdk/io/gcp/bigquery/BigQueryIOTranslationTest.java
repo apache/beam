@@ -92,6 +92,7 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getUseAvroLogicalTypes", "use_avro_logical_types");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getDynamicDestinations", "dynamic_destinations");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonSchema", "json_schema");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonCloneSourceTableRef", "json_clone_source_table_ref");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonTimePartitioning", "json_time_partitioning");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getJsonClustering", "clustering");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getCreateDisposition", "create_disposition");
@@ -253,6 +254,7 @@ public class BigQueryIOTranslationTest {
             .withTriggeringFrequency(org.joda.time.Duration.millis(10000))
             .withWriteDisposition(WriteDisposition.WRITE_TRUNCATE)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withCloneFrom("dummyproject:dummydataset.clone_source_table")
             .withClustering(testClustering)
             .withKmsKey("dummykmskey");
 
@@ -271,6 +273,9 @@ public class BigQueryIOTranslationTest {
     assertEquals(WriteDisposition.WRITE_TRUNCATE, writeTransformFromRow.getWriteDisposition());
     assertEquals(CreateDisposition.CREATE_NEVER, writeTransformFromRow.getCreateDisposition());
     assertEquals("dummykmskey", writeTransformFromRow.getKmsKey());
+    assertEquals(
+        writeTransform.getJsonCloneSourceTableRef().get(),
+        writeTransformFromRow.getJsonCloneSourceTableRef().get());
     assertEquals(
         BigQueryHelpers.toJsonString(testClustering),
         writeTransformFromRow.getJsonClustering().get());
