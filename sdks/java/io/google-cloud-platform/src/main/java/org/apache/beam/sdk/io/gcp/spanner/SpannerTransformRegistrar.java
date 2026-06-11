@@ -130,6 +130,10 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       if (instanceId.isEmpty()) {
         throw new IllegalArgumentException("instanceId can't be empty");
       }
+      if ((clientCertPath != null) != (clientCertKeyPath != null)) {
+        throw new IllegalArgumentException(
+            "Both clientCertPath and clientCertKeyPath must be specified together.");
+      }
     }
   }
 
