@@ -594,30 +594,33 @@ public class BoundedQueueExecutorTest {
 
     // Mark work1 as failed
     work1.work().setFailed();
+    try {
 
-    // Enqueue tasks
-    testExecutor.execute(work1, 100);
-    testExecutor.execute(work2, 150);
+      // Enqueue tasks
+      testExecutor.execute(work1, 100);
+      testExecutor.execute(work2, 150);
 
-    // Total outstanding elements must be 3 (blocker + work1 + work2)
-    assertEquals(3, testExecutor.elementsOutstanding());
+      // Total outstanding elements must be 3 (blocker + work1 + work2)
+      assertEquals(3, testExecutor.elementsOutstanding());
 
-    // Steal work from keyGroup1.
-    // The first work in queue is work1, which is failed.
-    // It should be dropped, its handle closed, and work2 should be returned.
-    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup1, stealHandle);
-      assertNotNull(stolen);
-      assertEquals(work2, stolen);
-      // blocker (1) + work2 (1) = 2. work1 (1) should have been released.
-      assertEquals(2, testExecutor.elementsOutstanding());
+      // Steal work from keyGroup1.
+      // The first work in queue is work1, which is failed.
+      // It should be dropped, its handle closed, and work2 should be returned.
+      try (BoundedQueueExecutorWorkHandleImpl stealHandle =
+          testExecutor.createBudgetHandle(0, 0L)) {
+        ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup1, stealHandle);
+        assertNotNull(stolen);
+        assertEquals(work2, stolen);
+        // blocker (1) + work2 (1) = 2. work1 (1) should have been released.
+        assertEquals(2, testExecutor.elementsOutstanding());
+      }
+      // work2 should also be released now because stealHandle is closed.
+      // blocker (1) = 1.
+      assertEquals(1, testExecutor.elementsOutstanding());
+    } finally {
+      // Unblock the blocker and shut down
+      blockerStop.countDown();
+      testExecutor.shutdown();
     }
-    // work2 should also be released now because stealHandle is closed.
-    // blocker (1) = 1.
-    assertEquals(1, testExecutor.elementsOutstanding());
-
-    // Unblock the blocker and shut down
-    blockerStop.countDown();
-    testExecutor.shutdown();
   }
 }
