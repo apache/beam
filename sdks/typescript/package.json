@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@google-cloud/pubsub": "^4.2.0",
-    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/grpc-js": "^1.14.4",
     "@protobuf-ts/grpc-transport": "^2.1.0",
     "@protobuf-ts/plugin": "^2.1.0",
     "bson": "^4.6.0",
