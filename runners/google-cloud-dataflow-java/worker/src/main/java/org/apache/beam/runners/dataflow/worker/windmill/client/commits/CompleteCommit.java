@@ -37,24 +37,14 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 @AutoValue
 public abstract class CompleteCommit {
 
-  public static CompleteCommit create(Commit commit, CommitStatus commitStatus) {
-    return new AutoValue_CompleteCommit(
-        commit.computationId(),
-        ShardedKey.create(commit.request().getKey(), commit.request().getShardingKey()),
-        WorkId.builder()
-            .setWorkToken(commit.request().getWorkToken())
-            .setCacheToken(commit.request().getCacheToken())
-            .build(),
-        commitStatus);
-  }
-
   public static CompleteCommit create(
-      String computationId, ShardedKey shardedKey, WorkId workId, CommitStatus status) {
-    return new AutoValue_CompleteCommit(computationId, shardedKey, workId, status);
-  }
-
-  public static CompleteCommit forFailedWork(Commit commit) {
-    return create(commit, CommitStatus.ABORTED);
+      String computationId,
+      ShardedKey shardedKey,
+      WorkId workId,
+      CommitStatus status,
+      boolean retryableFailure) {
+    return new AutoValue_CompleteCommit(
+        computationId, shardedKey, workId, status, retryableFailure);
   }
 
   public abstract String computationId();
@@ -64,4 +54,6 @@ public abstract class CompleteCommit {
   public abstract WorkId workId();
 
   public abstract CommitStatus status();
+
+  public abstract boolean retryableFailure();
 }

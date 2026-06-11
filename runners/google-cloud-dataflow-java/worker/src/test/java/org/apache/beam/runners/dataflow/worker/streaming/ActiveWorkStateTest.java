@@ -565,6 +565,31 @@ public class ActiveWorkStateTest {
     }
   }
 
+  @Test
+  public void testGetActiveWork() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    ExecutableWork work = createWork(createWorkItem(1L, 1L, shardedKey));
+
+    // Initially empty
+    assertFalse(activeWorkState.getActiveWork(shardedKey, work.id()).isPresent());
+
+    // Activate work
+    activeWorkState.activateWorkForKey(work);
+
+    // Should find it now
+    Optional<ExecutableWork> activeWork = activeWorkState.getActiveWork(shardedKey, work.id());
+    assertTrue(activeWork.isPresent());
+    assertSame(work, activeWork.get());
+
+    // Should not find it with different workId
+    assertFalse(activeWorkState.getActiveWork(shardedKey, workId(2L, 1L)).isPresent());
+    assertFalse(activeWorkState.getActiveWork(shardedKey, workId(1L, 2L)).isPresent());
+
+    // Should not find it with different shardedKey
+    ShardedKey otherShardedKey = shardedKey("otherKey", 2L);
+    assertFalse(activeWorkState.getActiveWork(otherShardedKey, work.id()).isPresent());
+  }
+
   private static ExecutableWork firstValue(Map<WorkId, ExecutableWork> map) {
     Iterator<Entry<WorkId, ExecutableWork>> iterator = map.entrySet().iterator();
     if (iterator.hasNext()) {
