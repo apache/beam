@@ -663,7 +663,9 @@ public class TestDataflowRunnerTest {
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
         .thenAnswer(
             invocation -> {
-              cancelLatch.await();
+              if (!cancelLatch.await(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                throw new RuntimeException("Timeout waiting for job cancellation");
+              }
               return State.CANCELLED;
             });
     when(mockJob.getProjectId()).thenReturn("test-project");
