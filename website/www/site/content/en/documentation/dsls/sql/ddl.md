@@ -20,7 +20,7 @@ limitations under the License.
 
 Beam SQL Data Definition Language (DDL) provides a standard three-level hierarchy to manage metadata across external data sources,
 making it easy to explore available data structures and query data across different systems.
-1. **Catalog**: The top-level container representing an external metadata provider. _For example, a Hive Metastore, AWS Glue, or a Lakehouse (formerly BigLake) Catalog._
+1. **Catalog**: The top-level container representing an external metadata provider. For example, a Hive Metastore, AWS Glue, or a Lakehouse (formerly BigLake) Catalog.
 2. **Database**: A logical grouping within a Catalog. This typically maps to a "Schema" in traditional RDBMS or a "Namespace" in systems like Apache Iceberg.
 3. **Table**: The leaf node containing the schema definition and the underlying data.
 
