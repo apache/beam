@@ -102,7 +102,6 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -213,7 +212,6 @@ public class WorkerCustomSourcesTest {
   private void startContext(StreamingModeExecutionContext context, Work work) {
     context.start(
         work,
-        mock(WindmillStateReader.class),
         mock(WorkExecutor.class),
         /* workQueueExecutor= */ null,
         /* budgetHandle= */ null,
@@ -637,6 +635,7 @@ public class WorkerCustomSourcesTest {
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
             "sourceBytesProcessCounterName",
+            options,
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
@@ -1010,6 +1009,7 @@ public class WorkerCustomSourcesTest {
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
             "sourceBytesProcessCounterName",
+            options,
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);

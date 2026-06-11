@@ -84,6 +84,7 @@ final class ComputationWorkExecutorFactory {
   private final SinkRegistry sinkRegistry;
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
 
   /**
    * Function which converts map tasks to their network representation for execution.
@@ -100,7 +101,6 @@ final class ComputationWorkExecutorFactory {
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private final HotKeyLogger hotKeyLogger;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -287,6 +287,7 @@ final class ComputationWorkExecutorFactory {
         hotKeyLoggingEnabled,
         stepName,
         computationState.sourceBytesProcessCounterName(),
+        options,
         sideInputStateFetcherFactory);
   }
 

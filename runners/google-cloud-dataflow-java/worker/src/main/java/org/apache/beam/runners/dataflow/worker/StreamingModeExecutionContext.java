@@ -35,6 +35,7 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -52,6 +53,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -82,6 +84,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -120,6 +124,10 @@ public class StreamingModeExecutionContext
     extends DataflowExecutionContext<StreamingModeExecutionContext.StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
+  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_SIZE =
+      "windmill_max_key_group_batch_size";
+  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS =
+      "windmill_max_key_group_batch_time_ms";
 
   private final String computationId;
   private final ImmutableMap<String, String> stateNameMap;
@@ -181,7 +189,7 @@ public class StreamingModeExecutionContext
 
   // Key switch listener to delegate MDC logging context and thread name updates
   public interface KeyTransitionListener {
-    void onKeyTransition(Work oldWork, Work newWork);
+    void onKeyTransition(@Nullable Work oldWork, Work newWork);
   }
 
   @SuppressWarnings("UnusedVariable")
@@ -196,6 +204,11 @@ public class StreamingModeExecutionContext
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
   private final String sourceBytesProcessCounterName;
+
+  private final int maxKeyGroupBatchSize;
+  private final long maxKeyGroupBatchTimeNanos;
+  private int workItemsPolled = 0;
+  private long bundleStartTimeNanos = 0;
 
   public StreamingModeExecutionContext(
       CounterFactory counterFactory,
@@ -213,6 +226,7 @@ public class StreamingModeExecutionContext
       boolean hotKeyLoggingEnabled,
       String stepName,
       String sourceBytesProcessCounterName,
+      PipelineOptions options,
       SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     super(
         counterFactory,
@@ -232,7 +246,18 @@ public class StreamingModeExecutionContext
     this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
     this.stepName = checkNotNull(stepName);
     this.sourceBytesProcessCounterName = checkNotNull(sourceBytesProcessCounterName);
-    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
+    this.sideInputStateFetcherFactory = checkNotNull(sideInputStateFetcherFactory);
+
+    // Initialize batch limits from pipeline options
+    String batchSizeStr =
+        ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_SIZE);
+    this.maxKeyGroupBatchSize = batchSizeStr != null ? Integer.parseInt(batchSizeStr) : 100;
+
+    String batchTimeStr =
+        ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS);
+    this.maxKeyGroupBatchTimeNanos =
+        TimeUnit.MILLISECONDS.toNanos(batchTimeStr != null ? Long.parseLong(batchTimeStr) : 100);
+
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     this.operationalLimits = config.operationalLimits();
     this.windmillTagEncoding =
@@ -318,7 +343,6 @@ public class StreamingModeExecutionContext
 
   public void start(
       Work work,
-      WindmillStateReader stateReader,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -331,11 +355,14 @@ public class StreamingModeExecutionContext
     this.budgetHandle = budgetHandle;
     this.keyTransitionListener = keyTransitionListener;
 
+    this.workItemsPolled = 1;
+    this.bundleStartTimeNanos = System.nanoTime();
+
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     // Snapshot the limits for entire bundle processing.
     this.operationalLimits = config.operationalLimits();
 
-    startForNewKey(work, stateReader);
+    startForNewKey(work);
   }
 
   private @Nullable Object decodeKey(Work work) {
@@ -700,14 +727,42 @@ public class StreamingModeExecutionContext
   }
 
   public boolean advance() {
+    if (workIsFailed()) {
+      throw new WorkItemCancelledException(checkStateNotNull(work).getWorkItem().getShardingKey());
+    }
+
+    BoundedQueueExecutor executor = checkStateNotNull(workQueueExecutor);
+    BoundedQueueExecutorWorkHandle handle = checkStateNotNull(budgetHandle);
+    Work activeWork = checkStateNotNull(work);
+
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+      return false;
+    }
+
+    @Nullable
+    ExecutableWork additionalWork =
+        executor.pollWork(computationId, activeWork.getKeyGroup(), handle);
+    if (additionalWork != null) {
+      Work newWork = additionalWork.work();
+      ++workItemsPolled;
+      checkStateNotNull(keyTransitionListener).onKeyTransition(activeWork, newWork);
+      startForNewKey(newWork);
+      return true;
+    }
+
     return false;
   }
 
-  private void startForNewKey(Work newWork, WindmillStateReader reader) {
-    newWork.setState(Work.State.PROCESSING);
-    if (keyTransitionListener != null && this.work != null && this.work != newWork) {
-      keyTransitionListener.onKeyTransition(this.work, newWork);
+  private boolean shouldStopBatching() {
+    if (workItemsPolled >= maxKeyGroupBatchSize) {
+      return true;
     }
+    long elapsedNanos = System.nanoTime() - bundleStartTimeNanos;
+    return elapsedNanos >= maxKeyGroupBatchTimeNanos;
+  }
+
+  private void startForNewKey(Work newWork) {
+    newWork.setState(Work.State.PROCESSING);
     this.key = decodeKey(newWork);
     this.work = newWork;
     this.finishKeyCalled = false;
@@ -736,8 +791,8 @@ public class StreamingModeExecutionContext
       WindmillStateCache.ForKey cacheForKey =
           stateCache.forKey(
               getComputationKey(), newWork.getWorkItem().getCacheToken(), getWorkToken());
-      this.activeStateReader = reader;
-      startStepContexts(reader, processingTime, cacheForKey, newWork.watermarks());
+      this.activeStateReader = newWork.createWindmillStateReader(this::workIsFailed);
+      startStepContexts(this.activeStateReader, processingTime, cacheForKey, newWork.watermarks());
     } else {
       this.activeStateReader = null;
     }

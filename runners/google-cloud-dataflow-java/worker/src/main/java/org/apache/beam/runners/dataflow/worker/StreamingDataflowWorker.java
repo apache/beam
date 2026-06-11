@@ -257,6 +257,7 @@ public final class StreamingDataflowWorker {
     this.streamingWorkScheduler =
         StreamingWorkScheduler.create(
             options,
+            DataflowRunner.hasExperiment(options, UNSTABLE_ENABLE_MULTI_KEY_BUNDLE),
             clock,
             readerCache,
             mapTaskExecutorFactory,
@@ -1198,9 +1199,14 @@ public final class StreamingDataflowWorker {
     computationStateCache
         .getIfPresent(completeCommit.computationId())
         .ifPresent(
-            state ->
+            state -> {
+              if (completeCommit.retryableFailure()) {
+                state.reExecuteActiveWork(completeCommit.shardedKey(), completeCommit.workId());
+              } else {
                 state.completeWorkAndScheduleNextWorkForKey(
-                    completeCommit.shardedKey(), completeCommit.workId()));
+                    completeCommit.shardedKey(), completeCommit.workId());
+              }
+            });
   }
 
   @AutoValue
