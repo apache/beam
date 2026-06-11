@@ -102,7 +102,7 @@ When you've met those prerequisites, start by setting up your catalog:
   {{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" biglake_public_catalog_props >}}
 {{< /highlight >}}
 {{< highlight yaml >}}
-catalog_props: &catalog_props
+catalog_props: &biglake_catalog_props
   type: "rest"
   uri: "https://biglake.googleapis.com/iceberg/v1/restcatalog"
   warehouse: "gs://biglake-public-nyc-taxi-iceberg"

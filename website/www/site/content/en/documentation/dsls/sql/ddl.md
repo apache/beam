@@ -18,18 +18,18 @@ limitations under the License.
 
 # Beam SQL DDL
 
-Beam SQL provides a standard three-level hierarchy to manage metadata across external data sources,
-enabling structured discovery and cross-source interoperability.
-1. Catalog: The top-level container representing an external metadata provider. Examples include a Hive Metastore, AWS Glue, or a BigLake Catalog.
-2. Database: A logical grouping within a Catalog. This typically maps to a "Schema" in traditional RDBMS or a "Namespace" in systems like Apache Iceberg
+Beam SQL Data Definition Language (DDL) provides a standard three-level hierarchy to manage metadata across external data sources,
+making it easy to explore available data structures and query data across different systems.
+1. Catalog: The top-level container representing an external metadata provider. Examples include a Hive Metastore, AWS Glue, or a Lakehouse (formerly BigLake) Catalog.
+2. Database: A logical grouping within a Catalog. This typically maps to a "Schema" in traditional RDBMS or a "Namespace" in systems like Apache Iceberg.
 3. Table: The leaf node containing the schema definition and the underlying data.
 
-This structure enables Federated Querying. Because Beam can resolve multiple Catalogs simultaneously,
-you can execute complex pipelines that bridge disparate environments within a single SQL statement (e.g.
-joining a production BigQuery table with a developmental Iceberg dataset in GCS).
+Beam can resolve multiple Catalogs simultaneously. This structure enables Federated Querying, meaning
+you can execute complex pipelines that bridge disparate environments within a single SQL statement.
+For example, you could jointly query a production BigQuery table and a development Iceberg dataset in Cloud Storage.
 
-By using fully qualified names (e.g., catalog.database.table), you can perform cross-catalog joins or
-migrate data between clouds without manual schema mapping or intermediate storage.
+By using fully qualified names (for example, `catalog.database.table`), you can perform cross-catalog joins or
+migrate data between cloud providers without manual schema mapping or intermediate storage.
 
 Below are details about metadata management at each level:
 
@@ -58,7 +58,7 @@ PROPERTIES (
 )
 {{< /highlight >}}
 
-<p><i><strong>Example</strong>: Registering a BigLake Catalog (GCS)</i></p>
+<p><i><strong>Example</strong>: Registering a Lakehouse Catalog (GCS)</i></p>
 {{< highlight >}}
 CREATE CATALOG prod_iceberg
 TYPE iceberg
@@ -75,7 +75,7 @@ PROPERTIES (
 {{< /tab >}}
 {{< tab USE >}}
 <p>Sets the active Catalog for the current session. This simplifies queries by allowing you
-to reference Databases directly without their fully-qualified names (e.g. <code>my_db</code> instead of <code>my_catalog.my_db</code>)</p>
+to reference Databases directly without their fully-qualified names. For example, you can use <code>my_db</code> instead of <code>my_catalog.my_db</code>.</p>
 
 <p><i><strong>Tip:</strong> run <code>SHOW CURRENT CATALOG</code> to view the currently active Catalog.</i></p>
 <p><i><strong>Note:</strong> All subsequent DATABASE and TABLE commands will be executed under this Catalog, unless fully qualified.</i></p>
@@ -164,7 +164,8 @@ to reference Databases directly without their fully-qualified names (e.g. <code>
 USE DATABASE sales_data;
 {{< /highlight >}}
 
-<p><i>Switch to a Database in a specified Catalog. <strong>Node</strong>: this also switches the default to that Catalog</i></p>
+<p><i>Switch to a Database in a specified Catalog.</i></p>
+<p><i><strong>Note</strong>: this also switches the default to that Catalog</i></p>
 {{< highlight >}}
 USE DATABASE other_catalog.sales_data;
 {{< /highlight >}}
@@ -209,7 +210,7 @@ DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ];
 {{< /highlight >}}
 
 <ol>
-  <li><strong>RESTRICT:</strong> (Default): Fails if the Database is not empty.</li>
+  <li><strong>RESTRICT</strong> (Default): Fails if the Database is not empty.</li>
   <li><strong>CASCADE:</strong> Drops the Database and all tables contained within it. <strong>Use with caution</strong>.</li>
 </ol>
 <br>
@@ -217,10 +218,10 @@ DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ];
 
 ## Tables
 The actual entity containing data, and is described by a schema. Some
-data sources also support applying a partition spec and attaching table-specific properties.
+data sources also let you apply a partition spec or attach table-specific properties.
 
 {{< tab CREATE >}}
-<p>Creates a new Table within the current Catalog and Database (default), or the specified Catalog and Database.</p>
+<p>Creates a new Table within the current Catalog and Database (default), or the Catalog and Database you specify.</p>
 
 {{< highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] [ catalog. ][ db. ]table_name (
@@ -234,9 +235,9 @@ CREATE EXTERNAL TABLE [ IF NOT EXISTS ] [ catalog. ][ db. ]table_name (
   [ TBLPROPERTIES 'properties_json_string' ];
 {{< /highlight >}}
 <ul>
-  <li><strong>TYPE:</strong> the table type (e.g. <code>'iceberg'</code>, <code>'text'</code>, <code>'kafka'</code>).</li>
+  <li><strong>TYPE:</strong> the table type (for example, <code>'iceberg'</code>, <code>'text'</code>, <code>'kafka'</code>).</li>
   <li><strong>PARTITIONED BY:</strong> an ordered list of fields describing the partition spec.</li>
-  <li><strong>LOCATION:</strong> explicitly sets the location of the table (overriding the inferred <code>catalog.db.table_name</code> location)</li>
+  <li><strong>LOCATION:</strong> explicitly sets the location of the table. This overrides the inferred <code>catalog.db.table_name</code> location.</li>
   <li><strong>TBLPROPERTIES:</strong> configuration properties used when creating the table or setting up its IO connection.</li>
 </ul>
 <br>
@@ -262,8 +263,8 @@ TBLPROPERTIES '{
 <ul>
   <li>This creates an Iceberg table named <code>orders</code> under the namespace <code>sales_data</code>, within the <code>prod_iceberg</code> catalog.</li>
   <li>The table is partitioned by <code>region_id</code>, then by the day value of <code>order_date</code> (using Iceberg's <a href="https://iceberg.apache.org/docs/latest/partitioning/#icebergs-hidden-partitioning">hidden partitioning</a>).</li>
-  <li>The table is created with the appropriate properties <code>"write.format.default"</code> and <code>"read.split.target-size"</code>. The Beam property <code>"beam.write.triggering_frequency_seconds"</code></li>
-  <li>Beam properties (prefixed with <code>"beam.write."</code> and <code>"beam.read."</code> are intended for the relevant IOs)</li>
+  <li>The table is created with the appropriate properties <code>"write.format.default"</code> and <code>"read.split.target-size"</code>. The Beam property <code>"beam.write.triggering_frequency_seconds"</code></li> configures the Iceberg sink.
+  <li>Beam sink and source configuration properties are prefixed with <code>"beam.write."</code> and <code>"beam.read."</code>, respectively.</li>
 </ul>
 {{< /tab >}}
 {{< tab ALTER >}}
@@ -310,7 +311,7 @@ ALTER TABLE orders RESET ( 'write.target-file-size-bytes' );
 
 {{< /tab >}}
 {{< tab SHOW >}}
-<p>Lists tables under the currently active database, or a specified database.</p>
+<p>Lists tables under the currently active database, or a database you specify.</p>
 
 {{< highlight >}}
 SHOW TABLES [ ( FROM | IN )? [ catalog_name '.' ] database_name ] [ LIKE regex_pattern ]
