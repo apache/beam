@@ -88,7 +88,6 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -99,7 +98,6 @@ import org.apache.beam.sdk.schemas.utils.FieldValueTypeSupplier;
 import org.apache.beam.sdk.schemas.utils.JavaBeanUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -511,8 +509,15 @@ class ProtoByteBuddyUtils {
 
     int[] keys = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
+    @SuppressWarnings("unchecked")
     DynamicType.Builder<FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> builder =
-        ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, protoClass, OneOfType.Value.class);
+        (DynamicType.Builder)
+            BYTE_BUDDY
+                .with(new InjectPackageStrategy(ProtoByteBuddyUtils.class))
+                .subclass(
+                    TypeDescription.Generic.Builder.parameterizedType(
+                            FieldValueGetter.class, protoClass, OneOfType.Value.class)
+                        .build());
     builder =
         builder
             .method(ElementMatchers.named("name"))
@@ -546,7 +551,9 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(protoClass), getClassLoadingStrategy(protoClass))
+          .load(
+              ProtoByteBuddyUtils.class.getClassLoader(),
+              getClassLoadingStrategy(ProtoByteBuddyUtils.class))
           .getLoaded()
           .getDeclaredConstructor(List.class, OneOfType.class)
           .newInstance(getters, oneOfType);
@@ -568,9 +575,15 @@ class ProtoByteBuddyUtils {
     boolean contiguous = isContiguous(indices);
     int[] keys = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
+    @SuppressWarnings("unchecked")
     DynamicType.Builder<FieldValueSetter<ProtoBuilderT, Object>> builder =
-        ByteBuddyUtils.subclassSetterInterface(
-            BYTE_BUDDY, protoBuilderClass, OneOfType.Value.class);
+        (DynamicType.Builder)
+            BYTE_BUDDY
+                .with(new InjectPackageStrategy(ProtoByteBuddyUtils.class))
+                .subclass(
+                    TypeDescription.Generic.Builder.parameterizedType(
+                            FieldValueSetter.class, protoBuilderClass, OneOfType.Value.class)
+                        .build());
     builder =
         builder
             .method(ElementMatchers.named("name"))
@@ -599,8 +612,8 @@ class ProtoByteBuddyUtils {
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
-              ReflectHelpers.findClassLoader(protoBuilderClass),
-              getClassLoadingStrategy(protoBuilderClass))
+              ProtoByteBuddyUtils.class.getClassLoader(),
+              getClassLoadingStrategy(ProtoByteBuddyUtils.class))
           .getLoaded()
           .getDeclaredConstructor(List.class)
           .newInstance(setters);
@@ -1105,11 +1118,15 @@ class ProtoByteBuddyUtils {
       List<FieldValueSetter<ProtoBuilderT, Object>> setters,
       Schema schema) {
     try {
+      @SuppressWarnings("unchecked")
       DynamicType.Builder<Supplier<ProtoBuilderT>> builder =
           (DynamicType.Builder)
               BYTE_BUDDY
-                  .with(new InjectPackageStrategy(builderClass))
-                  .subclass(Supplier.class)
+                  .with(new InjectPackageStrategy(ProtoByteBuddyUtils.class))
+                  .subclass(
+                      TypeDescription.Generic.Builder.parameterizedType(
+                              Supplier.class, builderClass)
+                          .build())
                   .method(ElementMatchers.named("get"))
                   .intercept(new BuilderSupplier(protoClass));
       Supplier<ProtoBuilderT> supplier =
@@ -1119,8 +1136,8 @@ class ProtoByteBuddyUtils {
                       .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
               .load(
-                  ReflectHelpers.findClassLoader(builderClass),
-                  getClassLoadingStrategy(builderClass))
+                  ProtoByteBuddyUtils.class.getClassLoader(),
+                  getClassLoadingStrategy(ProtoByteBuddyUtils.class))
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();
