@@ -29,6 +29,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
+import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
@@ -48,6 +49,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
@@ -97,6 +99,8 @@ final class ComputationWorkExecutorFactory {
   private final IdGenerator idGenerator;
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
+  private final HotKeyLogger hotKeyLogger;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -106,7 +110,9 @@ final class ComputationWorkExecutorFactory {
       DataflowExecutionStateSampler sampler,
       CounterSet pendingDeltaCounters,
       IdGenerator idGenerator,
-      StreamingGlobalConfigHandle globalConfigHandle) {
+      StreamingGlobalConfigHandle globalConfigHandle,
+      HotKeyLogger hotKeyLogger,
+      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
@@ -124,6 +130,8 @@ final class ComputationWorkExecutorFactory {
             : StreamingDataflowWorker.MAX_SINK_BYTES;
     this.throwExceptionOnLargeOutput =
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
+    this.hotKeyLogger = hotKeyLogger;
+    this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -191,8 +199,12 @@ final class ComputationWorkExecutorFactory {
 
     DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker =
         createExecutionStateTracker(stageInfo, mapTask, workLatencyTrackingId);
+    boolean hotKeyLoggingEnabled =
+        options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging");
+    String stepName = getShuffleTaskStepName(mapTask);
     StreamingModeExecutionContext context =
-        createExecutionContext(computationState, stageInfo, executionStateTracker);
+        createExecutionContext(
+            computationState, stageInfo, executionStateTracker, hotKeyLoggingEnabled, stepName);
     DataflowMapTaskExecutor mapTaskExecutor =
         createMapTaskExecutor(context, mapTask, mapTaskNetwork);
     ReadOperation readOperation = getValidatedReadOperation(mapTaskExecutor);
@@ -255,7 +267,9 @@ final class ComputationWorkExecutorFactory {
   private StreamingModeExecutionContext createExecutionContext(
       ComputationState computationState,
       StageInfo stageInfo,
-      DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker) {
+      DataflowExecutionContext.DataflowExecutionStateTracker executionStateTracker,
+      boolean hotKeyLoggingEnabled,
+      String stepName) {
     String computationId = computationState.getComputationId();
     return new StreamingModeExecutionContext(
         pendingDeltaCounters,
@@ -268,7 +282,12 @@ final class ComputationWorkExecutorFactory {
         stageInfo.executionStateRegistry(),
         globalConfigHandle,
         maxSinkBytes,
-        throwExceptionOnLargeOutput);
+        throwExceptionOnLargeOutput,
+        hotKeyLogger,
+        hotKeyLoggingEnabled,
+        stepName,
+        computationState.sourceBytesProcessCounterName(),
+        sideInputStateFetcherFactory);
   }
 
   private DataflowMapTaskExecutor createMapTaskExecutor(
@@ -284,6 +303,12 @@ final class ComputationWorkExecutorFactory {
         context,
         pendingDeltaCounters,
         idGenerator);
+  }
+
+  private static String getShuffleTaskStepName(MapTask mapTask) {
+    // The MapTask instruction is ordered by dependencies, such that the first element is
+    // always going to be the shuffle task.
+    return mapTask.getInstructions().get(0).getName();
   }
 
   private DataflowExecutionContext.DataflowExecutionStateTracker createExecutionStateTracker(
