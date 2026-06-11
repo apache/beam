@@ -153,6 +153,9 @@ public class StreamingModeExecutionContextTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     executionContext = createExecutionContext(options, globalConfigHandle);
   }
@@ -579,7 +582,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchSize
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("max_key_group_batch_size=1"));
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_size=1"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchSize, globalConfigHandle);
 
@@ -610,7 +613,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchTime
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("max_key_group_batch_time_ms=0"));
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_time_ms=0"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchTime, globalConfigHandle);
 
@@ -679,5 +682,93 @@ public class StreamingModeExecutionContextTest {
 
     assertFalse(executionContext.advance());
     org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_experimentDisabled() throws Exception {
+    DataflowWorkerHarnessOptions optionsDisabled =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsDisabled, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_respectsMaxBatchSinkBytes() throws Exception {
+    DataflowWorkerHarnessOptions optionsWithSinkBytes =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsWithSinkBytes
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "unstable_enable_multi_key_bundle", "windmill_max_key_group_batch_sink_bytes=100"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsWithSinkBytes, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    context.reportBytesSinked(50);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verify(mockExecutor)
+        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+
+    org.mockito.Mockito.reset(mockExecutor);
+
+    context.reportBytesSinked(60);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testExperimentParsingWithInvalidValues() {
+    DataflowWorkerHarnessOptions optionsInvalid =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsInvalid
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "windmill_max_key_group_batch_size=invalid_size",
+                "windmill_max_key_group_batch_time_ms=invalid_time",
+                "windmill_max_key_group_batch_sink_bytes=invalid_bytes"));
+
+    // This should not throw NumberFormatException
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsInvalid, globalConfigHandle);
+
+    org.junit.Assert.assertNotNull(context);
   }
 }

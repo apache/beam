@@ -128,6 +128,8 @@ public class StreamingModeExecutionContext
       "windmill_max_key_group_batch_size";
   private static final String WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS =
       "windmill_max_key_group_batch_time_ms";
+  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES =
+      "windmill_max_key_group_batch_sink_bytes";
 
   private final String computationId;
   private final ImmutableMap<String, String> stateNameMap;
@@ -207,6 +209,8 @@ public class StreamingModeExecutionContext
 
   private final int maxKeyGroupBatchSize;
   private final long maxKeyGroupBatchTimeNanos;
+  private final boolean multiKeyBundleEnabled;
+  private final long maxKeyGroupBatchSinkBytes;
   private int workItemsPolled = 0;
   private long bundleStartTimeNanos = 0;
 
@@ -249,14 +253,28 @@ public class StreamingModeExecutionContext
     this.sideInputStateFetcherFactory = checkNotNull(sideInputStateFetcherFactory);
 
     // Initialize batch limits from pipeline options
-    String batchSizeStr =
-        ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_SIZE);
-    this.maxKeyGroupBatchSize = batchSizeStr != null ? Integer.parseInt(batchSizeStr) : 100;
+    this.maxKeyGroupBatchSize =
+        tryParseInt(
+            ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_SIZE),
+            100,
+            WINDMILL_MAX_KEY_GROUP_BATCH_SIZE);
 
-    String batchTimeStr =
-        ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS);
-    this.maxKeyGroupBatchTimeNanos =
-        TimeUnit.MILLISECONDS.toNanos(batchTimeStr != null ? Long.parseLong(batchTimeStr) : 100);
+    long batchTimeMs =
+        tryParseLong(
+            ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS),
+            100,
+            WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS);
+    this.maxKeyGroupBatchTimeNanos = TimeUnit.MILLISECONDS.toNanos(batchTimeMs);
+
+    this.multiKeyBundleEnabled =
+        ExperimentalOptions.hasExperiment(options, StreamingDataflowWorker.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
+
+    this.maxKeyGroupBatchSinkBytes =
+        tryParseLong(
+            ExperimentalOptions.getExperimentValue(
+                options, WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES),
+            StreamingDataflowWorker.MAX_SINK_BYTES,
+            WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES);
 
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     this.operationalLimits = config.operationalLimits();
@@ -264,6 +282,41 @@ public class StreamingModeExecutionContext
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
+  }
+
+  private static int tryParseInt(@Nullable String value, int defaultValue, String experimentName) {
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      LOG.warn(
+          "Failed to parse experiment {} value '{}' as integer, falling back to default: {}",
+          experimentName,
+          value,
+          defaultValue,
+          e);
+      return defaultValue;
+    }
+  }
+
+  private static long tryParseLong(
+      @Nullable String value, long defaultValue, String experimentName) {
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch (NumberFormatException e) {
+      LOG.warn(
+          "Failed to parse experiment {} value '{}' as long, falling back to default: {}",
+          experimentName,
+          value,
+          defaultValue,
+          e);
+      return defaultValue;
+    }
   }
 
   @VisibleForTesting
@@ -727,6 +780,9 @@ public class StreamingModeExecutionContext
   }
 
   public boolean advance() {
+    if (!multiKeyBundleEnabled) {
+      return false;
+    }
     if (workIsFailed()) {
       throw new WorkItemCancelledException(checkStateNotNull(work).getWorkItem().getShardingKey());
     }
@@ -758,7 +814,10 @@ public class StreamingModeExecutionContext
       return true;
     }
     long elapsedNanos = System.nanoTime() - bundleStartTimeNanos;
-    return elapsedNanos >= maxKeyGroupBatchTimeNanos;
+    if (elapsedNanos >= maxKeyGroupBatchTimeNanos) {
+      return true;
+    }
+    return getBytesSinked() >= maxKeyGroupBatchSinkBytes;
   }
 
   private void startForNewKey(Work newWork) {

@@ -181,7 +181,7 @@ public final class StreamingDataflowWorker {
       "windmill_bounded_queue_executor_use_fair_monitor";
   // Don't use. Experiment guarding multi key bundles. The feature is work in progress and
   // incomplete.
-  private static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
+  public static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
 
   private final WindmillStateCache stateCache;
   private AtomicReference<StreamingWorkerStatusPages> statusPages = new AtomicReference<>();
