@@ -343,3 +343,5 @@ Add any necessary documentation for your connector under the `website/www/site/c
 
 > [!TIP]
 > **Canonical Reference Implementations:** When developing a new connector, we highly recommend studying **Apache Iceberg** ([IcebergIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg/IcebergIO.java)) and **Delta Lake** ([DeltaIO.java](https://github.com/apache/beam/blob/master/sdks/java/io/delta/src/main/java/org/apache/beam/sdk/io/delta/DeltaIO.java)) as state-of-the-art reference implementations.
+
+For more details see the [Developing I/O connectors](https://beam.apache.org/documentation/io/developing-io-overview) guide.
