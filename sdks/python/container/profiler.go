@@ -39,6 +39,7 @@ type ProfilerConfig struct {
 	ExtraEnvVars           []string
 	Location               string
 	TempLocation           string
+	BaseTempDir            string
 	StopSentinelPath       string
 	GcsDestPath            string
 	UploadIntervalSec      int
@@ -54,9 +55,9 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 		return ctx
 	}
 
-	tempLocation := opts.Options.ProfileTempLocation
-	if tempLocation == "" {
-		tempLocation = filepath.Join(*semiPersistDir, "profiles")
+	baseTempDir := opts.Options.ProfileTempLocation
+	if baseTempDir == "" {
+		baseTempDir = filepath.Join(*semiPersistDir, "profiles")
 	}
 
 	jobId := opts.Options.JobId
@@ -67,12 +68,13 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 	if hostname == "" {
 		hostname = "default-worker"
 	}
+
+	tempLocation := filepath.Join(baseTempDir, jobId, hostname)
 	sentinelPath := filepath.Join(tempLocation, fmt.Sprintf(".profiler_disengaged_%s_%s", jobId, hostname))
 
 	var gcsDestPath string
 	if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
-		baseGcsDest := strings.TrimSuffix(opts.Options.ProfileLocation, "/")
-		gcsDestPath = fmt.Sprintf("%s/%s/%s", baseGcsDest, jobId, hostname)
+		gcsDestPath = strings.TrimSuffix(opts.Options.ProfileLocation, "/")
 	}
 
 	config := &ProfilerConfig{
@@ -81,6 +83,7 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 		ExtraArgs:              opts.Options.ProfilerExtraArgs,
 		ExtraEnvVars:           opts.Options.ProfilerExtraEnvVars,
 		Location:               opts.Options.ProfileLocation,
+		BaseTempDir:            baseTempDir,
 		TempLocation:           tempLocation,
 		StopSentinelPath:       sentinelPath,
 		GcsDestPath:            gcsDestPath,
@@ -113,7 +116,7 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 	logger.Printf(ctx, "ProfilerExtraArgs: %v", pcfg.ExtraArgs)
 	logger.Printf(ctx, "ProfilerExtraEnvVars: %v", pcfg.ExtraEnvVars)
 	logger.Printf(ctx, "ProfileLocation: %v", pcfg.Location)
-	logger.Printf(ctx, "ProfileTempLocation: %v", pcfg.TempLocation)
+	logger.Printf(ctx, "ProfileTempLocation: %v", pcfg.BaseTempDir)
 	logger.Printf(ctx, "ProfileUploadIntervalSec: %v", pcfg.UploadIntervalSec)
 	logger.Printf(ctx, "ProfilerStopAfterSec: %v", pcfg.StopAfterSec)
 	logger.Printf(ctx, "ProfilerStopAfterCrash: %v", pcfg.StopAfterCrash)
@@ -134,7 +137,7 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 							return
 						case <-time.After(time.Duration(pcfg.UploadIntervalSec) * time.Second):
 							// TODO(tvalentyn): Consider a periodic cleanup as well to save local disk space.
-							syncProfilesToGCS(ctx, logger, pcfg.TempLocation, pcfg.GcsDestPath)
+							syncProfilesToGCS(ctx, logger, pcfg.BaseTempDir, pcfg.GcsDestPath)
 						}
 					}
 				}()
@@ -229,7 +232,7 @@ func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsD
 
 	logger.Printf(ctx, "Syncing profiles from %s to %s", localDir, gcsDest)
 
-	cmd := exec.CommandContext(ctx, "gcloud", "storage", "rsync", localDir, gcsDest)
+	cmd := exec.CommandContext(ctx, "gcloud", "storage", "rsync", "-r", localDir, gcsDest)
 	if err := cmd.Run(); err != nil {
 		logger.Warnf(ctx, "Failed to sync profiles to GCS: %v", err)
 	} else {
