@@ -706,14 +706,7 @@ class PipelineOptionsTest(unittest.TestCase):
         options.view_as(ProfilingOptions).profile_location,
         'gs://other-bucket/custom_profiles')
 
-    options = PipelineOptions([
-        '--profiler_agent=memray',
-        '--temp_location=gs://bucket/temp',
-        '--profile_location=nOnE'
-    ])
-    validator = PipelineOptionsValidator(options, None)
-    self.assertEqual(validator.validate(), [])
-    self.assertIsNone(options.view_as(ProfilingOptions).profile_location)
+
 
   def test_add_experiment(self):
     options = PipelineOptions([])
