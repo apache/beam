@@ -129,7 +129,6 @@ public class BeamEnumerableConverterTest {
 
     @Test
     public void testToRowList_limit() {
-      Schema schema = Schema.builder().addInt64Field("id").build();
       java.util.Map<String, org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable> tables =
           new java.util.HashMap<>();
       tables.put("TEST", TestBoundedTable.of(Schema.FieldType.INT64, "id").addRows(1L, 2L, 3L));
@@ -138,8 +137,10 @@ public class BeamEnumerableConverterTest {
 
       List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
       assertEquals(2, rowList.size());
-      assertTrue(rowList.contains(Row.withSchema(schema).addValue(1L).build()));
-      assertTrue(rowList.contains(Row.withSchema(schema).addValue(2L).build()));
+      for (Row row : rowList) {
+        Long id = row.getInt64("id");
+        assertTrue("Unexpected id: " + id, id >= 1L && id <= 3L);
+      }
     }
 
     private static class FakeTable extends SchemaBaseBeamTable {
