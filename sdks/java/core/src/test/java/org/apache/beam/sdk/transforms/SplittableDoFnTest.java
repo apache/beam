@@ -1005,9 +1005,9 @@ public class SplittableDoFnTest implements Serializable {
       // callback should run. Poll wasFinalized with a timed wait to avoid deadlocks
       // on single-threaded executors.
       if (currentAttempt > 0 && !wasFinalized.get()) {
-        long limitMs = 1000;
-        long start = System.currentTimeMillis();
-        while (!wasFinalized.get() && (System.currentTimeMillis() - start) < limitMs) {
+        long limitNs = 1_000_000_000L;
+        long start = System.nanoTime();
+        while (!wasFinalized.get() && (System.nanoTime() - start) < limitNs) {
           sleep(10L);
         }
         long duration = System.currentTimeMillis() - start;
