@@ -18,13 +18,18 @@
 package org.apache.beam.sdk.io.delta;
 
 import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.Configuration;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -37,12 +42,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * SchemaTransform implementation for {@link DeltaIO#readRows}. Reads records from Delta Lake and
- * outputs a {@link org.apache.beam.sdk.values.PCollection} of Beam {@link Row}s.
+ * outputs a {@link org.apache.beam.sdk.values.PCollection} of Beam {@link
+ * org.apache.beam.sdk.values.Row}s.
  */
 @AutoService(SchemaTransformProvider.class)
 public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvider<Configuration> {
   static final String OUTPUT_TAG = "output";
-  static final String IDENTIFIER = "beam:schematransform:org.apache.beam:delta_read:v1";
 
   @Override
   protected SchemaTransform from(Configuration configuration) {
@@ -56,31 +61,45 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
 
   @Override
   public String identifier() {
-    return IDENTIFIER;
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.DELTA_LAKE_READ);
   }
 
   static class DeltaReadSchemaTransform extends SchemaTransform {
     private final Configuration configuration;
 
     DeltaReadSchemaTransform(Configuration configuration) {
-      this.configuration = configuration;
+      this.configuration =
+          java.util.Objects.requireNonNull(configuration, "configuration cannot be null");
+    }
+
+    Row getConfigurationRow() {
+      try {
+        return SchemaRegistry.createDefault()
+            .getToRowFunction(Configuration.class)
+            .apply(configuration)
+            .sorted()
+            .toSnakeCase();
+      } catch (NoSuchSchemaException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      DeltaIO.ReadRows readRows = DeltaIO.readRows().from(configuration.getTablePath());
+      DeltaIO.ReadRows read = DeltaIO.readRows().from(configuration.getTable());
       if (configuration.getVersion() != null) {
-        readRows = readRows.withVersion(configuration.getVersion());
+        read = read.withVersion(configuration.getVersion());
       }
       if (configuration.getTimestamp() != null) {
-        readRows = readRows.withTimestamp(configuration.getTimestamp());
+        read = read.withTimestamp(configuration.getTimestamp());
       }
       Map<String, String> hadoopConfig = configuration.getHadoopConfig();
       if (hadoopConfig != null) {
-        readRows = readRows.withConfig(hadoopConfig);
+        read = read.withConfig(hadoopConfig);
       }
 
-      PCollection<Row> output = input.getPipeline().apply(readRows);
+      PCollection<Row> output = input.getPipeline().apply(read);
+
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
   }
@@ -92,8 +111,8 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
       return new AutoValue_DeltaReadSchemaTransformProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("Path of the Delta Lake table.")
-    abstract String getTablePath();
+    @SchemaFieldDescription("Identifier of the Delta Lake table.")
+    abstract String getTable();
 
     @SchemaFieldDescription("Version of the Delta Lake table to read.")
     @Nullable
@@ -103,13 +122,13 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
     @Nullable
     abstract String getTimestamp();
 
-    @SchemaFieldDescription("Hadoop configuration properties.")
+    @SchemaFieldDescription("Properties passed to the Hadoop Configuration.")
     @Nullable
     abstract Map<String, String> getHadoopConfig();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setTablePath(String tablePath);
+      abstract Builder setTable(String table);
 
       abstract Builder setVersion(@Nullable Long version);
 
