@@ -196,8 +196,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   }
 
   @Override
-  public void finishKey(Object key) throws Exception {
-  }
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public void finishBundle() throws Exception {
