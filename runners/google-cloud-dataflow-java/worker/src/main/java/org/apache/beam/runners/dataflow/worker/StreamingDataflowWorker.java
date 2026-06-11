@@ -418,6 +418,7 @@ public final class StreamingDataflowWorker {
                     .ifPresent(
                         computationState -> {
                           memoryMonitor.waitForResources("GetWork");
+                          streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
                           streamingWorkScheduler.scheduleWork(
                               computationState,
                               workItem,
@@ -425,7 +426,6 @@ public final class StreamingDataflowWorker {
                               watermarks,
                               processingContext,
                               drainMode,
-                              appliedFinalizeIds,
                               getWorkStreamLatencies);
                         }),
             ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
