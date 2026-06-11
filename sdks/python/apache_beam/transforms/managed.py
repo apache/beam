@@ -103,7 +103,7 @@ class Read(PTransform):
       POSTGRES: ManagedTransforms.Urns.POSTGRES_READ.urn,
       MYSQL: ManagedTransforms.Urns.MYSQL_READ.urn,
       SQL_SERVER: ManagedTransforms.Urns.SQL_SERVER_READ.urn,
-      DELTA: ManagedTransforms.Urns.DELTA_READ.urn,
+      DELTA: ManagedTransforms.Urns.DELTA_LAKE_READ.urn,
   }
 
   def __init__(

@@ -25,7 +25,7 @@ pipelines:
       transforms:
         - type: ReadFromDelta
           config:
-            table_path: "{DELTA_TABLE}"
+            table: "{DELTA_TABLE}"
         - type: AssertEqual
           config:
             elements:
