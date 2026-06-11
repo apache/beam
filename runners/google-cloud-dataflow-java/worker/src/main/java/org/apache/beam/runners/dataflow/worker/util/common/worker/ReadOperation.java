@@ -272,7 +272,7 @@ public class ReadOperation extends Operation {
   }
 
   @Override
-  public void finishKey(@Nullable Object key) throws Exception {}
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public void abort() throws Exception {

@@ -130,7 +130,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void finishKey(@Nullable Object key) {
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
     simpleRunner.finishKey(key);
   }
 

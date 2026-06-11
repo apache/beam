@@ -30,7 +30,6 @@ import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory.E
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for tests. */
 @SuppressWarnings({
@@ -62,7 +61,7 @@ public class ExecutorTestUtils {
     }
 
     @Override
-    public void finishKey(@Nullable Object key) throws Exception {}
+    public void finishKey(Object key) throws Exception {}
   }
 
   /** A {@code Reader<String>} that yields a specified set of values. */

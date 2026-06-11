@@ -156,7 +156,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   }
 
   @Override
-  public void finishKey(@Nullable Object key) {
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
     simpleDoFnRunner.finishKey(key);
     sideInputFetcher.persist();
   }

@@ -98,7 +98,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   }
 
   @Override
-  public void finishKey(@Nullable Object key) {
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
     simpleDoFnRunner.finishKey(key);
     sideInputFetcher.persist();
   }

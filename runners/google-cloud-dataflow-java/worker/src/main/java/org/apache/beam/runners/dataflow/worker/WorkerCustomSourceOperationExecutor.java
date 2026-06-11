@@ -27,7 +27,6 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +90,7 @@ public class WorkerCustomSourceOperationExecutor implements SourceOperationExecu
   }
 
   @Override
-  public void finishKey(@Nullable Object key) throws Exception {}
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public SourceOperationResponse getResponse() {

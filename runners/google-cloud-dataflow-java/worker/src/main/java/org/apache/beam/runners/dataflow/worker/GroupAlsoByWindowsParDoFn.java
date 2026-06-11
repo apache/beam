@@ -143,7 +143,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
   }
 
   @Override
-  public void finishKey(@Nullable Object key) throws Exception {
+  public void finishKey(Object key) throws Exception {
     checkState(fnRunner != null);
     fnRunner.finishKey(key);
   }

@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A ParDo mapping function. */
 public class ParDoOperation extends ReceivingOperation {
@@ -49,7 +48,7 @@ public class ParDoOperation extends ReceivingOperation {
   // Batch mode does not use this method and instead relies on BatchModeUngroupingParDoFn
   // to process timers per key.
   @Override
-  public void finishKey(@Nullable Object key) throws Exception {
+  public void finishKey(Object key) throws Exception {
     try (Closeable scope = context.enterProcessTimers()) {
       checkStarted();
       fn.processTimers();

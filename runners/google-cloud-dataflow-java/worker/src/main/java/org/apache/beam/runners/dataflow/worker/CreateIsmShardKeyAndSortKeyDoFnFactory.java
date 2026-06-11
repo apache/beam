@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link ParDoFnFactory} that creates a system {@link ParDoFn} responsible for limiting the users
@@ -116,7 +115,7 @@ public class CreateIsmShardKeyAndSortKeyDoFnFactory implements ParDoFnFactory {
     public void processTimers() {}
 
     @Override
-    public void finishKey(@Nullable Object key) throws Exception {}
+    public void finishKey(Object key) throws Exception {}
 
     @Override
     public void finishBundle() {}

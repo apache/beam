@@ -32,7 +32,6 @@ import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExt
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.LongCounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -88,7 +87,7 @@ public class ParDoOperationTest {
     }
 
     @Override
-    public void finishKey(@Nullable Object key) throws Exception {}
+    public void finishKey(Object key) throws Exception {}
   }
 
   @Test

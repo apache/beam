@@ -1065,7 +1065,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     }
 
     @Override
-    public void finishKey(@Nullable Object key) {}
+    public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
     @Override
     public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
