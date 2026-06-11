@@ -42,7 +42,6 @@ from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import ModelT
 from apache_beam.ml.inference.base import RunInferenceDLQ
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options_context import get_pipeline_options
 
 _LOGGER = logging.getLogger(__name__)
 _ATTRIBUTE_FILE_NAME = 'attributes.json'
