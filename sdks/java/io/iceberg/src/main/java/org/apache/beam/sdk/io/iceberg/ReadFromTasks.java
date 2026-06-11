@@ -51,11 +51,6 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     this.scanConfig = scanConfig;
   }
 
-  @Setup
-  public void setup() {
-    TableCache.setup(scanConfig);
-  }
-
   @ProcessElement
   public void process(
       @Element KV<ReadTaskDescriptor, ReadTask> element,
@@ -63,7 +58,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       OutputReceiver<Row> out)
       throws IOException, ExecutionException, InterruptedException {
     ReadTask readTask = element.getValue();
-    Table table = TableCache.get(scanConfig.getTableIdentifier());
+    Table table = TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
     List<FileScanTask> fileScanTasks = readTask.getFileScanTasks();
 

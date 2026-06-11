@@ -68,8 +68,7 @@ public abstract class IcebergScanConfig implements Serializable {
   @Pure
   public Table getTable() {
     if (cachedTable == null) {
-      cachedTable =
-          getCatalogConfig().catalog().loadTable(TableIdentifier.parse(getTableIdentifier()));
+      cachedTable = TableCache.get(getCatalogConfig(), TableIdentifier.parse(getTableIdentifier()));
     }
     return cachedTable;
   }

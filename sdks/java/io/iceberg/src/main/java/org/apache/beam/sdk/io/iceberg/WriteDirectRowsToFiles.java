@@ -31,8 +31,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.iceberg.catalog.Catalog;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteDirectRowsToFiles
@@ -66,7 +64,6 @@ class WriteDirectRowsToFiles
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
-    private transient @MonotonicNonNull Catalog catalog;
     private final String filePrefix;
     private final long maxFileSize;
     private transient @Nullable RecordWriterManager recordWriterManager;
@@ -83,17 +80,10 @@ class WriteDirectRowsToFiles
       this.recordWriterManager = null;
     }
 
-    private org.apache.iceberg.catalog.Catalog getCatalog() {
-      if (catalog == null) {
-        this.catalog = catalogConfig.catalog();
-      }
-      return catalog;
-    }
-
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE);
+          new RecordWriterManager(catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE);
     }
 
     @ProcessElement
