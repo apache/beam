@@ -422,7 +422,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // Check if we should initiate cancellation based on metrics (only if assertion state is
           // not yet known)
           if (!assertionsPassedRef.get().isPresent() && !cancellationPending) {
-            if (runner.expectedNumberOfAssertions > 0 && steps % checkMetricsIntervalSteps == 0) {
+            if (runner.expectedNumberOfAssertions > 0 && steps > 0 && steps % checkMetricsIntervalSteps == 0) {
               try {
                 Optional<Boolean> assertionsPassed = runner.checkForPAssertSuccess(job);
                 if (assertionsPassed.isPresent()) {
