@@ -65,7 +65,7 @@
 
 ## I/Os
 
-* Adds a source for reading from Delta Lake (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
+* Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
