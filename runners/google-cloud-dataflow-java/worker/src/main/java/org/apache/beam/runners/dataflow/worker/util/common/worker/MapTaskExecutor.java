@@ -100,9 +100,6 @@ public class MapTaskExecutor implements WorkExecutor {
         } catch (Exception closeExn) {
           exn.addSuppressed(closeExn);
         }
-        if (exn instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
         throw exn;
       }
     }
