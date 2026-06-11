@@ -24,6 +24,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Spanner;
@@ -96,6 +97,10 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Duration> getPartitionReadTimeout();
 
   public abstract @Nullable ValueProvider<Boolean> getPlainText();
+
+  public abstract @Nullable ValueProvider<String> getClientCertPath();
+
+  public abstract @Nullable ValueProvider<String> getClientCertKeyPath();
 
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
@@ -193,6 +198,10 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setWaitForSessionCreationDuration(
         ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+
+    abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+    abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
     public abstract SpannerConfig build();
   }
@@ -367,6 +376,7 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder()
         .setInstanceId(EXPERIMENTAL_HOST_INSTANCE_ID)
         .setExperimentalHost(experimentalHost)
+        .setCredentials(ValueProvider.StaticValueProvider.of(NoCredentials.getInstance()))
         .build();
   }
 
@@ -413,5 +423,34 @@ public abstract class SpannerConfig implements Serializable {
       java.time.Duration waitForSessionCreationDuration) {
     return withWaitForSessionCreationDuration(
         ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(
+      ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+    return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(String certPath, String keyPath) {
+    return withClientCert(
+        ValueProvider.StaticValueProvider.of(certPath),
+        ValueProvider.StaticValueProvider.of(keyPath));
   }
 }
