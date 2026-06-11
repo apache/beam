@@ -348,6 +348,14 @@ public class CalciteQueryPlanner implements QueryPlanner {
   public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
     RelNode beamRelNode;
     try {
+      // Normalize correlated sub-queries into standard relational shapes (Join + Aggregate, etc.)
+      // BEFORE the Volcano program runs and BEFORE the metadata-provider swap below. Running this
+      // here keeps it off the cost-based metadata path (it uses stock Calcite metadata), so it
+      // cannot trigger the BeamCostModel / RelMdNodeStats recursion that the Volcano search guards
+      // against. The pre-pass is a no-op on trees that carry no referenced correlation variable
+      // (see normalizeForVolcano), which protects the UNNEST LogicalCorrelate(_, Uncollect) shape
+      // that BeamUnnestRule depends on.
+      relNode = normalizeForVolcano(relNode);
       LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits =
           relNode
@@ -388,6 +396,61 @@ public class CalciteQueryPlanner implements QueryPlanner {
     return (BeamRelNode) beamRelNode;
   }
 
+  /**
+   * Pre-Volcano normalization pass for correlated sub-queries.
+   *
+   * <p>The SqlToRel converter (driven by {@link Planner#rel}) already decorrelates most queries,
+   * but some correlated shapes (e.g. correlated EXISTS/IN inside a project or join condition)
+   * survive as a {@code RexSubQuery} or a residual {@code LogicalCorrelate}. The Beam Volcano
+   * ruleset has no converter rule for a general {@code LogicalCorrelate}, so such a residue would
+   * fail planning with a {@code CannotPlanException}. This pass rewrites those into standard
+   * relational nodes ({@code Join}, {@code Aggregate}, {@code Project}, {@code Filter}) that
+   * existing Beam converter rules already cover.
+   *
+   * <p>The pass:
+   *
+   * <ol>
+   *   <li>runs a short-lived {@link HepPlanner} with the three {@code *_SUB_QUERY_TO_CORRELATE}
+   *       rules to turn any un-expanded {@code RexSubQuery} into a {@code LogicalCorrelate}, then
+   *   <li>runs {@link RelDecorrelator#decorrelateQuery(RelNode, RelBuilder)} to lower correlates
+   *       into joins/aggregates, using the planner's configured {@link RelBuilder} so produced rels
+   *       share the cluster's type factory.
+   * </ol>
+   *
+   * <p>It runs strictly before the Volcano {@code program.run(...)} and before the
+   * metadata-provider swap in {@link #convertToBeamRel(RelNode, QueryParameters)}, so it stays off
+   * the Beam cost path.
+   *
+   * <p>Pre-flight safety: the whole pass is gated on the tree actually <em>referencing</em> a
+   * correlation variable ({@link RelOptUtil#getVariablesUsed(RelNode)} non-empty). This makes it a
+   * strict no-op on trees without a referenced correlate. In particular the UNNEST shape {@code
+   * LogicalCorrelate(_, Uncollect)} <em>defines</em> a correlation id but does not
+   * <em>reference</em> one in its body, so {@code getVariablesUsed} is empty for it and the pass is
+   * skipped — leaving the correlate intact for {@code BeamUnnestRule}. (Note: {@code
+   * getVariablesSet} would be wrong here, as it is non-empty for UNNEST.)
+   */
+  private RelNode normalizeForVolcano(RelNode rel) {
+    // No-op unless the tree references a correlation variable. Protects the UNNEST
+    // LogicalCorrelate(_, Uncollect) shape, which defines but does not reference a correl var.
+    if (RelOptUtil.getVariablesUsed(rel).isEmpty()) {
+      return rel;
+    }
+
+    // (1) Convert any residual RexSubQuery (correlated EXISTS/IN in PROJECT/JOIN/FILTER that the
+    //     SqlToRel converter left in place) into a LogicalCorrelate via a tiny HEP pass.
+    HepProgramBuilder hep =
+        new HepProgramBuilder()
+            .addRuleInstance(CoreRules.FILTER_SUB_QUERY_TO_CORRELATE)
+            .addRuleInstance(CoreRules.PROJECT_SUB_QUERY_TO_CORRELATE)
+            .addRuleInstance(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE);
+    HepPlanner hepPlanner = new HepPlanner(hep.build());
+    hepPlanner.setRoot(rel);
+    RelNode noSubQuery = hepPlanner.findBestExp();
+
+    // (2) Decorrelate the LogicalCorrelate nodes into standard Join/Aggregate shapes. Uses the
+    //     planner's RelBuilder so produced rels share the cluster's type factory + traits.
+    return RelDecorrelator.decorrelateQuery(noSubQuery, RelBuilder.create(config));
+  }
 
   // It needs to be public so that the generated code in Calcite can access it.
   public static class NonCumulativeCostImpl
