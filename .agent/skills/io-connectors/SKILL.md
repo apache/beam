@@ -195,3 +195,5 @@ Key components:
 1. **Source** - Reads data (bounded or unbounded)
 2. **Sink** - Writes data
 3. **Read/Write transforms** - User-facing API
+
+For more detailed information see the [Developing I/O connectors](https://beam.apache.org/documentation/io/developing-io-overview) guide.
