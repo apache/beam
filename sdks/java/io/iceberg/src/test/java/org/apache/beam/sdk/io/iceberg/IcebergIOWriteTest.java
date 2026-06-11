@@ -148,7 +148,8 @@ public class IcebergIOWriteTest implements Serializable {
   @Test
   public void testSimpleAppend() throws Exception {
     TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+        TableIdentifier.of(
+            "default", "table.with.dots" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()

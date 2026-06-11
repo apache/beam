@@ -46,6 +46,8 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.catalog.TableIdentifierParser;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -629,6 +631,58 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
+  }
+
+  /** Serializes a table identifier without losing dots or other special characters in each part. */
+  public static String tableIdentifierToString(TableIdentifier tableIdentifier) {
+    TableIdentifier identifier = checkArgumentNotNull(tableIdentifier);
+    return requiresJsonTableIdentifier(identifier)
+        ? TableIdentifierParser.toJson(identifier)
+        : identifier.toString();
+  }
+
+  /** Parses either Iceberg's JSON table identifier representation or the legacy dotted form. */
+  public static TableIdentifier parseTableIdentifier(String table) {
+    if (looksLikeJsonObject(table)) {
+      return TableIdentifierParser.fromJson(table);
+    }
+
+    return TableIdentifier.parse(table);
+  }
+
+  private static boolean looksLikeJsonObject(@Nullable String value) {
+    if (value == null) {
+      return false;
+    }
+
+    int start = 0;
+    while (start < value.length() && Character.isWhitespace(value.charAt(start))) {
+      start++;
+    }
+    if (start == value.length() || value.charAt(start) != '{') {
+      return false;
+    }
+
+    int end = value.length() - 1;
+    while (end >= 0 && Character.isWhitespace(value.charAt(end))) {
+      end--;
+    }
+
+    return end >= 0 && value.charAt(end) == '}';
+  }
+
+  private static boolean requiresJsonTableIdentifier(TableIdentifier identifier) {
+    if (looksLikeJsonObject(identifier.toString())) {
+      return true;
+    }
+
+    for (String level : identifier.namespace().levels()) {
+      if (level.contains(".")) {
+        return true;
+      }
+    }
+
+    return identifier.name().contains(".");
   }
 
   static <T> boolean isUnbounded(PCollection<T> input) {

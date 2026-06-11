@@ -35,7 +35,6 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -147,7 +146,11 @@ class AssignDestinationsAndPartitions
 
           try {
             // see if table already exists with a spec
-            spec = catalogConfig.catalog().loadTable(TableIdentifier.parse(tableIdentifier)).spec();
+            spec =
+                catalogConfig
+                    .catalog()
+                    .loadTable(IcebergUtils.parseTableIdentifier(tableIdentifier))
+                    .spec();
 
           } catch (NoSuchTableException ignored) {
             // no partition to apply

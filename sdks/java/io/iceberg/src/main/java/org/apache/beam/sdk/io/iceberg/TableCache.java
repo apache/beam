@@ -30,7 +30,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingC
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListenableFuture;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.TableIdentifier;
 
 /** Utility to fetch and cache Iceberg {@link Table}s. */
 class TableCache {
@@ -45,7 +44,7 @@ class TableCache {
                 public Table load(String identifier) {
                   return checkStateNotNull(CATALOG_CACHE.get(identifier))
                       .catalog()
-                      .loadTable(TableIdentifier.parse(identifier));
+                      .loadTable(IcebergUtils.parseTableIdentifier(identifier));
                 }
 
                 @Override
