@@ -216,6 +216,7 @@ public class StreamingWorkScheduler {
       Work.ProcessingContext processingContext,
       boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
+    // Before any processing starts, call any pending OnCommit callbacks
     commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
     computationState.activateWork(
         ExecutableWork.create(
