@@ -197,7 +197,7 @@ To expose your connector to cross-language pipelines and Beam YAML, create a typ
 ```java
 @AutoService(SchemaTransformProvider.class)
 public class MyReadSchemaTransformProvider extends TypedSchemaTransformProvider<Configuration> {
-  
+
   @Override
   public String identifier() {
     return getUrn(ExternalTransforms.ManagedTransforms.Urns.MY_SYSTEM_READ);
