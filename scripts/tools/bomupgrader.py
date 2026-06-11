@@ -27,7 +27,8 @@ Specifically, it
 1. preprocessing BeamModulePlugin.groovy to decide the dependencies need to sync
 2. generate an empty Maven project to fetch the exact target versions to change
 3. Write back to BeamModulePlugin.groovy
-4. Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
+4. Update libraries-bom and opentelemetry-bom entries on
+   sdks/java/container/license_scripts/dep_urls_java.yaml
 
 There are few reasons we need to declare the version numbers:
 1. Sync the dependency that not included in GCP-BOM with those included with BOM
@@ -254,17 +255,51 @@ configurations.implementation.canBeResolved = true
       for line in self.target_lines:
         fout.write(line)
 
+  def _get_opentelemetry_version(self):
+    for line in self.target_lines:
+      match = self.VERSION_STRING.match(line)
+      if match and match.group(1) == 'opentelemetry':
+        return match.group(2)
+    logging.warning('opentelemetry_version not found in BeamModulePlugin')
+    return None
+
   def write_license_script(self):
     logging.info("-----Update dep_urls_java.yaml-----")
-    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
-              'r') as fin:
+    license_path = os.path.join(self.project_root, self.LICENSE_SC_PATH)
+    with open(license_path, 'r') as fin:
       lines = fin.readlines()
-    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
-              'w') as fout:
-      for idx, line in enumerate(lines):
-        if line.strip() == 'libraries-bom:':
-          lines[idx + 1] = re.sub(
-              r'[\'"]\d[\.\d]+[\'"]', f"'{self.bom_version}'", lines[idx + 1])
+
+    otel_version = self._get_opentelemetry_version()
+    otel_license_url = (
+        'https://raw.githubusercontent.com/open-telemetry/'
+        'opentelemetry-java/v{}/LICENSE'.format(otel_version)
+        if otel_version else None)
+    otel_license_line = '    license: "{}"\n'.format(otel_license_url)
+
+    for idx, line in enumerate(lines):
+      stripped = line.strip()
+      if stripped == 'libraries-bom:':
+        lines[idx + 1] = re.sub(
+            r'[\'"]\d[\d\.]+[\'"]', "'{}'".format(self.bom_version),
+            lines[idx + 1])
+        continue
+      if otel_version and stripped == 'opentelemetry-bom:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+'", "'{}'".format(otel_version), lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+        continue
+      if otel_version and stripped == 'opentelemetry-bom-alpha:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+-alpha'", "'{}-alpha'".format(otel_version),
+            lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+
+    if otel_version:
+      logging.info(
+          'Updated opentelemetry-bom license entries to %s', otel_version)
+
+    with open(license_path, 'w') as fout:
+      for line in lines:
         fout.write(line)
 
   def run(self):

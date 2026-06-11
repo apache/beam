@@ -515,7 +515,7 @@ class _TruncatingFileHandle(object):
 
   @property
   def closed(self):
-    return False
+    return getattr(self._underlying, 'closed', False)
 
   def __iter__(self):
     # For pandas is_file_like.
@@ -584,7 +584,18 @@ class _TruncatingFileHandle(object):
     return res
 
   def flush(self):
-    self._underlying.flush()
+    if not self.closed:
+      try:
+        self._underlying.flush()
+      except ValueError:
+        pass
+
+  def close(self):
+    if not self.closed and hasattr(self._underlying, 'close'):
+      try:
+        self._underlying.close()
+      except (OSError, ValueError):
+        pass
 
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
@@ -680,17 +691,27 @@ class _WriteToPandas(beam.PTransform):
     self.binary = binary
 
   def expand(self, pcoll):
-    if 'file_naming' in self.kwargs:
+    kwargs = dict(self.kwargs)
+    if 'file_naming' in kwargs:
       dir, name = self.path, ''
     else:
       dir, name = io.filesystems.FileSystems.split(self.path)
+    num_shards = kwargs.pop('num_shards', None)
+    max_writers_per_bundle = kwargs.pop('max_writers_per_bundle', None)
+    write_to_files_kwargs = {}
+    if num_shards is not None:
+      write_to_files_kwargs['shards'] = num_shards
+      write_to_files_kwargs['max_writers_per_bundle'] = 0
+    elif max_writers_per_bundle is not None:
+      write_to_files_kwargs['max_writers_per_bundle'] = max_writers_per_bundle
+
+    file_naming = kwargs.pop('file_naming', fileio.default_file_naming(name))
     return pcoll | fileio.WriteToFiles(
         path=dir,
-        shards=self.kwargs.pop('num_shards', None),
-        file_naming=self.kwargs.pop(
-            'file_naming', fileio.default_file_naming(name)),
+        file_naming=file_naming,
         sink=lambda _: _WriteToPandasFileSink(
-            self.writer, self.args, self.kwargs, self.incremental, self.binary))
+            self.writer, self.args, kwargs, self.incremental, self.binary),
+        **write_to_files_kwargs)
 
 
 class _WriteToPandasFileSink(fileio.FileSink):

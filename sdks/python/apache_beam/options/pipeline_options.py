@@ -884,6 +884,20 @@ class TypeOptions(PipelineOptions):
         help='Disable type checking at pipeline construction '
         'time')
     parser.add_argument(
+        '--disable_beartype',
+        default=False,
+        action='store_true',
+        help='Disable the use of beartype for type checking.')
+    parser.add_argument(
+        '--exclude_infer_dataclass_field_type',
+        default=False,
+        action='store_true',
+        help='Exclude certain typehint inference involving dataclass fields '
+        'and resolve to Any (as in beam<=2.74.0). NOTE: this option is '
+        'for backward compatibility only and the exclusion scenarios are '
+        'subject to change or remove in a future version. For details see: '
+        'https://beam.apache.org/releases/pydoc/current/apache_beam.typehints.trivial_inference.html#apache_beam.typehints.trivial_inference.resolve_dataclass_field_type')  # pylint: disable=line-too-long
+    parser.add_argument(
         '--runtime_type_check',
         default=False,
         action='store_true',
@@ -1402,6 +1416,24 @@ class WorkerOptions(PipelineOptions):
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
+    parser.add_argument(
+        '--disk_provisioned_iops',
+        type=int,
+        default=None,
+        dest='disk_provisioned_iops',
+        help=(
+            'The provisioned IOPS of the disk. If not set, the Dataflow service'
+            ' will choose a reasonable default.'),
+    )
+    parser.add_argument(
+        '--disk_provisioned_throughput_mibps',
+        type=int,
+        default=None,
+        dest='disk_provisioned_throughput_mibps',
+        help=(
+            'The provisioned throughput of the disk in MiB/s. If not set, the'
+            ' Dataflow service will choose a reasonable default.'),
+    )
     parser.add_argument(
         '--worker_region',
         default=None,
@@ -1998,7 +2030,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20', '2.0']
 
   @classmethod
   def _add_argparse_args(cls, parser):

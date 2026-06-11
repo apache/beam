@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Demonstration of Composed Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 143
+//   context_line: 145
 //   categories:
 //     - Schemas
 //     - Combiners
@@ -46,6 +46,8 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -185,13 +187,16 @@ public class CoCombineTransformExample {
                 new DoFn<
                     KV<Long, CombineFns.CoCombineResult>, KV<Long, Iterable<KV<String, Long>>>>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) throws Exception {
-                    CombineFns.CoCombineResult e = c.element().getValue();
+                  public void processElement(
+                      @Element KV<Long, CombineFns.CoCombineResult> element,
+                      OutputReceiver<KV<Long, Iterable<KV<String, Long>>>> receiver)
+                      throws Exception {
+                    CombineFns.CoCombineResult e = element.getValue();
                     ArrayList<KV<String, Long>> o = new ArrayList<KV<String, Long>>();
                     o.add(KV.of(minTag.getId(), e.get(minTag)));
                     o.add(KV.of(maxTag.getId(), e.get(maxTag)));
                     o.add(KV.of(sumTag.getId(), e.get(sumTag)));
-                    c.output(KV.of(c.element().getKey(), o));
+                    receiver.output(KV.of(element.getKey(), o));
                   }
                 }));
 
@@ -210,9 +215,9 @@ public class CoCombineTransformExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info("{}{}", prefix, c.element());
-      c.output(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }

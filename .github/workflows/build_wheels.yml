@@ -202,7 +202,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true'
     steps:
       - name: Download compressed sources from artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: source_zip
           path: source/
@@ -231,13 +231,13 @@ jobs:
         py_version: ["cp310-", "cp311-", "cp312-", "cp313-", "cp314-"]
     steps:
     - name: Download python source distribution from artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: source
         path: apache-beam-source
     - name: Download Python SDK RC source distribution from artifacts
       if: ${{ needs.build_source.outputs.is_rc == 1 }}
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
@@ -245,7 +245,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a
+    - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
@@ -314,7 +314,7 @@ jobs:
     if: needs.check_env_variables.outputs.gcp-variables-set == 'true' && github.event_name != 'pull_request'
     steps:
     - name: Download wheels from artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         pattern: wheelhouse-*
         merge-multiple: true

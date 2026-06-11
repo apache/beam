@@ -129,6 +129,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         NullSideInputReader.empty());
   }
 
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowingStrategy<?, W> windowingStrategy, PipelineOptions options) throws Exception {
+    return new ReduceFnTester<>(
+        windowingStrategy,
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(windowingStrategy.getTrigger())),
+        SystemReduceFn.buffering(VarIntCoder.of()),
+        IterableCoder.of(VarIntCoder.of()),
+        options,
+        NullSideInputReader.empty());
+  }
+
   /**
    * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and {@link
    * TriggerStateMachine}, for mocking the interactions between {@link ReduceFnRunner} and the
@@ -318,7 +331,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG, ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs
@@ -331,7 +344,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
                 objectStrategy.getTimestampCombiner()),
-            WatermarkHold.EXTRA_HOLD_TAG));
+            WatermarkHold.EXTRA_HOLD_TAG,
+            ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs

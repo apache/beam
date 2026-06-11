@@ -29,6 +29,7 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import fastavro
 
@@ -246,11 +247,9 @@ def _create_parser(
     _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
-    # pylint: disable=line-too-long
     return (
-        beam_schema,
-        lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+        beam_schema, lambda record: covert_to_row(
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))
   elif format == 'PROTO':
     _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
@@ -563,6 +562,7 @@ def write_to_iceberg(
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
     distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -616,6 +616,11 @@ def write_to_iceberg(
       distributions:
       - none: don't shuffle rows (default)
       - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -630,7 +635,8 @@ def write_to_iceberg(
           keep=keep,
           drop=drop,
           only=only,
-          distribution_mode=distribution_mode))
+          distribution_mode=distribution_mode,
+          autosharding=autosharding))
 
 
 def io_providers():
@@ -716,3 +722,107 @@ def write_to_tfrecord(
           num_shards=num_shards,
           shard_name_template=shard_name_template,
           compression_type=getattr(CompressionTypes, compression_type))
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def write_to_mongodb(
+    pcoll,
+    *,
+    database: str,
+    collection: str,
+    connection_uri: Optional[str] = None,
+    batch_size: int = 1024,
+    extra_client_params: Optional[Mapping[str, Any]] = None):
+  """Writes data to MongoDB.
+
+  Args:
+    pcoll: The input PCollection of Beam Rows.
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    batch_size: Number of documents per bulk_write to MongoDB.
+    extra_client_params: Optional MongoClient parameters.
+  """
+  from apache_beam.io import mongodbio
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  return (
+      pcoll
+      | beam.Map(row_to_dict)
+      | mongodbio.WriteToMongoDB(
+          uri=connection_uri,
+          db=database,
+          coll=collection,
+          batch_size=batch_size,
+          extra_client_params=extra_client_params))
+
+
+@beam.ptransform_fn
+def match_all(
+    pcoll,
+    *,
+    file_pattern: Optional[str] = None,
+    empty_match_treatment: str = 'ALLOW',
+):
+  """Matches file patterns from the input PCollection.
+
+  This transform returns a PCollection of matching files, each represented as a
+  Row with path, size_in_bytes, and last_updated_in_seconds fields.
+
+  Args:
+    file_pattern (str): The name of the field in the input PCollection that contains
+      the file pattern string. If not specified and the input PCollection has
+      exactly one field, that field will be used.
+    empty_match_treatment (str): How to treat empty matches. Possible values are
+      'ALLOW', 'DISALLOW', and 'ALLOW_IF_WILDCARD'. Defaults to 'ALLOW'.
+  """
+  from apache_beam.typehints import schemas
+
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception:
+    field_names = None
+
+  if field_names:
+    if file_pattern is not None:
+      if file_pattern not in field_names:
+        raise ValueError(
+            f"Field '{file_pattern}' not found in input schema fields: {field_names}"
+        )
+      pattern_field = file_pattern
+    elif len(field_names) == 1:
+      pattern_field = field_names[0]
+    else:
+      raise ValueError(
+          f"Input schema has multiple fields {field_names}. "
+          f"Please specify the 'file_pattern' parameter to select which field "
+          f"contains the file pattern.")
+    patterns = pcoll | beam.Map(lambda x: str(getattr(x, pattern_field)))
+  else:
+    patterns = pcoll
+
+  matched = patterns | beam.io.fileio.MatchAll(
+      empty_match_treatment=empty_match_treatment)
+
+  return matched | beam.Map(
+      lambda x: beam.Row(
+          path=str(x.path), size_in_bytes=int(x.size_in_bytes),
+          last_updated_in_seconds=float(x.last_updated_in_seconds)
+          if x.last_updated_in_seconds is not None else None))
