@@ -706,7 +706,6 @@ class PipelineOptionsTest(unittest.TestCase):
         options.view_as(ProfilingOptions).profile_location,
         'gs://other-bucket/custom_profiles')
 
-
   def test_add_experiment(self):
     options = PipelineOptions([])
     options.view_as(DebugOptions).add_experiment('new_experiment')
