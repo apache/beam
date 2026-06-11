@@ -25,7 +25,7 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
-  // iceberg requires Java11+ (or 17+ if other features require it)
+  // iceberg requires Java11+ and delta lake requires Java17+
   requireJavaVersion: JavaVersion.VERSION_17
 )
 
