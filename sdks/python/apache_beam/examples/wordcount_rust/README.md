@@ -33,7 +33,7 @@ This will compile the Rust code and build a Python package linked to it in the c
 To execute wordcount locally using the direct runner, execute the following from the wordcount_rust directory within the same virtual environment:
 
 ```bash
-python wordcount_rust.py --runner DirectRunner --input * --output counts.txt
+python wordcount_rust.py --runner DirectRunner --input "*" --output counts.txt
 ```
 
 To execute wordcount using the Dataflow runner, the tarball of the PyO3 Rust package must be provided to GCP. This is done by building the tarball then providing it as an `extra_package` argument. The tarball can be built using the following command from the wordcount_rust directory:
