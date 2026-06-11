@@ -3142,6 +3142,8 @@ class BeamModulePlugin implements Plugin<Project> {
             installTargets = "${distTarBall}[${packages},${extra}]"
           }
           project.exec {
+            // Per-project uv cache avoids sdist lock contention in parallel installGcpTest.
+            environment 'UV_CACHE_DIR', "${project.ext.envdir}/.uv-cache"
             executable 'sh'
             args '-c', ". ${project.ext.envdir}/bin/activate && pip install uv && uv pip install --pre ${installTargets}"
           }
