@@ -300,22 +300,25 @@ public class StreamingWorkScheduler {
     }
   }
 
+  private boolean isCommitTooLarge(Windmill.WorkItemCommitRequest commitRequest) {
+    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
+    int commitSize = commitRequest.getSerializedSize();
+    return commitSize < 0 || commitSize >= byteLimit;
+  }
+
   private Windmill.WorkItemCommitRequest validateCommitRequestSize(
       Windmill.WorkItemCommitRequest commitRequest,
       String computationId,
       Windmill.WorkItem workItem) {
-    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 
-    // Detect overflow of integer serialized size or if the byte limit was exceeded.
-    // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
-    // commit byte limit.
     streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
-    if (commitSize >= 0 && commitSize < byteLimit) {
+    if (!isCommitTooLarge(commitRequest)) {
       return commitRequest;
     }
 
+    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
     failureTracker.trackFailure(computationId, workItem, e);
@@ -447,6 +450,37 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> workBatch,
       List<Windmill.WorkItemCommitRequest> workItemCommits) {
+    List<Windmill.WorkItemCommitRequest> validatedCommits = workItemCommits;
+
+    if (workBatch.size() == 1) {
+      Work work = workBatch.get(0);
+      Windmill.WorkItemCommitRequest commit = workItemCommits.get(0);
+      // If it is a single work item in the batch, return truncation if commits are too large.
+      Windmill.WorkItemCommitRequest validated =
+          validateCommitRequestSize(
+              commit, computationState.getComputationId(), work.getWorkItem());
+      validatedCommits = ImmutableList.of(validated);
+    } else {
+      boolean anyCommitTooLarge = false;
+      for (int i = 0; i < workBatch.size(); i++) {
+        Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
+        if (isCommitTooLarge(commit)) {
+          anyCommitTooLarge = true;
+          break;
+        }
+      }
+      if (anyCommitTooLarge) {
+        LOG.warn(
+            "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
+            workBatch.size());
+        for (Work w : workBatch) {
+          w.setDisableMultiKeyBatching(true);
+        }
+        throw new MultiKeyCommitValidationException(
+            "Commit size validation failed for batch. Retrying individually.");
+      }
+    }
+
     Windmill.MultiKeyWorkItemCommitRequest.Builder multiKeyBuilder =
         Windmill.MultiKeyWorkItemCommitRequest.newBuilder();
 
@@ -456,8 +490,7 @@ public class StreamingWorkScheduler {
         Windmill.Uint128Proto.newBuilder().setHigh(keyGroup.high()).setLow(keyGroup.low()).build());
 
     for (int i = 0; i < workBatch.size(); i++) {
-      // TODO: Add commit size validation
-      Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
+      Windmill.WorkItemCommitRequest commit = validatedCommits.get(i);
       Work w = workBatch.get(i);
       multiKeyBuilder.addRequests(
           commit
@@ -465,6 +498,8 @@ public class StreamingWorkScheduler {
               .addAllPerWorkItemLatencyAttributions(w.getLatencyAttributions(sampler))
               .build());
     }
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommitRequest = multiKeyBuilder.build();
 
     // Transition states of all completed works in the batch to COMMIT_QUEUED and submit
     for (Work w : workBatch) {
@@ -476,7 +511,7 @@ public class StreamingWorkScheduler {
         .workCommitter()
         .accept(
             Commit.createMultiKey(
-                multiKeyBuilder.build(), computationState, ImmutableList.copyOf(workBatch)));
+                multiKeyCommitRequest, computationState, ImmutableList.copyOf(workBatch)));
   }
 
   private void commitSingleKeyWork(
@@ -574,5 +609,11 @@ public class StreamingWorkScheduler {
     abstract Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks();
 
     abstract long stateBytesRead();
+  }
+
+  public static class MultiKeyCommitValidationException extends RuntimeException {
+    public MultiKeyCommitValidationException(String message) {
+      super(message);
+    }
   }
 }

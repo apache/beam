@@ -735,7 +735,9 @@ public class StreamingModeExecutionContext
     BoundedQueueExecutorWorkHandle handle = checkStateNotNull(budgetHandle);
     Work activeWork = checkStateNotNull(work);
 
-    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+        || activeWork.isMultiKeyBatchingDisabled()
+        || shouldStopBatching()) {
       return false;
     }
 

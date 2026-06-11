@@ -680,4 +680,30 @@ public class StreamingModeExecutionContextTest {
     assertFalse(executionContext.advance());
     org.mockito.Mockito.verifyNoInteractions(mockExecutor);
   }
+
+  @Test
+  public void testAdvance_batchingDisabled() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    work1.setDisableMultiKeyBatching(true);
+
+    executionContext.start(
+        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(executionContext.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
 }

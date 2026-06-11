@@ -84,6 +84,10 @@ public final class Work implements RefreshableWork {
   private final long serializedWorkItemSize;
   private volatile TimedState currentState;
   private volatile boolean isFailed;
+  // If true, this work item will not be batched with other work items in a multi-key bundle.
+  // This is used to isolate work items that failed validation (e.g. commit size limit exceeded)
+  // so they can be retried individually and potentially truncated.
+  private boolean disableMultiKeyBatching = false;
   private volatile String processingThreadName = "";
   private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
       new AtomicReference<>(null);
@@ -417,6 +421,14 @@ public final class Work implements RefreshableWork {
 
   public boolean isFailed() {
     return isFailed;
+  }
+
+  public void setDisableMultiKeyBatching(boolean disableMultiKeyBatching) {
+    this.disableMultiKeyBatching = disableMultiKeyBatching;
+  }
+
+  public boolean isMultiKeyBatchingDisabled() {
+    return disableMultiKeyBatching;
   }
 
   boolean isStuckCommittingAt(Instant stuckCommitDeadline) {

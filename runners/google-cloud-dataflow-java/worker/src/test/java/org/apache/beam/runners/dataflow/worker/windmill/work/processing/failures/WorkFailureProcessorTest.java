@@ -249,4 +249,25 @@ public class WorkFailureProcessorTest {
     assertThat(executedWork2).isEmpty();
     assertThat(invalidWork).containsExactly(work2.work());
   }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesOnMultiKeyCommitValidationException()
+      throws Throwable {
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        Arrays.asList(work),
+        new org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler
+            .MultiKeyCommitValidationException("test"),
+        invalidWork::add);
+
+    runWork.await();
+    assertThat(invalidWork).isEmpty();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
+  }
 }

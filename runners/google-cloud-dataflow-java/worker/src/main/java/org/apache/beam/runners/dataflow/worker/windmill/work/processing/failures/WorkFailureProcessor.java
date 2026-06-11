@@ -27,6 +27,7 @@ import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler.MultiKeyCommitValidationException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -160,6 +161,15 @@ public final class WorkFailureProcessor {
     }
     @Nullable final Throwable cause = t.getCause();
     Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
+
+    if (parsedException instanceof MultiKeyCommitValidationException) {
+      LOG.info(
+          "Execution of work for computation '{}' on sharding key '{}' failed batch validation. "
+              + "Work will be retried locally.",
+          computationId,
+          work.getWorkItem().getShardingKey());
+      return RetryEvaluation.RETRY_LOCALLY;
+    }
 
     LastExceptionDataProvider.reportException(parsedException);
     LOG.debug("Failed work: {}", work);
