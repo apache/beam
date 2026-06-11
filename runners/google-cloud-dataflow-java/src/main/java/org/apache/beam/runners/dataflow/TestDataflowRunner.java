@@ -447,7 +447,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // Check if we should initiate cancellation based on error logs (only if not already
           // cancellationPending)
           if (!cancellationPending) {
-            long runningTimeMillis = steps * 3000L;
+            long runningTimeMillis = System.currentTimeMillis() - startTimeMillis;
             if (messageHandler.hasSeenError()
                 && (runningTimeMillis > 300000L || runner.expectedNumberOfAssertions == 0)) {
               LOG.info(
