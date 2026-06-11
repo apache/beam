@@ -59,7 +59,7 @@ public class DeltaReadSchemaTransformProviderTest {
 
     Row config =
         Row.withSchema(new DeltaReadSchemaTransformProvider().configurationSchema())
-            .withFieldValue("table_path", "/path/to/table")
+            .withFieldValue("table", "/path/to/table")
             .withFieldValue("version", 5L)
             .withFieldValue("timestamp", "2026-06-04T12:00:00Z")
             .withFieldValue("hadoop_config", hadoopConfig)
@@ -113,8 +113,7 @@ public class DeltaReadSchemaTransformProviderTest {
     Files.write(commitFile.toPath(), commitContent.getBytes(StandardCharsets.UTF_8));
 
     // 3. Read it using DeltaReadSchemaTransformProvider
-    Configuration readConfig =
-        Configuration.builder().setTablePath(tableDir.getAbsolutePath()).build();
+    Configuration readConfig = Configuration.builder().setTable(tableDir.getAbsolutePath()).build();
 
     PCollection<Row> output =
         PCollectionRowTuple.empty(readPipeline)

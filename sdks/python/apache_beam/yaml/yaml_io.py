@@ -566,7 +566,7 @@ def read_from_iceberg(
 
 
 def read_from_delta(
-    table_path: str,
+    table: str,
     version: Optional[int] = None,
     timestamp: Optional[str] = None,
     hadoop_config: Optional[Mapping[str, str]] = None,
@@ -574,7 +574,7 @@ def read_from_delta(
   """Reads a Delta Lake table.
 
   Args:
-    table_path: Path of the Delta Lake table.
+    table: Identifier of the Delta Lake table.
     version: Version of the Delta Lake table to read.
     timestamp: Timestamp of the Delta Lake table to read.
     hadoop_config: Hadoop configuration properties.
@@ -582,7 +582,7 @@ def read_from_delta(
   return beam.managed.Read(
       "delta",
       config=dict(
-          table_path=table_path,
+          table=table,
           version=version,
           timestamp=timestamp,
           hadoop_config=hadoop_config))
