@@ -156,7 +156,7 @@ CREATE DATABASE other_catalog.sales_data;
 {{< /tab >}}
 {{< tab USE >}}
 <p>Sets the active Database for the current session. This simplifies queries by allowing you
-to reference Databases directly without their fully-qualified names (e.g. <code>my_db</code> instead of <code>my_catalog.my_db</code>)</p>
+to reference Databases directly without their fully-qualified names (for example, <code>my_db</code> instead of <code>my_catalog.my_db</code>)</p>
 
 <p><i><strong>Note:</strong> All subsequent TABLE commands will be executed under this Database, unless fully qualified.</i></p>
 
@@ -263,7 +263,7 @@ TBLPROPERTIES '{
 <ul>
   <li>This creates an Iceberg table named <code>orders</code> under the namespace <code>sales_data</code>, within the <code>prod_iceberg</code> catalog.</li>
   <li>The table is partitioned by <code>region_id</code>, then by the day value of <code>order_date</code> (using Iceberg's <a href="https://iceberg.apache.org/docs/latest/partitioning/#icebergs-hidden-partitioning">hidden partitioning</a>).</li>
-  <li>The table is created with the appropriate properties <code>"write.format.default"</code> and <code>"read.split.target-size"</code>. The Beam property <code>"beam.write.triggering_frequency_seconds"</code></li> configures the Iceberg sink.
+  <li>The table is created with the appropriate properties <code>"write.format.default"</code> and <code>"read.split.target-size"</code>. The Beam property <code>"beam.write.triggering_frequency_seconds"</code> configures the Iceberg sink.</li>
   <li>Beam sink and source configuration properties are prefixed with <code>"beam.write."</code> and <code>"beam.read."</code>, respectively.</li>
 </ul>
 {{< /tab >}}
