@@ -660,7 +660,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -674,7 +674,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -949,7 +949,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -963,7 +963,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -1305,7 +1305,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -1320,7 +1320,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -1503,7 +1503,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -1517,7 +1517,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -2074,7 +2074,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
@@ -2089,7 +2089,7 @@ public class SpannerIO {
     /**
      * Specifies certificate paths to use for mTLS channel.
      *
-     * <p>Note: These parameters are only valid when using an experimental host (set via {@code
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
      * withExperimentalHost}).
      *
      * @param certPath Path to the client certificate file.
