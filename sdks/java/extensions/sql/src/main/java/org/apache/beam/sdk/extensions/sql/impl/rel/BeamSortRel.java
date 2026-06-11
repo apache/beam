@@ -40,6 +40,7 @@ import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
@@ -74,14 +75,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <pre>{@code
  * SELECT * FROM t ORDER BY id DESC LIMIT 10;
  * SELECT * FROM t ORDER BY id DESC LIMIT 10 OFFSET 5;
- * }</pre>
- *
- * <p>but an ORDER BY without a LIMIT is NOT supported. For example, the following will throw an
- * exception:
- *
- * <pre>{@code
  * SELECT * FROM t ORDER BY id DESC;
  * }</pre>
+ *
+ * <p>Note: ORDER BY without a LIMIT is supported by keying all rows to a single key and sorting
+ * them in memory. This can be memory-intensive and may fail for large datasets.
  *
  * <h3>Constraints</h3>
  *
@@ -134,11 +132,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
 
     if (fetch == null) {
-      throw new UnsupportedOperationException("ORDER BY without a LIMIT is not supported!");
+      count = -1;
+    } else {
+      RexLiteral fetchLiteral = (RexLiteral) fetch;
+      count = ((BigDecimal) fetchLiteral.getValue()).intValue();
     }
-
-    RexLiteral fetchLiteral = (RexLiteral) fetch;
-    count = ((BigDecimal) fetchLiteral.getValue()).intValue();
 
     if (offset != null) {
       RexLiteral offsetLiteral = (RexLiteral) offset;
@@ -207,6 +205,21 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               String.format(
                   "`ORDER BY` is only supported for %s, actual windowing strategy: %s",
                   GlobalWindows.class.getSimpleName(), windowingStrategy));
+        }
+
+        // When no limit is specified (count == -1), we must sort the entire dataset.
+        // To achieve this globally, we key all rows by a single dummy key, group them together
+        // using GroupByKey to ensure they are processed together, and then sort them in-memory
+        // via SortInMemoryFn. Note: This can be memory-intensive for large datasets. It should
+        // only be done as a final step when the remaining data is small
+        if (count == -1) {
+          BeamSqlRowComparator comparator =
+              new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+          return upstream
+              .apply("WithDummyKey", WithKeys.of("DummyKey"))
+              .apply("GroupByKey", GroupByKey.create())
+              .apply("SortInMemory", ParDo.of(new SortInMemoryFn(comparator)))
+              .setRowSchema(CalciteUtils.toSchema(getRowType()));
         }
 
         ReversedBeamSqlRowComparator comparator =
@@ -300,6 +313,31 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().subList(startIndex, endIndex));
+    }
+  }
+
+  /**
+   * A {@link DoFn} that sorts all elements in-memory. Expects input grouped by a dummy key, sorts
+   * the iterable values, and outputs them.
+   */
+  private static class SortInMemoryFn extends DoFn<KV<String, Iterable<Row>>, Row> {
+    private final BeamSqlRowComparator comparator;
+
+    public SortInMemoryFn(BeamSqlRowComparator comparator) {
+      this.comparator = comparator;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctx) {
+      Iterable<Row> input = ctx.element().getValue();
+      List<Row> list = new ArrayList<>();
+      for (Row r : input) {
+        list.add(r);
+      }
+      list.sort(comparator);
+      for (Row r : list) {
+        ctx.output(r);
+      }
     }
   }
 

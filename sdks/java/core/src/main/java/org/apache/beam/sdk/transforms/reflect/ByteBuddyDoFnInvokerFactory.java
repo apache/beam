@@ -142,6 +142,8 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
+  public static final String ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER_METHOD =
+      "onWindowExpirationContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
   public static final String PANE_INFO_PARAMETER_METHOD = "paneInfo";
   public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
@@ -1168,6 +1170,16 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         ON_TIMER_CONTEXT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(
+              DoFnSignature.Parameter.OnWindowExpirationContextParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

@@ -1422,16 +1422,20 @@ public class DoFnSignaturesTest {
                   @StateId("foo") ValueState<Integer> s,
                   PipelineOptions p,
                   OutputReceiver<String> o,
-                  MultiOutputReceiver m) {}
+                  MultiOutputReceiver m,
+                  OnWindowExpirationContext c) {}
             }.getClass());
 
     List<Parameter> params = sig.onWindowExpiration().extraParameters();
-    assertThat(params.size(), equalTo(5));
+    assertThat(params.size(), equalTo(6));
     assertThat(params.get(0), instanceOf(WindowParameter.class));
     assertThat(params.get(1), instanceOf(StateParameter.class));
     assertThat(params.get(2), instanceOf(PipelineOptionsParameter.class));
     assertThat(params.get(3), instanceOf(OutputReceiverParameter.class));
     assertThat(params.get(4), instanceOf(TaggedOutputReceiverParameter.class));
+    assertThat(
+        params.get(5),
+        instanceOf(DoFnSignature.Parameter.OnWindowExpirationContextParameter.class));
   }
 
   private interface FeatureTest {

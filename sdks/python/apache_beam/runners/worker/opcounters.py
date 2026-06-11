@@ -217,6 +217,8 @@ class OperationCounters(object):
     batch_length = self.producer_batch_converter.get_length(
         windowed_batch.values)
     self.element_counter.update(batch_length)
+    if batch_length == 0:
+      return
 
     mean_element_size = self.producer_batch_converter.estimate_byte_size(
         windowed_batch.values) / batch_length
