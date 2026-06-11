@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Interface for functions invokable by {@link ParDoOperation} instances.
  *
@@ -30,7 +32,7 @@ public interface ParDoFn {
 
   void processTimers() throws Exception;
 
-  void finishKey(Object key) throws Exception;
+  void finishKey(@Nullable Object key) throws Exception;
 
   void finishBundle() throws Exception;
 

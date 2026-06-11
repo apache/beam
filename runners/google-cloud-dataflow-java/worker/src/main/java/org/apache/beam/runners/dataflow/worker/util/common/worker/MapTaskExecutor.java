@@ -110,7 +110,7 @@ public class MapTaskExecutor implements WorkExecutor {
   }
 
   @Override
-  public void finishKey(Object key) throws Exception {
+  public void finishKey(@Nullable Object key) throws Exception {
     for (Operation op : operations) {
       op.finishKey(key);
     }
