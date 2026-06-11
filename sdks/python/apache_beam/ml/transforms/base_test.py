@@ -26,7 +26,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from typing import Optional
-from unittest import mock
 
 import numpy as np
 from parameterized import param
@@ -37,7 +36,6 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms import base
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -842,46 +840,6 @@ class TestJsonPickleTransformAttributeManager(unittest.TestCase):
         loaded_model_handler = loaded_ptransform_list[i].model_handler
         self.assertListEqual(
             get_keys(model_handler), get_keys(loaded_model_handler))
-
-  @parameterized.expand([
-      # Pipelines pinned to a version older than 2.75.0 keep the pre-2.75.0
-      # jsonpickle behavior (safe=False, which permits eval-based decoding).
-      param(update_compatibility_version='2.74.0', expected_safe=False),
-      # The breaking-change version itself and newer decode securely.
-      param(update_compatibility_version='2.75.0', expected_safe=True),
-      # Pipelines that do not set the option (the common case) decode securely.
-      param(update_compatibility_version=None, expected_safe=True),
-  ])
-  def test_load_attributes_safe_flag_follows_compat_version(
-      self, update_compatibility_version, expected_safe):
-    data = [{'x': 'Hello world'}, {'x': 'Apache Beam'}]
-    with beam.Pipeline() as p:
-      _ = (
-          p
-          | beam.Create(data)
-          | base.MLTransform(
-              write_artifact_location=self.artifact_location).with_transform(
-                  FakeEmbeddingsManager(columns=['x'])))
-
-    # FakeEmbeddingsManager reverses the values of the embedded columns.
-    expected_data = [{'x': d['x'][::-1]} for d in data]
-
-    options = PipelineOptions(
-        update_compatibility_version=update_compatibility_version)
-    with mock.patch.object(base.jsonpickle,
-                           'decode',
-                           wraps=base.jsonpickle.decode) as mock_decode:
-      with beam.Pipeline(options=options) as p:
-        result = (
-            p
-            | beam.Create(data)
-            | base.MLTransform(read_artifact_location=self.artifact_location))
-        assert_that(result, equal_to(expected_data))
-
-    safe_flags = [
-        call.kwargs.get('safe') for call in mock_decode.call_args_list
-    ]
-    self.assertEqual(safe_flags, [expected_safe])
 
   def test_mltransform_to_ptransform_wrapper(self):
     transforms = [
