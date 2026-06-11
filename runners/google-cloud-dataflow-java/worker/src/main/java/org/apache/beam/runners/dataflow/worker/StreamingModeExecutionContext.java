@@ -267,7 +267,8 @@ public class StreamingModeExecutionContext
     this.maxKeyGroupBatchTimeNanos = TimeUnit.MILLISECONDS.toNanos(batchTimeMs);
 
     this.multiKeyBundleEnabled =
-        ExperimentalOptions.hasExperiment(options, StreamingDataflowWorker.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
+        ExperimentalOptions.hasExperiment(
+            options, StreamingDataflowWorker.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
 
     this.maxKeyGroupBatchSinkBytes =
         tryParseLong(
