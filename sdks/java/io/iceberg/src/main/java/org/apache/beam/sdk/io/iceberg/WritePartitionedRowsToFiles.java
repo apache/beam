@@ -126,8 +126,12 @@ class WritePartitionedRowsToFiles
         writer.close();
       }
 
+      @Nullable
       List<SerializableDataFile> serializableDataFiles =
-          checkStateNotNull(writer.getSerializableDataFiles().get(windowedDestination));
+          writer.getSerializableDataFiles().get(windowedDestination);
+      if (serializableDataFiles == null) {
+        return;
+      }
       for (SerializableDataFile dataFile : serializableDataFiles) {
         out.output(
             FileWriteResult.builder()
