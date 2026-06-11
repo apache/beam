@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "no-matching-label": "tvalentyn"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
