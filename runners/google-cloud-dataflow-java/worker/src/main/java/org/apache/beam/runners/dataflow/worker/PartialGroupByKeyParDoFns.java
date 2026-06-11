@@ -382,12 +382,12 @@ public class PartialGroupByKeyParDoFns {
 
     @Override
     public void finishKey(Object key) throws Exception {
-      sideInputFetcher.persist();
     }
 
     @Override
     public void finishBundle() throws Exception {
       groupingTable.flush(receiver);
+      sideInputFetcher.persist();
     }
 
     @Override

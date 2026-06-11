@@ -153,12 +153,12 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   @Override
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
+    sideInputFetcher.persist();
   }
 
   @Override
   public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
     simpleDoFnRunner.finishKey(key);
-    sideInputFetcher.persist();
   }
 
   @Override

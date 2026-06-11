@@ -181,7 +181,6 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
                 .getWindowingStrategy()
                 .getWindowFn()
                 .windowCoder();
-
     helpers.processTimers(
         SimpleParDoFnHelpers.TimerType.USER,
         helpers.userStepContext,
@@ -198,7 +197,6 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
 
   @Override
   public void finishKey(Object key) throws Exception {
-    helpers.finishKey(key);
   }
 
   @Override

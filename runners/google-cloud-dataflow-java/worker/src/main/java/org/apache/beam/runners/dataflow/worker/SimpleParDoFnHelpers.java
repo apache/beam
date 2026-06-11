@@ -233,12 +233,6 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
     fnRunner.startBundle();
   }
 
-  public void finishKey(Object key) {
-    if (fnRunner != null) {
-      fnRunner.finishKey(key);
-    }
-  }
-
   void finishBundle(StreamingSideInputProcessor<?, ?> sideInputProcessor) throws Exception {
     if (fnRunner != null) {
       fnRunner.finishBundle();
