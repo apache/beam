@@ -165,9 +165,6 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                       .ifPresent(
                           computationState -> {
                             waitForResources.run();
-                            if (!appliedFinalizeIds.isEmpty()) {
-                              streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
-                            }
                             streamingWorkScheduler.scheduleWork(
                                 computationState,
                                 workItem,
@@ -184,6 +181,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                                     workCommitter::commit,
                                     heartbeatSender),
                                 drainMode,
+                                appliedFinalizeIds,
                                 getWorkStreamLatencies);
                           }));
       try {
@@ -221,9 +219,6 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
       ImmutableList<Long> appliedFinalizeIds =
           ImmutableList.copyOf(
               Preconditions.checkNotNull(workResponse).getAppliedFinalizeIdsList());
-      if (!appliedFinalizeIds.isEmpty()) {
-        streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
-      }
       for (Windmill.ComputationWorkItems computationWork :
           Preconditions.checkNotNull(workResponse).getWorkList()) {
         String computationId = computationWork.getComputationId();
@@ -252,6 +247,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
               Work.createProcessingContext(
                   computationId, getDataClient, workCommitter::commit, heartbeatSender),
               computationWork.getDrainMode(),
+              appliedFinalizeIds,
               /* getWorkStreamLatencies= */ ImmutableList.of());
         }
       }
