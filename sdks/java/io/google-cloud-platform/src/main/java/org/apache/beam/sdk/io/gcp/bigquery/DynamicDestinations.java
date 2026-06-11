@@ -82,6 +82,33 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   private transient @Nullable SideInputAccessor sideInputAccessor;
   private transient @Nullable PipelineOptions options;
 
+  static class SideInputAccessorViaOnTimerContext implements SideInputAccessor {
+    private DoFn<?, ?>.OnTimerContext onTimerContext;
+
+    public SideInputAccessorViaOnTimerContext(DoFn<?, ?>.OnTimerContext onTimerContext) {
+      this.onTimerContext = onTimerContext;
+    }
+
+    @Override
+    public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      return onTimerContext.sideInput(view);
+    }
+  }
+
+  static class SideInputAccessorViaOnWindowExpirationContext implements SideInputAccessor {
+    private DoFn<?, ?>.OnWindowExpirationContext onWindowExpirationContext;
+
+    public SideInputAccessorViaOnWindowExpirationContext(
+        DoFn<?, ?>.OnWindowExpirationContext onWindowExpirationContext) {
+      this.onWindowExpirationContext = onWindowExpirationContext;
+    }
+
+    @Override
+    public <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      return onWindowExpirationContext.sideInput(view);
+    }
+  }
+
   static class SideInputAccessorViaProcessContext implements SideInputAccessor {
     private DoFn<?, ?>.ProcessContext processContext;
 
@@ -126,6 +153,17 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   void setSideInputAccessorFromProcessContext(DoFn<?, ?>.ProcessContext context) {
     this.sideInputAccessor = new SideInputAccessorViaProcessContext(context);
+    this.options = context.getPipelineOptions();
+  }
+
+  void setSideInputAccessorFromOnTimerContext(DoFn<?, ?>.OnTimerContext context) {
+    this.sideInputAccessor = new SideInputAccessorViaOnTimerContext(context);
+    this.options = context.getPipelineOptions();
+  }
+
+  void setSideInputAccessorFromOnWindowExpirationContext(
+      DoFn<?, ?>.OnWindowExpirationContext context) {
+    this.sideInputAccessor = new SideInputAccessorViaOnWindowExpirationContext(context);
     this.options = context.getPipelineOptions();
   }
 
