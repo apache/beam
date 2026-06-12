@@ -637,6 +637,10 @@ public class ProcessBundleHandler {
       collectedElements.add(elements);
     }
     if (!hasFlushedAggregator) {
+      for (BeamFnDataOutboundAggregator aggregator :
+          bundleProcessor.getOutboundAggregators().values()) {
+        aggregator.finishInstruction();
+      }
       Elements.Builder elementsToEmbed = Elements.newBuilder();
       for (Elements collectedElement : collectedElements) {
         elementsToEmbed.mergeFrom(collectedElement);
@@ -653,6 +657,7 @@ public class ProcessBundleHandler {
         if (elements != null) {
           aggregator.sendElements(elements);
         }
+        aggregator.finishInstruction();
       }
     }
   }

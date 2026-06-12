@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.data;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -321,6 +322,37 @@ public class BeamFnDataOutboundAggregatorTest {
             .setTransformId(additionalEndpoint.getTransformId())
             .setIsLast(true));
     checkEqualInAnyOrder(builder.build(), values.get(1));
+  }
+
+  @Test
+  public void testInstructionLifecycle() {
+    BeamFnDataOutboundAggregator aggregator =
+        new BeamFnDataOutboundAggregator(PipelineOptionsFactory.create(), false);
+    assertThrows(
+        NullPointerException.class, () -> aggregator.sendElements(Elements.getDefaultInstance()));
+    aggregator.prepareForInstruction(
+        "testInstruction",
+        TestStreams.withOnNext(
+                (Consumer<Elements>)
+                    e -> {
+                      throw new RuntimeException("");
+                    })
+            .build());
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            aggregator.prepareForInstruction(
+                "testInstruction",
+                TestStreams.withOnNext(
+                        (Consumer<Elements>)
+                            e -> {
+                              throw new RuntimeException("");
+                            })
+                    .build()));
+    aggregator.finishInstruction();
+    assertThrows(
+        NullPointerException.class, () -> aggregator.sendElements(Elements.getDefaultInstance()));
+    assertThrows(IllegalStateException.class, aggregator::finishInstruction);
   }
 
   private void checkEqualInAnyOrder(Elements first, Elements second) {

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.fn.data;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -98,12 +99,28 @@ public class BeamFnDataOutboundAggregator {
       String instructionId, StreamObserver<Elements> outboundObserver) {
     if (timeLimit > 0) {
       synchronized (flushLock) {
+        checkState(this.instructionId == null && this.outboundObserver == null);
         this.instructionId = instructionId;
         this.outboundObserver = outboundObserver;
       }
     } else {
+      checkState(this.instructionId == null && this.outboundObserver == null);
       this.instructionId = instructionId;
       this.outboundObserver = outboundObserver;
+    }
+  }
+
+  public void finishInstruction() {
+    if (timeLimit > 0) {
+      synchronized (flushLock) {
+        checkState(this.instructionId != null && this.outboundObserver != null);
+        this.instructionId = null;
+        this.outboundObserver = null;
+      }
+    } else {
+      checkState(this.instructionId != null && this.outboundObserver != null);
+      this.instructionId = null;
+      this.outboundObserver = null;
     }
   }
 
@@ -198,7 +215,6 @@ public class BeamFnDataOutboundAggregator {
     } else {
       bufferedElements = convertBufferForTransmission();
     }
-    checkNotNull(instructionId);
     LOG.debug(
         "Closing streams for instruction {} and outbound data {} and timers {}.",
         instructionId,
@@ -224,13 +240,10 @@ public class BeamFnDataOutboundAggregator {
       entry.getValue().resetStats();
     }
     // This is the end of the bundle so we reset state to prepare for future bundles.
-    instructionId = null;
     if (collectElementsIfNoFlushes && !hasFlushedForBundle) {
-      outboundObserver = null;
       return bufferedElements.build();
     }
     checkNotNull(outboundObserver).onNext(bufferedElements.build());
-    outboundObserver = null;
     hasFlushedForBundle = false;
     return null;
   }
@@ -247,7 +260,6 @@ public class BeamFnDataOutboundAggregator {
   }
 
   private Elements.Builder convertBufferForTransmission() {
-    checkNotNull(instructionId);
     Elements.Builder bufferedElements = Elements.newBuilder();
     for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
       if (!entry.getValue().hasBufferedOutput()) {
