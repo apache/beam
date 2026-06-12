@@ -47,10 +47,14 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -58,6 +62,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public class BeamSqlEnv {
+  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlEnv.class);
+
   JdbcConnection connection;
   QueryPlanner planner;
 
@@ -114,6 +120,31 @@ public class BeamSqlEnv {
   public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
       throws ParseException {
     return planner.convertToBeamRel(query, queryParameters);
+  }
+
+  public QueryPlanner getPlanner() {
+    return planner;
+  }
+
+  public RelBuilder getRelBuilder() {
+    return planner.getRelBuilder();
+  }
+
+  public BeamRelNode convertToBeamRel(RelNode relNode) {
+    return planner.convertToBeamRel(relNode, QueryParameters.ofNone());
+  }
+
+  public RelNode parseLogicalPlan(String query) throws ParseException {
+    return planner.parseToRel(query, QueryParameters.ofNone());
+  }
+
+  public void registerSchemaFunction(String name, Function function) {
+    connection.getCurrentSchemaPlus().add(name, function);
+  }
+
+  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable
+      getOperatorTable() {
+    return planner.getOperatorTable();
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
@@ -196,6 +227,7 @@ public class BeamSqlEnv {
 
     /** Set the ruleSet used for query optimizer. */
     public BeamSqlEnvBuilder setRuleSets(Collection<RuleSet> ruleSets) {
+      LOG.info("Setting BeamSqlEnv rulesets to: {}", ruleSets);
       this.ruleSets = ruleSets;
       return this;
     }
@@ -262,6 +294,7 @@ public class BeamSqlEnv {
 
       configureSchemas(jdbcConnection);
 
+      LOG.info("Instantiating planner with ruleSets: {}", ruleSets);
       QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
 
       // The planner may choose to add its own builtin functions to the schema, so load user-defined

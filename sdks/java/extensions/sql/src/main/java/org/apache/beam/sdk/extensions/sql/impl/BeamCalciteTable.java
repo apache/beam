@@ -53,7 +53,7 @@ public class BeamCalciteTable extends AbstractQueryableTable
   private final Map<String, String> pipelineOptionsMap;
   private @Nullable PipelineOptions pipelineOptions;
 
-  BeamCalciteTable(
+  public BeamCalciteTable(
       BeamSqlTable beamTable,
       Map<String, String> pipelineOptionsMap,
       @Nullable PipelineOptions pipelineOptions) {
