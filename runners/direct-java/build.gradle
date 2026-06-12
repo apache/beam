@@ -116,7 +116,7 @@ def sickbayTests = [
         'org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest.testTimeBound',
 ]
 
-task needsRunnerTests(type: Test) {
+tasks.register('needsRunnerTests', Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that pipelines/transforms work correctly"
 
@@ -148,7 +148,7 @@ task needsRunnerTests(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   testLogging {
-    outputs.upToDateWhen {false}
+    outputs.upToDateWhen { false }
     showStandardStreams = true
   }
 }
@@ -156,7 +156,7 @@ task needsRunnerTests(type: Test) {
 // NOTE: This will also run 'NeedsRunner' tests, which are run in the :needsRunnerTests task as well.
 // The intention of this task is to mirror the :validatesRunner configuration for other runners,
 // such that the test suite can be validated on the in-process DirectRunner.
-task validatesRunner(type: Test) {
+tasks.register('validatesRunner', Test) {
   group = "Verification"
   description "Validates Direct runner"
 
@@ -217,17 +217,17 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
 
-task examplesIntegrationTest(type: Test) {
+tasks.register('examplesIntegrationTest', Test) {
   description = "Runs examples tests on DirectRunner"
 
   testLogging.showStandardStreams = true
 
   String[] pipelineOptions = [
-          "--runner=DirectRunner",
-          "--runnerDeterminedSharding=false",
-          "--tempLocation=${tempLocation}",
-          "--tempRoot=${tempLocation}",
-          "--project=${gcpProject}",
+      "--runner=DirectRunner",
+      "--runnerDeterminedSharding=false",
+      "--tempLocation=${tempLocation}",
+      "--tempRoot=${tempLocation}",
+      "--project=${gcpProject}",
   ]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
 
@@ -236,7 +236,7 @@ task examplesIntegrationTest(type: Test) {
   classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
   useJUnit {
-    filter{
+    filter {
       // TODO (https://github.com/apache/beam/issues/21344) Fix integration Tests to run with DirectRunner: Timeout error
       excludeTestsMatching 'org.apache.beam.examples.complete.TfIdfIT'
       excludeTestsMatching 'org.apache.beam.examples.WindowedWordCountIT.testWindowedWordCountInBatchDynamicSharding'

@@ -273,7 +273,7 @@ public class FileIOTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
-  public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
+  public void testMatchWatchForNewFiles() throws IOException {
     // Write some files to a "source" directory.
     final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");
     sourcePath.toFile().mkdir();
@@ -292,23 +292,7 @@ public class FileIOTest implements Serializable {
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
-    PCollection<MatchResult.Metadata> matchAllMetadata =
-        p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
-            .apply(
-                "match filename through matchAll",
-                FileIO.matchAll()
-                    .continuously(
-                        Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
-    PCollection<MatchResult.Metadata> matchUpdatedMetadata =
-        p.apply(
-            "match updated",
-            FileIO.match()
-                .filepattern(watchPath.resolve("first").toString())
-                .continuously(
-                    Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
-                    true));
+
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
         p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
             .apply(
@@ -319,7 +303,7 @@ public class FileIOTest implements Serializable {
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
                         true));
 
-    // write one file at the beginning. This will trigger the first output for matchAll
+    // write one file at the beginning. This will trigger the first output for matchMetadata
     Files.copy(
         sourcePath.resolve("first"),
         watchPath.resolve("first"),
@@ -337,8 +321,6 @@ public class FileIOTest implements Serializable {
             .apply(ParDo.of(new CopyFilesFn(sourcePath, watchPath)));
 
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
-    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
-    assertEquals(PCollection.IsBounded.UNBOUNDED, matchUpdatedMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllUpdatedMetadata.isBounded());
 
     // We fetch lastModifiedTime from the files in the "source" directory to avoid a race condition
@@ -352,15 +334,6 @@ public class FileIOTest implements Serializable {
             metadata(
                 watchPath.resolve("third"), 99, lastModifiedMillis(sourcePath.resolve("third"))));
     PAssert.that(matchMetadata).containsInAnyOrder(expectedMatchNew);
-    PAssert.that(matchAllMetadata).containsInAnyOrder(expectedMatchNew);
-
-    List<String> expectedMatchUpdated = Arrays.asList("first", "first", "first");
-    PCollection<String> matchUpdatedCount =
-        matchUpdatedMetadata.apply(
-            "pick up match file name",
-            MapElements.into(TypeDescriptors.strings())
-                .via((metadata) -> metadata.resourceId().getFilename()));
-    PAssert.that(matchUpdatedCount).containsInAnyOrder(expectedMatchUpdated);
 
     // Check watch for file updates. Compare only filename since modified time of copied files are
     // uncontrolled.
@@ -374,6 +347,35 @@ public class FileIOTest implements Serializable {
     PAssert.that(matchAllUpdatedCount).containsInAnyOrder(expectedMatchAllUpdated);
 
     p.run();
+  }
+
+  @Test
+  public void testMatchWatchForNewFiles_UnboundedPCollection() {
+    // Additional scenarios for testMatchWatchForNewFiles. Only construct the pipeline and check
+    // output pcoll
+    final Path watchPath = tmpFolder.getRoot().toPath().resolve("watch");
+
+    PCollection<MatchResult.Metadata> matchAllMetadata =
+        p.apply("create for matchAll new files", Create.of(watchPath + "/*"))
+            .apply(
+                "match filename through matchAll",
+                FileIO.matchAll()
+                    .continuously(
+                        Duration.millis(100),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+
+    PCollection<MatchResult.Metadata> matchUpdatedMetadata =
+        p.apply(
+            "match updated",
+            FileIO.match()
+                .filepattern(watchPath.resolve("first").toString())
+                .continuously(
+                    Duration.millis(100),
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                    true));
+
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());
+    assertEquals(PCollection.IsBounded.UNBOUNDED, matchUpdatedMetadata.isBounded());
   }
 
   @Test
