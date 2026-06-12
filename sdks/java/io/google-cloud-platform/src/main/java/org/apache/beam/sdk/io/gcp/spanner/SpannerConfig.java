@@ -24,7 +24,6 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
-import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Spanner;
@@ -376,7 +375,6 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder()
         .setInstanceId(EXPERIMENTAL_HOST_INSTANCE_ID)
         .setExperimentalHost(experimentalHost)
-        .setCredentials(ValueProvider.StaticValueProvider.of(NoCredentials.getInstance()))
         .build();
   }
 

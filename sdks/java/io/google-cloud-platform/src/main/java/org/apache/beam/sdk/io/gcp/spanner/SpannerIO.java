@@ -37,6 +37,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
@@ -146,6 +147,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
@@ -2332,9 +2334,17 @@ public class SpannerIO {
   static SpannerConfig buildSpannerConfigWithCredential(
       SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
     if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
-      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-      if (credentials != null) {
-        spannerConfig = spannerConfig.withCredentials(credentials);
+      boolean isExperimentalHostEmpty =
+          spannerConfig.getExperimentalHost() == null
+              || (spannerConfig.getExperimentalHost().isAccessible()
+                  && Strings.isNullOrEmpty(spannerConfig.getExperimentalHost().get()));
+      if (isExperimentalHostEmpty) {
+        final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+        if (credentials != null) {
+          spannerConfig = spannerConfig.withCredentials(credentials);
+        }
+      } else {
+        spannerConfig = spannerConfig.withCredentials(NoCredentials.getInstance());
       }
     }
     return spannerConfig;

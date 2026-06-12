@@ -247,12 +247,13 @@ public class SpannerAccessor implements AutoCloseable {
       }
       if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
         builder.setChannelConfigurator(b -> b.usePlaintext());
-        builder.setCredentials(NoCredentials.getInstance());
       }
       ValueProvider<String> clientCert = spannerConfig.getClientCertPath();
       ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
       if (clientCert != null
           && clientKey != null
+          && clientCert.isAccessible()
+          && clientKey.isAccessible()
           && !Strings.isNullOrEmpty(clientCert.get())
           && !Strings.isNullOrEmpty(clientKey.get())) {
         builder.useClientCert(clientCert.get(), clientKey.get());
@@ -281,6 +282,8 @@ public class SpannerAccessor implements AutoCloseable {
     ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
+    } else if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+      builder.setCredentials(NoCredentials.getInstance());
     }
 
     ValueProvider<java.time.Duration> waitForSessionCreationDuration =
