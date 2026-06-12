@@ -67,6 +67,7 @@
 
 * Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for Bigtable materialized view source added (Java) ([#38053](https://github.com/apache/beam/issues/38053)).
 
 ## New Features / Improvements
 

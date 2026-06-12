@@ -92,9 +92,9 @@ public class BigtableReadSchemaTransformProvider
 
   @Override
   public String description() {
-    return "Reads data from a Google Cloud Bigtable table.\n"
-        + "The transform requires the project ID, instance ID, and table ID parameters.\n"
-        + "Optionally, the output can be flattened or nested rows.\n"
+    return "Reads data from a Google Cloud Bigtable table or materialized view.\n"
+        + "The transform requires the project ID, instance ID, and either table ID or\n"
+        + "materialized view name. Optionally, the output can be flattened or nested rows.\n"
         + "Example usage:\n"
         + "  - type: ReadFromBigTable\n"
         + "    config:\n"
@@ -116,9 +116,17 @@ public class BigtableReadSchemaTransformProvider
     public void validate() {
       String emptyStringMessage =
           "Invalid Bigtable Read configuration: %s should not be a non-empty String";
-      checkArgument(!this.getTableId().isEmpty(), String.format(emptyStringMessage, "table"));
       checkArgument(!this.getInstanceId().isEmpty(), String.format(emptyStringMessage, "instance"));
       checkArgument(!this.getProjectId().isEmpty(), String.format(emptyStringMessage, "project"));
+
+      String tableId = this.getTableId();
+      String mvName = this.getMaterializedViewName();
+      boolean hasTableId = tableId != null && !tableId.isEmpty();
+      boolean hasMvName = mvName != null && !mvName.isEmpty();
+      checkArgument(hasTableId || hasMvName, "Either table or materializedViewName must be set");
+      checkArgument(
+          !(hasTableId && hasMvName),
+          "Only one of table or materializedViewName can be set, not both");
     }
 
     public static Builder builder() {
@@ -128,7 +136,11 @@ public class BigtableReadSchemaTransformProvider
     }
 
     @SchemaFieldDescription("Bigtable table ID to read from.")
-    public abstract String getTableId();
+    public abstract @Nullable String getTableId();
+
+    @SchemaFieldDescription(
+        "Bigtable materialized view name to read from. Mutually exclusive with table.")
+    public abstract @Nullable String getMaterializedViewName();
 
     @SchemaFieldDescription("Bigtable instance ID to connect to.")
     public abstract String getInstanceId();
@@ -144,6 +156,8 @@ public class BigtableReadSchemaTransformProvider
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTableId(String tableId);
+
+      public abstract Builder setMaterializedViewName(String materializedViewName);
 
       public abstract Builder setInstanceId(String instanceId);
 
@@ -176,14 +190,19 @@ public class BigtableReadSchemaTransformProvider
           String.format(
               "Input to %s is expected to be empty, but is not.", getClass().getSimpleName()));
 
-      PCollection<com.google.bigtable.v2.Row> bigtableRows =
-          input
-              .getPipeline()
-              .apply(
-                  BigtableIO.read()
-                      .withTableId(configuration.getTableId())
-                      .withInstanceId(configuration.getInstanceId())
-                      .withProjectId(configuration.getProjectId()));
+      BigtableIO.Read read =
+          BigtableIO.read()
+              .withInstanceId(configuration.getInstanceId())
+              .withProjectId(configuration.getProjectId());
+      String mvName = configuration.getMaterializedViewName();
+      String tableId = configuration.getTableId();
+      if (mvName != null && !mvName.isEmpty()) {
+        read = read.withMaterializedViewName(mvName);
+      } else if (tableId != null) {
+        read = read.withTableId(tableId);
+      }
+
+      PCollection<com.google.bigtable.v2.Row> bigtableRows = input.getPipeline().apply(read);
 
       Schema outputSchema =
           Boolean.FALSE.equals(configuration.getFlatten()) ? ROW_SCHEMA : FLATTENED_ROW_SCHEMA;
