@@ -75,12 +75,12 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   private static final boolean SAMPLE = true;
   private static final boolean POP = false;
 
-  private boolean isSample; // flag to determine return value should be Variance Pop or Sample
+  private final boolean isSample; // flag to determine return value should be Variance Pop or Sample
   // When true, extractOutput returns the square root of the variance (i.e. standard deviation).
   // Beam's enumerable bridge cannot translate a SQRT call layered on top of a window VAR_SAMP, so
   // STDDEV_SAMP / STDDEV_POP are computed end-to-end inside this combiner instead.
-  private boolean isStddev;
-  private SerializableFunction<BigDecimal, T> decimalConverter;
+  private final boolean isStddev;
+  private final SerializableFunction<BigDecimal, T> decimalConverter;
 
   public static VarianceFn newPopulation(Schema.TypeName typeName) {
     return newPopulation(BigDecimalConverter.forSqlType(typeName));
@@ -148,7 +148,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   @Override
   public T extractOutput(VarianceAccumulator accumulator) {
     BigDecimal result = getVariance(accumulator);
-    if (isStddev) {
+    if (result != null && isStddev) {
       // Take the square root in IEEE double precision so the result matches Spark / numpy bit for
       // bit (both compute stddev as Math.sqrt over a double). BigDecimal.sqrt(MATH_CTX) would round
       // to 10 significant digits and fail the test harness's exact comparison of standard
