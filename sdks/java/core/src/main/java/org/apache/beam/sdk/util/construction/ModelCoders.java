@@ -35,7 +35,8 @@ public class ModelCoders {
 
   public static final String BYTES_CODER_URN = getUrn(StandardCoders.Enum.BYTES);
   public static final String BOOL_CODER_URN = getUrn(StandardCoders.Enum.BOOL);
-  // Where is this required explicitly, instead of implicit within WindowedValue and LengthPrefix
+  // Where is this required explicitly, instead of implicit within WindowedValue
+  // and LengthPrefix
   // coders?
   public static final String INT64_CODER_URN = getUrn(StandardCoders.Enum.VARINT);
   public static final String STRING_UTF8_CODER_URN = getUrn(StandardCoders.Enum.STRING_UTF8);
@@ -48,8 +49,10 @@ public class ModelCoders {
   public static final String LENGTH_PREFIX_CODER_URN = getUrn(StandardCoders.Enum.LENGTH_PREFIX);
 
   public static final String GLOBAL_WINDOW_CODER_URN = getUrn(StandardCoders.Enum.GLOBAL_WINDOW);
-  // This isn't strictly required once there's a way to represent an 'unknown window' (i.e. the
-  // custom window encoding + the maximum timestamp of the window, this can be used for interval
+  // This isn't strictly required once there's a way to represent an 'unknown
+  // window' (i.e. the
+  // custom window encoding + the maximum timestamp of the window, this can be
+  // used for interval
   // windows.
   public static final String INTERVAL_WINDOW_CODER_URN =
       getUrn(StandardCoders.Enum.INTERVAL_WINDOW);
@@ -68,6 +71,8 @@ public class ModelCoders {
   public static final String SHARDED_KEY_CODER_URN = getUrn(StandardCoders.Enum.SHARDED_KEY);
 
   public static final String NULLABLE_CODER_URN = getUrn(StandardCoders.Enum.NULLABLE);
+
+  public static final String VOID_CODER_URN = getUrn(StandardCoders.Enum.VOID);
 
   static {
     checkState(
@@ -93,7 +98,8 @@ public class ModelCoders {
           PARAM_WINDOWED_VALUE_CODER_URN,
           STATE_BACKED_ITERABLE_CODER_URN,
           SHARDED_KEY_CODER_URN,
-          NULLABLE_CODER_URN);
+          NULLABLE_CODER_URN,
+          VOID_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
