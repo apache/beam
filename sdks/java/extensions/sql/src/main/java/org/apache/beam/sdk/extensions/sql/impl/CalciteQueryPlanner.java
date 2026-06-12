@@ -312,11 +312,18 @@ public class CalciteQueryPlanner implements QueryPlanner {
   }
 
   @Override
-  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
+  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
+      throws SqlConversionException {
+    if (queryParameters.getKind() == Kind.POSITIONAL) {
+      relNode =
+          bindParameters(
+              relNode, new ParameterBinder(relNode.getCluster().getRexBuilder(), queryParameters));
+    }
     return convertToBeamRel(relNode, (RelCollation) null);
   }
 
-  private BeamRelNode convertToBeamRel(RelNode relNode, @Nullable RelCollation collation) {
+  private BeamRelNode convertToBeamRel(RelNode relNode, @Nullable RelCollation collation)
+      throws SqlConversionException {
     BeamRelNode beamRelNode;
     try {
       LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));

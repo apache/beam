@@ -130,12 +130,22 @@ public class BeamSqlEnv {
     return planner.getRelBuilder();
   }
 
-  public BeamRelNode convertToBeamRel(RelNode relNode) {
-    return planner.convertToBeamRel(relNode, QueryParameters.ofNone());
+  public BeamRelNode convertToBeamRel(RelNode relNode) throws SqlConversionException {
+    return convertToBeamRel(relNode, QueryParameters.ofNone());
   }
 
-  public RelNode parseLogicalPlan(String query) throws ParseException {
-    return planner.parseToRel(query, QueryParameters.ofNone());
+  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
+      throws SqlConversionException {
+    return planner.convertToBeamRel(relNode, queryParameters);
+  }
+
+  public RelNode parseLogicalPlan(String query) throws ParseException, SqlConversionException {
+    return parseLogicalPlan(query, QueryParameters.ofNone());
+  }
+
+  public RelNode parseLogicalPlan(String query, QueryParameters queryParameters)
+      throws ParseException, SqlConversionException {
+    return planner.parseToRel(query, queryParameters);
   }
 
   public void registerSchemaFunction(String name, Function function) {

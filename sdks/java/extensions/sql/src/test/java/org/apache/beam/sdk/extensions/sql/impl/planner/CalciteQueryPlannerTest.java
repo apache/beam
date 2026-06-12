@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -86,5 +89,19 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
                 .getPlanner()
                 .getCost(physicalPlan, physicalPlan.getCluster().getMetadataQuery())
             instanceof BeamCostModel);
+  }
+
+  @Test
+  public void testParseAndConvertHelpersWithParameters() throws Exception {
+    String sql = "select * from medium_table where id = ?";
+    RelNode logicalPlan = env.parseLogicalPlan(sql);
+    Assert.assertNotNull(logicalPlan);
+
+    QueryParameters params = QueryParameters.ofPositional(ImmutableList.of(3));
+    BeamRelNode physicalPlan = env.convertToBeamRel(logicalPlan, params);
+    Assert.assertNotNull(physicalPlan);
+
+    String explained = BeamSqlRelUtils.explainLazily(physicalPlan).toString();
+    Assert.assertTrue(explained.contains("3"));
   }
 }
