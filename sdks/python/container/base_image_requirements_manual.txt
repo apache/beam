@@ -38,6 +38,8 @@ google-cloud-profiler;python_version<="3.12"
 # tests
 google-api-python-client;python_version<="3.13"
 guppy3
+# Explicitly pin memray to use a version compatible with postprocessing logic in Beam.
+memray==1.19.3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
 google-crc32c
