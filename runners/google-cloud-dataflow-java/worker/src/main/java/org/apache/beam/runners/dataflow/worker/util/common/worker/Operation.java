@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * The abstract base class for Operations, which correspond to Instructions in the original MapTask
  * InstructionGraph.
@@ -138,7 +140,7 @@ public abstract class Operation {
   }
 
   /** Called when all elements for a specific key have been processed. */
-  public abstract void finishKey() throws Exception;
+  public abstract void finishKey(@Nullable Object key) throws Exception;
 
   /** Aborts this Operation's execution. */
   public void abort() throws Exception {

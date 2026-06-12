@@ -41,11 +41,8 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptClus
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCost;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner.CannotPlanException;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitDef;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.hep.HepPlanner;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelRoot;
@@ -57,7 +54,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.Me
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rules.CoreRules;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexDynamicParam;
@@ -73,7 +70,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util.SqlOperatorTables;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
@@ -299,7 +295,8 @@ public class CalciteQueryPlanner implements QueryPlanner {
       if (queryParameters.getKind() == Kind.POSITIONAL) {
         relNode =
             bindParameters(
-                relNode, new ParameterBinder(relOptCluster.getRexBuilder(), queryParameters));
+                relNode,
+                new ParameterBinder(root.rel.getCluster().getRexBuilder(), queryParameters));
       }
       return convertToBeamRel(relNode, queryParameters);
     } catch (RelConversionException | CannotPlanException e) {
@@ -388,7 +385,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
     return (BeamRelNode) beamRelNode;
   }
 
-
   // It needs to be public so that the generated code in Calcite can access it.
   public static class NonCumulativeCostImpl
       implements MetadataHandler<BuiltInMetadata.NonCumulativeCost> {
@@ -448,19 +444,39 @@ public class CalciteQueryPlanner implements QueryPlanner {
               "Index out of bounds for positional parameter: " + index);
         }
         Object val = positionalParams.get(index);
-        RexNode literal = makeLiteral(val, dynamicParam.getType());
-        return literal;
+        return makeLiteral(cleanValue(val), dynamicParam.getType());
       }
       return super.visitDynamicParam(dynamicParam);
     }
 
-    private RexNode makeLiteral(
-        Object val,
-        org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType type) {
+    private RexNode makeLiteral(Object val, RelDataType type) {
       if (val == null) {
         return rexBuilder.makeNullLiteral(type);
       }
       return rexBuilder.makeLiteral(val, type, true);
+    }
+
+    @SuppressWarnings("JavaUtilDate") // explicit java.util.Date support
+    private Object cleanValue(Object value) {
+      if (value instanceof org.joda.time.ReadableInstant) {
+        return ((org.joda.time.ReadableInstant) value).getMillis();
+      }
+      if (value instanceof java.time.LocalDate) {
+        return (int) ((java.time.LocalDate) value).toEpochDay();
+      }
+      if (value instanceof java.time.LocalTime) {
+        return (int) (((java.time.LocalTime) value).toNanoOfDay() / 1_000_000L);
+      }
+      if (value instanceof java.time.LocalDateTime) {
+        return ((java.time.LocalDateTime) value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+      }
+      if (value instanceof java.sql.Timestamp) {
+        return ((java.sql.Timestamp) value).getTime();
+      }
+      if (value instanceof java.util.Date) {
+        return ((java.util.Date) value).getTime();
+      }
+      return value;
     }
   }
 }

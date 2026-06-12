@@ -33,6 +33,7 @@ def parquet_version = "1.16.0"
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.delta_kernel_api
     implementation library.java.delta_kernel_defaults
 
