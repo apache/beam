@@ -3143,6 +3143,8 @@ class BeamModulePlugin implements Plugin<Project> {
           }
           def uvCacheDir = "${project.ext.envdir}/.uv_cache"
           project.exec {
+            // Per-project uv cache avoids sdist lock contention in parallel installGcpTest.
+            environment 'UV_CACHE_DIR', project.file("${project.ext.envdir}/.uv-cache").absolutePath
             executable 'sh'
             // Default uv cache is global; py310/py314 installGcpTest fight over the same lock.
             args '-c', ". \"${project.ext.envdir}/bin/activate\" && pip install uv && uv pip install --cache-dir \"${uvCacheDir}\" --pre \"${installTargets}\""
