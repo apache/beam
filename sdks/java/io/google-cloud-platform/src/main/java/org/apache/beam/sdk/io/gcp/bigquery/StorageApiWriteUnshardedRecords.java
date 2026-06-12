@@ -802,7 +802,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                       ". Please check if the destination table exists and if the service account has the "
                           + "TABLES_UPDATE_DATA permission.";
                 }
-                LOG.error("{}", errorMessage, error);
                 throw new RuntimeException(errorMessage, error);
               }
 
