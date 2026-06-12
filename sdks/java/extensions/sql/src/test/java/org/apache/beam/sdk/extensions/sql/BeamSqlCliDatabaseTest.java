@@ -160,7 +160,7 @@ public class BeamSqlCliDatabaseTest {
     catalogManager.registerTableProvider(testTableProvider);
     cli.execute("CREATE EXTERNAL TABLE person(id int, name varchar, age int) TYPE 'test'");
 
-    thrown.expect(RuntimeException.class);
+    thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Database 'db_1' is not empty.");
     cli.execute("DROP DATABASE db_1");
   }

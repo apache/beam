@@ -73,6 +73,9 @@ public class SqlDdlNodes {
   }
 
   public static @Nullable CalciteSchema childSchema(CalciteSchema rootSchema, List<String> path) {
+    if (path == null) {
+      return null;
+    }
     @Nullable CalciteSchema schema = rootSchema;
     for (String p : path) {
       if (schema == null) {
