@@ -1066,7 +1066,27 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
         if (numAppends > 0) {
           initializeContexts.accept(contexts);
-          retryManager.run(true);
+          try {
+            retryManager.run(true);
+          } catch (Exception e) {
+            Throwable cause = e.getCause();
+            if (cause == null) {
+              cause = e;
+            }
+            Status.Code statusCode = Status.fromThrowable(cause).getCode();
+            String errorMessage =
+                String.format(
+                    "More than %d attempts to call AppendRows failed. Last encountered error: %s",
+                    maxRetries, cause.toString());
+            if (statusCode.equals(Status.Code.PERMISSION_DENIED)
+                || statusCode.equals(Status.Code.NOT_FOUND)) {
+              errorMessage +=
+                  ". Please check if the destination table exists and if the service account has the "
+                      + "TABLES_UPDATE_DATA permission.";
+            }
+            LOG.error("{}", errorMessage, cause);
+            throw new RuntimeException(errorMessage, cause);
+          }
 
           appendSplitDistribution.update(numAppends);
           if (autoUpdateSchema) {
