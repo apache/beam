@@ -68,10 +68,12 @@ except ImportError:
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
   import resource
-
-  from apache_beam.ml.inference.model_manager import ModelManager
 except ImportError:
   resource = None  # type: ignore[assignment]
+
+try:
+  from apache_beam.ml.inference.model_manager import ModelManager
+except ImportError:
   ModelManager = None  # type: ignore[assignment]
 
 _NANOSECOND_TO_MILLISECOND = 1_000_000
@@ -1997,6 +1999,10 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager:
+      if ModelManager is None:
+        raise ImportError(
+            "Model Manager is not available. Please ensure that the "
+            "all required packages for inference is installed and up to date.")
       logging.info("Using Model Manager to manage models automatically.")
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),
