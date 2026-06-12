@@ -41,8 +41,8 @@ public interface QueryPlanner {
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException;
 
-  /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
-  BeamRelNode convertToBeamRel(RelNode sqlStatement, QueryParameters queryParameters)
+  /** Converts a logical {@link RelNode} tree into a physical {@link BeamRelNode} tree. */
+  BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
       throws SqlConversionException;
 
   /**
