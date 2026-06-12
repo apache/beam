@@ -1078,8 +1078,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 String.format(
                     "More than %d attempts to call AppendRows failed. Last encountered error: %s",
                     maxRetries, cause.toString());
-            if (statusCode.equals(Status.Code.PERMISSION_DENIED)
-                || statusCode.equals(Status.Code.NOT_FOUND)) {
+            if (statusCode == Status.Code.PERMISSION_DENIED
+                || statusCode == Status.Code.NOT_FOUND) {
               errorMessage +=
                   ". Please check if the destination table exists and if the service account has the "
                       + "TABLES_UPDATE_DATA permission.";
