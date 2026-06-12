@@ -67,11 +67,11 @@ import org.slf4j.LoggerFactory;
 public class DeltaIOIT {
   private static final Logger LOG = LoggerFactory.getLogger(DeltaIOIT.class);
 
-  private static final String BUCKET = "apache-beam-testing-delta-lake";
-
+  private static final String DEFAULT_BUCKET = "apache-beam-testing-delta-lake";
   @Rule public final TestPipeline readPipeline = TestPipeline.create();
   @Rule public final TestName testName = new TestName();
 
+  private String bucket;
   private String repoPath;
   private String repoPrefix;
   private Storage storage;
@@ -88,8 +88,18 @@ public class DeltaIOIT {
   public void setup() throws Exception {
     storage = StorageOptions.newBuilder().build().getService();
     long salt = System.currentTimeMillis();
-    repoPrefix = "delta_io_it/" + testName.getMethodName() + "-" + salt;
-    repoPath = "gs://" + BUCKET + "/" + repoPrefix;
+
+    String tempLocation = readPipeline.getOptions().getTempLocation();
+    if (tempLocation != null && tempLocation.startsWith("gs://")) {
+      org.apache.beam.sdk.extensions.gcp.util.gcs.GcsPath gcsPath = org.apache.beam.sdk.extensions.gcp.util.gcs.GcsPath
+          .fromUri(tempLocation);
+      bucket = gcsPath.getBucket();
+      repoPrefix = gcsPath.getObject() + "/delta_io_it/" + testName.getMethodName() + "-" + salt;
+    } else {
+      bucket = DEFAULT_BUCKET;
+      repoPrefix = "delta_io_it/" + testName.getMethodName() + "-" + salt;
+    }
+    repoPath = "gs://" + bucket + "/" + repoPrefix;
 
     LOG.info("Generating Delta Lake repository at {}", repoPath);
 
@@ -119,7 +129,7 @@ public class DeltaIOIT {
     setupPipeline.run().waitUntilFinish();
 
     // 2. Find written Parquet file to inspect its size
-    BlobId parquetBlobId = BlobId.of(BUCKET, repoPrefix + "/part-00000.parquet");
+    BlobId parquetBlobId = BlobId.of(bucket, repoPrefix + "/part-00000.parquet");
     Blob parquetBlob = storage.get(parquetBlobId);
     assertNotNull("Parquet file not found on GCS: " + parquetBlobId, parquetBlob);
     long fileSize = parquetBlob.getSize();
@@ -134,7 +144,7 @@ public class DeltaIOIT {
             + fileSize
             + ",\"modificationTime\":123456789,\"dataChange\":true}}";
 
-    BlobId commitBlobId = BlobId.of(BUCKET, repoPrefix + "/_delta_log/00000000000000000000.json");
+    BlobId commitBlobId = BlobId.of(bucket, repoPrefix + "/_delta_log/00000000000000000000.json");
     BlobInfo commitBlobInfo =
         BlobInfo.newBuilder(commitBlobId).setContentType("application/json").build();
     storage.create(commitBlobInfo, commitContent.getBytes(StandardCharsets.UTF_8));
@@ -143,12 +153,14 @@ public class DeltaIOIT {
 
   @After
   public void teardown() {
+    if (storage == null) {
+      return;
+    }
     LOG.info("Cleaning up Delta Lake repository at {}", repoPath);
     try {
-      Iterable<Blob> blobs =
-          storage.list(BUCKET, Storage.BlobListOption.prefix(repoPrefix)).getValues();
+      Iterable<Blob> blobs = 
+          storage.list(bucket, Storage.BlobListOption.prefix(repoPrefix)).getValues();
       blobs.forEach(b -> storage.delete(b.getBlobId()));
-      storage.close();
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS repository at {}", repoPath, e);
     }
@@ -160,6 +172,11 @@ public class DeltaIOIT {
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(
         "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    String project = readPipeline.getOptions().as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+        .getProject();
+    if (project != null) {
+      hadoopConfig.put("fs.gs.project.id", project);
+    }
 
     PCollection<Row> output =
         readPipeline
