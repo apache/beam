@@ -91,7 +91,7 @@ public class DeltaIOIT {
 
     String tempLocation = readPipeline.getOptions().getTempLocation();
     if (tempLocation != null && tempLocation.startsWith("gs://")) {
-      org.apache.beam.sdk.extensions.gcp.util.gcs.GcsPath gcsPath = org.apache.beam.sdk.extensions.gcp.util.gcs.GcsPath
+      org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath gcsPath = org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath
           .fromUri(tempLocation);
       bucket = gcsPath.getBucket();
       repoPrefix = gcsPath.getObject() + "/delta_io_it/" + testName.getMethodName() + "-" + salt;
@@ -158,7 +158,7 @@ public class DeltaIOIT {
     }
     LOG.info("Cleaning up Delta Lake repository at {}", repoPath);
     try {
-      Iterable<Blob> blobs = 
+      Iterable<Blob> blobs =
           storage.list(bucket, Storage.BlobListOption.prefix(repoPrefix)).getValues();
       blobs.forEach(b -> storage.delete(b.getBlobId()));
     } catch (Exception e) {
@@ -172,7 +172,9 @@ public class DeltaIOIT {
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(
         "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String project = readPipeline.getOptions().as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+    String project = readPipeline
+        .getOptions()
+        .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
         .getProject();
     if (project != null) {
       hadoopConfig.put("fs.gs.project.id", project);
