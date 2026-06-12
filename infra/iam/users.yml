@@ -1242,3 +1242,9 @@
   permissions:
   - role: projects/apache-beam-testing/roles/beam_viewer
   - role: projects/apache-beam-testing/roles/beam_writer
+- username: hansmarcus
+  email: hansmarcus14@gmail.com
+  member_type: user
+  permissions:
+  - role: projects/apache-beam-testing/roles/beam_viewer
+  - role: projects/apache-beam-testing/roles/beam_writer
