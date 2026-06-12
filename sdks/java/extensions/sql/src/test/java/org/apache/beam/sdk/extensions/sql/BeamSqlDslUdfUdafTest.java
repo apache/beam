@@ -301,6 +301,28 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     pipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testOverloadedUdf() throws Exception {
+    for (java.lang.reflect.Method m : OverloadedUdf.class.getMethods()) {
+      if (m.getName().equals("eval")) {
+        System.out.println("JETS_DEBUG: METHOD: " + m + " parameters: " + m.getParameterCount());
+      }
+    }
+    // Call with 2 arguments. This requires the 2-argument overload to be registered.
+    String sql =
+        "SELECT f_int, overload(f_string, f_int) as sub_string FROM PCOLLECTION WHERE f_int = 2";
+    PCollection<Row> result =
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
+            .apply("testUdf", SqlTransform.query(sql).registerUdf("overload", OverloadedUdf.class));
+
+    Schema subStrSchema =
+        Schema.builder().addInt32Field("f_int").addStringField("sub_string").build();
+    Row subStrRow = Row.withSchema(subStrSchema).addValues(2, "string_row2_2").build();
+    PAssert.that(result).containsInAnyOrder(subStrRow);
+
+    pipeline.run().waitUntilFinish();
+  }
+
   /**
    * test {@link org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.TableMacro} UDF.
    */
@@ -463,6 +485,19 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     public static String eval(
         @Parameter(name = "s") String s, @Parameter(name = "n", optional = true) Integer n) {
       return s.substring(0, n == null ? 1 : n);
+    }
+  }
+
+  public static class BaseOverloadedUdf {
+    public static String eval(
+        @Parameter(name = "s") String s, @Parameter(name = "n", optional = true) Integer n) {
+      return s + "_" + (n == null ? 0 : n);
+    }
+  }
+
+  public static final class OverloadedUdf extends BaseOverloadedUdf implements BeamSqlUdf {
+    public static String eval(String s) {
+      return s + "_1";
     }
   }
 

@@ -296,8 +296,7 @@ public class BeamSortRelTest extends BaseRelTest {
   @Test
   public void testOrderBy_withoutLimit() {
     String sql =
-        "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-            + " order_id, site_id, price "
+        "SELECT order_id, site_id, price "
             + "FROM ORDER_DETAILS "
             + "ORDER BY order_id asc, site_id desc";
 
