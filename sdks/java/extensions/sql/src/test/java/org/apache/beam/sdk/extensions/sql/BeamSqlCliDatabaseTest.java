@@ -136,6 +136,22 @@ public class BeamSqlCliDatabaseTest {
   }
 
   @Test
+  public void testDropDatabase_ifExists_nonexistent() {
+    assertFalse(catalogManager.currentCatalog().databaseExists("my_database"));
+    // Should not throw exception
+    cli.execute("DROP DATABASE IF EXISTS my_database");
+    assertFalse(catalogManager.currentCatalog().databaseExists("my_database"));
+  }
+
+  @Test
+  public void testDropDatabase_ifExists_exists() {
+    cli.execute("CREATE DATABASE my_database");
+    assertTrue(catalogManager.currentCatalog().databaseExists("my_database"));
+    cli.execute("DROP DATABASE IF EXISTS my_database");
+    assertFalse(catalogManager.currentCatalog().databaseExists("my_database"));
+  }
+
+  @Test
   public void testDropDatabase_notEmpty_restrict() {
     cli.execute("CREATE DATABASE db_1");
     cli.execute("USE db_1");

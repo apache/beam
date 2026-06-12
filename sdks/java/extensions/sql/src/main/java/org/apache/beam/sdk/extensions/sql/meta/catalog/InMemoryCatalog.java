@@ -110,6 +110,9 @@ public class InMemoryCatalog implements Catalog {
 
   @Override
   public boolean dropDatabase(String database, boolean cascade) {
+    if (!databases.contains(database)) {
+      return false;
+    }
     MetaStore metaStore = metaStores.get(database);
     if (!cascade && metaStore != null && !metaStore.getTables().isEmpty()) {
       throw new IllegalStateException("Database '" + database + "' is not empty.");
