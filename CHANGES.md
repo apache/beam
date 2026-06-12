@@ -85,6 +85,7 @@
 
 ## Bugfixes
 
+* Fixed IndexError in `apache_beam.utils.processes` when pip subprocess fails with short command (e.g. `pip install pkg`) (Python) ([#37515](https://github.com/apache/beam/issues/37515)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
 
