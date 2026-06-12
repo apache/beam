@@ -84,6 +84,15 @@ public class BeamSqlCliDatabaseTest {
   }
 
   @Test
+  public void testUseDatabaseWithoutDatabaseKeyword() {
+    assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
+    cli.execute("CREATE DATABASE my_database");
+    assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
+    cli.execute("USE my_database");
+    assertEquals("my_database", catalogManager.currentCatalog().currentDatabase());
+  }
+
+  @Test
   public void testUseDatabase_doesNotExist() {
     assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     thrown.expect(CalciteContextException.class);
@@ -124,6 +133,33 @@ public class BeamSqlCliDatabaseTest {
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Database 'my_database' does not exist.");
     cli.execute("DROP DATABASE my_database");
+  }
+
+  @Test
+  public void testDropDatabase_notEmpty_restrict() {
+    cli.execute("CREATE DATABASE db_1");
+    cli.execute("USE db_1");
+
+    TestTableProvider testTableProvider = new TestTableProvider();
+    catalogManager.registerTableProvider(testTableProvider);
+    cli.execute("CREATE EXTERNAL TABLE person(id int, name varchar, age int) TYPE 'test'");
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Database 'db_1' is not empty.");
+    cli.execute("DROP DATABASE db_1");
+  }
+
+  @Test
+  public void testDropDatabase_notEmpty_cascade() {
+    cli.execute("CREATE DATABASE db_1");
+    cli.execute("USE db_1");
+
+    TestTableProvider testTableProvider = new TestTableProvider();
+    catalogManager.registerTableProvider(testTableProvider);
+    cli.execute("CREATE EXTERNAL TABLE person(id int, name varchar, age int) TYPE 'test'");
+
+    cli.execute("DROP DATABASE db_1 CASCADE");
+    assertFalse(catalogManager.currentCatalog().databaseExists("db_1"));
   }
 
   @Test
