@@ -26,6 +26,7 @@ import com.solacesystems.jcsmp.MessageType;
 import com.solacesystems.jcsmp.ReplicationGroupMessageId;
 import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.User_Cos;
+import com.solacesystems.jcsmp.XMLMessage.Outcome;
 import com.solacesystems.jcsmp.impl.ReplicationGroupMessageIdImpl;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -129,11 +131,29 @@ public class SolaceDataUtils {
     return getBytesXmlMessage(payload, messageId, ackMessageFn, null);
   }
 
+  public static BytesXMLMessage getBytesXmlMessageWithSettle(
+      String payload,
+      String messageId,
+      SerializableFunction<Integer, Integer> ackMessageFn,
+      Consumer<Outcome> settleCallback) {
+    return getBytesXmlMessageInternal(payload, messageId, ackMessageFn, null, settleCallback);
+  }
+
   public static BytesXMLMessage getBytesXmlMessage(
       String payload,
       String messageId,
       SerializableFunction<Integer, Integer> ackMessageFn,
       ReplicationGroupMessageId replicationGroupMessageId) {
+    return getBytesXmlMessageInternal(
+        payload, messageId, ackMessageFn, replicationGroupMessageId, null);
+  }
+
+  private static BytesXMLMessage getBytesXmlMessageInternal(
+      String payload,
+      String messageId,
+      SerializableFunction<Integer, Integer> ackMessageFn,
+      ReplicationGroupMessageId replicationGroupMessageId,
+      Consumer<Outcome> settleCallback) {
     long receiverTimestamp = 1708100477067L;
     long expiration = 1000L;
     long timeToLive = 1000L;
@@ -654,7 +674,11 @@ public class SolaceDataUtils {
       public void setUserData(byte[] arg0) {}
 
       @Override
-      public void settle(Outcome arg0) throws JCSMPException {}
+      public void settle(Outcome arg0) throws JCSMPException {
+        if (settleCallback != null) {
+          settleCallback.accept(arg0);
+        }
+      }
 
       @Override
       public int writeAttachment(byte[] arg0) {
