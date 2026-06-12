@@ -79,8 +79,8 @@ def _try_import_model_manager(throw_error: bool = True):
   except ImportError as e:
     if throw_error:
       raise ImportError(
-          "Model Manager is not available. Please ensure that the "
-          "all required packages for inference is installed and up to date."
+          "Model Manager is not available. Please ensure that "
+          "all required packages for inference are installed and up to date."
       ) from e
     else:
       return None
