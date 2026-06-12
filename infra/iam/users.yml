@@ -486,6 +486,12 @@
   - role: roles/cloudfunctions.invoker
   - role: roles/iam.serviceAccountTokenCreator
   - role: roles/storage.objectViewer
+- username: hansmarcus
+  email: hansmarcus14@gmail.com
+  member_type: user
+  permissions:
+  - role: projects/apache-beam-testing/roles/beam_viewer
+  - role: projects/apache-beam-testing/roles/beam_writer
 - username: harrisonlim
   email: harrisonlim@google.com
   member_type: user
@@ -1238,12 +1244,6 @@
   - role: roles/editor
 - username: yalah5084
   email: yalahuangfeng@gmail.com
-  member_type: user
-  permissions:
-  - role: projects/apache-beam-testing/roles/beam_viewer
-  - role: projects/apache-beam-testing/roles/beam_writer
-- username: hansmarcus
-  email: hansmarcus14@gmail.com
   member_type: user
   permissions:
   - role: projects/apache-beam-testing/roles/beam_viewer
