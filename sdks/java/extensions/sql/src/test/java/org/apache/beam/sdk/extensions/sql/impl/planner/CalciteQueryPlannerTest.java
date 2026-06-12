@@ -21,6 +21,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,5 +70,21 @@ public class CalciteQueryPlannerTest extends BaseRelTest {
     Assert.assertTrue(
         root.getCluster().getMetadataQuery().getCumulativeCost(root) instanceof BeamCostModel);
     Assert.assertFalse(root.getCluster().getMetadataQuery().getCumulativeCost(root).isInfinite());
+  }
+
+  @Test
+  public void testParseAndConvertHelpers() throws Exception {
+    String sql = "select * from medium_table";
+    RelNode logicalPlan = env.parseLogicalPlan(sql);
+    Assert.assertNotNull(logicalPlan);
+
+    BeamRelNode physicalPlan = env.convertToBeamRel(logicalPlan);
+    Assert.assertNotNull(physicalPlan);
+    Assert.assertTrue(
+        physicalPlan
+                .getCluster()
+                .getPlanner()
+                .getCost(physicalPlan, physicalPlan.getCluster().getMetadataQuery())
+            instanceof BeamCostModel);
   }
 }
