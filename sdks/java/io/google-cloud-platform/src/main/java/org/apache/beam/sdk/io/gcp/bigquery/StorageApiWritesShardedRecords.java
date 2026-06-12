@@ -1068,6 +1068,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           initializeContexts.accept(contexts);
           try {
             retryManager.run(true);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
           } catch (Exception e) {
             Status.Code statusCode = Status.fromThrowable(e).getCode();
             String errorMessage =
@@ -1078,7 +1081,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 || statusCode == Status.Code.NOT_FOUND) {
               errorMessage +=
                   ". Please check if the destination table exists and if the service account has the "
-                      + "TABLES_UPDATE_DATA permission.";
+                      + "bigquery.tables.updateData permission.";
             }
             throw new RuntimeException(errorMessage, e);
           }

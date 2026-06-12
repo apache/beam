@@ -800,7 +800,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     || statusCode == Status.Code.NOT_FOUND) {
                   errorMessage +=
                       ". Please check if the destination table exists and if the service account has the "
-                          + "TABLES_UPDATE_DATA permission.";
+                          + "bigquery.tables.updateData permission.";
                 }
                 throw new RuntimeException(errorMessage, error);
               }
