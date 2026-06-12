@@ -48,7 +48,7 @@ class BigqueryV2(base_api.BaseApiClient):
                additional_http_headers=None, response_encoding=None):
     """Create a new bigquery handle."""
     url = url or self.BASE_URL
-    super(BigqueryV2, self).__init__(
+    super().__init__(
         url, credentials=credentials,
         get_credentials=get_credentials, http=http, model=model,
         log_request=log_request, log_response=log_response,
@@ -71,9 +71,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'datasets'
 
     def __init__(self, client):
-      super(BigqueryV2.DatasetsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the dataset specified by the datasetId value. Before you can delete a dataset, you must delete all its tables, either manually or by specifying deleteContents. Immediately after deletion, you can create another dataset with the same name. # IAM Permissions Requires the `bigquery.datasets.delete` permission on the dataset.
@@ -270,7 +269,7 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'jobs'
 
     def __init__(self, client):
-      super(BigqueryV2.JobsService, self).__init__(client)
+      super().__init__(client)
       self._upload_configs = {
           'Insert': base_api.ApiUploadInfo(
               accept=['*/*'],
@@ -481,9 +480,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'models'
 
     def __init__(self, client):
-      super(BigqueryV2.ModelsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the model specified by modelId from the dataset. # IAM Permissions Requires the `bigquery.models.delete` permission on the model.
@@ -599,9 +597,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'projects'
 
     def __init__(self, client):
-      super(BigqueryV2.ProjectsService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def GetServiceAccount(self, request, global_params=None):
       r"""RPC to get the service account for a project used for interactions with Google Cloud KMS. Requires the `bigquery.jobs.create` permission on the project resource. This permission is required to authorize the retrieval of the project's service identity for technical management tasks like encryption configuration.
@@ -662,9 +659,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'routines'
 
     def __init__(self, client):
-      super(BigqueryV2.RoutinesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the routine specified by routineId from the dataset. # IAM Permissions Requires the `bigquery.routines.delete` permission on the routine.
@@ -888,9 +884,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'rowAccessPolicies'
 
     def __init__(self, client):
-      super(BigqueryV2.RowAccessPoliciesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def BatchDelete(self, request, global_params=None):
       r"""Deletes provided row access policies. # IAM Permissions Requires the following IAM permission(s) on the table: - `bigquery.rowAccessPolicies.delete` - `bigquery.rowAccessPolicies.setIamPolicy`.
@@ -1114,9 +1109,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'tabledata'
 
     def __init__(self, client):
-      super(BigqueryV2.TabledataService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def InsertAll(self, request, global_params=None):
       r"""Streams data into BigQuery one record at a time without needing to run a load job. # IAM Permissions Requires the following IAM permission(s) to use this method: - `bigquery.tables.updateData` on the table. - `bigquery.tables.get` on the table. - `bigquery.datasets.get` on the dataset.
@@ -1178,9 +1172,8 @@ class BigqueryV2(base_api.BaseApiClient):
     _NAME = 'tables'
 
     def __init__(self, client):
-      super(BigqueryV2.TablesService, self).__init__(client)
-      self._upload_configs = {
-          }
+      super().__init__(client)
+      self._upload_configs = {}
 
     def Delete(self, request, global_params=None):
       r"""Deletes the table specified by tableId from the dataset. If the table contains data, all the data will be deleted. # IAM Permissions Requires the `bigquery.tables.delete` permission on the table.
