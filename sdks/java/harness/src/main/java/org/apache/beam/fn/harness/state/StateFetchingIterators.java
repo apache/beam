@@ -572,6 +572,61 @@ public class StateFetchingIterators {
       cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(builder.build()));
     }
 
+    private static final PrefetchableIterator<Object> EMPTY_ITERATOR =
+        new PrefetchableIterator<Object>() {
+          @Override
+          public boolean isReady() {
+            return true;
+          }
+
+          @Override
+          public void prefetch() {}
+
+          @Override
+          public boolean hasNext() {
+            return false;
+          }
+
+          @Override
+          public Object next() {
+            throw new NoSuchElementException();
+          }
+        };
+
+    @SuppressWarnings("unchecked")
+    public static <T> PrefetchableIterator<T> emptyIterator() {
+      return (PrefetchableIterator<T>) EMPTY_ITERATOR;
+    }
+
+    private static final CachingStateIterable<Object> EMPTY_ITERABLE =
+        new CachingStateIterable<Object>(null, null, null, null) {
+          @Override
+          public PrefetchableIterator<Object> createIterator() {
+            return emptyIterator();
+          }
+
+          @Override
+          public void remove(Set<Object> toRemoveStructuralValues) {}
+
+          @Override
+          public void clearAndAppend(List<Object> values) {}
+
+          @Override
+          public void clearAndAppend(WeightedList<Object> values) {}
+
+          @Override
+          public void append(List<Object> values) {}
+
+          @Override
+          public void append(WeightedList<Object> values) {}
+        };
+
+    /** Returns an empty {@link CachingStateIterable}. */
+    @SuppressWarnings("unchecked")
+    public static <T> CachingStateIterable<T> emptyIterable() {
+      return (CachingStateIterable<T>) EMPTY_ITERABLE;
+    }
+
     class CachingStateIterator implements PrefetchableIterator<T> {
 
       private final LazyBlockingStateFetchingIterator underlyingStateFetchingIterator;
