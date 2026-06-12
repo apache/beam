@@ -32,14 +32,6 @@ class FakeArray:
     return self.value
 
 
-class FakeScalar:
-  def __init__(self, value):
-    self.value = value
-
-  def item(self):
-    return self.value
-
-
 class MLTransformTextEmbeddingTest(unittest.TestCase):
   def test_text_to_record_skips_empty_lines(self):
     self.assertEqual(list(mltransform_text_embedding.text_to_record('   ')), [])
@@ -58,12 +50,10 @@ class MLTransformTextEmbeddingTest(unittest.TestCase):
             'text': 'Apache Beam is fun',
         })
 
-  def test_normalize_json_value_handles_array_like_values(self):
-    normalized = mltransform_text_embedding.normalize_json_value({
-        'embedding': FakeArray([FakeScalar(1.5), 2]),
-    })
-
-    self.assertEqual(normalized, {'embedding': [1.5, 2]})
+  def test_embedding_to_list(self):
+    self.assertEqual(
+        mltransform_text_embedding.embedding_to_list(FakeArray([1, 2.5])),
+        [1, 2.5])
 
   def test_format_embedding_output_with_dict(self):
     row = {

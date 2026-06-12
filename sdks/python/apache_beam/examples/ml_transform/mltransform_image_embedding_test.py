@@ -59,7 +59,7 @@ class MLTransformImageEmbeddingTest(unittest.TestCase):
   def test_embedding_to_list(self):
     self.assertEqual(
         mltransform_image_embedding.embedding_to_list(FakeArray([1, 2.5])),
-        [1.0, 2.5])
+        [1, 2.5])
 
   def test_format_output_with_dict(self):
     row = {

@@ -122,7 +122,7 @@ def _as_dict(row: Any) -> dict[str, Any]:
 
 def embedding_to_list(value: Any) -> list[float]:
   if hasattr(value, 'tolist'):
-    value = value.tolist()
+    return value.tolist()
   return [float(item) for item in value]
 
 
@@ -233,8 +233,8 @@ def run(
       pipeline
       | 'ReadImageURIs' >> beam.io.ReadFromText(known_args.input)
       | 'FilterEmptyURIs' >> beam.FlatMap(filter_empty_uri)
-      | 'ReadImages' >> beam.ParDo(ReadImage())
-      | 'ReshuffleBeforeEmbedding' >> beam.Reshuffle())
+      | 'ReshuffleBeforeEmbedding' >> beam.Reshuffle()
+      | 'ReadImages' >> beam.ParDo(ReadImage()))
   results = (
       rows
       | 'MLTransformImageEmbeddings' >> ml_transform

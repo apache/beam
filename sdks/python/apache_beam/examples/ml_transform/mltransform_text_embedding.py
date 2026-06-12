@@ -115,17 +115,10 @@ def _as_dict(row: Any) -> dict[str, Any]:
   return dict(row)
 
 
-def normalize_json_value(value: Any) -> Any:
+def embedding_to_list(value: Any) -> list[float]:
   if hasattr(value, 'tolist'):
-    value = value.tolist()
-  elif hasattr(value, 'item'):
-    value = value.item()
-
-  if isinstance(value, dict):
-    return {key: normalize_json_value(val) for key, val in value.items()}
-  if isinstance(value, (list, tuple)):
-    return [normalize_json_value(item) for item in value]
-  return value
+    return value.tolist()
+  return [float(item) for item in value]
 
 
 class FormatEmbeddingOutput(beam.DoFn):
@@ -134,7 +127,7 @@ class FormatEmbeddingOutput(beam.DoFn):
 
   def process(self, row: Any) -> Iterable[str]:
     row = _as_dict(row)
-    embedding = normalize_json_value(row[TEXT_COLUMN])
+    embedding = embedding_to_list(row[TEXT_COLUMN])
     yield json.dumps({
         ID_COLUMN: row[ID_COLUMN],
         'model_name': self.model_name,
