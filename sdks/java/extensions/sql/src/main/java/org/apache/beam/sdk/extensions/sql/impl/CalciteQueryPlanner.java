@@ -317,7 +317,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
   }
 
   private BeamRelNode convertToBeamRel(RelNode relNode, @Nullable RelCollation collation) {
-    RelNode beamRelNode;
+    BeamRelNode beamRelNode;
     try {
       LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits = relNode.getTraitSet().replace(BeamLogicalConvention.INSTANCE);
@@ -339,23 +339,36 @@ public class CalciteQueryPlanner implements QueryPlanner {
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
       relNode.getCluster().invalidateMetadataQuery();
+
+      if (config.getPrograms().isEmpty()) {
+        throw new SqlConversionException("No planning programs configured in FrameworkConfig.");
+      }
       Program program = config.getPrograms().get(0);
       LOG.info("Desired traits: {}", desiredTraits);
-      beamRelNode =
+      RelNode optimizedNode =
           program.run(
               relNode.getCluster().getPlanner(),
               relNode,
               desiredTraits,
               ImmutableList.of(),
               ImmutableList.of());
-      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
+      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(optimizedNode));
+
+      if (!(optimizedNode instanceof BeamRelNode)) {
+        throw new SqlConversionException(
+            String.format(
+                "The optimizer was unable to produce a Beam physical plan. "
+                    + "Expected BeamRelNode, but got: %s",
+                optimizedNode.getClass().getName()));
+      }
+      beamRelNode = (BeamRelNode) optimizedNode;
     } catch (CannotPlanException e) {
       throw new SqlConversionException(
           String.format("Unable to convert relNode to Beam: %s", relNode), e);
     } finally {
       planner.close();
     }
-    return (BeamRelNode) beamRelNode;
+    return beamRelNode;
   }
 
   // It needs to be public so that the generated code in Calcite can access it.
