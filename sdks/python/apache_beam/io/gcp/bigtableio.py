@@ -39,8 +39,6 @@ those generated rows in the table.
 
 import logging
 import struct
-from typing import Dict
-from typing import List
 
 import apache_beam as beam
 from apache_beam.internal.metrics.metric import ServiceCallMetric
@@ -262,7 +260,7 @@ class WriteToBigTable(beam.PTransform):
           input
           | beam.ParDo(self._DirectRowMutationsToBeamRow()).with_output_types(
               RowTypeConstraint.from_fields(
-                  [("key", bytes), ("mutations", List[Dict[str, bytes]])]))
+                  [("key", bytes), ("mutations", list[dict[str, bytes]])]))
           | external_write)
     else:
       return (

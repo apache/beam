@@ -537,13 +537,47 @@ task geminiInferenceTest {
     }
 }
 
+// Anthropic RunInference IT tests
+task anthropicInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/anthropic_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "AnthropicTests-df-py${pythonVersionSuffix}",
+          "collect": "anthropic_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
   doLast {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+      // installGcpTest already installed apache-beam[gcp]. tensorflow-transform also
+      // lists that dependency, so a plain pip install -r can re-resolve the GCP extra
+      // and hit ResolutionTooDeep. Install TFT with --no-deps instead.
+      args '-c', ". ${envdir}/bin/activate && " +
+          "grep -v '^tensorflow-transform' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install -r /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install --no-deps tensorflow-transform==1.16.0"
     }
   }
 }

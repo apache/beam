@@ -58,7 +58,7 @@ env: # Workflow level env vars
 jobs:
   run_python_yaml_rc_validation:
     name: Run Python YAML RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 300
     env: # Job-level env vars
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout code at RC tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.RC_TAG }}
 

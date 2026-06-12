@@ -73,7 +73,7 @@ import scala.Option;
 import scala.Tuple2;
 import scala.Tuple3;
 import scala.collection.Iterator;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import scala.runtime.AbstractFunction1;
 
@@ -238,7 +238,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // new input for key.
             try {
               final Iterable<WindowedValue<InputT>> elements =
-                  FluentIterable.from(JavaConversions.asJavaIterable(encodedElements))
+                  FluentIterable.from(JavaConverters.asJavaIterable(encodedElements))
                       .transform(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder));
 
               LOG.trace("{}: input elements: {}", logPrefix, elements);
@@ -410,7 +410,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         droppedDueToClosedWindow.inc(-droppedDueToClosedWindow.getCumulative());
       }
 
-      return scala.collection.JavaConversions.asScalaIterator(
+      return JavaConverters.asScalaIterator(
           new UpdateStateByKeyOutputIterator(input, reduceFn, droppedDueToLateness));
     }
   }
@@ -522,7 +522,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>>
         firedStream =
             pairDStream.updateStateByKey(
-                updateFunc,
+                // Raw cast to AbstractFunction1 suppresses Scala 2.12 (collection.Seq) vs
+                // Scala 2.13 (immutable.Seq) type difference — safe at runtime due to erasure.
+                (scala.runtime.AbstractFunction1) updateFunc,
                 pairDStream.defaultPartitioner(pairDStream.defaultPartitioner$default$1()),
                 true,
                 JavaSparkContext$.MODULE$.fakeClassTag());

@@ -55,24 +55,29 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.74.0] - Unreleased
+# [2.75.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
 
 ## I/Os
 
+* Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing `--experiments=disable_streaming_engine_state_tag_encoding_v2` or `--updateCompatibilityVersion=2.74.0` pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. ([#38705](https://github.com/apache/beam/issues/38705)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
+  use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
+  However fixing forward is recommended.
 
 ## Deprecations
 
@@ -82,6 +87,7 @@
 
 * Fixed GCS filesystem glob matching to correctly handle `/` in object names and support `**` for recursive matching (Go) ([#38059](https://github.com/apache/beam/issues/38059)).
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
+* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
 
 ## Security Fixes
 
@@ -92,9 +98,50 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.73.0] - 2026-04-??
+# [2.74.0] - 2026-06-02
 
 ## Highlights
+
+* Spark 4 runner support for Java SDK ([#38255](https://github.com/apache/beam/issues/38255)).
+
+## I/Os
+
+* IcebergIO: support declaring a table's sort order on dynamic table creation via the new `sort_fields` config ([#38269](https://github.com/apache/beam/issues/38269)).
+* IcebergIO: support writing with hash distribution mode, and with autosharding ([#38061](https://github.com/apache/beam/issues/38061)).
+
+## New Features / Improvements
+
+* Capability introduces an indicator for aggregations and timers firing during a pipeline drain, allowing users and sinks to recognize and appropriately handle potentially incomplete or partial data ([#36884](https://github.com/apache/beam/issues/36884)).
+* Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go/Python) ([#38349](https://github.com/apache/beam/issues/38349)).
+* TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
+  encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
+  compatible. Both coders can decode encoded bytes from the other coder
+  ([#38139](https://github.com/apache/beam/issues/38139)).
+* (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
+* (Java) BatchElements transform for Java SDK ([#38369](https://github.com/apache/beam/issues/38369))
+* Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
+* (Python) Supported Python user type in Beam SQL. For example, SQL statements like `SELECT some_field from PCOLLECTION` can now operate a PCollection of Beam Row containing pickable Python user type ([#20738](https://github.com/apache/beam/issues/20738)).
+* (Python) Introduced `beam.coders.registry.register_row` as preferred API to register a named tuple or dataclass with a Beam Row. At pipelne runtime, the original type associated with the registered row are preserved across the serialization boundary ([#38108](https://github.com/apache/beam/issues/38108)).
+* (Python) Added `type_overrides` parameter to `WriteToBigQuery` allowing users to specify custom BigQuery to Python type mappings when using Storage Write API. This enables support for types like DATE, DATETIME, and JSON (Python) ([#25946](https://github.com/apache/beam/issues/25946)).
+
+## Breaking Changes
+
+* (Python) Made Beartype the default fallback type checking tool. This can be disabled with the `--disable_beartype` pipeline option. ([#38275](https://github.com/apache/beam/issues/38275))
+
+## Deprecations
+
+* Dropped Java 8 support ([#31678](https://github.com/apache/beam/issues/31678)).
+* Removed Samza Runner support ([#35448](https://github.com/apache/beam/issues/35448)).
+
+## Bugfixes
+
+* Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
+* Added `max_batch_duration_secs` passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to `BatchElements` ([#38243](https://github.com/apache/beam/issues/38243)).
+
+# [2.73.0] - 2026-04-29
+
+## Highlights
+
 
 ## I/Os
 
@@ -102,6 +149,7 @@
 
 ## New Features / Improvements
 
+* (Python) Added BigQuery CDC streaming source ([#37724](https://github.com/apache/beam/issues/37724))
 * Added `ADKAgentModelHandler` for running Google Agent Development Kit (ADK) agents (Python) ([#37917](https://github.com/apache/beam/issues/37917)).
 * (Python) Added exception chaining to preserve error context in CloudSQLEnrichmentHandler, processes utilities, and core transforms ([#37422](https://github.com/apache/beam/issues/37422)).
 * (Python) Added a pipeline option `--experiments=pip_no_build_isolation` to disable build isolation when installing dependencies in the runtime environment ([#37331](https://github.com/apache/beam/issues/37331)).
@@ -115,6 +163,7 @@
 ## Breaking Changes
 
 * The Python SDK container's `boot.go` now passes pipeline options through a file instead of the `PIPELINE_OPTIONS` environment variable. If a user pairs a new Python SDK container with an older SDK version (which does not support the file-based approach), the pipeline options will not be recognized and the pipeline will fail. Users must ensure their SDK and container versions are synchronized ([#37370](https://github.com/apache/beam/issues/37370)).
+* Python DoFn.with_exception_handling now respects user DoFn typehints. This can break update compatibility if coders change. It can also break pipeline compilation if existing typehints are incorrect. To update safely sepcify the pipeline option `--update_compatibility_version=2.72.0`. To fix typehints replace any incorrect typehints that were previously ignored ([#37590](https://github.com/apache/beam/issues/37590))
 
 ## Bugfixes
 

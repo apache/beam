@@ -43,7 +43,6 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
 from apache_beam.runners.pipeline_utils import merge_common_environments
 from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
@@ -56,6 +55,13 @@ from apache_beam.utils import processes
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from google.cloud import dataflow as dataflow_api
+except ImportError:
+  dataflow_api = None  # type: ignore
+# pylint: enable=wrong-import-order, wrong-import-position
+
 if TYPE_CHECKING:
   from apache_beam.pipeline import PTransformOverride
 
@@ -65,7 +71,7 @@ _LOGGER = logging.getLogger(__name__)
 
 BQ_SOURCE_UW_ERROR = (
     'The Read(BigQuerySource(...)) transform is not supported with newer stack '
-    'features (Fn API, Dataflow Runner V2, etc). Please use the transform '
+    'features (Fn API, Dataflow Portable Runner, etc). Please use the transform '
     'apache_beam.io.gcp.bigquery.ReadFromBigQuery instead.')
 
 
@@ -149,29 +155,30 @@ class DataflowRunner(PipelineRunner):
     while True:
       response = runner.dataflow_client.get_job(job_id)
       # If get() is called very soon after Create() the response may not contain
-      # an initialized 'currentState' field.
-      if response.currentState is not None:
-        if response.currentState != last_job_state:
+      # an initialized 'current_state' field.
+      if response.current_state is not None:
+        current_state = response.current_state.name
+        if current_state != last_job_state:
           if state_update_callback:
-            state_update_callback(response.currentState)
-          _LOGGER.info('Job %s is in state %s', job_id, response.currentState)
-          last_job_state = response.currentState
-        if str(response.currentState) not in ('JOB_STATE_RUNNING',
-                                              'JOB_STATE_PAUSED',
-                                              'JOB_STATE_PAUSING'):
+            state_update_callback(current_state)
+          _LOGGER.info('Job %s is in state %s', job_id, current_state)
+          last_job_state = current_state
+        if str(current_state) not in ('JOB_STATE_RUNNING',
+                                      'JOB_STATE_PAUSED',
+                                      'JOB_STATE_PAUSING'):
           # Stop checking for new messages on timeout, explanatory
           # message received, success, or a terminal job state caused
           # by the user that therefore doesn't require explanation.
           if (final_countdown_timer_secs <= 0.0 or last_error_msg is not None or
-              str(response.currentState) == 'JOB_STATE_DONE' or
-              str(response.currentState) == 'JOB_STATE_CANCELLED' or
-              str(response.currentState) == 'JOB_STATE_UPDATED' or
-              str(response.currentState) == 'JOB_STATE_DRAINED'):
+              str(current_state) == 'JOB_STATE_DONE' or
+              str(current_state) == 'JOB_STATE_CANCELLED' or
+              str(current_state) == 'JOB_STATE_UPDATED' or
+              str(current_state) == 'JOB_STATE_DRAINED'):
             break
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.currentState)
+          if (str(current_state)
               not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
@@ -185,7 +192,11 @@ class DataflowRunner(PipelineRunner):
         messages, page_token = runner.dataflow_client.list_messages(
             job_id, page_token=page_token, start_time=last_message_time)
         for m in messages:
-          message = '%s: %s: %s' % (m.time, m.messageImportance, m.messageText)
+          message_importance = (
+              dataflow_api.JobMessageImportance(m.message_importance).name
+              if m.message_importance is not None else
+              'JOB_MESSAGE_IMPORTANCE_UNKNOWN')
+          message = '%s: %s: %s' % (m.time, message_importance, m.message_text)
 
           if not last_message_time or m.time > last_message_time:
             last_message_time = m.time
@@ -199,9 +210,8 @@ class DataflowRunner(PipelineRunner):
           else:
             current_seen_messages.add(message)
           # Skip empty messages.
-          if m.messageImportance is None:
+          if m.message_importance is None:
             continue
-          message_importance = str(m.messageImportance)
           if (message_importance == 'JOB_MESSAGE_DEBUG' or
               message_importance == 'JOB_MESSAGE_DETAILED'):
             _LOGGER.debug(message)
@@ -211,9 +221,9 @@ class DataflowRunner(PipelineRunner):
             _LOGGER.warning(message)
           elif message_importance == 'JOB_MESSAGE_ERROR':
             _LOGGER.error(message)
-            if rank_error(m.messageText) >= last_error_rank:
-              last_error_rank = rank_error(m.messageText)
-              last_error_msg = m.messageText
+            if rank_error(m.message_text) >= last_error_rank:
+              last_error_rank = rank_error(m.message_text)
+              last_error_msg = m.message_text
           else:
             _LOGGER.info(message)
         if not page_token:
@@ -320,7 +330,7 @@ class DataflowRunner(PipelineRunner):
             raise ValueError(
                 'CombineFn.setup and CombineFn.teardown are '
                 'not supported with non-portable Dataflow '
-                'runner. Please use Dataflow Runner V2 instead.')
+                'runner. Please use Dataflow Portable Runner instead.')
 
       @staticmethod
       def _overrides_setup_or_teardown(combinefn):
@@ -342,7 +352,7 @@ class DataflowRunner(PipelineRunner):
     """Remotely executes entire pipeline or parts reachable from node."""
     if _is_runner_v2_disabled(options):
       raise ValueError(
-          'Disabling Runner V2 no longer supported '
+          'Disabling Dataflow Portable Runner no longer supported '
           'using Beam Python %s.' % beam.version.__version__)
 
     # Label goog-dataflow-notebook if job is started from notebook.
@@ -591,6 +601,8 @@ def _add_runner_v2_missing_options(options):
   debug_options.add_experiment('use_unified_worker')
   debug_options.add_experiment('use_runner_v2')
   debug_options.add_experiment('use_portable_job_submission')
+  # enable_portable_runner is not added by default as it is not documented.
+  # This behavior will be fixed in later versions.
 
 
 def _check_and_add_missing_options(options):
@@ -648,8 +660,8 @@ def _check_and_add_missing_streaming_options(options):
 
   :param options: PipelineOptions for this pipeline.
   """
-  # Streaming only supports using runner v2 (aka unified worker).
-  # Runner v2 only supports using streaming engine (aka windmill service)
+  # Streaming only supports using Dataflow Portable Runner (aka unified worker, runner v2).
+  # Dataflow Portable Runner only supports using streaming engine (aka windmill service)
   if options.view_as(StandardOptions).streaming:
     debug_options = options.view_as(DebugOptions)
     debug_options.add_experiment('enable_streaming_engine')
@@ -659,9 +671,11 @@ def _check_and_add_missing_streaming_options(options):
 def _is_runner_v2_disabled(options):
   # Type: (PipelineOptions) -> bool
 
-  """Returns true if runner v2 is disabled."""
+  """Returns true if Dataflow Portable Runner is disabled."""
   debug_options = options.view_as(DebugOptions)
   return (
+      debug_options.lookup_experiment('disable_portable_runner') or
+      debug_options.lookup_experiment('enable_streaming_java_runner') or
       debug_options.lookup_experiment('disable_runner_v2') or
       debug_options.lookup_experiment('disable_runner_v2_until_2023') or
       debug_options.lookup_experiment('disable_runner_v2_until_v2.50') or
@@ -733,7 +747,7 @@ class DataflowPipelineResult(PipelineResult):
 
   @staticmethod
   def api_jobstate_to_pipeline_state(api_jobstate):
-    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    values_enum = dataflow_api.JobState
 
     # Ordered by the enum values. Values that may be introduced in
     # future versions of Dataflow API are considered UNRECOGNIZED by this SDK.
@@ -762,7 +776,7 @@ class DataflowPipelineResult(PipelineResult):
         if api_jobstate else PipelineState.UNKNOWN)
 
   def _get_job_state(self):
-    return self.api_jobstate_to_pipeline_state(self._job.currentState)
+    return self.api_jobstate_to_pipeline_state(self._job.current_state)
 
   @property
   def state(self):

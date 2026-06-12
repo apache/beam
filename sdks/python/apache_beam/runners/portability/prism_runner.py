@@ -154,9 +154,13 @@ class PrismRunnerLogFilter(logging.Filter):
           record.msg = json_record["sdk"]["msg"]
         else:
           record.name = "PrismRunner"
-          record.msg = (
-              f"{json_record['msg']} "
-              f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
+          formatted_extras = []
+          for k, v in extras.items():
+            if isinstance(v, str) and '\n' in v:
+              formatted_extras.append(f"\n{k}:\n{v}")
+            else:
+              formatted_extras.append(f"{k}={v!r}")
+          record.msg = f"{json_record['msg']} ({', '.join(formatted_extras)})"
       except (json.JSONDecodeError,
               KeyError,
               ValueError,
@@ -480,14 +484,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     return self._prepare_executable(local_path, self.BIN_CACHE, ignore_cache)
 
-  def subprocess_cmd_and_endpoint(
-      self) -> typing.Tuple[typing.List[typing.Any], str]:
+  def subprocess_cmd_and_endpoint(self) -> tuple[list[typing.Any], str]:
     bin_path = self._get_executable_path()
     job_port, = subprocess_server.pick_port(self._job_port)
     subprocess_cmd = [bin_path] + self.prism_arguments(job_port)
     return (subprocess_cmd, f"localhost:{job_port}")
 
-  def prism_arguments(self, job_port) -> typing.List[typing.Any]:
+  def prism_arguments(self, job_port) -> list[typing.Any]:
     return [
         '--job_port',
         job_port,

@@ -106,7 +106,7 @@ public class UngroupedShuffleReaderTest {
       for (boolean more = iter.start(); more; more = iter.advance()) {
         WindowedValue<Integer> elem = iter.getCurrent();
         Assert.assertEquals(timestamp, elem.getTimestamp());
-        Assert.assertEquals(Lists.newArrayList(window), elem.getWindows());
+        Assert.assertEquals(Lists.newArrayList(window), Lists.newArrayList(elem.getWindows()));
         actual.add(elem.getValue());
       }
       Assert.assertFalse(iter.advance());

@@ -626,4 +626,23 @@ public class RowCoderTest {
     Row decoded = RowCoder.of(schema2).decode(new ByteArrayInputStream(os.toByteArray()));
     assertEquals(expected, decoded);
   }
+
+  @Test
+  public void testStaticEncoding() throws Exception {
+    Schema schema =
+        Schema.builder()
+            .addInt32Field("f_int32")
+            .addStringField("f_string")
+            .setOptions(
+                Schema.Options.builder()
+                    .setOption("beam:option:row:static_encoding", FieldType.BOOLEAN, true)
+                    .build())
+            .build();
+    Row row = Row.withSchema(schema).addValues(42, "hello world!").build();
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    RowCoder.of(schema).encode(row, bos);
+    assertEquals(14, bos.toByteArray().length);
+
+    CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
+  }
 }

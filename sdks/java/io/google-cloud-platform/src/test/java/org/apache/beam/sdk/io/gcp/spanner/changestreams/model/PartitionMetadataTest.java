@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.Timestamp;
@@ -40,6 +41,7 @@ public class PartitionMetadataTest {
   private static final Timestamp SCHEDULED_AT = Timestamp.ofTimeSecondsAndNanos(5, 5);
   private static final Timestamp RUNNING_AT = Timestamp.ofTimeSecondsAndNanos(6, 6);
   private static final Timestamp FINISHED_AT = Timestamp.ofTimeSecondsAndNanos(7, 7);
+  private static final String TVF_NAME = "";
 
   @Test
   public void testBuilderDefaultsToInclusiveStartAndExclusiveEnd() {
@@ -55,7 +57,8 @@ public class PartitionMetadataTest {
             CREATED_AT,
             SCHEDULED_AT,
             RUNNING_AT,
-            FINISHED_AT);
+            FINISHED_AT,
+            TVF_NAME);
     PartitionMetadata actualPartitionMetadata =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
@@ -69,6 +72,7 @@ public class PartitionMetadataTest {
             .setScheduledAt(SCHEDULED_AT)
             .setRunningAt(RUNNING_AT)
             .setFinishedAt(FINISHED_AT)
+            .setTvfName(TVF_NAME)
             .build();
 
     assertEquals(expectedPartitionMetadata.hashCode(), actualPartitionMetadata.hashCode());
@@ -90,7 +94,8 @@ public class PartitionMetadataTest {
             Value.COMMIT_TIMESTAMP,
             SCHEDULED_AT,
             RUNNING_AT,
-            FINISHED_AT);
+            FINISHED_AT,
+            TVF_NAME);
     PartitionMetadata actualPartitionMetadata =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
@@ -103,6 +108,7 @@ public class PartitionMetadataTest {
             .setScheduledAt(SCHEDULED_AT)
             .setRunningAt(RUNNING_AT)
             .setFinishedAt(FINISHED_AT)
+            .setTvfName(TVF_NAME)
             .build();
     assertEquals(expectedPartitionMetadata, actualPartitionMetadata);
   }
@@ -206,7 +212,8 @@ public class PartitionMetadataTest {
             CREATED_AT,
             SCHEDULED_AT,
             RUNNING_AT,
-            FINISHED_AT);
+            FINISHED_AT,
+            TVF_NAME);
 
     assertEquals(PARTITION_TOKEN, partitionMetadata.getPartitionToken());
     assertEquals(1, partitionMetadata.getParentTokens().size());
@@ -220,5 +227,48 @@ public class PartitionMetadataTest {
     assertEquals(SCHEDULED_AT, partitionMetadata.getScheduledAt());
     assertEquals(RUNNING_AT, partitionMetadata.getRunningAt());
     assertEquals(FINISHED_AT, partitionMetadata.getFinishedAt());
+    assertEquals(TVF_NAME, partitionMetadata.getTvfName());
+  }
+
+  @Test
+  public void testToBuilder() {
+    PartitionMetadata expectedPartitionMetadata =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken(PARTITION_TOKEN)
+            .setParentTokens(Sets.newHashSet(PARENT_TOKEN))
+            .setStartTimestamp(START_TIMESTAMP)
+            .setEndTimestamp(END_TIMESTAMP)
+            .setHeartbeatMillis(10)
+            .setState(State.RUNNING)
+            .setWatermark(WATERMARK)
+            .setCreatedAt(CREATED_AT)
+            .setScheduledAt(SCHEDULED_AT)
+            .setRunningAt(RUNNING_AT)
+            .setFinishedAt(FINISHED_AT)
+            .setTvfName("my_tvf")
+            .build();
+
+    PartitionMetadata actualPartitionMetadata = expectedPartitionMetadata.toBuilder().build();
+
+    assertEquals(expectedPartitionMetadata, actualPartitionMetadata);
+  }
+
+  @Test
+  public void testEqualsAndHashCodeWithDifferentTvfName() {
+    PartitionMetadata partitionMetadata1 =
+        PartitionMetadata.newBuilder()
+            .setPartitionToken(PARTITION_TOKEN)
+            .setStartTimestamp(START_TIMESTAMP)
+            .setHeartbeatMillis(10)
+            .setState(State.RUNNING)
+            .setWatermark(WATERMARK)
+            .setTvfName("tvf1")
+            .build();
+
+    PartitionMetadata partitionMetadata2 =
+        partitionMetadata1.toBuilder().setTvfName("tvf2").build();
+
+    assertNotEquals(partitionMetadata1, partitionMetadata2);
+    assertNotEquals(partitionMetadata1.hashCode(), partitionMetadata2.hashCode());
   }
 }

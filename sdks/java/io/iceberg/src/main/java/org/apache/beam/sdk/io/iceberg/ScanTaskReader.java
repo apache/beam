@@ -209,10 +209,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       fileScanTasks.clear();
       fileScanTasks = null;
     }
-    if (io != null) {
-      io.close();
-      io = null;
-    }
+    io = null;
   }
 
   @Override

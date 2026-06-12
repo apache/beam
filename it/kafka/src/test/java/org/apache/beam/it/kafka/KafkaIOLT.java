@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotEquals;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
@@ -78,7 +78,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
     kafkaTopic =
         "io-kafka-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
 

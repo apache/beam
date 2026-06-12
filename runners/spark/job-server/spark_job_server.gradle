@@ -28,7 +28,10 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
+def sparkVersion = project.findProperty('spark_version') ?: ''
+
 applyJavaNature(
+  requireJavaVersion: (sparkVersion.startsWith("4") ? org.gradle.api.JavaVersion.VERSION_17 : null),
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
@@ -207,6 +210,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
         // TODO(https://github.com/apache/beam/issues/31231)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+        // Spark does not support side inputs in timers (added in #38363)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSideInputNotReadyTimer'
         for (String test : sickbayTests) {
           excludeTestsMatching test
         }
@@ -304,5 +309,7 @@ createCrossLanguageValidatesRunnerTask(
 )
 
 shadowJar {
-  outputs.upToDateWhen { false }
+  manifest {
+    attributes(["Multi-Release": true])
+  }
 }

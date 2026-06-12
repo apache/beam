@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -1380,6 +1382,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
+    }
+
+    @Override
     public CausedByDrain causedByDrain() {
       return CausedByDrain.NORMAL;
     }
@@ -1401,6 +1408,11 @@ class BatchViewOverrides {
 
     @Override
     public @Nullable String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Context getOpenTelemetryContext() {
       return null;
     }
 

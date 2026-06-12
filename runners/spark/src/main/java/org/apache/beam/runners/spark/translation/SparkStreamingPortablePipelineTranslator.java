@@ -330,7 +330,8 @@ public class SparkStreamingPortablePipelineTranslator
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams = context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
+      unifiedStreams =
+          context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams).toList());
     }
 
     context.pushDataset(

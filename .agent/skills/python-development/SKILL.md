@@ -41,9 +41,9 @@ description: Guides Python SDK development in Apache Beam, including environment
 - `pyproject.toml` - Build configuration
 - `tox.ini` - Test automation
 - `pytest.ini` - Pytest configuration
-- `.pylintrc` - Linting rules
+- `ruff.toml` - Linting rules
 - `.isort.cfg` - Import sorting
-- `mypy.ini` - Type checking
+- `pyrefly.toml` - Type checking
 
 ## Environment Setup
 
@@ -176,10 +176,10 @@ Use `--requirements_file=requirements.txt` or custom containers.
 ## Code Quality Tools
 ```bash
 # Linting
-pylint apache_beam/
+ruff check apache_beam/
 
 # Type checking
-mypy apache_beam/
+pyrefly check apache_beam/
 
 # Formatting (via yapf)
 yapf -i apache_beam/file.py

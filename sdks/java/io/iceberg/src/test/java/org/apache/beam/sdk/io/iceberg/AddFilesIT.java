@@ -455,6 +455,7 @@ public class AddFilesIT {
                     namespace + "." + destTableName,
                     null,
                     PARTITION_FIELDS,
+                    null,
                     TABLE_PROPS,
                     null,
                     null));
@@ -522,6 +523,7 @@ public class AddFilesIT {
                     namespace + "." + destTableName,
                     null,
                     PARTITION_FIELDS,
+                    null,
                     TABLE_PROPS,
                     10,
                     Duration.standardSeconds(10)));

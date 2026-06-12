@@ -26,11 +26,8 @@ import logging
 import os
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Type
 from typing import TypeVar
 
 import apache_beam as beam
@@ -488,7 +485,7 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options=False,
       display_warnings=False,
       current_only=False,
-  ) -> Dict[str, Any]:
+  ) -> dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments into a dictionary.
@@ -629,7 +626,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
-  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
+  def view_as(self, cls: type[PipelineOptionsT]) -> PipelineOptionsT:
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -687,11 +684,11 @@ class PipelineOptions(HasDisplayData):
     v2_parts = (breaking_change_version.split('.') + ['0', '0', '0'])[:3]
     return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
 
-  def _visible_option_list(self) -> List[str]:
+  def _visible_option_list(self) -> list[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self) -> List[str]:
+  def __dir__(self) -> list[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -853,7 +850,7 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks: Dict[str, Callable[[], None]] = {
+additional_type_checks: dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
 }
 
@@ -886,6 +883,20 @@ class TypeOptions(PipelineOptions):
         action='store_false',
         help='Disable type checking at pipeline construction '
         'time')
+    parser.add_argument(
+        '--disable_beartype',
+        default=False,
+        action='store_true',
+        help='Disable the use of beartype for type checking.')
+    parser.add_argument(
+        '--exclude_infer_dataclass_field_type',
+        default=False,
+        action='store_true',
+        help='Exclude certain typehint inference involving dataclass fields '
+        'and resolve to Any (as in beam<=2.74.0). NOTE: this option is '
+        'for backward compatibility only and the exclusion scenarios are '
+        'subject to change or remove in a future version. For details see: '
+        'https://beam.apache.org/releases/pydoc/current/apache_beam.typehints.trivial_inference.html#apache_beam.typehints.trivial_inference.resolve_dataclass_field_type')  # pylint: disable=line-too-long
     parser.add_argument(
         '--runtime_type_check',
         default=False,
@@ -1405,6 +1416,24 @@ class WorkerOptions(PipelineOptions):
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
+    parser.add_argument(
+        '--disk_provisioned_iops',
+        type=int,
+        default=None,
+        dest='disk_provisioned_iops',
+        help=(
+            'The provisioned IOPS of the disk. If not set, the Dataflow service'
+            ' will choose a reasonable default.'),
+    )
+    parser.add_argument(
+        '--disk_provisioned_throughput_mibps',
+        type=int,
+        default=None,
+        dest='disk_provisioned_throughput_mibps',
+        help=(
+            'The provisioned throughput of the disk in MiB/s. If not set, the'
+            ' Dataflow service will choose a reasonable default.'),
+    )
     parser.add_argument(
         '--worker_region',
         default=None,
@@ -2001,7 +2030,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20']
+  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20', '2.0']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -2169,7 +2198,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides: List[Dict[str, Any]] = []
+  overrides: list[dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

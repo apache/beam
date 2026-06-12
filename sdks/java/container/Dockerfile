@@ -24,22 +24,21 @@ ARG TARGETARCH
 
 ARG pull_licenses
 
-ADD target/slf4j-api.jar /opt/apache/beam/jars/
-ADD target/slf4j-jdk14.jar /opt/apache/beam/jars/
-ADD target/jcl-over-slf4j.jar /opt/apache/beam/jars/
-ADD target/log4j-over-slf4j.jar /opt/apache/beam/jars/
-ADD target/log4j-to-slf4j.jar /opt/apache/beam/jars/
-ADD target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
+# Dependency jars
+COPY target/slf4j-api.jar \
+     target/slf4j-jdk14.jar \
+     target/jcl-over-slf4j.jar \
+     target/log4j-over-slf4j.jar \
+     target/log4j-to-slf4j.jar \
+     # Required to use jamm as a javaagent to get accurate object size measuring
+     target/jamm.jar \
+     /opt/apache/beam/jars/
 
-# Required to use jamm as a javaagent to get accurate object size measuring
-# COPY fails if file is not found, so use a wildcard for open-module-agent.jar
-# since it is only included in Java 9+ containers
-COPY target/jamm.jar target/open-module-agent.jar /opt/apache/beam/jars/
+# Built jars
+COPY target/open-module-agent.jar target/beam-sdks-java-harness.jar /opt/apache/beam/jars/
 
-COPY target/${TARGETOS}_${TARGETARCH}/boot /opt/apache/beam/
-
-COPY target/LICENSE /opt/apache/beam/
-COPY target/NOTICE /opt/apache/beam/
+# Built binary with licenses
+COPY target/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE /opt/apache/beam/
 
 # copy third party licenses
 ADD target/third_party_licenses /opt/apache/beam/third_party_licenses/

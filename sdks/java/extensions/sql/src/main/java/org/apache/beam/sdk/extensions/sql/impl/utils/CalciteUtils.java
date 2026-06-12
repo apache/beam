@@ -22,6 +22,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -169,6 +170,31 @@ public class CalciteUtils {
           FieldType.DATETIME, SqlTypeName.TIMESTAMP,
           FieldType.STRING, SqlTypeName.VARCHAR);
 
+  private static final Map<Class<?>, SqlTypeName> JAVA_TO_SQL_TYPE_MAPPING =
+      ImmutableMap.<Class<?>, SqlTypeName>builder()
+          .put(String.class, SqlTypeName.VARCHAR)
+          .put(Integer.class, SqlTypeName.INTEGER)
+          .put(int.class, SqlTypeName.INTEGER)
+          .put(Long.class, SqlTypeName.BIGINT)
+          .put(long.class, SqlTypeName.BIGINT)
+          .put(Double.class, SqlTypeName.DOUBLE)
+          .put(double.class, SqlTypeName.DOUBLE)
+          .put(Float.class, SqlTypeName.FLOAT)
+          .put(float.class, SqlTypeName.FLOAT)
+          .put(Short.class, SqlTypeName.SMALLINT)
+          .put(short.class, SqlTypeName.SMALLINT)
+          .put(Byte.class, SqlTypeName.TINYINT)
+          .put(byte.class, SqlTypeName.TINYINT)
+          .put(Boolean.class, SqlTypeName.BOOLEAN)
+          .put(boolean.class, SqlTypeName.BOOLEAN)
+          .build();
+
+  // Associating FieldType to generated RelDataType objects for Beam logical types. Used for
+  // recovering the original type in output schema after full Beam FieldType->Calcite Type->Beam
+  // FieldType trip
+  private static final Map<RelDataType, FieldType> LOGICAL_TYPE_REL_DATA_MAPPING =
+      new ConcurrentHashMap<>();
+
   /** Generate {@link Schema} from {@code RelDataType} which is used to create table. */
   public static Schema toSchema(RelDataType tableInfo) {
     return tableInfo.getFieldList().stream().map(CalciteUtils::toField).collect(Schema.toSchema());
@@ -254,6 +280,9 @@ public class CalciteUtils {
   }
 
   public static FieldType toFieldType(RelDataType calciteType) {
+    if (LOGICAL_TYPE_REL_DATA_MAPPING.containsKey(calciteType)) {
+      return LOGICAL_TYPE_REL_DATA_MAPPING.get(calciteType);
+    }
     switch (calciteType.getSqlTypeName()) {
       case ARRAY:
       case MULTISET:
@@ -315,6 +344,29 @@ public class CalciteUtils {
         Schema schema = fieldType.getRowSchema();
         Preconditions.checkArgumentNotNull(schema);
         return toCalciteRowType(schema, dataTypeFactory);
+      case LOGICAL_TYPE:
+        Schema.LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+        RelDataType relDataType;
+        if (logicalType instanceof PassThroughLogicalType) {
+          relDataType =
+              toRelDataType(
+                  dataTypeFactory, logicalType.getBaseType().withNullable(fieldType.getNullable()));
+        } else {
+          relDataType = dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
+        }
+        // For backward-compatibility, exclude logical types registered in
+        // CALCITE_TO_BEAM_TYPE_MAPPING,
+        // e.g., primitive types, date time types, etc.
+        SqlTypeName typeName = relDataType.getSqlTypeName();
+        if (typeName != null && !CALCITE_TO_BEAM_TYPE_MAPPING.containsKey(typeName)) {
+          // register both nullable and non-nullable variants.
+          boolean flipNullable = !relDataType.isNullable();
+          LOGICAL_TYPE_REL_DATA_MAPPING.put(relDataType, fieldType);
+          LOGICAL_TYPE_REL_DATA_MAPPING.put(
+              dataTypeFactory.createTypeWithNullability(relDataType, flipNullable),
+              fieldType.withNullable(flipNullable));
+        }
+        return relDataType;
       default:
         return dataTypeFactory.createSqlType(toSqlTypeName(fieldType));
     }
@@ -332,7 +384,9 @@ public class CalciteUtils {
    * SQL-Java type mapping, with specified Beam rules: <br>
    * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
    * 2. For a list, the component type is needed to create a Sql array type. <br>
-   * 3. For a Map, the component type is needed to create a Sql map type.
+   * 3. For a Map, the component type is needed to create a Sql map type. <br>
+   * 4. For standard Java classes (String, Integer, etc.), map them to corresponding Calcite SQL
+   * type with appropriate nullability.
    *
    * @param type
    * @return Calcite RelDataType
@@ -362,6 +416,14 @@ public class CalciteUtils {
               + type
               + ". This is currently unsupported, use List instead "
               + "of Array.");
+    }
+    if (type instanceof Class) {
+      Class<?> clazz = (Class<?>) type;
+      SqlTypeName sqlTypeName = JAVA_TO_SQL_TYPE_MAPPING.get(clazz);
+      if (sqlTypeName != null) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(sqlTypeName), !clazz.isPrimitive());
+      }
     }
     return typeFactory.createJavaType((Class) type);
   }

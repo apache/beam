@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -102,6 +103,11 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    doFnRunner.finishKey(key);
+  }
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     doFnRunner.onWindowExpiration(window, timestamp, key);
   }
@@ -145,7 +151,15 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           } else {
             nonLateElements.add(
                 WindowedValues.of(
-                    element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
+                    element.getValue(),
+                    element.getTimestamp(),
+                    window,
+                    element.getPaneInfo(),
+                    element.getRecordId(),
+                    element.getRecordOffset(),
+                    element.causedByDrain(),
+                    element.getOpenTelemetryContext(),
+                    element.getValueKind()));
           }
         }
       }

@@ -57,8 +57,11 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CausedByDrainParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordIdParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.CurrentRecordOffsetParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FireTimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
@@ -100,6 +103,37 @@ import org.junit.runners.JUnit4;
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class DoFnSignaturesTest {
+
+  @Test
+  public void testRecordIdOnTimerError() throws Exception {
+    final String timerId = "some-timer-id";
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Illegal parameter type");
+    thrown.expectMessage("CurrentRecordIdParameter");
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @TimerId(timerId)
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void process(ProcessContext c) {}
+
+          @OnTimer(timerId)
+          public void onTimer(@DoFn.CurrentRecordId String id) {}
+        }.getClass());
+  }
+
+  @Test
+  public void testFireTimestampOnProcessElementError() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Illegal parameter type");
+    thrown.expectMessage("FireTimestampParameter");
+    DoFnSignatures.getSignature(
+        new DoFn<String, String>() {
+          @ProcessElement
+          public void process(@FireTimestamp Instant ts) {}
+        }.getClass());
+  }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -151,6 +185,24 @@ public class DoFnSignaturesTest {
         sig.processElement().extraParameters().get(8), instanceOf(BundleFinalizerParameter.class));
     assertThat(
         sig.processElement().extraParameters().get(9), instanceOf(CausedByDrainParameter.class));
+  }
+
+  @Test
+  public void testProcessElementRecordIdAndOffset() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @ProcessElement
+              public void process(
+                  @DoFn.CurrentRecordId String id, @DoFn.CurrentRecordOffset Long offset) {}
+            }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(2));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(CurrentRecordIdParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(1),
+        instanceOf(CurrentRecordOffsetParameter.class));
   }
 
   @Test
@@ -645,6 +697,30 @@ public class DoFnSignaturesTest {
     assertThat(
         sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(2),
         instanceOf(WindowParameter.class));
+  }
+
+  @Test
+  public void testFireTimestampOnTimer() throws Exception {
+    final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
+
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<String, String>() {
+              @TimerId(timerId)
+              private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void process(ProcessContext c) {}
+
+              @OnTimer(timerId)
+              public void onTimer(@FireTimestamp Instant fireTimestamp) {}
+            }.getClass());
+
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
+        instanceOf(FireTimestampParameter.class));
   }
 
   @Test
@@ -1346,16 +1422,20 @@ public class DoFnSignaturesTest {
                   @StateId("foo") ValueState<Integer> s,
                   PipelineOptions p,
                   OutputReceiver<String> o,
-                  MultiOutputReceiver m) {}
+                  MultiOutputReceiver m,
+                  OnWindowExpirationContext c) {}
             }.getClass());
 
     List<Parameter> params = sig.onWindowExpiration().extraParameters();
-    assertThat(params.size(), equalTo(5));
+    assertThat(params.size(), equalTo(6));
     assertThat(params.get(0), instanceOf(WindowParameter.class));
     assertThat(params.get(1), instanceOf(StateParameter.class));
     assertThat(params.get(2), instanceOf(PipelineOptionsParameter.class));
     assertThat(params.get(3), instanceOf(OutputReceiverParameter.class));
     assertThat(params.get(4), instanceOf(TaggedOutputReceiverParameter.class));
+    assertThat(
+        params.get(5),
+        instanceOf(DoFnSignature.Parameter.OnWindowExpirationContextParameter.class));
   }
 
   private interface FeatureTest {

@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections
 import collections.abc
 import dataclasses
@@ -83,7 +84,12 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Mapping,
 ]
 
-_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
+_CONVERTED_MODULES = (
+    'typing',
+    'collections',
+    'collections.abc',
+    'annotationlib',
+)
 
 
 def _get_args(typ):
