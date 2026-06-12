@@ -1696,7 +1696,7 @@ public class BigQueryIOWriteTest implements Serializable {
     thrown.expectMessage("More than");
     thrown.expectMessage("attempts to call AppendRows failed");
     thrown.expectMessage("PERMISSION_DENIED");
-    thrown.expectMessage("TABLES_UPDATE_DATA");
+    thrown.expectMessage("bigquery.tables.updateData");
 
     p.run().waitUntilFinish();
   }
