@@ -149,11 +149,15 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   public T extractOutput(VarianceAccumulator accumulator) {
     BigDecimal result = getVariance(accumulator);
     if (result != null && isStddev) {
-      // Take the square root in IEEE double precision so the result matches Spark / numpy bit for
-      // bit (both compute stddev as Math.sqrt over a double). BigDecimal.sqrt(MATH_CTX) would round
-      // to 10 significant digits and fail the test harness's exact comparison of standard
-      // deviation.
-      result = BigDecimal.valueOf(Math.sqrt(result.doubleValue()));
+      double doubleVal = result.doubleValue();
+      if (doubleVal < 0.0) {
+        doubleVal = 0.0; // Clamp negative variance due to numerical instability
+      }
+      double sqrtVal = Math.sqrt(doubleVal);
+      if (Double.isInfinite(sqrtVal)) {
+        throw new ArithmeticException("Standard deviation overflow: result is infinity");
+      }
+      result = BigDecimal.valueOf(sqrtVal);
     }
     return decimalConverter.apply(result);
   }
