@@ -31,6 +31,15 @@ configurations.runtimeClasspath {
   // Pin avro to 1.11.4 due to https://github.com/apache/beam/issues/34968
   // cannot upgrade this to the latest version due to https://github.com/apache/beam/issues/34993
   resolutionStrategy.force 'org.apache.avro:avro:1.11.4'
+
+  // Force jetty-http to a newer version to remediate a vulnerability in Jetty 9.
+  // It is a transitive dependency of Hadoop.
+  // This may cause runtime errors if we trigger Hadoop codepaths where this dep is used.
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group == 'org.eclipse.jetty' && details.requested.name == 'jetty-http') {
+      details.useVersion('12.0.12')
+    }
+  }
 }
 
 description = "Apache Beam :: SDKs :: Java :: SQL :: Expansion Service"
