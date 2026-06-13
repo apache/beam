@@ -53,6 +53,21 @@
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
 
+- gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+  destinations:
+    python: 'apache_beam/io'
+  transforms:
+    'beam:schematransform:org.apache.beam:mqtt_write:v1':
+      name: 'WriteToMqtt'
+    'beam:schematransform:org.apache.beam:mqtt_read:v1':
+      name: 'ReadFromMqtt'
+  skip_transforms:
+    # Core SchemaTransforms bundled via :sdks:java:expansion-service; already
+    # generated from the Java IO expansion service above.
+    - 'beam:schematransform:org.apache.beam:generate_sequence:v1'
+    - 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
+    - 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+
 # TODO(ahmedabu98): Enable this service in a future PR
 #- gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 #  destinations:
