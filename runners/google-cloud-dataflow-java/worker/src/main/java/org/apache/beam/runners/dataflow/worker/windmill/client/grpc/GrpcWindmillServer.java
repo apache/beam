@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -110,16 +111,20 @@ public final class GrpcWindmillServer extends WindmillServerStub {
       boolean enableStreamingEngine, List<String> additionalExperiments) {
     DataflowWorkerHarnessOptions options =
         PipelineOptionsFactory.create().as(DataflowWorkerHarnessOptions.class);
+    // Ensure the experiments list is mutable before any experiments are added.
+    if (options.getExperiments() != null) {
+      options.setExperiments(new ArrayList<>(options.getExperiments()));
+    }
     options.setProject("project");
     options.setJobId("job");
     options.setWorkerId("worker");
-    List<String> experiments =
-        options.getExperiments() == null ? new ArrayList<>() : options.getExperiments();
+
     if (enableStreamingEngine) {
-      experiments.add(GcpOptions.STREAMING_ENGINE_EXPERIMENT);
+      ExperimentalOptions.addExperiment(options, GcpOptions.STREAMING_ENGINE_EXPERIMENT);
     }
-    experiments.addAll(additionalExperiments);
-    options.setExperiments(experiments);
+    for (String experiment : additionalExperiments) {
+      ExperimentalOptions.addExperiment(options, experiment);
+    }
 
     options.setWindmillServiceStreamingRpcBatchLimit(Integer.MAX_VALUE);
     options.setWindmillServiceStreamingRpcHealthCheckPeriodMs(NO_HEALTH_CHECK);
