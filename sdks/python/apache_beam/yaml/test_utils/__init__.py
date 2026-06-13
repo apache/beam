@@ -15,20 +15,4 @@
 # limitations under the License.
 #
 
-"""Common imports for generated dataflow client library."""
-# pylint:disable=wildcard-import
-
-import pkgutil
-
-# Protect against environments where apitools library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
-try:
-  from apitools.base.py import *
-
-  from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_client import *
-  from apache_beam.runners.dataflow.internal.clients.dataflow.dataflow_v1b3_messages import *
-except ImportError:
-  pass
-# pylint: enable=wrong-import-order, wrong-import-position
-
-__path__ = pkgutil.extend_path(__path__, __name__)
+"""Helper utilities for YAML integration tests."""

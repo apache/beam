@@ -10,6 +10,28 @@ See the License for the specific language governing permissions and
 limitations under the License. See accompanying LICENSE file.
 */}}
 
+{{ if eq .Ordinal 0 }}
+<script>
+  window.addEventListener('click', e => {
+    if (e.target.matches('.tab-switcher li')) {
+        e.stopPropagation();
+
+        e.target.closest('ul').querySelectorAll('li').forEach(li => li.classList.remove('active'));
+        e.target.classList.add('active');
+
+        let val = e.target.getAttribute('data-value');
+        let box = e.target.closest('.tab-switcher').nextElementSibling;
+
+        while (box && box.className.startsWith('tab-')) {
+            box.style.display = box.classList.contains('tab-' + val) ? 'block' : 'none';
+            box = box.nextElementSibling;
+        }
+    }
+  }, true);
+</script>
+{{ end }}
+
+{{/* --- 2. Your Normal Content Box --- */}}
 {{ $content := (trim .Inner "\n\r") | htmlUnescape | safeHTML }}
 {{ $ctx := . }}
 {{ $language := .Get 0 }}

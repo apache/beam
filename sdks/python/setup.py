@@ -166,6 +166,7 @@ dataframe_dependency = [
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
+qdrant_dependency = ['qdrant-client>=1.15.0']
 
 # google-adk / OpenTelemetry require protobuf>=5; tensorflow-transform in
 # ml_test is pinned to versions that require protobuf<5 on Python 3.10. Those
@@ -508,7 +509,7 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0,<1.8.0',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<3.0',
-              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
+              'testcontainers[mysql,kafka,milvus,qdrant]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               # TODO(https://github.com/apache/beam/issues/36951): need to
               # further investigate the cause
@@ -525,14 +526,12 @@ if __name__ == '__main__':
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.35; python_version >= "3.13"',
-              # NOTE: Maintainers, please do not require google-auth>=2.x.x
-              # Until this issue is closed
-              # https://github.com/googleapis/google-cloud-python/issues/10566
-              'google-auth>=1.18.0,<3',
+              'google-auth>=2.0.0,<3',
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -607,14 +606,14 @@ if __name__ == '__main__':
               'tf2onnx>=1.16.1,<1.17',
           ] + ml_base_core,
           'p310_ml_test': [
-              'datatable',
-          ] + ml_base,
+            'datatable',
+          ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',
-          ] + ml_base,
+          ] + ml_base + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
-          'p313_ml_test': ml_base + milvus_dependency,
+          'p313_ml_test': ml_base + milvus_dependency + qdrant_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -638,8 +637,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # https://github.com/PiotrDabkowski/Js2Py/issues/317
-              'js2py>=0.74,<1; python_version<"3.12"',
+              'quickjs-ng>=0.14.0,<1.0.0',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
@@ -686,6 +684,7 @@ if __name__ == '__main__':
           'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
           'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0'],
           'milvus': milvus_dependency,
+          'qdrant': qdrant_dependency,
           'vllm': ['openai==1.107.1', 'vllm==0.10.1.1', 'triton==3.3.1']
       },
       zip_safe=False,
