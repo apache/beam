@@ -72,7 +72,6 @@ shadowJar {
     attributes(["Multi-Release": true])
   }
   mergeServiceFiles()
-  outputs.upToDateWhen { false }
 }
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
