@@ -1458,6 +1458,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
+        'model_identifier': self._model_tag,
         **super().annotations()
     }
 
