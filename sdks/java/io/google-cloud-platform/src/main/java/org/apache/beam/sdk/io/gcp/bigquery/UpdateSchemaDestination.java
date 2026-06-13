@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -40,29 +40,37 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Update destination schema based on data that is about to be copied into it.
  *
- * <p>Unlike load and query jobs, BigQuery copy jobs do not support schema field addition or
- * relaxation on the destination table. This DoFn fills that gap by updating the destination table
- * schemas to be compatible with the data coming from the source table so that schemaUpdateOptions
- * are respected regardless of whether data is loaded directly to the destination table or loaded
+ * <p>
+ * Unlike load and query jobs, BigQuery copy jobs do not support schema field
+ * addition or
+ * relaxation on the destination table. This DoFn fills that gap by updating the
+ * destination table
+ * schemas to be compatible with the data coming from the source table so that
+ * schemaUpdateOptions
+ * are respected regardless of whether data is loaded directly to the
+ * destination table or loaded
  * into temporary tables before being copied into the destination.
  *
- * <p>This transform takes as input a list of KV(destination, WriteTables.Result) and emits a list
- * of KV(TableDestination, WriteTables.Result) where the destination label is parsed and replaced to
+ * <p>
+ * This transform takes as input a list of KV(destination, WriteTables.Result)
+ * and emits a list
+ * of KV(TableDestination, WriteTables.Result) where the destination label is
+ * parsed and replaced to
  * TableDestination objects.
  */
 public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
-    extends DoFn<
-        Iterable<KV<DestinationT, WriteTables.Result>>,
-        Iterable<KV<TableDestination, WriteTables.Result>>> {
+    extends DoFn<Iterable<KV<DestinationT, WriteTables.Result>>, Iterable<KV<TableDestination, WriteTables.Result>>> {
 
   private static final Logger LOG = LoggerFactory.getLogger(UpdateSchemaDestination.class);
   private final BigQueryServices bqServices;
@@ -71,7 +79,7 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
   private transient @Nullable DatasetService datasetService;
   private final int maxRetryJobs;
   private final @Nullable String kmsKey;
-  private @Nullable BigQueryServices.JobService jobService;
+  private BigQueryServices.@Nullable JobService jobService;
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
   private final BigQueryIO.Write.WriteDisposition writeDisposition;
   private final BigQueryIO.Write.CreateDisposition createDisposition;
@@ -149,15 +157,21 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       DestinationT destination = entry.getKey();
       TableDestination tableDestination = getTableWithDefaultProject(destination);
       outputs.add(KV.of(tableDestination, entry.getValue()));
-      @Nullable TableReference cloneSource = dynamicDestinations.getCloneSource(destination);
+      @Nullable
+      TableReference cloneSource = dynamicDestinations.getCloneSource(destination);
       if (cloneSource != null
           && createDisposition != BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+        Supplier<@Nullable TableSchema> schemaSupplier = () -> dynamicDestinations.getSchema(destination);
+        Supplier<@Nullable TableConstraints> tableConstraintsSupplier = () -> dynamicDestinations
+            .getTableConstraints(destination);
+        Supplier<@Nullable TableReference> cloneSourceSupplier = () -> cloneSource;
+
         CreateTableHelpers.possiblyCreateTable(
             context.getPipelineOptions().as(BigQueryOptions.class),
             tableDestination,
-            () -> dynamicDestinations.getSchema(destination),
-            () -> dynamicDestinations.getTableConstraints(destination),
-            () -> cloneSource,
+            schemaSupplier,
+            tableConstraintsSupplier,
+            cloneSourceSupplier,
             createDisposition,
             dynamicDestinations.getDestinationCoder(),
             kmsKey,
@@ -170,24 +184,22 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       }
       TableSchema schema = dynamicDestinations.getSchema(destination);
       TableReference tableReference = tableDestination.getTableReference();
-      String jobIdPrefix =
-          BigQueryResourceNaming.createJobIdWithDestination(
-              context.sideInput(zeroLoadJobIdPrefixView),
-              tableDestination,
-              1,
-              context.pane().getIndex());
-      BigQueryHelpers.PendingJob updateSchemaDestinationJob =
-          startZeroLoadJob(
-              getJobService(context.getPipelineOptions().as(BigQueryOptions.class)),
-              getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class)),
-              jobIdPrefix,
-              tableReference,
-              tableDestination.getTimePartitioning(),
-              tableDestination.getClustering(),
-              schema,
-              writeDisposition,
-              createDisposition,
-              schemaUpdateOptions);
+      String jobIdPrefix = BigQueryResourceNaming.createJobIdWithDestination(
+          context.sideInput(zeroLoadJobIdPrefixView),
+          tableDestination,
+          1,
+          context.pane().getIndex());
+      BigQueryHelpers.PendingJob updateSchemaDestinationJob = startZeroLoadJob(
+          getJobService(context.getPipelineOptions().as(BigQueryOptions.class)),
+          getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class)),
+          jobIdPrefix,
+          tableReference,
+          tableDestination.getTimePartitioning(),
+          tableDestination.getClustering(),
+          schema,
+          writeDisposition,
+          createDisposition,
+          schemaUpdateOptions);
       if (updateSchemaDestinationJob != null) {
         pendingJobs.put(
             destination, new PendingJobData(updateSchemaDestinationJob, tableDestination));
@@ -220,27 +232,25 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws Exception {
-    DatasetService datasetService =
-        getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
+    DatasetService datasetService = getDatasetService(context.getPipelineOptions().as(BigQueryOptions.class));
     BigQueryHelpers.PendingJobManager jobManager = new BigQueryHelpers.PendingJobManager();
     for (final PendingJobData pendingJobData : pendingJobs.values()) {
-      jobManager =
-          jobManager.addPendingJob(
-              pendingJobData.retryJob,
-              j -> {
-                try {
-                  if (pendingJobData.tableDestination.getTableDescription() != null) {
-                    TableReference ref = pendingJobData.tableDestination.getTableReference();
-                    datasetService.patchTableDescription(
-                        ref.clone()
-                            .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
-                        pendingJobData.tableDestination.getTableDescription());
-                  }
-                } catch (IOException | InterruptedException e) {
-                  return e;
-                }
-                return null;
-              });
+      jobManager = jobManager.addPendingJob(
+          pendingJobData.retryJob,
+          j -> {
+            try {
+              if (pendingJobData.tableDestination.getTableDescription() != null) {
+                TableReference ref = pendingJobData.tableDestination.getTableReference();
+                datasetService.patchTableDescription(
+                    ref.clone()
+                        .setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                    pendingJobData.tableDestination.getTableDescription());
+              }
+            } catch (IOException | InterruptedException e) {
+              return e;
+            }
+            return null;
+          });
     }
     jobManager.waitForDone();
   }
@@ -256,22 +266,20 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       BigQueryIO.Write.WriteDisposition writeDisposition,
       BigQueryIO.Write.CreateDisposition createDisposition,
       Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions) {
-    JobConfigurationLoad loadConfig =
-        new JobConfigurationLoad()
-            .setDestinationTable(tableReference)
-            .setWriteDisposition(writeDisposition.name())
-            .setCreateDisposition(createDisposition.name())
-            .setSourceFormat("NEWLINE_DELIMITED_JSON");
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad()
+        .setDestinationTable(tableReference)
+        .setWriteDisposition(writeDisposition.name())
+        .setCreateDisposition(createDisposition.name())
+        .setSourceFormat("NEWLINE_DELIMITED_JSON");
     if (schemaUpdateOptions != null) {
-      List<String> options =
-          schemaUpdateOptions.stream()
-              .map(BigQueryIO.Write.SchemaUpdateOption::name)
-              .collect(Collectors.toList());
+      List<String> options = schemaUpdateOptions.stream()
+          .map(BigQueryIO.Write.SchemaUpdateOption::name)
+          .collect(Collectors.toList());
       loadConfig.setSchemaUpdateOptions(options);
     }
     if (!loadConfig
-            .getWriteDisposition()
-            .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
+        .getWriteDisposition()
+        .equals(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE.toString())
         && !loadConfig
             .getWriteDisposition()
             .equals(BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString())) {
@@ -287,7 +295,8 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       LOG.warn("Failed to get table {} with {}", tableReference, e.toString());
       throw new RuntimeException(e);
     }
-    // no need to update schema ahead if provided schema already matches destination schema
+    // no need to update schema ahead if provided schema already matches destination
+    // schema
     // or when destination schema is null (the write will set the schema)
     // or when provided schema is null (e.g. when using CREATE_NEVER disposition)
     TableSchema destinationSchema = destinationTable.getSchema();
@@ -310,65 +319,59 @@ public class UpdateSchemaDestination<DestinationT extends @NonNull Object>
       loadConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
-    String projectId =
-        loadJobProjectId == null || loadJobProjectId.get() == null
-            ? tableReference.getProjectId()
-            : loadJobProjectId.get();
-    String bqLocation =
-        BigQueryHelpers.getDatasetLocation(
-            datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
+    String projectId = loadJobProjectId == null || loadJobProjectId.get() == null
+        ? tableReference.getProjectId()
+        : loadJobProjectId.get();
+    String bqLocation = BigQueryHelpers.getDatasetLocation(
+        datasetService, tableReference.getProjectId(), tableReference.getDatasetId());
 
-    BigQueryHelpers.PendingJob retryJob =
-        new BigQueryHelpers.PendingJob(
-            // Function to load the data.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              LOG.info(
-                  "Loading zero rows using job {}, job id {} iteration {}",
-                  tableReference,
-                  jobRef,
-                  jobId.getRetryIndex());
-              try {
-                jobService.startLoadJob(
-                    jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
-              } catch (IOException | InterruptedException e) {
-                LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
-                throw new RuntimeException(e);
-              }
-              return null;
-            },
-            // Function to poll the result of a load job.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              try {
-                return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
-              } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-              }
-            },
-            // Function to lookup a job.
-            jobId -> {
-              JobReference jobRef =
-                  new JobReference()
-                      .setProjectId(projectId)
-                      .setJobId(jobId.getJobId())
-                      .setLocation(bqLocation);
-              try {
-                return jobService.getJob(jobRef);
-              } catch (InterruptedException | IOException e) {
-                throw new RuntimeException(e);
-              }
-            },
-            maxRetryJobs,
-            jobIdPrefix);
+    BigQueryHelpers.PendingJob retryJob = new BigQueryHelpers.PendingJob(
+        // Function to load the data.
+        jobId -> {
+          JobReference jobRef = new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          LOG.info(
+              "Loading zero rows using job {}, job id {} iteration {}",
+              tableReference,
+              jobRef,
+              jobId.getRetryIndex());
+          try {
+            jobService.startLoadJob(
+                jobRef, loadConfig, new ByteArrayContent("text/plain", new byte[0]));
+          } catch (IOException | InterruptedException e) {
+            LOG.warn("Schema update load job {} failed with {}", jobRef, e.toString());
+            throw new RuntimeException(e);
+          }
+          return null;
+        },
+        // Function to poll the result of a load job.
+        jobId -> {
+          JobReference jobRef = new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          try {
+            return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+        },
+        // Function to lookup a job.
+        jobId -> {
+          JobReference jobRef = new JobReference()
+              .setProjectId(projectId)
+              .setJobId(jobId.getJobId())
+              .setLocation(bqLocation);
+          try {
+            return jobService.getJob(jobRef);
+          } catch (InterruptedException | IOException e) {
+            throw new RuntimeException(e);
+          }
+        },
+        maxRetryJobs,
+        jobIdPrefix);
     return retryJob;
   }
 

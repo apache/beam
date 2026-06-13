@@ -266,60 +266,68 @@ public class CreateTableHelpers {
       @Nullable String kmsKey,
       String tableSpec)
       throws Exception {
-    TableReference source = withDefaultProject(options, cloneSource);
-    JobConfigurationTableCopy copyConfig = new JobConfigurationTableCopy()
-        .setSourceTables(Collections.singletonList(source))
-        .setDestinationTable(destination)
-        .setOperationType("CLONE")
-        .setWriteDisposition(WriteDisposition.WRITE_EMPTY.name())
-        .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name());
+    TableReference destinationWithDefaultProject = withDefaultProject(options, destination);
+    TableReference source =
+        withDefaultProject(options, cloneSource, destinationWithDefaultProject.getProjectId());
+    JobConfigurationTableCopy copyConfig =
+        new JobConfigurationTableCopy()
+            .setSourceTables(Collections.singletonList(source))
+            .setDestinationTable(destinationWithDefaultProject)
+            .setOperationType("CLONE")
+            .setWriteDisposition(WriteDisposition.WRITE_EMPTY.name())
+            .setCreateDisposition(CreateDisposition.CREATE_IF_NEEDED.name());
     if (kmsKey != null) {
       copyConfig.setDestinationEncryptionConfiguration(
           new EncryptionConfiguration().setKmsKeyName(kmsKey));
     }
 
-    String jobProjectId = destination.getProjectId();
-    String bqLocation = BigQueryHelpers.getDatasetLocation(
-        datasetService, destination.getProjectId(), destination.getDatasetId());
-    String jobIdPrefix = createCloneJobIdPrefix(options, source, destination);
+    String jobProjectId = destinationWithDefaultProject.getProjectId();
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(
+            datasetService,
+            destinationWithDefaultProject.getProjectId(),
+            destinationWithDefaultProject.getDatasetId());
+    String jobIdPrefix = createCloneJobIdPrefix(options, source, destinationWithDefaultProject);
     try (JobService jobService = bqServices.getJobService(options)) {
-      BigQueryHelpers.PendingJob cloneJob = new BigQueryHelpers.PendingJob(
-          jobId -> {
-            JobReference jobRef = new JobReference()
-                .setProjectId(jobProjectId)
-                .setJobId(jobId.getJobId())
-                .setLocation(bqLocation);
-            try {
-              jobService.startCopyJob(jobRef, copyConfig);
-            } catch (IOException | InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-            return null;
-          },
-          jobId -> {
-            JobReference jobRef = new JobReference()
-                .setProjectId(jobProjectId)
-                .setJobId(jobId.getJobId())
-                .setLocation(bqLocation);
-            try {
-              return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          },
-          jobId -> {
-            JobReference jobRef = new JobReference()
-                .setProjectId(jobProjectId)
-                .setJobId(jobId.getJobId())
-                .setLocation(bqLocation);
-            try {
-              return jobService.getJob(jobRef);
-            } catch (IOException | InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          },
-          BatchLoads.DEFAULT_MAX_RETRY_JOBS,
-          jobIdPrefix);
+      BigQueryHelpers.PendingJob cloneJob =
+          new BigQueryHelpers.PendingJob(
+              jobId -> {
+                JobReference jobRef =
+                    createJobReference(jobId.getJobId(), jobProjectId, bqLocation);
+                try {
+                  jobService.startCopyJob(jobRef, copyConfig);
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new RuntimeException(e);
+                }
+                return null;
+              },
+              jobId -> {
+                JobReference jobRef =
+                    createJobReference(jobId.getJobId(), jobProjectId, bqLocation);
+                try {
+                  return jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new RuntimeException(e);
+                }
+              },
+              jobId -> {
+                JobReference jobRef =
+                    createJobReference(jobId.getJobId(), jobProjectId, bqLocation);
+                try {
+                  return jobService.getJob(jobRef);
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                  throw new RuntimeException(e);
+                }
+              },
+              BatchLoads.DEFAULT_MAX_RETRY_JOBS,
+              jobIdPrefix);
       cloneJob.runJob();
       new BigQueryHelpers.PendingJobManager()
           .addPendingJob(
@@ -332,14 +340,30 @@ public class CreateTableHelpers {
     }
   }
 
+  private static JobReference createJobReference(String jobId, String projectId, String location) {
+    return new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(location);
+  }
+
   private static TableReference withDefaultProject(
       BigQueryOptions options, TableReference tableReference) {
+    return withDefaultProject(options, tableReference, null);
+  }
+
+  private static TableReference withDefaultProject(
+      BigQueryOptions options, TableReference tableReference, @Nullable String defaultProjectId) {
     TableReference updated = tableReference.clone();
     if (Strings.isNullOrEmpty(updated.getProjectId())) {
-      updated.setProjectId(
-          options.getBigQueryProject() == null
-              ? options.getProject()
-              : options.getBigQueryProject());
+      if (defaultProjectId != null && !defaultProjectId.isEmpty()) {
+        updated.setProjectId(defaultProjectId);
+      } else {
+        @Nullable String projectId = options.getBigQueryProject();
+        if (projectId == null || projectId.isEmpty()) {
+          projectId = options.getProject();
+        }
+        if (projectId != null && !projectId.isEmpty()) {
+          updated.setProjectId(projectId);
+        }
+      }
     }
     return updated;
   }
