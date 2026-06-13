@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -286,12 +288,18 @@ class WriteTables<DestinationT extends @NonNull Object>
       }
 
       if (cloneSource != null && createDisposition != CreateDisposition.CREATE_NEVER) {
+        Supplier<@Nullable TableSchema> schemaSupplier =
+            () -> dynamicDestinations.getSchema(destination);
+        Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
+            () -> dynamicDestinations.getTableConstraints(destination);
+        Supplier<@Nullable TableReference> cloneSourceSupplier = () -> cloneSource;
+
         CreateTableHelpers.possiblyCreateTable(
             c.getPipelineOptions().as(BigQueryOptions.class),
             tableDestination,
-            () -> dynamicDestinations.getSchema(destination),
-            () -> dynamicDestinations.getTableConstraints(destination),
-            () -> cloneSource,
+            schemaSupplier,
+            tableConstraintsSupplier,
+            cloneSourceSupplier,
             createDisposition,
             dynamicDestinations.getDestinationCoder(),
             kmsKey,

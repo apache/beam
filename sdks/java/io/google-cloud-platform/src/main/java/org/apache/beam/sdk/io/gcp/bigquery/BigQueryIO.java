@@ -3809,14 +3809,13 @@ public class BigQueryIO {
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
-      List<?> allTableCreationMetadataArgs =
-          Lists.newArrayList(getJsonSchema(), getSchemaFromView(), getJsonCloneSourceTableRef());
+      long activeCreationMetadataCount =
+          java.util.stream.Stream.of(
+                  getJsonSchema(), getSchemaFromView(), getJsonCloneSourceTableRef())
+              .filter(arg -> arg != null)
+              .count();
       checkArgument(
-          2
-              > Iterables.size(
-                  allTableCreationMetadataArgs.stream()
-                      .filter(Predicates.notNull()::apply)
-                      .collect(Collectors.toList())),
+          activeCreationMetadataCount <= 1,
           "No more than one of jsonSchema, schemaFromView, or cloneSource may be set");
 
       // Perform some argument checks
