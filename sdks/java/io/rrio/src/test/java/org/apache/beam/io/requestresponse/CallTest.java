@@ -105,6 +105,20 @@ public class CallTest {
   }
 
   @Test
+  public void givenCallerThrowsNonUserCodeException_emitsWrappedUserCodeExecutionException() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(Call.of(new CallerThrowsRuntimeException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
   public void givenCallerThrowsQuotaException_emitsIntoFailurePCollection() {
     Result<Response> result =
         pipeline
@@ -142,7 +156,7 @@ public class CallTest {
   }
 
   @Test
-  public void givenCallerThrowsTimeoutException_emitsFailurePCollection() {
+  public void givenCallerThrowsTimeoutException_thenPreservesExceptionType() {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -150,10 +164,27 @@ public class CallTest {
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
-        .isEqualTo(1L);
+        .isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeQuotaException.class)).isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
         .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsRemoteSystemException_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(new CallerThrowsRemoteSystemException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
 
     pipeline.run();
   }
@@ -376,11 +407,27 @@ public class CallTest {
     }
   }
 
+  private static class CallerThrowsRuntimeException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) {
+      throw new RuntimeException("unexpected error");
+    }
+  }
+
   private static class CallerThrowsTimeout implements Caller<Request, Response> {
 
     @Override
     public Response call(Request request) throws UserCodeExecutionException {
       throw new UserCodeTimeoutException("");
+    }
+  }
+
+  private static class CallerThrowsRemoteSystemException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeRemoteSystemException("");
     }
   }
 
