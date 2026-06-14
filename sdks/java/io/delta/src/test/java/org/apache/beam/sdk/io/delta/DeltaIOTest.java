@@ -207,12 +207,13 @@ public class DeltaIOTest {
                     org.apache.beam.sdk.values.TypeDescriptors.strings())
                 .via(
                     task ->
-                        io.delta.kernel.internal.InternalScanFileUtils.getAddFileStatus(
-                                task.getScanFileRows().get(0))
-                            .getPath()));
+                        new File(
+                                io.delta.kernel.internal.InternalScanFileUtils.getAddFileStatus(
+                                        task.getScanFileRows().get(0))
+                                    .getPath())
+                            .getName()));
 
-    PAssert.that(paths)
-        .containsInAnyOrder("file:" + tableDir.getAbsolutePath() + "/part-00000.parquet");
+    PAssert.that(paths).containsInAnyOrder("part-00000.parquet");
 
     writePipeline.run().waitUntilFinish();
   }
@@ -605,6 +606,69 @@ public class DeltaIOTest {
     BeamEngine beamEngine =
         new BeamEngine(io.delta.kernel.defaults.engine.DefaultEngine.create(conf), handler);
     org.junit.Assert.assertEquals(handler, beamEngine.getParquetHandler());
+    org.junit.Assert.assertTrue(beamEngine.getFileSystemClient() instanceof BeamFileSystemClient);
+  }
+
+  @Test
+  public void testBeamFileSystemClient() throws Exception {
+    File dir = tempFolder.newFolder("beam-fs-client");
+    File first = new File(dir, "00000000000000000000.json");
+    File second = new File(dir, "00000000000000000001.json");
+    File third = new File(dir, "00000000000000000002.json");
+    Files.write(first.toPath(), "first".getBytes(StandardCharsets.UTF_8));
+    Files.write(second.toPath(), "0123456789".getBytes(StandardCharsets.UTF_8));
+    Files.write(third.toPath(), "third".getBytes(StandardCharsets.UTF_8));
+
+    BeamFileSystemClient client = new BeamFileSystemClient();
+
+    io.delta.kernel.utils.FileStatus status = client.getFileStatus(second.getAbsolutePath());
+    org.junit.Assert.assertEquals(second.length(), status.getSize());
+
+    java.util.List<String> listed = new java.util.ArrayList<>();
+    try (io.delta.kernel.utils.CloseableIterator<io.delta.kernel.utils.FileStatus> files =
+        client.listFrom(second.getAbsolutePath())) {
+      while (files.hasNext()) {
+        listed.add(new File(files.next().getPath()).getName());
+      }
+    }
+    org.junit.Assert.assertEquals(
+        java.util.Arrays.asList("00000000000000000001.json", "00000000000000000002.json"), listed);
+
+    io.delta.kernel.engine.FileReadRequest request =
+        new io.delta.kernel.engine.FileReadRequest() {
+          @Override
+          public String getPath() {
+            return second.getAbsolutePath();
+          }
+
+          @Override
+          public int getStartOffset() {
+            return 2;
+          }
+
+          @Override
+          public int getReadLength() {
+            return 4;
+          }
+        };
+    try (io.delta.kernel.utils.CloseableIterator<java.io.ByteArrayInputStream> streams =
+        client.readFiles(io.delta.kernel.internal.util.Utils.singletonCloseableIterator(request))) {
+      org.junit.Assert.assertTrue(streams.hasNext());
+      org.junit.Assert.assertEquals(
+          "2345", new String(streams.next().readAllBytes(), StandardCharsets.UTF_8));
+      org.junit.Assert.assertFalse(streams.hasNext());
+    }
+
+    File nestedDir = new File(dir, "nested");
+    org.junit.Assert.assertTrue(client.mkdirs(nestedDir.getAbsolutePath()));
+    org.junit.Assert.assertTrue(nestedDir.isDirectory());
+
+    File copied = new File(dir, "copy.json");
+    client.copyFileAtomically(second.getAbsolutePath(), copied.getAbsolutePath(), false);
+    org.junit.Assert.assertEquals("0123456789", Files.readString(copied.toPath()));
+
+    org.junit.Assert.assertTrue(client.delete(copied.getAbsolutePath()));
+    org.junit.Assert.assertFalse(copied.exists());
   }
 
   @Test
