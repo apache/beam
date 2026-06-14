@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.sdk.io.delta',
@@ -68,6 +70,10 @@ dependencies {
     testImplementation project(":sdks:java:managed")
     testRuntimeOnly "org.yaml:snakeyaml:2.0"
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
+    testImplementation project(":sdks:java:io:google-cloud-platform")
+    testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
+    testImplementation library.java.google_cloud_storage
+    testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
 }
 
 configurations.all {
@@ -81,4 +87,36 @@ configurations.all {
     resolutionStrategy.force "com.google.cloud.bigdataoss:util-hadoop:$bigdataoss_gcs_connector_version"
     resolutionStrategy.force "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
     resolutionStrategy.force "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
+}
+
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://apache-beam-testing-delta-lake/temp'
+
+// Used by Dataflow integration tests.
+task dataflowIntegrationTest(type: Test) {
+    group = "Verification"
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+
+    def args = [
+            "--runner=DataflowRunner",
+            "--region=us-central1",
+            "--project=${gcpProject}",
+            "--tempLocation=${gcpTempLocation}",
+            "--tempRoot=${gcpTempLocation}",
+            "--sdkContainerImage=${dockerJavaImageName}",
+            "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
+    ]
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(args)
+
+    // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
+    outputs.upToDateWhen { false }
+
+    include '**/*IT.class'
+
+    maxParallelForks 4
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 }
