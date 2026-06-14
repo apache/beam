@@ -329,9 +329,14 @@ class WriteRename
             new EncryptionConfiguration().setKmsKeyName(kmsKey));
       }
 
-      String bqLocation =
-          BigQueryHelpers.getDatasetLocation(
-              datasetService, ref.getProjectId(), ref.getDatasetId());
+      String bqLocation;
+      try {
+        bqLocation =
+            BigQueryHelpers.getDatasetLocation(
+                datasetService, ref.getProjectId(), ref.getDatasetId());
+      } catch (IOException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
 
       String projectId =
           loadJobProjectId == null || loadJobProjectId.get() == null
