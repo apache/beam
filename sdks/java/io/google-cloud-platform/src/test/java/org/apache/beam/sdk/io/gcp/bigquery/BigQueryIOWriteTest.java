@@ -1660,6 +1660,48 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testStorageApiWriteFailureExhaustedRetries() throws Exception {
+    assumeTrue(useStorageApi);
+
+    // Set up fake dataset service to return PERMISSION_DENIED for appendRows
+    fakeDatasetService.setAppendRowsError(
+        new io.grpc.StatusRuntimeException(
+            io.grpc.Status.PERMISSION_DENIED.withDescription("Missing permissions")));
+
+    List<Integer> elements = Lists.newArrayList(1, 2, 3);
+
+    BigQueryIO.Write<Integer> write =
+        BigQueryIO.<Integer>write()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withFormatFunction(
+                (SerializableFunction<Integer, TableRow>)
+                    input -> new TableRow().set("number", input))
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    if (useStreaming) {
+      write = write.withTriggeringFrequency(Duration.standardSeconds(30));
+    }
+
+    PCollection<Integer> input = p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()));
+    input.apply("WriteToBQ", write);
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("More than");
+    thrown.expectMessage("attempts to call AppendRows failed");
+    thrown.expectMessage("PERMISSION_DENIED");
+    thrown.expectMessage("bigquery.tables.updateData");
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   public void testStreamingStorageApiWriteWithAutoShardingWithErrorHandling() throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
