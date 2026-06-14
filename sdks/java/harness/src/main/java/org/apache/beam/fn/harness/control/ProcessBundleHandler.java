@@ -378,9 +378,8 @@ public class ProcessBundleHandler {
                       outboundAggregatorMap.computeIfAbsent(
                           apiServiceDescriptor,
                           asd ->
-                              queueingClient.createOutboundAggregator(
-                                  asd,
-                                  processBundleInstructionId,
+                              new BeamFnDataOutboundAggregator(
+                                  options,
                                   runnerCapabilities.contains(
                                       BeamUrns.getUrn(
                                           StandardRunnerProtocols.Enum
@@ -391,21 +390,19 @@ public class ProcessBundleHandler {
                 @Override
                 public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
                     String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
-                  BeamFnDataOutboundAggregator aggregator;
                   if (!processBundleDescriptor.hasTimerApiServiceDescriptor()) {
                     throw new IllegalStateException(
                         String.format(
-                            "Timers are unsupported because the "
-                                + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                            "Timers are unsupported because the ProcessBundleRequest %s does not"
+                                + " provide a timer ApiServiceDescriptor.",
                             processBundleInstructionId.get()));
                   }
-                  aggregator =
+                  BeamFnDataOutboundAggregator aggregator =
                       outboundAggregatorMap.computeIfAbsent(
                           processBundleDescriptor.getTimerApiServiceDescriptor(),
                           asd ->
-                              queueingClient.createOutboundAggregator(
-                                  asd,
-                                  processBundleInstructionId,
+                              new BeamFnDataOutboundAggregator(
+                                  options,
                                   runnerCapabilities.contains(
                                       BeamUrns.getUrn(
                                           StandardRunnerProtocols.Enum
@@ -499,6 +496,8 @@ public class ProcessBundleHandler {
    */
   public BeamFnApi.InstructionResponse.Builder processBundle(InstructionRequest request)
       throws Exception {
+    String instructionId = request.getInstructionId();
+    String dataStreamId = request.getProcessBundle().getDataStreamId();
     @Nullable BundleProcessor bundleProcessor = null;
     try {
       bundleProcessor =
@@ -515,13 +514,20 @@ public class ProcessBundleHandler {
                     }
                   }));
 
+      for (Map.Entry<ApiServiceDescriptor, BeamFnDataOutboundAggregator> entry :
+          bundleProcessor.getOutboundAggregators().entrySet()) {
+        BeamFnDataOutboundAggregator aggregator = entry.getValue();
+        aggregator.prepareForInstruction(
+            instructionId, beamFnDataClient.getOutboundObserver(entry.getKey(), dataStreamId));
+      }
+
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
       ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
       ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
-        stateTracker.start(request.getInstructionId());
+        stateTracker.start(instructionId);
         try {
           // Already in reverse topological order so we don't need to do anything.
           for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
@@ -545,12 +551,14 @@ public class ProcessBundleHandler {
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
-                request.getInstructionId(),
+                instructionId,
+                dataStreamId,
                 bundleProcessor.getInboundEndpointApiServiceDescriptors(),
                 observer);
             observer.awaitCompletion();
             beamFnDataClient.unregisterReceiver(
-                request.getInstructionId(),
+                instructionId,
+                dataStreamId,
                 bundleProcessor.getInboundEndpointApiServiceDescriptors());
           }
 
@@ -581,7 +589,7 @@ public class ProcessBundleHandler {
 
           if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
             finalizeBundleHandler.registerCallbacks(
-                bundleProcessor.getInstructionId(),
+                instructionId,
                 ImmutableList.copyOf(bundleProcessor.getBundleFinalizationCallbackRegistrations()));
             response.setRequiresFinalization(true);
           }
@@ -599,7 +607,7 @@ public class ProcessBundleHandler {
     } catch (Exception e) {
       LOG.debug(
           "Error processing bundle {} with bundleProcessor for {} after exception",
-          request.getInstructionId(),
+          instructionId,
           request.getProcessBundle().getProcessBundleDescriptorId(),
           e);
       if (bundleProcessor != null) {
@@ -607,7 +615,7 @@ public class ProcessBundleHandler {
         bundleProcessorCache.discard(bundleProcessor);
       }
       // Ensure that if more data arrives for the instruction it is discarded.
-      beamFnDataClient.poisonInstructionId(request.getInstructionId());
+      beamFnDataClient.poisonInstructionId(instructionId);
       throw e;
     }
   }
@@ -629,6 +637,10 @@ public class ProcessBundleHandler {
       collectedElements.add(elements);
     }
     if (!hasFlushedAggregator) {
+      for (BeamFnDataOutboundAggregator aggregator :
+          bundleProcessor.getOutboundAggregators().values()) {
+        aggregator.finishInstruction();
+      }
       Elements.Builder elementsToEmbed = Elements.newBuilder();
       for (Elements collectedElement : collectedElements) {
         elementsToEmbed.mergeFrom(collectedElement);
@@ -645,6 +657,7 @@ public class ProcessBundleHandler {
         if (elements != null) {
           aggregator.sendElements(elements);
         }
+        aggregator.finishInstruction();
       }
     }
   }
