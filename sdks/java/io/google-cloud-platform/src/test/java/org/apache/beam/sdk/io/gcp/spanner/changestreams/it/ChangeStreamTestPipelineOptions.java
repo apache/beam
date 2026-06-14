@@ -25,8 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface ChangeStreamTestPipelineOptions extends IOTestPipelineOptions, StreamingOptions {
   @Description("Project that hosts Spanner instance")
-  @Nullable
-  String getProjectId();
+  @Nullable String getProjectId();
 
   void setProjectId(String value);
 

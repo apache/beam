@@ -136,7 +136,7 @@ public class StreamingModeExecutionContextTest {
         executionStateRegistry,
         configHandle,
         Long.MAX_VALUE,
-        /*throwExceptionOnLargeOutput=*/ false);
+        /* throwExceptionOnLargeOutput= */ false);
   }
 
   @Before

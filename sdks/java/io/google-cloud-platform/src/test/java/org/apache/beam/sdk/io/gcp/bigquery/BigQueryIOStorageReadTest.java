@@ -1453,7 +1453,7 @@ public class BigQueryIOStorageReadTest {
                 "Given row offset is invalid for stream.",
                 new StatusRuntimeException(Status.FAILED_PRECONDITION),
                 GrpcStatusCode.of(Code.FAILED_PRECONDITION),
-                /* retryable = */ false));
+                /* retryable= */ false));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
         BigQueryStorageStreamSource.create(
@@ -2412,7 +2412,7 @@ public class BigQueryIOStorageReadTest {
                 "Given row offset is invalid for stream.",
                 new StatusRuntimeException(Status.FAILED_PRECONDITION),
                 GrpcStatusCode.of(Code.FAILED_PRECONDITION),
-                /* retryable = */ false));
+                /* retryable= */ false));
 
     BigQueryStorageStreamSource<TableRow> streamSource =
         BigQueryStorageStreamSource.create(

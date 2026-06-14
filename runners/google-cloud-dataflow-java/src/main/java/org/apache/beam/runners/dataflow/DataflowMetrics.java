@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 class DataflowMetrics extends MetricResults {
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowMetrics.class);
+
   /**
    * Client for the Dataflow service. This can be used to query the service for information about
    * the job.
@@ -391,8 +392,7 @@ class DataflowMetrics extends MetricResults {
         return null;
       }
 
-      @Nullable
-      AppliedPTransform<?, ?, ?> appliedPTransform =
+      @Nullable AppliedPTransform<?, ?, ?> appliedPTransform =
           transformStepNames.inverse().get(internalStepName);
       if (appliedPTransform == null) {
         return null;

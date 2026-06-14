@@ -30,6 +30,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  */
 public class PrismRegistrar {
   private PrismRegistrar() {}
+
   /**
    * Registers {@link PrismRunner} and {@link TestPrismRunner} with {@link PipelineRunnerRegistrar}.
    */

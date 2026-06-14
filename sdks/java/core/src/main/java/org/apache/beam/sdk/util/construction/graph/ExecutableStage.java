@@ -189,8 +189,7 @@ public interface ExecutableStage {
       payload.addTransforms(transform.getId());
     }
     payload.setComponents(
-        getComponents()
-            .toBuilder()
+        getComponents().toBuilder()
             .clearTransforms()
             .putAllTransforms(
                 getTransforms().stream()

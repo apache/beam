@@ -1398,6 +1398,7 @@ public class DatastoreV1 {
   public static class Write extends PTransform<PCollection<Entity>, PDone> {
 
     WriteWithSummary inner;
+
     /**
      * Note that {@code projectId} is only {@code @Nullable} as a matter of build order, but if it
      * is {@code null} at instantiation time, an error will be thrown.
@@ -1982,6 +1983,7 @@ public class DatastoreV1 {
     protected @Nullable String localhost;
     protected boolean throttleRampup;
     protected ValueProvider<Integer> hintNumWorkers;
+
     /** A function that transforms each {@code T} into a mutation. */
     private final SimpleFunction<T, Mutation> mutationFn;
 

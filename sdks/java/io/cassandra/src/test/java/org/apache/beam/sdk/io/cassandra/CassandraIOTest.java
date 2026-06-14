@@ -841,6 +841,7 @@ public class CassandraIOTest implements Serializable {
   }
 
   private static final String CASSANDRA_TABLE_WRITE = "scientist_write";
+
   /** Simple Cassandra entity used in write tests. */
   @Table(name = CASSANDRA_TABLE_WRITE, keyspace = CASSANDRA_KEYSPACE)
   static class ScientistWrite extends Scientist {}

@@ -61,6 +61,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
+
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
@@ -85,7 +86,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     this.outboundObserverFactory = outboundObserverFactory;
   }
 
-  /** @deprecated This constructor is for migrating Dataflow purpose only. */
+  /**
+   * @deprecated This constructor is for migrating Dataflow purpose only.
+   */
   @Deprecated
   public GrpcDataService() {
     this.connectedClient = null;

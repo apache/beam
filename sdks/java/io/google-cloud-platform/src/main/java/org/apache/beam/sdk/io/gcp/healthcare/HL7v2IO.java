@@ -294,6 +294,7 @@ public class HL7v2IO {
 
     /** The tag for the main output of HL7v2 Messages. */
     public static final TupleTag<HL7v2Message> OUT = new TupleTag<HL7v2Message>() {};
+
     /** The tag for the deadletter output of HL7v2 Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -416,6 +417,7 @@ public class HL7v2IO {
 
     /** The tag for the main output of HL7v2 read responses. */
     public static final TupleTag<HL7v2ReadResponse> OUT = new TupleTag<HL7v2ReadResponse>() {};
+
     /** The tag for the deadletter output of HL7v2 read responses. */
     public static final TupleTag<HealthcareIOError<HL7v2ReadParameter>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<HL7v2ReadParameter>>() {};
@@ -753,6 +755,7 @@ public class HL7v2IO {
     /** The tag for the successful writes to HL7v2 store`. */
     public static final TupleTag<HealthcareIOError<HL7v2Message>> SUCCESS =
         new TupleTag<HealthcareIOError<HL7v2Message>>() {};
+
     /** The tag for the failed writes to HL7v2 store`. */
     public static final TupleTag<HealthcareIOError<HL7v2Message>> FAILED =
         new TupleTag<HealthcareIOError<HL7v2Message>>() {};

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 @Internal
 public class BeamSqlCli {
   private BeamSqlEnv env;
+
   /** The store which persists all the table meta data. */
   private MetaStore metaStore;
 

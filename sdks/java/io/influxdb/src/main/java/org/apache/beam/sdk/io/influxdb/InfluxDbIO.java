@@ -233,6 +233,7 @@ public class InfluxDbIO {
       builder.addIfNotNull(DisplayData.item("query", query()));
     }
   }
+
   /** A InfluxDb {@link BoundedSource} reading {@link String} from a given instance. */
   static class InfluxDBSource extends BoundedSource<String> {
     private final Read spec;

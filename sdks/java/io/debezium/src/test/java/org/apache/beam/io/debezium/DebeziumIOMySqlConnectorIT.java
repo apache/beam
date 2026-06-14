@@ -61,6 +61,7 @@ import org.testcontainers.utility.DockerImageName;
 public class DebeziumIOMySqlConnectorIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumIOMySqlConnectorIT.class);
+
   /**
    * Debezium - MySqlContainer
    *

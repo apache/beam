@@ -43,6 +43,7 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
@@ -506,6 +507,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // Apply common properties/repositories and tasks to all projects.
 
     project.ext.mavenGroupId = 'org.apache.beam'
+
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
@@ -1160,16 +1162,16 @@ class BeamModulePlugin implements Plugin<Project> {
         // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
         // The order is intended here
         if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
-        project.hasProperty('java11Home')) {
+            project.hasProperty('java11Home')) {
           forkJavaVersion = '11'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
-        project.hasProperty('java17Home')) {
+            project.hasProperty('java17Home')) {
           forkJavaVersion = '17'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
-        project.hasProperty('java21Home')) {
+            project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
-        project.hasProperty('java25Home')) {
+            project.hasProperty('java25Home')) {
           forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
@@ -1296,7 +1298,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
+        if (config.getName() != "errorprone" &&
+            !config.getName().startsWith("spotless") &&
+            !config.getName().startsWith("checkstyle") &&
+            !inDependencyUpdates) {
           config.resolutionStrategy {
             // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
             // versions for only handful libraries when building the project (BEAM-9542).
@@ -1435,6 +1440,11 @@ class BeamModulePlugin implements Plugin<Project> {
         maxErrors = 0
         toolVersion = "8.23"
       }
+      project.tasks.withType(Checkstyle).configureEach {
+        classpath = project.files()
+        exclude '**/generated-src/**'
+        exclude '**/generated-sources/**'
+      }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
@@ -1460,13 +1470,12 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat('1.7')
-          target project.fileTree(project.projectDir) {
-            include 'src/*/java/**/*.java'
-            exclude '**/DefaultPackageTest.java'
-          }
+          googleJavaFormat('1.17.0')
+          target 'src/main/java/**/*.java', 'src/test/java/**/*.java'
+          targetExclude '**/DefaultPackageTest.java'
           // For spotless:off and spotless:on
           toggleOffOn()
         }
@@ -1586,6 +1595,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile).configureEach {
         // we configure the Java compiler to use UTF-8.
         options.encoding = "UTF-8"
+        options.fork = true
+        options.forkOptions.memoryMaximumSize = '4g'
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
           def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
@@ -2076,7 +2087,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
-                      if (it.version != null) { // bom-managed artifacts do not have their versions
+                      if (it.version != null) {
+                        // bom-managed artifacts do not have their versions
                         dependencyNode.appendNode('version', it.version)
                       }
                       dependencyNode.appendNode('scope', param.scope)
@@ -2381,10 +2393,11 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
           greclipse().configFile(grEclipseConfig)
-          target project.fileTree(project.projectDir) { include '**/*.groovy' }
+          target 'src/main/groovy/**/*.groovy', 'src/test/groovy/**/*.groovy'
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
@@ -2443,7 +2456,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:$protobuf_version" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2525,7 +2539,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2566,6 +2581,12 @@ class BeamModulePlugin implements Plugin<Project> {
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
       }
+      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateAvroJava')
+      }
+      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateTestAvroJava')
+      }
     }
 
     project.ext.applyAntlrNature = {
@@ -2587,6 +2608,12 @@ class BeamModulePlugin implements Plugin<Project> {
       def testSourcesJar = project.tasks.findByName('testSourcesJar')
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
+      }
+      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateGrammarSource')
+      }
+      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateTestGrammarSource')
       }
     }
 
@@ -2722,7 +2749,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
@@ -3012,7 +3040,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,

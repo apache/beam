@@ -607,8 +607,8 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             readerCache,
-            /*stateNameMap=*/ ImmutableMap.of(),
-            /*stateCache=*/ null,
+            /* stateNameMap= */ ImmutableMap.of(),
+            /* stateCache= */ null,
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -620,7 +620,7 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /* throwExceptionOnLargeOutput= */ false);
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -976,7 +976,7 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
-            /*stateNameMap=*/ ImmutableMap.of(),
+            /* stateNameMap= */ ImmutableMap.of(),
             WindmillStateCache.builder()
                 .setSizeMb(options.getWorkerCacheMb())
                 .build()
@@ -992,7 +992,7 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /* throwExceptionOnLargeOutput= */ false);
 
     options.setNumWorkers(5);
     int maxElements = 100;

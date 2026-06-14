@@ -565,6 +565,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         RecordIdMethod.RANDOM,
         pubsubRootUrl);
   }
+
   /** Get the topic being written to. */
   public @Nullable TopicPath getTopic() {
     return topic != null ? topic.get() : null;

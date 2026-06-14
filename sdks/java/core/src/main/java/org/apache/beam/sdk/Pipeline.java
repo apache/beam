@@ -129,6 +129,7 @@ import org.slf4j.LoggerFactory;
 })
 public class Pipeline {
   private static final Logger LOG = LoggerFactory.getLogger(Pipeline.class);
+
   /**
    * Thrown during execution of a {@link Pipeline}, whenever user code within that {@link Pipeline}
    * throws an exception.

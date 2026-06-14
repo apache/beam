@@ -225,8 +225,7 @@ public class SplittableParDoExpander {
           rval.getComponentsBuilder().putTransforms(splitAndSizeId, splitAndSize.build());
         }
         PTransform.Builder newCompositeRoot =
-            splittableParDo
-                .toBuilder()
+            splittableParDo.toBuilder()
                 // Clear the original splittable ParDo spec and add all the new transforms as
                 // children.
                 .clearSpec()

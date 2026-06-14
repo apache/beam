@@ -107,8 +107,7 @@ public interface ResourceId extends Serializable {
    * @return a string representing the name of file or directory, or null if there are zero
    *     components.
    */
-  @Nullable
-  String getFilename();
+  @Nullable String getFilename();
 
   /** Returns {@code true} if this {@link ResourceId} represents a directory, false otherwise. */
   boolean isDirectory();

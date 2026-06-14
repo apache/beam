@@ -120,13 +120,17 @@ public class CommonJms implements Serializable {
   }
 
   ConnectionFactory createConnectionFactory()
-      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
-      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+      throws NoSuchMethodException,
+          InvocationTargetException,
+          InstantiationException,
           IllegalAccessException {
     return connectionFactoryClass
         .getConstructor(String.class)
