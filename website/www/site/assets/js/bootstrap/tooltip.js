@@ -302,11 +302,18 @@
       .css(isVertical ? 'top' : 'left', '')
   }
 
+  function sanitizeHtml(string) {
+    if (typeof DOMPurify !== 'undefined') {
+      return DOMPurify.sanitize(string)
+    }
+    return string
+  }
+
   Tooltip.prototype.setContent = function () {
     var $tip  = this.tip()
     var title = this.getTitle()
 
-    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](title)
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](sanitizeHtml(title))
     $tip.removeClass('fade in top bottom left right')
   }
 
