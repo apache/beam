@@ -2340,6 +2340,7 @@ public class DatastoreV1 {
 
       if (!uniqueMutationKeys.add(getKey(mutation))) {
         flushBatch(contextAdapter);
+        uniqueMutationKeys.add(getKey(mutation));
       }
 
       if (mutations.size() > 0
