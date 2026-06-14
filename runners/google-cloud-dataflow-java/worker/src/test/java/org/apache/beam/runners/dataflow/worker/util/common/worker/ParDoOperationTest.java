@@ -85,6 +85,9 @@ public class ParDoOperationTest {
     public void abort() throws Exception {
       outputReceiver.process("a-aborted");
     }
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
   }
 
   @Test
@@ -104,7 +107,7 @@ public class ParDoOperationTest {
     parDoOperation.process("");
     parDoOperation.process("bob");
 
-    parDoOperation.finishKey();
+    parDoOperation.finishKey("key");
     parDoOperation.finish();
 
     parDoOperation.abort();
@@ -148,7 +151,7 @@ public class ParDoOperationTest {
 
     operation.start();
     operation.process("hello");
-    operation.finishKey();
+    operation.finishKey("key");
     operation.finish();
 
     InOrder inOrder =
@@ -163,6 +166,7 @@ public class ParDoOperationTest {
     inOrder.verify(processCloseable).close();
     inOrder.verify(context).enterProcessTimers();
     inOrder.verify(fn).processTimers();
+    inOrder.verify(fn).finishKey("key");
     inOrder.verify(processTimersCloseable).close();
     inOrder.verify(context).enterFinish();
     inOrder.verify(fn).finishBundle();

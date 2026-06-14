@@ -53,7 +53,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -69,7 +68,6 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
@@ -109,16 +107,26 @@ public class RecordWriterManagerTest {
       IcebergUtils.beamSchemaToIcebergSchema(BEAM_SCHEMA);
   private static final PartitionSpec PARTITION_SPEC =
       PartitionSpec.builderFor(ICEBERG_SCHEMA).truncate("name", 3).identity("bool").build();
+  private IcebergCatalogConfig catalogConfig;
 
   private WindowedValue<IcebergDestination> windowedDestination;
-  private HadoopCatalog catalog;
 
   @Before
   public void setUp() {
     windowedDestination =
         getWindowedDestination("table_" + testName.getMethodName(), PARTITION_SPEC);
-    catalog = new HadoopCatalog(new Configuration(), warehouse.location);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+    catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(
+                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+            .build();
+    TableCache.invalidateAll();
+  }
+
+  private static IcebergCatalogConfig mockCatalogConfigFor(Catalog mockCatalog) {
+    IcebergCatalogConfig catalogConfig = mock(IcebergCatalogConfig.class);
+    Mockito.doReturn(mockCatalog).when(catalogConfig).catalog();
+    return catalogConfig;
   }
 
   private WindowedValue<IcebergDestination> getWindowedDestination(
@@ -145,7 +153,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testCreateNamespaceAndTable() {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     Namespace newNamespace = Namespace.of("new_namespace");
     TableIdentifier identifier = TableIdentifier.of(newNamespace, testName.getMethodName());
     WindowedValue<IcebergDestination> dest =
@@ -157,15 +166,16 @@ public class RecordWriterManagerTest {
 
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
 
-    assertFalse(catalog.namespaceExists(newNamespace));
+    assertFalse(catalogConfig.namespaceExists(newNamespace.toString()));
     boolean writeSuccess = writerManager.write(dest, row);
     assertTrue(writeSuccess);
-    assertTrue(catalog.namespaceExists(newNamespace));
+    assertTrue(catalogConfig.namespaceExists(newNamespace.toString()));
   }
 
   @Test
   public void testCreateTableWithSortOrder() throws IOException {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     TableIdentifier identifier = TableIdentifier.of("default", testName.getMethodName());
     WindowedValue<IcebergDestination> dest =
         WindowedValues.valueInGlobalWindow(
@@ -184,7 +194,7 @@ public class RecordWriterManagerTest {
     assertTrue(writerManager.write(dest, row));
     writerManager.close();
 
-    Table created = catalog.loadTable(identifier);
+    Table created = catalogConfig.catalog().loadTable(identifier);
     SortOrder order = created.sortOrder();
     assertEquals(2, order.fields().size());
     assertEquals(SortDirection.DESC, order.fields().get(0).direction());
@@ -196,7 +206,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testCreateNewWriterForEachDestination() throws IOException {
     // Writer manager with a maximum limit of 3 writers
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     assertEquals(0, writerManager.openWriters);
 
     boolean writeSuccess;
@@ -257,7 +268,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testCreateNewWriterForEachPartition() throws IOException {
     // Writer manager with a maximum limit of 3 writers
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     assertEquals(0, writerManager.openWriters);
 
     boolean writeSuccess;
@@ -318,7 +330,8 @@ public class RecordWriterManagerTest {
   @Test
   public void testRespectMaxFileSize() throws IOException {
     // Writer manager with a maximum file size of 100 bytes
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 100, 2);
     assertEquals(0, writerManager.openWriters);
     boolean writeSuccess;
 
@@ -364,7 +377,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testRequireClosingBeforeFetchingDataFiles() {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 100, 2);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     writerManager.write(windowedDestination, row);
     assertEquals(1, writerManager.openWriters);
@@ -401,7 +415,11 @@ public class RecordWriterManagerTest {
     partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
 
     RecordWriter writer =
-        new RecordWriter(catalog, windowedDestination.getValue(), "test_file_name", partitionKey);
+        new RecordWriter(
+            catalogConfig.catalog(),
+            windowedDestination.getValue(),
+            "test_file_name",
+            partitionKey);
     writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
     writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row2));
 
@@ -443,7 +461,11 @@ public class RecordWriterManagerTest {
 
     // write some rows
     RecordWriter writer =
-        new RecordWriter(catalog, windowedDestination.getValue(), "test_file_name", partitionKey);
+        new RecordWriter(
+            catalogConfig.catalog(),
+            windowedDestination.getValue(),
+            "test_file_name",
+            partitionKey);
     writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
     writer.write(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row2));
     writer.close();
@@ -462,7 +484,8 @@ public class RecordWriterManagerTest {
     assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
 
     // update spec
-    Table table = catalog.loadTable(windowedDestination.getValue().getTableIdentifier());
+    Table table =
+        catalogConfig.catalog().loadTable(windowedDestination.getValue().getTableIdentifier());
     table.updateSpec().addField("id").removeField("bool").commit();
 
     Map<Integer, PartitionSpec> updatedSpecs = table.specs();
@@ -473,13 +496,14 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testWriterKeepsUpWithUpdatingPartitionSpec() throws IOException {
-    Table table = catalog.loadTable(windowedDestination.getValue().getTableIdentifier());
+    Table table =
+        catalogConfig.catalog().loadTable(windowedDestination.getValue().getTableIdentifier());
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "abcxyz", true).build();
 
     // write some rows
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(catalogConfig, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
     writer.write(windowedDestination, row);
     writer.write(windowedDestination, row2);
     writer.close();
@@ -497,20 +521,17 @@ public class RecordWriterManagerTest {
     assertThat(dataFile.path().toString(), containsString("bool=true"));
 
     // table is cached
-    assertEquals(1, RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.size());
+    assertEquals(1, TableCache.size());
 
     // update spec
     table.updateSpec().addField("id").removeField("bool").commit();
-    // Make the cached table stale to force reloading its metadata.
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.getIfPresent(
-                windowedDestination.getValue().getTableIdentifier())
-            .lastRefreshTime =
-        Instant.EPOCH;
+    // Make the cached table stale to force refreshing its metadata.
+    TableCache.markStale(catalogConfig, windowedDestination.getValue().getTableIdentifier());
 
     // write a second data file
     // should refresh the table and use the new partition spec
     RecordWriterManager writer2 =
-        new RecordWriterManager(catalog, "test_prefix_2", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(catalogConfig, "test_prefix_2", Long.MAX_VALUE, Integer.MAX_VALUE);
     writer2.write(windowedDestination, row);
     writer2.write(windowedDestination, row2);
     writer2.close();
@@ -578,7 +599,7 @@ public class RecordWriterManagerTest {
         getWindowedDestination("identity_partitioning", icebergSchema, spec);
 
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(catalogConfig, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -664,7 +685,7 @@ public class RecordWriterManagerTest {
         getWindowedDestination("bucket_partitioning", icebergSchema, spec);
 
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(catalogConfig, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -730,7 +751,7 @@ public class RecordWriterManagerTest {
 
     // write some rows
     RecordWriterManager writer =
-        new RecordWriterManager(catalog, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
+        new RecordWriterManager(catalogConfig, "test_prefix", Long.MAX_VALUE, Integer.MAX_VALUE);
     writer.write(dest, row);
     writer.close();
     List<SerializableDataFile> files = writer.getSerializableDataFiles().get(dest);
@@ -763,7 +784,7 @@ public class RecordWriterManagerTest {
     String expectedPartition = String.join("/", expectedPartitions);
     DataFile dataFile =
         serializableDataFile.createDataFile(
-            catalog.loadTable(dest.getValue().getTableIdentifier()).specs());
+            catalogConfig.catalog().loadTable(dest.getValue().getTableIdentifier()).specs());
     assertThat(dataFile.path().toString(), containsString(expectedPartition));
   }
 
@@ -771,7 +792,8 @@ public class RecordWriterManagerTest {
 
   @Test
   public void testWriterExceptionGetsCaught() throws IOException {
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 100, 2);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 100, 2);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "abcdef", true).build();
     PartitionKey partitionKey = new PartitionKey(PARTITION_SPEC, ICEBERG_SCHEMA);
     partitionKey.partition(IcebergUtils.beamRowToIcebergRecord(ICEBERG_SCHEMA, row));
@@ -783,7 +805,10 @@ public class RecordWriterManagerTest {
     // replace with a failing record writer
     FailingRecordWriter failingWriter =
         new FailingRecordWriter(
-            catalog, windowedDestination.getValue(), "test_failing_writer", partitionKey);
+            catalogConfig.catalog(),
+            windowedDestination.getValue(),
+            "test_failing_writer",
+            partitionKey);
     state.writers.put(partitionKey, failingWriter);
     writerManager.write(windowedDestination, row);
 
@@ -843,7 +868,8 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> singleDestination =
         WindowedValues.valueInGlobalWindow(destination);
 
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
@@ -905,7 +931,8 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> singleDestination =
         WindowedValues.valueInGlobalWindow(destination);
 
-    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogConfig, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2, "bbb", false).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3, "ccc", true).build();
@@ -1090,15 +1117,16 @@ public class RecordWriterManagerTest {
     Mockito.doReturn(sharedTrackingIO).when(spyTable1).io();
     Mockito.doReturn(sharedTrackingIO).when(spyTable2).io();
 
-    Catalog spyCatalog = Mockito.spy(catalog);
+    Catalog spyCatalog = Mockito.spy(catalogConfig.catalog());
     Mockito.doReturn(spyTable1).when(spyCatalog).loadTable(tableId1);
     Mockito.doReturn(spyTable2).when(spyCatalog).loadTable(tableId2);
 
     WindowedValue<IcebergDestination> dest1 = getWindowedDestination(tableName1, null);
     WindowedValue<IcebergDestination> dest2 = getWindowedDestination(tableName2, null);
 
+    IcebergCatalogConfig spyCatalogConfig = mockCatalogConfigFor(spyCatalog);
     RecordWriterManager writerManager =
-        new RecordWriterManager(spyCatalog, "test_file_name", 1000, 3);
+        new RecordWriterManager(spyCatalogConfig, "test_file_name", 1000, 3);
 
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
     assertTrue(writerManager.write(dest1, row));
@@ -1205,17 +1233,15 @@ public class RecordWriterManagerTest {
     // test.
     Schema beamSchema = null;
 
-    // Instantiate a RecordWriterManager with a dummy catalog.
-    RecordWriterManager writer = new RecordWriterManager(null, "p", 1L, 1);
+    IcebergCatalogConfig mockCatalogConfig = mock(IcebergCatalogConfig.class);
+    RecordWriterManager writer = new RecordWriterManager(mockCatalogConfig, "p", 1L, 1);
 
     // Clean up cache before test
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.invalidateAll();
+    TableCache.invalidateAll();
 
     // --- 1. Test the fast path (entry is not stale) ---
     Instant freshTimestamp = Instant.now().minus(Duration.ofMinutes(1));
-    RecordWriterManager.LastRefreshedTable freshEntry =
-        new RecordWriterManager.LastRefreshedTable(mockTable, freshTimestamp);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, freshEntry);
+    TableCache.put(mockCatalogConfig, identifier, mockTable, freshTimestamp);
 
     // Access the table
     writer.getOrCreateTable(destination, beamSchema);
@@ -1225,9 +1251,7 @@ public class RecordWriterManagerTest {
 
     // --- 2. Test the stale path (entry is stale) ---
     Instant staleTimestamp = Instant.now().minus(Duration.ofMinutes(5));
-    RecordWriterManager.LastRefreshedTable staleEntry =
-        new RecordWriterManager.LastRefreshedTable(mockTable, staleTimestamp);
-    RecordWriterManager.LAST_REFRESHED_TABLE_CACHE.put(identifier, staleEntry);
+    TableCache.put(mockCatalogConfig, identifier, mockTable, staleTimestamp);
 
     // Access the table again
     writer.getOrCreateTable(destination, beamSchema);
@@ -1253,14 +1277,15 @@ public class RecordWriterManagerTest {
     Table spyTable = Mockito.spy(realTable);
     Mockito.doReturn(sharedIO).when(spyTable).io();
 
-    Catalog spyCatalog = Mockito.spy(catalog);
+    Catalog spyCatalog = Mockito.spy(catalogConfig.catalog());
     Mockito.doReturn(spyTable).when(spyCatalog).loadTable(tableId);
 
     WindowedValue<IcebergDestination> dest = getWindowedDestination(tableName, null);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+    IcebergCatalogConfig spyCatalogConfig = mockCatalogConfigFor(spyCatalog);
 
     // Bundle 1: write and close
-    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalog, "file_b1", 1000, 3);
+    RecordWriterManager bundle1 = new RecordWriterManager(spyCatalogConfig, "file_b1", 1000, 3);
     assertTrue(bundle1.write(dest, row));
     bundle1.close();
     assertFalse("FileIO must survive after bundle 1 close", sharedIO.closed);
@@ -1268,7 +1293,7 @@ public class RecordWriterManagerTest {
         "Bundle 1 should produce data files", bundle1.getSerializableDataFiles().containsKey(dest));
 
     // Bundle 2: write and close using the same catalog (simulates DoFn reuse)
-    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalog, "file_b2", 1000, 3);
+    RecordWriterManager bundle2 = new RecordWriterManager(spyCatalogConfig, "file_b2", 1000, 3);
     assertTrue(bundle2.write(dest, row));
     bundle2.close();
     assertFalse("FileIO must survive after bundle 2 close", sharedIO.closed);

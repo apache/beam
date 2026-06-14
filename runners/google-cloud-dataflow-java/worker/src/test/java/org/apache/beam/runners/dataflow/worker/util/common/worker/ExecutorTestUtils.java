@@ -61,7 +61,7 @@ public class ExecutorTestUtils {
     }
 
     @Override
-    public void finishKey() throws Exception {}
+    public void finishKey(Object key) throws Exception {}
   }
 
   /** A {@code Reader<String>} that yields a specified set of values. */
