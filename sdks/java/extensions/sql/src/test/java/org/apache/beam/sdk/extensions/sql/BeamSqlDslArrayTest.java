@@ -69,6 +69,29 @@ public class BeamSqlDslArrayTest {
   }
 
   @Test
+  public void testSelectArrayFunctionForm() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    Schema resultType =
+        Schema.builder()
+            .addInt32Field("f_int")
+            .addArrayField("f_arr", Schema.FieldType.STRING)
+            .build();
+
+    PCollection<Row> result =
+        input.apply(
+            "sqlQuery",
+            SqlTransform.query("SELECT 42, ARRAY('aa', 'bb') as `f_arr` FROM PCOLLECTION"));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            Row.withSchema(resultType).addValues(42, Arrays.asList("aa", "bb")).build(),
+            Row.withSchema(resultType).addValues(42, Arrays.asList("aa", "bb")).build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testProjectArrayField() {
     PCollection<Row> input = pCollectionOf2Elements();
 

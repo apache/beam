@@ -22,6 +22,8 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.NlsString;
@@ -146,6 +149,15 @@ public final class BeamTableUtils {
     } else if (CalciteUtils.isDateTimeType(type)) {
       // Internal representation of Date in Calcite is convertible to Joda's Datetime.
       return new DateTime(rawObj);
+    } else if (type.getTypeName().isLogicalType()
+        && type.getLogicalType() != null
+        && NanosDuration.IDENTIFIER.equals(type.getLogicalType().getIdentifier())
+        && rawObj instanceof BigDecimal) {
+      // Calcite carries an INTERVAL DAY TO SECOND value as a (possibly fractional) millisecond
+      // BigDecimal; decode it back to the java.time.Duration the NanosDuration logical type
+      // expects, preserving sub-millisecond precision.
+      BigDecimal nanos = ((BigDecimal) rawObj).movePointRight(6).setScale(0, RoundingMode.HALF_UP);
+      return Duration.ofNanos(nanos.longValueExact());
       // handle decimal
     } else if (type.getTypeName().isNumericType()
         && ((rawObj instanceof String)
