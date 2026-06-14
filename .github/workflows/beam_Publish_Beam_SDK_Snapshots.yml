@@ -88,8 +88,21 @@ jobs:
         # This is needed to run pipelines that use the default environment at HEAD, for example, when a
         # pipeline uses an expansion service built from HEAD.
         run: |
-          BEAM_VERSION_LINE=$(cat gradle.properties | grep "sdk_version")
-          echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
+          BEAM_VERSION_LINE=$(grep -m1 '^sdk_version=' gradle.properties || true)
+          if [ -z "$BEAM_VERSION_LINE" ]; then
+            echo "Could not find sdk_version in gradle.properties"
+            exit 1
+          fi
+
+          BEAM_VERSION="${BEAM_VERSION_LINE#sdk_version=}"
+
+          # Prevent environment file injection via CR/LF.
+          if printf '%s' "$BEAM_VERSION" | grep -q $'[\r\n]'; then
+            echo "Invalid sdk_version: contains newline characters"
+            exit 1
+          fi
+
+          printf 'BEAM_VERSION=%s\n' "$BEAM_VERSION" >> "$GITHUB_ENV"
       - name: Set latest tag only on master branch
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
