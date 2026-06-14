@@ -23,8 +23,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
@@ -123,6 +125,22 @@ public class BeamEnumerableConverterTest {
       List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
       assertTrue(rowList.size() == 1);
       assertEquals(Row.withSchema(schema).addValues(0L, 1L).build(), rowList.get(0));
+    }
+
+    @Test
+    public void testToRowList_limit() {
+      java.util.Map<String, org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable> tables =
+          new java.util.HashMap<>();
+      tables.put("TEST", TestBoundedTable.of(Schema.FieldType.INT64, "id").addRows(1L, 2L, 3L));
+      BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
+      BeamRelNode node = env.parseQuery("SELECT id FROM TEST LIMIT 2");
+
+      List<Row> rowList = BeamEnumerableConverter.toRowList(options, node);
+      assertEquals(2, rowList.size());
+      for (Row row : rowList) {
+        Long id = row.getInt64("id");
+        assertTrue("Unexpected id: " + id, id >= 1L && id <= 3L);
+      }
     }
 
     private static class FakeTable extends SchemaBaseBeamTable {
