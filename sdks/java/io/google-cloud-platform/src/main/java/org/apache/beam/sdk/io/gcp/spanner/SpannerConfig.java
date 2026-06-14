@@ -97,6 +97,10 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+  public abstract @Nullable ValueProvider<String> getClientCertPath();
+
+  public abstract @Nullable ValueProvider<String> getClientCertKeyPath();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
@@ -193,6 +197,10 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setWaitForSessionCreationDuration(
         ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+
+    abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+    abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
     public abstract SpannerConfig build();
   }
@@ -413,5 +421,34 @@ public abstract class SpannerConfig implements Serializable {
       java.time.Duration waitForSessionCreationDuration) {
     return withWaitForSessionCreationDuration(
         ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(
+      ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+    return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(String certPath, String keyPath) {
+    return withClientCert(
+        ValueProvider.StaticValueProvider.of(certPath),
+        ValueProvider.StaticValueProvider.of(keyPath));
   }
 }
