@@ -46,6 +46,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
@@ -346,6 +347,238 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
                 .withSchema(schema)
+                .withoutValidation());
+    p.run();
+  }
+
+  @Test
+  public void testWriteCreatesCloneTable() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING")));
+    TableReference sourceTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.source_table");
+    TableReference destinationTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.destination_table");
+    TableRow baseRow = new TableRow().set("name", "base");
+    TableRow appendedRow = new TableRow().set("name", "appended");
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTable).setSchema(schema));
+    fakeDatasetService.insertAll(sourceTable, ImmutableList.of(baseRow), null);
+
+    p.apply(Create.<TableRow>of(appendedRow))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.destination_table")
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.FILE_LOADS)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withCloneFrom("project-id:dataset-id.source_table")
+                .withoutValidation());
+    p.run();
+
+    assertEquals(schema, fakeDatasetService.getTable(destinationTable).getSchema());
+    assertThat(
+        fakeDatasetService.getAllRows(destinationTable), containsInAnyOrder(baseRow, appendedRow));
+    assertThat(
+        fakeJobService.getAllJobs().stream()
+            .map(Job::getConfiguration)
+            .map(configuration -> configuration.getCopy())
+            .filter(copy -> copy != null)
+            .map(JobConfigurationTableCopy::getOperationType)
+            .collect(Collectors.toList()),
+        hasItem("CLONE"));
+  }
+
+  @Test
+  public void testWriteCreatesCloneTableWithUnqualifiedCloneSourceUsesDestinationProject()
+      throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING")));
+    TableReference sourceTable =
+        BigQueryHelpers.parseTableSpec("bigquery-project-id:dataset-id.source_table");
+    TableReference destinationTable =
+        BigQueryHelpers.parseTableSpec("bigquery-project-id:dataset-id.destination_table");
+    TableRow baseRow = new TableRow().set("name", "base");
+    TableRow appendedRow = new TableRow().set("name", "appended");
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTable).setSchema(schema));
+    fakeDatasetService.insertAll(sourceTable, ImmutableList.of(baseRow), null);
+
+    p.apply(Create.<TableRow>of(appendedRow))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("bigquery-project-id:dataset-id.destination_table")
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.FILE_LOADS)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withCloneFrom("dataset-id.source_table")
+                .withoutValidation());
+    p.run();
+
+    assertEquals(schema, fakeDatasetService.getTable(destinationTable).getSchema());
+    assertThat(
+        fakeDatasetService.getAllRows(destinationTable), containsInAnyOrder(baseRow, appendedRow));
+    assertThat(
+        fakeJobService.getAllJobs().stream()
+            .map(Job::getConfiguration)
+            .map(configuration -> configuration.getCopy())
+            .filter(copy -> copy != null && "CLONE".equals(copy.getOperationType()))
+            .flatMap(copy -> copy.getSourceTables().stream())
+            .collect(Collectors.toList()),
+        hasItem(sourceTable));
+  }
+
+  @Test
+  public void testMatchTableDynamicDestinationsUsesDestinationProjectForCloneSourceSchema()
+      throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+    TableReference sourceTable =
+        BigQueryHelpers.parseTableSpec("bigquery-project-id:dataset-id.source_avro_table");
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTable).setSchema(schema));
+
+    DynamicDestinations<String, String> dynamicDestinations =
+        new DynamicDestinations<String, String>() {
+          @Override
+          public String getDestination(@Nullable ValueInSingleWindow<String> element) {
+            return "destination";
+          }
+
+          @Override
+          public Coder<String> getDestinationCoder() {
+            return StringUtf8Coder.of();
+          }
+
+          @Override
+          public TableDestination getTable(String destination) {
+            return new TableDestination(
+                "bigquery-project-id:dataset-id.destination_avro_table", null);
+          }
+
+          @Override
+          public @Nullable TableSchema getSchema(String destination) {
+            return null;
+          }
+
+          @Override
+          public TableReference getCloneSource(String destination) {
+            return BigQueryHelpers.parseTableSpec("dataset-id.source_avro_table");
+          }
+        };
+    DynamicDestinations<String, String> matchingDestinations =
+        DynamicDestinationsHelpers.matchTableDynamicDestinations(
+            dynamicDestinations, fakeBqServices);
+
+    PCollection<String> matchedSchema =
+        p.apply(Create.of("destination"))
+            .apply(
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext context) {
+                        matchingDestinations.setSideInputAccessorFromProcessContext(context);
+                        context.output(
+                            BigQueryHelpers.toJsonString(
+                                checkNotNull(matchingDestinations.getSchema(context.element()))));
+                      }
+                    }));
+
+    PAssert.that(matchedSchema).containsInAnyOrder(BigQueryHelpers.toJsonString(schema));
+    p.run();
+  }
+
+  @Test
+  public void testWriteCreatesCloneTableWithDynamicDestinations() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("bucket").setType("STRING"),
+                    new TableFieldSchema().setName("name").setType("STRING")));
+    TableReference sourceTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.source_bucket_a");
+    TableReference destinationTable =
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.destination_bucket_a");
+    TableRow baseRow = new TableRow().set("bucket", "a").set("name", "base");
+    TableRow appendedRow = new TableRow().set("bucket", "a").set("name", "appended");
+    fakeDatasetService.createTable(new Table().setTableReference(sourceTable).setSchema(schema));
+    fakeDatasetService.insertAll(sourceTable, ImmutableList.of(baseRow), null);
+
+    p.apply(Create.<TableRow>of(appendedRow))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    new DynamicDestinations<TableRow, String>() {
+                      @Override
+                      public String getDestination(ValueInSingleWindow<TableRow> element) {
+                        return element.getValue().get("bucket").toString();
+                      }
+
+                      @Override
+                      public Coder<String> getDestinationCoder() {
+                        return StringUtf8Coder.of();
+                      }
+
+                      @Override
+                      public TableDestination getTable(String destination) {
+                        return new TableDestination(
+                            "project-id:dataset-id.destination_bucket_" + destination, null);
+                      }
+
+                      @Override
+                      public @Nullable TableSchema getSchema(String destination) {
+                        return null;
+                      }
+
+                      @Override
+                      public TableReference getCloneSource(String destination) {
+                        return BigQueryHelpers.parseTableSpec(
+                            "project-id:dataset-id.source_bucket_" + destination);
+                      }
+                    })
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.FILE_LOADS)
+                .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withoutValidation());
+    p.run();
+
+    assertEquals(schema, fakeDatasetService.getTable(destinationTable).getSchema());
+    assertThat(
+        fakeDatasetService.getAllRows(destinationTable), containsInAnyOrder(baseRow, appendedRow));
+    assertThat(
+        fakeJobService.getAllJobs().stream()
+            .map(Job::getConfiguration)
+            .map(configuration -> configuration.getCopy())
+            .filter(copy -> copy != null)
+            .map(JobConfigurationTableCopy::getOperationType)
+            .collect(Collectors.toList()),
+        hasItem("CLONE"));
+  }
+
+  @Test
+  public void testWriteRejectsSchemaAndCloneSource() {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "No more than one of jsonSchema, schemaFromView, or cloneSource may be set");
+
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.destination_table")
+                .withTestServices(fakeBqServices)
+                .withSchema(new TableSchema())
+                .withCloneFrom("project-id:dataset-id.source_table")
                 .withoutValidation());
     p.run();
   }
@@ -2157,6 +2390,14 @@ public class BigQueryIOWriteTest implements Serializable {
         schema,
         BigQueryHelpers.fromJsonString(
             write.withSchema(schema).getJsonSchema().get(), TableSchema.class));
+    assertEquals(
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.source_table"),
+        BigQueryHelpers.fromJsonString(
+            write
+                .withCloneFrom("project-id:dataset-id.source_table")
+                .getJsonCloneSourceTableRef()
+                .get(),
+            TableReference.class));
   }
 
   @Test
