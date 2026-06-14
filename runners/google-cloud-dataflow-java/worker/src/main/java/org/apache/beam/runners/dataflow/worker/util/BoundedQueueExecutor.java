@@ -391,12 +391,18 @@ public class BoundedQueueExecutor {
     if (keyGroupWorkQueue == null) {
       return null;
     }
-    @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
-    if (queuedWork == null) {
-      return null;
+    while (true) {
+      @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
+      if (queuedWork == null) {
+        return null;
+      }
+      if (queuedWork.getWork().work().isFailed()) {
+        queuedWork.getHandle().close();
+      } else {
+        internalHandle.merge(queuedWork.getHandle());
+        return queuedWork.getWork();
+      }
     }
-    internalHandle.merge(queuedWork.getHandle());
-    return queuedWork.getWork();
   }
 
   private void decrementCounters(int elements, long bytes) {
