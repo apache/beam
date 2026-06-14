@@ -46,6 +46,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -61,25 +62,25 @@ public class IcebergUtils {
   private IcebergUtils() {}
 
   private static final Map<Schema.TypeName, Type> BEAM_TYPES_TO_ICEBERG_TYPES =
-      ImmutableMap.<Schema.TypeName, Type>builder()
-          .put(Schema.TypeName.BOOLEAN, Types.BooleanType.get())
-          .put(Schema.TypeName.INT32, Types.IntegerType.get())
-          .put(Schema.TypeName.INT64, Types.LongType.get())
-          .put(Schema.TypeName.FLOAT, Types.FloatType.get())
-          .put(Schema.TypeName.DOUBLE, Types.DoubleType.get())
-          .put(Schema.TypeName.STRING, Types.StringType.get())
-          .put(Schema.TypeName.BYTES, Types.BinaryType.get())
-          .put(Schema.TypeName.DATETIME, Types.TimestampType.withZone())
-          .build();
+    ImmutableMap.<Schema.TypeName, Type>builder()
+      .put(Schema.TypeName.BOOLEAN, Types.BooleanType.get())
+      .put(Schema.TypeName.INT32, Types.IntegerType.get())
+      .put(Schema.TypeName.INT64, Types.LongType.get())
+      .put(Schema.TypeName.FLOAT, Types.FloatType.get())
+      .put(Schema.TypeName.DOUBLE, Types.DoubleType.get())
+      .put(Schema.TypeName.STRING, Types.StringType.get())
+      .put(Schema.TypeName.BYTES, Types.BinaryType.get())
+      .put(Schema.TypeName.DATETIME, Types.TimestampType.withZone())
+      .build();
 
   private static final Map<String, Type> BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES =
-      ImmutableMap.<String, Type>builder()
-          .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
-          .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
-          .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
-          .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
-          .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
-          .build();
+    ImmutableMap.<String, Type>builder()
+      .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
+      .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
+      .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
+      .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
+      .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
+      .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
     switch (type.typeId()) {
@@ -117,8 +118,8 @@ public class IcebergUtils {
         return Schema.FieldType.array(icebergTypeToBeamFieldType(type.asListType().elementType()));
       case MAP:
         return Schema.FieldType.map(
-            icebergTypeToBeamFieldType(type.asMapType().keyType()),
-            icebergTypeToBeamFieldType(type.asMapType().valueType()));
+          icebergTypeToBeamFieldType(type.asMapType().keyType()),
+          icebergTypeToBeamFieldType(type.asMapType().valueType()));
       default:
         throw new RuntimeException("Unrecognized Iceberg Type: " + type.typeId());
     }
@@ -126,7 +127,7 @@ public class IcebergUtils {
 
   private static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
     return Schema.Field.of(field.name(), icebergTypeToBeamFieldType(field.type()))
-        .withNullable(field.isOptional());
+      .withNullable(field.isOptional());
   }
 
   /** Converts an Iceberg {@link org.apache.iceberg.Schema} to a Beam {@link Schema}. */
@@ -176,12 +177,12 @@ public class IcebergUtils {
    */
   @VisibleForTesting
   static TypeAndMaxId beamFieldTypeToIcebergFieldType(
-      Schema.FieldType beamType, int nestedFieldId) {
+    Schema.FieldType beamType, int nestedFieldId) {
     if (BEAM_TYPES_TO_ICEBERG_TYPES.containsKey(beamType.getTypeName())) {
       // we don't use nested field ID for primitive types. decrement it so the caller can use it for
       // other types.
       return new TypeAndMaxId(
-          --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
+        --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
     } else if (beamType.getTypeName().isLogicalType()) {
       Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(beamType.getLogicalType());
       if (logicalType instanceof FixedPrecisionNumeric) {
@@ -201,21 +202,21 @@ public class IcebergUtils {
       return new TypeAndMaxId(--nestedFieldId, type);
     } else if (beamType.getTypeName().isCollectionType()) { // ARRAY or ITERABLE
       Schema.FieldType beamCollectionType =
-          Preconditions.checkArgumentNotNull(beamType.getCollectionElementType());
+        Preconditions.checkArgumentNotNull(beamType.getCollectionElementType());
 
       // nestedFieldId is reserved for the list's collection type.
       // we increment here because further nested fields should use unique ID's
       TypeAndMaxId listInfo =
-          beamFieldTypeToIcebergFieldType(beamCollectionType, nestedFieldId + 1);
+        beamFieldTypeToIcebergFieldType(beamCollectionType, nestedFieldId + 1);
       Type icebergCollectionType = listInfo.type;
 
       boolean elementTypeIsNullable =
-          Preconditions.checkArgumentNotNull(beamType.getCollectionElementType()).getNullable();
+        Preconditions.checkArgumentNotNull(beamType.getCollectionElementType()).getNullable();
 
       Type listType =
-          elementTypeIsNullable
-              ? Types.ListType.ofOptional(nestedFieldId, icebergCollectionType)
-              : Types.ListType.ofRequired(nestedFieldId, icebergCollectionType);
+        elementTypeIsNullable
+          ? Types.ListType.ofOptional(nestedFieldId, icebergCollectionType)
+          : Types.ListType.ofRequired(nestedFieldId, icebergCollectionType);
 
       return new TypeAndMaxId(listInfo.maxId, listType);
     } else if (beamType.getTypeName().isMapType()) { // MAP
@@ -231,14 +232,14 @@ public class IcebergUtils {
 
       nestedFieldId = keyInfo.maxId + 1;
       Schema.FieldType beamValueType =
-          Preconditions.checkArgumentNotNull(beamType.getMapValueType());
+        Preconditions.checkArgumentNotNull(beamType.getMapValueType());
       TypeAndMaxId valueInfo = beamFieldTypeToIcebergFieldType(beamValueType, nestedFieldId);
       Type icebergValueType = valueInfo.type;
 
       Type mapType =
-          beamValueType.getNullable()
-              ? Types.MapType.ofOptional(keyId, valueId, icebergKeyType, icebergValueType)
-              : Types.MapType.ofRequired(keyId, valueId, icebergKeyType, icebergValueType);
+        beamValueType.getNullable()
+          ? Types.MapType.ofOptional(keyId, valueId, icebergKeyType, icebergValueType)
+          : Types.MapType.ofRequired(keyId, valueId, icebergKeyType, icebergValueType);
 
       return new TypeAndMaxId(valueInfo.maxId, mapType);
     } else if (beamType.getTypeName().isCompositeType()) { // ROW
@@ -250,13 +251,13 @@ public class IcebergUtils {
       nestedFieldId = icebergFieldId + nestedSchema.getFieldCount();
       for (Schema.Field beamField : nestedSchema.getFields()) {
         TypeAndMaxId typeAndMaxId =
-            beamFieldTypeToIcebergFieldType(beamField.getType(), nestedFieldId);
+          beamFieldTypeToIcebergFieldType(beamField.getType(), nestedFieldId);
         Types.NestedField icebergField =
-            Types.NestedField.of(
-                icebergFieldId++,
-                beamField.getType().getNullable(),
-                beamField.getName(),
-                typeAndMaxId.type);
+          Types.NestedField.of(
+            icebergFieldId++,
+            beamField.getType().getNullable(),
+            beamField.getName(),
+            typeAndMaxId.type);
 
         nestedFields.add(icebergField);
         nestedFieldId = typeAndMaxId.maxId + 1;
@@ -282,13 +283,13 @@ public class IcebergUtils {
     int icebergFieldId = 1;
     for (Schema.Field beamField : schema.getFields()) {
       TypeAndMaxId typeAndMaxId =
-          beamFieldTypeToIcebergFieldType(beamField.getType(), nestedFieldId);
+        beamFieldTypeToIcebergFieldType(beamField.getType(), nestedFieldId);
       Types.NestedField icebergField =
-          Types.NestedField.of(
-              icebergFieldId++,
-              beamField.getType().getNullable(),
-              beamField.getName(),
-              typeAndMaxId.type);
+        Types.NestedField.of(
+          icebergFieldId++,
+          beamField.getType().getNullable(),
+          beamField.getName(),
+          typeAndMaxId.type);
 
       fields.add(icebergField);
       nestedFieldId = typeAndMaxId.maxId + 1;
@@ -300,10 +301,10 @@ public class IcebergUtils {
   public static Record beamRowToIcebergRecord(org.apache.iceberg.Schema schema, Row row) {
     if (row.getSchema().getFieldCount() != schema.columns().size()) {
       throw new IllegalStateException(
-          String.format(
-              "Beam Row schema and Iceberg schema have different sizes.%n\tBeam Row columns: %s%n\tIceberg schema columns: %s",
-              row.getSchema().getFieldNames(),
-              schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toList())));
+        String.format(
+          "Beam Row schema and Iceberg schema have different sizes.%n\tBeam Row columns: %s%n\tIceberg schema columns: %s",
+          row.getSchema().getFieldNames(),
+          schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toList())));
     }
     return copyRowIntoRecord(GenericRecord.create(schema), row);
   }
@@ -336,11 +337,11 @@ public class IcebergUtils {
         break;
       case DATE:
         Optional.ofNullable(value.getLogicalTypeValue(name, LocalDate.class))
-            .ifPresent(v -> rec.setField(name, v));
+          .ifPresent(v -> rec.setField(name, v));
         break;
       case TIME:
         Optional.ofNullable(value.getLogicalTypeValue(name, LocalTime.class))
-            .ifPresent(v -> rec.setField(name, v));
+          .ifPresent(v -> rec.setField(name, v));
         break;
       case TIMESTAMP:
         Object val = value.getValue(name);
@@ -355,24 +356,24 @@ public class IcebergUtils {
         break;
       case UUID:
         Optional.ofNullable(value.getBytes(name))
-            .ifPresent(v -> rec.setField(name, UUID.nameUUIDFromBytes(v)));
+          .ifPresent(v -> rec.setField(name, UUID.nameUUIDFromBytes(v)));
         break;
       case FIXED:
         throw new UnsupportedOperationException("Fixed-precision fields are not yet supported.");
       case BINARY:
         Optional.ofNullable(value.getBytes(name))
-            .ifPresent(v -> rec.setField(name, ByteBuffer.wrap(v)));
+          .ifPresent(v -> rec.setField(name, ByteBuffer.wrap(v)));
         break;
       case DECIMAL:
         Optional.ofNullable(value.getDecimal(name)).ifPresent(v -> rec.setField(name, v));
         break;
       case STRUCT:
         Optional.ofNullable(value.getRow(name))
-            .ifPresent(
-                row ->
-                    rec.setField(
-                        name,
-                        copyRowIntoRecord(GenericRecord.create(field.type().asStructType()), row)));
+          .ifPresent(
+            row ->
+              rec.setField(
+                name,
+                copyRowIntoRecord(GenericRecord.create(field.type().asStructType()), row)));
         break;
       case LIST:
         Iterable<@NonNull ?> icebergList = value.getIterable(name);
@@ -434,7 +435,7 @@ public class IcebergUtils {
         OffsetDateTime epoch = java.time.Instant.ofEpochSecond(0).atOffset(ZoneOffset.UTC);
         java.time.Instant instant = (java.time.Instant) beamValue;
         long nanosFromEpoch =
-            TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+          TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
         return ChronoUnit.NANOS.addTo(epoch, nanosFromEpoch);
       } else if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
         return OffsetDateTime.of((LocalDateTime) beamValue, ZoneOffset.UTC);
@@ -446,7 +447,7 @@ public class IcebergUtils {
         return OffsetDateTime.parse((String) beamValue).withOffsetSameInstant(ZoneOffset.UTC);
       } else {
         throw new UnsupportedOperationException(
-            "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
+          "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
       }
     }
 
@@ -454,7 +455,7 @@ public class IcebergUtils {
     if (beamValue instanceof java.time.Instant) { // MicrosInstant
       java.time.Instant instant = (java.time.Instant) beamValue;
       return DateTimeUtil.timestampFromNanos(
-          TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano());
+        TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano());
     } else if (beamValue instanceof LocalDateTime) { // SqlType.DATETIME
       return beamValue;
     } else if (beamValue instanceof Instant) { // FieldType.DATETIME
@@ -465,124 +466,145 @@ public class IcebergUtils {
       return LocalDateTime.parse((String) beamValue);
     } else {
       throw new UnsupportedOperationException(
-          "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
+        "Unsupported Beam type for Iceberg timestamp with timezone: " + beamValue.getClass());
     }
+  }
+
+  /** Converts a {@link StructLike} to a Beam {@link Row}. */
+  public static Row structToRow(Schema schema, StructLike struct) {
+    checkState(
+      schema.getFieldCount() == struct.size(),
+      "Struct of size %s does not match expected schema size %s",
+      struct.size(),
+      schema.getFieldCount());
+    Row.Builder rowBuilder = Row.withSchema(schema);
+    for (int i = 0; i < schema.getFieldCount(); i++) {
+      Schema.Field field = schema.getField(i);
+      @Nullable Object icebergValue = struct.get(i, Object.class);
+      addIcebergValue(rowBuilder, field, icebergValue);
+    }
+    return rowBuilder.build();
   }
 
   /** Converts an Iceberg {@link Record} to a Beam {@link Row}. */
   public static Row icebergRecordToBeamRow(Schema schema, Record record) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Schema.Field field : schema.getFields()) {
-      boolean isNullable = field.getType().getNullable();
       @Nullable Object icebergValue = record.getField(field.getName());
-      if (icebergValue == null) {
-        if (isNullable) {
-          rowBuilder.addValue(null);
-          continue;
-        }
-        throw new RuntimeException(
-            String.format("Received null value for required field '%s'.", field.getName()));
-      }
-      switch (field.getType().getTypeName()) {
-        case BYTE:
-        case INT16:
-        case INT32:
-        case INT64:
-        case DECIMAL: // Iceberg and Beam both use BigDecimal
-        case FLOAT: // Iceberg and Beam both use float
-        case DOUBLE: // Iceberg and Beam both use double
-        case STRING: // Iceberg and Beam both use String
-        case BOOLEAN: // Iceberg and Beam both use boolean
-          rowBuilder.addValue(icebergValue);
-          break;
-        case ARRAY:
-          checkState(
-              icebergValue instanceof List,
-              "Expected List type for field '%s' but received %s",
-              field.getName(),
-              icebergValue.getClass());
-          List<@NonNull ?> beamList = (List<@NonNull ?>) icebergValue;
-          Schema.FieldType collectionType =
-              checkStateNotNull(field.getType().getCollectionElementType());
-          // recurse on struct types
-          if (collectionType.getTypeName().isCompositeType()) {
-            Schema innerSchema = checkStateNotNull(collectionType.getRowSchema());
-            beamList =
-                beamList.stream()
-                    .map(v -> icebergRecordToBeamRow(innerSchema, (Record) v))
-                    .collect(Collectors.toList());
-          }
-          rowBuilder.addValue(beamList);
-          break;
-        case ITERABLE:
-          checkState(
-              icebergValue instanceof Iterable,
-              "Expected Iterable type for field '%s' but received %s",
-              field.getName(),
-              icebergValue.getClass());
-          Iterable<@NonNull ?> beamIterable = (Iterable<@NonNull ?>) icebergValue;
-          Schema.FieldType iterableCollectionType =
-              checkStateNotNull(field.getType().getCollectionElementType());
-          // recurse on struct types
-          if (iterableCollectionType.getTypeName().isCompositeType()) {
-            Schema innerSchema = checkStateNotNull(iterableCollectionType.getRowSchema());
-            ImmutableList.Builder<Row> builder = ImmutableList.builder();
-            for (Record v : (Iterable<@NonNull Record>) icebergValue) {
-              builder.add(icebergRecordToBeamRow(innerSchema, v));
-            }
-            beamIterable = builder.build();
-          }
-          rowBuilder.addValue(beamIterable);
-          break;
-        case MAP:
-          checkState(
-              icebergValue instanceof Map,
-              "Expected Map type for field '%s' but received %s",
-              field.getName(),
-              icebergValue.getClass());
-          Map<?, ?> beamMap = (Map<?, ?>) icebergValue;
-          Schema.FieldType valueType = checkStateNotNull(field.getType().getMapValueType());
-          // recurse on struct types
-          if (valueType.getTypeName().isCompositeType()) {
-            Schema innerSchema = checkStateNotNull(valueType.getRowSchema());
-            ImmutableMap.Builder<Object, Row> newMap = ImmutableMap.builder();
-            for (Map.Entry<?, ?> entry : ((Map<?, ?>) icebergValue).entrySet()) {
-              Record rec = ((Record) entry.getValue());
-              newMap.put(
-                  checkStateNotNull(entry.getKey()),
-                  icebergRecordToBeamRow(innerSchema, checkStateNotNull(rec)));
-            }
-            beamMap = newMap.build();
-          }
-          rowBuilder.addValue(beamMap);
-          break;
-        case DATETIME:
-          // Iceberg uses a long for micros.
-          // Beam DATETIME uses joda's DateTime, which only supports millis,
-          // so we do lose some precision here
-          rowBuilder.addValue(getBeamDateTimeValue(icebergValue));
-          break;
-        case BYTES:
-          // Iceberg uses ByteBuffer; Beam uses byte[]
-          rowBuilder.addValue(((ByteBuffer) icebergValue).array());
-          break;
-        case ROW:
-          Record nestedRecord = (Record) icebergValue;
-          Schema nestedSchema =
-              checkArgumentNotNull(
-                  field.getType().getRowSchema(),
-                  "Corrupted schema: Row type did not have associated nested schema.");
-          rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, nestedRecord));
-          break;
-        case LOGICAL_TYPE:
-          rowBuilder.addValue(getLogicalTypeValue(icebergValue, field.getType()));
-          break;
-        default:
-          throw new UnsupportedOperationException(
-              "Unsupported Beam type: " + field.getType().getTypeName());
-      }
+      addIcebergValue(rowBuilder, field, icebergValue);
     }
     return rowBuilder.build();
+  }
+
+  private static void addIcebergValue(
+    Row.Builder rowBuilder, Schema.Field field, @Nullable Object icebergValue) {
+    boolean isNullable = field.getType().getNullable();
+    if (icebergValue == null) {
+      if (isNullable) {
+        rowBuilder.addValue(null);
+        return;
+      }
+      throw new RuntimeException(
+        String.format("Received null value for required field '%s'.", field.getName()));
+    }
+    switch (field.getType().getTypeName()) {
+      case BYTE:
+      case INT16:
+      case INT32:
+      case INT64:
+      case DECIMAL: // Iceberg and Beam both use BigDecimal
+      case FLOAT: // Iceberg and Beam both use float
+      case DOUBLE: // Iceberg and Beam both use double
+      case STRING: // Iceberg and Beam both use String
+      case BOOLEAN: // Iceberg and Beam both use boolean
+        rowBuilder.addValue(icebergValue);
+        break;
+      case ARRAY:
+        checkState(
+          icebergValue instanceof List,
+          "Expected List type for field '%s' but received %s",
+          field.getName(),
+          icebergValue.getClass());
+        List<@NonNull ?> beamList = (List<@NonNull ?>) icebergValue;
+        Schema.FieldType collectionType =
+          checkStateNotNull(field.getType().getCollectionElementType());
+        // recurse on struct types
+        if (collectionType.getTypeName().isCompositeType()) {
+          Schema innerSchema = checkStateNotNull(collectionType.getRowSchema());
+          beamList =
+            beamList.stream()
+              .map(v -> icebergRecordToBeamRow(innerSchema, (Record) v))
+              .collect(Collectors.toList());
+        }
+        rowBuilder.addValue(beamList);
+        break;
+      case ITERABLE:
+        checkState(
+          icebergValue instanceof Iterable,
+          "Expected Iterable type for field '%s' but received %s",
+          field.getName(),
+          icebergValue.getClass());
+        Iterable<@NonNull ?> beamIterable = (Iterable<@NonNull ?>) icebergValue;
+        Schema.FieldType iterableCollectionType =
+          checkStateNotNull(field.getType().getCollectionElementType());
+        // recurse on struct types
+        if (iterableCollectionType.getTypeName().isCompositeType()) {
+          Schema innerSchema = checkStateNotNull(iterableCollectionType.getRowSchema());
+          ImmutableList.Builder<Row> builder = ImmutableList.builder();
+          for (Record v : (Iterable<@NonNull Record>) icebergValue) {
+            builder.add(icebergRecordToBeamRow(innerSchema, v));
+          }
+          beamIterable = builder.build();
+        }
+        rowBuilder.addValue(beamIterable);
+        break;
+      case MAP:
+        checkState(
+          icebergValue instanceof Map,
+          "Expected Map type for field '%s' but received %s",
+          field.getName(),
+          icebergValue.getClass());
+        Map<?, ?> beamMap = (Map<?, ?>) icebergValue;
+        Schema.FieldType valueType = checkStateNotNull(field.getType().getMapValueType());
+        // recurse on struct types
+        if (valueType.getTypeName().isCompositeType()) {
+          Schema innerSchema = checkStateNotNull(valueType.getRowSchema());
+          ImmutableMap.Builder<Object, Row> newMap = ImmutableMap.builder();
+          for (Map.Entry<?, ?> entry : ((Map<?, ?>) icebergValue).entrySet()) {
+            Record rec = ((Record) entry.getValue());
+            newMap.put(
+              checkStateNotNull(entry.getKey()),
+              icebergRecordToBeamRow(innerSchema, checkStateNotNull(rec)));
+          }
+          beamMap = newMap.build();
+        }
+        rowBuilder.addValue(beamMap);
+        break;
+      case DATETIME:
+        // Iceberg uses a long for micros.
+        // Beam DATETIME uses joda's DateTime, which only supports millis,
+        // so we do lose some precision here
+        rowBuilder.addValue(getBeamDateTimeValue(icebergValue));
+        break;
+      case BYTES:
+        // Iceberg uses ByteBuffer; Beam uses byte[]
+        rowBuilder.addValue(((ByteBuffer) icebergValue).array());
+        break;
+      case ROW:
+        Record nestedRecord = (Record) icebergValue;
+        Schema nestedSchema =
+          checkArgumentNotNull(
+            field.getType().getRowSchema(),
+            "Corrupted schema: Row type did not have associated nested schema.");
+        rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, nestedRecord));
+        break;
+      case LOGICAL_TYPE:
+        rowBuilder.addValue(getLogicalTypeValue(icebergValue, field.getType()));
+        break;
+      default:
+        throw new UnsupportedOperationException(
+          "Unsupported Beam type: " + field.getType().getTypeName());
+    }
   }
 
   private static DateTime getBeamDateTimeValue(Object icebergValue) {
@@ -597,7 +619,7 @@ public class IcebergUtils {
       return DateTime.parse((String) icebergValue);
     } else {
       throw new UnsupportedOperationException(
-          "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
+        "Unsupported Iceberg type for Beam type DATETIME: " + icebergValue.getClass());
     }
     return new DateTime(micros / 1000L);
   }
@@ -619,13 +641,13 @@ public class IcebergUtils {
         return DateTimeUtil.timestampFromMicros((Long) icebergValue);
       }
     } else if (icebergValue instanceof Integer
-        && type.isLogicalType(SqlTypes.DATE.getIdentifier())) {
+      && type.isLogicalType(SqlTypes.DATE.getIdentifier())) {
       return DateTimeUtil.dateFromDays((Integer) icebergValue);
     } else if (icebergValue instanceof OffsetDateTime
-        && type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
+      && type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
       return ((OffsetDateTime) icebergValue)
-          .withOffsetSameInstant(ZoneOffset.UTC)
-          .toLocalDateTime();
+        .withOffsetSameInstant(ZoneOffset.UTC)
+        .toLocalDateTime();
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
