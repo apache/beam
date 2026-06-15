@@ -509,7 +509,10 @@ public class DataflowPipelineJob implements PipelineResult {
     }
     try {
       return requestedState.get().get();
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException(e);
+    } catch (ExecutionException e) {
       throw new IOException(e);
     }
   }

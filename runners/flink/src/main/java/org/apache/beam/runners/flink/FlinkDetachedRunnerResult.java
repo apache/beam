@@ -65,7 +65,10 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
   private State getFlinkJobState() {
     try {
       return toBeamJobState(jobClient.getJobStatus().get());
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Failed to get Flink job state", e);
+    } catch (ExecutionException e) {
       throw new RuntimeException("Failed to get Flink job state", e);
     }
   }
@@ -82,7 +85,11 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
               .getAccumulators()
               .get()
               .getOrDefault(FlinkMetricContainer.ACCUMULATOR_NAME, new MetricsContainerStepMap());
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Fail to get flink job accumulators", e);
+      return new MetricsContainerStepMap();
+    } catch (ExecutionException e) {
       LOG.warn("Fail to get flink job accumulators", e);
       return new MetricsContainerStepMap();
     }
@@ -92,7 +99,10 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
   public State cancel() throws IOException {
     try {
       this.jobClient.cancel().get();
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Fail to cancel flink job", e);
+    } catch (ExecutionException e) {
       throw new RuntimeException("Fail to cancel flink job", e);
     }
     return getState();
@@ -141,6 +151,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
       try {
         Thread.sleep(jobCheckIntervalInSecs * 1000L);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
     }
