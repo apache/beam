@@ -19,12 +19,14 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.OptionalLong;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.joda.time.Instant;
 
 /**
  * In-memory tracker of a single fused stage's input watermark, computed from the committed
- * watermarks reported by its upstream <i>source partitions</i>.
+ * watermarks reported by the <i>upstream source partitions</i> that feed it (the output /
+ * repartition-topic partitions of the parent stage).
  *
  * <p>This is the core of the Kafka Streams runner's watermark propagation, decoupled from the Kafka
  * wiring so it can be unit-tested in isolation. The wiring that produces the reports (flushing
@@ -43,12 +45,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  * partitions, never about instances. (Design agreed with the mentor; see the watermark
  * coordination-channel PoC findings.)
  *
- * <h3>Holding until complete</h3>
+ * <h3>Holding until ready</h3>
  *
  * <p>Until a committed watermark has been seen for <i>every</i> source partition, the stage's input
- * watermark is undefined and must be held at {@link BoundedWindow#TIMESTAMP_MIN_VALUE} — i.e. the
- * stage emits no watermark downstream. {@link #advance()} returns {@link OptionalLong#empty()} in
- * that case. A change in {@code totalSourcePartitions} (e.g. a repartition) re-opens this hold
+ * watermark is undefined and {@link #advance()} returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE} —
+ * i.e. the stage emits no meaningful watermark downstream. A change in {@code
+ * totalSourcePartitions} (e.g. a repartition) clears the accumulated reports and re-opens this hold
  * until the new full set has reported, which subsumes the "new epoch / revert" rule without an
  * explicit epoch.
  *
@@ -63,17 +65,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
  */
 public final class WatermarkManager {
 
-  /** Millis the stage holds at while it cannot yet emit a watermark (the Beam minimum). */
-  public static final long HOLD_MILLIS = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
-
   /** Total source partitions feeding this stage, learned in-band; -1 until the first report. */
   private int expectedSourcePartitionCount = -1;
 
   /** Latest committed watermark per source partition (kept monotonic non-decreasing). */
-  private final Map<Integer, Long> committedWatermarkByPartition = new HashMap<>();
+  private final Map<Integer, Instant> committedWatermarkByPartition = new HashMap<>();
 
   /** Last watermark {@link #advance()} emitted, to enforce a non-decreasing output. */
-  private long lastEmittedMillis = HOLD_MILLIS;
+  private Instant lastEmitted = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   /**
    * Record a committed watermark reported for one source partition, together with the total source
@@ -81,12 +80,13 @@ public final class WatermarkManager {
    *
    * @param sourcePartition the source partition the report is for, in {@code [0,
    *     totalSourcePartitions)}
-   * @param committedWatermarkMillis the committed watermark for that partition, in event-time
-   *     millis
-   * @param totalSourcePartitions the total number of source partitions feeding this stage
+   * @param committedWatermark the committed watermark for that partition
+   * @param totalSourcePartitions the total number of upstream source partitions feeding this stage
    */
-  public void observe(
-      int sourcePartition, long committedWatermarkMillis, int totalSourcePartitions) {
+  public void observe(int sourcePartition, Instant committedWatermark, int totalSourcePartitions) {
+    if (committedWatermark == null) {
+      throw new IllegalArgumentException("committedWatermark must not be null");
+    }
     if (totalSourcePartitions <= 0) {
       throw new IllegalArgumentException(
           "totalSourcePartitions must be positive: " + totalSourcePartitions);
@@ -99,18 +99,21 @@ public final class WatermarkManager {
               + totalSourcePartitions);
     }
     if (totalSourcePartitions != expectedSourcePartitionCount) {
+      // The source partition set changed (e.g. a repartition). The previous per-partition
+      // watermarks describe a different partitioning, so drop them entirely and re-open the hold
+      // until the new full set reports. The output watermark still cannot regress (lastEmitted is
+      // retained).
       expectedSourcePartitionCount = totalSourcePartitions;
-      // On a partition-count decrease, drop reports for partitions that no longer exist so
-      // completeness and min() are computed over the current partition set only.
-      committedWatermarkByPartition.keySet().removeIf(p -> p >= totalSourcePartitions);
+      committedWatermarkByPartition.clear();
     }
     // A source partition's watermark is monotonic non-decreasing; ignore an out-of-order lower
     // report.
-    committedWatermarkByPartition.merge(sourcePartition, committedWatermarkMillis, Math::max);
+    committedWatermarkByPartition.merge(
+        sourcePartition, committedWatermark, (oldW, newW) -> newW.isAfter(oldW) ? newW : oldW);
   }
 
   /** True once a committed watermark has been seen for every current source partition. */
-  public boolean isComplete() {
+  public boolean isReady() {
     return expectedSourcePartitionCount > 0
         && committedWatermarkByPartition.size() == expectedSourcePartitionCount;
   }
@@ -118,31 +121,37 @@ public final class WatermarkManager {
   /**
    * Advance and return the stage input watermark.
    *
-   * <p>Returns {@link OptionalLong#empty()} while the stage is still holding (not every source
-   * partition has reported) — the caller must emit nothing downstream in that case. Once complete,
-   * returns {@code min()} over all source partitions, clamped to never regress below the previously
-   * emitted value. The sequence of present values returned across calls is non-decreasing.
+   * <p>Returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE} while the stage is still holding (not
+   * every source partition has reported) — the caller emits nothing meaningful downstream in that
+   * case. Once ready, returns {@code min()} over all source partitions, clamped to never regress
+   * below the previously emitted value. The sequence of values returned across calls is
+   * non-decreasing.
    */
-  public OptionalLong advance() {
-    if (!isComplete()) {
-      return OptionalLong.empty();
+  public Instant advance() {
+    if (!isReady()) {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
-    long min = Long.MAX_VALUE;
-    for (long w : committedWatermarkByPartition.values()) {
-      min = Math.min(min, w);
+    // isReady() guarantees the map is non-empty, so the seed is always replaced by a real value.
+    Instant min = BoundedWindow.TIMESTAMP_MAX_VALUE;
+    for (Instant w : committedWatermarkByPartition.values()) {
+      if (w.isBefore(min)) {
+        min = w;
+      }
     }
-    long emit = Math.max(min, lastEmittedMillis);
-    lastEmittedMillis = emit;
-    return OptionalLong.of(emit);
+    Instant emit = min.isAfter(lastEmitted) ? min : lastEmitted;
+    lastEmitted = emit;
+    return emit;
   }
 
   /** The total source partition count learned in-band, or -1 if nothing reported yet. */
-  public int expectedSourcePartitionCount() {
+  @VisibleForTesting
+  int expectedSourcePartitionCount() {
     return expectedSourcePartitionCount;
   }
 
   /** How many distinct source partitions have reported so far. */
-  public int reportedPartitionCount() {
+  @VisibleForTesting
+  int reportedPartitionCount() {
     return committedWatermarkByPartition.size();
   }
 }

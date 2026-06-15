@@ -21,116 +21,135 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import java.util.OptionalLong;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 import org.junit.Test;
 
 /** Tests for {@link WatermarkManager}. */
 public class WatermarkManagerTest {
 
+  private static Instant ts(long millis) {
+    return new Instant(millis);
+  }
+
   @Test
   public void holdsBeforeAnyReport() {
     WatermarkManager manager = new WatermarkManager();
-    assertThat(manager.isComplete(), is(false));
-    assertThat(manager.advance().isPresent(), is(false));
+    assertThat(manager.isReady(), is(false));
+    assertThat(manager.advance(), is(BoundedWindow.TIMESTAMP_MIN_VALUE));
   }
 
   @Test
   public void holdsUntilEverySourcePartitionReports() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 100L, 4);
-    manager.observe(1, 100L, 4);
-    manager.observe(2, 100L, 4);
+    manager.observe(0, ts(100L), 4);
+    manager.observe(1, ts(100L), 4);
+    manager.observe(2, ts(100L), 4);
     // Three of four partitions reported — still holding.
-    assertThat(manager.isComplete(), is(false));
-    assertThat(manager.advance().isPresent(), is(false));
+    assertThat(manager.isReady(), is(false));
+    assertThat(manager.advance(), is(BoundedWindow.TIMESTAMP_MIN_VALUE));
 
-    manager.observe(3, 100L, 4);
-    assertThat(manager.isComplete(), is(true));
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    manager.observe(3, ts(100L), 4);
+    assertThat(manager.isReady(), is(true));
+    assertThat(manager.advance(), is(ts(100L)));
   }
 
   @Test
-  public void emitsMinAcrossPartitionsOnceComplete() {
+  public void emitsMinAcrossPartitionsOnceReady() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 300L, 4);
-    manager.observe(1, 100L, 4);
-    manager.observe(2, 500L, 4);
-    manager.observe(3, 200L, 4);
+    manager.observe(0, ts(300L), 4);
+    manager.observe(1, ts(100L), 4);
+    manager.observe(2, ts(500L), 4);
+    manager.observe(3, ts(200L), 4);
     // min(300, 100, 500, 200) = 100
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    assertThat(manager.advance(), is(ts(100L)));
   }
 
   @Test
   public void perPartitionWatermarkIsMonotonic() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 100L, 1);
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    manager.observe(0, ts(100L), 1);
+    assertThat(manager.advance(), is(ts(100L)));
     // A lower out-of-order report for the same partition is ignored.
-    manager.observe(0, 50L, 1);
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    manager.observe(0, ts(50L), 1);
+    assertThat(manager.advance(), is(ts(100L)));
   }
 
   @Test
-  public void emittedWatermarkDoesNotRegressWhenNewPartitionReportsOlderWatermark() {
+  public void partitionCountChangeClearsReportsAndReopensHold() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 100L, 2);
-    manager.observe(1, 100L, 2);
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    manager.observe(0, ts(100L), 2);
+    manager.observe(1, ts(100L), 2);
+    assertThat(manager.advance(), is(ts(100L)));
 
-    // A repartition grows the source set to 3; a freshly appeared partition reports an older
-    // watermark. The stage watermark must not go backwards.
-    manager.observe(2, 50L, 3);
-    assertThat(manager.isComplete(), is(true));
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    // Source set grows to 4. The previous reports are dropped, so the stage holds again until all
+    // four of the new partition set have reported.
+    manager.observe(0, ts(200L), 4);
+    assertThat(manager.reportedPartitionCount(), is(1));
+    assertThat(manager.isReady(), is(false));
+    assertThat(manager.advance(), is(BoundedWindow.TIMESTAMP_MIN_VALUE));
+
+    manager.observe(1, ts(200L), 4);
+    manager.observe(2, ts(200L), 4);
+    manager.observe(3, ts(200L), 4);
+    assertThat(manager.isReady(), is(true));
+    assertThat(manager.advance(), is(ts(200L)));
   }
 
   @Test
-  public void partitionCountIncreaseReopensHold() {
+  public void emittedWatermarkDoesNotRegressAfterRepartition() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 100L, 2);
-    manager.observe(1, 100L, 2);
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    manager.observe(0, ts(100L), 2);
+    manager.observe(1, ts(100L), 2);
+    assertThat(manager.advance(), is(ts(100L)));
 
-    // Source set grows to 4; until partitions 2 and 3 report, the stage holds again.
-    manager.observe(2, 200L, 4);
-    assertThat(manager.isComplete(), is(false));
-    assertThat(manager.advance().isPresent(), is(false));
-
-    manager.observe(3, 200L, 4);
-    assertThat(manager.isComplete(), is(true));
-    // min(100, 100, 200, 200) = 100, which also satisfies the non-regression clamp.
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    // After a repartition to 3, the new partitions report older watermarks. Once ready again the
+    // min is 50, but the emitted stage watermark must not go backwards below 100.
+    manager.observe(0, ts(50L), 3);
+    manager.observe(1, ts(50L), 3);
+    manager.observe(2, ts(50L), 3);
+    assertThat(manager.isReady(), is(true));
+    assertThat(manager.advance(), is(ts(100L)));
   }
 
   @Test
-  public void partitionCountDecreasePrunesStalePartitions() {
+  public void partitionCountDecreaseClearsAndRecomputes() {
     WatermarkManager manager = new WatermarkManager();
-    manager.observe(0, 100L, 4);
-    manager.observe(1, 100L, 4);
-    manager.observe(2, 100L, 4);
-    manager.observe(3, 50L, 4);
-    assertThat(manager.advance(), is(OptionalLong.of(50L)));
+    manager.observe(0, ts(100L), 4);
+    manager.observe(1, ts(100L), 4);
+    manager.observe(2, ts(100L), 4);
+    manager.observe(3, ts(50L), 4);
+    assertThat(manager.advance(), is(ts(50L)));
 
-    // Source set shrinks to 2; partitions 2 and 3 no longer exist and are dropped. The remaining
-    // set {0, 1} is complete and its min is 100, but the output must not regress below 50.
-    manager.observe(0, 100L, 2);
+    // Source set shrinks to 2. Reports are cleared; the stage holds until {0, 1} report again.
+    manager.observe(0, ts(100L), 2);
     assertThat(manager.expectedSourcePartitionCount(), is(2));
-    assertThat(manager.reportedPartitionCount(), is(2));
-    assertThat(manager.isComplete(), is(true));
-    assertThat(manager.advance(), is(OptionalLong.of(100L)));
+    assertThat(manager.reportedPartitionCount(), is(1));
+    assertThat(manager.isReady(), is(false));
+
+    manager.observe(1, ts(100L), 2);
+    assertThat(manager.isReady(), is(true));
+    // min is 100; the non-regression clamp keeps it >= the previously emitted 50.
+    assertThat(manager.advance(), is(ts(100L)));
+  }
+
+  @Test
+  public void rejectsNullWatermark() {
+    WatermarkManager manager = new WatermarkManager();
+    assertThrows(IllegalArgumentException.class, () -> manager.observe(0, null, 4));
   }
 
   @Test
   public void rejectsNonPositiveTotalSourcePartitions() {
     WatermarkManager manager = new WatermarkManager();
-    assertThrows(IllegalArgumentException.class, () -> manager.observe(0, 100L, 0));
-    assertThrows(IllegalArgumentException.class, () -> manager.observe(0, 100L, -1));
+    assertThrows(IllegalArgumentException.class, () -> manager.observe(0, ts(100L), 0));
+    assertThrows(IllegalArgumentException.class, () -> manager.observe(0, ts(100L), -1));
   }
 
   @Test
   public void rejectsOutOfRangeSourcePartition() {
     WatermarkManager manager = new WatermarkManager();
-    assertThrows(IllegalArgumentException.class, () -> manager.observe(-1, 100L, 4));
-    assertThrows(IllegalArgumentException.class, () -> manager.observe(4, 100L, 4));
+    assertThrows(IllegalArgumentException.class, () -> manager.observe(-1, ts(100L), 4));
+    assertThrows(IllegalArgumentException.class, () -> manager.observe(4, ts(100L), 4));
   }
 }
