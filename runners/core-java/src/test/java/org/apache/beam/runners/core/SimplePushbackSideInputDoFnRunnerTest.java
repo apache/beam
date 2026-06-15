@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -378,6 +379,9 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     public void finishBundle() {
       finished = true;
     }
+
+    @Override
+    public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
     @Override
     public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
