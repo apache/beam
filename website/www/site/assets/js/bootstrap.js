@@ -692,7 +692,7 @@ if (typeof jQuery === 'undefined') {
     var target = $trigger.attr('data-target')
       || (href = $trigger.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
 
-    return $(document).find(target)
+    return target ? $(document).find(target) : $()
   }
 
 
@@ -1563,7 +1563,7 @@ if (typeof jQuery === 'undefined') {
     var $tip  = this.tip()
     var title = this.getTitle()
 
-    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](sanitizeHtml(title))
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](this.options.html ? sanitizeHtml(title) : title)
     $tip.removeClass('fade in top bottom left right')
   }
 
