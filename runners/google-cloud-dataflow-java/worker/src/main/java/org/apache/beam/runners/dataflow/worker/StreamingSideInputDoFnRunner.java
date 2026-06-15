@@ -17,14 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import java.util.Set;
+import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -37,43 +37,33 @@ import org.joda.time.Instant;
 public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     implements DoFnRunner<InputT, OutputT> {
   private final DoFnRunner<InputT, OutputT> simpleDoFnRunner;
-  private final StreamingSideInputFetcher<InputT, W> sideInputFetcher;
+  private final StreamingSideInputProcessor<InputT, W> sideInputProcessor;
 
   public StreamingSideInputDoFnRunner(
       DoFnRunner<InputT, OutputT> simpleDoFnRunner,
       StreamingSideInputFetcher<InputT, W> sideInputFetcher) {
     this.simpleDoFnRunner = simpleDoFnRunner;
-    this.sideInputFetcher = sideInputFetcher;
+    this.sideInputProcessor = new StreamingSideInputProcessor<>(sideInputFetcher);
   }
 
   @Override
   public void startBundle() {
     simpleDoFnRunner.startBundle();
-    sideInputFetcher.prefetchBlockedMap();
-
-    // Find the set of ready windows.
-    Set<W> readyWindows = sideInputFetcher.getReadyWindows();
-
-    Iterable<BagState<WindowedValue<InputT>>> elementsBags =
-        sideInputFetcher.prefetchElements(readyWindows);
-
-    // Run the DoFn code now that all side inputs are ready.
-    for (BagState<WindowedValue<InputT>> elementsBag : elementsBags) {
-      Iterable<WindowedValue<InputT>> elements = elementsBag.read();
-      for (WindowedValue<InputT> elem : elements) {
-        simpleDoFnRunner.processElement(elem);
-      }
-      elementsBag.clear();
-    }
-    sideInputFetcher.releaseBlockedWindows(readyWindows);
+    sideInputProcessor.tryUnblockElements(
+        unblocked -> {
+          for (WindowedValue<InputT> elem : unblocked) {
+            simpleDoFnRunner.processElement(elem);
+          }
+        });
   }
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
-      if (!sideInputFetcher.storeIfBlocked(elem)) {
-        simpleDoFnRunner.processElement(elem);
-      }
+    for (Iterator<? extends WindowedValue<InputT>> it =
+            sideInputProcessor.handleProcessElement(compressedElem);
+        it.hasNext(); ) {
+      WindowedValue<InputT> elem = it.next();
+      simpleDoFnRunner.processElement(elem);
     }
   }
 
@@ -92,9 +82,14 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   }
 
   @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    simpleDoFnRunner.finishKey(key);
+  }
+
+  @Override
   public void finishBundle() {
     simpleDoFnRunner.finishBundle();
-    sideInputFetcher.persist();
+    sideInputProcessor.handleFinishBundle();
   }
 
   @Override
