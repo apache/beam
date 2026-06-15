@@ -230,19 +230,16 @@ public class AsyncWrapperTest implements Serializable {
   }
 
   private void waitForEmpty(AsyncWrapper<?, ?, ?> asyncWrapper, int timeoutSeconds) {
-    int count = 0;
-    // Poll every 5 milliseconds instead of 1000 milliseconds for instant response
-    int maxIterations = timeoutSeconds * 200;
+    long limit = System.currentTimeMillis() + timeoutSeconds * 1000L;
     while (!asyncWrapper.isEmpty()) {
+      if (System.currentTimeMillis() > limit) {
+        throw new RuntimeException("Timed out waiting for async dofn to be empty");
+      }
       try {
         Thread.sleep(5);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
-      }
-      count += 1;
-      if (count > maxIterations) {
-        throw new RuntimeException("Timed out waiting for async dofn to be empty");
       }
     }
     try {
@@ -421,7 +418,7 @@ public class AsyncWrapperTest implements Serializable {
   // execution task has not finished processing yet.
   @Test
   public void testLongItem() {
-    BasicDofn dofn = new BasicDofn(10);
+    BasicDofn dofn = new BasicDofn(500);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -639,7 +636,7 @@ public class AsyncWrapperTest implements Serializable {
   // the scheduler must block and delay submissions appropriately.
   @Test
   public void testBufferStopsAcceptingItems() {
-    BasicDofn dofn = new BasicDofn(10);
+    BasicDofn dofn = new BasicDofn(500);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn,
@@ -672,7 +669,7 @@ public class AsyncWrapperTest implements Serializable {
     }
 
     try {
-      Thread.sleep(5);
+      Thread.sleep(100);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -800,7 +797,7 @@ public class AsyncWrapperTest implements Serializable {
     }
 
     try {
-      Thread.sleep(50 + random.nextInt(20));
+      Thread.sleep(1000 + random.nextInt(1000));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
