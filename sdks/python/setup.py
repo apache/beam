@@ -526,14 +526,12 @@ if __name__ == '__main__':
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32; python_version < "3.13"',
               'google-apitools>=0.5.35; python_version >= "3.13"',
-              # NOTE: Maintainers, please do not require google-auth>=2.x.x
-              # Until this issue is closed
-              # https://github.com/googleapis/google-cloud-python/issues/10566
-              'google-auth>=1.18.0,<3',
+              'google-auth>=2.0.0,<3',
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
@@ -639,8 +637,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'jinja2>=3.0,<3.2',
               'virtualenv-clone>=0.5,<1.0',
-              # https://github.com/PiotrDabkowski/Js2Py/issues/317
-              'js2py>=0.74,<1; python_version<"3.12"',
+              'quickjs-ng>=0.14.0,<1.0.0',
               'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against

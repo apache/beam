@@ -24,6 +24,8 @@ import types
 import unittest
 
 import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
@@ -490,14 +492,27 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testDataClassFields(self):
     @dataclasses.dataclass
+    class BaseClass:
+      pass
+
+    @dataclasses.dataclass
     class MyDataClass:
       id: int
       name: str
+      tags: list[str]
+      custom: BaseClass
 
     self.assertReturnType(
-        typehints.Tuple[int, str],
-        python_callable.PythonCallableWithSource("lambda x: (x.id, x.name)"),
-        [MyDataClass])
+        typehints.Tuple[int, str, typehints.List[str], BaseClass],
+        python_callable.PythonCallableWithSource(
+            "lambda x: (x.id, x.name, x.tags, x.custom)"), [MyDataClass])
+
+    options = PipelineOptions(['--exclude_infer_dataclass_field_type'])
+    with scoped_pipeline_options(options):
+      self.assertReturnType(
+          typehints.Tuple[int, str, typehints.Any, typehints.Any],
+          python_callable.PythonCallableWithSource(
+              "lambda x: (x.id, x.name, x.tags, x.custom)"), [MyDataClass])
 
 
 if __name__ == '__main__':
