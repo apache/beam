@@ -43,9 +43,14 @@ project.ext {
 apply from: "../flink_runner.gradle"
 
 // Flink 2.1 uses at.yawk.lz4:lz4-java instead of org.lz4:lz4-java
-// Resolve capability conflict by preferring Flink's version
+// Explicitly prefer Flink's at.yawk.lz4 version to resolve capability conflict
 configurations.all {
   resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
-    selectHighestVersion()
+    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
+    if (candidate != null) {
+      select(candidate)
+    } else {
+      selectHighestVersion()
+    }
   }
 }

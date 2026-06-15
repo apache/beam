@@ -24,4 +24,4 @@ taskmanager:
     managed:
       size: 1gb
 parallelism:
-  default: '2'
+  default: '23'
