@@ -25,8 +25,8 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
-  // iceberg requires Java11+ and delta lake requires Java17+
-  requireJavaVersion: JavaVersion.VERSION_17
+  // iceberg requires Java11+
+  requireJavaVersion: JavaVersion.VERSION_11
 )
 
 // We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
