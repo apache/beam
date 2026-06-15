@@ -155,7 +155,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
       }
       double sqrtVal = Math.sqrt(doubleVal);
       if (Double.isInfinite(sqrtVal)) {
-        throw new ArithmeticException("Standard deviation overflow: result is infinity");
+        return decimalConverter.apply(result.sqrt(MATH_CTX));
       }
       result = BigDecimal.valueOf(sqrtVal);
     }

@@ -62,18 +62,28 @@ public class VarianceFnTest {
             VarianceFn.newSampleStddev(Schema.TypeName.INT32),
             newVarianceAccumulator(new BigDecimal(36), new BigDecimal(5), ZERO),
             3
+          },
+          {
+            VarianceFn.newPopulationStddev(Schema.TypeName.DOUBLE),
+            newVarianceAccumulator(new BigDecimal("1e700"), BigDecimal.ONE, ZERO),
+            Double.POSITIVE_INFINITY
+          },
+          {
+            VarianceFn.newPopulationStddev(Schema.TypeName.FLOAT),
+            newVarianceAccumulator(new BigDecimal("1e700"), BigDecimal.ONE, ZERO),
+            Float.POSITIVE_INFINITY
           }
         });
   }
 
   private VarianceFn varianceFn;
   private VarianceAccumulator testAccumulatorInput;
-  private int expectedExtractedResult;
+  private Object expectedExtractedResult;
 
   public VarianceFnTest(
       VarianceFn varianceFn,
       VarianceAccumulator testAccumulatorInput,
-      int expectedExtractedResult) {
+      Object expectedExtractedResult) {
 
     this.varianceFn = varianceFn;
     this.testAccumulatorInput = testAccumulatorInput;
