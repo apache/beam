@@ -141,15 +141,8 @@ public class BeamFileSystemClient implements FileSystemClient {
       throw new IOException("Destination already exists: " + dst);
     }
 
-    if (overwrite) {
-      FileSystems.copy(
-          Collections.singletonList(srcResource), Collections.singletonList(dstResource));
-    } else {
-      FileSystems.copy(
-          Collections.singletonList(srcResource),
-          Collections.singletonList(dstResource),
-          MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
-    }
+    FileSystems.copy(
+            Collections.singletonList(srcResource), Collections.singletonList(dstResource));
   }
 
   private static ByteArrayInputStream readRange(String path, int startOffset, int readLength)
@@ -189,7 +182,7 @@ public class BeamFileSystemClient implements FileSystemClient {
     if (lastSlash < 0) {
       return "*";
     }
-    return path.substring(0, lastSlash + 1) + "*";
+    return normalized.substring(0, lastSlash + 1) + "*";
   }
 
   private static String normalizeForOrdering(String path) {
@@ -207,7 +200,15 @@ public class BeamFileSystemClient implements FileSystemClient {
 
   private static Path toLocalPath(String path) {
     if (path.toLowerCase(Locale.ROOT).startsWith("file:")) {
-      return Paths.get(URI.create(path));
+      try {
+        return Paths.get(new URI(path));
+      } catch (Exception e) {
+        String schemeStripped = path.substring(5);
+        if (schemeStripped.startsWith("///")) {
+          schemeStripped = schemeStripped.substring(3);
+        }
+        return Paths.get(schemeStripped);
+      }
     }
     return Paths.get(path);
   }
