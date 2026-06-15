@@ -321,7 +321,7 @@
     var $this   = $(this)
     var href    = $this.attr('href')
     var selector = $this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, '')) // strip for ie7
-    var $target = $(document).find(selector)
+    var $target = selector ? $(document).find(selector) : $()
     var option  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
 
     if ($this.is('a')) e.preventDefault()

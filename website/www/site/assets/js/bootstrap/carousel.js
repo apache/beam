@@ -209,7 +209,7 @@
     var href
     var $this   = $(this)
     var selector = $this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
-    var $target = $(document).find(selector)
+    var $target = selector ? $(document).find(selector) : $()
     if (!$target.hasClass('carousel')) return
     var options = $.extend({}, $target.data(), $this.data())
     var slideIndex = $this.attr('data-slide-to')

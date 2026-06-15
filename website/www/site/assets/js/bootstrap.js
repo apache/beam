@@ -109,7 +109,7 @@ if (typeof jQuery === 'undefined') {
       selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
     }
 
-    var $parent = $(document).find(selector)
+    var $parent = selector ? $(document).find(selector) : $()
 
     if (e) e.preventDefault()
 
@@ -503,7 +503,7 @@ if (typeof jQuery === 'undefined') {
     var href
     var $this   = $(this)
     var selector = $this.attr('data-target') || (href = $this.attr('href')) && href.replace(/.*(?=#[^\s]+$)/, '') // strip for ie7
-    var $target = $(document).find(selector)
+    var $target = selector ? $(document).find(selector) : $()
     if (!$target.hasClass('carousel')) return
     var options = $.extend({}, $target.data(), $this.data())
     var slideIndex = $this.attr('data-slide-to')
@@ -1232,7 +1232,7 @@ if (typeof jQuery === 'undefined') {
     var $this   = $(this)
     var href    = $this.attr('href')
     var selector = $this.attr('data-target') || (href && href.replace(/.*(?=#[^\s]+$)/, '')) // strip for ie7
-    var $target = $(document).find(selector)
+    var $target = selector ? $(document).find(selector) : $()
     var option  = $target.data('bs.modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
 
     if ($this.is('a')) e.preventDefault()
@@ -1553,7 +1553,7 @@ if (typeof jQuery === 'undefined') {
   }
 
   function sanitizeHtml(string) {
-    if (typeof DOMPurify !== 'undefined') {
+    if (typeof DOMPurify !== 'undefined' && typeof string === 'string') {
       return DOMPurify.sanitize(string)
     }
     return string

@@ -31,7 +31,7 @@
       selector = selector && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
     }
 
-    var $parent = $(document).find(selector)
+    var $parent = selector ? $(document).find(selector) : $()
 
     if (e) e.preventDefault()
 

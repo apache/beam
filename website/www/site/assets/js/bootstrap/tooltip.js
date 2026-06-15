@@ -303,7 +303,7 @@
   }
 
   function sanitizeHtml(string) {
-    if (typeof DOMPurify !== 'undefined') {
+    if (typeof DOMPurify !== 'undefined' && typeof string === 'string') {
       return DOMPurify.sanitize(string)
     }
     return string
@@ -313,7 +313,7 @@
     var $tip  = this.tip()
     var title = this.getTitle()
 
-    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](sanitizeHtml(title))
+    $tip.find('.tooltip-inner')[this.options.html ? 'html' : 'text'](this.options.html ? sanitizeHtml(title) : title)
     $tip.removeClass('fade in top bottom left right')
   }
 
