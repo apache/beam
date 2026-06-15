@@ -25,7 +25,7 @@ pipelines:
         - type: RunInference
           config:
             model_handler:
-              type: "HuggingFacePipeline"
+              type: "HuggingFacePipelineModelHandler"
               config:
                 task: "text-classification"
                 inference_fn:

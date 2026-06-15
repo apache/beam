@@ -34,6 +34,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.AggregateFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.FunctionParameter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
@@ -77,7 +78,9 @@ public class LazyAggregateCombineFnTest {
       LazyAggregateCombineFn<?, ?, ?> combiner = new LazyAggregateCombineFn<>(aggregateFn);
       AggregateFunction aggregateFunction = combiner.getUdafImpl();
       RelDataTypeFactory typeFactory = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-      RelDataType expectedType = typeFactory.createJavaType(Long.class);
+      RelDataType expectedType =
+          typeFactory.createTypeWithNullability(
+              typeFactory.createSqlType(SqlTypeName.BIGINT), true);
 
       List<FunctionParameter> params = aggregateFunction.getParameters();
       assertThat(params, hasSize(1));

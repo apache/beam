@@ -52,18 +52,13 @@ class CreateReadTasksDoFn
     this.scanConfig = scanConfig;
   }
 
-  @Setup
-  public void setup() {
-    TableCache.setup(scanConfig);
-  }
-
   @ProcessElement
   public void process(
       @Element KV<String, List<SnapshotInfo>> element,
       OutputReceiver<KV<ReadTaskDescriptor, ReadTask>> out)
       throws IOException, ExecutionException {
     // force refresh because the table must be updated before scanning snapshots
-    Table table = TableCache.getRefreshed(element.getKey());
+    Table table = TableCache.getRefreshed(scanConfig.getCatalogConfig(), element.getKey());
 
     // scan snapshots individually and assign commit timestamp to files
     for (SnapshotInfo snapshot : element.getValue()) {
