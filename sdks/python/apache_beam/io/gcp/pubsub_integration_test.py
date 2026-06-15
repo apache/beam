@@ -319,9 +319,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest(
           'Dataflow Native PubSub Sink does not support ordering_key '
-          '(see https://github.com/apache/beam/issues/36201). '
-          'Use apache_beam.io.external.gcp.pubsub.WriteToPubSub '
-          'with publish_with_ordering_key=True instead.')
+          '(see https://github.com/apache/beam/issues/36201).')
     from google.pubsub_v1.types import Subscription
 
     from apache_beam.options.pipeline_options import PipelineOptions
@@ -356,7 +354,9 @@ class PubSubIntegrationTest(unittest.TestCase):
       with TestPipeline(options=pipeline_options) as p:
         messages = p | 'CreateMessages' >> Create(test_messages)
         _ = messages | 'WriteToPubSub' >> WriteToPubSub(
-            ordering_topic.name, with_attributes=True)
+            ordering_topic.name,
+            with_attributes=True,
+            publish_with_ordering_key=True)
 
       time.sleep(10)
 

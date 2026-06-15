@@ -467,6 +467,7 @@ class TestPubSubSink(unittest.TestCase):
         DisplayDataItemMatcher('id_label', 'id'),
         DisplayDataItemMatcher('with_attributes', True),
         DisplayDataItemMatcher('timestamp_attribute', 'time'),
+        DisplayDataItemMatcher('publish_with_ordering_key', False),
     ]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -1114,7 +1115,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | WriteToPubSub(
               'projects/fakeprj/topics/a_topic',
               with_attributes=True,
-              enable_message_ordering=True))
+              publish_with_ordering_key=True))
 
     # Verify that publish was called with ordering_key
     mock_pubsub.return_value.publish.assert_called()
@@ -1139,7 +1140,7 @@ class TestWriteToPubSub(unittest.TestCase):
           | WriteToPubSub(
               'projects/fakeprj/topics/a_topic',
               with_attributes=True,
-              enable_message_ordering=True))
+              publish_with_ordering_key=True))
 
     # Verify that publish was called with ordering_key
     mock_pubsub.return_value.publish.assert_called()
@@ -1166,6 +1167,8 @@ class TestWriteToPubSub(unittest.TestCase):
 
     # Verify that publish was called
     mock_pubsub.return_value.publish.assert_called()
+    call_args = mock_pubsub.return_value.publish.call_args
+    self.assertNotIn('ordering_key', call_args.kwargs)
 
 
 if __name__ == '__main__':
