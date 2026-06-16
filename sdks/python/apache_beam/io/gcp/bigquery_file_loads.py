@@ -533,6 +533,8 @@ class TriggerCopyJobs(beam.DoFn):
 
     if not element_list:
       return
+    if not self.bq_io_metadata:
+      self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
     first_destination = element_list[0][0]
     copy_to_reference = bigquery_tools.parse_table_reference(first_destination)
@@ -745,7 +747,7 @@ class TriggerLoadJobs(beam.DoFn):
         else:
           try:
             schema = bigquery_tools.table_schema_to_dict(
-                self.bq_wrapper.get_table(
+                bigquery_tools.BigQueryWrapper().get_table(
                     project_id=table_reference.projectId,
                     dataset_id=table_reference.datasetId,
                     table_id=table_reference.tableId).schema)
