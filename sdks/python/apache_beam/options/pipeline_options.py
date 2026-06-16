@@ -2106,7 +2106,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.19', '1.20', '2.0', '2.1']
+  PUBLISHED_FLINK_VERSIONS = ['1.19', '1.20', '2.0', '2.1', '2.2']
 
   @classmethod
   def _add_argparse_args(cls, parser):
