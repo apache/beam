@@ -44,8 +44,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-// Flink 2.2: CheckpointingMode moved from org.apache.flink.streaming.api to
-// org.apache.flink.core.execution (FLINK-39022 / Flink 2.2 deprecation cleanup).
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -57,8 +55,9 @@ import org.junit.Test;
 /**
  * Tests for serialization and deserialization of {@link PipelineOptions} in {@link DoFnOperator}.
  *
- * <p>This is the Flink 2.2 override. It uses {@code org.apache.flink.core.execution.CheckpointingMode}
- * (the non-deprecated path) instead of the deprecated {@code org.apache.flink.streaming.api.CheckpointingMode}.
+ * <p>This is the Flink 2.2 override. It uses {@code
+ * org.apache.flink.core.execution.CheckpointingMode} (the non-deprecated path) instead of the
+ * deprecated {@code org.apache.flink.streaming.api.CheckpointingMode}.
  */
 public class FlinkPipelineOptionsTest {
 
@@ -78,9 +77,7 @@ public class FlinkPipelineOptionsTest {
   @Test
   public void testFlinkVersion() {
     String version = EnvironmentInformation.getVersion();
-    assertTrue(
-        "Expected Flink 2.2.x but got: " + version,
-        version.startsWith("2.2"));
+    assertTrue("Expected Flink 2.2.x but got: " + version, version.startsWith("2.2"));
   }
 
   /** These defaults should only be changed with a very good reason. */

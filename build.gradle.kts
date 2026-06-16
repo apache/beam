@@ -1055,3 +1055,17 @@ if (project.hasProperty("testJavaVersion")) {
     }
   }
 }
+
+// Flink 2.2.1 (FLINK-39139) replaced org.lz4:lz4-java with the fork at.yawk.lz4:lz4-java,
+// which declares the same 'org.lz4:lz4-java' Gradle capability. Any subproject that depends
+// on both Flink 2.2+ and another library using org.lz4 (Kafka, Spark, etc.) hits a capability
+// conflict. This resolution applies globally so that individual subprojects do not each need
+// to declare it independently.
+allprojects {
+  configurations.all {
+    resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
+      val yawk = candidates.find { it.id.displayName.startsWith("at.yawk.lz4:") }
+      if (yawk != null) select(yawk) else selectHighestVersion()
+    }
+  }
+}
