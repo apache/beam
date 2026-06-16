@@ -231,7 +231,7 @@ public class CallTest {
 
   @Test
   public void givenTeardownTimeout_throwsError() {
-    Duration timeout = Duration.standardMinutes(1L);
+    Duration timeout = Duration.standardMinutes(5L);
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
