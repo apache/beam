@@ -69,6 +69,11 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Deprecated
   Level getDefaultWorkerLogLevel();
 
+  /**
+   * @deprecated Prefer {@link
+   *     org.apache.beam.sdk.options.SdkHarnessOptions#getDefaultSdkHarnessLogLevel()} which works
+   *     across runners.
+   */
   @Deprecated
   void setDefaultWorkerLogLevel(Level level);
 
@@ -123,6 +128,11 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Deprecated
   Level getWorkerSystemOutMessageLevel();
 
+  /**
+   * @deprecated Prefer using {@link
+   *     org.apache.beam.sdk.options.SdkHarnessOptions#getSdkHarnessLogLevelOverrides()} to override
+   *     the 'System.out' logger as this works across runners.
+   */
   @Deprecated
   void setWorkerSystemOutMessageLevel(Level level);
 
@@ -145,6 +155,11 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Deprecated
   Level getWorkerSystemErrMessageLevel();
 
+  /**
+   * @deprecated Prefer using {@link
+   *     org.apache.beam.sdk.options.SdkHarnessOptions#getSdkHarnessLogLevelOverrides()} to override
+   *     the 'System.err' logger as this works across runners.
+   */
   @Deprecated
   void setWorkerSystemErrMessageLevel(Level level);
 
@@ -174,6 +189,11 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   @Deprecated
   WorkerLogLevelOverrides getWorkerLogLevelOverrides();
 
+  /**
+   * @deprecated Prefer using {@link
+   *     org.apache.beam.sdk.options.SdkHarnessOptions#getSdkHarnessLogLevelOverrides()} which works
+   *     across runners.
+   */
   @Deprecated
   void setWorkerLogLevelOverrides(WorkerLogLevelOverrides value);
 
