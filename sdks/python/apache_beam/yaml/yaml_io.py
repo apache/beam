@@ -375,9 +375,12 @@ def read_from_pubsub(
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
+  if publish_time_field is not None and not publish_time_field.strip():
+    raise ValueError('publish_time_field must be a non-empty field name.')
+  has_publish_time_field = publish_time_field is not None
   payload_schema, parser = _create_parser(format, schema)
   extra_fields: list[schema_pb2.Field] = []
-  if not attributes and not attributes_map and not publish_time_field:
+  if not attributes and not attributes_map and not has_publish_time_field:
     mapper = lambda msg: parser(msg)
   else:
     if isinstance(attributes, str):
@@ -388,8 +391,9 @@ def read_from_pubsub(
     if attributes_map:
       extra_fields.append(
           schemas.schema_field(attributes_map, Mapping[str, str]))
-    if publish_time_field:
-      extra_fields.append(schemas.schema_field(publish_time_field, Timestamp))
+    if has_publish_time_field:
+      extra_fields.append(
+          schemas.schema_field(publish_time_field, Optional[Timestamp]))
 
     def mapper(msg):
       values = parser(msg.data).as_dict()
@@ -399,9 +403,10 @@ def read_from_pubsub(
           values[attr] = msg.attributes[attr]
       if attributes_map:
         values[attributes_map] = msg.attributes
-      if publish_time_field:
-        values[publish_time_field] = Timestamp.from_utc_datetime(
-            msg.publish_time)
+      if has_publish_time_field:
+        values[publish_time_field] = (
+            Timestamp.of(msg.publish_time)
+            if msg.publish_time is not None else None)
       return beam.Row(**values)
 
   output = (
@@ -410,7 +415,7 @@ def read_from_pubsub(
           topic=topic,
           subscription=subscription,
           with_attributes=bool(
-              attributes or attributes_map or publish_time_field),
+              attributes or attributes_map or has_publish_time_field),
           id_label=id_attribute,
           timestamp_attribute=timestamp_attribute)
       | 'ParseMessage' >> beam.Map(mapper))

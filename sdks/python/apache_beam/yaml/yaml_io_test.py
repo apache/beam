@@ -188,6 +188,9 @@ class YamlPubSubTest(unittest.TestCase):
         2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc)
     publish_time_2 = datetime.datetime(
         2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc)
+    publish_time_3 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 39, 3, 456789, tzinfo=datetime.timezone.utc))
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       with mock.patch('apache_beam.io.ReadFromPubSub',
@@ -196,8 +199,11 @@ class YamlPubSubTest(unittest.TestCase):
                           messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
                                                   publish_time=publish_time_1),
                                     PubsubMessage(b'msg2', {'attr': 'value2'},
-                                                  publish_time=publish_time_2)
-                                    ])):
+                                                  publish_time=publish_time_2),
+                                    PubsubMessage(b'msg3', {'attr': 'value3'},
+                                                  publish_time=publish_time_3),
+                                    PubsubMessage(b'msg4',
+                                                  {'attr': 'value4'})])):
         result = p | YamlTransform(
             '''
             type: ReadFromPubSub
@@ -214,8 +220,69 @@ class YamlPubSubTest(unittest.TestCase):
                     publish_time=Timestamp.from_utc_datetime(publish_time_1)),
                 beam.Row(
                     payload=b'msg2',
-                    publish_time=Timestamp.from_utc_datetime(publish_time_2))
+                    publish_time=Timestamp.from_utc_datetime(publish_time_2)),
+                beam.Row(payload=b'msg3', publish_time=publish_time_3),
+                beam.Row(payload=b'msg4', publish_time=None)
             ]))
+
+  def test_read_with_attributes_and_publish_time_field(self):
+    publish_time_1 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc))
+    publish_time_2 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2)
+                                    ])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              attributes: [attr]
+              attributes_map: attrMap
+              publish_time_field: publish_time
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    payload=b'msg1',
+                    attr='value1',
+                    attrMap={'attr': 'value1'},
+                    publish_time=publish_time_1),
+                beam.Row(
+                    payload=b'msg2',
+                    attr='value2',
+                    attrMap={'attr': 'value2'},
+                    publish_time=publish_time_2)
+            ]))
+
+  def test_read_with_empty_publish_time_field(self):
+    for publish_time_field in ('', '   '):
+      with self.subTest(publish_time_field=publish_time_field):
+        with self.assertRaisesRegex(
+            ValueError, 'publish_time_field must be a non-empty field name'):
+          with beam.Pipeline(
+              options=beam.options.pipeline_options.PipelineOptions(
+                  pickle_library='cloudpickle')) as p:
+            _ = p | YamlTransform(
+                '''
+                type: ReadFromPubSub
+                config:
+                  topic: my_topic
+                  format: RAW
+                  publish_time_field: "%s"
+                ''' % publish_time_field)
 
   def test_read_with_id_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
