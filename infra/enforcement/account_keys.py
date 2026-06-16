@@ -127,18 +127,18 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.error(f"Failed to retrieve keys for service account '{account_email}': {e}")
             return []
 
-    def _get_legal_keys_from_secret_manager(self, account_email: str) -> List[str]:
+    def _get_legal_keys_from_secret_manager(self, secret_name: str) -> List[str]:
         """
         Retrieves the list of legal keys for a given service account from Secret Manager.
 
         Args:
-            account_email (str): The email of the service account to retrieve keys for.
+            secret_name (str): The name of the secret to retrieve keys for.
 
         Returns:
             List[str]: A list of key IDs for the legal keys associated with the service account.
         """
         legal_keys = []
-        parent = self.secret_client.secret_path(self.project_id, self.secret_id)
+        parent = self.secret_client.secret_path(self.project_id, secret_name)
 
         try:
             versions = self.secret_client.list_secret_versions(request={"parent": parent})
@@ -150,7 +150,7 @@ class AccountKeysPolicyComplianceCheck:
                     legal_keys.append(key_id)
             return legal_keys
         except Exception as e:
-            self.logger.error(f"Failed to retrieve legal keys from Secret Manager for account '{account_email}': {e}")
+            self.logger.error(f"Failed to retrieve legal keys from Secret Manager for secret '{secret_name}': {e}")
             return []
 
     def _get_all_live_service_accounts(self) -> List[str]:
