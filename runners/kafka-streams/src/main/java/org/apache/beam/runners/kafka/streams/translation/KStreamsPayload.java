@@ -29,7 +29,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <ul>
  *   <li>A {@link #isData() data} element wrapping a {@link WindowedValue}, or
- *   <li>A {@link #isWatermark() watermark} signal carrying an event-time milliseconds value.
+ *   <li>A {@link #isWatermark() watermark} report carrying an event-time milliseconds value plus
+ *       the in-band coordination fields (source partition and total source partition count) the
+ *       downstream {@link WatermarkManager} needs.
  * </ul>
  *
  * <p>The envelope lets a single Kafka Streams output channel carry both Beam data and the watermark
@@ -54,21 +56,36 @@ public final class KStreamsPayload<T> {
   private final Kind kind;
   private final @Nullable WindowedValue<T> data;
   private final long watermarkMillis;
+  private final int sourcePartition;
+  private final int totalSourcePartitions;
 
-  private KStreamsPayload(Kind kind, @Nullable WindowedValue<T> data, long watermarkMillis) {
+  private KStreamsPayload(
+      Kind kind,
+      @Nullable WindowedValue<T> data,
+      long watermarkMillis,
+      int sourcePartition,
+      int totalSourcePartitions) {
     this.kind = kind;
     this.data = data;
     this.watermarkMillis = watermarkMillis;
+    this.sourcePartition = sourcePartition;
+    this.totalSourcePartitions = totalSourcePartitions;
   }
 
   /** Returns a data payload wrapping the given {@link WindowedValue}. */
   public static <T> KStreamsPayload<T> data(WindowedValue<T> value) {
-    return new KStreamsPayload<>(Kind.DATA, value, 0L);
+    return new KStreamsPayload<>(Kind.DATA, value, 0L, 0, 0);
   }
 
-  /** Returns a watermark payload carrying the given event-time milliseconds. */
-  public static <T> KStreamsPayload<T> watermark(long watermarkMillis) {
-    return new KStreamsPayload<>(Kind.WATERMARK, null, watermarkMillis);
+  /**
+   * Returns a watermark report payload: the event-time milliseconds together with the in-band
+   * coordination fields the downstream stage's {@link WatermarkManager} needs — which source
+   * partition this report is for and how many source partitions feed the stage in total.
+   */
+  public static <T> KStreamsPayload<T> watermark(
+      long watermarkMillis, int sourcePartition, int totalSourcePartitions) {
+    return new KStreamsPayload<>(
+        Kind.WATERMARK, null, watermarkMillis, sourcePartition, totalSourcePartitions);
   }
 
   public boolean isData() {
@@ -101,6 +118,29 @@ public final class KStreamsPayload<T> {
     return watermarkMillis;
   }
 
+  /**
+   * Returns the source partition this watermark report is for. Caller must check {@link
+   * #isWatermark()} first; calling this on a data payload throws.
+   */
+  public int getSourcePartition() {
+    if (kind != Kind.WATERMARK) {
+      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
+    }
+    return sourcePartition;
+  }
+
+  /**
+   * Returns the total number of source partitions feeding the downstream stage, as carried in-band
+   * with this watermark report. Caller must check {@link #isWatermark()} first; calling this on a
+   * data payload throws.
+   */
+  public int getTotalSourcePartitions() {
+    if (kind != Kind.WATERMARK) {
+      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
+    }
+    return totalSourcePartitions;
+  }
+
   @Override
   public boolean equals(@Nullable Object o) {
     if (this == o) {
@@ -112,12 +152,14 @@ public final class KStreamsPayload<T> {
     KStreamsPayload<?> that = (KStreamsPayload<?>) o;
     return kind == that.kind
         && watermarkMillis == that.watermarkMillis
+        && sourcePartition == that.sourcePartition
+        && totalSourcePartitions == that.totalSourcePartitions
         && Objects.equals(data, that.data);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(kind, data, watermarkMillis);
+    return Objects.hash(kind, data, watermarkMillis, sourcePartition, totalSourcePartitions);
   }
 
   @Override
@@ -126,7 +168,10 @@ public final class KStreamsPayload<T> {
     if (kind == Kind.DATA) {
       helper.add("data", data);
     } else {
-      helper.add("watermarkMillis", watermarkMillis);
+      helper
+          .add("watermarkMillis", watermarkMillis)
+          .add("sourcePartition", sourcePartition)
+          .add("totalSourcePartitions", totalSourcePartitions);
     }
     return helper.toString();
   }
