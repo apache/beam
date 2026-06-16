@@ -58,9 +58,9 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   public LateDataDroppingDoFnRunner(
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFnRunner,
       WindowingStrategy<?, ?> windowingStrategy,
-      TimerInternals timerInternals) {
+      StepContext stepContext) {
     this.doFnRunner = doFnRunner;
-    lateDataFilter = new LateDataFilter(windowingStrategy, timerInternals);
+    lateDataFilter = new LateDataFilter(windowingStrategy, stepContext);
   }
 
   @Override
@@ -116,13 +116,12 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   @VisibleForTesting
   static class LateDataFilter {
     private final WindowingStrategy<?, ?> windowingStrategy;
-    private final TimerInternals timerInternals;
+    private final StepContext stepContext;
     private final Counter droppedDueToLateness;
 
-    public LateDataFilter(
-        WindowingStrategy<?, ?> windowingStrategy, TimerInternals timerInternals) {
+    public LateDataFilter(WindowingStrategy<?, ?> windowingStrategy, StepContext stepContext) {
       this.windowingStrategy = windowingStrategy;
-      this.timerInternals = timerInternals;
+      this.stepContext = stepContext;
       this.droppedDueToLateness =
           Metrics.counter(LateDataDroppingDoFnRunner.class, DROPPED_DUE_TO_LATENESS);
     }
@@ -146,8 +145,8 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
                 element.getTimestamp(),
                 key,
                 window,
-                timerInternals.currentInputWatermarkTime(),
-                timerInternals.currentOutputWatermarkTime());
+                stepContext.timerInternals().currentInputWatermarkTime(),
+                stepContext.timerInternals().currentOutputWatermarkTime());
           } else {
             nonLateElements.add(
                 WindowedValues.of(
@@ -173,7 +172,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
      * @return True if element can be dropped.
      */
     private boolean canDropDueToExpiredWindow(BoundedWindow window) {
-      Instant inputWM = timerInternals.currentInputWatermarkTime();
+      Instant inputWM = stepContext.timerInternals().currentInputWatermarkTime();
       return LateDataUtils.garbageCollectionTime(window, windowingStrategy).isBefore(inputWM);
     }
   }
