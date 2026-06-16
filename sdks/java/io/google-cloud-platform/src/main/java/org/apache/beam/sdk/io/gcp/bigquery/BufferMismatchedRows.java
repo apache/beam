@@ -192,6 +192,11 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
           RETRY_MISMATCHED_ROWS_PERIOD);
     }
 
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(Long.MAX_VALUE);
+    }
+
     @OnTimer("retryMismatchedRowsTimer")
     public void onTimer(
         OnTimerContext context,
@@ -233,6 +238,8 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
       }
 
       mismatchedRowsBag.clear();
+      currentTimerValue.clear();
+      minPendingTimestamp.clear();
       if (!mismatchedRowsList.isEmpty()) {
         TableDestination tableDestination =
             dynamicDestinations.getTable(shardedDestination.getKey());
@@ -257,7 +264,6 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
                     .map(KV::getValue)
                     .iterator();
 
-        currentTimerValue.clear();
         SchemaChangeDetectorHelper.bufferMismatchedRows(
             mismatchedRows,
             mismatchedRowsBag,

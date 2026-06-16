@@ -1305,6 +1305,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           mismatchedRows -> {
             // Rebuffer the ones that are still not succeeding.
             mismatchedRowsBag.clear();
+            currentTimerValue.clear();
+            minPendingTimestamp.clear();
             if (!Iterables.isEmpty(mismatchedRows)) {
               AppendClientInfo info =
                   AppendClientInfo.of(
@@ -1326,7 +1328,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             }
           };
 
-      currentTimerValue.clear();
       processPayloads(
           pipelineOptions,
           shardedDestination,
