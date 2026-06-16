@@ -94,3 +94,74 @@ func TestSendStatusResponse(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestWorkerStatusHandler_IsAliveAndShutdown(t *testing.T) {
+	w := &workerStatusHandler{shouldShutdown: 0}
+	if !w.isAlive() {
+		t.Error("isAlive: expected true after init")
+	}
+	w.shutdown()
+	if w.isAlive() {
+		t.Error("isAlive: expected false after shutdown")
+	}
+}
+
+func TestMemoryUsage(t *testing.T) {
+	b := &strings.Builder{}
+	memoryUsage(b)
+	out := b.String()
+	required := []string{"heap in-use-spans", "stack in-use-spans", "GC-CPU percentage", "Last GC time", "Next GC"}
+	for _, r := range required {
+		if !strings.Contains(out, r) {
+			t.Errorf("memoryUsage output missing %q, got:\n%s", r, out)
+		}
+	}
+}
+
+func TestGoroutineDump(t *testing.T) {
+	b := &strings.Builder{}
+	goroutineDump(b)
+	out := b.String()
+	if !strings.Contains(out, "goroutine") {
+		t.Errorf("goroutineDump output missing 'goroutine', got:\n%s", out)
+	}
+}
+
+func TestBuildInfo(t *testing.T) {
+	b := &strings.Builder{}
+	buildInfo(b)
+	out := b.String()
+	if !strings.Contains(out, "Build Info") {
+		t.Errorf("buildInfo output missing 'Build Info', got:\n%s", out)
+	}
+}
+
+func TestWorkerStatusHandler_ActiveProcessBundleStates(t *testing.T) {
+	called := false
+	w := &workerStatusHandler{
+		metStoreToString: func(b *strings.Builder) {
+			called = true
+			b.WriteString("test-metadata")
+		},
+	}
+	b := &strings.Builder{}
+	w.activeProcessBundleStates(b)
+	if !called {
+		t.Error("activeProcessBundleStates did not call metStoreToString")
+	}
+	if !strings.Contains(b.String(), "Active Process Bundle States") {
+		t.Errorf("missing section header, got: %s", b.String())
+	}
+}
+
+func TestCacheStats(t *testing.T) {
+	w := &workerStatusHandler{
+		cache: &statecache.SideInputCache{},
+	}
+	w.cache.Init(0)
+	b := &strings.Builder{}
+	w.cacheStats(b)
+	if !strings.Contains(b.String(), "Cache Stats") {
+		t.Errorf("cacheStats output missing 'Cache Stats', got:\n%s", b.String())
+	}
+}

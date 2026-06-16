@@ -110,3 +110,23 @@ func TestLogger_connect(t *testing.T) {
 		t.Errorf("missing messages: got %v, want %v", got, want)
 	}
 }
+
+func TestConvertSeverity(t *testing.T) {
+	tests := []struct {
+		in  log.Severity
+		out fnpb.LogEntry_Severity_Enum
+	}{
+		{log.SevDebug, fnpb.LogEntry_Severity_DEBUG},
+		{log.SevInfo, fnpb.LogEntry_Severity_INFO},
+		{log.SevWarn, fnpb.LogEntry_Severity_WARN},
+		{log.SevError, fnpb.LogEntry_Severity_ERROR},
+		{log.SevFatal, fnpb.LogEntry_Severity_CRITICAL},
+		{log.Severity(999), fnpb.LogEntry_Severity_INFO}, // default case
+	}
+	for _, test := range tests {
+		got := convertSeverity(test.in)
+		if got != test.out {
+			t.Errorf("convertSeverity(%v) = %v, want %v", test.in, got, test.out)
+		}
+	}
+}
