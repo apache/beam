@@ -69,12 +69,18 @@ runs:
           tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
           tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-
 
+    - name: Install Java 11 fallback
+      if: ${{ inputs.java-version == 'default' }}
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
+        java-version: ${{ inputs.java-version == 'default' && '17' || inputs.java-version }}
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
       with:

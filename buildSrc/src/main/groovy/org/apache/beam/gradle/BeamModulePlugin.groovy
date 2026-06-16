@@ -507,6 +507,16 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
+    if (!project.hasProperty('java17Home') && System.getenv('JAVA_HOME_17_X64')) {
+      project.ext.java17Home = System.getenv('JAVA_HOME_17_X64')
+    }
+    if (!project.hasProperty('java11Home') && System.getenv('JAVA_HOME_11_X64')) {
+      project.ext.java11Home = System.getenv('JAVA_HOME_11_X64')
+    }
+    if (!project.hasProperty('java21Home') && System.getenv('JAVA_HOME_21_X64')) {
+      project.ext.java21Home = System.getenv('JAVA_HOME_21_X64')
+    }
+
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
