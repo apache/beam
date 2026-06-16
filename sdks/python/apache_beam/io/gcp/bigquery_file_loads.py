@@ -607,8 +607,7 @@ class TriggerCopyJobs(beam.DoFn):
         copy_to_reference.tableId)
     if full_table_ref not in self._observed_tables:
       write_disposition = self.write_disposition
-      wait_for_job = (
-          self.write_disposition != BigQueryDisposition.WRITE_APPEND)
+      wait_for_job = (self.write_disposition != 'WRITE_APPEND')
       self._observed_tables.add(full_table_ref)
       Lineage.sinks().add(
           'bigquery',
