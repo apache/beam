@@ -190,16 +190,14 @@ class YamlPubSubTest(unittest.TestCase):
         2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc)
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-      with mock.patch(
-          'apache_beam.io.ReadFromPubSub',
-          FakeReadFromPubSub(
-              topic='my_topic',
-              messages=[
-                  PubsubMessage(
-                      b'msg1', {'attr': 'value1'}, publish_time=publish_time_1),
-                  PubsubMessage(
-                      b'msg2', {'attr': 'value2'}, publish_time=publish_time_2)
-              ])):
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2)
+                                    ])):
         result = p | YamlTransform(
             '''
             type: ReadFromPubSub
