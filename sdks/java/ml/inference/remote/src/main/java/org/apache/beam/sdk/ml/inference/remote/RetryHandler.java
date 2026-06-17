@@ -51,7 +51,7 @@ public class RetryHandler implements Serializable {
     this.initialBackoff = initialBackoff;
     this.maxBackoff = maxBackoff;
     this.maxCumulativeBackoff = maxCumulativeBackoff;
-    this.retryFilter = retryFilter;
+    this.retryFilter = java.util.Objects.requireNonNull(retryFilter, "retryFilter must not be null");
   }
 
   public static RetryHandler withDefaults() {
@@ -60,7 +60,7 @@ public class RetryHandler implements Serializable {
         Duration.standardSeconds(1), // initialBackoff
         Duration.standardSeconds(10), // maxBackoff per retry
         Duration.standardMinutes(1), // maxCumulativeBackoff
-        (RetryFilter) e -> true // retryFilter default to retrying all exceptions
+        e -> true // retryFilter default to retrying all exceptions
         );
   }
 
@@ -89,7 +89,7 @@ public class RetryHandler implements Serializable {
       } catch (Exception e) {
         lastException = e;
 
-        if (!retryFilter.shouldRetry(e)) {
+        if (retryFilter != null && !retryFilter.shouldRetry(e)) {
           LOG.warn("Exception not eligible for retry. Failing immediately.", e);
           throw e;
         }
