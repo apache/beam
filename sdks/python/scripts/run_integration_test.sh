@@ -42,6 +42,8 @@
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
 #                      using this flag.
+#   additional_opts -> List of space separated pipeline options. Unlike pipeline_opts,
+#                      it appends to other flags options instead of ignoring them.
 #
 # Test related flags:
 #     test_opts     -> List of space separated options to configure Pytest test
@@ -147,6 +149,11 @@ case $key in
         ;;
     --pipeline_opts)
         PIPELINE_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --additional_opts)
+        ADDITIONAL_OPTS="$2"
         shift # past argument
         shift # past value
         ;;
@@ -257,7 +264,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
-
+  if [[ -n $ADDITIONAL_OPTS ]]; then
+    PIPELINE_OPTS+=" ${ADDITIONAL_OPTS}"
+  fi
 fi
 
 # Handle double quotes in PIPELINE_OPTS
