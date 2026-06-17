@@ -92,7 +92,7 @@ task flinkValidatesRunner {
   doFirst {
     // Copy Flink conf file
     copy {
-      from "${project.rootDir}/runners/flink/2.0/src/test/resources/flink-test-config.yaml"
+      from "${project.rootDir}/runners/flink/${flinkVersion}/src/test/resources/flink-test-config.yaml"
       into "${project.buildDir}/flink-conf"
 
       // Rename the file during the copy process
