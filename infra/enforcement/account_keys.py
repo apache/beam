@@ -16,6 +16,7 @@
 import datetime
 import logging
 import sys
+from torch import diff
 import yaml
 import argparse
 import os
@@ -127,17 +128,17 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.error(f"Failed to retrieve keys for service account '{account_email}': {e}")
             return []
 
-    def _get_legal_keys_from_secret_manager(self, secret_name: str) -> List[str]:
+    def _get_verified_keys_from_secret_manager(self, secret_name: str) -> List[str]:
         """
-        Retrieves the list of legal keys for a given service account from Secret Manager.
+        Retrieves the list of verified keys for a given service account from Secret Manager.
 
         Args:
             secret_name (str): The name of the secret to retrieve keys for.
 
         Returns:
-            List[str]: A list of key IDs for the legal keys associated with the service account.
+            List[str]: A list of key IDs for the verified keys associated with the service account.
         """
-        legal_keys = []
+        verified_keys = []
         parent = self.secret_client.secret_path(self.project_id, secret_name)
 
         try:
@@ -147,10 +148,10 @@ class AccountKeysPolicyComplianceCheck:
                     response = self.secret_client.access_secret_version(request={"name": version.name})
                     data_str = response.payload.data.decode("UTF-8")
                     key_id = data_str.split(":",1)[0]
-                    legal_keys.append(key_id)
-            return legal_keys
+                    verified_keys.append(key_id)
+            return verified_keys
         except Exception as e:
-            self.logger.error(f"Failed to retrieve legal keys from Secret Manager for secret '{secret_name}': {e}")
+            self.logger.error(f"Failed to retrieve verified keys from Secret Manager for secret '{secret_name}': {e}")
             return []
 
     def _get_all_live_service_accounts(self) -> List[str]:
@@ -321,10 +322,10 @@ class AccountKeysPolicyComplianceCheck:
                     secret_name = f"{self._denormalize_account_email(service_account)}-key"
                     legal_keys = []
                     if secret_name in managed_secrets:
-                        legal_keys = self._get_legal_keys_from_secret_manager(secret_name)
-                    rogue_keys = set(iam_keys) - set(legal_keys)
-                    for rogue_key in rogue_keys:
-                        msg = f"SECURITY ALERT: Rogue key '{rogue_key}' detected on account '{service_account}'. this key was created outside the rotation system."
+                        legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
+                    unmanaged_keys = set(iam_keys) - set(legal_keys)
+                    for unmanaged_key in unmanaged_keys:
+                        msg = f"SECURITY ALERT: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
                         compliance_issues.append(msg)
                         self.logger.warning(msg)
 
@@ -333,7 +334,8 @@ class AccountKeysPolicyComplianceCheck:
         # Check for managed secrets that are not declared
         for secret in managed_secrets:
             if secret not in extracted_secrets:
-                msg = f"Managed secret '{secret}' is not declared in the service account keys file."
+                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
+                msg = f"Managed secret '{masked_secret}' is not declared in the service account keys file."
                 compliance_issues.append(msg)
                 self.logger.warning(msg)
 
@@ -367,23 +369,34 @@ class AccountKeysPolicyComplianceCheck:
         """
         if not self.sending_client:
             raise ValueError("SendingClient is required for creating announcements")
-            
+
         diff = self.check_compliance()
 
         if not diff:
             self.logger.info("No compliance issues found, no announcement will be created.")
-            return  
+            return
 
-        title = f"Account Keys Compliance Issue Detected"
-        body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
-        for issue in diff:
-            body += f"- {issue}\n"
+        unmanaged_keys_issues = [issue for issue in diff if "SECURITY ALERT" in issue]
+        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
 
-        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
-        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
-        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+        if general_issues:
+            self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
+            title = f"Account Keys Compliance Issue Detected"
+            body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
+            for issue in general_issues:
+                body += f"- {issue}\n"
 
-        self.sending_client.create_announcement(title, body, recipient, announcement)
+            announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
+            announcement += f"We found {len(general_issues)} compliance issue(s) that need your attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+            self.sending_client.create_announcement(title, body, recipient, announcement)
+        if unmanaged_keys_issues:
+            self.logger.info(f"Found {len(unmanaged_keys_issues)} unmanaged key security alerts. Dispatching to GitHub security issue...")
+            self.sending_client.report_unmanaged_keys(self.project_id, unmanaged_keys_issues)
+        else:
+            self.logger.info("No unmanaged key security alerts found, Checking if there are open security issues to auto-close...")
+            self.sending_client.resolve_unmanaged_keys()
 
     def print_announcement(self, recipient: str) -> None:
         """
@@ -442,7 +455,8 @@ class AccountKeysPolicyComplianceCheck:
         # Check for managed secrets that are not declared, if not, add them
         for secret in managed_secrets:
             if secret not in extracted_secrets:
-                self.logger.info(f"Managed secret '{secret}' is not declared in the service account keys file, adding it")
+                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
+                self.logger.info(f"Managed secret '{masked_secret}' is not declared in the service account keys file, adding it")
                 file_service_accounts.append({
                     "account_id": secret.strip("-key"),
                     "display_name": self._normalize_account_email(secret.strip("-key")),
