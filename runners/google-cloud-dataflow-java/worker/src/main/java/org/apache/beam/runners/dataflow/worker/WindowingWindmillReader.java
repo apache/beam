@@ -149,14 +149,8 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
 
   @Override
   public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
-    final KeyedWorkItem<K, T> firstKeyedWorkItem = createKeyedWorkItem();
-    final boolean firstKeyIsEmpty = isEmpty(firstKeyedWorkItem);
-    final WindowedValue<KeyedWorkItem<K, T>> firstValue =
-        new ValueInEmptyWindows<>(firstKeyedWorkItem);
-
     return new NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>>() {
       private @Nullable WindowedValue<KeyedWorkItem<K, T>> current = null;
-      private boolean started = false;
 
       @Override
       public boolean start() throws IOException {
@@ -164,14 +158,11 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
           throw new WorkItemCancelledException(
               checkStateNotNull(context.getWorkItem()).getShardingKey());
         }
-        if (started) {
-          return false;
-        }
-        started = true;
-        if (firstKeyIsEmpty) {
+        KeyedWorkItem<K, T> firstKeyedWorkItem = createKeyedWorkItem();
+        if (isEmpty(firstKeyedWorkItem)) {
           return advance(); // Try to transition immediately if the first key is empty!
         }
-        current = firstValue;
+        current = new ValueInEmptyWindows<>(firstKeyedWorkItem);
         return true;
       }
 

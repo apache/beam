@@ -192,7 +192,7 @@ public class StreamingModeExecutionContext
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
   private Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = new HashMap<>();
-  private final AtomicBoolean workBatchFailed = new AtomicBoolean(false);
+  private AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
   private final String sourceBytesProcessCounterName;
@@ -291,14 +291,14 @@ public class StreamingModeExecutionContext
     return checkStateNotNull(activeReader).getCurrentRecordOffset();
   }
 
-  public void clear() {
-    for (Work w : executedWorks) {
-      w.setOnFailureListener(null);
-    }
+  /** Reset context before using it on a new bundle */
+  public void reset() {
     this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
     this.accumulatedCallbacks = new HashMap<>();
-    this.workBatchFailed.set(false);
+    // Work from prior bundles might have a reference to the old workBatchFailed.
+    // If the work gets retried it'll get the new workBatchFailed to notify failure.
+    this.workBatchFailed = new AtomicBoolean(false);
     this.sideInputCache.clear();
     this.activeStateReader = null;
     this.activeReader = null;
@@ -324,7 +324,7 @@ public class StreamingModeExecutionContext
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
       KeyTransitionListener keyTransitionListener) {
-    clear();
+    reset();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;

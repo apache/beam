@@ -196,12 +196,6 @@ public class StreamingWorkScheduler {
     DataflowWorkerLoggingMDC.setWorkId(workLatencyTrackingId);
   }
 
-  /** Resets logging context of the Thread executing the {@link Work} for logging. */
-  private void resetWorkLoggingContext() {
-    setLoggingContextWorkId(null);
-    setLoggingContextComputation(null);
-  }
-
   /**
    * Schedule work for execution. Work may be executed immediately, or queued and executed in the
    * future. Only one work may be "active" (currently executing) per key at a time.
@@ -262,7 +256,7 @@ public class StreamingWorkScheduler {
     long processingStartTimeNanos = System.nanoTime();
     StageInfo stageInfo = getStageInfo(computationState);
 
-    List<Work> workBatch = null;
+    @Nullable List<Work> workBatch = null;
     try {
       if (work.isFailed()) {
         throw new WorkItemCancelledException(workItem.getShardingKey());
@@ -300,7 +294,8 @@ public class StreamingWorkScheduler {
       // work items causing exceptions are also accounted in time spent.
       recordProcessingTime(stageInfo, workBatch, work, processingStartTimeNanos);
 
-      resetWorkLoggingContext();
+      setLoggingContextWorkId(null);
+      setLoggingContextComputation(null);
       sampler.resetForWorkId(work.getLatencyTrackingId());
       if (workBatch != null) {
         for (Work w : workBatch) {
@@ -384,16 +379,15 @@ public class StreamingWorkScheduler {
 
       KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
 
-      // Blocks while executing work.
-      computationWorkExecutor.executeWork(
-          work, stateReader, workExecutor, handle, keyTransitionListener);
-
       List<Work> workBatch;
       List<Windmill.WorkItemCommitRequest> workItemCommits;
       Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks;
       long stateBytesRead;
       {
-        StreamingModeExecutionContext context = computationWorkExecutor.context();
+        // Blocks while executing work.
+        StreamingModeExecutionContext context =
+            computationWorkExecutor.executeWork(
+                work, stateReader, workExecutor, handle, keyTransitionListener);
         if (context.workIsFailed()) {
           throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
         }
@@ -405,7 +399,7 @@ public class StreamingWorkScheduler {
         accumulatedCallbacks = context.getAccumulatedCallbacks();
         stateBytesRead = context.getStateBytesRead();
 
-        context.clear(); // Don't use context after this.
+        context.reset(); // Don't use context after this.
       }
       // Release the execution state for another thread to use.
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
