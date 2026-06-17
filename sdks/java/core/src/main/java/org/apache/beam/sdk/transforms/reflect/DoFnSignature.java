@@ -305,6 +305,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((ProcessContextParameter) this);
       } else if (this instanceof OnTimerContextParameter) {
         return cases.dispatch((OnTimerContextParameter) this);
+      } else if (this instanceof OnWindowExpirationContextParameter) {
+        return cases.dispatch((OnWindowExpirationContextParameter) this);
       } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof PaneInfoParameter) {
@@ -351,6 +353,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((CurrentRecordOffsetParameter) this);
       } else if (this instanceof FireTimestampParameter) {
         return cases.dispatch((FireTimestampParameter) this);
+      } else if (this instanceof ValueKindParameter) {
+        return cases.dispatch((ValueKindParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
       } else {
@@ -389,6 +393,8 @@ public abstract class DoFnSignature {
 
       ResultT dispatch(OnTimerContextParameter p);
 
+      ResultT dispatch(OnWindowExpirationContextParameter p);
+
       ResultT dispatch(WindowParameter p);
 
       ResultT dispatch(PaneInfoParameter p);
@@ -416,6 +422,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(BundleFinalizerParameter p);
 
       ResultT dispatch(CausedByDrainParameter p);
+
+      ResultT dispatch(ValueKindParameter p);
 
       ResultT dispatch(KeyParameter p);
 
@@ -495,6 +503,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(OnWindowExpirationContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(WindowParameter p) {
           return dispatchDefault(p);
         }
@@ -531,6 +544,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(CausedByDrainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(ValueKindParameter p) {
           return dispatchDefault(p);
         }
 
@@ -591,6 +609,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_BundleFinalizerParameter();
     private static final CausedByDrainParameter CAUSED_BY_DRAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_CausedByDrainParameter();
+    private static final ValueKindParameter VALUE_KIND_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_ValueKindParameter();
     private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
     private static final CurrentRecordIdParameter CURRENT_RECORD_ID_PARAMETER =
@@ -623,6 +643,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link CausedByDrainParameter}. */
     public static CausedByDrainParameter causedByDrainParameter() {
       return CAUSED_BY_DRAIN_PARAMETER;
+    }
+
+    /** Returns a {@link ValueKindParameter}. */
+    public static ValueKindParameter valueKindParameter() {
+      return VALUE_KIND_PARAMETER;
     }
 
     /** Returns a {@link CurrentRecordIdParameter}. */
@@ -800,6 +825,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class CausedByDrainParameter extends Parameter {
       CausedByDrainParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link org.apache.beam.sdk.values.ValueKind}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ValueKindParameter extends Parameter {
+      ValueKindParameter() {}
     }
 
     /**

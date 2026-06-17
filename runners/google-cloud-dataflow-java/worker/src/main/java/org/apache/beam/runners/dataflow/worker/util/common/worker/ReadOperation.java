@@ -272,6 +272,9 @@ public class ReadOperation extends Operation {
   }
 
   @Override
+  public void finishKey(@Nullable Object key) throws Exception {}
+
+  @Override
   public void abort() throws Exception {
     if (readerIterator != null) {
       try (Closeable scope = context.enterAbort()) {

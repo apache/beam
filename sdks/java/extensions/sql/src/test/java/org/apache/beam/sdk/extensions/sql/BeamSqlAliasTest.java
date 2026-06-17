@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
@@ -33,8 +35,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.MapperFeature;
-import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 
 public class BeamSqlAliasTest implements Serializable {
 
@@ -42,10 +42,10 @@ public class BeamSqlAliasTest implements Serializable {
 
   @Test
   public void testSqlWithAliasIsNotIgnoredWithOptimizers() {
-    String ID = "id";
-    String EVENT = "event";
+    final String id = "id";
+    final String event = "event";
 
-    Schema inputType = Schema.builder().addStringField(ID).addStringField(EVENT).build();
+    Schema inputType = Schema.builder().addStringField(id).addStringField(event).build();
 
     String sql =
         "select event as event_name, count(*) as c\n" + "from PCOLLECTION\n" + "group by event";

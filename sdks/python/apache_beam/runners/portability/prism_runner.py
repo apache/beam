@@ -154,9 +154,13 @@ class PrismRunnerLogFilter(logging.Filter):
           record.msg = json_record["sdk"]["msg"]
         else:
           record.name = "PrismRunner"
-          record.msg = (
-              f"{json_record['msg']} "
-              f"({', '.join(f'{k}={v!r}' for k, v in extras.items())})")
+          formatted_extras = []
+          for k, v in extras.items():
+            if isinstance(v, str) and '\n' in v:
+              formatted_extras.append(f"\n{k}:\n{v}")
+            else:
+              formatted_extras.append(f"{k}={v!r}")
+          record.msg = f"{json_record['msg']} ({', '.join(formatted_extras)})"
       except (json.JSONDecodeError,
               KeyError,
               ValueError,

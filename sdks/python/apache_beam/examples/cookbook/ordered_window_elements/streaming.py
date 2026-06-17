@@ -135,7 +135,7 @@ class OrderedWindowElementsDoFn(beam.DoFn):
 
   def _state_clear_range(self, buffer_state, range_lo, range_hi):
     """Clears a specified range of elements from the buffer state."""
-    # TODO: Dataflow runner v2 gets stuck when MIN_TIMESTAMP is used
+    # TODO: Dataflow Portable Runner gets stuck when MIN_TIMESTAMP is used
     # as the lower bound for clear_range. Investigate this further.
     buffer_state.clear_range(range_lo, range_hi)
 

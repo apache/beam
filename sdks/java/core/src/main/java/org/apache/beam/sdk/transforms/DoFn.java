@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -338,6 +339,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     @Pure
     public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
+
+    @Pure
+    public abstract ValueKind valueKind();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -355,6 +359,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
 
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
+
     @Pure
     public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
@@ -364,6 +376,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** Returns the window in which the window expiration is firing. */
     @Pure
     public abstract BoundedWindow window();
+
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
   }
 
   /**
@@ -425,6 +445,20 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       builder(value).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
+    }
+
+    default void outputWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      builder(value)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setValueKind(valueKind)
+          .output();
     }
   }
 

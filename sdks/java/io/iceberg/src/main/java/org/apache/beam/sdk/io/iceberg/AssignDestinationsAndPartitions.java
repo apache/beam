@@ -147,7 +147,10 @@ class AssignDestinationsAndPartitions
 
           try {
             // see if table already exists with a spec
-            spec = catalogConfig.catalog().loadTable(TableIdentifier.parse(tableIdentifier)).spec();
+            spec =
+                TableCache.getAndRefreshIfStale(
+                        catalogConfig, TableIdentifier.parse(tableIdentifier))
+                    .spec();
 
           } catch (NoSuchTableException ignored) {
             // no partition to apply

@@ -97,6 +97,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomain
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ValueKindParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -134,12 +135,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String CURRENT_RECORD_ID_PARAMETER_METHOD = "currentRecordId";
   public static final String CURRENT_RECORD_OFFSET_PARAMETER_METHOD = "currentRecordOffset";
   public static final String FIRE_TIMESTAMP_PARAMETER_METHOD = "fireTimestamp";
+  public static final String VALUE_KIND_PARAMETER_METHOD = "valueKind";
   public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
+  public static final String ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER_METHOD =
+      "onWindowExpirationContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
   public static final String PANE_INFO_PARAMETER_METHOD = "paneInfo";
   public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
@@ -1118,6 +1122,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
           }
 
           @Override
+          public StackManipulation dispatch(ValueKindParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        VALUE_KIND_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
           public StackManipulation dispatch(BundleFinalizerParameter p) {
             return simpleExtraContextParameter(BUNDLE_FINALIZER_PARAMETER_METHOD);
           }
@@ -1157,6 +1170,16 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         ON_TIMER_CONTEXT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(
+              DoFnSignature.Parameter.OnWindowExpirationContextParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

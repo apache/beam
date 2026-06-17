@@ -397,7 +397,6 @@ public class WindowedValues {
         ValueKind.INSERT);
   }
 
-  /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
       T value,
       Instant timestamp,
@@ -1045,7 +1044,7 @@ public class WindowedValues {
   /** Abstract class for {@code WindowedValue} coder. */
   public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
-    private static boolean metadataSupported = false;
+    private static volatile boolean metadataSupported = false;
 
     public static void setMetadataSupported() {
       metadataSupported = true;
