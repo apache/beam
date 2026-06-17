@@ -270,28 +270,37 @@ public class CalciteQueryPlanner implements QueryPlanner {
       }
       return convertToBeamRel(relNode, root.collation);
     } catch (RelConversionException | CannotPlanException e) {
+      planner.close();
       throw new SqlConversionException(
           String.format("Unable to convert query %s", sqlStatement), e);
     } catch (SqlParseException | ValidationException e) {
+      planner.close();
       throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
     }
   }
 
   private static RelNode bindParameters(RelNode rel, RexShuttle binder) {
     RelNode newRel = rel.accept(binder);
-    java.util.List<RelNode> newInputs = new java.util.ArrayList<>();
-    for (RelNode input : newRel.getInputs()) {
-      newInputs.add(bindParameters(input, binder));
+    java.util.List<RelNode> inputs = newRel.getInputs();
+    java.util.List<RelNode> newInputs = new java.util.ArrayList<>(inputs.size());
+    boolean changed = newRel != rel;
+    for (RelNode input : inputs) {
+      RelNode newInput = bindParameters(input, binder);
+      newInputs.add(newInput);
+      if (newInput != input) {
+        changed = true;
+      }
     }
-    return newRel.copy(newRel.getTraitSet(), newInputs);
+    return changed ? newRel.copy(newRel.getTraitSet(), newInputs) : newRel;
   }
 
   @Override
   public RelNode parseToRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
+    Preconditions.checkNotNull(sqlStatement, "sqlStatement cannot be null");
     Preconditions.checkArgument(
         queryParameters.getKind() == Kind.NONE,
-        "Beam SQL Calcite dialect does not yet support query parameters.");
+        "Query parameters are not supported during logical plan parsing; please provide them when converting to a Beam physical plan instead.");
     boolean success = false;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
@@ -316,6 +325,8 @@ public class CalciteQueryPlanner implements QueryPlanner {
   @Override
   public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
       throws SqlConversionException {
+    Preconditions.checkNotNull(relNode, "relNode cannot be null");
+    Preconditions.checkNotNull(queryParameters, "queryParameters cannot be null");
     boolean success = false;
     try {
       if (queryParameters.getKind() == Kind.POSITIONAL) {

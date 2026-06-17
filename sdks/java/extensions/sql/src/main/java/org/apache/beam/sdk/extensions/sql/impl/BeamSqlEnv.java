@@ -50,6 +50,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -146,11 +147,12 @@ public class BeamSqlEnv {
   }
 
   public void registerSchemaFunction(String name, Function function) {
+    java.util.Objects.requireNonNull(name, "name cannot be null");
+    java.util.Objects.requireNonNull(function, "function cannot be null");
     connection.getCurrentSchemaPlus().add(name, function);
   }
 
-  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable
-      getOperatorTable() {
+  public SqlOperatorTable getOperatorTable() {
     return planner.getOperatorTable();
   }
 

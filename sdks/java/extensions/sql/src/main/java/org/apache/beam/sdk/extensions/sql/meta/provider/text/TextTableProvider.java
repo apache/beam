@@ -237,7 +237,6 @@ public class TextTableProvider extends InMemoryMetaTableProvider {
   }
 
   /** Write-side converter for {@link TextTable} with format {@code 'csv'}. */
-  @VisibleForTesting
   public static class RowToCsv extends PTransform<PCollection<Row>, PCollection<String>>
       implements Serializable {
 
