@@ -655,7 +655,7 @@ public class IcebergIO {
       TableIdentifier tableId =
           checkStateNotNull(getTableIdentifier(), "Must set a table to read from.");
 
-      Table table = getCatalogConfig().catalog().loadTable(tableId);
+      Table table = TableCache.get(getCatalogConfig(), tableId);
 
       IcebergScanConfig scanConfig =
           IcebergScanConfig.builder()
