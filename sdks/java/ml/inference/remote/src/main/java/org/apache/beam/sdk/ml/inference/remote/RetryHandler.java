@@ -51,7 +51,8 @@ public class RetryHandler implements Serializable {
     this.initialBackoff = initialBackoff;
     this.maxBackoff = maxBackoff;
     this.maxCumulativeBackoff = maxCumulativeBackoff;
-    this.retryFilter = java.util.Objects.requireNonNull(retryFilter, "retryFilter must not be null");
+    this.retryFilter =
+        java.util.Objects.requireNonNull(retryFilter, "retryFilter must not be null");
   }
 
   public static RetryHandler withDefaults() {
