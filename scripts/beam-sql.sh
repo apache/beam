@@ -84,6 +84,17 @@ function setup_maven_wrapper() {
   MAVEN_CMD="${mvnw_script}"
 }
 
+function add_beam_dependency() {
+  local artifact_id="$1"
+  cat >> "${POM_FILE}" << EOL
+        <dependency>
+            <groupId>org.apache.beam</groupId>
+            <artifactId>${artifact_id}</artifactId>
+            <version>\${beam.version}</version>
+        </dependency>
+EOL
+}
+
 function usage() {
   echo "Usage: $0 [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [--list-ios] [--list-runners] [--debug] [-h|--help]"
   echo ""
@@ -363,7 +374,12 @@ else
 EOL
 # Add IO and Runner dependencies
   for io in "${IO_CONNECTORS[@]}"; do
-  echo "        <dependency><groupId>org.apache.beam</groupId><artifactId>beam-sdks-java-io-${io}</artifactId><version>\${beam.version}</version></dependency>" >> "${POM_FILE}"
+    add_beam_dependency "beam-sdks-java-io-${io}"
+    case "${io}" in
+      iceberg)
+        add_beam_dependency "beam-sdks-java-extensions-sql-iceberg"
+        ;;
+    esac
   done
   RUNNER_ARTIFACT=""
   case "${BEAM_RUNNER}" in
@@ -372,7 +388,7 @@ EOL
     *) echo "❌ Error: Unsupported runner '${BEAM_RUNNER}'." >&2; exit 1 ;;
   esac
   if [ -n "${RUNNER_ARTIFACT}" ]; then
-  echo "        <dependency><groupId>org.apache.beam</groupId><artifactId>${RUNNER_ARTIFACT}</artifactId><version>\${beam.version}</version></dependency>" >> "${POM_FILE}"
+    add_beam_dependency "${RUNNER_ARTIFACT}"
   fi
 
 # Complete the POM with the build section for the maven-shade-plugin
