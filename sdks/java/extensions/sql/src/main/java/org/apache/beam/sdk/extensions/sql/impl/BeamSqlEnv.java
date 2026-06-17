@@ -53,8 +53,6 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -62,7 +60,6 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 public class BeamSqlEnv {
-  private static final Logger LOG = LoggerFactory.getLogger(BeamSqlEnv.class);
 
   JdbcConnection connection;
   QueryPlanner planner;
@@ -237,7 +234,6 @@ public class BeamSqlEnv {
 
     /** Set the ruleSet used for query optimizer. */
     public BeamSqlEnvBuilder setRuleSets(Collection<RuleSet> ruleSets) {
-      LOG.info("Setting BeamSqlEnv rulesets to: {}", ruleSets);
       this.ruleSets = ruleSets;
       return this;
     }
@@ -304,7 +300,6 @@ public class BeamSqlEnv {
 
       configureSchemas(jdbcConnection);
 
-      LOG.info("Instantiating planner with ruleSets: {}", ruleSets);
       QueryPlanner planner = instantiatePlanner(jdbcConnection, ruleSets);
 
       // The planner may choose to add its own builtin functions to the schema, so load user-defined

@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.Table;
@@ -126,7 +125,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
         public QueryPlanner createPlanner(
             JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
           loadBuiltinFunctions(jdbcConnection);
-          LOG.info("Factory creating planner with ruleSets: {}", ruleSets);
           return new CalciteQueryPlanner(jdbcConnection, ruleSets);
         }
 
@@ -182,7 +180,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
     // Revert the flag flip of CALCITE-3870 which led to missing rules
     SqlToRelConverter.Config sqlToRelConfig = SqlToRelConverter.config().withExpand(true);
 
-    LOG.info("Creating config with rulesets: {}", ruleSets);
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
@@ -261,7 +258,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
       SqlNode validated = planner.validate(parsed);
-      LOG.info("SQL:\n{}", validated);
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
@@ -320,19 +316,28 @@ public class CalciteQueryPlanner implements QueryPlanner {
   @Override
   public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
       throws SqlConversionException {
-    if (queryParameters.getKind() == Kind.POSITIONAL) {
-      relNode =
-          bindParameters(
-              relNode, new ParameterBinder(relNode.getCluster().getRexBuilder(), queryParameters));
+    boolean success = false;
+    try {
+      if (queryParameters.getKind() == Kind.POSITIONAL) {
+        relNode =
+            bindParameters(
+                relNode,
+                new ParameterBinder(relNode.getCluster().getRexBuilder(), queryParameters));
+      }
+      BeamRelNode result = convertToBeamRel(relNode, (RelCollation) null);
+      success = true;
+      return result;
+    } finally {
+      if (!success) {
+        planner.close();
+      }
     }
-    return convertToBeamRel(relNode, (RelCollation) null);
   }
 
   private BeamRelNode convertToBeamRel(RelNode relNode, @Nullable RelCollation collation)
       throws SqlConversionException {
     BeamRelNode beamRelNode;
     try {
-      LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(relNode));
       RelTraitSet desiredTraits = relNode.getTraitSet().replace(BeamLogicalConvention.INSTANCE);
       if (collation != null) {
         desiredTraits = desiredTraits.replace(collation);
@@ -357,7 +362,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
         throw new SqlConversionException("No planning programs configured in FrameworkConfig.");
       }
       Program program = config.getPrograms().get(0);
-      LOG.info("Desired traits: {}", desiredTraits);
       RelNode optimizedNode =
           program.run(
               relNode.getCluster().getPlanner(),
@@ -365,7 +369,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
               desiredTraits,
               ImmutableList.of(),
               ImmutableList.of());
-      LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(optimizedNode));
 
       if (!(optimizedNode instanceof BeamRelNode)) {
         throw new SqlConversionException(
