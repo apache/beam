@@ -507,14 +507,15 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
-    if (!project.hasProperty('java17Home') && System.getenv('JAVA_HOME_17_X64')) {
-      project.ext.java17Home = System.getenv('JAVA_HOME_17_X64')
-    }
-    if (!project.hasProperty('java11Home') && System.getenv('JAVA_HOME_11_X64')) {
-      project.ext.java11Home = System.getenv('JAVA_HOME_11_X64')
-    }
-    if (!project.hasProperty('java21Home') && System.getenv('JAVA_HOME_21_X64')) {
-      project.ext.java21Home = System.getenv('JAVA_HOME_21_X64')
+    ['11', '17', '21', '25'].each { version ->
+      def propName = "java${version}Home"
+      if (!project.hasProperty(propName)) {
+        def home = System.getenv("JAVA_HOME_${version}_X64") ?:
+            (System.getenv("JAVA_HOME_${version}_ARM64") ?: System.getenv("JAVA_HOME_${version}_arm64"))
+        if (home) {
+          project.ext.set(propName, home)
+        }
+      }
     }
 
     // Default to dash-separated directories for artifact base name,
@@ -1653,6 +1654,10 @@ class BeamModulePlugin implements Plugin<Project> {
         // redirect java runtime to specified version for running tests
         project.tasks.withType(Test).configureEach {
           useJUnit()
+          executable = "${testJavaHome}/bin/java"
+        }
+        // redirect java exec tasks (expansion service, run, shadowJar execs) to specified JDK
+        project.tasks.withType(JavaExec).configureEach {
           executable = "${testJavaHome}/bin/java"
         }
       }
