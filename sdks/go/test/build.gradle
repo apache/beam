@@ -36,8 +36,10 @@ task dataflowValidatesRunner() {
   dependsOn ":sdks:go:test:goBuild"
 
   doLast {
+    def pipelineOptions = ["--no_use_public_ips"]
     def options = [
         "--runner dataflow",
+        "--pipeline_opts \"${pipelineOptions.join(' ')}\"",
     ]
     exec {
       if (fork_java_home) {
@@ -59,6 +61,7 @@ task dataflowValidatesRunnerARM64() {
   doLast {
     def pipelineOptions = [  // Pipeline options piped directly to Go SDK flags.
         "--machine_type=t2a-standard-1",
+        "--no_use_public_ips",
     ]
     def options = [
         "--runner dataflow",
