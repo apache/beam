@@ -1657,8 +1657,10 @@ class BeamModulePlugin implements Plugin<Project> {
           executable = "${testJavaHome}/bin/java"
         }
         // redirect java exec tasks (expansion service, run, shadowJar execs) to specified JDK
-        project.tasks.withType(JavaExec).configureEach {
-          executable = "${testJavaHome}/bin/java"
+        if (testJavaHome) {
+          project.tasks.withType(JavaExec).configureEach {
+            executable = "${testJavaHome}/bin/java"
+          }
         }
       }
 
