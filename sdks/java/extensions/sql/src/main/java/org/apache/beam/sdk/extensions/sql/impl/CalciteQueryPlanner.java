@@ -283,15 +283,15 @@ public class CalciteQueryPlanner implements QueryPlanner {
     RelNode newRel = rel.accept(binder);
     java.util.List<RelNode> inputs = newRel.getInputs();
     java.util.List<RelNode> newInputs = new java.util.ArrayList<>(inputs.size());
-    boolean changed = newRel != rel;
+    boolean inputsChanged = false;
     for (RelNode input : inputs) {
       RelNode newInput = bindParameters(input, binder);
       newInputs.add(newInput);
       if (newInput != input) {
-        changed = true;
+        inputsChanged = true;
       }
     }
-    return changed ? newRel.copy(newRel.getTraitSet(), newInputs) : newRel;
+    return inputsChanged ? newRel.copy(newRel.getTraitSet(), newInputs) : newRel;
   }
 
   @Override
@@ -365,6 +365,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
                       relNode.getCluster().getMetadataProvider())));
 
       relNode.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+      previousThreadProviders = RelMetadataQuery.THREAD_PROVIDERS.get();
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
       relNode.getCluster().invalidateMetadataQuery();
