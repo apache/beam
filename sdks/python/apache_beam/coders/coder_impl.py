@@ -33,6 +33,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # ruff: noqa: UP006
 import dataclasses
+import datetime
 import decimal
 import enum
 import itertools
@@ -74,6 +75,11 @@ try:
   import dill
 except ImportError:
   dill = None
+
+try:
+  import zoneinfo
+except ImportError:
+  zoneinfo = None
 
 if TYPE_CHECKING:
   import proto
@@ -342,10 +348,13 @@ FLOAT_TYPE = 2
 BYTES_TYPE = 3
 UNICODE_TYPE = 4
 BOOL_TYPE = 9
+DATETIME_TYPE = 11
+DATE_TYPE = 12
 LIST_TYPE = 5
 TUPLE_TYPE = 6
 DICT_TYPE = 7
 SET_TYPE = 8
+FROZENSET_TYPE = 13
 ITERABLE_LIKE_TYPE = 10
 
 PROTO_TYPE = 100
@@ -444,6 +453,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is bool:
       stream.write_byte(BOOL_TYPE)
       stream.write_byte(value)
+    elif t is datetime.datetime:
+      # We use RFC 9557 for lossless encoding of timezone info.
+      stream.write_byte(DATETIME_TYPE)
+      stream.write(value.isoformat().encode("utf-8"))
+      if (zoneinfo is not None and value.tzinfo is not None and
+          type(value.tzinfo) is not datetime.timezone):
+        stream.write(f"[{value.tzinfo}]".encode("utf-8"))
+      if type(
+          value.tzinfo) is datetime.timezone and (tzname :=
+                                                  value.tzname()) is not None:
+        stream.write(f"[tzn={tzname}]".encode("utf-8"))
+      if value.fold != 0:
+        stream.write(f"[f={value.fold}]".encode("utf-8"))
+    elif t is datetime.date:
+      stream.write_byte(DATE_TYPE)
+      stream.write(value.isoformat().encode("utf-8"))
     elif t in _ITERABLE_LIKE_TYPES:
       stream.write_byte(ITERABLE_LIKE_TYPE)
       self.iterable_coder_impl.encode_to_stream(value, stream, nested)
@@ -466,8 +491,11 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         for k, v in dict_value.items():
           self.encode_to_stream(k, stream, True)
           self.encode_to_stream(v, stream, True)
-    elif t is set:
-      stream.write_byte(SET_TYPE)
+    elif t is set or t is frozenset:
+      if t is set:
+        stream.write_byte(SET_TYPE)
+      else:
+        stream.write_byte(FROZENSET_TYPE)
       stream.write_var_int64(len(value))
       if self.requires_deterministic_step_label is not None:
         try:
@@ -602,13 +630,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return stream.read_all(nested)
     elif t == UNICODE_TYPE:
       return stream.read_all(nested).decode("utf-8")
-    elif t == LIST_TYPE or t == TUPLE_TYPE or t == SET_TYPE:
+    elif t == LIST_TYPE or t == TUPLE_TYPE or t == SET_TYPE or t == FROZENSET_TYPE:
       vlen = stream.read_var_int64()
       vlist = [self.decode_from_stream(stream, True) for _ in range(vlen)]
       if t == LIST_TYPE:
         return vlist
       elif t == TUPLE_TYPE:
         return tuple(vlist)
+      elif t == FROZENSET_TYPE:
+        return frozenset(vlist)
       return set(vlist)
     elif t == DICT_TYPE:
       vlen = stream.read_var_int64()
@@ -619,6 +649,46 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return v
     elif t == BOOL_TYPE:
       return not not stream.read_byte()
+    elif t == DATETIME_TYPE:
+      rfc_9557_str = stream.read_all(nested).decode("utf-8")
+      first_tag_idx = rfc_9557_str.find("[")
+      if first_tag_idx == -1:
+        return datetime.datetime.fromisoformat(rfc_9557_str)
+
+      base_iso = rfc_9557_str[:first_tag_idx]
+      tags_str = rfc_9557_str[first_tag_idx:]
+      dt = datetime.datetime.fromisoformat(base_iso)
+
+      fold = 0
+      zone_name = None
+      tz_name = None
+
+      tags = tags_str.replace("]", "").split("[")
+      for tag in tags:
+        if not tag:
+          continue
+        if tag.startswith("f="):
+          fold = int(tag[2:])
+        elif tag.startswith("tzn="):
+          tz_name = tag[4:]
+        elif "=" in tag:
+          # Skip unknown tags like [knort=blorgel]
+          continue
+        else:
+          zone_name = tag
+
+      if tz_name and (offset := dt.utcoffset()) is not None:
+        dt = dt.replace(tzinfo=datetime.timezone(offset=offset, name=tz_name))
+      elif zoneinfo is not None and zone_name:
+        dt = dt.replace(tzinfo=zoneinfo.ZoneInfo(zone_name))
+
+      if fold != dt.fold:
+        dt = dt.replace(fold=fold)
+
+      return dt
+    elif t == DATE_TYPE:
+      return datetime.date.fromisoformat(
+          stream.read_all(nested).decode("utf-8"))
     elif t == ITERABLE_LIKE_TYPE:
       return self.iterable_coder_impl.decode_from_stream(stream, nested)
     elif t == PROTO_TYPE:

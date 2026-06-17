@@ -21,6 +21,7 @@
 
 import base64
 import collections
+import datetime
 import enum
 import logging
 import math
@@ -66,6 +67,11 @@ try:
   import dill
 except ImportError:
   dill = None
+
+try:
+  import zoneinfo
+except ImportError:
+  zoneinfo = None
 
 MyNamedTuple = collections.namedtuple("A", ["x", "y"])  # type: ignore[name-match]
 AnotherNamedTuple = collections.namedtuple("AnotherNamedTuple", ["x", "y"])
@@ -430,6 +436,41 @@ class CodersTest(unittest.TestCase):
 
   def test_bool_coder(self):
     self.check_coder(coders.BooleanCoder(), True, False)
+
+  def test_fast_primitives_coder_datetime(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(),
+        datetime.datetime(2026, 1, 1),
+        datetime.datetime(
+            2025,
+            2,
+            3,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=3, minutes=30))),
+        datetime.datetime(
+            2025,
+            2,
+            3,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=3), name="Foo")),
+        # Nonsense tznaive fold is still preserved.
+        datetime.datetime(2026, 11, 1, 1, 30, fold=1),
+    )
+    if zoneinfo is not None:
+      tz = zoneinfo.ZoneInfo("America/New_York")
+      self.check_coder(
+          coders.FastPrimitivesCoder(),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=0),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=1),
+      )
+
+  def test_fast_primitives_coder_date(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(),
+        datetime.date(2026, 1, 1),
+    )
+
+  def test_fast_primitives_coder_frozenset(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(), frozenset(), frozenset(["a", "b", "c"]))
 
   def test_varint_coder(self):
     # Small ints.
