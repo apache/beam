@@ -111,8 +111,10 @@ def get_or_create_default_gcs_bucket(options):
   gcs = GcsIO(pipeline_options=options)
   bucket = gcs.get_bucket(bucket_name)
   if bucket:
-    # Validate project ownership of the pre-existing bucket
-    _validate_bucket_project(bucket, project, credentials=gcs.client._credentials)
+    _validate_bucket_project(
+        bucket,
+        project,
+        credentials=getattr(gcs.client, '_credentials', None))
     return bucket
   else:
     _LOGGER.warning(
