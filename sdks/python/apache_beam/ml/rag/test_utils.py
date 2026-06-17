@@ -18,7 +18,6 @@
 import contextlib
 import logging
 import os
-import socket
 import tempfile
 import unittest
 from dataclasses import dataclass
@@ -47,6 +46,10 @@ except ImportError as e:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Milvus standalone defaults (match testcontainers MilvusContainer).
+_MILVUS_SERVICE_PORT = 19530
+_MILVUS_METRICS_PORT = 9091
+
 
 @dataclass
 class VectorDBContainerInfo:
@@ -68,58 +71,26 @@ class VectorDBContainerInfo:
     return f"http://{self.host}:{self.port}"
 
 
-class TestHelpers:
-  @staticmethod
-  def find_free_port():
-    """Find a free port on the local machine."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-      # Bind to port 0, which asks OS to assign a free port.
-      s.bind(('', 0))
-      s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-      # Return the port number assigned by OS.
-      return s.getsockname()[1]
-
-
 class CustomMilvusContainer(MilvusContainer):
-  """Custom Milvus container with configurable ports and environment setup.
-
-  Extends MilvusContainer to provide custom port binding and environment
-  configuration for testing with standalone Milvus instances.
-  """
+  """Milvus container with user.yaml volume for integration test configuration."""
 
   def __init__(  # pylint: disable=bad-super-call
       self,
       image: str,
-      service_container_port,
-      healthcheck_container_port,
       **kwargs,
   ) -> None:
-    # Skip the parent class's constructor and go straight to
-    # GenericContainer.
-    super(
-        MilvusContainer,
-        self,
-    ).__init__(
-        image=image, **kwargs)
-    self.port = service_container_port
-    self.healthcheck_port = healthcheck_container_port
-    self.with_exposed_ports(service_container_port, healthcheck_container_port)
-
-    # Get free host ports.
-    service_host_port = TestHelpers.find_free_port()
-    healthcheck_host_port = TestHelpers.find_free_port()
-
-    # Bind container and host ports.
-    self.with_bind_ports(service_container_port, service_host_port)
-    self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
+    super(MilvusContainer, self).__init__(image=image, **kwargs)
+    self.port = _MILVUS_SERVICE_PORT
+    self.healthcheck_port = _MILVUS_METRICS_PORT
+    self.with_exposed_ports(self.port, self.healthcheck_port)
     self.cmd = "milvus run standalone"
+    self.with_command(self.cmd)
 
-    # Set environment variables needed for Milvus.
     envs = {
         "ETCD_USE_EMBED": "true",
         "ETCD_DATA_DIR": "/var/lib/milvus/etcd",
         "COMMON_STORAGETYPE": "local",
-        "METRICS_PORT": str(healthcheck_container_port)
+        "METRICS_PORT": str(_MILVUS_METRICS_PORT),
     }
     for env, value in envs.items():
       self.with_env(env, value)
@@ -139,9 +110,11 @@ class MilvusTestHelpers:
   # Example: Milvus v2.6.0 requires pymilvus==2.6.0 (exact match required).
   @staticmethod
   def _wait_for_milvus_grpc(uri: str) -> None:
-    """Wait until Milvus accepts RPCs.
+    """Wait until Milvus gRPC proxy accepts connections.
 
-    Docker may report started before gRPC is ready.
+    MilvusContainer.start() only health-checks the metrics HTTP port; the gRPC
+    proxy can become ready later. Use the same bounded retry budget as other
+    Milvus client setup in this module (well under the pytest 600s limit).
     """
     def list_collections_probe():
       client = MilvusClient(uri=uri)
@@ -152,9 +125,8 @@ class MilvusTestHelpers:
 
     retry_with_backoff(
         list_collections_probe,
-        max_retries=25,
+        max_retries=5,
         retry_delay=2.0,
-        retry_backoff_factor=1.2,
         operation_name="Milvus client connection after container start",
         exception_types=(MilvusException, ))
 
@@ -164,10 +136,8 @@ class MilvusTestHelpers:
       max_vec_fields=5,
       vector_client_max_retries=3,
       tc_max_retries=None) -> Optional[VectorDBContainerInfo]:
-    service_container_port = TestHelpers.find_free_port()
-    healthcheck_container_port = TestHelpers.find_free_port()
     user_yaml_creator = MilvusTestHelpers.create_user_yaml
-    with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
+    with user_yaml_creator(_MILVUS_SERVICE_PORT, max_vec_fields) as cfg:
       info = None
       original_tc_max_tries = testcontainers_config.max_tries
       if tc_max_retries is not None:
@@ -175,10 +145,7 @@ class MilvusTestHelpers:
       for i in range(vector_client_max_retries):
         vector_db_container: Optional[CustomMilvusContainer] = None
         try:
-          vector_db_container = CustomMilvusContainer(
-              image=image,
-              service_container_port=service_container_port,
-              healthcheck_container_port=healthcheck_container_port)
+          vector_db_container = CustomMilvusContainer(image=image)
           mapped_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
           assert mapped_container is not None
@@ -186,7 +153,7 @@ class MilvusTestHelpers:
           vector_db_container = running_container
           running_container.start()
           host = running_container.get_container_host_ip()
-          port = running_container.get_exposed_port(service_container_port)
+          port = running_container.get_exposed_port(_MILVUS_SERVICE_PORT)
           info = VectorDBContainerInfo(running_container, host, port)
           MilvusTestHelpers._wait_for_milvus_grpc(info.uri)
           _LOGGER.info(
@@ -198,6 +165,10 @@ class MilvusTestHelpers:
             raw_out, raw_err = vector_db_container.get_logs()
             stdout_logs = raw_out.decode("utf-8")
             stderr_logs = raw_err.decode("utf-8")
+            try:
+              vector_db_container.stop()
+            except Exception:  # pylint: disable=broad-except
+              pass
           _LOGGER.warning(
               "Retry %d/%d: Failed to start Milvus DB container. Reason: %s. "
               "STDOUT logs:\n%s\nSTDERR logs:\n%s",
