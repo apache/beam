@@ -91,7 +91,7 @@ public class MongoDbReadSchemaTransformProvider
       final String filterStr = configuration.getFilter();
       if (filterStr != null) {
         read =
-            read.withQueryFn(collection -> collection.find(Document.parse(filterStr)).iterator());
+            read.withQueryFn(collection -> collection.find(Document.parse(filterStr)));
       }
 
       PCollection<Document> mongoDocs = input.getPipeline().apply("ReadFromMongoDb", read);
@@ -139,7 +139,12 @@ public class MongoDbReadSchemaTransformProvider
               "Failed to convert BSON Document to Beam Row: " + doc.toJson(), e);
         }
         errorCounter.inc();
-        byte[] docBytes = doc.toJson().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] docBytes;
+        try {
+          docBytes = doc.toJson().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception jsonEx) {
+          docBytes = doc.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
         receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, docBytes, e));
       }
     }

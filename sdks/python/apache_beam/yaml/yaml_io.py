@@ -760,6 +760,8 @@ def read_from_mongodb(
     schema = json.loads(schema)
   if isinstance(filter, str):
     filter = json.loads(filter)
+  if isinstance(projection, str):
+    projection = json.loads(projection)
 
   beam_schema = json_utils.json_schema_to_beam_schema(schema)
   beam_type = schema_pb2.FieldType(

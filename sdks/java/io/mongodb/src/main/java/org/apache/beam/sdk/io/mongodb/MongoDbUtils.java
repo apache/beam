@@ -150,6 +150,10 @@ public class MongoDbUtils {
         }
       case ARRAY:
       case ITERABLE:
+        if (!(value instanceof Iterable)) {
+          throw new IllegalArgumentException(
+              "Expected Iterable for type " + fieldType + ", but got: " + value.getClass().getName());
+        }
         Iterable<?> iterable = (Iterable<?>) value;
         List<@Nullable Object> rowList = new ArrayList<>();
         FieldType elementType = fieldType.getCollectionElementType();
@@ -162,6 +166,10 @@ public class MongoDbUtils {
         }
         return rowList;
       case MAP:
+        if (!(value instanceof Map)) {
+          throw new IllegalArgumentException(
+              "Expected Map for type " + fieldType + ", but got: " + value.getClass().getName());
+        }
         Map<?, ?> map = (Map<?, ?>) value;
         Map<String, @Nullable Object> rowMap = new HashMap<>();
         FieldType valueType = fieldType.getMapValueType();
