@@ -83,6 +83,7 @@ Read the source in a pipeline with :class:`apache_beam.io.Read`::
       p | beam.io.Read(MySource()) | beam.Map(print)
 """
 
+import collections
 import dataclasses
 import logging
 import threading
@@ -127,6 +128,14 @@ _DEFAULT_POLL_INTERVAL_SECONDS = 1.0
 _DEFAULT_DESIRED_NUM_SPLITS = 20
 _DEFAULT_MAX_RECORDS_PER_BUNDLE = 10000
 _DEFAULT_MAX_READ_TIME_SECONDS = 10.0
+# A reader parked by a residual that never resumes is closed once idle this
+# long; the cache also caps its entry count as a memory backstop.
+_DEFAULT_READER_CACHE_IDLE_SECONDS = 60.0
+_DEFAULT_READER_CACHE_MAX_SIZE = 100
+
+# Encodes a source to a structural cache key. Internally consistent across park
+# and acquire; need not match the restriction wire coder.
+_SOURCE_KEY_CODER = _MemoizingPickleCoder()
 
 # ------------------------------------------------------------------------------
 # Public abstract base classes.
@@ -346,12 +355,97 @@ class _UnboundedSourceRestrictionCoder(Coder):
     return False
 
 
+class _ReaderCache(object):
+  """Holds live readers between an SDF self-checkpoint and its resume.
+
+  A fresh tracker is built for every bundle, so a reader parked at a
+  self-checkpoint would otherwise be closed and rebuilt from its checkpoint
+  mark on the next bundle. Parking it here lets the resuming bundle reclaim the
+  same started reader, keyed by the residual's structural ``(source, checkpoint
+  mark)``. ``acquire`` removes the entry, so two trackers never drive one
+  reader.
+
+  A residual may be reassigned to another worker and never resume here; such a
+  reader is released once it falls idle past ``idle_seconds`` or when the entry
+  count exceeds ``max_size``, and the owning DoFn's teardown releases the rest.
+  One DoFn instance drives several trackers across threads, so access is locked.
+  """
+  def __init__(
+      self,
+      idle_seconds: float = _DEFAULT_READER_CACHE_IDLE_SECONDS,
+      max_size: int = _DEFAULT_READER_CACHE_MAX_SIZE,
+      now: Optional[Callable[[], float]] = None):
+    self._idle_seconds = idle_seconds
+    self._max_size = max_size
+    self._now = now or time.monotonic
+    self._lock = threading.Lock()
+    # key -> (reader, started, parked_at); ordered oldest-first for eviction.
+    self._entries = collections.OrderedDict(
+    )  # type: collections.OrderedDict[Any, tuple[UnboundedReader, bool, float]]
+
+  def acquire(self, key: Any) -> Optional[tuple['UnboundedReader', bool]]:
+    """Removes and returns ``(reader, started)`` for ``key``, or None."""
+    with self._lock:
+      entry = self._entries.pop(key, None)
+      stale = self._evict_idle()
+    self._close_readers(stale)
+    if entry is None:
+      return None
+    return entry[0], entry[1]
+
+  def park(self, key: Any, reader: 'UnboundedReader', started: bool) -> None:
+    """Stores ``reader`` under ``key`` for a later bundle to reclaim. A reader
+    already parked under ``key`` is closed."""
+    with self._lock:
+      replaced = self._entries.pop(key, None)
+      self._entries[key] = (reader, started, self._now())
+      stale = self._evict_idle()
+      while len(self._entries) > self._max_size:
+        _, oldest = self._entries.popitem(last=False)
+        stale.append(oldest[0])
+    if replaced is not None and replaced[0] is not reader:
+      stale.append(replaced[0])
+    self._close_readers(stale)
+
+  def close_all(self) -> None:
+    """Closes every parked reader. Called from the owning DoFn's teardown."""
+    with self._lock:
+      entries = list(self._entries.values())
+      self._entries.clear()
+    self._close_readers(entry[0] for entry in entries)
+
+  def _evict_idle(self) -> list:
+    # Caller holds the lock. Pops entries idle past the window (oldest first)
+    # and returns their readers for the caller to close after unlocking.
+    deadline = self._now() - self._idle_seconds
+    stale = []
+    while self._entries:
+      key, entry = next(iter(self._entries.items()))
+      if entry[2] > deadline:
+        break
+      del self._entries[key]
+      stale.append(entry[0])
+    return stale
+
+  def _close_readers(self, readers) -> None:
+    for reader in readers:
+      try:
+        reader.close()
+      except Exception:  # pylint: disable=broad-except
+        _LOGGER.warning('Error closing UnboundedReader', exc_info=True)
+
+
 class _UnboundedSourceRestrictionTracker(iobase.RestrictionTracker):
   """Drives an :class:`UnboundedReader` for one SDF restriction.
 
   Owns the live reader (lazily created, never serialized): both runner-initiated
   ``defer_remainder`` self-checkpoints with ``try_split(0)``, which must
   checkpoint the live reader.
+
+  A self-checkpoint parks the reader in the DoFn's :class:`_ReaderCache` for the
+  next bundle to reclaim, keeping one started reader alive across bundles. The
+  DoFn injects ``_reader_cache`` at the start of ``process()``; with no cache
+  the tracker builds a fresh reader each bundle.
 
   ``process()`` only sees a ``RestrictionTrackerView``, which hides custom
   methods and whose ``try_claim`` returns just a bool, so the freshly-read
@@ -368,11 +462,57 @@ class _UnboundedSourceRestrictionTracker(iobase.RestrictionTracker):
     self._started = False
     # True once a checkpoint has been cut this bundle (EOF or self-checkpoint).
     self._checkpoint_taken = False
+    # Cross-bundle reader cache, injected by the DoFn; None disables caching.
+    self._reader_cache = None  # type: Optional[_ReaderCache]
 
   def _ensure_reader(self) -> None:
+    if self._reader is not None:
+      return
+    cached = self._acquire_cached_reader()
+    if cached is not None:
+      # A parked reader is already started and positioned past its checkpoint.
+      self._reader, self._started = cached
+      return
+    self._reader = self._restriction.source.create_reader(
+        self._options, self._restriction.checkpoint_mark)
+
+  def _cache_key(self,
+                 restriction: _UnboundedSourceRestriction) -> Optional[Any]:
+    """Structural ``(source, checkpoint)`` key, or None when uncacheable.
+
+    Built from the source pickle and the source's own checkpoint coder so a
+    parked reader and its resuming restriction map to the same entry. A None
+    key disables caching for that restriction; the resume then rebuilds from
+    the checkpoint mark under the source's ``create_reader`` contract.
+    """
+    try:
+      source_bytes = _SOURCE_KEY_CODER.encode(restriction.source)
+      cp_coder = NullableCoder(restriction.source.get_checkpoint_mark_coder())
+      return source_bytes, cp_coder.encode(restriction.checkpoint_mark)
+    except Exception:  # pylint: disable=broad-except
+      return None
+
+  def _acquire_cached_reader(self) -> Optional[tuple['UnboundedReader', bool]]:
+    if self._reader_cache is None:
+      return None
+    key = self._cache_key(self._restriction)
+    if key is None:
+      return None
+    return self._reader_cache.acquire(key)
+
+  def _park_or_close_reader(
+      self, residual: _UnboundedSourceRestriction) -> None:
+    """Hands the live reader to the cache for ``residual`` to reclaim, or
+    closes it when no cache is available or the restriction is uncacheable."""
     if self._reader is None:
-      self._reader = self._restriction.source.create_reader(
-          self._options, self._restriction.checkpoint_mark)
+      return
+    key = (
+        self._cache_key(residual) if self._reader_cache is not None else None)
+    if key is None:
+      self._close_reader_if_open()
+      return
+    reader, self._reader = self._reader, None
+    self._reader_cache.park(key, reader, self._started)
 
   def _clone_checkpoint(
       self, checkpoint: Optional[CheckpointMark]) -> Optional[CheckpointMark]:
@@ -510,8 +650,9 @@ class _UnboundedSourceRestrictionTracker(iobase.RestrictionTracker):
         finalization_checkpoint_mark=None)
     self._restriction = primary
     self._checkpoint_taken = True
-    # The residual rebuilds its reader from the checkpoint on resume.
-    self._close_reader_if_open()
+    # Park the reader so the resuming bundle reclaims it; on a cache miss the
+    # residual rebuilds one from its checkpoint mark.
+    self._park_or_close_reader(residual)
     return primary, residual
 
   def check_done(self) -> bool:
@@ -655,6 +796,16 @@ class _ReadFromUnboundedSourceDoFn(core.DoFn):
     self._max_read_time_seconds = max_read_time_seconds
     # Monotonic clock seam; tests inject a deterministic clock.
     self._now = _now
+    # Per-worker reader cache; created in setup(), never serialized.
+    self._reader_cache = None  # type: Optional[_ReaderCache]
+
+  def setup(self):
+    self._reader_cache = _ReaderCache()
+
+  def teardown(self):
+    if self._reader_cache is not None:
+      self._reader_cache.close_all()
+      self._reader_cache = None
 
   @core.DoFn.unbounded_per_element()
   def process(
@@ -667,6 +818,11 @@ class _ReadFromUnboundedSourceDoFn(core.DoFn):
     # Positional params (element, bundle finalizer) must precede the
     # kwarg-injected ones (tracker, watermark estimator).
     assert isinstance(tracker, sdf_utils.RestrictionTrackerView)
+    inner_tracker = _unwrap_tracker(tracker)
+    if inner_tracker is not None and self._reader_cache is not None:
+      # Let this bundle reclaim a reader parked by the prior bundle and re-park
+      # it on self-checkpoint. No cache means setup() was skipped.
+      inner_tracker._reader_cache = self._reader_cache
     initial = tracker.current_restriction()
     now = self._now or time.monotonic
     records_emitted = 0
@@ -718,13 +874,11 @@ class _ReadFromUnboundedSourceDoFn(core.DoFn):
         if current is not initial and finalize_mark is not None:
           bundle_finalizer.register(_FinalizeCheckpointOnce(finalize_mark))
       finally:
-        # Release the reader on downstream-yield errors.
-        inner_tracker = tracker
-        if hasattr(inner_tracker, '_threadsafe_restriction_tracker'):
-          inner_tracker = inner_tracker._threadsafe_restriction_tracker
-        if hasattr(inner_tracker, '_restriction_tracker'):
-          inner_tracker = inner_tracker._restriction_tracker
-        if isinstance(inner_tracker, _UnboundedSourceRestrictionTracker):
+        # The EOF and self-checkpoint paths already closed or parked the
+        # reader, so this is a no-op there. It closes a reader still held when
+        # process() exits early, e.g. a downstream yield raised before any
+        # checkpoint.
+        if inner_tracker is not None:
           inner_tracker._close_reader_if_open()
         else:
           _LOGGER.warning(
@@ -732,7 +886,21 @@ class _ReadFromUnboundedSourceDoFn(core.DoFn):
               'tracker wrapper did not expose '
               '_UnboundedSourceRestrictionTracker (got %s). Reader resources '
               'may remain open until garbage collection.',
-              type(inner_tracker).__name__)
+              type(tracker).__name__)
+
+
+def _unwrap_tracker(
+    tracker: Any) -> Optional['_UnboundedSourceRestrictionTracker']:
+  """Returns the :class:`_UnboundedSourceRestrictionTracker` behind the SDF
+  view and threadsafe wrappers, or None when the chain is unexpected."""
+  inner = tracker
+  if hasattr(inner, '_threadsafe_restriction_tracker'):
+    inner = inner._threadsafe_restriction_tracker
+  if hasattr(inner, '_restriction_tracker'):
+    inner = inner._restriction_tracker
+  if isinstance(inner, _UnboundedSourceRestrictionTracker):
+    return inner
+  return None
 
 
 def _set_watermark_if_greater(

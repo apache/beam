@@ -35,6 +35,7 @@ from apache_beam.io.unbounded_source import ReadFromUnboundedSource
 from apache_beam.io.unbounded_source import UnboundedReader
 from apache_beam.io.unbounded_source import UnboundedSource
 from apache_beam.io.unbounded_source import _FinalizeCheckpointOnce
+from apache_beam.io.unbounded_source import _ReaderCache
 from apache_beam.io.unbounded_source import _ReadFromUnboundedSourceDoFn
 from apache_beam.io.unbounded_source import _set_watermark_if_greater
 from apache_beam.io.unbounded_source import _UnboundedSourceRestriction
@@ -780,6 +781,37 @@ class BundleCapTest(unittest.TestCase):
     residual2, _ = threadsafe2.deferred_status()
     self.assertEqual(residual2.checkpoint_mark.last_index, 9)
 
+  def test_busy_reader_is_reused_across_bundles(self):
+    # The self-checkpoint parks the reader; the resuming bundle reclaims the
+    # same started reader.
+    dofn = _ReadFromUnboundedSourceDoFn(
+        poll_interval=0, max_records_per_bundle=5, max_read_time_seconds=1e9)
+    dofn.setup()  # creates the cross-bundle reader cache
+    source = UnboundedCountingSource(1000)
+    gen1, _, threadsafe1, _, _ = self._bundle(dofn, source)
+    self.assertEqual([tv.value for tv in gen1], [0, 1, 2, 3, 4])
+    reader1 = source.last_reader
+    self.assertFalse(reader1.closed)  # parked, not closed
+    residual1, _ = threadsafe1.deferred_status()
+
+    gen2, _, _, _, _ = self._bundle(
+        dofn, source, checkpoint=residual1.checkpoint_mark)
+    self.assertEqual([tv.value for tv in gen2], [5, 6, 7, 8, 9])
+    # No new reader was created; source.last_reader is unchanged.
+    self.assertIs(source.last_reader, reader1)
+
+  def test_teardown_closes_parked_readers(self):
+    dofn = _ReadFromUnboundedSourceDoFn(
+        poll_interval=0, max_records_per_bundle=5, max_read_time_seconds=1e9)
+    dofn.setup()
+    source = UnboundedCountingSource(1000)
+    gen, _, _, _, _ = self._bundle(dofn, source)
+    list(gen)  # the bundle parks its reader
+    reader = source.last_reader
+    self.assertFalse(reader.closed)
+    dofn.teardown()
+    self.assertTrue(reader.closed)
+
   def test_eof_exactly_at_cap_resumes_then_finishes(self):
     dofn = _ReadFromUnboundedSourceDoFn(
         poll_interval=0, max_records_per_bundle=5, max_read_time_seconds=1e9)
@@ -903,6 +935,15 @@ class EndToEndTest(unittest.TestCase):
       self.assertEqual(out.element_type, str)
       assert_that(out, equal_to(['v0', 'v1']))
 
+  def test_small_cap_self_checkpoints_and_resumes_to_eof(self):
+    # A small per-bundle cap forces several self-checkpoint/resume cycles
+    # through the runner before EOF, exercising the cross-bundle reader cache
+    # over real residual encode/decode. All records still arrive in order.
+    with TestPipeline() as p:
+      out = p | ReadFromUnboundedSource(
+          UnboundedCountingSource(20), max_records_per_bundle=5)
+      assert_that(out, equal_to(list(range(20))))
+
 
 class ReadFromUnboundedSourceCoderTest(unittest.TestCase):
   def test_parameterized_output_coder_does_not_mutate_global_registry(self):
@@ -935,7 +976,8 @@ class ReaderCloseTest(unittest.TestCase):
     self.assertIsNone(tracker._reader)
     self.assertTrue(source.last_reader.closed)
 
-  def test_tracker_closes_reader_on_split(self):
+  def test_tracker_closes_reader_on_split_without_cache(self):
+    # With no cache injected, a self-checkpoint closes the reader.
     source = UnboundedCountingSource(5)
     tracker = _new_tracker(source)
     _claim(tracker)  # creates reader, claims 0
@@ -945,6 +987,22 @@ class ReaderCloseTest(unittest.TestCase):
     self.assertIsNotNone(split)
     self.assertIsNone(tracker._reader)
     self.assertTrue(reader.closed)
+
+  def test_tracker_parks_reader_on_split_with_cache(self):
+    # With a cache, a self-checkpoint parks the reader for the residual to
+    # reclaim.
+    source = UnboundedCountingSource(5)
+    cache = _ReaderCache()
+    tracker = _new_tracker(source)
+    tracker._reader_cache = cache
+    _claim(tracker)
+    reader = source.last_reader
+    _, residual = tracker.try_split(0)
+    self.assertIsNone(tracker._reader)
+    self.assertFalse(reader.closed)
+    # The residual's key reclaims the same started reader.
+    self.assertEqual(
+        cache.acquire(tracker._cache_key(residual)), (reader, True))
 
   def test_close_helper_is_idempotent_and_safe_on_empty_tracker(self):
     tracker = _new_tracker(UnboundedCountingSource(3))
@@ -1008,6 +1066,87 @@ class ReaderCloseTest(unittest.TestCase):
     self.assertTrue(
         any('Error closing UnboundedReader' in line for line in logs.output))
     self.assertIsNone(tracker._reader)
+
+
+class ReaderCacheTest(unittest.TestCase):
+  """The cache parks a reader under one key, hands it to the next acquirer,
+  bounds itself by idle time and entry count, and closes on teardown."""
+  def _reader(self):
+    class _FakeReader(UnboundedReader):
+      def __init__(self):
+        self.closed = False
+
+      @override
+      def close(self):
+        self.closed = True
+
+    return _FakeReader()
+
+  def test_park_then_acquire_returns_same_reader_and_started_flag(self):
+    cache = _ReaderCache()
+    reader = self._reader()
+    cache.park('k', reader, True)
+    self.assertEqual(cache.acquire('k'), (reader, True))
+    # Acquire removes the entry so two trackers cannot share one reader.
+    self.assertIsNone(cache.acquire('k'))
+    self.assertFalse(reader.closed)
+
+  def test_acquire_miss_returns_none(self):
+    self.assertIsNone(_ReaderCache().acquire('absent'))
+
+  def test_park_replacing_same_key_closes_displaced_reader(self):
+    # Two parks under one key without an intervening acquire (e.g. a bundle
+    # retry) must not leak the first reader.
+    cache = _ReaderCache()
+    old, new = self._reader(), self._reader()
+    cache.park('k', old, True)
+    cache.park('k', new, True)
+    self.assertTrue(old.closed)
+    self.assertFalse(new.closed)
+    self.assertEqual(cache.acquire('k'), (new, True))
+
+  def test_idle_reader_is_closed_on_next_touch(self):
+    clock = _ManualClock(1000.0)
+    cache = _ReaderCache(idle_seconds=30.0, now=clock)
+    reader = self._reader()
+    cache.park('k', reader, True)
+    clock.now = 1031.0  # past the idle window
+    cache.park('other', self._reader(), False)  # triggers idle eviction
+    self.assertTrue(reader.closed)
+    self.assertIsNone(cache.acquire('k'))
+
+  def test_max_size_evicts_and_closes_oldest(self):
+    cache = _ReaderCache(max_size=2)
+    readers = [self._reader() for _ in range(3)]
+    cache.park('a', readers[0], True)
+    cache.park('b', readers[1], True)
+    cache.park('c', readers[2], True)  # exceeds the cap, evicts 'a'
+    self.assertTrue(readers[0].closed)
+    self.assertIsNone(cache.acquire('a'))
+    self.assertIsNotNone(cache.acquire('b'))
+    self.assertIsNotNone(cache.acquire('c'))
+
+  def test_close_all_closes_every_parked_reader(self):
+    cache = _ReaderCache()
+    readers = [self._reader() for _ in range(3)]
+    for i, reader in enumerate(readers):
+      cache.park(str(i), reader, True)
+    cache.close_all()
+    self.assertTrue(all(reader.closed for reader in readers))
+    self.assertIsNone(cache.acquire('0'))
+
+  def test_close_all_swallows_reader_close_errors(self):
+    class _BoomReader(UnboundedReader):
+      @override
+      def close(self):
+        raise RuntimeError('close blew up')
+
+    cache = _ReaderCache()
+    cache.park('k', _BoomReader(), True)
+    with self.assertLogs(_unbounded_source_module._LOGGER, 'WARNING') as logs:
+      cache.close_all()
+    self.assertTrue(
+        any('Error closing UnboundedReader' in line for line in logs.output))
 
 
 class TrackerContractRegressionTest(unittest.TestCase):
