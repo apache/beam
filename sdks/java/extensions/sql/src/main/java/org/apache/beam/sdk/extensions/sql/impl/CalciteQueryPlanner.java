@@ -296,18 +296,24 @@ public class CalciteQueryPlanner implements QueryPlanner {
     Preconditions.checkArgument(
         queryParameters.getKind() == Kind.NONE,
         "Beam SQL Calcite dialect does not yet support query parameters.");
+    boolean success = false;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
       TableResolutionUtils.setupCustomTableResolution(connection, parsed);
       SqlNode validated = planner.validate(parsed);
       // root of original logical plan
       RelRoot root = planner.rel(validated);
+      success = true;
       return root.rel;
     } catch (RelConversionException e) {
       throw new SqlConversionException(
           String.format("Unable to convert query %s", sqlStatement), e);
     } catch (SqlParseException | ValidationException e) {
       throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
+    } finally {
+      if (!success) {
+        planner.close();
+      }
     }
   }
 
