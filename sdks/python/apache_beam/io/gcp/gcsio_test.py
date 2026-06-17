@@ -397,7 +397,8 @@ class TestGCSIO(unittest.TestCase):
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
-  def test_get_or_create_default_gcs_bucket_ownership_match(self, mock_gcsio_class, mock_crm_class):
+  def test_get_or_create_default_gcs_bucket_ownership_match(
+      self, mock_gcsio_class, mock_crm_class):
     mock_gcsio = mock_gcsio_class.return_value
     mock_bucket = mock.Mock()
     mock_bucket.project_number = 123456789
@@ -417,7 +418,8 @@ class TestGCSIO(unittest.TestCase):
 
   @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
   @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
-  def test_get_or_create_default_gcs_bucket_ownership_mismatch(self, mock_gcsio_class, mock_crm_class):
+  def test_get_or_create_default_gcs_bucket_ownership_mismatch(
+      self, mock_gcsio_class, mock_crm_class):
     mock_gcsio = mock_gcsio_class.return_value
     mock_bucket = mock.Mock()
     mock_bucket.project_number = 999999999
@@ -432,7 +434,8 @@ class TestGCSIO(unittest.TestCase):
     with self.assertRaises(ValueError) as ctx:
       gcsio.get_or_create_default_gcs_bucket(options)
 
-    self.assertIn(f'is not owned by project {DEFAULT_GCP_PROJECT}', str(ctx.exception))
+    self.assertIn(
+        f'is not owned by project {DEFAULT_GCP_PROJECT}', str(ctx.exception))
 
   def test_exists(self):
     file_name = 'gs://gcsio-test/dummy_file'

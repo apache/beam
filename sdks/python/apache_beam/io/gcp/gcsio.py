@@ -112,9 +112,7 @@ def get_or_create_default_gcs_bucket(options):
   bucket = gcs.get_bucket(bucket_name)
   if bucket:
     _validate_bucket_project(
-        bucket,
-        project,
-        credentials=getattr(gcs.client, '_credentials', None))
+        bucket, project, credentials=getattr(gcs.client, '_credentials', None))
     return bucket
   else:
     _LOGGER.warning(
