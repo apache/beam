@@ -36,6 +36,8 @@ MAVEN_DISTRIBUTION_URL="https://repo.maven.apache.org/maven2/org/apache/maven/ap
 
 # Maven Plugin Configuration
 MAVEN_SHADE_PLUGIN_VERSION="3.5.1"
+ICEBERG_VERSION="${ICEBERG_VERSION:-1.10.0}"
+APACHE_SNAPSHOT_REPOSITORY_URL="https://repository.apache.org/content/repositories/snapshots/"
 mkdir -p "${CACHE_DIR}"
 
 # Create a temporary directory for our Maven project.
@@ -95,6 +97,27 @@ function add_beam_dependency() {
 EOL
 }
 
+function add_dependency() {
+  local group_id="$1"
+  local artifact_id="$2"
+  local version="$3"
+  cat >> "${POM_FILE}" << EOL
+        <dependency>
+            <groupId>${group_id}</groupId>
+            <artifactId>${artifact_id}</artifactId>
+            <version>${version}</version>
+        </dependency>
+EOL
+}
+
+function normalize_beam_version() {
+  case "${BEAM_VERSION}" in
+    *-[sS][nN][aA][pP][sS][hH][oO][tT])
+      BEAM_VERSION="${BEAM_VERSION%-*}-SNAPSHOT"
+      ;;
+  esac
+}
+
 function usage() {
   echo "Usage: $0 [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [--list-ios] [--list-runners] [--debug] [-h|--help]"
   echo ""
@@ -102,6 +125,7 @@ function usage() {
   echo ""
   echo "Options:"
   echo "  --version   Specify the Apache Beam version (default: ${DEFAULT_BEAM_VERSION})."
+  echo "              SNAPSHOT versions are resolved from Apache's Maven snapshot repository."
   echo "  --runner    Specify the Beam runner to use (default: direct)."
   echo "              Supported runners:"
   echo "                direct    - DirectRunner (runs locally, good for development)"
@@ -219,7 +243,7 @@ function list_runners() {
 
   echo "✅ Available runners for Beam ${BEAM_VERSION}:"
   echo ""
-  
+
   # Process each runner and provide descriptions
   while IFS= read -r runner; do
     case "$runner" in
@@ -228,7 +252,7 @@ function list_runners() {
         echo "                     Runs locally on your machine. Good for development and testing."
         ;;
       "google-cloud-dataflow-java")
-        echo "  dataflow         - DataflowRunner" 
+        echo "  dataflow         - DataflowRunner"
         echo "                     Runs on Google Cloud Dataflow for production workloads."
         ;;
       flink-*)
@@ -284,7 +308,7 @@ function list_runners() {
         ;;
     esac
   done <<< "$runners"
-  
+
   echo ""
   echo "💡 Usage: ./beam-sql.sh --runner <runner_name>"
   echo "   Default: direct"
@@ -302,7 +326,7 @@ DEBUG_MODE=false
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --version) BEAM_VERSION="$2"; shift ;;
+    --version) BEAM_VERSION="$2"; normalize_beam_version; shift ;;
     --runner) BEAM_RUNNER=$(echo "$2" | tr '[:upper:]' '[:lower:]'); shift ;;
     --io) IO_CONNECTORS+=("$2"); shift ;;
     --list-versions) list_versions; exit 0 ;;
@@ -378,6 +402,9 @@ EOL
     case "${io}" in
       iceberg)
         add_beam_dependency "beam-sdks-java-extensions-sql-iceberg"
+        add_dependency "org.apache.iceberg" "iceberg-aws" "${ICEBERG_VERSION}"
+        add_dependency "org.apache.iceberg" "iceberg-aws-bundle" "${ICEBERG_VERSION}"
+        add_dependency "org.apache.iceberg" "iceberg-gcp" "${ICEBERG_VERSION}"
         ;;
     esac
   done
@@ -394,6 +421,19 @@ EOL
 # Complete the POM with the build section for the maven-shade-plugin
 cat >> "${POM_FILE}" << EOL
     </dependencies>
+    <repositories>
+        <repository>
+            <id>apache.snapshots</id>
+            <url>${APACHE_SNAPSHOT_REPOSITORY_URL}</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+    </repositories>
     <properties>
       <beam.version>${BEAM_VERSION}</beam.version>
     </properties>
@@ -411,6 +451,11 @@ cat >> "${POM_FILE}" << EOL
                         </goals>
                         <configuration>
                             <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
                             </transformers>
                             <filters>
