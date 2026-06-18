@@ -60,6 +60,12 @@ public class BeamRuleSets {
       ImmutableList.of(
           // Rules for window functions
           CoreRules.PROJECT_TO_LOGICAL_PROJECT_AND_WINDOW,
+          // Extract an OVER nested inside a Calc expression (e.g. CASE(isnull(x), first_value(x)
+          // IGNORE NULLS OVER (...), x) as emitted by pandas ffill / bfill) into a LogicalWindow.
+          // Without this, an OVER that lands inside a Calc -- after PROJECT_TO_CALC converts the
+          // enclosing project -- stays buried in a BeamCalcRel, which cannot evaluate window
+          // functions, leaving the plan with no finite-cost alternative.
+          CoreRules.CALC_TO_WINDOW,
           // Rules so we only have to implement Calc
           CoreRules.FILTER_TO_CALC,
           CoreRules.PROJECT_TO_CALC,
@@ -151,13 +157,14 @@ public class BeamRuleSets {
       ImmutableList.of(BeamEnumerableConverterRule.INSTANCE);
 
   public static Collection<RuleSet> getRuleSets() {
+    return ImmutableList.of(RuleSets.ofList(getAllRules()));
+  }
 
-    return ImmutableList.of(
-        RuleSets.ofList(
-            ImmutableList.<RelOptRule>builder()
-                .addAll(BEAM_CONVERTERS)
-                .addAll(BEAM_TO_ENUMERABLE)
-                .addAll(LOGICAL_OPTIMIZATIONS)
-                .build()));
+  public static List<RelOptRule> getAllRules() {
+    return ImmutableList.<RelOptRule>builder()
+        .addAll(BEAM_CONVERTERS)
+        .addAll(BEAM_TO_ENUMERABLE)
+        .addAll(LOGICAL_OPTIMIZATIONS)
+        .build();
   }
 }

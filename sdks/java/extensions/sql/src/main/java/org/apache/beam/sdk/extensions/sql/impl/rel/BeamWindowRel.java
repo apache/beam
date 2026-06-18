@@ -142,9 +142,23 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                         List<Integer> argList = anAggCall.getArgList();
                         Schema.Field field =
                             CalciteUtils.toField(anAggCall.getName(), anAggCall.getType());
-                        Combine.CombineFn combineFn =
-                            AggregationCombineFnAdapter.createCombineFnAnalyticsFunctions(
-                                anAggCall, field, anAggCall.getAggregation().getName());
+                        String aggName = anAggCall.getAggregation().getName();
+                        Combine.CombineFn combineFn;
+                        if (anAggCall.ignoreNulls()
+                            && ("FIRST_VALUE".equals(aggName) || "LAST_VALUE".equals(aggName))) {
+                          // Spark's first(col, ignoreNulls=true) / last(col, ignoreNulls=true)
+                          // (as emitted by pandas ffill / bfill) must skip nulls within the frame.
+                          combineFn =
+                              "FIRST_VALUE".equals(aggName)
+                                  ? org.apache.beam.sdk.extensions.sql.impl.transform
+                                      .BeamBuiltinAnalyticFunctions.navigationFirstValue(true)
+                                  : org.apache.beam.sdk.extensions.sql.impl.transform
+                                      .BeamBuiltinAnalyticFunctions.navigationLastValue(true);
+                        } else {
+                          combineFn =
+                              AggregationCombineFnAdapter.createCombineFnAnalyticsFunctions(
+                                  anAggCall, field, aggName);
+                        }
                         FieldAggregation fieldAggregation =
                             new FieldAggregation(
                                 partitionKeysDef,
@@ -208,8 +222,12 @@ public class BeamWindowRel extends Window implements BeamRelNode {
 
   @Override
   public NodeStats estimateNodeStats(BeamRelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
-    return inputStat;
+    // Derive from the planner's row-count for the input, which stays finite even when the input is
+    // an unoptimized RelSubset (BeamSqlRelUtils.getNodeStats returns UNKNOWN for a RelSubset, which
+    // makes the cumulative cost infinite and aborts planning -- notably for an OVER nested inside a
+    // projection expression, as emitted by pandas ffill / bfill).
+    double rows = mq.getRowCount(this.input);
+    return NodeStats.create(rows, 0d, rows);
   }
 
   /**
@@ -220,10 +238,12 @@ public class BeamWindowRel extends Window implements BeamRelNode {
    */
   @Override
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
-    NodeStats inputStat = BeamSqlRelUtils.getNodeStats(this.input, mq);
+    // Use the planner's row-count (RelSubset-safe) rather than BeamSqlRelUtils.getNodeStats, which
+    // yields UNKNOWN/infinite for a RelSubset input and prevents the Volcano cost fixpoint from
+    // converging.
+    double rows = mq.getRowCount(this.input);
     float multiplier = 1f + 0.125f;
-    return BeamCostModel.FACTORY.makeCost(
-        inputStat.getRowCount() * multiplier, inputStat.getRate() * multiplier);
+    return BeamCostModel.FACTORY.makeCost(rows * multiplier, 0d);
   }
 
   private static class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
@@ -317,8 +337,12 @@ public class BeamWindowRel extends Window implements BeamRelNode {
                       (long) idx,
                       (long) sortedRowsAsList.size());
             } else {
-              accumulator =
-                  fieldAgg.combineFn.addInput(accumulator, aggRow.getBaseValue(aggFieldIndex));
+              // Functions with no input column (e.g. COUNT(*) OVER (...)) carry no field index;
+              // feed the combiner the (always non-null) row itself so COUNT counts every row,
+              // rather than indexing the row with -1.
+              Object inputValue =
+                  aggFieldIndex >= 0 ? aggRow.getBaseValue(aggFieldIndex) : (Object) aggRow;
+              accumulator = fieldAgg.combineFn.addInput(accumulator, inputValue);
             }
             count++;
           }
@@ -395,8 +419,12 @@ public class BeamWindowRel extends Window implements BeamRelNode {
             fieldAgg.upperLimit != null ? fieldAgg.upperLimit.intValue() : Integer.MAX_VALUE;
         int lowerIndex = ll == Integer.MAX_VALUE ? Integer.MIN_VALUE : index - ll;
         int upperIndex = ul == Integer.MAX_VALUE ? Integer.MAX_VALUE : index + ul + 1;
-        lowerIndex = lowerIndex < 0 ? 0 : lowerIndex;
-        upperIndex = upperIndex > input.size() ? input.size() : upperIndex;
+        // Clamp both bounds into [0, size]. A frame that lies entirely before the partition
+        // (upperIndex < 0, e.g. ROWS BETWEEN 2 PRECEDING AND 2 PRECEDING on the first rows, as
+        // emitted by pandas pct_change/diff with periods>1) or entirely after it (lowerIndex >
+        // size, the FOLLOWING analogue) must yield an empty frame rather than throw on subList.
+        lowerIndex = Math.max(0, Math.min(lowerIndex, input.size()));
+        upperIndex = Math.max(lowerIndex, Math.min(upperIndex, input.size()));
         List<Row> out = input.subList(lowerIndex, upperIndex);
         return out;
       }
