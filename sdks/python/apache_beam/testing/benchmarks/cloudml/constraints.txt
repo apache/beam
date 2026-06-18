@@ -34,3 +34,9 @@ pyarrow==10.0.1
 # Google Cloud (pin to avoid transitive resolution)
 google-cloud-aiplatform==1.60.0
 google-api-core==2.19.1
+
+# Note: google-auth is NOT constrained - let pip resolve it to satisfy
+# apache-beam's google-genai requirement (>=2.48.1)
+
+# Note: tensorflow-serving-api is NOT constrained - let pip resolve it within
+# the range specified in requirements.txt (>=2.15,<2.16)
