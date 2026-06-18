@@ -55,6 +55,9 @@ public class AdaptiveThrottler {
 
   // visible for testing
   AdaptiveThrottler(long windowMs, long bucketMs, double overloadRatio, Random random) {
+    if (overloadRatio <= 1.0) {
+      throw new IllegalArgumentException("overloadRatio must be greater than 1.0");
+    }
     this.allRequests = new MovingSum(windowMs, bucketMs);
     this.successfulRequests = new MovingSum(windowMs, bucketMs);
     this.overloadRatio = overloadRatio;

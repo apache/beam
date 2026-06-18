@@ -51,6 +51,9 @@ public class ReactiveThrottler extends AdaptiveThrottler {
   public ReactiveThrottler(
       long windowMs, long bucketMs, double overloadRatio, String namespace, int throttleDelaySecs) {
     super(windowMs, bucketMs, overloadRatio);
+    if (throttleDelaySecs <= 0) {
+      throw new IllegalArgumentException("throttleDelaySecs must be greater than 0");
+    }
     this.throttlingSignaler = new ThrottlingSignaler(namespace);
     this.throttleDelaySecs = throttleDelaySecs;
   }

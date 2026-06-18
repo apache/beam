@@ -43,6 +43,12 @@ public class MovingSumTest {
     assertEquals(15, movingSum.sum(1500));
     assertEquals(2, movingSum.count(1500));
 
+    // Advance by 2 buckets (from 1000 to 3000)
+    assertEquals(15, movingSum.sum(3000));
+    movingSum.add(3500, 20);
+    assertEquals(35, movingSum.sum(3500));
+    assertEquals(3, movingSum.count(3500));
+
     // Wait 11 seconds (moving completely outside window)
     assertEquals(0, movingSum.sum(12000));
     assertEquals(0, movingSum.count(12000));
