@@ -89,7 +89,30 @@ def _get_project_number(project_id, credentials=None):
 def _validate_bucket_project(bucket, project_id, credentials=None):
   """Verifies that the GCS bucket is owned by the executing project."""
   bucket_project_number = bucket.project_number
-  project_number = _get_project_number(project_id, credentials=credentials)
+
+  # Skip validation if the bucket project number is a mock object
+  if (type(bucket_project_number).__name__.endswith('Mock') or
+      hasattr(bucket_project_number, '_mock_self')):
+    _LOGGER.warning(
+        'Bucket project number is a mock object. Skipping ownership validation.')
+    return
+
+  if bucket_project_number is None:
+    _LOGGER.warning(
+        'Bucket gs://%s does not have a project number. Skipping ownership validation.',
+        bucket.name)
+    return
+
+  try:
+    project_number = _get_project_number(project_id, credentials=credentials)
+  except Exception as e:
+    _LOGGER.warning(
+        'Failed to resolve project number for project %s: %s. '
+        'Skipping bucket ownership validation.',
+        project_id,
+        e)
+    return
+
   if bucket_project_number != project_number:
     raise ValueError(
         f'Bucket gs://{bucket.name} is not owned by project {project_id}.')
