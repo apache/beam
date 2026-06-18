@@ -65,7 +65,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -226,8 +225,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           batchManifestFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
     }
 
-    PCollection<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>> groupedFiles =
-        keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles.withShardedKey());
+    PCollection<KV<Integer, Iterable<SerializableDataFile>>> groupedFiles =
+        keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles);
 
     PCollection<KV<String, byte[]>> manifests =
         groupedFiles.apply(
@@ -660,7 +659,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * downstream {@link CommitManifestFilesDoFn}.
    */
   static class CreateManifests
-      extends DoFn<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
+      extends DoFn<KV<Integer, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
     private transient @MonotonicNonNull Table table;
@@ -672,7 +671,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @ProcessElement
     public void process(
-        @Element KV<ShardedKey<Integer>, Iterable<SerializableDataFile>> batch,
+        @Element KV<Integer, Iterable<SerializableDataFile>> batch,
         OutputReceiver<KV<String, byte[]>> output)
         throws IOException {
       if (!batch.getValue().iterator().hasNext()) {
@@ -682,7 +681,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         table = catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
 
-      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getKey()));
+      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey()));
 
       String manifestPath =
           String.format(
