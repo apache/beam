@@ -84,7 +84,7 @@ class ReadImageBytesDoFn(beam.DoFn):
       with FileSystems.open(uri) as f:
         image_bytes = f.read()
       yield uri, {"image_bytes": image_bytes}
-    except Exception as e:
+    except OSError as e:
       logging.warning("Failed to read image %s: %s", uri, e)
       return
 
@@ -164,6 +164,8 @@ class BlipCaptionModelHandler(ModelHandler):
     from transformers import BlipForConditionalGeneration, BlipProcessor
     processor = BlipProcessor.from_pretrained(self.model_name)
     model = BlipForConditionalGeneration.from_pretrained(self.model_name)
+    model.to(self.device)
+    model.eval()
     return (model, processor)
 
   def batch_elements_kwargs(self):
@@ -173,8 +175,6 @@ class BlipCaptionModelHandler(ModelHandler):
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
     model, processor = model_bundle
-    model.to(self.device)
-    model.eval()
     start = now_millis()
 
     images = [x["image"] for x in batch]
@@ -236,6 +236,8 @@ class ClipRankModelHandler(ModelHandler):
     from transformers import CLIPModel, CLIPProcessor
     processor = CLIPProcessor.from_pretrained(self.model_name)
     model = CLIPModel.from_pretrained(self.model_name)
+    model.to(self.device)
+    model.eval()
     return (model, processor)
 
   def batch_elements_kwargs(self):
@@ -245,8 +247,6 @@ class ClipRankModelHandler(ModelHandler):
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
     model, processor = model_bundle
-    model.to(self.device)
-    model.eval()
     start_batch = now_millis()
 
     # Flat lists for a single batched CLIP forward pass
@@ -464,15 +464,15 @@ def cleanup_pubsub_resources(
   try:
     subscriber.delete_subscription(
         request={"subscription": full_subscription_path})
-    print(f"Deleted subscription: {subscription_name}")
+    logging.info(f"Deleted subscription: {subscription_name}")
   except NotFound:
-    print(f"Subscription already deleted: {subscription_name}")
+    logging.info(f"Subscription already deleted: {subscription_name}")
 
   try:
     publisher.delete_topic(request={"topic": full_topic_path})
-    print(f"Deleted topic: {topic_name}")
+    logging.info(f"Deleted topic: {topic_name}")
   except NotFound:
-    print(f"Topic already deleted: {topic_name}")
+    logging.info(f"Topic already deleted: {topic_name}")
 
 
 def override_or_add(args, flag, value):

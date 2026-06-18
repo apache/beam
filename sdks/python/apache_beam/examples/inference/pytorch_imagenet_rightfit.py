@@ -157,14 +157,10 @@ class PostProcessDoFn(beam.DoFn):
     if isinstance(inference_obj, dict):
       logits = inference_obj.get("logits", None)
       if logits is None:
-        # fallback: try first value if dict shape differs
-        try:
-          logits = next(iter(inference_obj.values()))
-          logging.warning(
-              'Could not find <logits> key in model output.'
-              'Falling back to first value in dict.')
-        except Exception:
-          logging.warning('Could not find <logits> key in dict.')
+        raise ValueError(
+            f"Unable to find 'logits' in model output. "
+            f"Available keys: {list(inference_obj.keys())}"
+        )
     else:
       logits = inference_obj
 
@@ -297,15 +293,15 @@ def cleanup_pubsub_resources(
   try:
     subscriber.delete_subscription(
         request={"subscription": full_subscription_path})
-    print(f"Deleted subscription: {subscription_name}")
+    logging.info(f"Deleted subscription: {subscription_name}")
   except NotFound:
-    print(f"Subscription already deleted: {subscription_name}")
+    logging.info(f"Subscription already deleted: {subscription_name}")
 
   try:
     publisher.delete_topic(request={"topic": full_topic_path})
-    print(f"Deleted topic: {topic_name}")
+    logging.info(f"Deleted topic: {topic_name}")
   except NotFound:
-    print(f"Topic already deleted: {topic_name}")
+    logging.info(f"Topic already deleted: {topic_name}")
 
 
 def override_or_add(args, flag, value):
@@ -475,6 +471,7 @@ def run(
 
   predictions = (
       to_infer
+      | 'Reshuffle' >> beam.Reshuffle()
       | 'RunInference' >> RunInference(
           KeyedModelHandler(model_handler)).with_resource_hints(
               accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver"))
