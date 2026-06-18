@@ -1727,7 +1727,10 @@ public class PubsubIO {
         this.pubsubClient =
             getPubsubClientFactory()
                 .newClient(
-                    getTimestampAttribute(), null, c.getPipelineOptions().as(PubsubOptions.class));
+                    getTimestampAttribute(),
+                    null,
+                    c.getPipelineOptions().as(PubsubOptions.class),
+                    Write.this.getPubsubRootUrl());
       }
 
       @ProcessElement

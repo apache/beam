@@ -29,7 +29,12 @@
       selector = selector && /#[A-Za-z]/.test(selector) && selector.replace(/.*(?=#[^\s]*$)/, '') // strip for ie7
     }
 
-    var $parent = selector && $(selector)
+    var $parent
+    try {
+      $parent = selector && $(document).find(selector)
+    } catch (e) {
+      $parent = $()
+    }
 
     return $parent && $parent.length ? $parent : $this.parent()
   }
