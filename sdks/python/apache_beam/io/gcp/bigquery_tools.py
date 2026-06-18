@@ -28,6 +28,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 # pytype: skip-file
 # pylint: disable=wrong-import-order, wrong-import-position
 
+import collections
 import datetime
 import decimal
 import io
@@ -35,6 +36,7 @@ import json
 import logging
 import re
 import sys
+import threading
 import time
 import uuid
 from json.decoder import JSONDecodeError
@@ -358,6 +360,12 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
+  # Shared by wrapper instances within one Python SDK worker process.
+  _TABLE_DEFINITION_CACHE_MAX_ENTRIES = 256
+  _TABLE_DEFINITION_CACHE_TTL_SECS = 60 * 60
+  _table_definition_cache = collections.OrderedDict()
+  _table_definition_cache_lock = threading.RLock()
+
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
     self.gcp_bq_client = client or gcp_bigquery.Client(
@@ -393,6 +401,69 @@ class BigQueryWrapper(object):
       self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
 
     self.created_temp_dataset = False
+
+  @classmethod
+  def _table_definition_cache_key(cls, project_id, dataset_id, table_id):
+    return (project_id, dataset_id, table_id)
+
+  @classmethod
+  def _get_cached_table_definition(cls, project_id, dataset_id, table_id):
+    cache_key = cls._table_definition_cache_key(
+        project_id, dataset_id, table_id)
+    now = time.monotonic()
+    with cls._table_definition_cache_lock:
+      cache_entry = cls._table_definition_cache.get(cache_key)
+      if cache_entry is None:
+        return None
+
+      expires_at, table = cache_entry
+      if expires_at <= now:
+        cls._table_definition_cache.pop(cache_key, None)
+        return None
+
+      cls._table_definition_cache.move_to_end(cache_key)
+      return table
+
+  @classmethod
+  def _cache_table_definition(cls, project_id, dataset_id, table_id, table):
+    table_type = getattr(bigquery, 'Table', None)
+    if table_type is None or not isinstance(table, table_type):
+      cls._invalidate_table_definition_cache(project_id, dataset_id, table_id)
+      return
+
+    cache_key = cls._table_definition_cache_key(
+        project_id, dataset_id, table_id)
+    expires_at = time.monotonic() + cls._TABLE_DEFINITION_CACHE_TTL_SECS
+    with cls._table_definition_cache_lock:
+      cls._table_definition_cache[cache_key] = (expires_at, table)
+      cls._table_definition_cache.move_to_end(cache_key)
+      while (len(cls._table_definition_cache)
+             > cls._TABLE_DEFINITION_CACHE_MAX_ENTRIES):
+        cls._table_definition_cache.popitem(last=False)
+
+  @classmethod
+  def _invalidate_table_definition_cache(
+      cls, project_id=None, dataset_id=None, table_id=None):
+    with cls._table_definition_cache_lock:
+      if (project_id is not None and dataset_id is not None and
+          table_id is not None):
+        cache_key = cls._table_definition_cache_key(
+            project_id, dataset_id, table_id)
+        cls._table_definition_cache.pop(cache_key, None)
+        return
+
+      keys_to_delete = [
+          key for key in cls._table_definition_cache
+          if ((project_id is None or key[0] == project_id) and
+              (dataset_id is None or key[1] == dataset_id) and
+              (table_id is None or key[2] == table_id))
+      ]
+      for key in keys_to_delete:
+        cls._table_definition_cache.pop(key, None)
+
+  @classmethod
+  def _clear_table_definition_cache(cls):
+    cls._invalidate_table_definition_cache()
 
   @property
   def unique_row_id(self):
@@ -804,9 +875,15 @@ class BigQueryWrapper(object):
     Raises:
       HttpError: if lookup failed.
     """
+    cached_table = self._get_cached_table_definition(
+        project_id, dataset_id, table_id)
+    if cached_table is not None:
+      return cached_table
+
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
     response = self.client.tables.Get(request)
+    self._cache_table_definition(project_id, dataset_id, table_id, response)
     return response
 
   def _create_table(
@@ -833,6 +910,7 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
+    self._cache_table_definition(project_id, dataset_id, table_id, response)
     _LOGGER.debug("Created the table with id %s", table_id)
     # The response is a bigquery.Table instance.
     return response
@@ -909,9 +987,12 @@ class BigQueryWrapper(object):
       if exn.status_code == 404:
         _LOGGER.warning(
             'Table %s:%s.%s does not exist', project_id, dataset_id, table_id)
+        self._invalidate_table_definition_cache(
+            project_id, dataset_id, table_id)
         return
       else:
         raise
+    self._invalidate_table_definition_cache(project_id, dataset_id, table_id)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

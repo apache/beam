@@ -177,6 +177,28 @@ class TestTableReferenceParser(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):
+  def setUp(self):
+    self.wrapper_cls = beam.io.gcp.bigquery_tools.BigQueryWrapper
+    self._cache_ttl_secs = self.wrapper_cls._TABLE_DEFINITION_CACHE_TTL_SECS
+    self._cache_max_entries = (
+        self.wrapper_cls._TABLE_DEFINITION_CACHE_MAX_ENTRIES)
+    self.wrapper_cls._clear_table_definition_cache()
+
+  def tearDown(self):
+    self.wrapper_cls._TABLE_DEFINITION_CACHE_TTL_SECS = self._cache_ttl_secs
+    self.wrapper_cls._TABLE_DEFINITION_CACHE_MAX_ENTRIES = (
+        self._cache_max_entries)
+    self.wrapper_cls._clear_table_definition_cache()
+
+  def _make_table(
+      self,
+      project_id='project-id',
+      dataset_id='dataset_id',
+      table_id='table_id'):
+    return bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId=project_id, datasetId=dataset_id, tableId=table_id))
+
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
     client.datasets.Delete.side_effect = HttpError(
@@ -291,6 +313,152 @@ class TestBigQueryWrapper(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       wrapper.create_temporary_dataset('project-id', 'location')
     self.assertTrue(client.datasets.Get.called)
+
+  def test_get_table_uses_shared_table_definition_cache(self):
+    table = self._make_table()
+    client_1 = mock.Mock()
+    client_1.tables.Get.return_value = table
+    client_2 = mock.Mock()
+    client_2.tables.Get.return_value = self._make_table()
+
+    wrapper_1 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client_1)
+    wrapper_2 = beam.io.gcp.bigquery_tools.BigQueryWrapper(client_2)
+
+    self.assertIs(
+        wrapper_1.get_table('project-id', 'dataset_id', 'table_id'), table)
+    self.assertIs(
+        wrapper_2.get_table('project-id', 'dataset_id', 'table_id'), table)
+    client_1.tables.Get.assert_called_once()
+    client_2.tables.Get.assert_not_called()
+
+  def test_get_table_caches_tables_independently(self):
+    first_table = self._make_table(table_id='first_table')
+    second_table = self._make_table(table_id='second_table')
+    client = mock.Mock()
+    client.tables.Get.side_effect = [first_table, second_table]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'first_table'),
+        first_table)
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'second_table'),
+        second_table)
+
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_get_table_refreshes_expired_cache_entry(self):
+    self.wrapper_cls._TABLE_DEFINITION_CACHE_TTL_SECS = 1
+    first_table = self._make_table()
+    second_table = self._make_table()
+    client = mock.Mock()
+    client.tables.Get.side_effect = [first_table, second_table]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    with mock.patch(
+        'apache_beam.io.gcp.bigquery_tools.time.monotonic') as monotonic:
+      monotonic.return_value = 100
+      self.assertIs(
+          wrapper.get_table('project-id', 'dataset_id', 'table_id'),
+          first_table)
+
+      monotonic.return_value = 100.5
+      self.assertIs(
+          wrapper.get_table('project-id', 'dataset_id', 'table_id'),
+          first_table)
+
+      monotonic.return_value = 101.1
+      self.assertIs(
+          wrapper.get_table('project-id', 'dataset_id', 'table_id'),
+          second_table)
+
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_get_table_does_not_cache_failures(self):
+    table = self._make_table()
+    client = mock.Mock()
+    client.tables.Get.side_effect = [
+        HttpError(response={'status': '404'}, url='', content=''), table
+    ]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    with self.assertRaises(HttpError):
+      wrapper.get_table('project-id', 'dataset_id', 'table_id')
+
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'table_id'), table)
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_get_table_does_not_cache_none_response(self):
+    table = self._make_table()
+    client = mock.Mock()
+    client.tables.Get.side_effect = [None, table]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    self.assertIsNone(wrapper.get_table('project-id', 'dataset_id', 'table_id'))
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'table_id'), table)
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_delete_table_invalidates_table_definition_cache(self):
+    first_table = self._make_table()
+    second_table = self._make_table()
+    client = mock.Mock()
+    client.tables.Get.side_effect = [first_table, second_table]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'table_id'), first_table)
+    wrapper._delete_table('project-id', 'dataset_id', 'table_id')
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'table_id'), second_table)
+
+    self.assertEqual(client.tables.Get.call_count, 2)
+
+  def test_create_table_updates_table_definition_cache(self):
+    stale_table = self._make_table()
+    created_table = self._make_table()
+    client = mock.Mock()
+    client.tables.Get.return_value = stale_table
+    client.tables.Insert.return_value = created_table
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'table_id'), stale_table)
+    self.assertIs(
+        wrapper._create_table(
+            'project-id', 'dataset_id', 'table_id', bigquery.TableSchema()),
+        created_table)
+
+    new_client = mock.Mock()
+    new_wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(new_client)
+    self.assertIs(
+        new_wrapper.get_table('project-id', 'dataset_id', 'table_id'),
+        created_table)
+    new_client.tables.Get.assert_not_called()
+
+  def test_table_definition_cache_evicts_oldest_entry(self):
+    self.wrapper_cls._TABLE_DEFINITION_CACHE_MAX_ENTRIES = 1
+    first_table = self._make_table(table_id='first_table')
+    second_table = self._make_table(table_id='second_table')
+    refreshed_first_table = self._make_table(table_id='first_table')
+    client = mock.Mock()
+    client.tables.Get.side_effect = [
+        first_table, second_table, refreshed_first_table
+    ]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'first_table'),
+        first_table)
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'second_table'),
+        second_table)
+    self.assertIs(
+        wrapper.get_table('project-id', 'dataset_id', 'first_table'),
+        refreshed_first_table)
+
+    self.assertEqual(client.tables.Get.call_count, 3)
 
   def test_get_or_create_dataset_created(self):
     client = mock.Mock()
