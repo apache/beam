@@ -19,6 +19,7 @@ import unittest
 
 try:
   import tensorflow as tf
+
   from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
 except ImportError:
   raise unittest.SkipTest('Dependencies are not installed')
