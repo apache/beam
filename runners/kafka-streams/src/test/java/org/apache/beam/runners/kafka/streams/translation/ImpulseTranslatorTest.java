@@ -77,7 +77,8 @@ public class ImpulseTranslatorTest {
     KStreamsPayload<byte[]> watermarkPayload = capture.received.get(1);
     assertThat(watermarkPayload.isWatermark(), is(true));
     assertThat(
-        watermarkPayload.getWatermarkMillis(), is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
+        watermarkPayload.asWatermark().getWatermarkMillis(),
+        is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
   }
 
   @Test

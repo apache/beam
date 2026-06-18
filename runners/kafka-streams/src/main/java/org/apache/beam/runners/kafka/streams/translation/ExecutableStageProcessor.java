@@ -28,6 +28,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -35,6 +36,7 @@ import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +51,12 @@ import org.slf4j.LoggerFactory;
  * ProcessorContext#forward} must only be called from the processing thread, so outputs are never
  * forwarded directly from a harness callback.
  *
- * <p>A {@link KStreamsPayload#isWatermark() watermark} payload marks a bundle boundary: the open
- * bundle (if any) is closed (flushing outputs), and the watermark is then forwarded downstream so
- * that subsequent stages observe it after all data of the bundle.
+ * <p>A {@link KStreamsPayload#isWatermark() watermark} payload is a per-source-partition report and
+ * marks a bundle boundary: the open bundle (if any) is closed (flushing outputs), the report is fed
+ * to the {@link WatermarkManager}, and the stage's output watermark is forwarded downstream only
+ * when the {@code min()} across its source partitions actually advances. Until every source
+ * partition has reported, the watermark is held and nothing is forwarded — but data is still
+ * processed in the meantime.
  *
  * <p>This is the Kafka Streams analogue of Flink's {@code ExecutableStageDoFnOperator} and Spark's
  * {@code SparkExecutableStageFunction}. State, timers, and side inputs are out of scope for this
@@ -74,6 +79,12 @@ class ExecutableStageProcessor
   // only safe because the Impulse output coder happens to be ByteArrayCoder.
   private final Queue<WindowedValue<?>> pendingOutputs = new ConcurrentLinkedQueue<>();
 
+  // Computes this stage's output watermark as min() over its source partitions' reported
+  // watermarks, holding until every source partition has reported (see WatermarkManager).
+  private final WatermarkManager watermarkManager = new WatermarkManager();
+  // The last watermark actually forwarded downstream, so we only forward when it advances.
+  private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable ExecutableStageContext stageContext;
   private @Nullable StageBundleFactory stageBundleFactory;
@@ -87,22 +98,40 @@ class ExecutableStageProcessor
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
+    // The SDK harness (stage context + bundle factory) is created lazily on the first data
+    // element, so a stage that only forwards watermarks never spins one up. This mirrors Spark's
+    // SparkExecutableStageFunction, which likewise does not build a bundle factory when there are
+    // no inputs to process.
+  }
+
+  private void ensureStageBundleFactory() {
+    if (stageBundleFactory != null) {
+      return;
+    }
     ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-    this.stageContext = KafkaStreamsExecutableStageContextFactory.getInstance().get(jobInfo);
-    this.stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
+    stageContext = KafkaStreamsExecutableStageContextFactory.getInstance().get(jobInfo);
+    stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
   }
 
   @Override
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     KStreamsPayload<?> payload = record.value();
     if (payload.isWatermark()) {
-      // NOTE: flushing the bundle on every received watermark is provisional. Once the
-      // WatermarkManager lands, a stage will receive watermarks from multiple parent instances and
-      // the output watermark becomes min() across them — the bundle should flush / the output
-      // watermark advance only when that minimum actually moves forward, not on every received
-      // watermark. Tracked in #38743.
+      // Emit any buffered outputs before the watermark. Data is processed regardless of watermark
+      // readiness; only the watermark itself is held until every source partition has reported.
       closeBundleAndFlush(record);
-      forwardWatermark(record, payload.getWatermarkMillis());
+      // Feed the report into the WatermarkManager and forward the stage's output watermark only
+      // when min() across the source partitions actually advances, not on every received watermark.
+      WatermarkPayload report = payload.asWatermark();
+      watermarkManager.observe(
+          report.getSourcePartition(),
+          new Instant(report.getWatermarkMillis()),
+          report.getTotalSourcePartitions());
+      Instant advanced = watermarkManager.advance();
+      if (advanced.isAfter(lastForwardedWatermark)) {
+        lastForwardedWatermark = advanced;
+        forwardWatermark(record, advanced.getMillis());
+      }
       return;
     }
     try {
@@ -117,6 +146,7 @@ class ExecutableStageProcessor
     if (currentBundle != null) {
       return;
     }
+    ensureStageBundleFactory();
     StageBundleFactory factory = checkInitialized(stageBundleFactory);
     OutputReceiverFactory outputReceiverFactory =
         new OutputReceiverFactory() {
@@ -173,14 +203,14 @@ class ExecutableStageProcessor
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
-    // TODO(#38743 / WatermarkManager): a watermark must reach every parallel instance of every
-    // downstream processor, but ctx.forward routes to one downstream partition per Kafka Streams'
-    // partitioning. The simplest correct approach is to fan the watermark out to all downstream
-    // partitions; that wiring lands with the WatermarkManager sub-issue (per Jan on PR #38764).
+    // This stage is a single instance for now, so it forwards its watermark as the only source
+    // partition (0 of 1). Fanning the watermark out to every downstream partition — and producing
+    // it atomically with the offset commit so it is durable — lands with the topic-based shuffle
+    // work, when there are real source partitions to track (#18479).
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
-            record.key(), KStreamsPayload.watermark(watermarkMillis), record.timestamp()));
+            record.key(), KStreamsPayload.watermark(watermarkMillis, 0, 1), record.timestamp()));
   }
 
   @Override

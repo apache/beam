@@ -20,6 +20,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 import java.util.Objects;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -29,7 +30,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <ul>
  *   <li>A {@link #isData() data} element wrapping a {@link WindowedValue}, or
- *   <li>A {@link #isWatermark() watermark} signal carrying an event-time milliseconds value.
+ *   <li>A {@link #isWatermark() watermark} report carrying an event-time milliseconds value plus
+ *       the in-band coordination fields (source partition and total source partition count) the
+ *       downstream {@link WatermarkManager} needs.
  * </ul>
  *
  * <p>The envelope lets a single Kafka Streams output channel carry both Beam data and the watermark
@@ -54,21 +57,45 @@ public final class KStreamsPayload<T> {
   private final Kind kind;
   private final @Nullable WindowedValue<T> data;
   private final long watermarkMillis;
+  private final int sourcePartition;
+  private final int totalSourcePartitions;
 
-  private KStreamsPayload(Kind kind, @Nullable WindowedValue<T> data, long watermarkMillis) {
+  private KStreamsPayload(
+      Kind kind,
+      @Nullable WindowedValue<T> data,
+      long watermarkMillis,
+      int sourcePartition,
+      int totalSourcePartitions) {
     this.kind = kind;
     this.data = data;
     this.watermarkMillis = watermarkMillis;
+    this.sourcePartition = sourcePartition;
+    this.totalSourcePartitions = totalSourcePartitions;
   }
 
   /** Returns a data payload wrapping the given {@link WindowedValue}. */
   public static <T> KStreamsPayload<T> data(WindowedValue<T> value) {
-    return new KStreamsPayload<>(Kind.DATA, value, 0L);
+    return new KStreamsPayload<>(Kind.DATA, value, 0L, 0, 0);
   }
 
-  /** Returns a watermark payload carrying the given event-time milliseconds. */
-  public static <T> KStreamsPayload<T> watermark(long watermarkMillis) {
-    return new KStreamsPayload<>(Kind.WATERMARK, null, watermarkMillis);
+  /**
+   * Returns a watermark report payload: the event-time milliseconds together with the in-band
+   * coordination fields the downstream stage's {@link WatermarkManager} needs — which source
+   * partition this report is for and how many source partitions feed the stage in total.
+   */
+  public static <T> KStreamsPayload<T> watermark(
+      long watermarkMillis, int sourcePartition, int totalSourcePartitions) {
+    Preconditions.checkArgument(
+        totalSourcePartitions > 0,
+        "totalSourcePartitions must be positive: %s",
+        totalSourcePartitions);
+    Preconditions.checkArgument(
+        sourcePartition >= 0 && sourcePartition < totalSourcePartitions,
+        "sourcePartition %s out of range for totalSourcePartitions %s",
+        sourcePartition,
+        totalSourcePartitions);
+    return new KStreamsPayload<>(
+        Kind.WATERMARK, null, watermarkMillis, sourcePartition, totalSourcePartitions);
   }
 
   public boolean isData() {
@@ -91,14 +118,31 @@ public final class KStreamsPayload<T> {
   }
 
   /**
-   * Returns the watermark event-time milliseconds. Caller must check {@link #isWatermark()} first;
-   * calling this on a data payload throws.
+   * Narrows this payload to its {@link WatermarkPayload} view, through which the watermark report
+   * fields are read. Caller must check {@link #isWatermark()} first; calling this on a data payload
+   * throws.
    */
-  public long getWatermarkMillis() {
-    if (kind != Kind.WATERMARK) {
-      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
+  public WatermarkPayload asWatermark() {
+    Preconditions.checkState(isWatermark(), "Payload is not a watermark: kind=%s", kind);
+    return new WatermarkView();
+  }
+
+  /** {@link WatermarkPayload} view backed by this payload's fields. */
+  private final class WatermarkView implements WatermarkPayload {
+    @Override
+    public long getWatermarkMillis() {
+      return watermarkMillis;
     }
-    return watermarkMillis;
+
+    @Override
+    public int getSourcePartition() {
+      return sourcePartition;
+    }
+
+    @Override
+    public int getTotalSourcePartitions() {
+      return totalSourcePartitions;
+    }
   }
 
   @Override
@@ -112,12 +156,14 @@ public final class KStreamsPayload<T> {
     KStreamsPayload<?> that = (KStreamsPayload<?>) o;
     return kind == that.kind
         && watermarkMillis == that.watermarkMillis
+        && sourcePartition == that.sourcePartition
+        && totalSourcePartitions == that.totalSourcePartitions
         && Objects.equals(data, that.data);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(kind, data, watermarkMillis);
+    return Objects.hash(kind, data, watermarkMillis, sourcePartition, totalSourcePartitions);
   }
 
   @Override
@@ -126,7 +172,10 @@ public final class KStreamsPayload<T> {
     if (kind == Kind.DATA) {
       helper.add("data", data);
     } else {
-      helper.add("watermarkMillis", watermarkMillis);
+      helper
+          .add("watermarkMillis", watermarkMillis)
+          .add("sourcePartition", sourcePartition)
+          .add("totalSourcePartitions", totalSourcePartitions);
     }
     return helper.toString();
   }
