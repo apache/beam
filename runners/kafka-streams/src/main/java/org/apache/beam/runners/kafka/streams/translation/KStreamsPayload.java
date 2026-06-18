@@ -20,6 +20,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 import java.util.Objects;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -84,6 +85,15 @@ public final class KStreamsPayload<T> {
    */
   public static <T> KStreamsPayload<T> watermark(
       long watermarkMillis, int sourcePartition, int totalSourcePartitions) {
+    Preconditions.checkArgument(
+        totalSourcePartitions > 0,
+        "totalSourcePartitions must be positive: %s",
+        totalSourcePartitions);
+    Preconditions.checkArgument(
+        sourcePartition >= 0 && sourcePartition < totalSourcePartitions,
+        "sourcePartition %s out of range for totalSourcePartitions %s",
+        sourcePartition,
+        totalSourcePartitions);
     return new KStreamsPayload<>(
         Kind.WATERMARK, null, watermarkMillis, sourcePartition, totalSourcePartitions);
   }
@@ -108,37 +118,31 @@ public final class KStreamsPayload<T> {
   }
 
   /**
-   * Returns the watermark event-time milliseconds. Caller must check {@link #isWatermark()} first;
-   * calling this on a data payload throws.
+   * Narrows this payload to its {@link WatermarkPayload} view, through which the watermark report
+   * fields are read. Caller must check {@link #isWatermark()} first; calling this on a data payload
+   * throws.
    */
-  public long getWatermarkMillis() {
-    if (kind != Kind.WATERMARK) {
-      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
-    }
-    return watermarkMillis;
+  public WatermarkPayload asWatermark() {
+    Preconditions.checkState(isWatermark(), "Payload is not a watermark: kind=%s", kind);
+    return new WatermarkView();
   }
 
-  /**
-   * Returns the source partition this watermark report is for. Caller must check {@link
-   * #isWatermark()} first; calling this on a data payload throws.
-   */
-  public int getSourcePartition() {
-    if (kind != Kind.WATERMARK) {
-      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
+  /** {@link WatermarkPayload} view backed by this payload's fields. */
+  private final class WatermarkView implements WatermarkPayload {
+    @Override
+    public long getWatermarkMillis() {
+      return watermarkMillis;
     }
-    return sourcePartition;
-  }
 
-  /**
-   * Returns the total number of source partitions feeding the downstream stage, as carried in-band
-   * with this watermark report. Caller must check {@link #isWatermark()} first; calling this on a
-   * data payload throws.
-   */
-  public int getTotalSourcePartitions() {
-    if (kind != Kind.WATERMARK) {
-      throw new IllegalStateException("Payload is not a watermark: kind=" + kind);
+    @Override
+    public int getSourcePartition() {
+      return sourcePartition;
     }
-    return totalSourcePartitions;
+
+    @Override
+    public int getTotalSourcePartitions() {
+      return totalSourcePartitions;
+    }
   }
 
   @Override

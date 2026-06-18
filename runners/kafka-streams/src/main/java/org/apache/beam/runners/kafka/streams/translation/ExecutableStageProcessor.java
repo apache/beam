@@ -104,17 +104,13 @@ class ExecutableStageProcessor
     // no inputs to process.
   }
 
-  private StageBundleFactory ensureStageBundleFactory() {
-    StageBundleFactory factory = stageBundleFactory;
-    if (factory == null) {
-      ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
-      ExecutableStageContext sc =
-          KafkaStreamsExecutableStageContextFactory.getInstance().get(jobInfo);
-      this.stageContext = sc;
-      factory = sc.getStageBundleFactory(executableStage);
-      this.stageBundleFactory = factory;
+  private void ensureStageBundleFactory() {
+    if (stageBundleFactory != null) {
+      return;
     }
-    return factory;
+    ExecutableStage executableStage = ExecutableStage.fromPayload(stagePayload);
+    stageContext = KafkaStreamsExecutableStageContextFactory.getInstance().get(jobInfo);
+    stageBundleFactory = stageContext.getStageBundleFactory(executableStage);
   }
 
   @Override
@@ -126,10 +122,11 @@ class ExecutableStageProcessor
       closeBundleAndFlush(record);
       // Feed the report into the WatermarkManager and forward the stage's output watermark only
       // when min() across the source partitions actually advances, not on every received watermark.
+      WatermarkPayload report = payload.asWatermark();
       watermarkManager.observe(
-          payload.getSourcePartition(),
-          new Instant(payload.getWatermarkMillis()),
-          payload.getTotalSourcePartitions());
+          report.getSourcePartition(),
+          new Instant(report.getWatermarkMillis()),
+          report.getTotalSourcePartitions());
       Instant advanced = watermarkManager.advance();
       if (advanced.isAfter(lastForwardedWatermark)) {
         lastForwardedWatermark = advanced;
@@ -149,7 +146,8 @@ class ExecutableStageProcessor
     if (currentBundle != null) {
       return;
     }
-    StageBundleFactory factory = ensureStageBundleFactory();
+    ensureStageBundleFactory();
+    StageBundleFactory factory = checkInitialized(stageBundleFactory);
     OutputReceiverFactory outputReceiverFactory =
         new OutputReceiverFactory() {
           @Override

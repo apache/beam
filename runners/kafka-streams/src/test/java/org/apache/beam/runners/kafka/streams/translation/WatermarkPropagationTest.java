@@ -111,7 +111,7 @@ public class WatermarkPropagationTest {
     }
 
     assertThat("a watermark reached the downstream sink", captured.isEmpty(), is(false));
-    KStreamsPayload<?> terminal = captured.get(captured.size() - 1);
+    WatermarkPayload terminal = captured.get(captured.size() - 1).asWatermark();
     assertThat(terminal.getWatermarkMillis(), is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
     assertThat(terminal.getSourcePartition(), is(0));
     assertThat(terminal.getTotalSourcePartitions(), is(1));

@@ -73,10 +73,11 @@ public class ExecutableStageProcessorWatermarkTest {
 
     KStreamsPayload<?> out = onlyForwarded(ctx);
     assertThat(out.isWatermark(), is(true));
-    assertThat(out.getWatermarkMillis(), is(100L));
+    WatermarkPayload report = out.asWatermark();
+    assertThat(report.getWatermarkMillis(), is(100L));
     // The stage forwards as its own single source (0 of 1), not the upstream's identity.
-    assertThat(out.getSourcePartition(), is(0));
-    assertThat(out.getTotalSourcePartitions(), is(1));
+    assertThat(report.getSourcePartition(), is(0));
+    assertThat(report.getTotalSourcePartitions(), is(1));
   }
 
   @Test
@@ -92,7 +93,7 @@ public class ExecutableStageProcessorWatermarkTest {
 
     processor.process(watermark(500L, 2, 3));
     // All three reported — forward min(300, 100, 500) = 100.
-    assertThat(onlyForwarded(ctx).getWatermarkMillis(), is(100L));
+    assertThat(onlyForwarded(ctx).asWatermark().getWatermarkMillis(), is(100L));
   }
 
   @Test
@@ -118,6 +119,6 @@ public class ExecutableStageProcessorWatermarkTest {
 
     processor.process(watermark(maxMillis, 0, 1));
 
-    assertThat(onlyForwarded(ctx).getWatermarkMillis(), is(maxMillis));
+    assertThat(onlyForwarded(ctx).asWatermark().getWatermarkMillis(), is(maxMillis));
   }
 }

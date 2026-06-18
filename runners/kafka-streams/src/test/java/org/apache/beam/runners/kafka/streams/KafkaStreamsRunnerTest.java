@@ -97,7 +97,7 @@ public class KafkaStreamsRunnerTest {
     assertThat(capture.received.get(0).getData().getValue().length, is(0));
     assertThat(capture.received.get(1).isWatermark(), is(true));
     assertThat(
-        capture.received.get(1).getWatermarkMillis(),
+        capture.received.get(1).asWatermark().getWatermarkMillis(),
         is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
   }
 
