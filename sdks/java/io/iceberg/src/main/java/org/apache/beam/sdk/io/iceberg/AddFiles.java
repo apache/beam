@@ -74,7 +74,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -533,7 +532,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
           SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
-          Map<String, String> properties = MoreObjects.firstNonNull(tableProps, new HashMap<>());
+          Map<String, String> properties = new HashMap<>();
+          if (tableProps != null) {
+            properties.putAll(tableProps);
+          }
           if (properties.get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
             // Forces Name based resolution instead of position based resolution
             NameMapping mapping = MappingUtil.create(schema);
