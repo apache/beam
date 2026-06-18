@@ -350,27 +350,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=GPU --experiments=enable_streaming_rightfitting,worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_gpu'
-
-      - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        timeout-minutes: 180
-        with:
-          dockerfile_path: 'sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile'
-          image_name: 'us-docker.pkg.dev/apache-beam-testing/beam-temp/beam-vllm-gpu-base'
-          image_tag: ${{ github.sha }}
-      - name: Run VLLM Gemma Batch Test
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        timeout-minutes: 180
-        with:
-          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
-          arguments: |
-            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.vllm_gemma_benchmarks \
-            -Prunner=DataflowRunner \
-            -PsdkLocationOverride=false \
-            -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/vllm_tests_requirements.txt '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_8 }} --mode=batch --job_name=benchmark-tests-vllm-with-gemma-2b-it-batch-${{env.NOW_UTC}} --sdk_container_image=${{ steps.build_vllm_image.outputs.image_url }}'
-
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=GPU --experiments=enable_streaming_rightfitting,worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_gpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_gpu' \
       - name: run MLTransform Generate Vocab Batch
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -381,7 +361,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/examples/ml_transform/mltransform_generate_vocab_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --job_name=benchmark-tests-mltransform-generate-vocab-batch-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_14 }} --job_name=benchmark-tests-mltransform-generate-vocab-batch-${{env.NOW_UTC}}' \
       - name: run MLTransform One-Hot Encoding Batch
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -393,4 +373,4 @@ jobs:
             -PpythonVersion=3.10 \
             -PbeamPythonExtra=ml_test \
             -PloadTest.requirementsTxtFile=apache_beam/ml/transforms/mltransform_tests_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --autoscaling_algorithm=NONE --metrics_table=mltransform_one_hot_encoding_batch --influx_measurement=mltransform_one_hot_encoding_batch --job_name=benchmark-tests-mltransform-one-hot-encoding-batch-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/mltransform/one_hot_output_${{env.NOW_UTC}} --artifact_location=gs://temp-storage-for-end-to-end-tests/mltransform/artifacts_${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_15 }} --autoscaling_algorithm=NONE --metrics_table=mltransform_one_hot_encoding_batch --influx_measurement=mltransform_one_hot_encoding_batch --job_name=benchmark-tests-mltransform-one-hot-encoding-batch-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/mltransform/one_hot_output_${{env.NOW_UTC}} --artifact_location=gs://temp-storage-for-end-to-end-tests/mltransform/artifacts_${{env.NOW_UTC}}'
