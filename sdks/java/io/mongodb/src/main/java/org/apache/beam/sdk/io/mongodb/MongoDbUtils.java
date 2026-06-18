@@ -152,7 +152,10 @@ public class MongoDbUtils {
       case ITERABLE:
         if (!(value instanceof Iterable)) {
           throw new IllegalArgumentException(
-              "Expected Iterable for type " + fieldType + ", but got: " + value.getClass().getName());
+              "Expected Iterable for type "
+                  + fieldType
+                  + ", but got: "
+                  + value.getClass().getName());
         }
         Iterable<?> iterable = (Iterable<?>) value;
         List<@Nullable Object> rowList = new ArrayList<>();
