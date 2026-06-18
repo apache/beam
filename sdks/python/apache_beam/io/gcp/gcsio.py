@@ -94,7 +94,8 @@ def _validate_bucket_project(bucket, project_id, credentials=None):
   if (type(bucket_project_number).__name__.endswith('Mock') or
       hasattr(bucket_project_number, '_mock_self')):
     _LOGGER.warning(
-        'Bucket project number is a mock object. Skipping ownership validation.')
+        'Bucket project number is a mock object. Skipping ownership validation.'
+    )
     return
 
   if bucket_project_number is None:
