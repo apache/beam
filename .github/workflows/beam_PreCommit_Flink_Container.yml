@@ -173,7 +173,7 @@ jobs:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CombineLoadTest \
-            -Prunner=:runners:flink:1.17 \
+            -Prunner=:runners:flink:2.0 \
             '-PloadTest.args=${{ env.beam_PreCommit_Flink_Container_test_arguments_3 }} --jobName=flink-tests-java11-${{env.NOW_UTC}}'
 
       - name: Teardown Flink
