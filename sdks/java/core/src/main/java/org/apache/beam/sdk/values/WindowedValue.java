@@ -47,11 +47,14 @@ public interface WindowedValue<T> {
   @Pure
   PaneInfo getPaneInfo();
 
-  @Nullable String getRecordId();
+  @Nullable
+  String getRecordId();
 
-  @Nullable Context getOpenTelemetryContext();
+  @Nullable
+  Context getOpenTelemetryContext();
 
-  @Nullable Long getRecordOffset();
+  @Nullable
+  Long getRecordOffset();
 
   CausedByDrain causedByDrain();
 

@@ -52,7 +52,6 @@ public interface AccumulatorProvider {
    * @return Instance of a counter.
    */
   Counter getCounter(String namespace, String name);
-
   /**
    * Get an existing instance of a histogram or create a new one.
    *

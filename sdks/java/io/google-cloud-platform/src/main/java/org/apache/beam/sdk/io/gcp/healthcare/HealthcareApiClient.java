@@ -283,7 +283,6 @@ public interface HealthcareApiClient {
    */
   FhirStore createFhirStore(String dataset, String name, String version, String pubsubTopic)
       throws IOException;
-
   /**
    * Create FHIR Store.
    *

@@ -377,7 +377,8 @@ class Aggregators {
 
               @Override
               public void merge(Collection<BoundedWindow> merges, BoundedWindow target) {
-                @Nullable MutablePair<Instant, AccT> merged =
+                @Nullable
+                MutablePair<Instant, AccT> merged =
                     merges.stream().reduce(null, reduceFn.apply(target), combiner(target));
                 if (merged != null) {
                   buff.put(target, merged);

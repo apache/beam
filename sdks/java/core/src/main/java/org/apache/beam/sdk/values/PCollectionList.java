@@ -196,7 +196,6 @@ public class PCollectionList<T> implements PInput, POutput {
   // Internal details below here.
 
   final Pipeline pipeline;
-
   /**
    * The {@link PCollection PCollections} contained by this {@link PCollectionList}, and an
    * arbitrary tags associated with each.

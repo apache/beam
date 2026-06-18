@@ -322,7 +322,10 @@ public class SdkComponents {
         environmentIdsByResourceHints.put(resourceHints, baseEnvironmentId);
       } else {
         Environment env =
-            componentsBuilder.getEnvironmentsMap().get(baseEnvironmentId).toBuilder()
+            componentsBuilder
+                .getEnvironmentsMap()
+                .get(baseEnvironmentId)
+                .toBuilder()
                 .putAllResourceHints(
                     Maps.transformValues(
                         resourceHints.hints(), hint -> ByteString.copyFrom(hint.toBytes())))

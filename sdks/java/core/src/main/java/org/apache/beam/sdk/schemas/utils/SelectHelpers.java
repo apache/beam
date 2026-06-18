@@ -420,7 +420,6 @@ public class SelectHelpers {
       l -> {
         return String.join("_", l);
       };
-
   /**
    * This policy keeps the raw nested field name. If two differently-nested fields have the same
    * name, flattening will fail with this policy.

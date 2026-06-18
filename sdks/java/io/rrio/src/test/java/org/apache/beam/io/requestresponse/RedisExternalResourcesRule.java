@@ -60,7 +60,8 @@ class RedisExternalResourcesRule extends ExternalResource {
     }
   }
 
-  @NonNull JedisPooled getValidatingClient() {
+  @NonNull
+  JedisPooled getValidatingClient() {
     return checkStateNotNull(validatingClient);
   }
 

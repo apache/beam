@@ -67,10 +67,7 @@ public class XmlRowAdapterTest {
 
   @Test
   public void allPrimitiveDataTypes()
-      throws XPathExpressionException,
-          JAXBException,
-          IOException,
-          SAXException,
+      throws XPathExpressionException, JAXBException, IOException, SAXException,
           ParserConfigurationException {
 
     for (Row row : DATA.allPrimitiveDataTypesRows) {
@@ -93,10 +90,7 @@ public class XmlRowAdapterTest {
 
   @Test
   public void nullableAllPrimitiveDataTypes()
-      throws XPathExpressionException,
-          JAXBException,
-          IOException,
-          SAXException,
+      throws XPathExpressionException, JAXBException, IOException, SAXException,
           ParserConfigurationException {
     for (Row row : DATA.nullableAllPrimitiveDataTypesRows) {
       NodeList entries = xmlDocumentEntries(row);
@@ -122,10 +116,7 @@ public class XmlRowAdapterTest {
 
   @Test
   public void timeContaining()
-      throws XPathExpressionException,
-          JAXBException,
-          IOException,
-          ParserConfigurationException,
+      throws XPathExpressionException, JAXBException, IOException, ParserConfigurationException,
           SAXException {
     String instant = "instant";
     DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
@@ -180,10 +171,7 @@ public class XmlRowAdapterTest {
   }
 
   private NodeList xmlDocumentEntries(Row row)
-      throws JAXBException,
-          IOException,
-          SAXException,
-          XPathExpressionException,
+      throws JAXBException, IOException, SAXException, XPathExpressionException,
           ParserConfigurationException {
     JAXBContext context = JAXBContext.newInstance(XmlRowAdapter.class);
     Marshaller marshaller = context.createMarshaller();

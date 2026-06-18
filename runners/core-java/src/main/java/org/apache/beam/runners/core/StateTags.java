@@ -59,9 +59,7 @@ public class StateTags {
         }
       };
 
-  /**
-   * @deprecated for migration purposes only
-   */
+  /** @deprecated for migration purposes only */
   @Deprecated
   private static StateBinder adaptTagBinder(final StateTag.StateBinder binder) {
     return new StateBinder() {
@@ -340,9 +338,7 @@ public class StateTags {
       this.spec = spec;
     }
 
-    /**
-     * @deprecated use {@link StateSpec#bind} method via {@link #getSpec} for now.
-     */
+    /** @deprecated use {@link StateSpec#bind} method via {@link #getSpec} for now. */
     @Override
     @Deprecated
     public StateT bind(StateTag.StateBinder binder) {

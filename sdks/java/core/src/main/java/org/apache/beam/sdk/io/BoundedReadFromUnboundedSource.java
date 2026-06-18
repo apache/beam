@@ -171,7 +171,8 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
       long[] numRecords = splitNumRecords(shard.getMaxNumRecords(), numSplits);
       for (int i = 0; i < numSplits; i++) {
         out.output(
-            shard.toBuilder()
+            shard
+                .toBuilder()
                 .setSource(splits.get(i))
                 .setMaxNumRecords(numRecords[i])
                 .setMaxReadTime(shard.getMaxReadTime())

@@ -149,7 +149,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
   private final FlinkExecutableStageContextFactory contextFactory;
   private final Map<String, TupleTag<?>> outputMap;
   private final Map<RunnerApi.ExecutableStagePayload.SideInputId, PCollectionView<?>> sideInputIds;
-
   /** A lock which has to be acquired when concurrently accessing state and timers. */
   private final ReentrantLock stateBackendLock;
 
@@ -373,13 +372,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
 
     private final StateInternals stateInternals;
     private final KeyedStateBackend<FlinkKey> keyedStateBackend;
-
     /** Lock to hold whenever accessing the state backend. */
     private final Lock stateBackendLock;
-
     /** For debugging: The key coder used by the Runner. */
     private final @Nullable Coder runnerKeyCoder;
-
     /** For debugging: Same as keyedStateBackend but upcasted, to access key group meta info. */
     private final @Nullable AbstractKeyedStateBackend<FlinkKey> keyStateBackendWithKeyGroupInfo;
 
@@ -920,7 +916,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
      * this consistent. Please see the description in DoFnOperator.
      */
     private volatile RemoteBundle remoteBundle;
-
     /**
      * Current main input receiver. Volatile to ensure mutually exclusive bundle processing threads
      * see this consistent. Please see the description in DoFnOperator.

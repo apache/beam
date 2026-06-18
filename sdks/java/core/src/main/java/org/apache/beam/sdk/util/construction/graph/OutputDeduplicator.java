@@ -298,7 +298,9 @@ class OutputDeduplicator {
       updatedOutputs.add(originalToPartial.getOrDefault(output.getId(), output));
     }
     RunnerApi.Components updatedStageComponents =
-        stage.getComponents().toBuilder()
+        stage
+            .getComponents()
+            .toBuilder()
             .clearTransforms()
             .putAllTransforms(
                 updatedTransforms.stream()

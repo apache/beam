@@ -138,7 +138,6 @@ public class KafkaTestTable extends BeamKafkaTable {
             super.assign(realPartitions);
             assignedPartitions.set(ImmutableList.copyOf(realPartitions));
           }
-
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
           public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(

@@ -1254,7 +1254,8 @@ public class KafkaIOIT {
     void setWithTestcontainers(Boolean withTestcontainers);
 
     @Description("Kafka container version in format 'X.Y.Z'. Use when useTestcontainers is true")
-    @Nullable String getKafkaContainerVersion();
+    @Nullable
+    String getKafkaContainerVersion();
 
     void setKafkaContainerVersion(String kafkaContainerVersion);
   }

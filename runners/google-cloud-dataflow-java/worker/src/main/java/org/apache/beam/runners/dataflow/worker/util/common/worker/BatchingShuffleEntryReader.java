@@ -60,7 +60,6 @@ public final class BatchingShuffleEntryReader implements ShuffleEntryReader {
 
     /** The most recently read batch. */
     ShuffleBatchReader.@Nullable Batch currentBatch;
-
     /** An iterator over the most recently read batch. */
     private @Nullable ListIterator<ShuffleEntry> entries;
 

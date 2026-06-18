@@ -205,7 +205,8 @@ public class QueryUtilsTest {
   @Test
   public void getImplicitOrderBy_malformedWhereThrows() {
     testQuery =
-        testQuery.toBuilder()
+        testQuery
+            .toBuilder()
             .setWhere(
                 Filter.newBuilder()
                     .setUnaryFilter(

@@ -41,10 +41,8 @@ public class WindmillValue<T> extends SimpleWindmillState implements ValueState<
 
   /** Whether we've modified the value since creation of this state. */
   private boolean modified = false;
-
   /** Whether the in memory value is the true value. */
   private boolean valueIsKnown = false;
-
   /** The size of the encoded value */
   private long cachedSize = -1;
 

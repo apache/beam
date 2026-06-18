@@ -51,7 +51,6 @@ public class YamlTransform<InputT extends PInput, OutputT extends POutput>
 
   /** The YAML definition of this transform. */
   private final String yamlDefinition;
-
   /**
    * If non-null, the set of input tags that are expected to be passed to this transform.
    *

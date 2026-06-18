@@ -239,7 +239,6 @@ public class ValidateRunnerXlangTest {
       PAssert.that(col).containsInAnyOrder("The Dormouse's story");
     }
   }
-
   /**
    * Motivation behind singleInputOutputTest.
    *

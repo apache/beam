@@ -186,7 +186,8 @@ public class Watch {
         return outputs;
       }
 
-      @Nullable Instant getWatermark() {
+      @Nullable
+      Instant getWatermark() {
         return watermark;
       }
 

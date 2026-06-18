@@ -137,8 +137,7 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
         }
       }
     }
-  }
-  ;
+  };
 
   private static DescriptorProtos.DescriptorProto fixNestedTypes(
       Descriptors.Descriptor descriptor) {

@@ -133,7 +133,8 @@ class SingleStoreDefaultRowMapper
      */
     @FunctionalInterface
     interface ResultSetFieldExtractor extends Serializable {
-      @Nullable Object extract(ResultSet rs, Integer index) throws SQLException;
+      @Nullable
+      Object extract(ResultSet rs, Integer index) throws SQLException;
     }
 
     static ResultSetFieldConverter of(int columnType) {
@@ -189,7 +190,8 @@ class SingleStoreDefaultRowMapper
     }
 
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       return extractor.extract(rs, index);
     }
 
@@ -201,7 +203,8 @@ class SingleStoreDefaultRowMapper
 
   static class CharResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       return rs.getString(index);
     }
 
@@ -214,7 +217,8 @@ class SingleStoreDefaultRowMapper
 
   static class BinaryResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       return rs.getBytes(index);
     }
 
@@ -227,7 +231,8 @@ class SingleStoreDefaultRowMapper
 
   static class TimestampResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       Timestamp ts =
           rs.getTimestamp(index, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (ts == null) {
@@ -244,7 +249,8 @@ class SingleStoreDefaultRowMapper
 
   static class TimeResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       Time time = rs.getTime(index, Calendar.getInstance(TimeZone.getTimeZone(ZoneOffset.UTC)));
       if (time == null) {
         return null;
@@ -261,7 +267,8 @@ class SingleStoreDefaultRowMapper
 
   static class DateResultSetFieldConverter extends ResultSetFieldConverter {
     @Override
-    @Nullable Object getValue(ResultSet rs, Integer index) throws SQLException {
+    @Nullable
+    Object getValue(ResultSet rs, Integer index) throws SQLException {
       // TODO(https://github.com/apache/beam/issues/19215) import when joda LocalDate is removed.
       java.time.LocalDate date = rs.getObject(index, java.time.LocalDate.class);
       if (date == null) {

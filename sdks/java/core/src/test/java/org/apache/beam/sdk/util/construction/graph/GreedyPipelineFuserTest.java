@@ -104,7 +104,8 @@ public class GreedyPipelineFuserTest {
   public void singleEnvironmentBecomesASingleStage() {
     String name = "read.out";
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
@@ -180,7 +181,8 @@ public class GreedyPipelineFuserTest {
   @Test
   public void transformsWithNoEnvironmentBecomeRunnerExecuted() {
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "mystery",
                 PTransform.newBuilder()
@@ -225,7 +227,8 @@ public class GreedyPipelineFuserTest {
   @Test
   public void singleEnvironmentAcrossGroupByKeyMultipleStages() {
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
@@ -302,7 +305,8 @@ public class GreedyPipelineFuserTest {
   @Test
   public void multipleEnvironmentsBecomesMultipleStages() {
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
@@ -692,7 +696,8 @@ public class GreedyPipelineFuserTest {
   @Test
   public void flattenAfterNoEnvDoesNotFuse() {
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "flatten",
                 PTransform.newBuilder()
@@ -967,7 +972,8 @@ public class GreedyPipelineFuserTest {
             .build();
 
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms("parDo", parDoTransform)
             .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms("stateful", statefulTransform)
@@ -1042,7 +1048,8 @@ public class GreedyPipelineFuserTest {
             .build();
 
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms("parDo", parDoTransform)
             .putPcollections("parDo.out", pc("parDo.out"))
             .putTransforms("timer", timerTransform)
@@ -1100,7 +1107,8 @@ public class GreedyPipelineFuserTest {
             .build();
 
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms("timer", timerTransform)
             .putPcollections("timer.out", pc("timer.out"))
             .putPcollections("output.out", pc("output.out"))
@@ -1137,7 +1145,8 @@ public class GreedyPipelineFuserTest {
   @Test
   public void compositesIgnored() {
     Components components =
-        partialComponents.toBuilder()
+        partialComponents
+            .toBuilder()
             .putTransforms(
                 "read",
                 PTransform.newBuilder()
@@ -1349,12 +1358,8 @@ public class GreedyPipelineFuserTest {
         fused.getFusedStages().stream()
             .flatMap(
                 s ->
-                    s
-                        .getComponents()
-                        .getTransformsOrThrow(flattenTransform.getUniqueName())
-                        .getInputsMap()
-                        .values()
-                        .stream())
+                    s.getComponents().getTransformsOrThrow(flattenTransform.getUniqueName())
+                        .getInputsMap().values().stream())
             .collect(Collectors.toList()),
         containsInAnyOrder(read1Output.getUniqueName(), read2Output.getUniqueName()));
   }

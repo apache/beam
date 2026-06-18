@@ -726,7 +726,6 @@ public class ParDo {
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
-
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this {@link PTransform} but with
      * the specified additional side inputs. Does not modify this {@link PTransform}.

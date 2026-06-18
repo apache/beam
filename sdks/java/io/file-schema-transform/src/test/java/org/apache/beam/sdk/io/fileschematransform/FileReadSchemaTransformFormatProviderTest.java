@@ -225,7 +225,8 @@ public abstract class FileReadSchemaTransformFormatProviderTest {
             .build();
     if (getFormat().equals("parquet")) {
       writeConfig =
-          writeConfig.toBuilder()
+          writeConfig
+              .toBuilder()
               .setParquetConfiguration(
                   parquetConfigurationBuilder()
                       .setCompressionCodecName(CompressionCodecName.GZIP.name())

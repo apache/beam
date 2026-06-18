@@ -128,7 +128,8 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
     }
 
     // Set expected table if the property is provided,
-    @Nullable String expectedTable =
+    @Nullable
+    String expectedTable =
         TestProperties.getProperty("expectedTable", "", TestProperties.Type.PROPERTY);
     if (!Strings.isNullOrEmpty(expectedTable)) {
       config = config.toBuilder().setExpectedTable(expectedTable).build();

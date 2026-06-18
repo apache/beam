@@ -442,7 +442,8 @@ public class MultimapUserState<K, V> {
       for (KV<K, List<V>> entry : pendingAdds.values()) {
         StateRequest request = createUserStateRequest(entry.getKey());
         beamFnStateClient.handle(
-            request.toBuilder()
+            request
+                .toBuilder()
                 .setAppend(
                     StateAppendRequest.newBuilder().setData(encodeValues(entry.getValue()))));
       }

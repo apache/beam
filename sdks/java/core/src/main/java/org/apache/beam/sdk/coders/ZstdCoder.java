@@ -109,7 +109,6 @@ public class ZstdCoder<T> extends Coder<T> {
   public List<? extends Coder<?>> getCoderArguments() {
     return ImmutableList.of(innerCoder);
   }
-
   /**
    * {@inheritDoc}
    *

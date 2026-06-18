@@ -67,10 +67,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
   /** Provided pipeline options. */
   private final PipelineOptions options;
-
   /** Job API endpoint. */
   private final String endpoint;
-
   /** Channel factory used to create communication channel with job and staging services. */
   private final ManagedChannelFactory channelFactory;
 

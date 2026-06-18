@@ -35,7 +35,8 @@ public interface FirestoreOptions extends PipelineOptions {
    *     Firestore clients.
    * @see com.google.cloud.firestore.FirestoreOptions.Builder#setEmulatorHost(java.lang.String)
    */
-  @Nullable String getEmulatorHost();
+  @Nullable
+  String getEmulatorHost();
 
   /**
    * Define a host port pair to allow connecting to a Cloud Firestore emulator instead of the live
@@ -75,7 +76,8 @@ public interface FirestoreOptions extends PipelineOptions {
 
   /** The Firestore project ID to connect to. */
   @Description("Firestore project ID")
-  @Nullable String getFirestoreProject();
+  @Nullable
+  String getFirestoreProject();
 
   /**
    * Set the Firestore project ID, it will override the value from {@link GcpOptions#getProject()}.

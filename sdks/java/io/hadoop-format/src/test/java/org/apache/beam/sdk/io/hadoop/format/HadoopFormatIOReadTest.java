@@ -793,7 +793,6 @@ public class HadoopFormatIOReadTest {
     assertEquals(null, reader.getFractionConsumed());
     reader.close();
   }
-
   /** This test validates that reader and its parent source reads the same records. */
   @Test
   public void testReaderAndParentSourceReadsSameData() throws Exception {

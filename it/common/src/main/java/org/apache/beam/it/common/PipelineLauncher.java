@@ -448,7 +448,8 @@ public interface PipelineLauncher {
    * @return value of the metric or null
    * @throws IOException if there is an issue sending the request
    */
-  @Nullable Double getMetric(String project, String region, String jobId, String metricName)
+  @Nullable
+  Double getMetric(String project, String region, String jobId, String metricName)
       throws IOException;
 
   /**

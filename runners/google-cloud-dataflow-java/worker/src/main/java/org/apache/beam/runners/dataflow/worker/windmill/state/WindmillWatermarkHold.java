@@ -50,7 +50,6 @@ public class WindmillWatermarkHold extends WindmillState implements WatermarkHol
 
   private boolean cleared = false;
   private boolean knownEmpty = false;
-
   /**
    * If non-{@literal null}, the known current hold value, or absent if we know there are no output
    * watermark holds. If {@literal null}, the current hold value could depend on holds in Windmill

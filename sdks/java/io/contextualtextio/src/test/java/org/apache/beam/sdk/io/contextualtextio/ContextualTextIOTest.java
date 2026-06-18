@@ -335,7 +335,6 @@ public class ContextualTextIOTest {
         return "";
     }
   }
-
   /** Tests for reading from different size of files with various Compression. */
   @RunWith(Parameterized.class)
   public static class CompressedReadTest {

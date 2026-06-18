@@ -85,7 +85,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           CloudObjectTranslators.union(),
           CloudObjectTranslators.coGroupByKeyResult(),
           CloudObjectTranslators.javaSerialized());
-
   // TODO: ElementAndRestrictionCoder. This is in runners-core, but probably needs to be
   // in core-construction
   @VisibleForTesting
@@ -113,7 +112,6 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           TextualIntegerCoder.class,
           VarIntCoder.class,
           VoidCoder.class);
-
   // TODO: WriteBundlesToFiles.ResultCoder.class);
   // TODO: Atomic, GCPIO Coders:
   //   TableRowInfoCoder.class

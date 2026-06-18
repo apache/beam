@@ -237,7 +237,6 @@ public class Select {
         return fieldType;
     }
   }
-
   /** A {@link PTransform} representing a flattened schema. */
   @AutoValue
   public abstract static class Flattened<T> extends PTransform<PCollection<T>, PCollection<Row>> {

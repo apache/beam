@@ -734,7 +734,8 @@ public class PubsubIOTest {
       // The most straightforward method to simulate a bad message is to have a format function that
       // deterministically fails based on some value
       messages.apply(
-          PubsubIO.writeMessages().toBuilder()
+          PubsubIO.writeMessages()
+              .toBuilder()
               .setFormatFn(
                   (ValueInSingleWindow<PubsubMessage> messageAndWindow) -> {
                     if (messageAndWindow.getValue().getTopic().equals("badTopic")) {

@@ -171,7 +171,11 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
               + "\n");
     }
 
-    return errorResponses.values().iterator().next().toBuilder()
+    return errorResponses
+        .values()
+        .iterator()
+        .next()
+        .toBuilder()
         .setError(errorMessageBuilder.toString())
         .build();
   }

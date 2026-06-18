@@ -424,8 +424,7 @@ public class TableRowToStorageApiProtoIT {
 
   @Test
   public void testWriteProtosEncodedTypes()
-      throws IOException,
-          InterruptedException,
+      throws IOException, InterruptedException,
           TableRowToStorageApiProto.SchemaConversionException {
     String tableSpec = createTable(PROTO_ENCODED_TABLE_SCHEMA);
     final String timestamp = "1970-01-01T00:00:00.000043";
@@ -502,8 +501,7 @@ public class TableRowToStorageApiProtoIT {
 
   @Test
   public void testWriteProtosStringTypes()
-      throws IOException,
-          InterruptedException,
+      throws IOException, InterruptedException,
           TableRowToStorageApiProto.SchemaConversionException {
     String tableSpec = createTable(PROTO_UNENCODED_TABLE_SCHEMA);
     final String timestamp = "1970-01-01T00:00:00.000043";

@@ -62,7 +62,8 @@ public abstract class UpdateField implements Serializable {
 
   public static UpdateField fieldUpdate(
       String updateOperator, String sourceField, String destField) {
-    return create().toBuilder()
+    return create()
+        .toBuilder()
         .setUpdateOperator(updateOperator)
         .setSourceField(sourceField)
         .setDestField(destField)

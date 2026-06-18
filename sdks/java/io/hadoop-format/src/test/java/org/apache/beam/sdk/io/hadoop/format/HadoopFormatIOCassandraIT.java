@@ -136,7 +136,6 @@ public class HadoopFormatIOCassandraIT implements Serializable {
               + input.getString("field9");
         }
       };
-
   /**
    * This test reads data from the Cassandra instance based on query and verifies if data is read
    * successfully.

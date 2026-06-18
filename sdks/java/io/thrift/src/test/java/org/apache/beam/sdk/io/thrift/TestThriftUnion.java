@@ -38,9 +38,7 @@ public class TestThriftUnion
    */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
     SNAKE_CASE_NESTED_STRUCT((short) 1, "snake_case_nested_struct"),
-    /**
-     * @see TestThriftEnum
-     */
+    /** @see TestThriftEnum */
     CAMEL_CASE_ENUM((short) 2, "camelCaseEnum");
 
     private static final java.util.Map<java.lang.String, _Fields> byName =
@@ -313,9 +311,7 @@ public class TestThriftUnion
     value_ = value;
   }
 
-  /**
-   * @see TestThriftEnum
-   */
+  /** @see TestThriftEnum */
   public TestThriftEnum getCamelCaseEnum() {
     if (getSetField() == _Fields.CAMEL_CASE_ENUM) {
       return (TestThriftEnum) getFieldValue();
@@ -326,9 +322,7 @@ public class TestThriftUnion
     }
   }
 
-  /**
-   * @see TestThriftEnum
-   */
+  /** @see TestThriftEnum */
   public void setCamelCaseEnum(TestThriftEnum value) {
     if (value == null) throw new java.lang.NullPointerException();
     setField_ = _Fields.CAMEL_CASE_ENUM;

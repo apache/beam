@@ -44,7 +44,6 @@ public abstract class TimerReference {
 
   /** The PTransform that uses this timer. */
   public abstract PipelineNode.PTransformNode transform();
-
   /** The local name the referencing PTransform uses to refer to this timer. */
   public abstract String localName();
 }

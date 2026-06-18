@@ -563,17 +563,11 @@ public class ChangeStreamRecordMapper {
             .orElseThrow(IllegalArgumentException::new)
             .getStringValue(),
         Optional.ofNullable(valueMap.get(COLUMN_TYPES_COLUMN))
-            .orElseThrow(IllegalArgumentException::new)
-            .getListValue()
-            .getValuesList()
-            .stream()
+            .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
             .map(this::columnTypeJsonFrom)
             .collect(Collectors.toList()),
-        Optional.ofNullable(valueMap.get(MODS_COLUMN))
-            .orElseThrow(IllegalArgumentException::new)
-            .getListValue()
-            .getValuesList()
-            .stream()
+        Optional.ofNullable(valueMap.get(MODS_COLUMN)).orElseThrow(IllegalArgumentException::new)
+            .getListValue().getValuesList().stream()
             .map(this::modJsonFrom)
             .collect(Collectors.toList()),
         modTypeFrom(
@@ -657,10 +651,7 @@ public class ChangeStreamRecordMapper {
             .orElseThrow(IllegalArgumentException::new)
             .getStringValue(),
         Optional.ofNullable(valueMap.get(CHILD_PARTITIONS_COLUMN))
-            .orElseThrow(IllegalArgumentException::new)
-            .getListValue()
-            .getValuesList()
-            .stream()
+            .orElseThrow(IllegalArgumentException::new).getListValue().getValuesList().stream()
             .map(value -> childPartitionJsonFrom(partition.getPartitionToken(), value))
             .collect(Collectors.toList()),
         changeStreamRecordMetadataFrom(

@@ -35,7 +35,8 @@ public interface TestSparkPipelineOptions extends SparkPipelineOptions, TestPipe
   void setForceStreaming(boolean forceStreaming);
 
   @Description("A hard-coded expected number of assertions for this test pipeline.")
-  @Nullable Integer getExpectedAssertions();
+  @Nullable
+  Integer getExpectedAssertions();
 
   void setExpectedAssertions(Integer expectedAssertions);
 

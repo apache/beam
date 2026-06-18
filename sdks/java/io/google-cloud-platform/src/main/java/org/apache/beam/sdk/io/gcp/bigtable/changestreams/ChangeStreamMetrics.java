@@ -27,7 +27,6 @@ import org.apache.beam.sdk.metrics.Metrics;
 @Internal
 public class ChangeStreamMetrics implements Serializable {
   private static final long serialVersionUID = 7298901109362981596L;
-
   // ------------------------
   // Partition record metrics
 

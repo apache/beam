@@ -66,9 +66,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
- */
+/** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
 @Deprecated
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
@@ -77,9 +75,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   private static final Logger LOG = LoggerFactory.getLogger(DoFnTester.class);
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @SuppressWarnings("unchecked")
   @Deprecated
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
@@ -90,9 +86,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return new DoFnTester<>(fn);
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
     checkState(
@@ -102,9 +96,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     this.sideInputs = sideInputs;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public <T> void setSideInput(PCollectionView<T> sideInput, BoundedWindow window, T value) {
     checkState(
@@ -119,17 +111,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     windowValues.put(window, value);
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public PipelineOptions getPipelineOptions() {
     return options;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public enum CloningBehavior {
     /**
@@ -149,26 +137,20 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     DO_NOT_CLONE
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void setCloningBehavior(CloningBehavior newValue) {
     checkState(state == State.UNINITIALIZED, "Wrong state: %s", state);
     this.cloningBehavior = newValue;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public CloningBehavior getCloningBehavior() {
     return cloningBehavior;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<OutputT> processBundle(Iterable<? extends InputT> inputElements) throws Exception {
     startBundle();
@@ -179,18 +161,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return takeOutputElements();
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   @SafeVarargs
   public final List<OutputT> processBundle(InputT... inputElements) throws Exception {
     return processBundle(Arrays.asList(inputElements));
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void startBundle() throws Exception {
     checkState(
@@ -218,26 +196,20 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void processElement(InputT element) throws Exception {
     processTimestampedElement(TimestampedValue.atMinimumTimestamp(element));
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
     processWindowedElement(element.getValue(), element.getTimestamp(), GlobalWindow.INSTANCE);
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void processWindowedElement(InputT element, Instant timestamp, final BoundedWindow window)
       throws Exception {
@@ -356,9 +328,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void finishBundle() throws Exception {
     checkState(
@@ -380,9 +350,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<OutputT> peekOutputElements() {
     return peekOutputElementsWithTimestamp().stream()
@@ -390,9 +358,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
@@ -401,17 +367,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
     return peekOutputElementsInWindow(mainOutputTag, window);
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
       TupleTag<OutputT> tag, BoundedWindow window) {
@@ -424,17 +386,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return valuesBuilder.build();
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public void clearOutputElements() {
     getMutableOutput(mainOutputTag).clear();
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<OutputT> takeOutputElements() {
     List<OutputT> resultElems = new ArrayList<>(peekOutputElements());
@@ -442,9 +400,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public List<TimestampedValue<OutputT>> takeOutputElementsWithTimestamp() {
     List<TimestampedValue<OutputT>> resultElems =
@@ -453,9 +409,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return resultElems;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
@@ -464,17 +418,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         .collect(Collectors.toList());
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public <T> void clearOutputElements(TupleTag<T> tag) {
     getMutableOutput(tag).clear();
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public <T> List<T> takeOutputElements(TupleTag<T> tag) {
     List<T> resultElems = new ArrayList<>(peekOutputElements(tag));
@@ -488,9 +438,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return ImmutableList.copyOf(MoreObjects.firstNonNull(elems, Collections.emptyList()));
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <T> List<ValueInSingleWindow<T>> getMutableOutput(TupleTag<T> tag) {
@@ -502,9 +450,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return outputList;
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public TupleTag<OutputT> getMainOutputTag() {
     return mainOutputTag;
@@ -575,9 +521,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   public DoFn<InputT, OutputT>.ProcessContext createProcessContext(
       ValueInSingleWindow<InputT> element) {
@@ -762,9 +706,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  /**
-   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
-   */
+  /** @deprecated Use {@link TestPipeline} with the {@code DirectRunner}. */
   @Deprecated
   @Override
   public void close() throws Exception {

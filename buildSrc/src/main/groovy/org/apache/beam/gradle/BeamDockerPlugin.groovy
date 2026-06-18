@@ -185,8 +185,7 @@ class BeamDockerPlugin implements Plugin<Project> {
           [
             tagName: tagName,
             tagTask: {
-              -> tagName
-            }
+              -> tagName }
           ]
         ]
       }
@@ -202,8 +201,7 @@ class BeamDockerPlugin implements Plugin<Project> {
           tags[taskName] = [
             tagName: unresolvedTagName,
             tagTask: {
-              -> computeName(ext.name, unresolvedTagName)
-            }
+              -> computeName(ext.name, unresolvedTagName) }
           ]
         }
       }

@@ -41,11 +41,8 @@ public final class CustomX509TrustManagerTest {
 
   @Before
   public void setUp()
-      throws NoSuchAlgorithmException,
-          CertificateException,
-          FileNotFoundException,
-          KeyStoreException,
-          IOException {
+      throws NoSuchAlgorithmException, CertificateException, FileNotFoundException,
+          KeyStoreException, IOException {
     CertificateFactory cf = CertificateFactory.getInstance("X.509");
     ClassLoader classLoader = this.getClass().getClassLoader();
     FileInputStream rootCaInputStream =

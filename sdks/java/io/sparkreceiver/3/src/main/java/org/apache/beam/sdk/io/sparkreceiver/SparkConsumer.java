@@ -29,7 +29,8 @@ interface SparkConsumer<V> extends Serializable {
 
   boolean hasRecords();
 
-  @Nullable V poll();
+  @Nullable
+  V poll();
 
   void start(Receiver<V> sparkReceiver);
 

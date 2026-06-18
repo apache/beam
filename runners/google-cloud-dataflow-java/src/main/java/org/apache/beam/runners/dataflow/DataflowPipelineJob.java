@@ -263,7 +263,8 @@ public class DataflowPipelineJob implements PipelineResult {
   }
 
   @VisibleForTesting
-  @Nullable State waitUntilFinish(
+  @Nullable
+  State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
@@ -297,7 +298,8 @@ public class DataflowPipelineJob implements PipelineResult {
    * @throws InterruptedException if the thread is interrupted.
    */
   @VisibleForTesting
-  @Nullable State waitUntilFinish(
+  @Nullable
+  State waitUntilFinish(
       Duration duration,
       MonitoringUtil.@Nullable JobMessagesHandler messageHandler,
       Sleeper sleeper,
@@ -525,7 +527,8 @@ public class DataflowPipelineJob implements PipelineResult {
         BackOffAdapter.toGcpBackOff(STATUS_BACKOFF_FACTORY.backoff()), Sleeper.DEFAULT);
   }
 
-  @Nullable String getLatestStateString() {
+  @Nullable
+  String getLatestStateString() {
     return latestStateString;
   }
 

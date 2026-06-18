@@ -315,7 +315,6 @@ public class BoundedTrieData implements Serializable {
 
     public static final String TRUNCATED_TRUE = String.valueOf(true);
     public static final String TRUNCATED_FALSE = String.valueOf(false);
-
     /**
      * A map from strings to child nodes. Each key represents a segment of a path/FQN, and the
      * corresponding value represents the subtree rooted at that segment.

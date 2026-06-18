@@ -1554,7 +1554,8 @@ public class SpannerIOWriteTest implements Serializable {
   @Test
   public void testRefCountedSpannerAccessorOnlyOnce() {
     SpannerConfig config1 =
-        SpannerConfig.create().toBuilder()
+        SpannerConfig.create()
+            .toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
@@ -1585,7 +1586,8 @@ public class SpannerIOWriteTest implements Serializable {
   @Test
   public void testRefCountedSpannerAccessorDifferentDbsOnlyOnce() {
     SpannerConfig config1 =
-        SpannerConfig.create().toBuilder()
+        SpannerConfig.create()
+            .toBuilder()
             .setServiceFactory(serviceFactory)
             .setMaxCumulativeBackoff(StaticValueProvider.of(Duration.standardSeconds(10)))
             .setProjectId(StaticValueProvider.of("project"))
@@ -1593,7 +1595,8 @@ public class SpannerIOWriteTest implements Serializable {
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
     SpannerConfig config2 =
-        config1.toBuilder()
+        config1
+            .toBuilder()
             .setInstanceId(StaticValueProvider.of("test2"))
             .setDatabaseId(StaticValueProvider.of("test2"))
             .build();

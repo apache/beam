@@ -149,7 +149,6 @@ public class GameStats extends LeaderBoard {
       return filtered;
     }
   }
-
   // [END DocInclude_AbuseDetect]
 
   /** Calculate and output an element's session duration. */

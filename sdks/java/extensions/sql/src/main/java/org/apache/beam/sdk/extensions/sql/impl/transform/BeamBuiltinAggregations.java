@@ -563,7 +563,6 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-
       /** The bitwise-or of the inputs seen so far. */
       long bitOr = 0L;
     }
@@ -612,7 +611,6 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-
       /** The bitwise-and of the inputs seen so far. */
       long bitAnd = -1L;
     }
@@ -656,7 +654,6 @@ public class BeamBuiltinAggregations {
     static class Accum implements Serializable {
       /** True if no inputs have been seen yet. */
       boolean isEmpty = true;
-
       /** The bitwise-and of the inputs seen so far. */
       long bitXOr = 0L;
     }

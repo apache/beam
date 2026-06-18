@@ -359,7 +359,8 @@ public abstract class BaseFirestoreV1WriteFnTest<
     final long docCount = totalDocCount / numWorkers;
     LOG.info("docCount = {}", docCount);
     RpcQosOptions options =
-        rpcQosOptions.toBuilder()
+        rpcQosOptions
+            .toBuilder()
             .withHintMaxNumWorkers(numWorkers)
             .withSamplePeriod(Duration.standardMinutes(10))
             // .withBatchInitialCount(5)
@@ -482,7 +483,9 @@ public abstract class BaseFirestoreV1WriteFnTest<
         BatchWriteRequest.newBuilder().setDatabase("projects/testing-project/databases/(default)");
 
     BatchWriteRequest expectedGroup1Request =
-        builder.build().toBuilder()
+        builder
+            .build()
+            .toBuilder()
             .addWrites(write0)
             .addWrites(write1)
             .addWrites(write2)

@@ -222,7 +222,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       "unsafely_attempt_to_process_unbounded_data_in_batch_mode";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataflowRunner.class);
-
   /** Provided configuration options. */
   private final DataflowPipelineOptions options;
 
@@ -1364,7 +1363,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // need the default environment.
     SdkComponents portableComponents = SdkComponents.create();
     portableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow.toBuilder()
+        defaultEnvironmentForDataflow
+            .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
@@ -1408,7 +1408,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // Capture the SdkComponents for look up during step translations
     SdkComponents dataflowV1Components = SdkComponents.create();
     dataflowV1Components.registerEnvironment(
-        defaultEnvironmentForDataflow.toBuilder()
+        defaultEnvironmentForDataflow
+            .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
@@ -1856,8 +1857,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return true;
       }
     }
-  }
-  ;
+  };
 
   /** Returns the DataflowPipelineTranslator associated with this object. */
   public DataflowPipelineTranslator getTranslator() {

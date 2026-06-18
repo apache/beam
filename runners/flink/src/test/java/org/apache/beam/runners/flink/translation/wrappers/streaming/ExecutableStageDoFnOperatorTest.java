@@ -162,9 +162,12 @@ public class ExecutableStageDoFnOperatorTest {
 
   private final String stateId = "userState";
   private final ExecutableStagePayload stagePayloadWithUserState =
-      stagePayload.toBuilder()
+      stagePayload
+          .toBuilder()
           .setComponents(
-              stagePayload.getComponents().toBuilder()
+              stagePayload
+                  .getComponents()
+                  .toBuilder()
                   .putTransforms(
                       "transform",
                       RunnerApi.PTransform.newBuilder()
@@ -183,9 +186,12 @@ public class ExecutableStageDoFnOperatorTest {
           .build();
 
   private final ExecutableStagePayload stagePayloadWithStableInput =
-      stagePayload.toBuilder()
+      stagePayload
+          .toBuilder()
           .setComponents(
-              stagePayload.getComponents().toBuilder()
+              stagePayload
+                  .getComponents()
+                  .toBuilder()
                   .putTransforms(
                       "transform",
                       RunnerApi.PTransform.newBuilder()

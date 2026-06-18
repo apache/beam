@@ -410,7 +410,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         CreateTableHelpers.createTableWrapper(
             () -> {
               if (autoUpdateSchema) {
-                @Nullable TableSchema streamSchema =
+                @Nullable
+                TableSchema streamSchema =
                     Preconditions.checkStateNotNull(maybeWriteStreamService)
                         .getWriteStreamSchema(streamName);
                 if (streamSchema != null) {
@@ -930,9 +931,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       void postFlush() {
         // If we got a response indicating an updated schema, recreate the client.
         if (this.appendClientInfo != null && autoUpdateSchema) {
-          @Nullable StreamAppendClient streamAppendClient =
-              appendClientInfo.getStreamAppendClient();
-          @Nullable TableSchema updatedTableSchemaReturned =
+          @Nullable
+          StreamAppendClient streamAppendClient = appendClientInfo.getStreamAppendClient();
+          @Nullable
+          TableSchema updatedTableSchemaReturned =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           if (updatedTableSchemaReturned != null) {
             Optional<TableSchema> updatedTableSchema =
@@ -1178,7 +1180,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   pipelineOptions.as(BigQueryOptions.class)));
 
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
-      @Nullable OutputReceiver<TableRow> successfulRowsReceiver =
+      @Nullable
+      OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
 
       int recordBytes = element.getValue().getPayload().length;

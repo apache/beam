@@ -57,8 +57,7 @@ public interface BeamRelNode extends RelNode {
 
   default List<RelNode> getPCollectionInputs() {
     return getInputs();
-  }
-  ;
+  };
 
   PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform();
 

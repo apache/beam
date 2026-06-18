@@ -83,7 +83,9 @@ public class ExternalTranslationTest {
               ExpansionApi.ExpansionResponse.newBuilder()
                   .setComponents(components)
                   .setTransform(
-                      components.getTransformsOrThrow(transformId).toBuilder()
+                      components
+                          .getTransformsOrThrow(transformId)
+                          .toBuilder()
                           .setUniqueName(transformId))
                   .addAllRequirements(requirementsBuilder.build())
                   .build();

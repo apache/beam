@@ -160,7 +160,8 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
     synchronized (connectedClient) {
       connectedClientIdsCopy = ImmutableSet.copyOf(connectedClient.keySet());
     }
-    connectedClientIdsCopy.parallelStream()
+    connectedClientIdsCopy
+        .parallelStream()
         .forEach(
             workerId ->
                 allStatuses.put(workerId, getSingleWorkerStatus(workerId, timeout, timeUnit)));

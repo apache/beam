@@ -113,7 +113,8 @@ public class ManagedTest {
   @Test
   public void testManagedTestProviderWithConfigMap() {
     Managed.ManagedTransform writeOp =
-        Managed.write(Managed.ICEBERG).toBuilder()
+        Managed.write(Managed.ICEBERG)
+            .toBuilder()
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))
@@ -130,7 +131,8 @@ public class ManagedTest {
             .getAbsolutePath();
 
     Managed.ManagedTransform writeOp =
-        Managed.write(Managed.ICEBERG).toBuilder()
+        Managed.write(Managed.ICEBERG)
+            .toBuilder()
             .setIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .build()
             .withSupportedIdentifiers(Arrays.asList(TestSchemaTransformProvider.IDENTIFIER))

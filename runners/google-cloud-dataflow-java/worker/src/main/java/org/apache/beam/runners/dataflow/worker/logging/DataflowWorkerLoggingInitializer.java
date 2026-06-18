@@ -140,8 +140,7 @@ public class DataflowWorkerLoggingInitializer {
         ex.printStackTrace(stream);
       }
     }
-  }
-  ;
+  };
 
   private static DataflowWorkerLoggingHandler makeLoggingHandler(
       String filepathProperty, String defaultFilePath) throws IOException {

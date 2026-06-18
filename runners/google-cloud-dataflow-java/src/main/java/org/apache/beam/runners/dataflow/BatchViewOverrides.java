@@ -205,7 +205,6 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, V>> view;
-
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsMap(
@@ -694,7 +693,6 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, Iterable<V>>> view;
-
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsMultimap(
@@ -1075,7 +1073,6 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<List<T>> view;
-
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsList(DataflowRunner runner, CreatePCollectionView<T, List<T>> transform) {
@@ -1157,7 +1154,6 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Iterable<T>> view;
-
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsIterable(

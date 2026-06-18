@@ -85,17 +85,13 @@ public class GcsUtil {
     }
   }
 
-  /**
-   * @deprecated use {@link GcsPath#getNonWildcardPrefix(String)} instead.
-   */
+  /** @deprecated use {@link GcsPath#getNonWildcardPrefix(String)} instead. */
   @Deprecated
   public static String getNonWildcardPrefix(String globExp) {
     return GcsPath.getNonWildcardPrefix(globExp);
   }
 
-  /**
-   * @deprecated use {@link GcsPath#isWildcard(GcsPath)} instead.
-   */
+  /** @deprecated use {@link GcsPath#isWildcard(GcsPath)} instead. */
   @Deprecated
   public static boolean isWildcard(GcsPath spec) {
     return GcsPath.isWildcard(spec);
@@ -124,9 +120,7 @@ public class GcsUtil {
     return delegate.fileSize(path);
   }
 
-  /**
-   * @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}.
-   */
+  /** @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}. */
   @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return delegate.getObject(gcsPath);
@@ -139,9 +133,7 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /**
-   * @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}.
-   */
+  /** @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}. */
   @Deprecated
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
     List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
@@ -158,18 +150,14 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /**
-   * @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}.
-   */
+  /** @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}. */
   @Deprecated
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken);
   }
 
-  /**
-   * @deprecated use {@link #listBlobs(String, String, String, String, BlobListOption...)}.
-   */
+  /** @deprecated use {@link #listBlobs(String, String, String, String, BlobListOption...)}. */
   @Deprecated
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
@@ -213,17 +201,13 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /**
-   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
-   */
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
     return delegate.create(path, type);
   }
 
-  /**
-   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
-   */
+  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
@@ -318,9 +302,7 @@ public class GcsUtil {
     return delegate.bucketOwner(path);
   }
 
-  /**
-   * @deprecated use {@link #createBucket(BucketInfo)}.
-   */
+  /** @deprecated use {@link #createBucket(BucketInfo)}. */
   @Deprecated
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     delegate.createBucket(projectId, bucket);
@@ -334,9 +316,7 @@ public class GcsUtil {
     }
   }
 
-  /**
-   * @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} .
-   */
+  /** @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} . */
   @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
@@ -350,9 +330,7 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /**
-   * @deprecated use {@link #removeBucket(BucketInfo)}.
-   */
+  /** @deprecated use {@link #removeBucket(BucketInfo)}. */
   @Deprecated
   public void removeBucket(Bucket bucket) throws IOException {
     delegate.removeBucket(bucket);

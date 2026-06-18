@@ -43,7 +43,6 @@ import org.gradle.api.tasks.compile.CompileOptions
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.plugins.quality.Checkstyle
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
@@ -508,6 +507,40 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
+    project.ext.getRatchetBranch = {
+      ->
+      if (project.hasProperty('disableSpotlessRatchet') && project.disableSpotlessRatchet == 'true') {
+        return null
+      }
+      try {
+        def checkRef = { ref ->
+          try {
+            def res = project.exec {
+              executable 'git'
+              args 'rev-parse', '--verify', ref
+              ignoreExitValue = true
+              standardOutput = new ByteArrayOutputStream()
+              errorOutput = new ByteArrayOutputStream()
+            }
+            return res.getExitValue() == 0
+          } catch (Exception e) {
+            return false
+          }
+        }
+
+        if (checkRef('upstream/master')) {
+          return 'upstream/master'
+        } else if (checkRef('origin/master')) {
+          return 'origin/master'
+        } else if (checkRef('master')) {
+          return 'master'
+        } else {
+          return null
+        }
+      } catch (Exception e) {
+        return null
+      }
+    }
 
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
@@ -1456,11 +1489,6 @@ class BeamModulePlugin implements Plugin<Project> {
         maxErrors = 0
         toolVersion = "8.23"
       }
-      project.tasks.withType(Checkstyle).configureEach {
-        classpath = project.files()
-        exclude '**/generated-src/**'
-        exclude '**/generated-sources/**'
-      }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
@@ -1486,12 +1514,17 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
-
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.17.0')
-          target 'src/main/java/**/*.java', 'src/test/java/**/*.java'
-          targetExclude '**/DefaultPackageTest.java'
+          target project.fileTree(project.projectDir) {
+            include 'src/*/java/**/*.java'
+            exclude '**/DefaultPackageTest.java'
+          }
           // For spotless:off and spotless:on
           toggleOffOn()
         }
@@ -2415,11 +2448,17 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
-
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
           greclipse().configFile(grEclipseConfig)
-          target 'src/main/groovy/**/*.groovy', 'src/test/groovy/**/*.groovy'
+          target project.fileTree(project.projectDir) {
+            include '**/*.groovy'
+            exclude '**/build/**'
+          }
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
@@ -2603,12 +2642,6 @@ class BeamModulePlugin implements Plugin<Project> {
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
       }
-      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateAvroJava')
-      }
-      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateTestAvroJava')
-      }
     }
 
     project.ext.applyAntlrNature = {
@@ -2630,12 +2663,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def testSourcesJar = project.tasks.findByName('testSourcesJar')
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
-      }
-      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateGrammarSource')
-      }
-      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateTestGrammarSource')
       }
     }
 

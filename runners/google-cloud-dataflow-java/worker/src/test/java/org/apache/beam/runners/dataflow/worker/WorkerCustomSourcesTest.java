@@ -624,8 +624,8 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             readerCache,
-            /* stateNameMap= */ ImmutableMap.of(),
-            /* stateCache= */ null,
+            /*stateNameMap=*/ ImmutableMap.of(),
+            /*stateCache=*/ null,
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -994,7 +994,7 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
-            /* stateNameMap= */ ImmutableMap.of(),
+            /*stateNameMap=*/ ImmutableMap.of(),
             WindmillStateCache.builder()
                 .setSizeMb(options.getWorkerCacheMb())
                 .build()

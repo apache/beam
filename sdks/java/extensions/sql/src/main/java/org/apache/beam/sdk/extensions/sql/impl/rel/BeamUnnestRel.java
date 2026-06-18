@@ -134,7 +134,6 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
       this.outputSchema = outputSchema;
       this.unnestIndices = unnestIndices;
     }
-
     /**
      * This is recursive call to get all the values of the nested rows. The recursion is bounded by
      * the amount of nesting with in the data. This mirrors the unnest behavior of calcite towards

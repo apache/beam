@@ -49,7 +49,6 @@ public abstract class MetricUpdates {
 
     /** The key being updated. */
     public abstract MetricKey getKey();
-
     /** The value of the update. */
     public abstract T getUpdate();
 

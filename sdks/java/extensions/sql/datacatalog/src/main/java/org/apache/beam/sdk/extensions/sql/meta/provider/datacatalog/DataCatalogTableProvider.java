@@ -168,7 +168,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
           .setRetryableCodes(
               ImmutableSet.of(Code.PERMISSION_DENIED, Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE))
           .setRetrySettings(
-              builder.lookupEntrySettings().getRetrySettings().toBuilder()
+              builder
+                  .lookupEntrySettings()
+                  .getRetrySettings()
+                  .toBuilder()
                   .setMaxRetryDelay(Duration.ofMinutes(1L))
                   .build());
       builder
@@ -176,7 +179,10 @@ public class DataCatalogTableProvider extends FullNameTableProvider implements A
           .setRetryableCodes(
               ImmutableSet.of(Code.PERMISSION_DENIED, Code.DEADLINE_EXCEEDED, Code.UNAVAILABLE))
           .setRetrySettings(
-              builder.updateEntrySettings().getRetrySettings().toBuilder()
+              builder
+                  .updateEntrySettings()
+                  .getRetrySettings()
+                  .toBuilder()
                   .setMaxRetryDelay(Duration.ofMinutes(1L))
                   .build());
 

@@ -544,7 +544,6 @@ public class Create<T> {
 
     private static class BytesReader<T> extends OffsetBasedReader<T> {
       private int index;
-
       /**
        * Use an optional to distinguish between null next element (as Optional.absent()) and no next
        * element (next is null).

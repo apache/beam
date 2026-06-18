@@ -159,6 +159,5 @@ public class ObjectPoolTest {
     public AutoCloseable apply(String configName) {
       return mock(AutoCloseable.class, configName);
     }
-  }
-  ;
+  };
 }

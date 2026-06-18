@@ -972,7 +972,8 @@ public class DirectRunnerTest implements Serializable {
       return this;
     }
 
-    @Nullable Optional<T> take() throws InterruptedException {
+    @Nullable
+    Optional<T> take() throws InterruptedException {
       return queue.take();
     }
 

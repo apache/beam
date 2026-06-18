@@ -157,9 +157,7 @@ public class TFRecordIO {
       return toBuilder().setValidate(false).build();
     }
 
-    /**
-     * @deprecated Use {@link #withCompression}.
-     */
+    /** @deprecated Use {@link #withCompression}. */
     @Deprecated
     public Read withCompressionType(TFRecordIO.CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -374,9 +372,7 @@ public class TFRecordIO {
       return withNumShards(1).withShardNameTemplate("");
     }
 
-    /**
-     * @deprecated use {@link #withCompression}.
-     */
+    /** @deprecated use {@link #withCompression}. */
     @Deprecated
     public Write withCompressionType(CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -464,9 +460,7 @@ public class TFRecordIO {
     }
   }
 
-  /**
-   * @deprecated Use {@link Compression}.
-   */
+  /** @deprecated Use {@link Compression}. */
   @Deprecated
   public enum CompressionType {
     /** See {@link Compression#AUTO}. */

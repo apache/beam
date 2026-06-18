@@ -106,7 +106,6 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
   public static <T> BatchElements<T> withConfig(BatchConfig config) {
     return new BatchElements<>(config);
   }
-
   /**
    * Configuration for {@link BatchElements}.
    *
@@ -206,7 +205,6 @@ public class BatchElements<T> extends PTransform<PCollection<T>, PCollection<Lis
         this.targetBatchDurationSecs = targetBatchDurationSecs;
         return this;
       }
-
       /**
        * Sets the target batch duration including fixed cost.
        *

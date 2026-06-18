@@ -66,7 +66,6 @@ public abstract class StreamingCounters {
   public abstract CounterSet pendingDeltaCounters();
 
   public abstract CounterSet pendingCumulativeCounters();
-
   // Built-in delta counters.
   public abstract Counter<Long, Long> windmillShuffleBytesRead();
 
@@ -75,7 +74,6 @@ public abstract class StreamingCounters {
   public abstract Counter<Long, Long> windmillStateBytesWritten();
 
   public abstract Counter<Long, Long> timeAtMaxActiveThreads();
-
   // Built-in cumulative counters.
   public abstract Counter<Long, Long> javaHarnessUsedMemory();
 

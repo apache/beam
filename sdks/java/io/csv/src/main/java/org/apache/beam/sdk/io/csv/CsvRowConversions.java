@@ -65,7 +65,8 @@ class CsvRowConversions {
       return getCSVFormat().format(values);
     }
 
-    @NonNull String[] getHeader() {
+    @NonNull
+    String[] getHeader() {
       return checkNotNull(getCSVFormat().getHeader());
     }
 

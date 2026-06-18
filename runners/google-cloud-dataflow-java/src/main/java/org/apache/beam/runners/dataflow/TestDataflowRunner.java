@@ -310,7 +310,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   @VisibleForTesting
-  @Nullable JobMetrics getJobMetrics(DataflowPipelineJob job) {
+  @Nullable
+  JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {
       metrics = dataflowClient.getJobMetrics(job.getJobId());

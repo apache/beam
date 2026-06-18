@@ -314,8 +314,7 @@ public class CEPLiteral extends CEPOperation {
 
   public int compareTo(Object other) {
     throw new IllegalStateException("the class must be subclassed properly to use this method");
-  }
-  ;
+  };
 
   @Override
   public boolean equals(Object other) {

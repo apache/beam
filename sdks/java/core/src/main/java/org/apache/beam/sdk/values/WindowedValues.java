@@ -345,9 +345,7 @@ public class WindowedValues {
     }
   }
 
-  /**
-   * @deprecated for use only in compatibility with old broken code
-   */
+  /** @deprecated for use only in compatibility with old broken code */
   @Deprecated
   static <T> WindowedValue<T> createWithoutValidation(
       T value,

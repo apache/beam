@@ -104,7 +104,8 @@ public class TableSchemaUpdateUtils {
         isEquivalent = isEquivalent && updatedTableFields.isEquivalent();
         isEquivalent =
             isEquivalent
-                && tableFieldSchema.toBuilder()
+                && tableFieldSchema
+                    .toBuilder()
                     .clearFields()
                     .build()
                     .equals(newTableFieldSchema.toBuilder().clearFields().build());

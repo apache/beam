@@ -789,7 +789,8 @@ public class StateFetchingIterators {
 
     public CompletableFuture<StateResponse> loadPrefetchedResponse(ByteString continuationToken) {
       return beamFnStateClient.handle(
-          stateRequestForFirstChunk.toBuilder()
+          stateRequestForFirstChunk
+              .toBuilder()
               .setGet(StateGetRequest.newBuilder().setContinuationToken(continuationToken)));
     }
 

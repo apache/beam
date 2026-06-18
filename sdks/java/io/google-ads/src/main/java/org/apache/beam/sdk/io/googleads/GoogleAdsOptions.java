@@ -73,7 +73,8 @@ public interface GoogleAdsOptions extends PipelineOptions {
 
   /** Google Ads developer token for the user connecting to the Google Ads API. */
   @Description("Google Ads developer token for the user connecting to the Google Ads API.")
-  @Nullable String getGoogleAdsDeveloperToken();
+  @Nullable
+  String getGoogleAdsDeveloperToken();
 
   void setGoogleAdsDeveloperToken(String developerToken);
 
@@ -102,7 +103,8 @@ public interface GoogleAdsOptions extends PipelineOptions {
       "The credential instance that should be used to authenticate against the Google Ads API. "
           + "Defaults to a credential instance constructed by the credential factory.")
   @Default.InstanceFactory(GoogleAdsCredentialsFactory.class)
-  @Nullable Credentials getGoogleAdsCredential();
+  @Nullable
+  Credentials getGoogleAdsCredential();
 
   void setGoogleAdsCredential(Credentials credential);
 

@@ -405,8 +405,7 @@ public abstract class Cast<T> extends PTransform<PCollection<T>, PCollection<Row
         return castRow((Row) inputValue, input.getRowSchema(), output.getRowSchema());
 
       case ARRAY:
-      case ITERABLE:
-        ;
+      case ITERABLE:;
         Iterable<Object> inputValues = (Iterable<Object>) inputValue;
         List<Object> outputValues = new ArrayList<>(Iterables.size(inputValues));
 

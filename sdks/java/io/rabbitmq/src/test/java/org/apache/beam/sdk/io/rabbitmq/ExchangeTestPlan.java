@@ -93,9 +93,7 @@ class ExchangeTestPlan {
     return () -> DEFAULT_ROUTING_KEY;
   }
 
-  /**
-   * @return The expected parsed (String) messages read from the queue during the test.
-   */
+  /** @return The expected parsed (String) messages read from the queue during the test. */
   public List<String> expectedResults() {
     return RabbitMqTestUtils.generateRecords(numRecordsToPublish).stream()
         .map(RabbitMqTestUtils::recordToString)

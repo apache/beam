@@ -114,7 +114,6 @@ public class RateLimiterSimple {
       receiver.output("Processed: " + element);
     }
   }
-
   // [END RateLimiterSimpleJava]
 
   public static void main(String[] args) {

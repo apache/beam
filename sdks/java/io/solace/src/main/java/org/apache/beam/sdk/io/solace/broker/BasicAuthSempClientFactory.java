@@ -54,7 +54,6 @@ public abstract class BasicAuthSempClientFactory implements SempClientFactory {
 
     /** Set Solace username. */
     public abstract Builder username(String username);
-
     /** Set Solace password. */
     public abstract Builder password(String password);
 

@@ -764,9 +764,7 @@ public class DataflowWorkerLoggingHandlerTest {
     assertTrue(throttler.shouldAttemptDirectLog());
   }
 
-  /**
-   * @return A throwable with a fixed stack trace.
-   */
+  /** @return A throwable with a fixed stack trace. */
   private Throwable createThrowable() {
     Throwable throwable = new Throwable("exception.test.message");
     throwable.setStackTrace(

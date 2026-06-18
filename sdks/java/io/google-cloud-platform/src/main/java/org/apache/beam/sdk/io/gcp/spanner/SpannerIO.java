@@ -1879,9 +1879,7 @@ public class SpannerIO {
 
     abstract @Nullable RpcPriority getRpcPriority();
 
-    /**
-     * @deprecated This configuration has no effect, as tracing is not available
-     */
+    /** @deprecated This configuration has no effect, as tracing is not available */
     @Deprecated
     abstract @Nullable Double getTraceSampleProbability();
 
@@ -2317,7 +2315,8 @@ public class SpannerIO {
       // Set default retry timeouts for ReadChangeStream
       if (changeStreamSpannerConfig.getExecuteStreamingSqlRetrySettings() == null) {
         changeStreamSpannerConfig =
-            changeStreamSpannerConfig.toBuilder()
+            changeStreamSpannerConfig
+                .toBuilder()
                 .setExecuteStreamingSqlRetrySettings(
                     RetrySettings.newBuilder()
                         .setTotalTimeout(org.threeten.bp.Duration.ofMinutes(5))

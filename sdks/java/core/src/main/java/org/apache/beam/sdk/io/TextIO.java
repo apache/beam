@@ -346,9 +346,7 @@ public class TextIO {
       return toBuilder().setMatchConfiguration(matchConfiguration).build();
     }
 
-    /**
-     * @deprecated Use {@link #withCompression}.
-     */
+    /** @deprecated Use {@link #withCompression}. */
     @Deprecated
     public Read withCompressionType(TextIO.CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -513,9 +511,7 @@ public class TextIO {
       return toBuilder().setMatchConfiguration(configuration).build();
     }
 
-    /**
-     * @deprecated Use {@link #withCompression}.
-     */
+    /** @deprecated Use {@link #withCompression}. */
     @Deprecated
     public ReadAll withCompressionType(TextIO.CompressionType compressionType) {
       return withCompression(compressionType.canonical);
@@ -1416,9 +1412,7 @@ public class TextIO {
     }
   }
 
-  /**
-   * @deprecated Use {@link Compression}.
-   */
+  /** @deprecated Use {@link Compression}. */
   @Deprecated
   public enum CompressionType {
     /** See {@link Compression#AUTO}. */

@@ -217,7 +217,8 @@ public class JmsIO {
      *
      * <p>So, a {@link ConnectionFactory} implementation should be serializable.
      */
-    @Nullable ConnectionFactory getConnectionFactory() {
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
             Optional.ofNullable(getConnectionFactoryProviderFn())
@@ -863,7 +864,8 @@ public class JmsIO {
 
     private @Nullable transient ConnectionFactory connectionFactory;
 
-    @Nullable ConnectionFactory getConnectionFactory() {
+    @Nullable
+    ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
             Optional.ofNullable(getConnectionFactoryProviderFn())
@@ -874,8 +876,8 @@ public class JmsIO {
       return connectionFactory;
     }
 
-    abstract @Nullable
-        SerializableFunction<Void, ? extends ConnectionFactory> getConnectionFactoryProviderFn();
+    abstract @Nullable SerializableFunction<Void, ? extends ConnectionFactory>
+        getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 

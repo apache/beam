@@ -75,7 +75,8 @@ public class CoGroupByKeyLoadTest extends LoadTest<CoGroupByKeyLoadTest.Options>
     void setCoSourceOptions(String sourceOptions);
 
     @Description("Co-input window duration. If not set global windows will be used.")
-    @Nullable Long getCoInputWindowDurationSec();
+    @Nullable
+    Long getCoInputWindowDurationSec();
 
     void setCoInputWindowDurationSec(Long coInputWindowDurationSec);
 

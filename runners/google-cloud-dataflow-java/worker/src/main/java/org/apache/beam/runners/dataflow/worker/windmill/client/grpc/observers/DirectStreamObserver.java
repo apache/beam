@@ -174,9 +174,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
     }
   }
 
-  /**
-   * @throws IllegalStateException if called multiple times or after {@link #onCompleted()}.
-   */
+  /** @throws IllegalStateException if called multiple times or after {@link #onCompleted()}. */
   @Override
   public void onError(Throwable t) {
     isReadyNotifier.forceTermination();

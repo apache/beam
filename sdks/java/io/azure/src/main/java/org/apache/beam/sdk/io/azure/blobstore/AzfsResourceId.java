@@ -38,7 +38,6 @@ class AzfsResourceId implements ResourceId {
   static final String SCHEME = "azfs";
   private static final Pattern AZFS_URI =
       Pattern.compile("(?<SCHEME>[^:]+)://(?<ACCOUNT>[^/]+)/(?<CONTAINER>[^/]+)(?:/(?<BLOB>.*))?");
-
   /** Matches a glob containing a wildcard, capturing the portion before the first wildcard. */
   private static final Pattern GLOB_PREFIX = Pattern.compile("(?<PREFIX>[^\\[*?]*)[\\[*?].*");
 

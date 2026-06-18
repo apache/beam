@@ -279,7 +279,8 @@ public class StructUtilsTest {
   @Test
   public void testStructTypeToBeamRowSchemaFailsTypeNotSupported() {
     StructType structTypeWithStruct =
-        createStructType().toBuilder()
+        createStructType()
+            .toBuilder()
             .addFields(getFieldForTypeCode("f_struct", TypeCode.STRUCT))
             .build();
 

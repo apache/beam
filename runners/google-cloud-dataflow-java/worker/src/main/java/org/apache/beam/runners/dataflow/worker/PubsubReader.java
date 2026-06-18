@@ -98,7 +98,8 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
             (SimpleFunction<PubsubMessage, Object>)
                 SerializableUtils.deserializeFromByteArray(attributesFnBytes, "serialized fn info");
       }
-      @Nullable ValueProvider<Boolean> skipUndecodableElements =
+      @Nullable
+      ValueProvider<Boolean> skipUndecodableElements =
           (options != null)
               ? options
                   .as(DataflowStreamingPipelineOptions.class)

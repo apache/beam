@@ -96,17 +96,23 @@ public class DefaultArtifactResolver implements ArtifactResolver {
     for (Map.Entry<String, RunnerApi.Environment> entry :
         pipeline.getComponents().getEnvironmentsMap().entrySet()) {
       List<RunnerApi.ArtifactInformation> resolvedDependencies =
-          entry.getValue().getDependenciesList().parallelStream()
+          entry
+              .getValue()
+              .getDependenciesList()
+              .parallelStream()
               .flatMap(resolver)
               .collect(Collectors.toList());
       environmentMapBuilder.put(
           entry.getKey(),
-          entry.getValue().toBuilder()
+          entry
+              .getValue()
+              .toBuilder()
               .clearDependencies()
               .addAllDependencies(resolvedDependencies)
               .build());
     }
-    return pipeline.toBuilder()
+    return pipeline
+        .toBuilder()
         .setComponents(
             pipeline.getComponents().toBuilder().putAllEnvironments(environmentMapBuilder.build()))
         .build();

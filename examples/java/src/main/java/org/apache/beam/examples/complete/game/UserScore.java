@@ -204,7 +204,6 @@ public class UserScore {
           .apply(Sum.integersPerKey());
     }
   }
-
   // [END DocInclude_USExtractXform]
 
   /** Options supported by {@link UserScore}. */

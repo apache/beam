@@ -457,7 +457,6 @@ public class DoFnSignatures {
     public Map<String, TimerParameter> getTimerParameters() {
       return Collections.unmodifiableMap(timerParameters);
     }
-
     /**
      * TimerMap parameters declared in this context, keyed by {@link
      * org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
@@ -465,7 +464,6 @@ public class DoFnSignatures {
     public Map<String, TimerFamilyParameter> getTimerFamilyParameters() {
       return Collections.unmodifiableMap(timerFamilyParameters);
     }
-
     /** Extra parameters in their entirety. Unmodifiable. */
     public List<Parameter> getExtraParameters() {
       return Collections.unmodifiableList(extraParameters);

@@ -80,7 +80,8 @@ public class ReadFromPostgresSchemaTransformProvider extends JdbcReadSchemaTrans
 
     // Override "connectionInitSql" and "disableAutoCommit" for postgres
     configuration =
-        configuration.toBuilder()
+        configuration
+            .toBuilder()
             .setConnectionInitSql(Collections.emptyList())
             .setDisableAutoCommit(true)
             .build();
