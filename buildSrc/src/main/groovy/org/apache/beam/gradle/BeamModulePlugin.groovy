@@ -1218,11 +1218,6 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
-
-        if (JavaVersion.current().compareTo(JavaVersion.VERSION_17) >= 0) {
-          // When running on Java 17+, tests running in parallel can corrupt test output files, so run sequentially.
-          maxParallelForks = 1
-        }
       }
 
       List<String> skipDefRegexes = []
