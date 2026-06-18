@@ -80,7 +80,7 @@ public class AdaptiveThrottler {
    * @param now time in ms since the epoch
    * @return true if the caller should throttle or delay the request.
    */
-  public boolean throttleRequest(long now) {
+  public synchronized boolean throttleRequest(long now) {
     double prob = throttlingProbability(now);
     allRequests.add(now, 1);
     return random.nextDouble() < prob;
@@ -94,7 +94,7 @@ public class AdaptiveThrottler {
    *
    * @param now time in ms since the epoch
    */
-  public void successfulRequest(long now) {
+  public synchronized void successfulRequest(long now) {
     successfulRequests.add(now, 1);
   }
 }

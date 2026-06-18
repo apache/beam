@@ -65,7 +65,7 @@ public class MovingSum {
       return;
     }
 
-    while (now > currentMsSinceEpoch + bucketMs) {
+    while (now >= currentMsSinceEpoch + bucketMs) {
       // Advance time by one bucketMs, setting the new bucket's counts to 0.
       currentMsSinceEpoch += bucketMs;
       currentIndex = (currentIndex + 1) % numBuckets;

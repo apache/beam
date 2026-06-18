@@ -62,8 +62,8 @@ public class ReactiveThrottler extends AdaptiveThrottler {
    * where a call to a remote service is being contacted prior to the call being performed.
    */
   public void throttle() throws InterruptedException {
-    while (throttleRequest(System.currentTimeMillis())) {
-      LOG.info("Delaying request for {} seconds due to previous failures", throttleDelaySecs);
+    if (throttleRequest(System.currentTimeMillis())) {
+      LOG.debug("Delaying request for {} seconds due to previous failures", throttleDelaySecs);
       Thread.sleep(throttleDelaySecs * SECONDS_TO_MILLISECONDS);
       throttlingSignaler.signalThrottling(throttleDelaySecs * SECONDS_TO_MILLISECONDS);
     }
