@@ -34,4 +34,3 @@ pyarrow==10.0.1
 # Google Cloud (pin to avoid transitive resolution)
 google-cloud-aiplatform==1.60.0
 google-api-core==2.19.1
-google-auth==2.34.0

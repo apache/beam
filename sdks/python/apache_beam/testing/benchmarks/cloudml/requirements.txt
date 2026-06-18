@@ -16,6 +16,7 @@
 #
 
 # Core TFT dependencies with version bounds
+dill>=0.3,<0.5
 tfx_bsl>=1.15,<1.17
 tensorflow-transform>=1.15,<1.17
 tensorflow>=2.15,<2.16
