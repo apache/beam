@@ -50,7 +50,9 @@ def fill_in_missing(feature, default_value):
   """
   feature = tf.sparse.to_dense(
       tf.SparseTensor(
-          feature.indices, feature.values, [feature.dense_shape[0], 1]),
+          feature.indices,
+          feature.values,
+          tf.stack([feature.dense_shape[0], 1])),
       default_value=default_value)
   return tf.squeeze(feature, axis=1)
 

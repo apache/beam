@@ -36,6 +36,24 @@ class CriteoTest(tf.test.TestCase):
     self.assertAllEqual(result, [10, -1, 30])
     self.assertEqual(result.shape.rank, 1)
 
+  def test_fill_in_missing_int_feature_traces_with_dynamic_shape(self):
+    @tf.function(
+        input_signature=[
+            tf.SparseTensorSpec(shape=[None, None], dtype=tf.int64)
+        ])
+    def fill_in_missing(feature):
+      return criteo.fill_in_missing(feature, -1)
+
+    feature = tf.SparseTensor(
+        indices=[[0, 0], [2, 0]],
+        values=tf.constant([10, 30], dtype=tf.int64),
+        dense_shape=[3, 1])
+
+    result = fill_in_missing(feature)
+
+    self.assertAllEqual(result, [10, -1, 30])
+    self.assertEqual(result.shape.rank, 1)
+
   def test_fill_in_missing_all_missing_int_feature(self):
     feature = tf.SparseTensor(
         indices=tf.zeros([0, 2], dtype=tf.int64),
