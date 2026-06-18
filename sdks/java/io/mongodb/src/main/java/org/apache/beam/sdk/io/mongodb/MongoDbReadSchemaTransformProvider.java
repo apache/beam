@@ -90,7 +90,7 @@ public class MongoDbReadSchemaTransformProvider
 
       final String filterStr = configuration.getFilter();
       if (filterStr != null) {
-        read = read.withQueryFn(collection -> collection.find(Document.parse(filterStr)));
+        read = read.withQueryFn(FindQuery.create().withFilters(Document.parse(filterStr)));
       }
 
       PCollection<Document> mongoDocs = input.getPipeline().apply("ReadFromMongoDb", read);

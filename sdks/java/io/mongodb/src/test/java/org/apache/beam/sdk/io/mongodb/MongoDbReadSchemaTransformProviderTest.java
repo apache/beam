@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -115,6 +117,24 @@ public class MongoDbReadSchemaTransformProviderTest {
     assertNotNull(schema.getField("schema"));
     assertNotNull(schema.getField("filter"));
     assertNotNull(schema.getField("errorHandling"));
+  }
+
+  @Test
+  public void testExpandWithFilter() {
+    MongoDbReadSchemaTransformConfiguration config =
+        MongoDbReadSchemaTransformConfiguration.builder()
+            .setUri("mongodb://localhost:27017")
+            .setDatabase("db")
+            .setCollection("col")
+            .setSchema("{\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}}")
+            .setFilter("{\"name\": \"John\"}")
+            .build();
+
+    MongoDbReadSchemaTransformProvider provider = new MongoDbReadSchemaTransformProvider();
+    PCollectionRowTuple output =
+        provider.from(config).expand(PCollectionRowTuple.empty(Pipeline.create()));
+
+    assertNotNull(output.get("output"));
   }
 
   @Test
