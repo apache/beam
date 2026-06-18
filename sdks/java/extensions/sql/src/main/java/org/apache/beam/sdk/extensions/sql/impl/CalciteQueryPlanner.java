@@ -365,7 +365,6 @@ public class CalciteQueryPlanner implements QueryPlanner {
                       relNode.getCluster().getMetadataProvider())));
 
       relNode.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
-      previousThreadProviders = RelMetadataQuery.THREAD_PROVIDERS.get();
       RelMetadataQuery.THREAD_PROVIDERS.set(
           JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
       relNode.getCluster().invalidateMetadataQuery();

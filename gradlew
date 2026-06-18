@@ -115,6 +115,14 @@ esac
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
 
+# Fallback to JDK 21 if running on Java >= 24 (e.g., Java 26), JAVA_HOME is unset, and JDK 21 is available at standard path.
+if [ -z "$JAVA_HOME" ]; then
+    java_version=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}' | awk -F '.' '{print $1}')
+    if [ -n "$java_version" ] && [ "$java_version" -ge 24 ] && [ -d "/usr/lib/jvm/java-21-openjdk-amd64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+    fi
+fi
+
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
     if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
