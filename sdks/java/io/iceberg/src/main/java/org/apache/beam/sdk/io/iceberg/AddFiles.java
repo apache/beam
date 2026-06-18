@@ -532,10 +532,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
           SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
-          Map<String, String> properties = new HashMap<>();
-          if (tableProps != null) {
-            properties.putAll(tableProps);
-          }
+          Map<String, String> properties =
+              tableProps != null ? new HashMap<>(tableProps) : new HashMap<>();
           if (properties.get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
             // Forces Name based resolution instead of position based resolution
             NameMapping mapping = MappingUtil.create(schema);
