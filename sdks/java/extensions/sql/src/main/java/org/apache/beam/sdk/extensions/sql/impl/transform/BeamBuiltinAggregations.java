@@ -61,6 +61,11 @@ public class BeamBuiltinAggregations {
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
               .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
+              // SINGLE_VALUE is emitted by Calcite to enforce the cardinality of a scalar
+              // subquery (a subquery used as a scalar must yield exactly one row). The single
+              // input value is returned as-is; unlike COUNT/SUM it must not drop nulls, so a
+              // scalar subquery evaluating to NULL surfaces NULL.
+              .put("SINGLE_VALUE", typeName -> Sample.anyValueCombineFn())
               // Drop null elements for these aggregations.
               .put("COUNT", typeName -> new DropNullFnWithDefault(Count.combineFn()))
               .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))

@@ -30,8 +30,10 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -84,15 +86,41 @@ public class BeamValuesRel extends Values implements BeamRelNode {
           BeamValuesRel.class.getSimpleName(),
           pinput);
 
-      Schema schema = CalciteUtils.toSchema(getRowType());
+      Schema inferredSchema = CalciteUtils.toSchema(getRowType());
+      Schema.Builder schemaBuilder = Schema.builder();
+      for (int i = 0; i < inferredSchema.getFieldCount(); i++) {
+        Schema.Field field = inferredSchema.getField(i);
+        boolean hasNull = false;
+        for (ImmutableList<RexLiteral> tuple : tuples) {
+          if (tuple.get(i).getValue() == null) {
+            hasNull = true;
+            break;
+          }
+        }
+        if (hasNull && !field.getType().getNullable()) {
+          schemaBuilder.addField(field.getName(), field.getType().withNullable(true));
+        } else {
+          schemaBuilder.addField(field);
+        }
+      }
+      Schema schema = schemaBuilder.build();
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
-      return pinput.getPipeline().begin().apply(Create.of(rows).withRowSchema(schema));
+      return pinput
+          .getPipeline()
+          .begin()
+          .apply(Impulse.create())
+          .apply(ParDo.of(new EmitRowsFn(rows)))
+          .setRowSchema(schema);
     }
   }
 
   private Row tupleToRow(Schema schema, ImmutableList<RexLiteral> tuple) {
     return IntStream.range(0, tuple.size())
-        .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
+        .mapToObj(
+            i -> {
+              Object val = tuple.get(i).getValue();
+              return autoCastField(schema.getField(i), val);
+            })
         .collect(toRow(schema));
   }
 
@@ -105,5 +133,20 @@ public class BeamValuesRel extends Values implements BeamRelNode {
   public BeamCostModel beamComputeSelfCost(RelOptPlanner planner, BeamRelMetadataQuery mq) {
     NodeStats estimates = BeamSqlRelUtils.getNodeStats(this, mq);
     return BeamCostModel.FACTORY.makeCost(estimates.getRowCount(), estimates.getRate());
+  }
+
+  private static class EmitRowsFn extends DoFn<byte[], Row> {
+    private final List<Row> rows;
+
+    public EmitRowsFn(List<Row> rows) {
+      this.rows = rows;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      for (Row row : rows) {
+        c.output(row);
+      }
+    }
   }
 }
