@@ -69,12 +69,6 @@ runs:
           tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
           tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-
 
-    - name: Install Java 17 fallback
-      if: ${{ inputs.java-version == 'default' }}
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
       uses: actions/setup-java@v4

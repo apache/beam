@@ -95,6 +95,8 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=p310_ml_test,yaml
+          arguments: |
+            -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

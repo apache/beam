@@ -122,6 +122,7 @@ jobs:
         with:
           gradle-command: :sdks:${{ matrix.container_task }}
           arguments: |
+            -Pjava17Home=$JAVA_HOME_17_X64 \
             -Pdocker-repository-root=gcr.io/apache-beam-testing/beam-sdk \
             -Pdocker-tag-list=${{ github.sha }},${BEAM_VERSION}${LATEST_TAG} \
             -Pcontainer-architecture-list=arm64,amd64 \
