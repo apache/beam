@@ -417,7 +417,7 @@ public class DataflowPipelineJobTest {
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
 
-    assertEquals(State.RUNNING, job.drain());
+    assertEquals(State.DRAINING, job.drain());
     Job content = new Job();
     content.setProjectId(PROJECT_ID);
     content.setId(JOB_ID);
