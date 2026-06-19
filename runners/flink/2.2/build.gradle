@@ -19,8 +19,8 @@
 // Flink 2.2 API changes addressed in this module's source overrides:
 // - CheckpointingMode moved (Flink 2.2): org.apache.flink.streaming.api.CheckpointingMode
 //   is now @Deprecated; canonical path is org.apache.flink.core.execution.CheckpointingMode.
-//   FlinkExecutionEnvironments.java and FlinkPipelineOptionsTest.java are overridden here
-//   to use the non-deprecated import.
+//   FlinkExecutionEnvironments.java, DoFnOperator.java, and FlinkPipelineOptionsTest.java
+//   are overridden here to use the non-deprecated import.
 //
 // Flink 2.2 breaking changes that are SQL/cluster-layer only (no runner code change needed):
 // - TLS cipher suite default changed (FLINK-39022): JDK 11.0.30+/17.0.18+/21.0.10+/24+
