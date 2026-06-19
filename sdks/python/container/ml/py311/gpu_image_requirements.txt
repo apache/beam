@@ -247,7 +247,7 @@ pycountry==26.2.16
 pycparser==3.0
 pydantic==2.13.4
 pydantic-extra-types==2.11.1
-pydantic-settings==2.14.1
+pydantic-settings==2.14.2
 pydantic_core==2.46.4
 pydot==1.4.2
 Pygments==2.20.0
