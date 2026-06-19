@@ -217,17 +217,16 @@ public class DataflowWorkerLoggingInitializer {
       boolean directLoggingEnabled) {
     if (!directLoggingEnabled) {
       logger.setLevel(overrides.disk);
-      if (overrides.disk.intValue() != Level.OFF.intValue()) {
+      if (overrides.direct.intValue() != Level.OFF.intValue()) {
         LOG.warn(
-            "Ignoring the disk logging level override for {} because --defaultWorkerDirectLoggerLevel was OFF.",
+            "Ignoring the direct logging level override for {} because --defaultWorkerDirectLoggerLevel was OFF.",
             logger.getName());
       }
       return;
     }
 
     // Configure the logger to accept logs of the lower value. The log will be sent directly based
-    // upon the default
-    // nonDirectLogLevel or the provided hint.
+    // upon the default nonDirectLogLevel or the provided hint.
     if (overrides.direct.intValue() < overrides.disk.intValue()) {
       logger.setLevel(overrides.direct);
       if (overrides.disk.intValue() != defaultNonDirectLogLevel.intValue()) {
@@ -245,9 +244,8 @@ public class DataflowWorkerLoggingInitializer {
       logger.setLevel(overrides.disk);
       if (overrides.disk.intValue() < defaultNonDirectLogLevel.intValue()) {
         // We need to provide the hint as otherwise the default would be used and send the log
-        // directly which is not
-        // desired. We don't bother if the threshold was increased as the right decision would still
-        // be made.
+        // directly which is not desired. We don't bother if the threshold was increased as the
+        // right decision would still be made.
         logger.setResourceBundle(
             DataflowWorkerLoggingHandler.resourceBundleForNonDirectLogLevelHint(overrides.disk));
       }
