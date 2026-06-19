@@ -54,6 +54,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.joda.time.Instant;
 
 /**
@@ -74,6 +75,7 @@ public abstract class PTransformRunnerFactoryTestContext
               @Override
               public void registerReceiver(
                   String instructionId,
+                  String dataStreamId,
                   List<ApiServiceDescriptor> apiServiceDescriptors,
                   CloseableFnDataReceiver<Elements> receiver) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
@@ -81,15 +83,15 @@ public abstract class PTransformRunnerFactoryTestContext
 
               @Override
               public void unregisterReceiver(
-                  String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors) {
+                  String instructionId,
+                  String dataStreamId,
+                  List<ApiServiceDescriptor> apiServiceDescriptors) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
 
               @Override
-              public BeamFnDataOutboundAggregator createOutboundAggregator(
-                  ApiServiceDescriptor apiServiceDescriptor,
-                  Supplier<String> processBundleRequestIdSupplier,
-                  boolean collectElementsIfNoFlushes) {
+              public StreamObserver<Elements> getOutboundObserver(
+                  ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
                 throw new UnsupportedOperationException("Unexpected call during test.");
               }
 
