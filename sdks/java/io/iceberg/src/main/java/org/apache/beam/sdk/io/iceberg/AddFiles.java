@@ -31,6 +31,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -96,7 +97,6 @@ import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
-import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -531,17 +531,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
           SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
-
-          Catalog.TableBuilder builder =
-              catalogConfig
-                  .catalog()
-                  .buildTable(tableId, schema)
-                  .withPartitionSpec(spec)
-                  .withSortOrder(sortOrder);
-          if (tableProps != null) {
-            builder.withProperties(tableProps);
+          Map<String, String> properties =
+              tableProps != null ? new HashMap<>(tableProps) : new HashMap<>();
+          if (properties.get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+            // Forces Name based resolution instead of position based resolution
+            NameMapping mapping = MappingUtil.create(schema);
+            String mappingJson = NameMappingParser.toJson(mapping);
+            properties.put(TableProperties.DEFAULT_NAME_MAPPING, mappingJson);
           }
-          return builder.create();
+
+          return catalogConfig
+              .catalog()
+              .buildTable(tableId, schema)
+              .withPartitionSpec(spec)
+              .withSortOrder(sortOrder)
+              .withProperties(properties)
+              .create();
+
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
           return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }
