@@ -168,7 +168,7 @@ mmh3==5.2.1
 mock==5.2.0
 more-itertools==11.1.0
 mpmath==1.3.0
-msgpack==1.1.2
+msgpack==1.2.1
 msgspec==0.21.1
 multidict==6.7.1
 namex==0.1.0
