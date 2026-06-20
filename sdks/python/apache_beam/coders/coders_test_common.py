@@ -37,6 +37,7 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
+from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
@@ -436,6 +437,25 @@ class CodersTest(unittest.TestCase):
             int(math.pow(-1, k) * math.exp(k))
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
         ])
+
+  def test_varint_coder_uint64(self):
+    # uint64 values [2**63, 2**64) must encode like the signed int64 with the
+    # same bits instead of overflowing Cython's int64_t. Decoding is signed,
+    # matching Java's VarIntCoder.
+    coder = coders.VarIntCoder()
+    impl = coder.get_impl()
+    for v in [1 << 63, (1 << 63) + 12345, (1 << 64) - 1]:
+      signed_twin = v - (1 << 64)
+      encoded = coder.encode(v)
+      self.assertEqual(encoded, coder.encode(signed_twin))
+      self.assertEqual(impl.estimate_size(v), len(encoded))
+      self.assertEqual(coder.decode(encoded), signed_twin)
+
+    # Values past 64 bits stay out of range (only the Cython stream enforces it).
+    if coder_impl.is_compiled:
+      for v in [1 << 64, (1 << 70)]:
+        with self.assertRaises(OverflowError):
+          coder.encode(v)
 
   def test_varint32_coder(self):
     # Small ints.
