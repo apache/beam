@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -97,6 +96,8 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -428,24 +429,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               paneInfo);
         }
 
-        // Synchronize table initialization
-        if (table == null) {
-          synchronized (this) {
-            if (table == null) {
-              try {
-                table = getOrCreateTable(filePath, format);
-              } catch (FileNotFoundException e) {
-                return new ProcessResult(
-                    null,
-                    Row.withSchema(ERROR_SCHEMA)
-                        .addValues(filePath, checkStateNotNull(e.getMessage()))
-                        .build(),
-                    timestamp,
-                    window,
-                    paneInfo);
-              }
-            }
-          }
+        try {
+          table =
+              TableCache.get(
+                  catalogConfig,
+                  TableIdentifier.parse(identifier),
+                  () -> loadOrCreateTable(filePath, format));
+        } catch (Exception e) {
+          Throwable cause = e.getCause();
+          return new ProcessResult(
+              null,
+              Row.withSchema(ERROR_SCHEMA)
+                  .addValues(
+                      filePath,
+                      checkStateNotNull(cause != null ? cause.getMessage() : e.getMessage()))
+                  .build(),
+              timestamp,
+              window,
+              paneInfo);
         }
 
         // Check if the file path contains the provided prefix
@@ -522,29 +523,55 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return transform.bind(type).apply(Conversions.fromByteBuffer(type, bytes));
     }
 
-    private Table getOrCreateTable(String filePath, FileFormat format) throws IOException {
+    private Table loadOrCreateTable(String filePath, FileFormat format) throws IOException {
+      Catalog catalog = catalogConfig.catalog();
       TableIdentifier tableId = TableIdentifier.parse(identifier);
-      try {
-        return catalogConfig.catalog().loadTable(tableId);
-      } catch (NoSuchTableException e) {
-        try {
-          org.apache.iceberg.Schema schema = getSchema(filePath, format);
-          PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
-          SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
+      Namespace namespace = tableId.namespace();
 
-          Catalog.TableBuilder builder =
-              catalogConfig
-                  .catalog()
-                  .buildTable(tableId, schema)
-                  .withPartitionSpec(spec)
-                  .withSortOrder(sortOrder);
-          if (tableProps != null) {
-            builder.withProperties(tableProps);
+      // Create namespace if it does not exist yet
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
+        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
+        if (!supportsNamespaces.namespaceExists(namespace)) {
+          try {
+            supportsNamespaces.createNamespace(namespace);
+            LOG.info("Created new namespace '{}'.", namespace);
+          } catch (AlreadyExistsException ignored) {
+            // race condition: another worker already created this namespace
           }
-          return builder.create();
-        } catch (AlreadyExistsException e2) { // if table already exists, just load it
-          return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
         }
+      }
+
+      // If table exists, just load it
+      // Note: the implementation of catalog.tableExists() will load the table to check its
+      // existence. We don't use it here to avoid double loadTable() calls.
+      try {
+        return catalog.loadTable(tableId);
+      } catch (NoSuchTableException e) { // Otherwise, create the table
+        org.apache.iceberg.Schema tableSchema = getSchema(filePath, format);
+        PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
+        SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, tableSchema);
+
+        Catalog.TableBuilder builder =
+            catalogConfig
+                .catalog()
+                .buildTable(tableId, tableSchema)
+                .withPartitionSpec(spec)
+                .withSortOrder(sortOrder);
+        if (tableProps != null) {
+          builder.withProperties(tableProps);
+        }
+        Table table = builder.create();
+        LOG.info(
+            "Created Iceberg table '{}' with schema: {}\n"
+                + ", partition spec: {}, sort order: {}, table properties: {}",
+            tableId,
+            tableSchema,
+            spec,
+            sortOrder,
+            tableProps);
+        return table;
+      } catch (AlreadyExistsException e2) { // if table already exists, just load it
+        return catalogConfig.catalog().loadTable(TableIdentifier.parse(identifier));
       }
     }
 
