@@ -1,0 +1,71 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Flink 2.2 API changes addressed in this module's source overrides:
+// - CheckpointingMode moved (Flink 2.2): org.apache.flink.streaming.api.CheckpointingMode
+//   is now @Deprecated; canonical path is org.apache.flink.core.execution.CheckpointingMode.
+//   FlinkExecutionEnvironments.java, DoFnOperator.java, and FlinkPipelineOptionsTest.java
+//   are overridden here to use the non-deprecated import.
+//
+// Flink 2.2 breaking changes that are SQL/cluster-layer only (no runner code change needed):
+// - TLS cipher suite default changed (FLINK-39022): JDK 11.0.30+/17.0.18+/21.0.10+/24+
+//   disabled TLS_RSA_* ciphers; new default uses ECDHE suites. Verify cipher support
+//   on TLS-enabled clusters before upgrading.
+// - StreamingMultiJoinOperator state format change (FLINK-38209): savepoints from Flink 2.1
+//   with table.optimizer.multi-join.enabled=true are NOT compatible with 2.2.
+// - SQL row NOT NULL now enforced (FLINK-38181): use table.legacy-nested-row-nullability
+//   to restore prior (silent-ignore) behavior if needed.
+
+project.ext {
+  flink_major = '2.2'
+  flink_version = '2.2.1'
+  excluded_files = [
+    'main': [
+        // Used by DataSet API only
+        "org/apache/beam/runners/flink/adapter/BeamFlinkDataSetAdapter.java",
+        "org/apache/beam/runners/flink/FlinkBatchPipelineTranslator.java",
+        "org/apache/beam/runners/flink/FlinkBatchPortablePipelineTranslator.java",
+        "org/apache/beam/runners/flink/FlinkBatchTransformTranslators.java",
+        "org/apache/beam/runners/flink/translation/functions/FlinkNonMergingReduceFunction.java",
+        // Moved to org.apache.flink.runtime.state.StateBackendFactory
+        "org/apache/beam/runners/flink/FlinkStateBackendFactory.java",
+    ],
+    'test': [
+        // Used by DataSet API only
+        "org/apache/beam/runners/flink/adapter/BeamFlinkDataSetAdapterTest.java",
+        "org/apache/beam/runners/flink/batch/NonMergingGroupByKeyTest.java",
+        "org/apache/beam/runners/flink/batch/ReshuffleTest.java",
+    ]
+  ]
+}
+
+// Load the main build script which contains all build logic.
+apply from: "../flink_runner.gradle"
+
+// Flink 2.2 uses at.yawk.lz4:lz4-java instead of org.lz4:lz4-java
+// Explicitly prefer Flink's at.yawk.lz4 version to resolve capability conflict
+configurations.all {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
+    if (candidate != null) {
+      select(candidate)
+    } else {
+      selectHighestVersion()
+    }
+  }
+}
