@@ -82,6 +82,7 @@
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.
+* (Java) IcebergIO now requires Java 17 at runtime. This raises the floor in preparation for the Iceberg 1.11.0 upgrade, which is published as Java 17 bytecode. Pipelines using `Managed.read(ICEBERG)`/`Managed.write(ICEBERG)` must run on a Java 17+ JVM ([#38925](https://github.com/apache/beam/issues/38925)).
 
 ## Deprecations
 
