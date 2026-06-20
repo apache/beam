@@ -56,11 +56,11 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 120
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_PostCommit_Java_PVR_Flink_Streaming]
         job_phrase: [Run Java Flink PortableValidatesRunner Streaming]
         # every major version
-        flink_version: [ '1.20', '2.0' ]
+        flink_version: [ '1.20', '2.0', '2.1', '2.2']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

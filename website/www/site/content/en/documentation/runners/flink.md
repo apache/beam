@@ -331,6 +331,16 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Supported Beam Versions</th>
 </tr>
 <tr>
+  <td>2.2.x</td>
+  <td>beam-runners-flink-2.2</td>
+  <td>&ge; 2.75.0</td>
+</tr>
+<tr>
+  <td>2.1.x</td>
+  <td>beam-runners-flink-2.1</td>
+  <td>&ge; 2.75.0</td>
+</tr>
+<tr>
   <td>2.0.x</td>
   <td>beam-runners-flink-2.0</td>
   <td>&ge; 2.72.0</td>
