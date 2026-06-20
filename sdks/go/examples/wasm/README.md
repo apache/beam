@@ -68,13 +68,13 @@ cd $BEAM_HOME
 Expected output should include the following, from which you acquire the latest flink runner version.
 
 ```shell
-'flink_versions: 1.19,1.20,2.0,2.1'
+'flink_versions: 1.19,1.20,2.0,2.1,2.2'
 ```
 
-#### 2. Set to the latest flink runner version i.e. 2.1
+#### 2. Set to the latest flink runner version i.e. 2.2
 
 ```shell
-FLINK_VERSION=2.1
+FLINK_VERSION=2.2
 ```
 
 #### 3. In a separate terminal, start the flink runner (It should take a few minutes on the first execution)
