@@ -110,6 +110,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
 
   @Override
   public PCollection<KV<K, V>> expand(PCollection<V> in) {
+    SerializableFunction<V, K> localFn = fn;
     TypeDescriptor<V> inputType = in.getTypeDescriptor();
     TypeDescriptor<KV<K, V>> outputType = getOutputTypeDescriptor(inputType);
     PCollection<KV<K, V>> result =
@@ -120,13 +121,13 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
                     new SimpleFunction<V, KV<K, V>>() {
                       @Override
                       public KV<K, V> apply(V element) {
-                        return KV.of(fn.apply(element), element);
+                        return KV.of(localFn.apply(element), element);
                       }
                     })
                 : MapElements.into(outputType)
                     .via(
                         (SerializableFunction<V, KV<K, V>>)
-                            element -> KV.of(fn.apply(element), element)));
+                            element -> KV.of(localFn.apply(element), element)));
 
     try {
       CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
