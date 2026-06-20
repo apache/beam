@@ -37,7 +37,7 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
-def iceberg_version = "1.10.0"
+def iceberg_version = "1.11.0"
 def parquet_version = "1.16.0"
 def orc_version = "1.9.6"
 def hive_version = "3.1.3"
@@ -118,6 +118,10 @@ dependencies {
 configurations.all {
   // iceberg-core needs avro:1.12.0
   resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
+  // Iceberg 1.11.0 pulls parquet 1.17.1 transitively; hold at 1.16.0 to keep
+  // this PR zero-behavior-change. Bump parquet_version in a separate PR.
+  resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.16.0'
+  resolutionStrategy.force 'org.apache.parquet:parquet-hadoop:1.16.0'
   // TODO(https://github.com/apache/beam/issues/38515):
   //  Remove below pins when parquet-hadoop upgrades to hadoop-common:3.4.2
   resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
