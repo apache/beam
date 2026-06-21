@@ -56,24 +56,6 @@
     type: str
   identifier: beam:schematransform:org.apache.beam:datadog_write:v1
   name: DatadogWrite
-  - description: Hadoop configuration properties.
-    name: hadoop_config
-    nullable: true
-    type: map[str, str]
-  - description: Path of the Delta Lake table.
-    name: table_path
-    nullable: false
-    type: str
-  - description: Timestamp of the Delta Lake table to read.
-    name: timestamp
-    nullable: true
-    type: str
-  - description: Version of the Delta Lake table to read.
-    name: version
-    nullable: true
-    type: int64
-  identifier: beam:schematransform:org.apache.beam:delta_read:v1
-  name: DeltaRead
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: 'Outputs a PCollection of Beam Rows, each containing a single INT64
     number called "value". The count is produced from the given "start" value and

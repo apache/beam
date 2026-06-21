@@ -88,7 +88,6 @@ public class WindowIntoTransformProvider
 
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
-  @SuppressWarnings("mutable")
   public abstract static class Configuration {
 
     @SuppressWarnings({"AutoValueMutable", "mutable"})
