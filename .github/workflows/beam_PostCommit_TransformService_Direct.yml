@@ -74,7 +74,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          java-version: |
+            17
+            11
           python-version: |
             3.10
             ${{ matrix.python_version }}
@@ -83,7 +85,8 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava
           arguments: |
-            -PtestJavaVersion=11 \
+            -PtestJavaVersion=17 \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
             -Pjava11Home=$JAVA_HOME_11_X64 \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
