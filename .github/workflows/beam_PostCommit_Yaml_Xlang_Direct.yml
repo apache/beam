@@ -81,6 +81,8 @@ jobs:
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         with:
           gradle-command: :sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=${{ matrix.test_set }} -PbeamPythonExtra=p310_ml_test,yaml
           arguments: |

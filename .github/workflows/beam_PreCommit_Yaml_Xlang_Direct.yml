@@ -93,6 +93,8 @@ jobs:
           python-version: default
       - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         with:
           gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=p310_ml_test,yaml
           arguments: |
