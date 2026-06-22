@@ -117,6 +117,7 @@ WriteToPubsubSchema = typing.NamedTuple(
         # this is not implemented yet on the Java side:
         # ('with_attributes', bool),
         ('timestamp_attribute', typing.Optional[str]),
+        ('publish_with_ordering_key', bool),
     ])
 
 
@@ -135,6 +136,7 @@ class WriteToPubSub(beam.PTransform):
       with_attributes=False,
       id_label=None,
       timestamp_attribute=None,
+      publish_with_ordering_key=False,
       expansion_service=None):
     """Initializes ``WriteToPubSub``.
 
@@ -150,18 +152,23 @@ class WriteToPubSub(beam.PTransform):
         in a ReadFromPubSub PTransform to deduplicate messages.
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
+      publish_with_ordering_key: If True, enables ordering key support when
+        publishing messages. The ordering key must be set on each
+        PubsubMessage via the ``ordering_key`` attribute. 
     """
     self.params = WriteToPubsubSchema(
         topic=topic,
         id_label=id_label,
         # with_attributes=with_attributes,
-        timestamp_attribute=timestamp_attribute)
+        timestamp_attribute=timestamp_attribute,
+        publish_with_ordering_key=publish_with_ordering_key)
     self.expansion_service = expansion_service
     self.with_attributes = with_attributes
 
   def expand(self, pvalue):
     if self.with_attributes:
-      pcoll = pvalue | 'ToProto' >> Map(pubsub.WriteToPubSub.to_proto_str)
+      pcoll = pvalue | 'ToProto' >> Map(
+          pubsub.WriteToPubSub.message_to_proto_str)
     else:
       pcoll = pvalue | 'ToProto' >> Map(
           lambda x: pubsub.PubsubMessage(x, {})._to_proto_str())

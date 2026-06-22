@@ -193,7 +193,7 @@ def portableValidatesRunnerTask(String name, String mode, boolean checkpointing,
           excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
           return
         }
-        if (mode == "batch") {
+        if (mode == "batch" || mode == "batch-dataset") {
             excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
         }
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'

@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.extensions.opentelemetry.gcp.auth.GcpAuthAutoC
 import static org.apache.beam.sdk.extensions.opentelemetry.gcp.auth.GcpAuthAutoConfigurationCustomizerProvider.SIGNAL_TYPE_ALL;
 import static org.apache.beam.sdk.extensions.opentelemetry.gcp.auth.GcpAuthAutoConfigurationCustomizerProvider.SIGNAL_TYPE_METRICS;
 import static org.apache.beam.sdk.extensions.opentelemetry.gcp.auth.GcpAuthAutoConfigurationCustomizerProvider.SIGNAL_TYPE_TRACES;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -58,6 +57,7 @@ import io.opentelemetry.sdk.common.export.MemoryMode;
 import io.opentelemetry.sdk.metrics.Aggregation;
 import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -80,9 +80,11 @@ import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -92,12 +94,14 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
 /**
  * Copied from open-telemetry. Link:
  * https://github.com/open-telemetry/opentelemetry-java-contrib/blob/main/gcp-auth-extension/src/test/java/io/opentelemetry/contrib/gcp/auth/GcpAuthAutoConfigurationCustomizerProviderTest.java
  */
+@ExtendWith(MockitoExtension.class)
 class GcpAuthAutoConfigurationCustomizerProviderTest {
 
   private static final String DUMMY_GCP_RESOURCE_PROJECT_ID = "my-gcp-resource-project-id";
@@ -109,34 +113,35 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
   @Captor private ArgumentCaptor<Supplier<Map<String, String>>> traceHeaderSupplierCaptor;
   @Captor private ArgumentCaptor<Supplier<Map<String, String>>> metricHeaderSupplierCaptor;
 
-  private static final ImmutableMap<String, String> DEFAULT_OTEL_PROPERTIES_SPAN_EXPORTER =
-      ImmutableMap.<String, String>builder()
-          .put("otel.exporter.otlp.traces.endpoint", "https://telemetry.googleapis.com/v1/traces")
-          .put("otel.traces.exporter", "otlp")
-          .put("otel.metrics.exporter", "none")
-          .put("otel.logs.exporter", "none")
-          .put("otel.resource.attributes", "foo=bar")
-          .build();
+  private static final ImmutableMap<String, String> defaultOtelPropertiesSpanExporter =
+      ImmutableMap.of(
+          "otel.exporter.otlp.traces.endpoint",
+          "https://telemetry.googleapis.com/v1/traces",
+          "otel.traces.exporter",
+          "otlp",
+          "otel.metrics.exporter",
+          "none",
+          "otel.logs.exporter",
+          "none",
+          "otel.resource.attributes",
+          "foo=bar");
 
-  private static final ImmutableMap<String, String> DEFAULT_OTEL_PROPERTIES_METRIC_EXPORTER =
-      ImmutableMap.<String, String>builder()
-          .put("otel.exporter.otlp.metrics.endpoint", "https://telemetry.googleapis.com/v1/metrics")
-          .put("otel.traces.exporter", "none")
-          .put("otel.metrics.exporter", "otlp")
-          .put("otel.logs.exporter", "none")
-          .put("otel.resource.attributes", "foo=bar")
-          .build();
+  private static final ImmutableMap<String, String> defaultOtelPropertiesMetricExporter =
+      ImmutableMap.of(
+          "otel.exporter.otlp.metrics.endpoint",
+          "https://telemetry.googleapis.com/v1/metrics",
+          "otel.traces.exporter",
+          "none",
+          "otel.metrics.exporter",
+          "otlp",
+          "otel.logs.exporter",
+          "none",
+          "otel.resource.attributes",
+          "foo=bar");
 
   @BeforeEach
   public void setup() {
     MockitoAnnotations.openMocks(this);
-  }
-
-  @AfterEach
-  public void teardown() {
-    System.clearProperty(ConfigurableOption.GOOGLE_CLOUD_PROJECT.getSystemProperty());
-    System.clearProperty(ConfigurableOption.GOOGLE_CLOUD_QUOTA_PROJECT.getSystemProperty());
-    System.clearProperty(ConfigurableOption.GOOGLE_OTEL_AUTH_TARGET_SIGNALS.getSystemProperty());
   }
 
   // TODO: Use parameterized test for testing traces customizer for http & grpc.
@@ -236,7 +241,6 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
           .isTrue();
 
       Mockito.verify(mockOtlpGrpcSpanExporter, Mockito.atLeast(1)).export(Mockito.anyCollection());
-
       assertThat(exportedSpans).isNotEmpty();
       for (SpanData spanData : exportedSpans) {
         assertThat(spanData.getResource().getAttributes().asMap())
@@ -249,6 +253,7 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
     }
   }
 
+  // TODO: Use parameterized test for testing metrics customizer for http & grpc.
   @Test
   void testMetricCustomizerOtlpHttp() {
     // Set resource project system property
@@ -289,7 +294,6 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
 
       Mockito.verify(mockOtlpHttpMetricExporter, Mockito.atLeast(1))
           .export(Mockito.anyCollection());
-
       assertThat(exportedMetrics).isNotEmpty();
       for (MetricData metricData : exportedMetrics) {
         assertThat(metricData.getResource().getAttributes().asMap())
@@ -298,9 +302,8 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
         assertThat(metricData.getResource().getAttributes().asMap())
             .containsEntry(AttributeKey.stringKey("foo"), "bar");
         assertThat(metricData.getLongSumData().getPoints()).isNotEmpty();
-        for (io.opentelemetry.sdk.metrics.data.PointData pointData :
-            metricData.getLongSumData().getPoints()) {
-          assertThat(pointData.getAttributes().asMap())
+        for (LongPointData longPointData : metricData.getLongSumData().getPoints()) {
+          assertThat(longPointData.getAttributes().asMap())
               .containsKey(AttributeKey.longKey("work_loop"));
         }
       }
@@ -347,7 +350,6 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
 
       Mockito.verify(mockOtlpGrpcMetricExporter, Mockito.atLeast(1))
           .export(Mockito.anyCollection());
-
       assertThat(exportedMetrics).isNotEmpty();
       for (MetricData metricData : exportedMetrics) {
         assertThat(metricData.getResource().getAttributes().asMap())
@@ -356,9 +358,8 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
         assertThat(metricData.getResource().getAttributes().asMap())
             .containsEntry(AttributeKey.stringKey("foo"), "bar");
         assertThat(metricData.getLongSumData().getPoints()).isNotEmpty();
-        for (io.opentelemetry.sdk.metrics.data.PointData pointData :
-            metricData.getLongSumData().getPoints()) {
-          assertThat(pointData.getAttributes().asMap())
+        for (LongPointData longPointData : metricData.getLongSumData().getPoints()) {
+          assertThat(longPointData.getAttributes().asMap())
               .containsKey(AttributeKey.longKey("work_loop"));
         }
       }
@@ -375,8 +376,7 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
       googleCredentialsMockedStatic
           .when(GoogleCredentials::getApplicationDefault)
           .thenReturn(mockedGoogleCredentials);
-
-      assertThrows(
+      Assert.assertThrows(
           ConfigurationException.class,
           () -> buildOpenTelemetrySdkWithExporter(mockOtlpGrpcSpanExporter));
     }
@@ -457,12 +457,16 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
     }
   }
 
+  @AfterEach
+  void clearProperties() {
+    System.clearProperty("google.cloud.project");
+    System.clearProperty("google.otel.auth.target.signals");
+  }
+
   @ParameterizedTest
   @MethodSource("provideProjectIdBehaviorTestCases")
   @SuppressWarnings("CannotMockMethod")
   void testProjectIdBehavior(ProjectIdTestBehavior testCase) throws IOException {
-    System.clearProperty(ConfigurableOption.GOOGLE_CLOUD_PROJECT.getSystemProperty());
-    System.clearProperty(ConfigurableOption.GOOGLE_OTEL_AUTH_TARGET_SIGNALS.getSystemProperty());
 
     // configure environment according to test case
     String userSpecifiedProjectId = testCase.getUserSpecifiedProjectId();
@@ -507,7 +511,7 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
 
       if (testCase.getExpectedToThrow()) {
         // expect exception to be thrown when project ID is not available
-        assertThrows(
+        Assert.assertThrows(
             ConfigurationException.class,
             () -> buildOpenTelemetrySdkWithExporter(mockOtlpGrpcSpanExporter));
         // verify getProjectId() was called to attempt fallback
@@ -626,14 +630,14 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
         Arguments.of(
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("traces")
-                .setUserSpecifiedOtelProperties(DEFAULT_OTEL_PROPERTIES_SPAN_EXPORTER)
+                .setUserSpecifiedOtelProperties(defaultOtelPropertiesSpanExporter)
                 .setExpectedIsMetricsSignalModified(false)
                 .setExpectedIsTraceSignalModified(true)
                 .build()),
         Arguments.of(
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("metrics")
-                .setUserSpecifiedOtelProperties(DEFAULT_OTEL_PROPERTIES_METRIC_EXPORTER)
+                .setUserSpecifiedOtelProperties(defaultOtelPropertiesMetricExporter)
                 .setExpectedIsMetricsSignalModified(true)
                 .setExpectedIsTraceSignalModified(false)
                 .build()),
@@ -641,17 +645,17 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("all")
                 .setUserSpecifiedOtelProperties(
-                    ImmutableMap.<String, String>builder()
-                        .put(
-                            "otel.exporter.otlp.metrics.endpoint",
-                            "https://telemetry.googleapis.com/v1/metrics")
-                        .put(
-                            "otel.exporter.otlp.traces.endpoint",
-                            "https://telemetry.googleapis.com/v1/traces")
-                        .put("otel.traces.exporter", "otlp")
-                        .put("otel.metrics.exporter", "otlp")
-                        .put("otel.logs.exporter", "none")
-                        .build())
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
                 .setExpectedIsMetricsSignalModified(true)
                 .setExpectedIsTraceSignalModified(true)
                 .build()),
@@ -659,17 +663,17 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("metrics, traces")
                 .setUserSpecifiedOtelProperties(
-                    ImmutableMap.<String, String>builder()
-                        .put(
-                            "otel.exporter.otlp.metrics.endpoint",
-                            "https://telemetry.googleapis.com/v1/metrics")
-                        .put(
-                            "otel.exporter.otlp.traces.endpoint",
-                            "https://telemetry.googleapis.com/v1/traces")
-                        .put("otel.traces.exporter", "otlp")
-                        .put("otel.metrics.exporter", "otlp")
-                        .put("otel.logs.exporter", "none")
-                        .build())
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
                 .setExpectedIsMetricsSignalModified(true)
                 .setExpectedIsTraceSignalModified(true)
                 .build()),
@@ -677,17 +681,17 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("")
                 .setUserSpecifiedOtelProperties(
-                    ImmutableMap.<String, String>builder()
-                        .put(
-                            "otel.exporter.otlp.metrics.endpoint",
-                            "https://telemetry.googleapis.com/v1/metrics")
-                        .put(
-                            "otel.exporter.otlp.traces.endpoint",
-                            "https://telemetry.googleapis.com/v1/traces")
-                        .put("otel.traces.exporter", "otlp")
-                        .put("otel.metrics.exporter", "otlp")
-                        .put("otel.logs.exporter", "none")
-                        .build())
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
                 .setExpectedIsMetricsSignalModified(true)
                 .setExpectedIsTraceSignalModified(true)
                 .build()),
@@ -697,9 +701,9 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
                 .setUserSpecifiedOtelProperties(
                     ImmutableMap.of(
                         "otel.exporter.otlp.metrics.endpoint",
-                        "https://telemetry.googleapis.com/v1/metrics",
+                        "https://localhost:4813/v1/metrics",
                         "otel.exporter.otlp.traces.endpoint",
-                        "https://telemetry.googleapis.com/v1/traces",
+                        "https://localhost:4813/v1/traces",
                         "otel.traces.exporter",
                         "none",
                         "otel.metrics.exporter",
@@ -713,17 +717,17 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("metric, trace")
                 .setUserSpecifiedOtelProperties(
-                    ImmutableMap.<String, String>builder()
-                        .put(
-                            "otel.exporter.otlp.metrics.endpoint",
-                            "https://telemetry.googleapis.com/v1/metrics")
-                        .put(
-                            "otel.exporter.otlp.traces.endpoint",
-                            "https://telemetry.googleapis.com/v1/traces")
-                        .put("otel.traces.exporter", "otlp")
-                        .put("otel.metrics.exporter", "otlp")
-                        .put("otel.logs.exporter", "none")
-                        .build())
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
                 .setExpectedIsMetricsSignalModified(false)
                 .setExpectedIsTraceSignalModified(false)
                 .build()),
@@ -731,18 +735,90 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
             TargetSignalBehavior.builder()
                 .setConfiguredTargetSignals("metrics, trace")
                 .setUserSpecifiedOtelProperties(
-                    ImmutableMap.<String, String>builder()
-                        .put(
-                            "otel.exporter.otlp.metrics.endpoint",
-                            "https://telemetry.googleapis.com/v1/metrics")
-                        .put(
-                            "otel.exporter.otlp.traces.endpoint",
-                            "https://telemetry.googleapis.com/v1/traces")
-                        .put("otel.traces.exporter", "otlp")
-                        .put("otel.metrics.exporter", "otlp")
-                        .put("otel.logs.exporter", "none")
-                        .build())
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
                 .setExpectedIsMetricsSignalModified(true)
+                .setExpectedIsTraceSignalModified(false)
+                .build()),
+        Arguments.of(
+            TargetSignalBehavior.builder()
+                .setConfiguredTargetSignals("none")
+                .setUserSpecifiedOtelProperties(
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
+                .setExpectedIsMetricsSignalModified(false)
+                .setExpectedIsTraceSignalModified(false)
+                .build()),
+        Arguments.of(
+            TargetSignalBehavior.builder()
+                .setConfiguredTargetSignals("metrics, trace, none")
+                .setUserSpecifiedOtelProperties(
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
+                .setExpectedIsMetricsSignalModified(false)
+                .setExpectedIsTraceSignalModified(false)
+                .build()),
+        Arguments.of(
+            TargetSignalBehavior.builder()
+                .setConfiguredTargetSignals("all, none")
+                .setUserSpecifiedOtelProperties(
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
+                .setExpectedIsMetricsSignalModified(false)
+                .setExpectedIsTraceSignalModified(false)
+                .build()),
+        Arguments.of(
+            TargetSignalBehavior.builder()
+                .setConfiguredTargetSignals("metrics, none")
+                .setUserSpecifiedOtelProperties(
+                    ImmutableMap.of(
+                        "otel.exporter.otlp.metrics.endpoint",
+                        "https://localhost:4813/v1/metrics",
+                        "otel.exporter.otlp.traces.endpoint",
+                        "https://localhost:4813/v1/traces",
+                        "otel.traces.exporter",
+                        "otlp",
+                        "otel.metrics.exporter",
+                        "otlp",
+                        "otel.logs.exporter",
+                        "none"))
+                .setExpectedIsMetricsSignalModified(false)
                 .setExpectedIsTraceSignalModified(false)
                 .build()));
   }
@@ -1114,7 +1190,7 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
 
   private OpenTelemetrySdk buildOpenTelemetrySdkWithExporter(SpanExporter spanExporter) {
     return buildOpenTelemetrySdkWithExporter(
-        spanExporter, OtlpHttpMetricExporter.getDefault(), DEFAULT_OTEL_PROPERTIES_SPAN_EXPORTER);
+        spanExporter, OtlpHttpMetricExporter.getDefault(), defaultOtelPropertiesSpanExporter);
   }
 
   @SuppressWarnings("UnusedMethod")
@@ -1126,7 +1202,7 @@ class GcpAuthAutoConfigurationCustomizerProviderTest {
 
   private OpenTelemetrySdk buildOpenTelemetrySdkWithExporter(MetricExporter metricExporter) {
     return buildOpenTelemetrySdkWithExporter(
-        OtlpHttpSpanExporter.getDefault(), metricExporter, DEFAULT_OTEL_PROPERTIES_METRIC_EXPORTER);
+        OtlpHttpSpanExporter.getDefault(), metricExporter, defaultOtelPropertiesMetricExporter);
   }
 
   @SuppressWarnings("UnusedMethod")
