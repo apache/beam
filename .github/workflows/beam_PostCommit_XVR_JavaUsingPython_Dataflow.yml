@@ -74,6 +74,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: |
+            17
+            11
           python-version: |
             3.10
             ${{ matrix.python_version }}
@@ -82,6 +85,7 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerJavaUsingPython
           arguments: |
+            -Pjava17Home=$JAVA_HOME_17_X64 \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
