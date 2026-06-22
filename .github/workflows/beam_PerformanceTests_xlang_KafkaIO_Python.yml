@@ -73,9 +73,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: '17'
           python-version: default
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
