@@ -18,11 +18,11 @@
 """Integration tests for the cross-language MQTT IO transforms
 (ReadFromMqtt / WriteToMqtt), served by the messaging expansion service.
 
-Runs against an MQTT broker (Eclipse Mosquitto) started via testcontainers.
-The DirectRunner tests use reads bounded with max_num_records; unbounded
-(streaming) reads require a portable streaming runner (see the
-MqttReadSchemaTransformProvider description) and are exercised by the
-Prism runner test below.
+Runs against an MQTT broker (Eclipse Mosquitto) started once per test class
+via testcontainers. MqttIO reads are unbounded (streaming), so the end-to-end
+read/write test runs on the Prism portable streaming runner -- the legacy
+DirectRunner cannot execute an unbounded read (see the
+MqttReadSchemaTransformProvider description).
 """
 
 import logging
@@ -36,8 +36,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import BeamAssertException
-from apache_beam.testing.util import assert_that
 from apache_beam.typehints.row_type import RowTypeConstraint
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -58,23 +56,6 @@ NUM_RECORDS = 3
 BYTES_ROW = RowTypeConstraint.from_fields([('bytes', bytes)])
 
 
-def _payload_count_and_prefix_matcher(expected_count, expected_prefix):
-  """Matches a bounded read of a continuous publisher: exactly
-  expected_count payloads, each starting with expected_prefix (the absolute
-  sequence numbers depend on when the reader subscribed)."""
-  def _matcher(actual):
-    actual = list(actual)
-    if len(actual) != expected_count:
-      raise BeamAssertException(
-          'Expected %d payloads, got %d: %s' %
-          (expected_count, len(actual), actual))
-    for payload in actual:
-      if not payload.startswith(expected_prefix):
-        raise BeamAssertException('Unexpected payload: %s' % payload)
-
-  return _matcher
-
-
 @pytest.mark.uses_messaging_java_expansion_service
 @unittest.skipIf(
     DockerContainer is None, 'testcontainers package is not installed')
@@ -92,38 +73,43 @@ def _payload_count_and_prefix_matcher(expected_count, expected_prefix):
     'The testcontainers broker is not reachable from Dataflow workers; '
     'a Dataflow variant would need a remotely hosted MQTT broker.')
 class CrossLanguageMqttIOTest(unittest.TestCase):
-  def setUp(self):
-    self.start_mqtt_container(retries=3)
-    host = self.broker.get_container_host_ip()
-    port = self.broker.get_exposed_port(1883)
-    self.server_uri = 'tcp://%s:%s' % (host, port)
+  @classmethod
+  def setUpClass(cls):
+    # The broker is expensive to spin up and tear down, so start a single
+    # shared instance for the whole class; each test uses its own topic(s).
+    cls.start_mqtt_container(retries=3)
+    host = cls.broker.get_container_host_ip()
+    port = cls.broker.get_exposed_port(1883)
+    cls.server_uri = 'tcp://%s:%s' % (host, port)
 
-  def tearDown(self):
+  @classmethod
+  def tearDownClass(cls):
     # Sometimes stopping the container raises ReadTimeout. We can ignore it
     # here to avoid the test failure.
     try:
-      self.broker.stop()
+      cls.broker.stop()
     except Exception:
       logging.error('Could not stop the MQTT broker container.')
 
   # Creating a container with testcontainers sometimes raises ReadTimeout
   # error, so retry a couple of times.
-  def start_mqtt_container(self, retries):
+  @classmethod
+  def start_mqtt_container(cls, retries):
     for i in range(retries):
       try:
         # /mosquitto-no-auth.conf ships with the image and enables an
         # anonymous listener on port 1883.
-        self.broker = DockerContainer('eclipse-mosquitto:2').with_command(
+        cls.broker = DockerContainer('eclipse-mosquitto:2').with_command(
             'mosquitto -c /mosquitto-no-auth.conf').with_exposed_ports(1883)
-        self.broker.start()
-        wait_for_logs(self.broker, 'mosquitto version .* running', timeout=30)
+        cls.broker.start()
+        wait_for_logs(cls.broker, 'mosquitto version .* running', timeout=30)
         break
       except Exception as e:
         # If start() succeeded but a later step (e.g. wait_for_logs) failed,
         # stop the partially started container so the next retry / the raised
         # error does not leak a running Docker container.
         try:
-          self.broker.stop()
+          cls.broker.stop()
         except Exception:
           pass
         if i == retries - 1:
@@ -134,41 +120,6 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
     return {
         'server_uri': self.server_uri, 'topic': topic, 'client_id': client_id
     }
-
-  def test_xlang_mqtt_read(self):
-    topic = 'xlang-mqtt-read-topic'
-    # MQTT has no message retention for regular messages, so publish
-    # continuously (via mosquitto_pub inside the broker container) until the
-    # bounded read collected what it needs.
-    stop_publishing = threading.Event()
-
-    def publish_loop():
-      container = self.broker.get_wrapped_container()
-      i = 0
-      while not stop_publishing.is_set():
-        container.exec_run(
-            ['mosquitto_pub', '-t', topic, '-m', 'msg-%d' % i, '-q', '1'])
-        i += 1
-        time.sleep(0.5)
-
-    publisher = threading.Thread(target=publish_loop, daemon=True)
-    publisher.start()
-    try:
-      with TestPipeline() as p:
-        p.not_use_test_runner_api = True
-        payloads = (
-            p
-            | 'ReadFromMqtt' >> ReadFromMqtt(
-                connection_configuration=self._connection_configuration(
-                    topic, 'xlang-mqtt-read'),
-                max_num_records=NUM_RECORDS,
-                max_read_time_seconds=120)
-            | 'ExtractBytes' >> beam.Map(lambda row: row.bytes))
-        assert_that(
-            payloads, _payload_count_and_prefix_matcher(NUM_RECORDS, b'msg-'))
-    finally:
-      stop_publishing.set()
-      publisher.join()
 
   def test_xlang_mqtt_write(self):
     topic = 'xlang-mqtt-write-topic'
@@ -214,12 +165,19 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
     received = sorted(subscriber_result.get('output', b'').split())
     self.assertEqual(sorted(expected_payloads), received)
 
-  def test_xlang_mqtt_read_write_streaming_on_prism(self):
-    """Exercises the unbounded (streaming) path on the Prism runner, which
-    the legacy DirectRunner cannot run: an unbounded ReadFromMqtt feeding a
-    WriteToMqtt on a second topic. The result is observed with a
-    mosquitto_sub subscriber on the output topic, after which the
-    (never-terminating) pipeline is cancelled."""
+  def test_xlang_mqtt_read_write_streaming(self):
+    """Exercises ReadFromMqtt and WriteToMqtt end to end on the Prism portable
+    streaming runner. MqttIO read is unbounded, which the legacy DirectRunner
+    cannot execute, so this is the single read test: an unbounded ReadFromMqtt
+    on a source topic feeds a WriteToMqtt on a sink topic, the result is
+    observed with a mosquitto_sub subscriber on the sink topic, and the
+    (never-terminating) pipeline is then cancelled.
+
+    MQTT does not retain regular messages, so the reader must already be
+    subscribed when messages are published -- a Kafka-style sequential
+    write-then-read would read nothing. A background publisher therefore feeds
+    the source topic continuously while the streaming pipeline runs.
+    """
     source_topic = 'xlang-mqtt-streaming-source'
     sink_topic = 'xlang-mqtt-streaming-sink'
     stop_publishing = threading.Event()
@@ -261,7 +219,8 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
         '--environment_type=LOOPBACK',
         '--streaming',
     ])
-    p = beam.Pipeline(options=options)
+    p = TestPipeline(options=options)
+    p.not_use_test_runner_api = True
     _ = (
         p
         | 'ReadFromMqtt' >> ReadFromMqtt(
