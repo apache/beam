@@ -71,7 +71,7 @@ require (
 require (
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/fsouza/fake-gcs-server v1.52.3
-	github.com/golang-cz/devslog v0.0.16
+	github.com/golang-cz/devslog v0.0.17
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
