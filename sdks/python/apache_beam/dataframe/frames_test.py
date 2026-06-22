@@ -37,6 +37,8 @@ from apache_beam.runners.interactive.testing.mock_env import isolated_env
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
+# Get major, minor, patch version
+PD_FULL_VERSION = tuple(int(x) for x in re.findall(r'\d+', pd.__version__)[0:3])
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -1437,7 +1439,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.unstack(level=0), s)
 
   @unittest.skipIf(
-      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      sys.version_info >= (3, 12) and PD_FULL_VERSION < (2, 3, 4),
       'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
