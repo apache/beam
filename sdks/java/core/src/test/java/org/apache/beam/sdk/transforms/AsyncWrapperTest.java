@@ -179,7 +179,7 @@ public class AsyncWrapperTest implements Serializable {
 
   // 4. Used for testing Timer mock implementations.
   private static class FakeTimer implements Timer {
-    private Instant time = Instant.EPOCH;
+    private volatile Instant time = Instant.EPOCH;
 
     @Override
     public void set(Instant absoluteTime) {
