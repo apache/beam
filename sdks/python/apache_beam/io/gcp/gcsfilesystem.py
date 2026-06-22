@@ -34,64 +34,21 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
-
-try:
-  from apache_beam.io.gcp import gcsio
-except ImportError:
-  # The gcp extra (google-cloud-storage and friends, imported by gcsio) may not
-  # be installed. Import it lazily so GCSFileSystem can still be looked up via
-  # FileSystems.get_filesystem() without the gcp extra installed; the dependency
-  # is only required when the filesystem is actually used, matching the behavior
-  # of S3FileSystem. See https://github.com/apache/beam/issues/37445.
-  gcsio = None  # type: ignore[assignment]
+from apache_beam.io.gcp import gcsio
 
 __all__ = ['GCSFileSystem']
-
-
-class _classproperty:
-  """A read-only property that resolves on the class as well as instances.
-
-  Lets ``GCSFileSystem.CHUNK_SIZE`` remain accessible as a class attribute (as
-  in ``S3FileSystem``) while computing its value lazily, so that importing this
-  module does not require the gcp extra. See
-  https://github.com/apache/beam/issues/37445.
-  """
-  def __init__(self, fget):
-    self._fget = fget
-
-  def __get__(self, obj, owner):
-    return self._fget(owner)
 
 
 class GCSFileSystem(FileSystem):
   """A GCS ``FileSystem`` implementation for accessing files on GCS.
   """
 
+  CHUNK_SIZE = gcsio.MAX_BATCH_OPERATION_SIZE  # Chuck size in batch operations
   GCS_PREFIX = 'gs://'
 
   def __init__(self, pipeline_options):
     super().__init__(pipeline_options)
     self._pipeline_options = pipeline_options
-
-  @staticmethod
-  def _get_gcsio_module():
-    """Return the ``gcsio`` module, raising ImportError if it is unavailable.
-
-    ``gcsio`` is imported lazily (see the module-level import) so that this
-    filesystem can be looked up without the gcp extra installed. The dependency
-    is only required when the filesystem is actually used.
-    """
-    if gcsio is None:
-      raise ImportError(
-          'Could not import apache_beam.io.gcp.gcsio. This usually means the '
-          'gcp dependencies are not installed. Install them with: '
-          'pip install apache-beam[gcp]')
-    return gcsio
-
-  @_classproperty
-  def CHUNK_SIZE(cls):
-    """Chunk size in batch operations."""
-    return cls._get_gcsio_module().MAX_BATCH_OPERATION_SIZE
 
   @classmethod
   def scheme(cls):
@@ -182,8 +139,7 @@ class GCSFileSystem(FileSystem):
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
   def _gcsIO(self):
-    return self._get_gcsio_module().GcsIO(
-        pipeline_options=self._pipeline_options)
+    return gcsio.GcsIO(pipeline_options=self._pipeline_options)
 
   def _path_open(
       self,
@@ -414,9 +370,8 @@ class GCSFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      components = self._get_gcsio_module().parse_gcs_path(
-          path, object_optional=True)
-    except (ImportError, ValueError):
+      components = gcsio.parse_gcs_path(path, object_optional=True)
+    except ValueError:
       # report lineage is fail-safe
       traceback.print_exc()
       return

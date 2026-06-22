@@ -21,6 +21,9 @@
 import logging
 import os
 import random
+import subprocess
+import sys
+import textwrap
 import unittest
 from datetime import datetime
 
@@ -236,6 +239,53 @@ class FakeBlob(object):
 
   def exists(self, **kwargs):
     return self.bucket.get_blob(self.name) is not None
+
+
+class TestGcsioWithoutGcpExtra(unittest.TestCase):
+  """Lazy-import behavior when the gcp extra is not installed.
+
+  Mirrors s3io's BOTO3_INSTALLED handling: importing the module must succeed
+  without the optional dependency, and the error is deferred until a GcsIO is
+  actually created. See https://github.com/apache/beam/issues/37445.
+
+  This runs in a subprocess because this test environment has the gcp extra
+  installed; we simulate its absence by blocking the google.cloud import in a
+  fresh interpreter.
+  """
+  def test_import_succeeds_and_creation_raises(self):
+    script = textwrap.dedent(
+        """
+        import sys
+        # Simulate the gcp extra not being installed.
+        sys.modules['google.cloud'] = None
+
+        from apache_beam.io.gcp import gcsio
+        assert gcsio.GOOGLE_CLOUD_STORAGE_INSTALLED is False
+
+        # Module-level constants and pure helpers remain usable.
+        assert gcsio.MAX_BATCH_OPERATION_SIZE == 100
+        assert gcsio.parse_gcs_path('gs://bucket/object') == (
+            'bucket', 'object')
+
+        # Creating a GcsIO without a client raises a clear, actionable error.
+        try:
+          gcsio.GcsIO()
+        except RuntimeError as e:
+          assert 'apache-beam[gcp]' in str(e), str(e)
+        else:
+          raise AssertionError('expected RuntimeError creating GcsIO')
+        print('OK')
+        """)
+    result = subprocess.run([sys.executable, '-c', script],
+                            capture_output=True,
+                            text=True,
+                            check=False)
+    self.assertEqual(
+        result.returncode,
+        0,
+        msg='subprocess failed:\nstdout=%s\nstderr=%s' %
+        (result.stdout, result.stderr))
+    self.assertIn('OK', result.stdout)
 
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')

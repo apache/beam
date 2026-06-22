@@ -46,36 +46,33 @@ class GCSFileSystemLazyImportTest(unittest.TestCase):
   def test_get_filesystem_without_gcp_extra(self):
     # Regression test for https://github.com/apache/beam/issues/37445.
     #
-    # Without the gcp extra installed, gcsio cannot be imported. GCSFileSystem
-    # must still import and register so FileSystems.get_filesystem('gs://...')
-    # returns it (like S3FileSystem), deferring the dependency error to usage.
+    # Without the gcp extra installed, GCSFileSystem must still import and
+    # register so FileSystems.get_filesystem('gs://...') returns it (like
+    # S3FileSystem), deferring the dependency error to usage. The deferred
+    # behavior now lives in gcsio (see gcsio_test); here we only assert that the
+    # filesystem still registers and that using it raises a clear error.
     #
     # This runs in a subprocess because the behavior is decided at import time
     # and this test environment has the gcp extra installed; we simulate its
-    # absence by blocking the gcsio import in a fresh interpreter (reloading in
-    # process would leave a second GCSFileSystem registered for the gs scheme).
+    # absence by blocking the google.cloud import in a fresh interpreter.
     script = textwrap.dedent(
         """
         import sys
         # Simulate the gcp extra not being installed.
-        sys.modules['apache_beam.io.gcp.gcsio'] = None
-
-        from apache_beam.io.gcp import gcsfilesystem
-        assert gcsfilesystem.gcsio is None, 'expected gcsio to be unavailable'
+        sys.modules['google.cloud'] = None
 
         from apache_beam.io.filesystems import FileSystems
         fs = FileSystems.get_filesystem('gs://bucket/object')
         assert type(fs).__name__ == 'GCSFileSystem', type(fs).__name__
         assert fs.scheme() == 'gs'
 
-        # Using the filesystem raises a clear ImportError (deferred validation).
-        for use in (lambda: fs.CHUNK_SIZE, fs._gcsIO):
-          try:
-            use()
-          except ImportError:
-            pass
-          else:
-            raise AssertionError('expected ImportError using GCS without gcp')
+        # Using the filesystem raises a clear error (deferred validation).
+        try:
+          fs._gcsIO()
+        except RuntimeError:
+          pass
+        else:
+          raise AssertionError('expected RuntimeError using GCS without gcp')
         print('OK')
         """)
     result = subprocess.run([sys.executable, '-c', script],
@@ -90,9 +87,7 @@ class GCSFileSystemLazyImportTest(unittest.TestCase):
     self.assertIn('OK', result.stdout)
 
 
-@unittest.skipIf(
-    gcsfilesystem is None or gcsfilesystem.gcsio is None,
-    'GCP dependencies are not installed')
+@unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
 class GCSFileSystemTest(unittest.TestCase):
   def setUp(self):
     pipeline_options = PipelineOptions()
@@ -101,14 +96,6 @@ class GCSFileSystemTest(unittest.TestCase):
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'gs')
     self.assertEqual(gcsfilesystem.GCSFileSystem.scheme(), 'gs')
-
-  def test_chunk_size_on_class_and_instance(self):
-    # CHUNK_SIZE must resolve both on the class and on instances (see the
-    # review on #37445): the lazy class-property must preserve the class-level
-    # access that S3FileSystem provides as a plain class attribute.
-    expected = gcsfilesystem.gcsio.MAX_BATCH_OPERATION_SIZE
-    self.assertEqual(gcsfilesystem.GCSFileSystem.CHUNK_SIZE, expected)
-    self.assertEqual(self.fs.CHUNK_SIZE, expected)
 
   def test_join(self):
     self.assertEqual(
