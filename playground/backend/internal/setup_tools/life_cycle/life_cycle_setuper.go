@@ -196,9 +196,9 @@ func updateJavaLogConfigFile(paths fs_tool.LifeCyclePaths) error {
 func prepareSbtFiles(lc *fs_tool.LifeCycle, pipelineFolder string, workingDir string) (*fs_tool.LifeCycle, error) {
 	cmd := exec.Command(bashCmd, filepath.Join(workingDir, scioProject))
 	cmd.Dir = pipelineFolder
-	output, err := cmd.CombinedOutput()
+	_, err := cmd.Output()
 	if err != nil {
-		return lc, fmt.Errorf("%w: %s", err, string(output))
+		return lc, err
 	}
 
 	sourceFileFolder := filepath.Join(pipelineFolder, scioProjectPath)
