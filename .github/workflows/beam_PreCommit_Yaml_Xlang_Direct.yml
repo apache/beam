@@ -87,14 +87,10 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: '17'
           python-version: default
       - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
-        env:
-          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         with:
           gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=p310_ml_test,yaml
           arguments: |
