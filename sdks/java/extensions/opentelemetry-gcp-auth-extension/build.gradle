@@ -37,6 +37,7 @@ dependencies {
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation library.java.mockito_inline
+  testImplementation library.java.mockito_junit_jupiter
   testImplementation library.java.jupiter_api
   testImplementation library.java.jupiter_params
   testRuntimeOnly library.java.jupiter_engine

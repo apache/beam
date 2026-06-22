@@ -426,7 +426,7 @@ if __name__ == '__main__':
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
           'httplib2>=0.8,<0.32.0',
-          'jsonpickle>=3.0.0,<4.0.0',
+          'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
           'numpy>=1.14.3,<2.5.0',  # Update pyproject.toml as well.
@@ -531,6 +531,7 @@ if __name__ == '__main__':
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
               'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',

@@ -16,10 +16,29 @@
  * limitations under the License.
  */
 
+def basePath = '../../job-server'
+
 project.ext {
-  flink_major = '1.18'
-  flink_version = '1.18.0'
+  // Look for the source code in the parent module
+  main_source_dirs = ["$basePath/src/main/java"]
+  test_source_dirs = ["$basePath/src/test/java"]
+  main_resources_dirs = ["$basePath/src/main/resources"]
+  test_resources_dirs = ["$basePath/src/test/resources"]
+  archives_base_name = 'beam-runners-flink-2.2-job-server'
 }
 
 // Load the main build script which contains all build logic.
-apply from: "../flink_runner.gradle"
+apply from: "$basePath/flink_job_server.gradle"
+
+// Flink 2.2 uses at.yawk.lz4:lz4-java instead of org.lz4:lz4-java
+// Explicitly prefer Flink's at.yawk.lz4 version to resolve capability conflict
+configurations.all {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
+    if (candidate != null) {
+      select(candidate)
+    } else {
+      selectHighestVersion()
+    }
+  }
+}
