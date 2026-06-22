@@ -29,6 +29,7 @@ import secrets
 import sqlite3
 import string
 import struct
+import tempfile
 import unittest
 import uuid
 from datetime import datetime
