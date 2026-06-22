@@ -22,8 +22,8 @@ plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.sql.meta.provider.hcatalog',
-  // iceberg requires Java11+
-  requireJavaVersion: JavaVersion.VERSION_11,
+  // iceberg requires Java17+
+  requireJavaVersion: JavaVersion.VERSION_17,
 )
 
 dependencies {
