@@ -573,13 +573,12 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      // installGcpTest already installed apache-beam[gcp]. tensorflow-transform also
-      // lists that dependency, so a plain pip install -r can re-resolve the GCP extra
-      // and hit ResolutionTooDeep. Install TFT with --no-deps instead.
+      // installGcpTest already installed apache-beam[gcp]. tensorflow-transform and
+      // tfx_bsl also list that dependency, so a plain pip install -r can re-resolve
+      // the GCP extra and hit ResolutionTooDeep. Install them with --no-deps instead.
       args '-c', ". ${envdir}/bin/activate && " +
-          "grep -v '^tensorflow-transform' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
-          "pip install -r /tmp/cloudml_tft_base_requirements.txt && " +
-          "pip install --no-deps tensorflow-transform==1.16.0"
+          "pip install -r cloudml_driver_requirements.txt && " +
+          "pip install --no-deps tfx_bsl==1.16.1 tensorflow-transform==1.16.0"
     }
   }
 }
