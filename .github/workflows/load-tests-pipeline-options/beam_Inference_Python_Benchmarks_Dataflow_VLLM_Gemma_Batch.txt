@@ -35,4 +35,3 @@
 --requirements_file=apache_beam/ml/inference/vllm_tests_requirements.txt
 --dataflow_service_options=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
 --experiments=use_runner_v2
---timeout_ms=16200000

@@ -55,7 +55,7 @@ task run(type: Exec, dependsOn: installGcpTest) {
         exec {
           setWorkingDir "${project.rootDir}/sdks/python"
           executable 'sh'
-          args '-c', ". ${project.ext.envdir}/bin/activate && pip install -r ${requirementsTxtFileArg}"
+          args '-c', "${project.ext.envdir}/bin/python -m pip install -r ${requirementsTxtFileArg}"
         }
      }
    }
