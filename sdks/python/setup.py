@@ -162,7 +162,7 @@ else:
 # https://github.com/pandas-dev/pandas/issues/45725
 # must update the below "docs" and "test" for extras_require
 dataframe_dependency = [
-    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
+    'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.4',
 ]
 
 milvus_dependency = ['pymilvus>=2.5.10,<3.0.0']
@@ -485,7 +485,7 @@ if __name__ == '__main__':
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
               'markdown',
-              'pandas<2.3.0',
+              'pandas<2.4.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
           ],
@@ -496,7 +496,7 @@ if __name__ == '__main__':
               'jinja2>=3.0,<3.2',
               'joblib>=1.0.1',
               'mock>=1.0.1,<6.0.0',
-              'pandas<2.3.0',
+              'pandas<2.4.0',
               'parameterized>=0.7.1,<0.10.0',
               'pydot>=1.2.0,<2',
               'pyhamcrest>=1.9,!=1.10.0,<3.0.0',

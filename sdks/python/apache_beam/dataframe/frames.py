@@ -63,6 +63,10 @@ __all__ = [
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
 
+# Find the name pandas uses for the NaN column in get_dummies().
+# Older pandas versions (<2.3.0) use 'nan', whereas newer versions (>=2.3.0) use 'NaN'.
+_DUMMY_NAN_COLUMN = 'NaN' if PD_VERSION >= (2, 3) else 'nan'
+
 
 def populate_not_implemented(pd_type):
   def wrapper(deferred_type):
@@ -5054,7 +5058,8 @@ class _DeferredStringMethods(frame_base.DeferredBase):
     # the data includes NaNs, which is not valid to be casted as a Category,
     # but nevertheless would be broadcasted as a column in get_dummies()
     columns = sorted(set().union(*split_cats))
-    columns = columns + ['nan'] if 'nan' not in columns else columns
+    if _DUMMY_NAN_COLUMN not in columns:
+      columns = columns + [_DUMMY_NAN_COLUMN]
 
     proxy = pd.DataFrame(columns=columns).astype(int)
 
