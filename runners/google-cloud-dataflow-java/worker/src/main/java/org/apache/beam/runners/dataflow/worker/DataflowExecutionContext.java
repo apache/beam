@@ -204,6 +204,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       return nameContext;
     }
 
+    public @Nullable Object getKey() {
+      return null;
+    }
+
     /**
      * Returns the next fired timer for this step.
      *

@@ -120,7 +120,10 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
   @Override
   @SuppressWarnings("unchecked")
   public void processElement(Object untypedElem) throws Exception {
-    helpers.processElement(null, (WindowedValue<InputT>) untypedElem, this::onProcessWindowedValue);
+    helpers.processElement(
+        helpers.stepContext.getKey(),
+        (WindowedValue<InputT>) untypedElem,
+        this::onProcessWindowedValue);
   }
 
   protected void onProcessWindowedValue(WindowedValue<InputT> elem) {
@@ -178,7 +181,7 @@ public class SimpleParDoFn<InputT, OutputT, W extends BoundedWindow> implements 
 
   @Override
   public void finishKey(Object key) throws Exception {
-    helpers.finishKey(sideInputProcessor);
+    helpers.finishKey(key, sideInputProcessor);
   }
 
   @Override

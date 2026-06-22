@@ -243,10 +243,10 @@ class SimpleParDoFnHelpers<K, InputT, OutputT, W extends BoundedWindow> {
     fnRunner.startBundle();
   }
 
-  void finishKey(StreamingSideInputProcessor<?, ?> sideInputProcessor) {
+  void finishKey(@Nullable K key, StreamingSideInputProcessor<?, ?> sideInputProcessor) {
     if (!activeKey) {
       // This means that there were no elements for this key. Try to unblock any queued elements.
-      onStartKey.accept((K) stepContext.stateInternals().getKey());
+      onStartKey.accept(key);
     }
     if (sideInputProcessor != null) {
       sideInputProcessor.handleFinishKeyOrBundle();
@@ -286,9 +286,6 @@ class SimpleParDoFnHelpers<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     if (!activeKey) {
-      if (key == null && stepContext.stateInternals() != null) {
-        key = (K) stepContext.stateInternals().getKey();
-      }
       onStartKey.accept(key);
     }
     outputsPerElementTracker.onProcessElement();
