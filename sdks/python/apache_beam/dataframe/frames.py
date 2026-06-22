@@ -5050,11 +5050,19 @@ class _DeferredStringMethods(frame_base.DeferredBase):
       cat.split(sep=kwargs.get('sep', '|')) for cat in dtype.categories
     ]
 
+    # Find the name pandas uses for the NaN column in get_dummies().
+    # Older pandas versions (<2.3.0) use 'nan', whereas newer versions
+    # use 'NaN'. We dynamically detect it by running a minimal local operation.
+    dummy_nan_col = pd.Series(
+        ['a', None], dtype='category').str.get_dummies().columns.difference(
+            ['a'])[0]
+
     # Adding the nan category because there could be the case that
     # the data includes NaNs, which is not valid to be casted as a Category,
     # but nevertheless would be broadcasted as a column in get_dummies()
     columns = sorted(set().union(*split_cats))
-    columns = columns + ['nan'] if 'nan' not in columns else columns
+    if dummy_nan_col not in columns:
+      columns = columns + [dummy_nan_col]
 
     proxy = pd.DataFrame(columns=columns).astype(int)
 
