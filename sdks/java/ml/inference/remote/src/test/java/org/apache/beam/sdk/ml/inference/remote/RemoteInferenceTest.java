@@ -552,6 +552,7 @@ public class RemoteInferenceTest {
                 batchCount++;
                 totalElements += (int) StreamSupport.stream(batch.spliterator(), false).count();
               }
+              assertEquals("Expected 1 batch", 1, batchCount);
               assertEquals("Total output elements should be 2", 2, totalElements);
               return null;
             });
