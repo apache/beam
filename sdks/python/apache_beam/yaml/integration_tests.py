@@ -632,7 +632,7 @@ def temp_delta_table():
     file_size = os.path.getsize(parquet_path)
     commit_content = (
         '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}\n'
-        '{"metaData":{"id":"test-id","format":{"provider":"parquet","options":{}},"schemaString":"{\\\"type\\\":\\\"struct\\\",\\\"fields\\\":[{\\\"name\\\":\\\"name\\\",\\\"type\\\":\\\"string\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}}]}\",\"partitionColumns\":[],\"configuration\":{},\"createdAt\":123456789}}\n'
+        '{"metaData":{"id":"test-id","format":{"provider":"parquet","options":{}},"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[{\\"name\\":\\"name\\",\\"type\\":\\"string\\",\\"nullable\\":true,\\"metadata\\":{}}]}","partitionColumns":[],"configuration":{},"createdAt":123456789}}\n'
         f'{{"add":{{"path":"part-00000.parquet","partitionValues":{{}},"size":{file_size},"modificationTime":123456789,"dataChange":true}}}}\n'
     )
     commit_file = os.path.join(log_dir, "00000000000000000000.json")
