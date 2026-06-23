@@ -2433,5 +2433,64 @@ class ModelManagerTest(unittest.TestCase):
         assert_that(actual, equal_to([2, 6, 4, 11]), label='assert:inferences')
 
 
+class StringFakeModel:
+  def predict(self, example: str) -> str:
+    return example + "_processed"
+
+
+class StringFakeModelHandler(base.ModelHandler[str, base.PredictionResult, StringFakeModel]):
+  def load_model(self):
+    return StringFakeModel()
+  def run_inference(self, batch, model, inference_args=None):
+    return [base.PredictionResult(x, model.predict(x)) for x in batch]
+
+
+class RawStringFakeModelHandler(base.ModelHandler[str, str, StringFakeModel]):
+  def load_model(self):
+    return StringFakeModel()
+  def run_inference(self, batch, model, inference_args=None):
+    return [model.predict(x) for x in batch]
+
+
+class SubProcessModelTest(unittest.TestCase):
+  def test_subprocess_wrapper(self):
+    handler = StringFakeModelHandler()
+    wrapper = base.SubProcessModel(handler, model_name="string_fake_model")
+    
+    model = wrapper.load_model()
+    self.assertIsInstance(model, base.SubProcessModelServer)
+    
+    results = wrapper.run_inference(["hello", "world"], model)
+    results = list(results)
+    
+    self.assertEqual(len(results), 2)
+    self.assertEqual(results[0].example, "hello")
+    self.assertEqual(results[0].inference, "hello_processed")
+    self.assertEqual(results[1].example, "world")
+    self.assertEqual(results[1].inference, "world_processed")
+    
+    # Process is cleaned up when wrapper/model is garbage collected,
+    # but we can also trigger it manually by deleting them.
+    del model
+    del wrapper
+
+  def test_subprocess_wrapper_raw_string(self):
+    handler = RawStringFakeModelHandler()
+    wrapper = base.SubProcessModel(handler, model_name="raw_string_fake_model")
+    
+    model = wrapper.load_model()
+    self.assertIsInstance(model, base.SubProcessModelServer)
+    
+    results = wrapper.run_inference(["hello", "world"], model)
+    results = list(results)
+    
+    self.assertEqual(len(results), 2)
+    self.assertEqual(results[0], "hello_processed")
+    self.assertEqual(results[1], "world_processed")
+    
+    del model
+    del wrapper
+
+
 if __name__ == '__main__':
   unittest.main()
