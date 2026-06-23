@@ -75,8 +75,8 @@ jobs:
         with:
           python-version: default
           java-version: |
-            17
             11
+            17
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: run PostCommit Yaml Xlang Direct script
