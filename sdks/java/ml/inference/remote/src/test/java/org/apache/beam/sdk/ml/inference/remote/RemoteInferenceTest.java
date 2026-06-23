@@ -518,10 +518,8 @@ public class RemoteInferenceTest {
     pipeline.run().waitUntilFinish();
   }
 
-  // Temporary behaviour until we introduce java BatchElements transform
-  // to batch elements in RemoteInference
   @Test
-  public void testMultipleInputsProduceSeparateBatches() {
+  public void testBatchingProducesCombinedBatches() {
     List<TestInput> inputs = Arrays.asList(new TestInput("input1"), new TestInput("input2"));
 
     TestParameters params = TestParameters.builder().setConfig("test-config").build();
@@ -530,24 +528,31 @@ public class RemoteInferenceTest {
         pipeline.apply(
             "CreateInputs", Create.of(inputs).withCoder(SerializableCoder.of(TestInput.class)));
 
+    // Configure BatchElements to force a batch of exactly 2
+    org.apache.beam.sdk.transforms.BatchElements.BatchConfig batchConfig =
+        org.apache.beam.sdk.transforms.BatchElements.BatchConfig.builder()
+            .withMinBatchSize(2)
+            .withMaxBatchSize(2)
+            .build();
+
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
         inputCollection.apply(
             "RemoteInference",
             RemoteInference.<TestInput, TestOutput>invoke()
                 .handler(MockSuccessHandler.class)
+                .withBatchConfig(batchConfig)
                 .withParameters(params));
 
     PAssert.that(results)
         .satisfies(
             batches -> {
               int batchCount = 0;
+              int totalElements = 0;
               for (Iterable<PredictionResult<TestInput, TestOutput>> batch : batches) {
                 batchCount++;
-                int elementCount = (int) StreamSupport.stream(batch.spliterator(), false).count();
-                // Each batch should contain exactly 1 element
-                assertEquals("Each batch should contain 1 element", 1, elementCount);
+                totalElements += (int) StreamSupport.stream(batch.spliterator(), false).count();
               }
-              assertEquals("Expected 2 batches", 2, batchCount);
+              assertEquals("Total output elements should be 2", 2, totalElements);
               return null;
             });
 
