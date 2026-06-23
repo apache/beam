@@ -543,10 +543,12 @@ class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
   def __init__(
       self,
       handler: ModelHandler[ExampleT, PredictionT, ModelT],
-      model_name: str):
+      model_name: str,
+      timeout: int = 300):
     super().__init__()
     self._handler = handler
     self._model_name = model_name
+    self._timeout = timeout
     self._handler_path = None
 
   def load_model(self) -> Any:
@@ -582,7 +584,7 @@ class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
     req.add_header('Content-Type', 'application/octet-stream')
     
     try:
-      with urllib.request.urlopen(req, timeout=30) as response:
+      with urllib.request.urlopen(req, timeout=self._timeout) as response:
         resp_data = response.read()
         results = pickle.loads(resp_data)
         return results
@@ -618,6 +620,10 @@ class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
     return self._handler.share_model_across_processes()
 
   def __getattr__(self, name):
+    if name == '_handler':
+      raise AttributeError()
+    if '_handler' not in self.__dict__:
+      raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
     return getattr(self._handler, name)
 
 

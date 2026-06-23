@@ -98,6 +98,10 @@ else:
     """
     def __new__(cls):
       return super().__new__(cls, "beam-placeholder-model")
+  class Agent:
+    pass
+  class Runner:
+    pass
   genai_Content = Any  # type: ignore[assignment, misc]
   genai_Part = Any  # type: ignore[assignment, misc]
 
@@ -213,21 +217,29 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       import inspect
       sig = inspect.signature(self._agent_or_factory)
       params = list(sig.parameters.values())
+      required_params = [
+          p for p in params
+          if p.default is inspect.Parameter.empty and p.kind not in (
+              inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+      ]
       
-      if len(params) == 1:
+      if len(required_params) == 1:
         if local_model is None:
           raise ValueError("Agent factory expects 1 argument but no local model was configured.")
         agent = self._agent_or_factory(local_model)
-      elif len(params) == 0:
-        agent = self._agent_or_factory()
-        if local_model is not None:
-          if not isinstance(agent.model, BeamPlaceholderModel) and agent.model is not None:
-            raise ValueError(
-                f"Agent model must be BeamPlaceholderModel or None when using local model. "
-                f"Found: {agent.model}")
-          self._set_agent_model(agent, local_model, is_root=True)
+      elif len(required_params) == 0:
+        if local_model is not None and len(params) > 0:
+          agent = self._agent_or_factory(local_model)
+        else:
+          agent = self._agent_or_factory()
+          if local_model is not None:
+            if not isinstance(agent.model, BeamPlaceholderModel) and agent.model is not None:
+              raise ValueError(
+                  f"Agent model must be BeamPlaceholderModel or None when using local model. "
+                  f"Found: {agent.model}")
+            self._set_agent_model(agent, local_model, is_root=True)
       else:
-        raise ValueError("Agent factory must take 0 or 1 argument.")
+        raise ValueError("Agent factory must take 0 or 1 required argument.")
     else:
       agent = self._agent_or_factory
       if local_model is not None:
