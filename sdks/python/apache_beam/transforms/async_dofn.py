@@ -489,9 +489,11 @@ class AsyncWrapper(beam.DoFn):
         if x_id in processing_elements:
           _, future = processing_elements[x_id]
           if future.done():
-            to_return.append(future.result())
-            finished_items.append(x)
+            # Pop from local active map before checking the result
             processing_elements.pop(x_id)
+            to_return.append(future.result())
+            # Only mark as finished if result() succeeded without exception
+            finished_items.append(x)
             items_finished += 1
           else:
             items_not_yet_finished += 1
