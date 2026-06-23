@@ -1038,14 +1038,13 @@ class TestWriteToBigQuery(unittest.TestCase):
         additional_bq_parameters=additional_bq_parameters,
         schema_update_options=schema_update_options)
 
-    self.assertEqual(
-        {
-            'timePartitioning': {
-                'type': 'DAY'
-            },
-            'schemaUpdateOptions': schema_update_options,
+    self.assertEqual({
+        'timePartitioning': {
+            'type': 'DAY'
         },
-        transform._additional_bq_parameters_for_file_loads())
+        'schemaUpdateOptions': schema_update_options,
+    },
+                     transform._additional_bq_parameters_for_file_loads())
     self.assertNotIn('schemaUpdateOptions', additional_bq_parameters)
 
   def test_schema_update_options_keeps_additional_bq_parameters_path(self):
@@ -1095,14 +1094,13 @@ class TestWriteToBigQuery(unittest.TestCase):
         schema_update_options=schema_update_options)
 
     additional_parameters = transform._additional_bq_parameters_for_file_loads()
-    self.assertEqual(
-        {
-            'clustering': {
-                'fields': ['columnA']
-            },
-            'schemaUpdateOptions': schema_update_options,
+    self.assertEqual({
+        'clustering': {
+            'fields': ['columnA']
         },
-        additional_parameters('project:dataset.table'))
+        'schemaUpdateOptions': schema_update_options,
+    },
+                     additional_parameters('project:dataset.table'))
 
   def test_schema_update_options_with_value_provider_parameters(self):
     schema_update_options = [
@@ -1118,14 +1116,13 @@ class TestWriteToBigQuery(unittest.TestCase):
         schema_update_options=schema_update_options)
 
     additional_parameters = transform._additional_bq_parameters_for_file_loads()
-    self.assertEqual(
-        {
-            'timePartitioning': {
-                'type': 'DAY'
-            },
-            'schemaUpdateOptions': schema_update_options,
+    self.assertEqual({
+        'timePartitioning': {
+            'type': 'DAY'
         },
-        additional_parameters('project:dataset.table'))
+        'schemaUpdateOptions': schema_update_options,
+    },
+                     additional_parameters('project:dataset.table'))
 
   def test_schema_update_options_only_supported_for_file_loads(self):
     p = TestPipeline()

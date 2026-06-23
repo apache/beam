@@ -487,8 +487,8 @@ MAX_INSERT_PAYLOAD_SIZE = 9 << 20
 _SCHEMA_UPDATE_OPTIONS = 'schemaUpdateOptions'
 
 
-def _merge_schema_update_options(additional_bq_parameters,
-                                 schema_update_options):
+def _merge_schema_update_options(
+    additional_bq_parameters, schema_update_options):
   additional_bq_parameters = dict(additional_bq_parameters or {})
   if _SCHEMA_UPDATE_OPTIONS in additional_bq_parameters:
     raise ValueError(
