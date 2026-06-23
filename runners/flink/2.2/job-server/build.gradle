@@ -33,12 +33,6 @@ apply from: "$basePath/flink_job_server.gradle"
 // Flink 2.2 uses at.yawk.lz4:lz4-java instead of org.lz4:lz4-java
 // Explicitly prefer Flink's at.yawk.lz4 version to resolve capability conflict
 configurations.all {
-  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
-    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
-    if (candidate != null) {
-      select(candidate)
-    } else {
-      selectHighestVersion()
-    }
-  }
+  resolveCapabilitiesConflict(it, 'org.lz4:lz4-java', 'at.yawk.lz4')
 }
+
