@@ -149,13 +149,13 @@ tasks.register("yamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
 
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest --junitxml=${buildDir}/pytest_yaml_integration_tests.xml -v apache_beam/yaml/integration_tests.py"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
     }
   }
 }
@@ -168,7 +168,7 @@ tasks.register("postCommitYamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
 
   doLast {
@@ -192,7 +192,7 @@ tasks.register("postCommitYamlIntegrationTests") {
       }
       exec {
         executable 'sh'
-        args '-c', "${envdir}/bin/pytest --junitxml=${buildDir}/pytest_yaml_integration_tests_${currentTestSet}.xml -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
       }
     }
   }
