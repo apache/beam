@@ -491,6 +491,7 @@ class TriggerCopyJobs(beam.DoFn):
   """
 
   TRIGGER_DELETE_TEMP_TABLES = 'TriggerDeleteTempTables'
+  # https://docs.cloud.google.com/bigquery/quotas#copy_jobs
   MAX_SOURCES_PER_COPY_JOB = 1200
 
   def __init__(
@@ -549,10 +550,7 @@ class TriggerCopyJobs(beam.DoFn):
             'project', str, '') or self.project
       copy_from_references.append(copy_from_reference)
 
-    full_table_ref = '%s:%s.%s' % (
-        copy_to_reference.projectId,
-        copy_to_reference.datasetId,
-        copy_to_reference.tableId)
+    full_table_ref = bigquery_tools.get_hashable_destination(copy_to_reference)
 
     is_first_time = full_table_ref not in self._observed_tables
     if is_first_time:
@@ -573,11 +571,7 @@ class TriggerCopyJobs(beam.DoFn):
 
     copy_job_name_base = '%s_%s' % (
         job_name_prefix,
-        _bq_uuid(
-            '%s:%s.%s' % (
-                copy_to_reference.projectId,
-                copy_to_reference.datasetId,
-                copy_to_reference.tableId)))
+        _bq_uuid(bigquery_tools.get_hashable_destination(copy_to_reference)))
 
     project_id = (
         copy_to_reference.projectId
