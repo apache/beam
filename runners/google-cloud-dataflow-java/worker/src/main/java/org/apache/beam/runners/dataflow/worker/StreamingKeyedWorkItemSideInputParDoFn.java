@@ -167,12 +167,12 @@ public class StreamingKeyedWorkItemSideInputParDoFn<K, InputT, OutputT, W extend
   @Override
   public void finishKey(Object key) throws Exception {
     helpers.finishKey((K) key, sideInputProcessor);
+    this.sideInputProcessor = null;
   }
 
   @Override
   public void finishBundle() throws Exception {
     helpers.finishBundle(sideInputProcessor);
-    this.sideInputProcessor = null;
   }
 
   @Override

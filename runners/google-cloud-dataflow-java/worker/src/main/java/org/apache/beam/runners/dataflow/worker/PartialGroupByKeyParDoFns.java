@@ -409,6 +409,7 @@ public class PartialGroupByKeyParDoFns {
       sideInputFetcher.persist();
       sideInputFetcher = null;
       this.activeKey = false;
+      this.sideInputFetcher = null;
     }
 
     @Override

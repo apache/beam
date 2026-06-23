@@ -339,11 +339,13 @@ class SimpleParDoFnHelpers<K, InputT, OutputT, W extends BoundedWindow> {
       Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
       throws Exception {
     TimerInternals.TimerData timer = context.getNextFiredTimer(windowCoder);
-    if (timer != null && fnRunner == null) {
+    if (timer != null) {
       // If we need to run reallyStartBundle in here, we need to make sure to switch the state
       // sampler into the start state.
-      try (Closeable start = operationContext.enterStart()) {
-        reallyStartBundle();
+      if (fnRunner == null) {
+        try (Closeable start = operationContext.enterStart()) {
+          reallyStartBundle();
+        }
       }
 
       if (!activeKey) {

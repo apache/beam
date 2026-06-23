@@ -104,6 +104,7 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
     Preconditions.checkStateNotNull(sideInputProcessor).handleFinishKeyOrBundle();
     simpleDoFnRunner.finishKey(key);
     this.activeKey = false;
+    this.sideInputProcessor = null;
   }
 
   @Override
