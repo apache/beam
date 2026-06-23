@@ -596,7 +596,29 @@ or writing dated sources and sinks, e.g.</p><pre tabindex=0><code>- type: WriteT
 </span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;{{ params.path }}&#34;</span><span class=w>
 </span></span></span><span class=line><span class=cl><span class=w></span>{<span class=l>%- endmacro -%}</span><span class=w>
 </span></span></span></code></pre></div><p>This pipeline can be run with the same command as in the <code>% include</code> example
-above.</p><p>There are many more ways to import and even use template inheritance using
+above.</p><p>You can also use template inheritance (<code>{% extends %}</code> and <code>{% block %}</code>) to define a base pipeline layout and allow child pipelines to override specific blocks of transforms:</p><p>&lt;PATH_TO_YOUR_REPO>/base_pipeline.yaml</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>pipeline</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>chain</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>transforms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ReadFromText</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span>{{<span class=w> </span><span class=l>input_path }}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># Injection point for child templates</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>{<span class=l>% block custom_steps %}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>{<span class=l>% endblock %}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>WriteToText</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span>{{<span class=w> </span><span class=l>output_path }}</span><span class=w>
+</span></span></span></code></pre></div><p>&lt;PATH_TO_YOUR_REPO>/child_pipeline.yaml</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl>{<span class=l>% extends &#39;&lt;PATH_TO_YOUR_REPO&gt;/base_pipeline.yaml&#39; %}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>{<span class=l>% block custom_steps %}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>Filter</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>config</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>language</span><span class=p>:</span><span class=w> </span><span class=l>python</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>keep</span><span class=p>:</span><span class=w> </span><span class=s1>&#39;row.count &gt; 10&#39;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>{<span class=l>% endblock %}</span><span class=w>
+</span></span></span></code></pre></div><p>This pipeline can be run using the exact same command structure as above.</p><p>There are many more ways to import and even use template inheritance using
 Jinja as seen <a href=https://jinja.palletsprojects.com/en/stable/templates/#import>here</a>
 and <a href=https://jinja.palletsprojects.com/en/stable/templates/#inheritance>here</a>.
 Note that for large chunks of functionality, we recommend packaging them up via
