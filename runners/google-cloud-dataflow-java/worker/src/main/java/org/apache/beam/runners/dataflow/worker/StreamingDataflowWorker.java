@@ -1186,6 +1186,10 @@ public final class StreamingDataflowWorker {
   }
 
   private void onCompleteCommit(CompleteCommit completeCommit) {
+    if (completeCommit.status() == Windmill.CommitStatus.OK
+        && !completeCommit.finalizeIds().isEmpty()) {
+      streamingWorkScheduler.queueAppliedFinalizeIds(completeCommit.finalizeIds());
+    }
     if (completeCommit.status() != Windmill.CommitStatus.OK) {
       readerCache.invalidateReader(
           WindmillComputationKey.create(

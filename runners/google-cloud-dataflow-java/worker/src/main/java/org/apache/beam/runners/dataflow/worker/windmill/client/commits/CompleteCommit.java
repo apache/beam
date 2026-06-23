@@ -24,6 +24,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * A {@link Commit} is marked as complete when it has been attempted to be committed back to
@@ -38,19 +39,24 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 public abstract class CompleteCommit {
 
   public static CompleteCommit create(Commit commit, CommitStatus commitStatus) {
-    return new AutoValue_CompleteCommit(
+    return create(
         commit.computationId(),
         ShardedKey.create(commit.request().getKey(), commit.request().getShardingKey()),
         WorkId.builder()
             .setWorkToken(commit.request().getWorkToken())
             .setCacheToken(commit.request().getCacheToken())
             .build(),
-        commitStatus);
+        commitStatus,
+        ImmutableList.copyOf(commit.request().getFinalizeIdsList()));
   }
 
   public static CompleteCommit create(
-      String computationId, ShardedKey shardedKey, WorkId workId, CommitStatus status) {
-    return new AutoValue_CompleteCommit(computationId, shardedKey, workId, status);
+      String computationId,
+      ShardedKey shardedKey,
+      WorkId workId,
+      CommitStatus status,
+      ImmutableList<Long> finalizeIds) {
+    return new AutoValue_CompleteCommit(computationId, shardedKey, workId, status, finalizeIds);
   }
 
   public static CompleteCommit forFailedWork(Commit commit) {
@@ -64,4 +70,6 @@ public abstract class CompleteCommit {
   public abstract WorkId workId();
 
   public abstract CommitStatus status();
+
+  public abstract ImmutableList<Long> finalizeIds();
 }
