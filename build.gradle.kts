@@ -806,10 +806,10 @@ tasks.register("python311PostCommit") {
 }
 
 tasks.register("python312PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py312:postCommitIT")
+  // dependsOn(":sdks:python:test-suites:dataflow:py312:postCommitIT")
   // dependsOn(":sdks:python:test-suites:direct:py312:postCommitIT")
   // dependsOn(":sdks:python:test-suites:direct:py312:hdfsIntegrationTest")
-  // dependsOn(":sdks:python:test-suites:portable:py312:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:portable:py312:postCommitPy312")
   // dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
 }
 
