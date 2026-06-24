@@ -97,7 +97,7 @@ class DecodeImageDoFn(beam.DoFn):
 
     try:
       image = decode_pil(image_bytes)
-    except Exception as e:
+    except (OSError, ValueError) as e:
       logging.warning("Failed to decode image %s: %s", uri, e)
       image = PILImage.new("RGB", (224, 224), color=(0, 0, 0))
 
@@ -252,8 +252,7 @@ class ClipRankModelHandler(ModelHandler):
     # Flat lists for a single batched CLIP forward pass
     images: List[PILImage.Image] = []
     texts: List[str] = []
-    offsets: List[Tuple[int, int]] = []
-    # per element -> [start, end) in flat arrays
+    offsets: List[Tuple[int, int, int]] = []
     candidates_list: List[List[str]] = []
     blip_ms_list: List[Optional[int]] = []
 
@@ -263,12 +262,13 @@ class ClipRankModelHandler(ModelHandler):
       candidates_list.append(candidates)
       blip_ms_list.append(x.get("blip_ms", None))
 
+      image_idx = len(images)
+      images.append(img)
+
       start_i = len(texts)
-      for c in candidates:
-        images.append(img)
-        texts.append(c)
+      texts.extend(candidates)
       end_i = len(texts)
-      offsets.append((start_i, end_i))
+      offsets.append((image_idx, start_i, end_i))
 
     results: List[Dict[str, Any]] = []
 
@@ -288,38 +288,43 @@ class ClipRankModelHandler(ModelHandler):
       return results
 
     with torch.no_grad():
-      inputs = processor(
-          text=texts,
-          images=images,
-          return_tensors="pt",
-          padding=True,
-          truncation=True,
+      image_inputs = processor(
+        images=images,
+        return_tensors="pt",
       )
-      inputs = {
-          k: (v.to(self.device) if torch.is_tensor(v) else v)
-          for k, v in inputs.items()
+      image_inputs = {
+        k: (v.to(self.device) if torch.is_tensor(v) else v)
+        for k, v in image_inputs.items()
       }
 
-      # avoid NxN logits inside CLIPModel.forward()
-      img = model.get_image_features(
-          pixel_values=inputs["pixel_values"])  # [N, D]
-      txt = model.get_text_features(
-          input_ids=inputs["input_ids"],
-          attention_mask=inputs.get("attention_mask"),
-      )  # [N, D]
+      text_inputs = processor(
+        text=texts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+      )
+      text_inputs = {
+        k: (v.to(self.device) if torch.is_tensor(v) else v)
+        for k, v in text_inputs.items()
+      }
 
-      img = img / img.norm(dim=-1, keepdim=True)
-      txt = txt / txt.norm(dim=-1, keepdim=True)
+      image_features = model.get_image_features(
+        pixel_values=image_inputs["pixel_values"])
+      text_features = model.get_text_features(
+        input_ids=text_inputs["input_ids"],
+        attention_mask=text_inputs.get("attention_mask"),
+      )
 
-      logit_scale = model.logit_scale.exp()  # scalar tensor
-      pair_scores = (img * txt).sum(dim=-1) * logit_scale  # [N]
-      pair_scores_cpu = pair_scores.detach().cpu().tolist()
+      image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+      text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+      logit_scale = model.logit_scale.exp()
 
     batch_ms = now_millis() - start_batch
     total_pairs = len(texts)
 
     items = zip(offsets, candidates_list, blip_ms_list)
-    for (start_i, end_i), candidates, blip_ms in items:
+    for (image_idx, start_i, end_i), candidates, blip_ms in items:
       if start_i == end_i:
         total_ms = int(blip_ms) if blip_ms is not None else None
         results.append({
@@ -333,7 +338,14 @@ class ClipRankModelHandler(ModelHandler):
         })
         continue
 
-      scores = [float(pair_scores_cpu[j]) for j in range(start_i, end_i)]
+      candidate_features = text_features[start_i:end_i]
+      image_feature = image_features[image_idx].unsqueeze(0)
+
+      pair_scores = (
+          candidate_features * image_feature
+      ).sum(dim=-1) * logit_scale
+
+      scores = pair_scores.detach().cpu().tolist()
 
       if self.score_normalize:
         scores_t = torch.tensor(scores, dtype=torch.float32)
@@ -617,14 +629,16 @@ def run(
             method=method))
 
   result = pipeline.run()
-  result.wait_until_finish(duration=1800000)  # 30 min
   try:
-    result.cancel()
-  except Exception:
-    pass
+    result.wait_until_finish(duration=1800000)  # 30 min
+  finally:
+    try:
+      result.cancel()
+    except Exception:
+      logging.debug("Failed to cancel pipeline result.", exc_info=True)
 
-  if known_args.mode == 'streaming':
-    cleanup_pubsub_resources(
+    if known_args.mode == 'streaming':
+      cleanup_pubsub_resources(
         project=known_args.project,
         topic_path=known_args.pubsub_topic,
         subscription_path=known_args.pubsub_subscription)

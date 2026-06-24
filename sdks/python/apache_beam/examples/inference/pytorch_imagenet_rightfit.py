@@ -66,26 +66,34 @@ def load_image_from_uri(uri: str) -> bytes:
 
 
 def decode_and_preprocess(image_bytes: bytes, size: int = 224) -> torch.Tensor:
-  """Decode bytes->RGB PIL->resize/crop->tensor->normalize."""
+  """Decode bytes->RGB PIL->resize shorter side->center crop->normalize."""
   with PILImage.open(io.BytesIO(image_bytes)) as img:
     img = img.convert("RGB")
-    img.thumbnail((256, 256))
+
+    resize_size = 256
+    w, h = img.size
+    if w < h:
+      new_w = resize_size
+      new_h = int(h * resize_size / w)
+    else:
+      new_h = resize_size
+      new_w = int(w * resize_size / h)
+
+    img = img.resize((new_w, new_h))
+
     w, h = img.size
     left = (w - size) // 2
     top = (h - size) // 2
-    img = img.crop(
-        (max(0, left), max(0, top), min(w, left + size), min(h, top + size)))
+    img = img.crop((left, top, left + size, top + size))
 
-    # To tensor [0..1]
     import numpy as np
     mean = np.array(IMAGENET_MEAN, dtype=np.float32)
     std = np.array(IMAGENET_STD, dtype=np.float32)
-    arr = np.asarray(img).astype("float32") / 255.0  # H,W,3
-    # Normalize
+
+    arr = np.asarray(img).astype("float32") / 255.0
     arr = (arr - mean) / std
-    # HWC -> CHW
     arr = np.transpose(arr, (2, 0, 1)).astype("float32")
-    return torch.from_numpy(arr).float()  # float32, shape (3,224,224)
+    return torch.from_numpy(arr).float()
 
 
 class MakeKeyDoFn(beam.DoFn):
@@ -116,10 +124,9 @@ class MakeKeyDoFn(beam.DoFn):
 class DecodePreprocessDoFn(beam.DoFn):
   """Turn (image_id, bytes|uri) -> (image_id, torch.Tensor)"""
   def __init__(
-      self, input_mode: str, image_size: int = 224, decode_threads: int = 4):
+      self, input_mode: str, image_size: int = 224):
     self.input_mode = input_mode
     self.image_size = image_size
-    self.decode_threads = decode_threads
 
   def process(self, kv: Tuple[str, object]):
     image_id, payload = kv
@@ -332,6 +339,44 @@ def pick_batch_size(arg: str) -> Optional[int]:
     return None
 
 
+class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
+  def __init__(self, batch_sizes_to_try, image_size, *args, **kwargs):
+    self._batch_sizes_to_try = batch_sizes_to_try
+    self._rightfit_image_size = image_size
+    super().__init__(*args, **kwargs)
+
+  def load_model(self):
+    model = super().load_model()
+    last_err = None
+
+    for bs in self._batch_sizes_to_try:
+      try:
+        model_device = next(model.parameters()).device
+        dummy = torch.zeros(
+          (bs, 3, self._rightfit_image_size, self._rightfit_image_size),
+          dtype=torch.float32,
+          device=model_device)
+
+        with torch.no_grad():
+          model(dummy)
+
+        self._batch_size = bs
+        self._inference_batch_size = bs
+        logging.info("Selected inference batch size: %s", bs)
+        return model
+      except RuntimeError as e:
+        last_err = e
+        logging.warning(
+          "Batch size %s failed during worker warmup: %s", bs, e)
+
+        if torch.cuda.is_available():
+          torch.cuda.empty_cache()
+
+    raise RuntimeError(
+      f"No valid inference batch size found from {self._batch_sizes_to_try}"
+    ) from last_err
+
+
 # ============ Load pipeline ============
 
 
@@ -390,48 +435,21 @@ def run(
 
   # Build model handler with right-fitting batch size
   desired_batch = pick_batch_size(known_args.inference_batch_size)
-  tried = [64, 32, 16] if desired_batch is None else [desired_batch]
 
   # Device
   device = 'GPU' if known_args.device.upper() == 'GPU' else 'CPU'
 
-  bs_ok = None
-  last_err = None
-  for bs in tried:
-    try:
-      model_handler = PytorchModelHandlerTensor(
-          model_class=lambda: create_timm_m(known_args.pretrained_model_name),
-          model_params={},
-          state_dict_path=known_args.model_state_dict_path,
-          device=device,
-          inference_batch_size=bs
-          if bs is not None else 64,  # start guess for warmup
-      )
-      # quick warmup to validate memory (single dummy tensor)
-      dummy = torch.zeros((3, known_args.image_size, known_args.image_size),
-                          dtype=torch.float32)
-      _ = model_handler.load_model()  # ensures weights on device
-      with torch.no_grad():
-        mdl = model_handler._model
-        mdl(torch.unsqueeze(dummy, 0))
-      bs_ok = bs if bs is not None else 64
-      break
-    except RuntimeError as e:
-      last_err = e
-      logging.warning("Batch size %s failed during warmup: %s", bs, e)
-      continue
+  tried = [64, 32, 16, 8] if desired_batch is None else [desired_batch]
 
-  if bs_ok is None:
-    logging.warning(
-        "Falling back to batch_size=8 due to previous errors: %s", last_err)
-    bs_ok = 8
-    model_handler = PytorchModelHandlerTensor(
-        model_class=lambda: create_timm_m(known_args.pretrained_model_name),
-        model_params={},
-        state_dict_path=known_args.model_state_dict_path,
-        device=device,
-        inference_batch_size=bs_ok,
-    )
+  model_handler = RightFittingPytorchModelHandlerTensor(
+      batch_sizes_to_try=tried,
+      image_size=known_args.image_size,
+      device=device,
+      model_class=lambda: create_timm_m(known_args.pretrained_model_name),
+      model_params={},
+      state_dict_path=known_args.model_state_dict_path,
+      inference_batch_size=tried[0],
+  )
 
   pipeline = test_pipeline or beam.Pipeline(options=pipeline_options)
 
@@ -499,14 +517,16 @@ def run(
             method=method))
 
   result = pipeline.run()
-  result.wait_until_finish(duration=1800000)  # 30 min
   try:
-    result.cancel()
-  except Exception:
-    pass
+    result.wait_until_finish(duration=1800000)  # 30 min
+  finally:
+    try:
+      result.cancel()
+    except Exception:
+      logging.debug("Failed to cancel pipeline result.", exc_info=True)
 
-  if known_args.mode == 'streaming':
-    cleanup_pubsub_resources(
+    if known_args.mode == 'streaming':
+      cleanup_pubsub_resources(
         project=known_args.project,
         topic_path=known_args.pubsub_topic,
         subscription_path=known_args.pubsub_subscription)

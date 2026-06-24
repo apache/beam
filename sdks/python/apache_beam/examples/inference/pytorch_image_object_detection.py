@@ -64,30 +64,32 @@ def now_millis() -> int:
 
 
 def decode_to_tens(
-    image_bytes: bytes,
-    resize_shorter_side: Optional[int] = None) -> torch.Tensor:
-  """Decode bytes -> RGB PIL -> optional resize -> float tensor [0..1], CHW.
+  image_bytes: bytes,
+  image_size: int = 800) -> torch.Tensor:
+  """Decode bytes -> RGB PIL -> resize/pad square -> float tensor [0..1], CHW.
 
-  Note: TorchVision detection models apply their own normalization internally.
+  TorchVision detection models accept float tensors in [0..1]. We force a fixed
+  square shape so PytorchModelHandlerTensor can batch tensors with torch.stack.
   """
   with PILImage.open(io.BytesIO(image_bytes)) as img:
     img = img.convert("RGB")
 
-    if resize_shorter_side and resize_shorter_side > 0:
-      w, h = img.size
-      # Resize so that shorter side == resize_shorter_side, keep aspect ratio.
-      if w < h:
-        new_w = resize_shorter_side
-        new_h = int(h * (resize_shorter_side / float(w)))
-      else:
-        new_h = resize_shorter_side
-        new_w = int(w * (resize_shorter_side / float(h)))
-      img = img.resize((new_w, new_h))
+    w, h = img.size
+    scale = min(image_size / float(w), image_size / float(h))
+    new_w = max(1, int(round(w * scale)))
+    new_h = max(1, int(round(h * scale)))
+
+    img = img.resize((new_w, new_h))
+
+    padded = PILImage.new("RGB", (image_size, image_size), color=(0, 0, 0))
+    left = (image_size - new_w) // 2
+    top = (image_size - new_h) // 2
+    padded.paste(img, (left, top))
 
     import numpy as np
-    arr = np.asarray(img).astype("float32") / 255.0  # H,W,3 in [0..1]
-    arr = np.transpose(arr, (2, 0, 1))  # CHW
-    return torch.from_numpy(arr)
+    arr = np.asarray(padded).astype("float32") / 255.0
+    arr = np.transpose(arr, (2, 0, 1))
+    return torch.from_numpy(arr).float()
 
 
 # ============ DoFns ============
@@ -102,8 +104,8 @@ class MakeKeyDoFn(beam.DoFn):
 
 class DecodePreprocessDoFn(beam.DoFn):
   """Turn (uri, uri) -> (uri, tensor)."""
-  def __init__(self, resize_shorter_side: Optional[int] = None):
-    self.resize_shorter_side = resize_shorter_side
+  def __init__(self, image_size: int = 800):
+    self.image_size = image_size
 
   def process(self, kv: Tuple[str, str]):
     uri, _ = kv
@@ -111,12 +113,11 @@ class DecodePreprocessDoFn(beam.DoFn):
     try:
       with FileSystems.open(uri) as f:
         image_bytes = f.read()
-      tensor = decode_to_tens(
-          image_bytes, resize_shorter_side=self.resize_shorter_side)
+      tensor = decode_to_tens(image_bytes, image_size=self.image_size)
       preprocess_ms = now_millis() - start
       yield uri, {"tensor": tensor, "preprocess_ms": preprocess_ms}
-    except Exception as e:
-      logging.warning("Decode failed for %s: %s", uri, e)
+    except (OSError, ValueError):
+      logging.exception("Decode failed for %s", uri)
       return
 
 
@@ -288,7 +289,7 @@ def parse_known_args(argv):
   parser.add_argument('--inference_batch_size', type=int, default=8)
 
   # Preprocess
-  parser.add_argument('--resize_shorter_side', type=int, default=0)
+  parser.add_argument('--image_size', type=int, default=800)
 
   # Postprocess
   parser.add_argument('--score_threshold', type=float, default=0.5)
@@ -438,9 +439,6 @@ def run(
       known_args.mode == 'streaming')
 
   device = 'GPU' if known_args.device.upper() == 'GPU' else 'CPU'
-  resize_shorter_side = (
-      known_args.resize_shorter_side
-  ) if known_args.resize_shorter_side > 0 else None
 
   # Fixed batch size (no right-fitting)
   batch_size = int(known_args.inference_batch_size)
@@ -480,7 +478,7 @@ def run(
   preprocessed = (
       keyed
       | 'DecodePreprocess' >> beam.ParDo(
-          DecodePreprocessDoFn(resize_shorter_side=resize_shorter_side)))
+          DecodePreprocessDoFn(image_size=known_args.image_size)))
 
   to_infer = (
       preprocessed
@@ -515,14 +513,16 @@ def run(
             method=method))
 
   result = pipeline.run()
-  result.wait_until_finish(duration=1800000)  # 30 min
   try:
-    result.cancel()
-  except Exception:
-    pass
+    result.wait_until_finish(duration=1800000)  # 30 min
+  finally:
+    try:
+      result.cancel()
+    except Exception:
+      logging.debug("Failed to cancel pipeline result.", exc_info=True)
 
-  if known_args.mode == 'streaming':
-    cleanup_pubsub_resources(
+    if known_args.mode == 'streaming':
+      cleanup_pubsub_resources(
         project=known_args.project,
         topic_path=known_args.pubsub_topic,
         subscription_path=known_args.pubsub_subscription)
