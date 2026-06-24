@@ -197,6 +197,13 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setStuckCommitDurationMillis(int value);
 
   @Description(
+      "Retry commits on stream errors until this much time has elapsed since the commit was scheduled. If zero, retry forever.")
+  @Default.InstanceFactory(CommitWorkStreamRetryTimeoutMillisFactory.class)
+  long getCommitWorkStreamRetryTimeoutMillis();
+
+  void setCommitWorkStreamRetryTimeoutMillis(long value);
+
+  @Description(
       "Period for sending 'global get config' requests to the service. The duration is "
           + "specified as seconds in 'PTx.yS' format, e.g. 'PT5.125S'."
           + " Default is PT120S (2 minutes).")
@@ -341,6 +348,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
         return false;
       }
       return ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path");
+    }
+  }
+
+  class CommitWorkStreamRetryTimeoutMillisFactory implements DefaultValueFactory<Long> {
+    @Override
+    public Long create(PipelineOptions options) {
+      if (ExperimentalOptions.hasExperiment(options, "disable_commit_retry_timeout")) {
+        return 0L;
+      }
+      return Duration.standardMinutes(30).getMillis();
     }
   }
 }
