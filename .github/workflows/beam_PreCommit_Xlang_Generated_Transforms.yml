@@ -117,4 +117,5 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit --info
           arguments: |
+            -PtestJavaVersion=17
             -Pjava17Home=$JAVA_HOME_17_X64
