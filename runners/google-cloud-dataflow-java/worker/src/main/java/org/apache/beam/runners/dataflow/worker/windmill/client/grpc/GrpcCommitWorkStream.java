@@ -243,23 +243,23 @@ final class GrpcCommitWorkStream
     public void onDone(Status status) {
       if (maxRetryDuration.compareTo(Duration.ZERO) > 0) {
         // Remove the requests that have exceeded the retry time so they are not retried.
-        long startTimeRetryThresholdNanos = System.nanoTime() - maxRetryDuration.toNanos();
+        long nowNanos = System.nanoTime();
+        long maxRetryDurationNanos = maxRetryDuration.toNanos();
         Iterator<Map.Entry<Long, StreamAndRequest>> iterator = pending.entrySet().iterator();
         int keptRequests = 0, removedRequests = 0;
         while (iterator.hasNext()) {
           StreamAndRequest streamAndRequest = checkNotNull(iterator.next().getValue());
           PendingRequest pendingRequest = streamAndRequest.request;
           if (!belongsToThisHandler(streamAndRequest)
-              || pendingRequest.getStartTimeNanos() > startTimeRetryThresholdNanos) {
+              || nowNanos - pendingRequest.getStartTimeNanos() < maxRetryDurationNanos) {
             ++keptRequests;
             continue;
           }
           ++removedRequests;
+          iterator.remove();
           try {
             pendingRequest.completeWithStatus(CommitStatus.ABORTED);
-            iterator.remove();
           } catch (RuntimeException e) {
-            // Ignore exceptions and retry the commit.
             LOG.warn("Exception while aborting commit due to retry timeout.", e);
           }
         }
