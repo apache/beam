@@ -170,7 +170,8 @@ class SendingClient:
     def report_unmanaged_keys(self, project_id: str, compilance_issues: List[str]) -> None:
         """
         Report compliance issues regarding unmanaged keys into a single GitHub issue.
-        Creates a new issue if none exists, otherwise appends a comment to the open one
+        Creates a new issue if none exists. If it exists, updates the body with the newest
+        report and moves the previous content into a collapsed history section.
 
         Args:
             project_id (str): The ID of the project associated with the unmanaged keys.
@@ -183,21 +184,37 @@ class SendingClient:
         issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
         #markdown body
         timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        body = f"### Unmanaged Keys Audit Report ({timestamp})\n"
-        body += f"The following unauthorized or unmanaged keys were detected in `{project_id}`:\n\n"
+        new_report = f"### Unmanaged Keys Audit Report ({timestamp})\n"
+        new_report += f"The following unauthorized or unmanaged keys were detected in `{project_id}`:\n\n"
+
         for issue_text in compilance_issues:
-            body += f"- {issue_text}\n"
+            new_report += f"- {issue_text}\n"
 
-        body += "\n*Please investigate and revoke these keys if they are not part of the official rotation system.*"
-
+        new_report += "\n*Please investigate and revoke these keys if they are not part of the official rotation system.*"
         open_issues = self._get_open_issues(issue_title)
+
         if open_issues:
             target_issue = open_issues[0]
-            self.logger.info(f"Appending report to existing security issue #{target_issue.number}")
-            self.update_issue_body(target_issue.number, body)
+            self.logger.info(f"Appending report and archiving history to existing security issue #{target_issue.number}")
+
+            old_body = target_issue.body or ""
+            history_marker = "### History\n<details>\n<summary>Click to expand</summary>\n\n"
+
+            if history_marker in old_body:
+                # If history already exists, append the new report to it
+                headed = old_body.split(history_marker)
+                last_report = headed[0].strip()
+                old_history = headed[1].replace("</details>", "").strip()
+
+                combined_history = f"{last_report}\n\n---\n\n{old_history}"
+            else:
+                combined_history = old_body.strip()
+
+            final_body = f"{new_report}\n\n{history_marker}{combined_history}\n</details>"
+            self.update_issue_body(target_issue.number, final_body)
         else:
             self.logger.info("Creating new security issue for unmanaged keys report.")
-            new_issue = self.create_issue(issue_title, body)
+            new_issue = self.create_issue(issue_title, new_report)
             self.logger.info(f"Created new security issue : {new_issue.html_url}.")
 
     def resolve_unmanaged_keys(self) -> None:
