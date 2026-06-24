@@ -26,5 +26,7 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.13'
 
+project.tasks.register("postCommitPyDep") {}
+
 apply from: "../common.gradle"
 

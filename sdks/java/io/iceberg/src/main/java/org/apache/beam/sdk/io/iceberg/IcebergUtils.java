@@ -27,15 +27,21 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -71,6 +77,8 @@ public class IcebergUtils {
           .put(SqlTypes.DATE.getIdentifier(), Types.DateType.get())
           .put(SqlTypes.TIME.getIdentifier(), Types.TimeType.get())
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
+          .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
+          .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
@@ -175,8 +183,17 @@ public class IcebergUtils {
       return new TypeAndMaxId(
           --nestedFieldId, BEAM_TYPES_TO_ICEBERG_TYPES.get(beamType.getTypeName()));
     } else if (beamType.getTypeName().isLogicalType()) {
-      String logicalTypeIdentifier =
-          checkArgumentNotNull(beamType.getLogicalType()).getIdentifier();
+      Schema.LogicalType<?, ?> logicalType = checkArgumentNotNull(beamType.getLogicalType());
+      if (logicalType instanceof FixedPrecisionNumeric) {
+        Row args = Preconditions.checkArgumentNotNull(logicalType.getArgument());
+        Integer precision = Preconditions.checkArgumentNotNull(args.getInt32("precision"));
+        Integer scale = Preconditions.checkArgumentNotNull(args.getInt32("scale"));
+        return new TypeAndMaxId(--nestedFieldId, Types.DecimalType.of(precision, scale));
+      }
+      if (logicalType instanceof PassThroughLogicalType) {
+        return beamFieldTypeToIcebergFieldType(logicalType.getBaseType(), nestedFieldId);
+      }
+      String logicalTypeIdentifier = logicalType.getIdentifier();
       @Nullable Type type = BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES.get(logicalTypeIdentifier);
       if (type == null) {
         throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
@@ -281,6 +298,13 @@ public class IcebergUtils {
 
   /** Converts a Beam {@link Row} to an Iceberg {@link Record}. */
   public static Record beamRowToIcebergRecord(org.apache.iceberg.Schema schema, Row row) {
+    if (row.getSchema().getFieldCount() != schema.columns().size()) {
+      throw new IllegalStateException(
+          String.format(
+              "Beam Row schema and Iceberg schema have different sizes.%n\tBeam Row columns: %s%n\tIceberg schema columns: %s",
+              row.getSchema().getFieldNames(),
+              schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toList())));
+    }
     return copyRowIntoRecord(GenericRecord.create(schema), row);
   }
 
@@ -406,7 +430,13 @@ public class IcebergUtils {
   private static Object getIcebergTimestampValue(Object beamValue, boolean shouldAdjustToUtc) {
     // timestamptz
     if (shouldAdjustToUtc) {
-      if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
+      if (beamValue instanceof java.time.Instant) { // MicrosInstant
+        OffsetDateTime epoch = java.time.Instant.ofEpochSecond(0).atOffset(ZoneOffset.UTC);
+        java.time.Instant instant = (java.time.Instant) beamValue;
+        long nanosFromEpoch =
+            TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano();
+        return ChronoUnit.NANOS.addTo(epoch, nanosFromEpoch);
+      } else if (beamValue instanceof LocalDateTime) { // SqlTypes.DATETIME
         return OffsetDateTime.of((LocalDateTime) beamValue, ZoneOffset.UTC);
       } else if (beamValue instanceof Instant) { // FieldType.DATETIME
         return DateTimeUtil.timestamptzFromMicros(((Instant) beamValue).getMillis() * 1000L);
@@ -421,7 +451,11 @@ public class IcebergUtils {
     }
 
     // timestamp
-    if (beamValue instanceof LocalDateTime) { // SqlType.DATETIME
+    if (beamValue instanceof java.time.Instant) { // MicrosInstant
+      java.time.Instant instant = (java.time.Instant) beamValue;
+      return DateTimeUtil.timestampFromNanos(
+          TimeUnit.SECONDS.toNanos(instant.getEpochSecond()) + instant.getNano());
+    } else if (beamValue instanceof LocalDateTime) { // SqlType.DATETIME
       return beamValue;
     } else if (beamValue instanceof Instant) { // FieldType.DATETIME
       return DateTimeUtil.timestampFromMicros(((Instant) beamValue).getMillis() * 1000L);
@@ -595,5 +629,13 @@ public class IcebergUtils {
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;
+  }
+
+  static <T> boolean isUnbounded(PCollection<T> input) {
+    return input.isBounded().equals(PCollection.IsBounded.UNBOUNDED);
+  }
+
+  static boolean validDirectWriteLimit(@Nullable Integer directWriteByteLimit) {
+    return directWriteByteLimit != null && directWriteByteLimit >= 0;
   }
 }

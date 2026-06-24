@@ -18,7 +18,15 @@
 
 buildscript {
   repositories {
-    mavenCentral()
+    def mirrorUrl = project.findProperty("mavenCentralMirrorUrl")
+    boolean isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    def useMirror = isCi && mirrorUrl
+
+    if (!useMirror) {
+      mavenCentral()
+    } else {
+      maven { url mirrorUrl }
+    }
   }
   dependencies {
     classpath group: 'org.yaml', name: 'snakeyaml', version: '2.2'
@@ -28,6 +36,7 @@ buildscript {
 /** check that yml are valid */
 task check {
   doLast {
+    def workflowDoc = new File("${project.projectDir}/workflows/README.md").text
     List<String> errors = []
     fileTree("${project.projectDir}/workflows").matching {
       include "*.yml"
@@ -48,7 +57,7 @@ task check {
           return
         }
 
-        // precommit and postcommit should triggered by this specific file
+        // precommit and postcommit should be triggered by this specific file
         // this is to ensure not missing test during release branch verification
         if (paths != null && !paths.contains('release/trigger_all_tests.json') && !fname.toLowerCase().contains('sickbay') && !workflow.name.toLowerCase().contains('disabled')) {
           errors.add("Error validating ${fname}: " +
@@ -56,7 +65,7 @@ task check {
           return
         }
 
-        // postcommit should triggered by a specific file so that there is a way to exercise post for open PR
+        // postcommit should be triggered by a specific file so that there is a way to exercise post for open PR
         // TODO(https://github.com/apache/beam/issues/28909)
         //  remove file match trigger once a better trigger (e.g. comment trigger) is implemented
         if (fname.startsWith("beam_PostCommit")) {
@@ -67,6 +76,11 @@ task check {
             return
           }
         }
+      }
+
+      // Make sure the workflow is listed in README.md
+      if ( fname.startsWith("beam_") && !workflowDoc.contains(fname)) {
+        errors.add("Workflow ${fname} not listed in workflows/README.md");
       }
     }
     if (!errors.isEmpty()) {

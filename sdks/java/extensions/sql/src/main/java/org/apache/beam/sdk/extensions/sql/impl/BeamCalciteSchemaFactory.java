@@ -40,6 +40,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPl
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaVersion;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Factory classes that Calcite uses to create initial schema for JDBC connection.
@@ -57,9 +58,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>{@link Empty} is an override used in {@link JdbcDriver#connect(TableProvider,
  * org.apache.beam.sdk.options.PipelineOptions)} to avoid loading all available table providers.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class BeamCalciteSchemaFactory {
 
   /**
@@ -67,12 +65,14 @@ class BeamCalciteSchemaFactory {
    * actual {@link BeamCalciteSchema}.
    */
   static TableProvider fromInitialEmptySchema(JdbcConnection jdbcConnection) {
-    InitialEmptySchema initialEmptySchema = jdbcConnection.getCurrentBeamSchema();
+    InitialEmptySchema initialEmptySchema =
+        (InitialEmptySchema) jdbcConnection.getCurrentBeamSchema();
     return initialEmptySchema.getTableProvider();
   }
 
   static CatalogManager catalogFromInitialEmptySchema(JdbcConnection jdbcConnection) {
-    InitialEmptySchema initialEmptySchema = jdbcConnection.getCurrentBeamSchema();
+    InitialEmptySchema initialEmptySchema =
+        (InitialEmptySchema) jdbcConnection.getCurrentBeamSchema();
     return initialEmptySchema.getCatalogManager();
   }
 
@@ -209,7 +209,7 @@ class BeamCalciteSchemaFactory {
     }
 
     @Override
-    public Expression getExpression(SchemaPlus parentSchema, String name) {
+    public Expression getExpression(@Nullable SchemaPlus parentSchema, String name) {
       return illegal();
     }
 

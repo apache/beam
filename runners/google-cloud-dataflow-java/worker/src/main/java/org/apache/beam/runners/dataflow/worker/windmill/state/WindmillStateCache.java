@@ -28,16 +28,15 @@ import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.util.SimpleByteHistogram;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -55,6 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * thread at a time, so this is safe.
  */
 public class WindmillStateCache implements StatusDataProvider {
+
   private static final int STATE_CACHE_CONCURRENCY_LEVEL = 4;
   // Convert Megabytes to bytes
   private static final long MEGABYTES = 1024 * 1024;
@@ -76,9 +76,18 @@ public class WindmillStateCache implements StatusDataProvider {
   private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex;
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
   private final boolean supportMapViaMultimap;
+  private final long defaultMaxCachedEntryBytes;
+  private final boolean enableHistogram;
+  private volatile long maxCachedEntryBytesOverride = -1L;
 
-  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
+  WindmillStateCache(
+      long sizeMb,
+      boolean supportMapViaMultimap,
+      long maxCachedEntryBytes,
+      boolean enableHistogram) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
+    this.defaultMaxCachedEntryBytes = maxCachedEntryBytes;
+    this.enableHistogram = enableHistogram;
     int stateCacheConcurrencyLevel =
         Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
@@ -95,15 +104,32 @@ public class WindmillStateCache implements StatusDataProvider {
 
   @AutoBuilder(ofClass = WindmillStateCache.class)
   public interface Builder {
+
     Builder setSizeMb(long sizeMb);
 
     Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
+
+    Builder setMaxCachedEntryBytes(long maxCachedEntryBytes);
+
+    Builder setEnableHistogram(boolean enableHistogram);
 
     WindmillStateCache build();
   }
 
   public static Builder builder() {
-    return new AutoBuilder_WindmillStateCache_Builder().setSupportMapViaMultimap(false);
+    return new AutoBuilder_WindmillStateCache_Builder()
+        .setSupportMapViaMultimap(false)
+        .setMaxCachedEntryBytes(Long.MAX_VALUE)
+        .setEnableHistogram(true);
+  }
+
+  public void setMaxCachedEntryBytesOverride(long limit) {
+    this.maxCachedEntryBytesOverride = limit;
+  }
+
+  private long getMaxCachedEntryBytesLimit() {
+    long override = maxCachedEntryBytesOverride;
+    return override >= 0 ? override : defaultMaxCachedEntryBytes;
   }
 
   private EntryStats calculateEntryStats() {
@@ -111,10 +137,20 @@ public class WindmillStateCache implements StatusDataProvider {
     BiConsumer<StateId, StateCacheEntry> consumer =
         (stateId, stateCacheEntry) -> {
           stats.entries++;
-          stats.idWeight += stateId.getWeight();
-          stats.entryWeight += stateCacheEntry.getWeight();
+          long idWeight = stateId.getWeight();
+          stats.idWeight += idWeight;
+          long entryWeight = stateCacheEntry.getWeight();
+          stats.entryWeight += entryWeight;
           stats.entryValues += stateCacheEntry.values.size();
           stats.maxEntryValues = Math.max(stats.maxEntryValues, stateCacheEntry.values.size());
+          if (enableHistogram) {
+            stats.addKeyWeight(idWeight);
+            stats.addEntryWeight(entryWeight);
+            stateCacheEntry.values.forEach(
+                (encodedAddress, weightedValue) -> {
+                  stats.addValueWeight(weightedValue.weight);
+                });
+          }
         };
     stateCache.asMap().forEach(consumer);
     return stats;
@@ -142,23 +178,44 @@ public class WindmillStateCache implements StatusDataProvider {
   @Override
   public void appendSummaryHtml(PrintWriter response) {
     response.println("Cache Stats: <br><table>");
-    response.println(
-        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
-            + "<th>Entry Values</th><th>Max Entry Values</th>"
-            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
-            + "</tr><tr>");
     CacheStats cacheStats = stateCache.stats();
     EntryStats entryStats = calculateEntryStats();
-    response.println("<td>" + cacheStats.hitRate() + "</td>");
-    response.println("<td>" + cacheStats.evictionCount() + "</td>");
-    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
-    response.println("<td>" + entryStats.entryValues + "</td>");
-    response.println("<td>" + entryStats.maxEntryValues + "</td>");
-    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
-    response.println("<td>" + keyIndex.size() + "</td>");
-    response.println("</tr></table><br>");
+
+    response.println("<tr><th>Hit Ratio</th><td>" + cacheStats.hitRate() + "</td></tr>");
+    response.println("<tr><th>Evictions</th><td>" + cacheStats.evictionCount() + "</td></tr>");
+    response.println(
+        "<tr><th>Entries</th><td>"
+            + entryStats.entries
+            + " ("
+            + stateCache.size()
+            + " inc. weak)</td></tr>");
+    response.println("<tr><th>Entry Values</th><td>" + entryStats.entryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Max Entry Values</th><td>" + entryStats.maxEntryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Id Weight</th><td>" + entryStats.idWeight / MEGABYTES + "MB</td></tr>");
+    response.println(
+        "<tr><th>Entry Weight</th><td>" + entryStats.entryWeight / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Max Weight</th><td>" + getMaxWeight() / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Keys</th><td>" + keyIndex.size() + "</td></tr>");
+    response.println(
+        "<tr><th>Entry Size Limit</th><td>" + getMaxCachedEntryBytesLimit() + " bytes</td></tr>");
+    if (enableHistogram) {
+      response.println(
+          "<tr><th>Entry Weight Dist</th><td>"
+              + entryStats.entryWeightHistogram.format()
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Value Weight Dist</th><td>"
+              + entryStats.valueWeightHistogram.format()
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Key Weight Dist</th><td>"
+              + entryStats.keyWeightHistogram.format()
+              + "</td></tr>");
+    }
+
+    response.println("</table><br>");
   }
 
   public BaseStatusServlet statusServlet() {
@@ -174,17 +231,34 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   private static class EntryStats {
+
     long entries;
     long idWeight;
     long entryWeight;
     long entryValues;
     long maxEntryValues;
+    SimpleByteHistogram entryWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram valueWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram keyWeightHistogram = new SimpleByteHistogram();
+
+    void addEntryWeight(long weight) {
+      entryWeightHistogram.add(weight);
+    }
+
+    void addValueWeight(long weight) {
+      valueWeightHistogram.add(weight);
+    }
+
+    void addKeyWeight(long weight) {
+      keyWeightHistogram.add(weight);
+    }
   }
 
   /**
    * Struct identifying a cache entry that contains all data for a ForKey instance and namespace.
    */
   private static class StateId implements Weighted {
+
     private final ForKey forKey;
     private final String stateFamily;
     private final Object namespaceKey;
@@ -225,7 +299,8 @@ public class WindmillStateCache implements StatusDataProvider {
 
   /** Entry in the state cache that stores a map of values. */
   private static class StateCacheEntry implements Weighted {
-    private final HashMap<NamespacedTag<?>, WeightedValue<?>> values;
+
+    private final HashMap<InternedByteString, WeightedValue<? extends State>> values;
     private long weight;
 
     public StateCacheEntry() {
@@ -233,16 +308,15 @@ public class WindmillStateCache implements StatusDataProvider {
       this.weight = 0;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> tag) {
-      return Optional.ofNullable((WeightedValue<T>) values.get(new NamespacedTag<>(namespace, tag)))
-          .flatMap(WeightedValue::value);
+    public @Nullable State get(InternedByteString encodedAddress) {
+      WeightedValue<? extends State> weightedValue = values.get(encodedAddress);
+      if (weightedValue == null) return null;
+      return weightedValue.value;
     }
 
-    public <T extends State> void put(
-        StateNamespace namespace, StateTag<T> tag, T value, long weight) {
+    public <T extends State> void put(InternedByteString encodedAddress, T value, long weight) {
       values.compute(
-          new NamespacedTag<>(namespace, tag),
+          encodedAddress,
           (t, v) -> {
             @SuppressWarnings("unchecked")
             WeightedValue<T> weightedValue = (WeightedValue<T>) v;
@@ -264,38 +338,8 @@ public class WindmillStateCache implements StatusDataProvider {
       return weight + PER_CACHE_ENTRY_OVERHEAD;
     }
 
-    // Even though we use the namespace at the higher cache level, we are only using the cacheKey.
-    // That allows for grouped eviction of entries sharing a cacheKey but we require the full
-    // namespace here to distinguish between grouped entries.
-    private static class NamespacedTag<T extends State> {
+    private static class WeightedValue<T extends State> {
 
-      private final StateNamespace namespace;
-      private final Equivalence.Wrapper<StateTag<T>> tag;
-
-      NamespacedTag(StateNamespace namespace, StateTag<T> tag) {
-        this.namespace = namespace;
-        this.tag = StateTags.ID_EQUIVALENCE.wrap(tag);
-      }
-
-      @Override
-      public boolean equals(@Nullable Object other) {
-        if (other == this) {
-          return true;
-        }
-        if (!(other instanceof NamespacedTag)) {
-          return false;
-        }
-        NamespacedTag<?> that = (NamespacedTag<?>) other;
-        return namespace.equals(that.namespace) && tag.equals(that.tag);
-      }
-
-      @Override
-      public int hashCode() {
-        return Objects.hash(namespace, tag);
-      }
-    }
-
-    private static class WeightedValue<T> {
       private long weight;
       private @Nullable T value;
 
@@ -354,6 +398,7 @@ public class WindmillStateCache implements StatusDataProvider {
   // Note that we utilize the default equality and hashCode for this class based upon the instance
   // (instead of the fields) to optimize cache invalidation.
   public class ForKey {
+
     private final WindmillComputationKey computationKey;
     // Cache token must be consistent for the key for the cache to be valid.
     private final long cacheToken;
@@ -393,6 +438,7 @@ public class WindmillStateCache implements StatusDataProvider {
    * and must be flushed to the cache by calling persist. This class is not thread-safe.
    */
   public class ForKeyAndFamily {
+
     final ForKey forKey;
     final String stateFamily;
     private final HashMap<StateId, StateCacheEntry> localCache;
@@ -411,20 +457,20 @@ public class WindmillStateCache implements StatusDataProvider {
       return supportMapViaMultimap;
     }
 
-    public <T extends State> Optional<T> get(StateNamespace namespace, StateTag<T> address) {
-      @SuppressWarnings("nullness")
-      // the mapping function for localCache.computeIfAbsent (i.e stateCache.getIfPresent) is
-      // nullable.
-      Optional<StateCacheEntry> stateCacheEntry =
-          Optional.ofNullable(
-              localCache.computeIfAbsent(
-                  new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent));
-
-      return stateCacheEntry.flatMap(entry -> entry.get(namespace, address));
+    public @Nullable State get(StateNamespace namespace, InternedByteString encodedAddress) {
+      @Nullable
+      @SuppressWarnings("nullness") // stateCache::getIfPresent returns null
+      StateCacheEntry stateCacheEntry =
+          localCache.computeIfAbsent(
+              new StateId(forKey, stateFamily, namespace), stateCache::getIfPresent);
+      if (stateCacheEntry == null) {
+        return null;
+      }
+      return stateCacheEntry.get(encodedAddress);
     }
 
     public <T extends State> void put(
-        StateNamespace namespace, StateTag<T> address, T value, long weight) {
+        StateNamespace namespace, InternedByteString encodedAddress, T value, long weight) {
       StateId id = new StateId(forKey, stateFamily, namespace);
       @Nullable StateCacheEntry entry = localCache.get(id);
       if (entry == null) {
@@ -435,11 +481,19 @@ public class WindmillStateCache implements StatusDataProvider {
         boolean hadValue = localCache.putIfAbsent(id, entry) != null;
         Preconditions.checkState(!hadValue);
       }
-      entry.put(namespace, address, value, weight);
+      entry.put(encodedAddress, value, weight);
     }
 
     public void persist() {
-      localCache.forEach(stateCache::put);
+      long limit = WindmillStateCache.this.getMaxCachedEntryBytesLimit();
+      localCache.forEach(
+          (id, entry) -> {
+            if (entry.getWeight() <= limit) {
+              stateCache.put(id, entry);
+            } else {
+              stateCache.invalidate(id);
+            }
+          });
     }
   }
 }

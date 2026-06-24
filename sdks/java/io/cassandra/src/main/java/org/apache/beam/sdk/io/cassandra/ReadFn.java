@@ -50,6 +50,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
           session.getCluster().getMetadata().getKeyspace(read.keyspace().get())
               .getTable(read.table().get()).getPartitionKey().stream()
               .map(ColumnMetadata::getName)
+              .map(ReadFn::quoteIdentifier)
               .collect(Collectors.joining(","));
 
       String query = generateRangeQuery(read, partitionKey, read.ringRanges() != null);
@@ -147,5 +148,14 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
 
   private static String getJoinerClause(String queryString) {
     return queryString.toUpperCase().contains("WHERE") ? " AND " : " WHERE ";
+  }
+
+  static String quoteIdentifier(String identifier) {
+    if (identifier == null) {
+      return null;
+    }
+    // Escape any existing double quotes by doubling them
+    String escaped = identifier.replace("\"", "\"\"");
+    return "\"" + escaped + "\"";
   }
 }

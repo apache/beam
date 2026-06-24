@@ -33,6 +33,7 @@ try:
   import IPython  # pylint: disable=import-error
   from IPython import get_ipython  # pylint: disable=import-error
   from IPython.display import display as ip_display  # pylint: disable=import-error
+
   # _display_progress defines how outputs are printed on the frontend.
   _display_progress = ip_display
 

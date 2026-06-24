@@ -383,7 +383,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           return; // SUCCEEDED
         } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
-            LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
+            LOG.info("BigQuery job {} already exists, will not retry inserting it:", jobRef, e);
             return; // SUCCEEDED
           }
 
@@ -395,7 +395,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       .create()
                   : null) {
             // ignore and retry
-            LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
+            LOG.info("Failed to insert job {}, will retry:", jobRef, e);
           }
           lastException = e;
         }
@@ -431,12 +431,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
         } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
             LOG.info(
-                "BigQuery job " + jobReference + " already exists, will not retry inserting it:",
-                e);
+                "BigQuery job {} already exists, will not retry inserting it:", jobReference, e);
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.info("Failed to insert job " + jobReference + ", will retry:", e);
+          LOG.info("Failed to insert job {}, will retry:", jobReference, e);
           exception = e;
         }
       } while (nextBackOff(sleeper, backOff));
@@ -1065,9 +1064,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     .withFullResourceName(BigQueryHelpers.toTableFullResourceName(ref))
                     .create()) {
               LOG.info(
-                  String.format(
-                      "BigQuery insertAll error, retrying: %s",
-                      ApiErrorExtractor.INSTANCE.getErrorMessage(e)));
+                  "BigQuery insertAll error, retrying: {}",
+                  ApiErrorExtractor.INSTANCE.getErrorMessage(e));
             }
             try {
               long nextBackOffMillis = backoff1.nextBackOffMillis();
@@ -1462,6 +1460,31 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
+    public Table patchTableSchema(
+        TableReference tableReference, com.google.api.services.bigquery.model.TableSchema newSchema)
+        throws IOException, InterruptedException {
+      Table newTable = new Table();
+      newTable.setSchema(newSchema);
+
+      Tables.Patch request =
+          client
+              .tables()
+              .patch(
+                  tableReference.getProjectId(),
+                  tableReference.getDatasetId(),
+                  tableReference.getTableId(),
+                  newTable);
+      return executeWithRetries(
+          request,
+          String.format(
+              "Unable to patch table: %s, aborting after %d retries.",
+              tableReference, MAX_RPC_RETRIES),
+          Sleeper.DEFAULT,
+          createDefaultBackoff(),
+          DONT_RETRY_INVALID_ARG_OR_PRECONDITION);
+    }
+
+    @Override
     public void close() throws Exception {
       // Nothing to close
     }
@@ -1473,6 +1496,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     private final BigQueryWriteClient newWriteClient;
     private final long storageWriteMaxInflightRequests;
     private final long storageWriteMaxInflightBytes;
+    private final @Nullable Integer storageWriteApiMaxRequestCallbackWaitTimeSec;
     private final BigQueryIOMetadata bqIOMetadata;
     private final PipelineOptions options;
 
@@ -1483,6 +1507,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
       this.options = options;
       this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
       this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.storageWriteApiMaxRequestCallbackWaitTimeSec =
+          bqOptions.getStorageWriteApiMaxRequestCallbackWaitTimeSec();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -1491,6 +1517,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
       this.options = bqOptions;
       this.storageWriteMaxInflightRequests = bqOptions.getStorageWriteMaxInflightRequests();
       this.storageWriteMaxInflightBytes = bqOptions.getStorageWriteMaxInflightBytes();
+      this.storageWriteApiMaxRequestCallbackWaitTimeSec =
+          bqOptions.getStorageWriteApiMaxRequestCallbackWaitTimeSec();
       this.bqIOMetadata = BigQueryIOMetadata.create();
     }
 
@@ -1555,6 +1583,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   options.as(BigQueryOptions.class).getMaxConnectionPoolConnections())
               .build());
 
+      if (storageWriteApiMaxRequestCallbackWaitTimeSec != null) {
+        StreamWriter.setMaxRequestCallbackWaitTime(
+            java.time.Duration.ofSeconds(storageWriteApiMaxRequestCallbackWaitTimeSec));
+      }
+
       StreamWriter streamWriter =
           StreamWriter.newBuilder(streamName, newWriteClient)
               .setExecutorProvider(
@@ -1594,7 +1627,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
         }
 
         @Override
-        public void unpin() throws Exception {
+        public void unpin() {
           boolean closeWriter;
           synchronized (this) {
             Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");
@@ -1666,6 +1699,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
         return !errorExtractor.itemNotFound(input);
       };
 
+  static final SerializableFunction<IOException, Boolean> DONT_RETRY_INVALID_ARG_OR_PRECONDITION =
+      input -> {
+        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+        return !errorExtractor.preconditionNotMet(input) && !errorExtractor.badRequest(input);
+      };
   static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY = input -> true;
 
   @VisibleForTesting
@@ -1838,6 +1876,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             && status.getCode() == Code.RESOURCE_EXHAUSTED
             && metadata != null
             && metadata.containsKey(KEY_RETRY_INFO)) {
+          LOG.info("BigQuery direct read quota exceeded, retrying.");
           RetryInfo retryInfo = metadata.get(KEY_RETRY_INFO);
           if (retryInfo.hasRetryDelay()) {
             long delay =

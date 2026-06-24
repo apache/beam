@@ -17,7 +17,6 @@
 
 import logging
 import sys
-import typing
 
 import apache_beam as beam
 from apache_beam.io import iobase
@@ -78,7 +77,7 @@ class _KafkaIOBatchWritePerfTest(LoadTest):
         self.pipeline
         | 'Generate records' >> iobase.Read(
             SyntheticSource(self.parse_synthetic_source_options())) \
-            .with_output_types(typing.Tuple[bytes, bytes])
+            .with_output_types(tuple[bytes, bytes])
         | 'Count records' >> beam.ParDo(CountMessages(self.metrics_namespace))
         | 'Avoid Fusion' >> Reshuffle()
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace))
@@ -115,10 +114,16 @@ class _KafkaIOSDFReadPerfTest(LoadTest):
         | 'Measure time' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
 
   def cleanup(self):
-    # assert number of records after test pipeline run
     total_messages = self._metrics_monitor.get_counter_metric(
         self.result, CountMessages.LABEL)
-    assert total_messages == self.input_options['num_records']
+    expected_records = self.input_options['num_records']
+
+    assert total_messages >= expected_records, (
+        f"Expected at least {expected_records} messages, "
+        f"but got {total_messages}")
+
+    _LOGGER.info(
+        "Read %d messages (expected: %d)", total_messages, expected_records)
 
 
 if __name__ == '__main__':

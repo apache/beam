@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
 import static org.apache.beam.sdk.io.jms.CommonJms.toSerializableFunction;
 import static org.apache.beam.sdk.io.jms.JmsIO.Writer.JMS_IO_PRODUCER_METRIC_NAME;
 import static org.apache.beam.sdk.io.jms.JmsIO.Writer.PUBLICATION_RETRIES_METRIC_NAME;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
@@ -68,6 +69,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
@@ -86,6 +88,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.jms.JmsIO.UnboundedJmsReader;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -541,6 +544,16 @@ public class JmsIOTest {
     assertEquals(1, splits.size());
   }
 
+  private boolean advanceWithRetry(UnboundedSource.UnboundedReader reader) throws IOException {
+    for (int attempt = 0; attempt < 10; attempt++) {
+      if (reader.advance()) {
+        return true;
+      }
+      sleepUninterruptibly(java.time.Duration.ofMillis(100));
+    }
+    return false;
+  }
+
   @Test
   public void testCheckpointMark() throws Exception {
     // we are using no prefetch here
@@ -558,7 +571,7 @@ public class JmsIOTest {
 
     // consume 3 messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
-      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
+      assertTrue(String.format("Failed at %d-th message", i), advanceWithRetry(reader));
     }
 
     // the messages are still pending in the queue (no ACK yet)
@@ -572,7 +585,7 @@ public class JmsIOTest {
 
     // we read the 6 pending messages
     for (int i = 0; i < 6; i++) {
-      assertTrue(String.format("Failed at %d-th message", i), reader.advance());
+      assertTrue(String.format("Failed at %d-th message", i), advanceWithRetry(reader));
     }
 
     // still 6 pending messages as we didn't finalize the checkpoint
@@ -592,8 +605,8 @@ public class JmsIOTest {
     assertTrue(reader.start());
 
     // consume 2 message (NB: start already consumed the first message)
-    assertTrue(reader.advance());
-    assertTrue(reader.advance());
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     // get checkpoint mark after consumed 4 messages
     CheckpointMark mark = reader.getCheckpointMark();
@@ -724,7 +737,7 @@ public class JmsIOTest {
 
     // consume half the messages (NB: start already consumed the first message)
     for (int i = 0; i < (messagesToProcess / 2) - 1; i++) {
-      assertTrue(reader.advance());
+      assertTrue(advanceWithRetry(reader));
     }
 
     // the messages are still pending in the queue (no ACK yet)
@@ -738,7 +751,7 @@ public class JmsIOTest {
             () -> {
               try {
                 for (int i = 0; i < messagesToProcess / 2; i++) {
-                  assertTrue(reader.advance());
+                  assertTrue(advanceWithRetry(reader));
                 }
               } catch (IOException ex) {
                 throw new RuntimeException(ex);
@@ -877,7 +890,7 @@ public class JmsIOTest {
 
     // consume 3 more messages (NB: start already consumed the first message)
     for (int i = 0; i < 3; i++) {
-      assertTrue(reader.advance());
+      assertTrue(advanceWithRetry(reader));
     }
 
     // the messages are still pending in the queue (no ACK yet)
@@ -891,7 +904,7 @@ public class JmsIOTest {
 
     // we read the 6 pending messages
     for (int i = 0; i < 6; i++) {
-      assertTrue(reader.advance());
+      assertTrue(advanceWithRetry(reader));
     }
 
     // still 6 pending messages as we didn't finalize the checkpoint
@@ -1185,17 +1198,14 @@ public class JmsIOTest {
   private static class TextMessageMapperWithErrorCounter
       implements SerializableBiFunction<String, Session, Message> {
 
-    private static int errorCounter;
+    private static final AtomicInteger errorCounter = new AtomicInteger(0);
 
-    TextMessageMapperWithErrorCounter() {
-      errorCounter = 0;
-    }
+    TextMessageMapperWithErrorCounter() {}
 
     @Override
     public Message apply(String value, Session session) {
       try {
-        if (errorCounter == 0) {
-          errorCounter++;
+        if (errorCounter.getAndIncrement() == 0) {
           throw new JMSException("Error!!");
         }
         TextMessage msg = session.createTextMessage();

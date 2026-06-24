@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -145,6 +146,7 @@ public class ByteStringOutputStreamTest {
 
       ByteStringOutputStream out = new ByteStringOutputStream(0);
       assertEquals(0, out.size());
+      assertTrue(out.isEmpty());
 
       for (int pos = 0; pos < testBuffer.length; ) {
         if (testBuffer[pos] == 0) {
@@ -157,8 +159,14 @@ public class ByteStringOutputStreamTest {
         }
         assertEquals(pos, out.size());
       }
+      assertEquals(testBuffer.length == 0, out.isEmpty());
+      assertEquals(testBuffer.length, out.size());
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteString());
+      assertEquals(testBuffer.length == 0, out.isEmpty());
+      assertEquals(testBuffer.length, out.size());
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteStringAndReset());
+      assertTrue(out.isEmpty());
+      assertEquals(0, out.size());
     }
   }
 
@@ -220,6 +228,19 @@ public class ByteStringOutputStreamTest {
         byteString2 = stream.toByteString();
       }
       assertEquals(byteString1, byteString2);
+    }
+  }
+
+  @Test
+  public void testReset() throws IOException {
+    try (ByteStringOutputStream stream = new ByteStringOutputStream()) {
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
+      stream.append("test");
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
+      stream.reset();
+      assertEquals(ByteString.EMPTY, stream.toByteString());
     }
   }
 

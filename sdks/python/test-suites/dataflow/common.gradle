@@ -245,6 +245,7 @@ task validatesRunnerBatchTests {
   doLast {
     def argMap = [
         "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+        "additional_opts": ['--no_use_public_ips'],
         "sdk_location": project.ext.sdkLocation,
         "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
         "collect": "it_validatesrunner and not no_sickbay_batch"
@@ -266,6 +267,7 @@ task validatesRunnerStreamingTests {
   doFirst {
     def argMap = [
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
+                "additional_opts": ['--no_use_public_ips'],
                 "streaming": "true",
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
@@ -537,13 +539,47 @@ task geminiInferenceTest {
     }
 }
 
+// Anthropic RunInference IT tests
+task anthropicInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/anthropic_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "AnthropicTests-df-py${pythonVersionSuffix}",
+          "collect": "anthropic_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
   doLast {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+      // installGcpTest already installed apache-beam[gcp]. tensorflow-transform also
+      // lists that dependency, so a plain pip install -r can re-resolve the GCP extra
+      // and hit ResolutionTooDeep. Install TFT with --no-deps instead.
+      args '-c', ". ${envdir}/bin/activate && " +
+          "grep -v '^tensorflow-transform' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install -r /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install --no-deps tensorflow-transform==1.16.0"
     }
   }
 }
@@ -575,7 +611,7 @@ task tftTests {
 task mockAPITests {
   dependsOn 'initializeForDataflowJob'
   dependsOn ':sdks:python:sdist'
-
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/transforms/enrichment_tests_requirements.txt"
  doLast {
   def testOpts = basicTestOpts
   def argMap = [
@@ -584,11 +620,12 @@ task mockAPITests {
     "runner": "TestDataflowRunner",
     "project": "apache-beam-testing",
     "region": "us-west1",
+    "requirements_file": "$requirementsFile"
   ]
   def cmdArgs = mapToArgString(argMap)
   exec {
     executable 'sh'
-	args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+	args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
   }
  }
 }

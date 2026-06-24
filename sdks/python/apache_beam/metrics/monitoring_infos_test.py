@@ -21,7 +21,11 @@ import unittest
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import HistogramCell
+from apache_beam.metrics.cells import HistogramData
 from apache_beam.metrics.cells import StringSetCell
+from apache_beam.utils.histogram import Histogram
+from apache_beam.utils.histogram import LinearBucket
 
 
 class MonitoringInfosTest(unittest.TestCase):
@@ -76,6 +80,17 @@ class MonitoringInfosTest(unittest.TestCase):
     self.assertEqual(namespace, "stringsetnamespace")
     self.assertEqual(name, "stringsetname")
 
+  def test_parse_namespace_and_name_for_user_histogram_metric(self):
+    urn = monitoring_infos.USER_HISTOGRAM_URN
+    labels = {}
+    labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
+    labels[monitoring_infos.NAME_LABEL] = "histogramname"
+    input = monitoring_infos.create_monitoring_info(
+        urn, "typeurn", None, labels)
+    namespace, name = monitoring_infos.parse_namespace_and_name(input)
+    self.assertEqual(name, "histogramname")
+    self.assertEqual(namespace, "histogramnamespace")
+
   def test_int64_user_gauge(self):
     metric = GaugeCell().get_cumulative()
     result = monitoring_infos.int64_user_gauge(
@@ -129,6 +144,26 @@ class MonitoringInfosTest(unittest.TestCase):
 
     self.assertEqual(set(), string_set_value)
     self.assertEqual(result.labels, expected_labels)
+
+  def test_user_histogram(self):
+    datapoints = [5, 50, 90]
+    expected_labels = {}
+    expected_labels[monitoring_infos.NAMESPACE_LABEL] = "histogramnamespace"
+    expected_labels[monitoring_infos.NAME_LABEL] = "histogramname"
+
+    cell = HistogramCell(LinearBucket(0, 1, 100))
+    for point in datapoints:
+      cell.update(point)
+    metric = cell.get_cumulative()
+    result = monitoring_infos.user_histogram(
+        'histogramnamespace', 'histogramname', metric)
+    histogramvalue = monitoring_infos.extract_histogram_value(result)
+
+    self.assertEqual(result.labels, expected_labels)
+    exp_histogram = Histogram(LinearBucket(0, 1, 100))
+    for point in datapoints:
+      exp_histogram.record(point)
+    self.assertEqual(HistogramData(exp_histogram), histogramvalue)
 
 
 if __name__ == '__main__':

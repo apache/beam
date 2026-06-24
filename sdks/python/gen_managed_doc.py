@@ -22,10 +22,8 @@ SchemaTransforms)
 import argparse
 import os
 import re
-from typing import Dict
 
 import yaml
-
 from gen_protos import PROJECT_ROOT
 from gen_protos import PYTHON_SDK_ROOT
 from gen_xlang_wrappers import pretty_type
@@ -104,11 +102,11 @@ _DOCUMENTATION_DESTINATION = os.path.join(
 
 
 def generate_managed_doc(output_location):
+  from apache_beam.transforms import managed
   from apache_beam.transforms.external import MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING
   from apache_beam.transforms.external import BeamJarExpansionService
   from apache_beam.transforms.external_transform_provider import ExternalTransform
   from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
-  from apache_beam.transforms import managed
 
   with open(_DOCUMENTED_MANAGED_CONFIGS) as f:
     available_configs: dict = yaml.safe_load(f)
@@ -126,7 +124,7 @@ def generate_managed_doc(output_location):
 
   for gradle_target in expansion_service_jar_targets:
     provider = ExternalTransformProvider(BeamJarExpansionService(gradle_target))
-    discovered: Dict[str, ExternalTransform] = provider.get_all()
+    discovered: dict[str, ExternalTransform] = provider.get_all()
 
     for identifier, transform in discovered.items():
       if identifier in read_names_and_identifiers.values():

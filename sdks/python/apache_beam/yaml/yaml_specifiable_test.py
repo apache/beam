@@ -55,8 +55,11 @@ class YamlSpecifiableTransformTest(unittest.TestCase):
         (0, beam.Row(x=4)),
         (0, beam.Row(x=9)),
     ]
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
+    pipeline_options = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')
+    # Pin to FnApiRunner since this requires data from create to be
+    # ppassed to anomaly detection in a certain order
+    with beam.Pipeline('FnApiRunner', options=pipeline_options) as p:
       result = p | beam.Create(TRAIN_DATA) | YamlTransform(
           '''
           type: chain

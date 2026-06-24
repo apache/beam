@@ -24,6 +24,11 @@ import unittest
 
 from apache_beam.yaml import main
 
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
 TEST_PIPELINE = '''
 pipeline:
   type: chain
@@ -79,6 +84,7 @@ tests:
 '''
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class MainTest(unittest.TestCase):
   def test_pipeline_spec_from_file(self):
     with tempfile.TemporaryDirectory() as tmpdir:

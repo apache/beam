@@ -172,11 +172,14 @@ public class DetectNewPartitionsAction {
   }
 
   private Timestamp updateBatchToScheduled(List<PartitionMetadata> batchPartitions) {
-    final List<String> batchPartitionTokens =
+    final List<String> batchComposedPartitionTokens =
         batchPartitions.stream()
-            .map(PartitionMetadata::getPartitionToken)
+            .map(
+                partition ->
+                    PartitionMetadataDao.composePartitionTokenWithTvfName(
+                        partition.getPartitionToken(), partition.getTvfName()))
             .collect(Collectors.toList());
-    return dao.updateToScheduled(batchPartitionTokens);
+    return dao.updateToScheduled(batchComposedPartitionTokens);
   }
 
   private void outputBatch(
@@ -190,11 +193,13 @@ public class DetectNewPartitionsAction {
           partition.toBuilder().setScheduledAt(scheduledAt).build();
 
       LOG.info(
-          "[{}] Outputting partition at {} with start time {} and end time {}",
+          "[{}] Outputting partition at {} with start time {}, end time {}, creation time {} and output timestamp {}",
           updatedPartition.getPartitionToken(),
           updatedPartition.getScheduledAt(),
           updatedPartition.getStartTimestamp(),
-          updatedPartition.getEndTimestamp());
+          updatedPartition.getEndTimestamp(),
+          createdAt,
+          minWatermark);
 
       receiver.outputWithTimestamp(partition, new Instant(minWatermark.toSqlTimestamp()));
 

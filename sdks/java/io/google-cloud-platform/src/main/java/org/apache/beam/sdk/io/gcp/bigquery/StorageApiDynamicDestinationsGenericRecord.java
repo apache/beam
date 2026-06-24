@@ -22,10 +22,11 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,8 +37,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
-  private final @javax.annotation.Nullable SerializableFunction<T, TableRow>
-      formatRecordOnFailureFunction;
+  private final BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
   private boolean usesCdc;
 
@@ -45,7 +45,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
       SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord,
-      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
+      BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
@@ -56,7 +56,11 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new GenericRecordConverter(destination);
   }
 
@@ -64,15 +68,14 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
     final com.google.cloud.bigquery.storage.v1.TableSchema protoTableSchema;
     final Schema avroSchema;
-    final TableSchema bqTableSchema;
     final Descriptor descriptor;
     final @javax.annotation.Nullable Descriptor cdcDescriptor;
 
     GenericRecordConverter(DestinationT destination) throws Exception {
       avroSchema = schemaFactory.apply(getSchema(destination));
-      bqTableSchema = BigQueryUtils.toTableSchema(AvroUtils.toBeamSchema(avroSchema));
       protoTableSchema =
           AvroGenericRecordToStorageApiProto.protoTableSchemaFromAvroSchema(avroSchema);
+
       descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(protoTableSchema, true, false);
       if (usesCdc) {
@@ -84,9 +87,15 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     }
 
     @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
+    @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       String changeType = null;
       String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;
@@ -110,10 +119,10 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
-        return formatRecordOnFailureFunction.apply(element);
+        return formatRecordOnFailureFunction.apply(null, element);
       } else {
         return BigQueryUtils.convertGenericRecordToTableRow(
-            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)));
       }
     }
 

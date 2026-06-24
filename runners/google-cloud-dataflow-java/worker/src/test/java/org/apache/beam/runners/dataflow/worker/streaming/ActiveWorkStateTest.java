@@ -71,8 +71,9 @@ public class ActiveWorkStateTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
+            false,
             Instant::now),
-        ignored -> {});
+        (work, handle) -> {});
   }
 
   private static ExecutableWork expiredWork(Windmill.WorkItem workItem) {
@@ -82,8 +83,9 @@ public class ActiveWorkStateTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
+            false,
             () -> Instant.EPOCH),
-        ignored -> {});
+        (work, handle) -> {});
   }
 
   private static Work.ProcessingContext createWorkProcessingContext() {

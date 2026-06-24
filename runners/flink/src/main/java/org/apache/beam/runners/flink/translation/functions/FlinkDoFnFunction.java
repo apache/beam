@@ -223,12 +223,10 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       checkStateNotNull(collector);
-      collector.collect(
-          WindowedValues.of(
-              new RawUnionValue(0 /* single output */, output.getValue()),
-              output.getTimestamp(),
-              output.getWindows(),
-              output.getPaneInfo()));
+      WindowedValues.builder(output)
+          .withValue(new RawUnionValue(0 /* single output */, output.getValue()))
+          .setReceiver(collector::collect)
+          .output();
     }
   }
 
@@ -257,13 +255,10 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     @Override
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       checkStateNotNull(collector);
-
-      collector.collect(
-          WindowedValues.of(
-              new RawUnionValue(outputMap.get(tag), output.getValue()),
-              output.getTimestamp(),
-              output.getWindows(),
-              output.getPaneInfo()));
+      WindowedValues.builder(output)
+          .withValue(new RawUnionValue(outputMap.get(tag), output.getValue()))
+          .setReceiver(collector::collect)
+          .output();
     }
   }
 }

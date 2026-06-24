@@ -17,7 +17,9 @@
 
 import time
 import unittest
+from concurrent.futures import Future
 from unittest.mock import MagicMock
+from unittest.mock import call
 from unittest.mock import patch
 
 import apache_beam as beam
@@ -30,6 +32,8 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.caching.cacheable import CacheKey
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
 from apache_beam.runners.interactive.options.capture_limiters import Limiter
+from apache_beam.runners.interactive.recording_manager import _LOGGER
+from apache_beam.runners.interactive.recording_manager import AsyncComputationResult
 from apache_beam.runners.interactive.recording_manager import ElementStream
 from apache_beam.runners.interactive.recording_manager import Recording
 from apache_beam.runners.interactive.recording_manager import RecordingManager
@@ -41,6 +45,386 @@ from apache_beam.testing.test_stream import WindowedValueHolder
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
+
+
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
+class AsyncComputationResultTest(unittest.TestCase):
+  def setUp(self):
+    self.mock_future = MagicMock(spec=Future)
+    self.pcolls = {MagicMock(spec=beam.pvalue.PCollection)}
+    self.user_pipeline = MagicMock(spec=beam.Pipeline)
+    self.recording_manager = MagicMock(spec=RecordingManager)
+    self.recording_manager._async_computations = {}
+    self.env = ie.InteractiveEnvironment()
+    patch.object(ie, 'current_env', return_value=self.env).start()
+
+    self.mock_button = patch('ipywidgets.Button', autospec=True).start()
+    self.mock_float_progress = patch(
+        'ipywidgets.FloatProgress', autospec=True).start()
+    self.mock_output = patch('ipywidgets.Output', autospec=True).start()
+    self.mock_hbox = patch('ipywidgets.HBox', autospec=True).start()
+    self.mock_vbox = patch('ipywidgets.VBox', autospec=True).start()
+    self.mock_display = patch(
+        'apache_beam.runners.interactive.recording_manager.display',
+        autospec=True).start()
+    self.mock_clear_output = patch(
+        'apache_beam.runners.interactive.recording_manager.clear_output',
+        autospec=True).start()
+    self.mock_html = patch(
+        'apache_beam.runners.interactive.recording_manager.HTML',
+        autospec=True).start()
+
+    self.addCleanup(patch.stopall)
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_async_result_init_non_ipython(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.assertIsNotNone(async_res)
+    self.mock_future.add_done_callback.assert_called_once()
+    self.assertIsNone(async_res._cancel_button)
+
+  def test_on_done_success(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.DONE
+    self.mock_future.result.return_value = mock_pipeline_result
+    self.mock_future.exception.return_value = None
+    self.mock_future.cancelled.return_value = False
+    async_res._display_id = 'test_id'
+    self.recording_manager._async_computations['test_id'] = async_res
+
+    with patch.object(
+        self.env, 'unmark_pcollection_computing'
+    ) as mock_unmark, patch.object(
+        self.env, 'mark_pcollection_computed'
+    ) as mock_mark_computed, patch.object(
+        async_res, 'update_display'
+    ) as mock_update:
+      async_res._on_done(self.mock_future)
+      mock_unmark.assert_called_once_with(self.pcolls)
+      mock_mark_computed.assert_called_once_with(self.pcolls)
+      self.assertNotIn('test_id', self.recording_manager._async_computations)
+      mock_update.assert_called_with('Computation Finished Successfully.', 1.0)
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_on_done_failure(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    test_exception = ValueError('Test')
+    self.mock_future.exception.return_value = test_exception
+    self.mock_future.cancelled.return_value = False
+
+    with patch.object(
+        self.env, 'unmark_pcollection_computing'
+    ) as mock_unmark, patch.object(
+        self.env, 'mark_pcollection_computed'
+    ) as mock_mark_computed:
+      async_res._on_done(self.mock_future)
+      mock_unmark.assert_called_once_with(self.pcolls)
+      mock_mark_computed.assert_not_called()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_on_done_cancelled(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.cancelled.return_value = True
+
+    with patch.object(self.env, 'unmark_pcollection_computing') as mock_unmark:
+      async_res._on_done(self.mock_future)
+      mock_unmark.assert_called_once_with(self.pcolls)
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  def test_cancel(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.RUNNING
+    async_res.set_pipeline_result(mock_pipeline_result)
+    self.mock_future.done.return_value = False
+
+    self.assertTrue(async_res.cancel())
+    mock_pipeline_result.cancel.assert_called_once()
+    self.assertTrue(async_res._cancel_requested)
+    self.assertTrue(async_res._cancel_button.disabled)
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_cancel_already_done(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.done.return_value = True
+    self.assertFalse(async_res.cancel())
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  @patch('apache_beam.runners.interactive.recording_manager.display')
+  @patch('ipywidgets.Button')
+  @patch('ipywidgets.FloatProgress')
+  @patch('ipywidgets.Output')
+  @patch('ipywidgets.HBox')
+  @patch('ipywidgets.VBox')
+  def test_async_result_init_ipython(
+      self,
+      mock_vbox,
+      mock_hbox,
+      mock_output,
+      mock_progress,
+      mock_button,
+      mock_display,
+  ):
+    mock_btn_instance = mock_button.return_value
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.assertIsNotNone(async_res)
+    mock_button.assert_called_once_with(description='Cancel')
+    mock_progress.assert_called_once()
+    mock_output.assert_called_once()
+    mock_hbox.assert_called_once()
+    mock_vbox.assert_called_once()
+    mock_display.assert_called()
+    mock_btn_instance.on_click.assert_called_once_with(
+        async_res._cancel_clicked)
+    self.mock_future.add_done_callback.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.display', MagicMock())
+  @patch('ipywidgets.Button', MagicMock())
+  @patch('ipywidgets.FloatProgress', MagicMock())
+  @patch('ipywidgets.Output', MagicMock())
+  def test_cancel_clicked(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    with patch.object(async_res, 'cancel') as mock_cancel, patch.object(
+      async_res, 'update_display'
+    ) as mock_update:
+      async_res._cancel_clicked(None)
+      self.assertTrue(async_res._cancel_requested)
+      self.assertTrue(async_res._cancel_button.disabled)
+      mock_update.assert_called_once_with('Cancel requested...')
+      mock_cancel.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_update_display_non_ipython(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    with patch('builtins.print') as mock_print:
+      async_res.update_display('Test Message')
+      mock_print.assert_called_once_with('AsyncCompute: Test Message')
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  def test_update_display_ipython(self):
+    mock_prog_instance = self.mock_float_progress.return_value
+    mock_btn_instance = self.mock_button.return_value
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+
+    update_call_count = 1
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+
+    # State: Running
+    self.mock_future.done.return_value = False
+    async_res._cancel_requested = False
+    async_res.update_display('Running Test', 0.5)
+    update_call_count += 1
+    self.mock_display.assert_called()
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+    self.assertEqual(mock_prog_instance.value, 0.5)
+    self.assertFalse(mock_btn_instance.disabled)
+    self.mock_html.assert_called_with('<p>Running Test</p>')
+
+    # State: Done Success
+    self.mock_future.done.return_value = True
+    self.mock_future.exception.return_value = None
+    self.mock_future.cancelled.return_value = False
+    async_res.update_display('Done')
+    update_call_count += 1
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+    self.assertTrue(mock_btn_instance.disabled)
+    self.assertEqual(mock_prog_instance.bar_style, 'success')
+    self.assertEqual(mock_prog_instance.description, 'Done')
+
+    # State: Done Failed
+    self.mock_future.exception.return_value = Exception()
+    async_res.update_display('Failed')
+    update_call_count += 1
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+    self.assertEqual(mock_prog_instance.bar_style, 'danger')
+    self.assertEqual(mock_prog_instance.description, 'Failed')
+
+    # State: Done Cancelled
+    self.mock_future.exception.return_value = None
+    self.mock_future.cancelled.return_value = True
+    async_res.update_display('Cancelled')
+    update_call_count += 1
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+    self.assertEqual(mock_prog_instance.bar_style, 'warning')
+    self.assertEqual(mock_prog_instance.description, 'Cancelled')
+
+    # State: Cancelling
+    self.mock_future.done.return_value = False
+    async_res._cancel_requested = True
+    async_res.update_display('Cancelling')
+    update_call_count += 1
+    self.assertEqual(self.mock_clear_output.call_count, update_call_count)
+    self.assertTrue(mock_btn_instance.disabled)
+    self.assertEqual(mock_prog_instance.description, 'Cancelling...')
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_set_pipeline_result_cancel_requested(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    async_res._cancel_requested = True
+    mock_pipeline_result = MagicMock()
+    with patch.object(async_res, 'cancel') as mock_cancel:
+      async_res.set_pipeline_result(mock_pipeline_result)
+      self.assertIs(async_res._pipeline_result, mock_pipeline_result)
+      mock_cancel.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  def test_exception_timeout(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.exception.side_effect = TimeoutError
+    self.assertIsNone(async_res.exception(timeout=0.1))
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', False)
+  @patch.object(_LOGGER, 'warning')
+  def test_on_done_not_done_state(self, mock_logger_warning):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.FAILED
+    self.mock_future.result.return_value = mock_pipeline_result
+    self.mock_future.exception.return_value = None
+    self.mock_future.cancelled.return_value = False
+
+    with patch.object(self.env,
+                      'mark_pcollection_computed') as mock_mark_computed:
+      async_res._on_done(self.mock_future)
+      mock_mark_computed.assert_not_called()
+      mock_logger_warning.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  def test_cancel_no_pipeline_result(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.done.return_value = False
+    self.mock_future.cancel.return_value = True
+    with patch.object(async_res, 'update_display') as mock_update:
+      self.assertTrue(async_res.cancel())
+      mock_update.assert_any_call(
+          'Pipeline not yet fully started, cancelling future.')
+      self.mock_future.cancel.assert_called_once()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  def test_cancel_pipeline_terminal_state(self):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.done.return_value = False
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.DONE
+    async_res.set_pipeline_result(mock_pipeline_result)
+
+    with patch.object(async_res, 'update_display') as mock_update:
+      self.assertFalse(async_res.cancel())
+      mock_update.assert_any_call(
+          'Cannot cancel: Pipeline already in terminal state DONE.')
+      mock_pipeline_result.cancel.assert_not_called()
+
+  @patch('apache_beam.runners.interactive.recording_manager.IS_IPYTHON', True)
+  @patch.object(_LOGGER, 'warning')
+  @patch.object(AsyncComputationResult, 'update_display')
+  def test_cancel_pipeline_exception(
+      self, mock_update_display, mock_logger_warning):
+    async_res = AsyncComputationResult(
+        self.mock_future,
+        self.pcolls,
+        self.user_pipeline,
+        self.recording_manager,
+    )
+    self.mock_future.done.return_value = False
+    mock_pipeline_result = MagicMock()
+    mock_pipeline_result.state = PipelineState.RUNNING
+    test_exception = RuntimeError('Cancel Failed')
+    mock_pipeline_result.cancel.side_effect = test_exception
+    async_res.set_pipeline_result(mock_pipeline_result)
+    self.mock_future.cancel.return_value = False
+
+    self.assertFalse(async_res.cancel())
+
+    expected_calls = [
+        call('Initializing...'),  # From __init__
+        call('Attempting to cancel...'),  # From cancel() start
+        call('Error sending cancel signal: %s',
+             test_exception)  # From except block
+    ]
+    mock_update_display.assert_has_calls(expected_calls, any_order=False)
+
+    mock_logger_warning.assert_called_once()
+    self.mock_future.cancel.assert_called_once()
 
 
 class MockPipelineResult(beam.runners.runner.PipelineResult):
@@ -283,6 +667,9 @@ class RecordingTest(unittest.TestCase):
         cache_manager.size('full', letters_stream.cache_key))
 
 
+@unittest.skipIf(
+    not ie.current_env().is_interactive_ready,
+    '[interactive] dependency is not installed.')
 class RecordingManagerTest(unittest.TestCase):
   def test_basic_execution(self):
     """A basic pipeline to be used as a smoke test."""
@@ -564,6 +951,119 @@ class RecordingManagerTest(unittest.TestCase):
 
     # Reset cache_root value.
     ib.options.cache_root = None
+
+  def test_compute_async_blocking(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll = p | beam.Create([1, 2, 3])
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    rm = RecordingManager(p)
+
+    with patch.object(rm, '_execute_pipeline_fragment') as mock_execute:
+      mock_result = MagicMock()
+      mock_result.state = PipelineState.DONE
+      mock_execute.return_value = mock_result
+      res = rm.compute_async({pcoll}, blocking=True)
+      self.assertIsNone(res)
+      mock_execute.assert_called_once()
+      self.assertTrue(pcoll in ie.current_env().computed_pcollections)
+
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.AsyncComputationResult'
+  )
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.ThreadPoolExecutor.'
+      'submit')
+  def test_compute_async_non_blocking(self, mock_submit, mock_async_result_cls):
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll = p | beam.Create([1, 2, 3])
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    rm = RecordingManager(p)
+    mock_async_res_instance = mock_async_result_cls.return_value
+
+    # Capture the task
+    task_submitted = None
+
+    def capture_task(task):
+      nonlocal task_submitted
+      task_submitted = task
+      # Return a mock future
+      return MagicMock()
+
+    mock_submit.side_effect = capture_task
+
+    with patch.object(
+        rm, '_wait_for_dependencies', return_value=True
+    ), patch.object(
+        rm, '_execute_pipeline_fragment'
+    ) as _, patch.object(
+        ie.current_env(),
+        'mark_pcollection_computing',
+        wraps=ie.current_env().mark_pcollection_computing,
+    ) as wrapped_mark:
+
+      res = rm.compute_async({pcoll}, blocking=False)
+      wrapped_mark.assert_called_once_with({pcoll})
+
+    # Run the task to trigger the marks
+    self.assertIs(res, mock_async_res_instance)
+    mock_submit.assert_called_once()
+    self.assertIsNotNone(task_submitted)
+
+    with patch.object(
+        rm, '_wait_for_dependencies', return_value=True
+    ), patch.object(
+        rm, '_execute_pipeline_fragment'
+    ) as _:
+      task_submitted()
+
+    self.assertTrue(pcoll in ie.current_env().computing_pcollections)
+
+  def test_get_all_dependencies(self):
+    p = beam.Pipeline(InteractiveRunner())
+    p1 = p | 'C1' >> beam.Create([1])
+    p2 = p | 'C2' >> beam.Create([2])
+    p3 = p1 | 'M1' >> beam.Map(lambda x: x)
+    p4 = (p2, p3) | 'F1' >> beam.Flatten()
+    p5 = p3 | 'M2' >> beam.Map(lambda x: x)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    rm = RecordingManager(p)
+    rm.record_pipeline()  # Analyze pipeline
+
+    self.assertEqual(rm._get_all_dependencies({p1}), set())
+    self.assertEqual(rm._get_all_dependencies({p3}), {p1})
+    self.assertEqual(rm._get_all_dependencies({p4}), {p1, p2, p3})
+    self.assertEqual(rm._get_all_dependencies({p5}), {p1, p3})
+    self.assertEqual(rm._get_all_dependencies({p4, p5}), {p1, p2, p3})
+
+  @patch(
+      'apache_beam.runners.interactive.recording_manager.AsyncComputationResult'
+  )
+  def test_wait_for_dependencies(self, mock_async_result_cls):
+    p = beam.Pipeline(InteractiveRunner())
+    p1 = p | 'C1' >> beam.Create([1])
+    p2 = p1 | 'M1' >> beam.Map(lambda x: x)
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+    rm = RecordingManager(p)
+    rm.record_pipeline()
+
+    # Scenario 1: No dependencies computing
+    self.assertTrue(rm._wait_for_dependencies({p2}))
+
+    # Scenario 2: Dependency is computing
+    mock_future = MagicMock(spec=Future)
+    mock_async_res = MagicMock(spec=AsyncComputationResult)
+    mock_async_res._future = mock_future
+    mock_async_res._pcolls = {p1}
+    rm._async_computations['dep_id'] = mock_async_res
+    ie.current_env().mark_pcollection_computing({p1})
+
+    self.assertTrue(rm._wait_for_dependencies({p2}))
+    mock_future.result.assert_called_once()
+    ie.current_env().unmark_pcollection_computing({p1})
 
 
 if __name__ == '__main__':

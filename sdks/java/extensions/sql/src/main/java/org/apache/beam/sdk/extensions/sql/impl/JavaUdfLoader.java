@@ -125,6 +125,20 @@ public class JavaUdfLoader {
    */
   private File downloadFile(String inputPath, String mimeType) throws IOException {
     Preconditions.checkArgument(!inputPath.isEmpty(), "Path cannot be empty.");
+
+    // Issue warning when downloading from public repositories
+    if (inputPath.startsWith("http://") || inputPath.startsWith("https://")) {
+      if (inputPath.contains("repo.maven.apache.org")
+          || inputPath.contains("repo1.maven.org")
+          || inputPath.contains("maven.google.com")
+          || inputPath.contains("maven-central.storage-download.googleapis.com")) {
+        LOG.warn(
+            "WARNING: Downloading JAR file from public repository: {}. "
+                + "This may pose security risks or cause instability due to repository availability. Consider pre-staging dependencies or using private mirrors.",
+            inputPath);
+      }
+    }
+
     ResourceId inputResource = FileSystems.matchNewResource(inputPath, false /* is directory */);
     try (ReadableByteChannel inputChannel = FileSystems.open(inputResource)) {
       File outputFile = File.createTempFile("sql-udf-", inputResource.getFilename());

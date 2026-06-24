@@ -166,7 +166,6 @@ public final class GrpcWindmillServer extends WindmillServerStub {
     Set<HostAndPort> dispatcherEndpoints = Sets.newHashSet(HostAndPort.fromHost(name));
     GrpcDispatcherClient dispatcherClient =
         GrpcDispatcherClient.forTesting(
-            testOptions,
             windmillStubFactoryFactory,
             windmillServiceStubs,
             windmillMetadataServiceStubs,
@@ -198,7 +197,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
             options,
             GrpcWindmillStreamFactory.of(createJobHeader(options, 1)).build(),
             // No-op, Appliance does not use Dispatcher to call Streaming Engine.
-            GrpcDispatcherClient.create(options, windmillStubFactoryFactory));
+            GrpcDispatcherClient.create(windmillStubFactoryFactory));
     testServer.syncApplianceStub = createWindmillApplianceStubWithDeadlineInterceptor(channel);
     return testServer;
   }

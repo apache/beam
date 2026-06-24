@@ -25,11 +25,13 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -89,13 +91,20 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
-      TimeDomain timeDomain) {
-    doFnRunner.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+      TimeDomain timeDomain,
+      CausedByDrain causedByDrain) {
+    doFnRunner.onTimer(
+        timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain, causedByDrain);
   }
 
   @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
+  }
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    doFnRunner.finishKey(key);
   }
 
   @Override
@@ -142,7 +151,15 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           } else {
             nonLateElements.add(
                 WindowedValues.of(
-                    element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
+                    element.getValue(),
+                    element.getTimestamp(),
+                    window,
+                    element.getPaneInfo(),
+                    element.getRecordId(),
+                    element.getRecordOffset(),
+                    element.causedByDrain(),
+                    element.getOpenTelemetryContext(),
+                    element.getValueKind()));
           }
         }
       }

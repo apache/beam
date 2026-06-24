@@ -18,7 +18,7 @@
 # This workflow will update python dependencies as part of the release process
 # And commit the changes into the branch release, creating a PR into the branch
 
-name: Update Python Depedencies
+name: Update Python Dependencies
 
 on:
   schedule:
@@ -36,34 +36,34 @@ env:
 
 jobs:
   set-properties:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, highmem]
     outputs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
   update_python_dependencies:
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     needs: set-properties
     name: Update Python Dependencies
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.9
             3.10
             3.11
             3.12
+            3.13
+            3.14
           java-version: default
           go-version: default
           disable-cache: true
-          
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

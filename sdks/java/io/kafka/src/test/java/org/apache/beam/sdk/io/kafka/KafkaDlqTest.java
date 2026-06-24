@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -69,9 +71,9 @@ public class KafkaDlqTest {
     try {
       messages =
           Arrays.asList(
-              "{\"name\":\"a\"}".getBytes("UTF8"),
-              "{\"name\":\"b\"}".getBytes("UTF8"),
-              "{\"name\":\"c\"}".getBytes("UTF8"));
+              "{\"name\":\"a\"}".getBytes(UTF_8),
+              "{\"name\":\"b\"}".getBytes(UTF_8),
+              "{\"name\":\"c\"}".getBytes(UTF_8));
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messages));
@@ -93,9 +95,9 @@ public class KafkaDlqTest {
     try {
       messagesWithError =
           Arrays.asList(
-              "{\"error\":\"a\"}".getBytes("UTF8"),
-              "{\"error\":\"b\"}".getBytes("UTF8"),
-              "{\"error\":\"c\"}".getBytes("UTF8"));
+              "{\"error\":\"a\"}".getBytes(UTF_8),
+              "{\"error\":\"b\"}".getBytes(UTF_8),
+              "{\"error\":\"c\"}".getBytes(UTF_8));
     } catch (Exception e) {
     }
     PCollection<byte[]> input = p.apply(Create.of(messagesWithError));

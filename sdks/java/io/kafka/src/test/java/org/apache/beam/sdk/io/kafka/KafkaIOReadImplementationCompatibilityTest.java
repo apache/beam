@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransform;
 import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransformWithOffsetDedup;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -109,7 +108,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
       Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>> kafkaReadDecorator) {
     p.apply(
         kafkaReadDecorator.apply(
-            mkKafkaReadTransform(
+            KafkaIOTest.mkKafkaReadTransform(
                 1000,
                 null,
                 new ValueAsTimestampFn(),
@@ -117,24 +116,23 @@ public class KafkaIOReadImplementationCompatibilityTest {
                 false, /*allowDuplicates*/
                 0, /*numKeys*/
                 null, /*offsetDeduplication*/
-                null /*topics*/)));
+                null, /*topics*/
+                null /*redistributeByRecordKey*/)));
     return p.run();
   }
 
-  private Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>>
-      legacyDecoratorFunction() {
-    return read -> read.withMaxReadTime(Duration.millis(10));
+  private KafkaIO.Read<Integer, Long> legacyDecoratorFunction(KafkaIO.Read<Integer, Long> read) {
+    return read.withMaxReadTime(Duration.millis(10));
   }
 
-  private Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>>
-      sdfDecoratorFunction() {
-    return read -> read.withStopReadTime(Instant.ofEpochMilli(10));
+  private KafkaIO.Read<Integer, Long> sdfDecoratorFunction(KafkaIO.Read<Integer, Long> read) {
+    return read.withStopReadTime(Instant.ofEpochMilli(10));
   }
 
   @Test
   public void testReadTransformCreationWithLegacyImplementationBoundProperty() {
     PipelineResult r =
-        testReadTransformCreationWithImplementationBoundProperties(legacyDecoratorFunction());
+        testReadTransformCreationWithImplementationBoundProperties(this::legacyDecoratorFunction);
     String[] expect =
         KafkaIOTest.mkKafkaTopics.stream()
             .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
@@ -156,7 +154,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
   @Test
   public void testReadTransformCreationWithSdfImplementationBoundProperty() {
     PipelineResult r =
-        testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
+        testReadTransformCreationWithImplementationBoundProperties(this::sdfDecoratorFunction);
     String[] expect =
         KafkaIOTest.mkKafkaTopics.stream()
             .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
@@ -177,6 +175,6 @@ public class KafkaIOReadImplementationCompatibilityTest {
     thrown.expectMessage("STOP_READ_TIME");
 
     testReadTransformCreationWithImplementationBoundProperties(
-        legacyDecoratorFunction().andThen(sdfDecoratorFunction()));
+        read -> sdfDecoratorFunction(legacyDecoratorFunction(read)));
   }
 }

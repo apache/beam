@@ -36,15 +36,11 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
 from typing import DefaultDict
-from typing import Dict
-from typing import FrozenSet
 from typing import Generic
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import MutableMapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -58,7 +54,6 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import data_sampler
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.data_plane import PeriodicThread
@@ -71,8 +66,7 @@ from apache_beam.utils.sentinel import Sentinel
 from apache_beam.version import __version__ as beam_version
 
 if TYPE_CHECKING:
-  from apache_beam.portability.api import endpoints_pb2
-  from apache_beam.utils.profiler import Profile
+  pass
 
 T = TypeVar('T')
 _KT = TypeVar('_KT')
@@ -454,6 +448,8 @@ class BundleProcessorCache(object):
     )  # type: collections.OrderedDict[str, Exception]
     self.active_bundle_processors = {
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
+    self.processors_being_created = {
+    }  # type: Dict[str, Tuple[str, threading.Thread, float]]
     self.cached_bundle_processors = collections.defaultdict(
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
     self.last_access_times = collections.defaultdict(
@@ -501,7 +497,8 @@ class BundleProcessorCache(object):
           pass
         return processor
       except IndexError:
-        pass
+        self.processors_being_created[instruction_id] = (
+            bundle_descriptor_id, threading.current_thread(), time.time())
 
     # Make sure we instantiate the processor while not holding the lock.
 
@@ -521,6 +518,7 @@ class BundleProcessorCache(object):
     with self._lock:
       self.active_bundle_processors[
         instruction_id] = bundle_descriptor_id, processor
+      del self.processors_being_created[instruction_id]
       try:
         del self.known_not_running_instruction_ids[instruction_id]
       except KeyError:
@@ -559,15 +557,18 @@ class BundleProcessorCache(object):
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
+    processor = None
     with self._lock:
       self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
-      processor = self.active_bundle_processors[instruction_id][1]
-      del self.active_bundle_processors[instruction_id]
+      if instruction_id in self.active_bundle_processors:
+        processor = self.active_bundle_processors.pop(instruction_id)[1]
 
     # Perform the shutdown while not holding the lock.
-    processor.shutdown()
+    if processor:
+      processor.shutdown()
+    self.data_channel_factory.cleanup(instruction_id)
 
   def release(self, instruction_id):
     # type: (str) -> None
@@ -690,9 +691,9 @@ class SdkWorker(object):
       instruction_id  # type: str
   ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
-    bundle_processor = self.bundle_processor_cache.get(
-        instruction_id, request.process_bundle_descriptor_id)
     try:
+      bundle_processor = self.bundle_processor_cache.get(
+          instruction_id, request.process_bundle_descriptor_id)
       with bundle_processor.state_handler.process_instruction_id(
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
@@ -1447,14 +1448,21 @@ class _DeferredCall(_Future[T]):
 
   def get(self, timeout=None):
     # type: (Optional[float]) -> T
-    return self._func(*(arg.get(timeout) for arg in self._args))
+    # List comprehension, not generator: *(gen) causes CPython to build the
+    # argument tuple incrementally via _PyTuple_Resize, which asserts
+    # Py_REFCNT(v)==1. A GC cycle between yields can increment that refcount,
+    # raising SystemError (Objects/tupleobject.c:927). See
+    # https://github.com/python/cpython/issues/127058 (fixed in 3.14.0a3+:
+    # https://github.com/python/cpython/commit/5a23994). *[list] allocates the
+    # tuple once at its final size, avoiding the resize entirely.
+    return self._func(*[arg.get(timeout) for arg in self._args])
 
   def set(self, value):
     # type: (T) -> _Future[T]
     raise NotImplementedError()
 
 
-class KeyedDefaultDict(DefaultDict[_KT, _VT]):
+class KeyedDefaultDict(collections.defaultdict[_KT, _VT]):
   if TYPE_CHECKING:
     # we promise to only use a subset of what DefaultDict can do
     def __init__(self, default_factory):

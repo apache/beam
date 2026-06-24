@@ -91,6 +91,7 @@ if [[ -z "$IS_SNAPSHOT_VERSION" ]] ; then
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"$TARGET_VERSION\"/" sdks/go/pkg/beam/core/core.go
   sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION\",/" sdks/typescript/package.json
+  sed -i -e "s/DEFAULT_BEAM_VERSION=\".*\"/DEFAULT_BEAM_VERSION=\"$TARGET_VERSION\"/" scripts/beam-sql.sh
 else
   # For snapshot version:
   #   Java/gradle appends -SNAPSHOT
@@ -103,6 +104,7 @@ else
   sed -i -e "s/sdk_version=.*/sdk_version=$TARGET_VERSION.dev/" gradle.properties
   sed -i -e "s/SdkVersion = .*/SdkVersion = \"${TARGET_VERSION}.dev\"/" sdks/go/pkg/beam/core/core.go
   sed -i -e "s/\"version\": .*/\"version\": \"$TARGET_VERSION-SNAPSHOT\",/" sdks/typescript/package.json
+  sed -i -e "s/DEFAULT_BEAM_VERSION=\".*\"/DEFAULT_BEAM_VERSION=\"$TARGET_VERSION\"/" scripts/beam-sql.sh
 fi
 
 if [[ "$GIT_ADD" == yes ]] ; then
@@ -112,4 +114,5 @@ if [[ "$GIT_ADD" == yes ]] ; then
   git add sdks/go/pkg/beam/core/core.go
   git add runners/google-cloud-dataflow-java/build.gradle
   git add sdks/typescript/package.json
+  git add scripts/beam-sql.sh
 fi

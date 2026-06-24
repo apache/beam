@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.instanceOf;
@@ -133,6 +134,11 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
+import org.apache.beam.sdk.state.BagState;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.MultimapState;
+import org.apache.beam.sdk.state.OrderedListState;
+import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -148,6 +154,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -165,11 +172,17 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayl
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -185,6 +198,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -1224,86 +1238,54 @@ public class DataflowRunnerTest implements Serializable {
     DataflowRunner.fromOptions(options);
   }
 
+  private static RunnerApi.Pipeline containerUrlToPipeline(String url) {
+    return RunnerApi.Pipeline.newBuilder()
+        .setComponents(
+            RunnerApi.Components.newBuilder()
+                .putEnvironments(
+                    "env",
+                    RunnerApi.Environment.newBuilder()
+                        .setUrn(BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
+                        .setPayload(
+                            RunnerApi.DockerPayload.newBuilder()
+                                .setContainerImage(url)
+                                .build()
+                                .toByteString())
+                        .build()))
+        .build();
+  }
+
   @Test
   public void testApplySdkEnvironmentOverrides() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.9_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/apache-beam-testing/beam-sdk/beam_python3.10_sdk:latest";
     options.setSdkHarnessContainerImageOverrides(".*python.*," + gcrPythonContainerUrl);
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
   @Test
   public void testApplySdkEnvironmentOverridesByDefault() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
-    String dockerHubPythonContainerUrl = "apache/beam_python3.9_sdk:latest";
-    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.9_sdk:latest";
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:latest";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:latest";
     DataflowRunner runner = DataflowRunner.fromOptions(options);
-    RunnerApi.Pipeline pipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(dockerHubPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
-    RunnerApi.Pipeline expectedPipeline =
-        RunnerApi.Pipeline.newBuilder()
-            .setComponents(
-                RunnerApi.Components.newBuilder()
-                    .putEnvironments(
-                        "env",
-                        RunnerApi.Environment.newBuilder()
-                            .setUrn(
-                                BeamUrns.getUrn(RunnerApi.StandardEnvironments.Environments.DOCKER))
-                            .setPayload(
-                                RunnerApi.DockerPayload.newBuilder()
-                                    .setContainerImage(gcrPythonContainerUrl)
-                                    .build()
-                                    .toByteString())
-                            .build()))
-            .build();
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
+    assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
+  }
+
+  @Test
+  public void testApplySdkEnvironmentOverridesRcByDefault() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    String dockerHubPythonContainerUrl = "apache/beam_python3.10_sdk:2.68.0rc2";
+    String gcrPythonContainerUrl = "gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:2.68.0";
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    RunnerApi.Pipeline pipeline = containerUrlToPipeline(dockerHubPythonContainerUrl);
+    RunnerApi.Pipeline expectedPipeline = containerUrlToPipeline(gcrPythonContainerUrl);
     assertThat(runner.applySdkEnvironmentOverrides(pipeline, options), equalTo(expectedPipeline));
   }
 
@@ -1809,7 +1791,11 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingAnyFnApiExperimentEnablesUnifiedWorker() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       ExperimentalOptions.addExperiment(options, experiment);
       Pipeline p = Pipeline.create(options);
@@ -1818,13 +1804,17 @@ public class DataflowRunnerTest implements Serializable {
       assertFalse(options.isEnableStreamingEngine());
       assertThat(
           options.getExperiments(),
-          containsInAnyOrder(
+          hasItems(
               "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission"));
     }
 
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       options.setStreaming(true);
       ExperimentalOptions.addExperiment(options, experiment);
@@ -1834,7 +1824,7 @@ public class DataflowRunnerTest implements Serializable {
       assertTrue(options.isEnableStreamingEngine());
       assertThat(
           options.getExperiments(),
-          containsInAnyOrder(
+          hasItems(
               "beam_fn_api",
               "use_runner_v2",
               "use_unified_worker",
@@ -1848,16 +1838,27 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingConflictingEnableAndDisableExperimentsThrowsException() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       for (String disabledExperiment :
           ImmutableList.of(
-              "disable_runner_v2", "disable_runner_v2_until_2023", "disable_prime_runner_v2")) {
+              "disable_runner_v2",
+              "disable_runner_v2_until_2023",
+              "disable_prime_runner_v2",
+              "enable_streaming_java_runner",
+              "disable_portable_runner")) {
         DataflowPipelineOptions options = buildPipelineOptions();
         ExperimentalOptions.addExperiment(options, experiment);
         ExperimentalOptions.addExperiment(options, disabledExperiment);
         Pipeline p = Pipeline.create(options);
         p.apply(Create.of("A"));
-        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+        assertThrows(
+            "Dataflow Portable Runner both disabled and enabled",
+            IllegalArgumentException.class,
+            p::run);
       }
     }
   }
@@ -2543,7 +2544,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setDataflowServiceOptions(ImmutableList.of("streaming_mode_at_least_once"));
     Pipeline pipeline = Pipeline.create(options);
 
-    ImmutableList<KV<String, Integer>> abitraryKVs =
+    ImmutableList<KV<String, Integer>> arbitraryKVs =
         ImmutableList.of(
             KV.of("k1", 3),
             KV.of("k5", Integer.MAX_VALUE),
@@ -2554,7 +2555,7 @@ public class DataflowRunnerTest implements Serializable {
             KV.of("k3", 0));
     PCollection<KV<String, Integer>> input =
         pipeline.apply(
-            Create.of(abitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+            Create.of(arbitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
     // The allowDuplicates for Redistribute is false by default.
     PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
     pipeline.run();
@@ -2715,5 +2716,255 @@ public class DataflowRunnerTest implements Serializable {
         }
       };
     }
+  }
+
+  @Test
+  public void testBatchStateSupported() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(KV.of(13, 42)))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Integer>, Void>() {
+                  @StateId("value")
+                  private final StateSpec<ValueState<Void>> valueState = StateSpecs.value();
+
+                  @StateId("bag")
+                  private final StateSpec<BagState<Void>> bagState = StateSpecs.bag();
+
+                  @StateId("set")
+                  private final StateSpec<SetState<Void>> setState = StateSpecs.set();
+
+                  @StateId("map")
+                  private final StateSpec<MapState<Void, Void>> mapState = StateSpecs.map();
+
+                  @StateId("multimap")
+                  private final StateSpec<MultimapState<Void, Void>> multimapState =
+                      StateSpecs.multimap();
+
+                  @StateId("ordered list")
+                  private final StateSpec<OrderedListState<Void>> orderedListState =
+                      StateSpecs.orderedList(VoidCoder.of());
+
+                  @ProcessElement
+                  public void process() {}
+                }));
+    p.run();
+  }
+
+  @Test
+  public void testStreamingStateSupported() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRunner(DataflowRunner.class);
+    options.setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+    p.apply(Create.of(KV.of(13, 42)))
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Integer>, Void>() {
+                  @StateId("value")
+                  private final StateSpec<ValueState<Void>> valueState = StateSpecs.value();
+
+                  @StateId("bag")
+                  private final StateSpec<BagState<Void>> bagState = StateSpecs.bag();
+
+                  @StateId("set")
+                  private final StateSpec<SetState<Void>> setState = StateSpecs.set();
+
+                  @StateId("map")
+                  private final StateSpec<MapState<Void, Void>> mapState = StateSpecs.map();
+
+                  @StateId("multimap")
+                  private final StateSpec<MultimapState<Void, Void>> multimapState =
+                      StateSpecs.multimap();
+
+                  @StateId("ordered list")
+                  private final StateSpec<OrderedListState<Void>> orderedListState =
+                      StateSpecs.orderedList(VoidCoder.of());
+
+                  @ProcessElement
+                  public void process() {}
+                }));
+    p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testValueKindParameterAndOutputWithKind() {
+    boolean isRunnerV2 = false;
+    @Nullable
+    List<String> experiments =
+        pipeline.getOptions().as(DataflowPipelineOptions.class).getExperiments();
+    if (experiments != null
+        && (experiments.contains("use_unified_worker") || experiments.contains("use_runner_v2"))) {
+      isRunnerV2 = true;
+    }
+    // Skipp runner v2 because its Create uses a splittable DoFn, which contains a shuffle.
+    // ValueKind is not supported in Dataflow shuffle yet
+    assumeFalse(isRunnerV2);
+
+    PCollection<String> input = pipeline.apply(Create.of("a", "b", "c", "d"));
+    TupleTag<String> mainTag = new TupleTag<String>() {};
+    TupleTag<String> sideTag = new TupleTag<String>() {};
+
+    PCollectionTuple tuple =
+        input.apply(
+            "SetKind",
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element,
+                          @Timestamp org.joda.time.Instant timestamp,
+                          BoundedWindow window,
+                          PaneInfo paneInfo,
+                          ProcessContext c,
+                          MultiOutputReceiver outputReceiver) {
+                        switch (element) {
+                          case "a":
+                            c.output(element); // default: INSERT
+                            return;
+                          case "b":
+                            c.outputWindowedValue(
+                                WindowedValues.of(
+                                    element,
+                                    timestamp,
+                                    Collections.singleton(window),
+                                    paneInfo,
+                                    null,
+                                    null,
+                                    CausedByDrain.NORMAL,
+                                    null,
+                                    ValueKind.UPDATE_BEFORE));
+                            return;
+                          case "c":
+                            outputReceiver
+                                .get(mainTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.UPDATE_AFTER)
+                                .output();
+                            return;
+                          case "d":
+                            outputReceiver
+                                .get(sideTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.DELETE)
+                                .output();
+                        }
+                      }
+                    })
+                .withOutputTags(mainTag, TupleTagList.of(sideTag)));
+
+    PCollection<String> main =
+        tuple
+            .get(mainTag)
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PCollection<String> side =
+        tuple
+            .get(sideTag)
+            .apply(
+                "ReadKind-SideTag",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(main).containsInAnyOrder("a:INSERT", "b:UPDATE_BEFORE", "c:UPDATE_AFTER");
+    PAssert.that(side).containsInAnyOrder("d:DELETE");
+    pipeline.run();
+  }
+
+  @Test
+  @Ignore("enable once when element metadata is supported in shuffle")
+  @Category({ValidatesRunner.class})
+  public void testValueKindPreservedAcrossShuffle() {
+    PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "value")));
+
+    PCollection<String> output =
+        input
+            .apply(
+                "SetKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element,
+                          OutputReceiver<KV<String, String>> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
+                      }
+                    }))
+            .apply(Reshuffle.of())
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element, ProcessContext c, ValueKind kind) {
+                        c.output(element.getValue() + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder("value:UPDATE_BEFORE");
+    pipeline.run();
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PreCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.74.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertFalse(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PostCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2NoCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
   }
 }

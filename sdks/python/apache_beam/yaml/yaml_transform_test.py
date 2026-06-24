@@ -19,15 +19,27 @@ import collections
 import glob
 import logging
 import os
+import shutil
 import tempfile
 import unittest
+
+import yaml
 
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import YamlTransform
+from apache_beam.yaml.yaml_transform import expand_jinja
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CreateTimestamped(beam.PTransform):
@@ -83,6 +95,7 @@ TEST_PROVIDERS = {
 }
 
 
+@unittest.skipIf(jsonschema is None, "Yaml dependencies not installed")
 class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -112,6 +125,26 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 1, 8, 27]))
+
+  def test_composite_implicit_input_chaining(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      elements = p | beam.Create([1, 2, 3])
+      result = elements | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: PyMap
+              name: Square
+              config:
+                  fn: "lambda x: x * x"
+            - type: PyMap
+              name: Increment
+              config:
+                  fn: "lambda x: x + 1"
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([2, 5, 10]))
 
   def test_chain_with_input(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -224,20 +257,15 @@ class YamlTransformE2ETest(unittest.TestCase):
       raise unittest.SkipTest('Pandas not available.')
 
     with tempfile.TemporaryDirectory() as tmpdir:
-      data = pd.DataFrame([
-          {
-              'label': '11a', 'rank': 0
-          },
-          {
-              'label': '37a', 'rank': 1
-          },
-          {
-              'label': '389a', 'rank': 2
-          },
-      ])
+      data = pd.DataFrame([{'label': f'{i}a', 'rank': i} for i in range(1024)])
+
       input = os.path.join(tmpdir, 'input.csv')
       output = os.path.join(tmpdir, 'output.json')
       data.to_csv(input, index=False)
+      with open(input, 'r') as f:
+        lines = f.readlines()
+      _LOGGER.debug("input.csv has these {lines} lines.")
+      self.assertEqual(len(lines), len(data) + 1)  # +1 for header
 
       with beam.Pipeline() as p:
         result = p | YamlTransform(
@@ -250,13 +278,20 @@ class YamlTransformE2ETest(unittest.TestCase):
               - type: WriteToJson
                 config:
                     path: %s
-                num_shards: 1
+                    num_shards: 1
+              - type: LogForTesting
             ''' % (repr(input), repr(output)))
-
-      output_shard = list(glob.glob(output + "*"))[0]
+      all_output = list(glob.glob(output + "-*"))
+      file_and_size = {f: os.path.getsize(f) for f in all_output}
+      self.assertEqual(
+          len(all_output),
+          1,
+          msg=f"Expected 1 shard file, but found {len(all_output)}. "
+          f"Files & sizes (bytes): {file_and_size}")
+      output_shard = all_output[0]
       result = pd.read_json(
           output_shard, orient='records',
-          lines=True).sort_values('rank').reindex()
+          lines=True).sort_values('rank').reset_index(drop=True)
       pd.testing.assert_frame_equal(data, result)
 
   def test_circular_reference_validation(self):
@@ -897,6 +932,60 @@ class ErrorHandlingTest(unittest.TestCase):
             ''',
             providers=TEST_PROVIDERS)
 
+  def test_error_handling_log_combined_errors(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: Input1
+              config:
+                  elements: [1, 2, 0]
+            - type: Create
+              name: Input2
+              config:
+                  elements: [3, 'a', 5]
+            - type: MapToFields
+              name: Inverse
+              input: Input1
+              config:
+                  language: python
+                  fields:
+                    inverse: "1 / element"
+                  error_handling:
+                    output: errors
+            - type: MapToFields
+              name: Square
+              input: Input2
+              config:
+                  language: python
+                  fields:
+                    square: "element * element"
+                  error_handling:
+                    output: errors
+            - type: LogForTesting
+              input:
+                - Inverse.errors
+                - Square.errors
+            - type: Flatten
+              name: GoodData
+              input:
+                - Inverse
+                - Square
+          output: GoodData
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(inverse=1.0, square=None),
+              beam.Row(inverse=0.5, square=None),
+              beam.Row(square=9, inverse=None),
+              beam.Row(square=25, inverse=None)
+          ]))
+
   def test_mapping_errors(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -986,6 +1075,61 @@ class YamlWindowingTest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_one_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_json_string_config_multi_line(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: CreateTimestamped
+              config:
+                  elements: [0, 1, 2, 3, 4, 5]
+            - type: WindowInto
+              config:
+                windowing: |
+                  {"type": "fixed", "size": "4s"}
+            - type: SumGlobally
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result, equal_to([6, 9]))
+
+  def test_explicit_window_into_with_string_config_fails(self):
+    with self.assertRaisesRegex(ValueError, 'Error parsing windowing config'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: chain
+            transforms:
+              - type: CreateTimestamped
+                config:
+                    elements: [0, 1, 2, 3, 4, 5]
+              - type: WindowInto
+                config:
+                  windowing: |
+                    'not a valid yaml'
+            ''',
+            providers=TEST_PROVIDERS)
 
   def test_windowing_on_input(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -1228,6 +1372,165 @@ class ProviderAffinityTest(unittest.TestCase):
           label='StartWith3')
 
 
+class TestExternalYamlProvider(unittest.TestCase):
+  def setUp(self):
+    self.temp_dir = tempfile.mkdtemp()
+    self.provider_path = os.path.join(self.temp_dir, 'power_provider.yaml')
+    with open(self.provider_path, 'w') as f:
+      f.write(
+          """
+- type: yaml
+  transforms:
+    RaiseElementToPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body:
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "element ** {{n}}"
+          error_handling:
+            output: my_error
+""")
+
+  def tearDown(self):
+    shutil.rmtree(self.temp_dir)
+
+  def test_provider_with_error_handling(self):
+    loaded_providers = yaml_provider.load_providers(self.provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      results = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                elements: [2, 'bad', 3]
+            - type: RaiseElementToPower
+              input: Create
+              config:
+                n: 2
+            - type: PyMap
+              name: TrimErrors
+              input: RaiseElementToPower.my_error
+              config:
+                  fn: "lambda x: x.msg"
+          output:
+            good: RaiseElementToPower.good
+            bad: TrimErrors
+          ''',
+          providers=merged_providers)
+
+      assert_that(
+          results['good'],
+          equal_to([beam.Row(element=2, power=4), beam.Row(element=3,
+                                                           power=9)]),
+          label="CheckGood")
+      assert_that(
+          results['bad'],
+          equal_to([
+              'TypeError("unsupported operand type(s) for ** or pow(): ' +
+              '\'str\' and \'int\'")'
+          ]),
+          label="CheckBad")
+
+  def test_must_consume_error_output(self):
+    # By adding a dummy error_handling block here, we signal to the static
+    # checker that this transform has an error output that must be consumed.
+    # The framework is able to handle the "nesting" where the provider for
+    # RaiseElementToPower also defines error handling internally.
+    loaded_providers = yaml_provider.load_providers(self.provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with self.assertRaisesRegex(Exception, 'Unconsumed error output.*'):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                config:
+                  elements: [2, 'bad', 3]
+              - type: RaiseElementToPower
+                input: Create
+                config:
+                  n: 2
+                  error_handling:
+                    output: my_error
+            ''',
+            providers=merged_providers)
+
+  def test_provider_with_jinja_imports(self):
+    # Create a macro file in the same temp directory as the provider
+    macro_path = os.path.join(self.temp_dir, 'my_macros.yaml')
+    with open(macro_path, 'w') as f:
+      f.write(
+          """
+{%- macro power_expr(var, n) -%}
+{{ var }} ** {{ n }}
+{%- endmacro -%}
+""")
+
+    # Create a provider that imports and uses the macro
+    templated_provider_path = os.path.join(
+        self.temp_dir, 'templated_provider.yaml')
+    with open(templated_provider_path, 'w') as f:
+      f.write(
+          """
+- type: yaml
+  transforms:
+    CustomPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body: |
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "{% import 'my_macros.yaml' as m %}{{ m.power_expr('element', n) }}"
+""")
+
+    loaded_providers = yaml_provider.load_providers(templated_provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      results = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                elements: [2, 3]
+            - type: CustomPower
+              input: Create
+              config:
+                n: 3
+          output: CustomPower
+          ''',
+          providers=merged_providers)
+
+      assert_that(
+          results,
+          equal_to(
+              [beam.Row(element=2, power=8), beam.Row(element=3, power=27)]))
+
+
 @beam.transforms.ptransform.annotate_yaml
 class LinearTransform(beam.PTransform):
   """A transform used for testing annotate_yaml."""
@@ -1239,6 +1542,62 @@ class LinearTransform(beam.PTransform):
     a = self._a
     b = self._b
     return pcoll | beam.Map(lambda x: a * x.element + b)
+
+
+class TestYamlExpandJinja(unittest.TestCase):
+  def setUp(self):
+    self.temp_dir = tempfile.mkdtemp()
+    # Create a macro file with leading comments (license header)
+    self.macro_path = os.path.join(self.temp_dir, 'my_macros.yaml')
+    with open(self.macro_path, 'w') as f:
+      f.write(
+          """# coding=utf-8
+# Licensed to the Apache Software Foundation...
+# Some leading comment line
+
+{%- macro add_n(val, n) -%}
+{{ val }} + {{ n }}
+{%- endmacro -%}
+""")
+
+    # Create a pipeline template that includes/imports the macro
+    self.pipeline_path = os.path.join(self.temp_dir, 'my_pipeline.yaml')
+    with open(self.pipeline_path, 'w') as f:
+      f.write(
+          """# coding=utf-8
+# Licensed to the Apache Software Foundation...
+
+{% import 'my_macros.yaml' as macros %}
+type: composite
+transforms:
+  - type: Create
+    config:
+      elements: [1, 2, 3]
+  - type: MapToFields
+    config:
+      language: python
+      fields:
+        result: {{ macros.add_n('element', 10) }}
+""")
+
+  def tearDown(self):
+    shutil.rmtree(self.temp_dir)
+
+  def test_expand_jinja_with_leading_comments_and_imports(self):
+    # Read the pipeline template
+    with open(self.pipeline_path, 'r') as f:
+      template_content = f.read()
+
+    # Expand the jinja using our temp_dir as a search path
+    expanded = expand_jinja(template_content, {}, [self.temp_dir])
+
+    # Parse the expanded YAML
+    parsed = yaml.load(expanded, Loader=SafeLineLoader)
+
+    # Verify the comment-stripping and import resolution was successful
+    self.assertEqual(parsed['type'], 'composite')
+    self.assertEqual(
+        parsed['transforms'][1]['config']['fields']['result'], 'element + 10')
 
 
 if __name__ == '__main__':

@@ -33,9 +33,9 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.direct import direct_runner
+from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as inst
-from apache_beam.runners.interactive import background_caching_job
 from apache_beam.runners.interactive.dataproc.types import ClusterMetadata
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.options import capture_control
@@ -92,6 +92,12 @@ class InteractiveRunner(runners.PipelineRunner):
     # TODO(https://github.com/apache/beam/issues/19937):
     # return self._underlying_runner.is_fnapi_compatible()
     return False
+
+  def default_pickle_library_override(self):
+    """Delegates pickler override to the underlying runner."""
+    if hasattr(self._underlying_runner, 'default_pickle_library_override'):
+      return self._underlying_runner.default_pickle_library_override()
+    return super().default_pickle_library_override()
 
   def set_render_option(self, render_option):
     """Sets the rendering option.

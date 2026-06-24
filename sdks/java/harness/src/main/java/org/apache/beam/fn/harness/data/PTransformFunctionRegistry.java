@@ -111,19 +111,16 @@ public class PTransformFunctionRegistry {
 
     ThrowingRunnable wrapped =
         () -> {
-          executionState.activate();
-          try {
+          try (ExecutionState.ActiveState ignored = executionState.scopedActivate()) {
             runnable.run();
-          } finally {
-            executionState.deactivate();
           }
         };
     runnables.add(wrapped);
   }
 
   /**
-   * @return A list of wrapper functions which will invoke the registered functions indirectly. The
-   *     order of registry is maintained.
+   * Returns a list of wrapper functions which will invoke the registered functions indirectly. The
+   * order of registry is maintained.
    */
   public List<ThrowingRunnable> getFunctions() {
     return runnables;

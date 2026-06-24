@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueKind;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -136,20 +138,32 @@ public class Reify {
       KvCoder<K, V> coder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
+              // todo #33176 specify additional metadata in the future
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, ValueInSingleWindow<V>>>() {
                     @ProcessElement
                     public void processElement(
+                        ProcessContext pc,
                         @Element KV<K, V> element,
                         @DoFn.Timestamp Instant timestamp,
                         BoundedWindow window,
                         PaneInfo paneInfo,
+                        CausedByDrain causedByDrain,
+                        ValueKind valueKind,
                         OutputReceiver<KV<K, ValueInSingleWindow<V>>> r) {
                       r.output(
                           KV.of(
                               element.getKey(),
                               ValueInSingleWindow.of(
-                                  element.getValue(), timestamp, window, paneInfo)));
+                                  element.getValue(),
+                                  timestamp,
+                                  window,
+                                  paneInfo,
+                                  pc.currentRecordId(),
+                                  pc.currentRecordOffset(),
+                                  causedByDrain,
+                                  null,
+                                  valueKind)));
                     }
                   }))
           .setCoder(

@@ -170,6 +170,23 @@ public class ExecutionStateSamplerBenchmark {
   }
 
   @Benchmark
+  @Threads(512)
+  public void testTinyBundleHarnessStateSamplerScoped(HarnessStateTracker state, Blackhole bh)
+      throws Exception {
+    state.tracker.start("processBundleId");
+    for (int i = 0; i < 3; ) {
+      try (AutoCloseable s1 = state.state1.scopedActivate();
+          AutoCloseable s2 = state.state2.scopedActivate();
+          AutoCloseable s3 = state.state3.scopedActivate()) {
+        // trivial code that is being sampled for this state
+        i += 1;
+        bh.consume(i);
+      }
+    }
+    state.tracker.reset();
+  }
+
+  @Benchmark
   @Threads(16)
   public void testLargeBundleRunnersCoreStateSampler(
       RunnersCoreStateTracker trackerState, Blackhole bh) throws Exception {

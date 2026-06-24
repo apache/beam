@@ -33,7 +33,6 @@ import unittest
 import zlib
 from datetime import datetime
 
-import crcmod
 import pytz
 
 import apache_beam as beam
@@ -60,6 +59,11 @@ except ImportError:
   except ImportError:
     tf = None  # pylint: disable=invalid-name
     logging.warning('Tensorflow is not installed, so skipping some tests.')
+
+try:
+  import crcmod
+except ImportError:
+  crcmod = None
 
 # Created by running following code in python:
 # >>> import tensorflow as tf
@@ -121,6 +125,7 @@ class TestTFRecordUtil(unittest.TestCase):
         0xe4999b0,
         _TFRecordUtil._masked_crc32c(b'\x03\x00\x00\x00\x00\x00\x00\x00'))
 
+  @unittest.skipIf(crcmod is None, 'crcmod not installed.')
   def test_masked_crc32c_crcmod(self):
     crc32c_fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
     self.assertEqual(

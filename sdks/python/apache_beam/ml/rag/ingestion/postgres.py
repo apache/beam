@@ -16,8 +16,6 @@
 
 import logging
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Union
@@ -32,11 +30,11 @@ from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 _LOGGER = logging.getLogger(__name__)
 
-MetadataSpec = Union[ColumnSpec, Dict[str, ColumnSpec]]
+MetadataSpec = Union[ColumnSpec, dict[str, ColumnSpec]]
 
 
 class _PostgresQueryBuilder:
@@ -44,9 +42,9 @@ class _PostgresQueryBuilder:
       self,
       table_name: str,
       *,
-      column_specs: List[ColumnSpec],
+      column_specs: list[ColumnSpec],
       conflict_resolution: Optional[ConflictResolution] = None):
-    """Builds SQL queries for writing Chunks with Embeddings to Postgres.
+    """Builds SQL queries for writing EmbeddableItems to Postgres.
     """
     self.table_name = table_name
 
@@ -93,9 +91,9 @@ class _PostgresQueryBuilder:
     _LOGGER.info("Query with placeholders %s", query)
     return query
 
-  def create_converter(self) -> Callable[[Chunk], NamedTuple]:
-    """Creates a function to convert Chunks to records."""
-    def convert(chunk: Chunk) -> self.record_type:  # type: ignore
+  def create_converter(self) -> Callable[[EmbeddableItem], NamedTuple]:
+    """Creates a function to convert EmbeddableItems to records."""
+    def convert(chunk: EmbeddableItem) -> self.record_type:  # type: ignore
       return self.record_type(
           **{col.column_name: col.value_fn(chunk)
              for col in self.column_specs})  # type: ignore
@@ -111,7 +109,7 @@ class PostgresVectorWriterConfig(VectorDatabaseWriteConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
+      column_specs: list[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
       ),
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):
@@ -129,7 +127,7 @@ class PostgresVectorWriterConfig(VectorDatabaseWriteConfig):
         column_specs:
             Use :class:`~.postgres_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written a database
-            schema. If None, uses default Chunk schema.
+            schema. If None, uses default EmbeddableItem schema.
         conflict_resolution: Optional
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by
@@ -189,7 +187,7 @@ class _WriteToPostgresVectorDatabase(beam.PTransform):
     self.connection_config = config.connection_config
     self.write_config = config.write_config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
     return (
         pcoll
         |

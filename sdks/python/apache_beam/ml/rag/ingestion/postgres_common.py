@@ -18,28 +18,25 @@ import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Literal
 from typing import Optional
-from typing import Type
 from typing import Union
 
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 
-def chunk_embedding_fn(chunk: Chunk) -> str:
+def chunk_embedding_fn(chunk: EmbeddableItem) -> str:
   """Convert embedding to PostgreSQL array string.
-    
+
     Formats dense embedding as a PostgreSQL-compatible array string.
     Example: [1.0, 2.0] -> '{1.0,2.0}'
-    
+
     Args:
-        chunk: Input Chunk object.
-    
+        chunk: Input EmbeddableItem object.
+
     Returns:
         str: PostgreSQL array string representation of the embedding.
-    
+
     Raises:
         ValueError: If chunk has no dense embedding.
     """
@@ -50,65 +47,65 @@ def chunk_embedding_fn(chunk: Chunk) -> str:
 
 @dataclass
 class ColumnSpec:
-  """Specification for mapping Chunk fields to SQL columns for insertion.
-    
-    Defines how to extract and format values from Chunks into database columns,
-    handling the full pipeline from Python value to SQL insertion.
+  """Mapping of EmbeddableItem fields to SQL columns for insertion.
 
-    The insertion process works as follows:
-    - value_fn extracts a value from the Chunk and formats it as needed
-    - The value is stored in a NamedTuple field with the specified python_type
-    - During SQL insertion, the value is bound to a ? placeholder
+  Defines how to extract and format values from EmbeddableItems into
+  database columns, handling the full pipeline from Python value to
+  SQL insertion.
 
-    Attributes:
-        column_name: The column name in the database table.
-        python_type: Python type for the NamedTuple field that will hold the
-            value. Must be compatible with must be compatible with
-            :class:`~apache_beam.coders.row_coder.RowCoder`.
-        value_fn: Function to extract and format the value from a Chunk.
-            Takes a Chunk and returns a value of python_type.
-        sql_typecast: Optional SQL type cast to append to the ? placeholder.
-            Common examples:
-            - "::float[]" for vector arrays
-            - "::jsonb" for JSON data
-    
-    Examples:
-        Basic text column (uses standard JDBC type mapping):
-        >>> ColumnSpec.text(
-        ...     column_name="content",
-        ...     value_fn=lambda chunk: chunk.content.text
-        ... )
-        # Results in: INSERT INTO table (content) VALUES (?)
+  The insertion process works as follows:
+  - value_fn extracts a value from the EmbeddableItem and formats it as needed
+  - The value is stored in a NamedTuple field with the specified python_type
+  - During SQL insertion, the value is bound to a ? placeholder
 
-        Vector column with explicit array casting:
-        >>> ColumnSpec.vector(
-        ...     column_name="embedding",
-        ...     value_fn=lambda chunk: '{' + 
-        ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
-        ... )
-        # Results in: INSERT INTO table (embedding) VALUES (?::float[])
-        # The value_fn formats [1.0, 2.0] as '{1.0,2.0}' for PostgreSQL array
+  Attributes:
+      column_name: The column name in the database table.
+      python_type: :class:`~apache_beam.coders.row_coder.RowCoder` compatible
+          python type.
+      value_fn: Function to extract and format the value from an
+          EmbeddableItem.
+      sql_typecast: Optional SQL type cast to append to the ? placeholder.
+          Common examples:
+          - "::float[]" for vector arrays
+          - "::jsonb" for JSON data
 
-        Timestamp from metadata with explicit casting:
-        >>> ColumnSpec(
-        ...     column_name="created_at",
-        ...     python_type=str,
-        ...     value_fn=lambda chunk: chunk.metadata.get("timestamp"),
-        ...     sql_typecast="::timestamp"
-        ... )
-        # Results in: INSERT INTO table (created_at) VALUES (?::timestamp)
-        # Allows inserting string timestamps with proper PostgreSQL casting
+  Examples:
+      Basic text column (uses standard JDBC type mapping):
+      >>> ColumnSpec.text(
+      ...     column_name="content",
+      ...     value_fn=lambda chunk: chunk.content.text
+      ... )
+      # Results in: INSERT INTO table (content) VALUES (?)
 
-    Factory Methods:
-        text: Creates a text column specification (no type cast).
-        integer: Creates an integer column specification (no type cast).
-        float: Creates a float column specification (no type cast).
-        vector: Creates a vector column specification with float[] casting.
-        jsonb: Creates a JSONB column specification with jsonb casting.
-    """
+      Vector column with explicit array casting:
+      >>> ColumnSpec.vector(
+      ...     column_name="embedding",
+      ...     value_fn=lambda chunk: '{' +
+      ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
+      ... )
+      # Results in: INSERT INTO table (embedding) VALUES (?::float[])
+      # The value_fn formats [1.0, 2.0] as '{1.0,2.0}' for PostgreSQL array
+
+      Timestamp from metadata with explicit casting:
+      >>> ColumnSpec(
+      ...     column_name="created_at",
+      ...     python_type=str,
+      ...     value_fn=lambda chunk: chunk.metadata.get("timestamp"),
+      ...     sql_typecast="::timestamp"
+      ... )
+      # Results in: INSERT INTO table (created_at) VALUES (?::timestamp)
+      # Allows inserting string timestamps with proper PostgreSQL casting
+
+  Factory Methods:
+      text: Creates a text column specification (no type cast).
+      integer: Creates an integer column specification (no type cast).
+      float: Creates a float column specification (no type cast).
+      vector: Creates a vector column specification with float[] casting.
+      jsonb: Creates a JSONB column specification with jsonb casting.
+  """
   column_name: str
-  python_type: Type
-  value_fn: Callable[[Chunk], Any]
+  python_type: type
+  value_fn: Callable[[EmbeddableItem], Any]
   sql_typecast: Optional[str] = None
 
   @property
@@ -118,19 +115,22 @@ class ColumnSpec:
 
   @classmethod
   def text(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a text column specification."""
     return cls(column_name, str, value_fn)
 
   @classmethod
   def integer(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create an integer column specification."""
     return cls(column_name, int, value_fn)
 
   @classmethod
   def float(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a float column specification."""
     return cls(column_name, float, value_fn)
 
@@ -138,13 +138,15 @@ class ColumnSpec:
   def vector(
       cls,
       column_name: str,
-      value_fn: Callable[[Chunk], Any] = chunk_embedding_fn) -> 'ColumnSpec':
+      value_fn: Callable[[EmbeddableItem], Any] = chunk_embedding_fn
+  ) -> 'ColumnSpec':
     """Create a vector column specification."""
     return cls(column_name, str, value_fn, "::float[]")
 
   @classmethod
   def jsonb(
-      cls, column_name: str, value_fn: Callable[[Chunk], Any]) -> 'ColumnSpec':
+      cls, column_name: str, value_fn: Callable[[EmbeddableItem],
+                                                Any]) -> 'ColumnSpec':
     """Create a JSONB column specification."""
     return cls(column_name, str, value_fn, "::jsonb")
 
@@ -152,7 +154,7 @@ class ColumnSpec:
 class ColumnSpecsBuilder:
   """Builder for :class:`.ColumnSpec`'s with chainable methods."""
   def __init__(self):
-    self._specs: List[ColumnSpec] = []
+    self._specs: list[ColumnSpec] = []
 
   @staticmethod
   def with_defaults() -> 'ColumnSpecsBuilder':
@@ -164,21 +166,21 @@ class ColumnSpecsBuilder:
   def with_id_spec(
       self,
       column_name: str = "id",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add ID :class:`.ColumnSpec` with optional type and conversion.
-        
+
         Args:
             column_name: Name for the ID column (defaults to "id")
             python_type: Python type for the column (defaults to str)
             convert_fn: Optional function to convert the chunk ID
                        If None, uses ID as-is
             sql_typecast: Optional SQL type cast
-        
+
         Returns:
             Self for method chaining
-        
+
         Example:
             >>> builder.with_id_spec(
             ...     column_name="doc_id",
@@ -186,7 +188,7 @@ class ColumnSpecsBuilder:
             ...     convert_fn=lambda id: int(id.split('_')[1])
             ... )
         """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       value = chunk.id
       return convert_fn(value) if convert_fn else value
 
@@ -201,21 +203,21 @@ class ColumnSpecsBuilder:
   def with_content_spec(
       self,
       column_name: str = "content",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add content :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the content column (defaults to "content")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the content text
                       If None, uses content text as-is
           sql_typecast: Optional SQL type cast
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_content_spec(
           ...     column_name="content_length",
@@ -223,10 +225,8 @@ class ColumnSpecsBuilder:
           ...     convert_fn=len  # Store content length instead of content
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
-      if chunk.content.text is None:
-        raise ValueError(f'Expected chunk to contain content. {chunk}')
-      value = chunk.content.text
+    def value_fn(chunk: EmbeddableItem) -> Any:
+      value = chunk.content_string
       return convert_fn(value) if convert_fn else value
 
     self._specs.append(
@@ -240,21 +240,21 @@ class ColumnSpecsBuilder:
   def with_metadata_spec(
       self,
       column_name: str = "metadata",
-      python_type: Type = str,
-      convert_fn: Optional[Callable[[Dict[str, Any]], Any]] = None,
+      python_type: type = str,
+      convert_fn: Optional[Callable[[dict[str, Any]], Any]] = None,
       sql_typecast: Optional[str] = "::jsonb") -> 'ColumnSpecsBuilder':
     """Add metadata :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the metadata column (defaults to "metadata")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the metadata dictionary
                       If None and python_type is str, converts to JSON string
           sql_typecast: Optional SQL type cast (defaults to "::jsonb")
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_metadata_spec(
           ...     column_name="meta_tags",
@@ -263,7 +263,7 @@ class ColumnSpecsBuilder:
           ...     sql_typecast="::text[]"
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if convert_fn:
         return convert_fn(chunk.metadata)
       return json.dumps(
@@ -280,26 +280,26 @@ class ColumnSpecsBuilder:
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      convert_fn: Optional[Callable[[List[float]], Any]] = None
+      convert_fn: Optional[Callable[[list[float]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
-      
+
       Args:
           column_name: Name for the embedding column (defaults to "embedding")
           convert_fn: Optional function to convert the dense embedding values
                       If None, uses default PostgreSQL array format
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_embedding_spec(
           ...     column_name="embedding_vector",
-          ...     convert_fn=lambda values: '{' + ','.join(f"{x:.4f}" 
+          ...     convert_fn=lambda values: '{' + ','.join(f"{x:.4f}"
           ...       for x in values) + '}'
           ... )
       """
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       if chunk.embedding is None or chunk.embedding.dense_embedding is None:
         raise ValueError(f'Expected chunk to contain embedding. {chunk}')
       values = chunk.embedding.dense_embedding
@@ -311,10 +311,46 @@ class ColumnSpecsBuilder:
         ColumnSpec.vector(column_name=column_name, value_fn=value_fn))
     return self
 
+  def with_sparse_embedding_spec(
+      self,
+      column_name: str = "sparse_embedding",
+      conv_fn: Optional[Callable[[tuple[list[int], list[float]]], Any]] = None
+  ) -> 'ColumnSpecsBuilder':
+    """Add sparse embedding :class:`.ColumnSpec` with optional conversion.
+
+      Args:
+          column_name: Name for the sparse embedding column
+            (defaults to "sparse_embedding")
+          conv_fn: Optional function to convert the sparse embedding tuple
+                      If None, converts to PostgreSQL-compatible JSON format
+
+      Returns:
+          Self for method chaining
+
+      Example:
+          >>> builder.with_sparse_embedding_spec(
+          ...     column_name="sparse_vector",
+          ...     convert_fn=lambda sparse: dict(zip(sparse[0], sparse[1]))
+          ... )
+      """
+    def value_fn(chunk: EmbeddableItem) -> Any:
+      if chunk.embedding is None or chunk.embedding.sparse_embedding is None:
+        raise ValueError(f'Expected chunk to contain sparse embedding. {chunk}')
+      sparse_embedding = chunk.embedding.sparse_embedding
+      if conv_fn:
+        return conv_fn(sparse_embedding)
+      # Default: convert to dict format for JSON storage.
+      indices, values = sparse_embedding
+      return json.dumps(dict(zip(indices, values)))
+
+    self._specs.append(
+        ColumnSpec.jsonb(column_name=column_name, value_fn=value_fn))
+    return self
+
   def add_metadata_field(
       self,
       field: str,
-      python_type: Type,
+      python_type: type,
       column_name: Optional[str] = None,
       convert_fn: Optional[Callable[[Any], Any]] = None,
       default: Any = None,
@@ -330,7 +366,7 @@ class ColumnSpecsBuilder:
                       desired type. If None, value is used as-is
             default: Default value if field is missing from metadata
             sql_typecast: Optional SQL type cast (e.g. "::timestamp")
-        
+
         Returns:
             Self for chaining
 
@@ -352,7 +388,7 @@ class ColumnSpecsBuilder:
 
             >>> builder.add_metadata_field(
             ...     field="confidence",
-            ...     python_type=intfloat,
+            ...     python_type=float,
             ...     convert_fn=lambda x: round(float(x), 2),
             ...     default=0.0
             ... )
@@ -361,14 +397,14 @@ class ColumnSpecsBuilder:
 
             >>> builder.add_metadata_field(
             ...     field="created_at",
-            ...     python_type=intstr,
+            ...     python_type=str,
             ...     convert_fn=lambda ts: ts.replace('T', ' '),
             ...     sql_typecast="::timestamp"
             ... )
         """
     name = column_name or field
 
-    def value_fn(chunk: Chunk) -> Any:
+    def value_fn(chunk: EmbeddableItem) -> Any:
       value = chunk.metadata.get(field, default)
       if value is not None and convert_fn is not None:
         value = convert_fn(value)
@@ -385,17 +421,17 @@ class ColumnSpecsBuilder:
 
   def add_custom_column_spec(self, spec: ColumnSpec) -> 'ColumnSpecsBuilder':
     """Add a custom :class:`.ColumnSpec` to the builder.
-    
+
     Use this method when you need complete control over the :class:`.ColumnSpec`
     , including custom value extraction and type handling.
-    
+
     Args:
         spec: A :class:`.ColumnSpec` instance defining the column name, type,
             value extraction, and optional SQL type casting.
-    
+
     Returns:
         Self for method chaining
-    
+
     Examples:
         Custom text column from chunk metadata:
 
@@ -410,7 +446,7 @@ class ColumnSpecsBuilder:
     self._specs.append(spec)
     return self
 
-  def build(self) -> List[ColumnSpec]:
+  def build(self) -> list[ColumnSpec]:
     """Build the final list of column specifications."""
     return self._specs.copy()
 
@@ -430,12 +466,12 @@ class ConflictResolution:
             IGNORE: Skips conflicting records.
         update_fields: Optional list of fields to update on conflict. If None,
             all non-conflict fields are updated.
-        
+
     Examples:
         Simple primary key:
 
         >>> ConflictResolution("id")
-        
+
         Composite key with specific update fields:
 
         >>> ConflictResolution(
@@ -443,7 +479,7 @@ class ConflictResolution:
         ...     action="UPDATE",
         ...     update_fields=["embedding", "content"]
         ... )
-        
+
         Ignore conflicts:
 
         >>> ConflictResolution(
@@ -451,11 +487,11 @@ class ConflictResolution:
         ...     action="IGNORE"
         ... )
     """
-  on_conflict_fields: Union[str, List[str]]
+  on_conflict_fields: Union[str, list[str]]
   action: Literal["UPDATE", "IGNORE"] = "UPDATE"
-  update_fields: Optional[List[str]] = None
+  update_fields: Optional[list[str]] = None
 
-  def maybe_set_default_update_fields(self, columns: List[str]):
+  def maybe_set_default_update_fields(self, columns: list[str]):
     if self.action != "UPDATE":
       return
     if self.update_fields is not None:

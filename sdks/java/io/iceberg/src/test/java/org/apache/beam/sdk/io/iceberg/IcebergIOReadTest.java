@@ -274,6 +274,36 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testProjectedSchemaWithNestedFields() {
+    org.apache.iceberg.Schema schema =
+        new org.apache.iceberg.Schema(
+            required(1, "id", StringType.get()),
+            required(
+                2,
+                "data",
+                StructType.of(
+                    required(3, "name", StringType.get()), required(4, "value", StringType.get()))),
+            required(5, "metadata", StringType.get()));
+
+    // test nested keep
+    org.apache.iceberg.Schema projectKeep = resolveSchema(schema, asList("id", "data.name"), null);
+    org.apache.iceberg.Schema expectedKeep =
+        new org.apache.iceberg.Schema(
+            required(1, "id", StringType.get()),
+            required(2, "data", StructType.of(required(3, "name", StringType.get()))));
+    assertTrue(projectKeep.sameSchema(expectedKeep));
+
+    // test nested drop
+    org.apache.iceberg.Schema projectDrop = resolveSchema(schema, null, asList("data.name"));
+    org.apache.iceberg.Schema expectedDrop =
+        new org.apache.iceberg.Schema(
+            required(1, "id", StringType.get()),
+            required(2, "data", StructType.of(required(4, "value", StringType.get()))),
+            required(5, "metadata", StringType.get()));
+    assertTrue(projectDrop.sameSchema(expectedDrop));
+  }
+
+  @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));

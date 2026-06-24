@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,17 +26,23 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncoding;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -43,6 +51,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@link KeyedWorkItem} that wraps around a {@code Windmill.WorkItem}.
@@ -50,32 +60,60 @@ import org.joda.time.Instant;
  * @param <K> the key type
  * @param <ElemT> the element type
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
+@Internal
 public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> {
   private static final Predicate<Timer> IS_WATERMARK =
       input -> input.getType() == Timer.Type.WATERMARK;
 
+  private static final Logger LOG = LoggerFactory.getLogger(WindmillKeyedWorkItem.class);
+
   private final Windmill.WorkItem workItem;
   private final K key;
+  // used to inform that timer was caused by drain
+  private final boolean drainMode;
 
   private final transient Coder<? extends BoundedWindow> windowCoder;
   private final transient Coder<Collection<? extends BoundedWindow>> windowsCoder;
   private final transient Coder<ElemT> valueCoder;
+  private final WindmillTagEncoding windmillTagEncoding;
+  private final boolean skipUndecodableElements;
 
   public WindmillKeyedWorkItem(
       K key,
       Windmill.WorkItem workItem,
       Coder<? extends BoundedWindow> windowCoder,
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
-      Coder<ElemT> valueCoder) {
+      Coder<ElemT> valueCoder,
+      WindmillTagEncoding windmillTagEncoding,
+      boolean drainMode) {
+    this(
+        key,
+        workItem,
+        windowCoder,
+        windowsCoder,
+        valueCoder,
+        windmillTagEncoding,
+        drainMode,
+        false);
+  }
+
+  public WindmillKeyedWorkItem(
+      K key,
+      Windmill.WorkItem workItem,
+      Coder<? extends BoundedWindow> windowCoder,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Coder<ElemT> valueCoder,
+      WindmillTagEncoding windmillTagEncoding,
+      boolean drainMode,
+      boolean skipUndecodableElements) {
     this.key = key;
     this.workItem = workItem;
     this.windowCoder = windowCoder;
     this.windowsCoder = windowsCoder;
     this.valueCoder = valueCoder;
+    this.windmillTagEncoding = windmillTagEncoding;
+    this.drainMode = drainMode;
+    this.skipUndecodableElements = skipUndecodableElements;
   }
 
   @Override
@@ -91,31 +129,68 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
     return eventTimers
         .append(nonEventTimers)
         .transform(
-            timer ->
-                WindmillTimerInternals.windmillTimerToTimerData(
-                    WindmillNamespacePrefix.SYSTEM_NAMESPACE_PREFIX, timer, windowCoder));
+            timer -> {
+              WindmillTimerData windmillTimerData =
+                  windmillTagEncoding.windmillTimerToTimerData(timer, windowCoder, drainMode);
+              checkState(
+                  windmillTimerData.getWindmillTimerType() == WindmillTimerType.SYSTEM_TIMER);
+              return windmillTimerData.getTimerData();
+            });
+  }
+
+  private @Nullable WindowedValue<ElemT> parseElem(Windmill.Message message) {
+    try {
+      Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
+      Collection<? extends BoundedWindow> windows =
+          WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
+      PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+      /**
+       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
+       * drain happened upstream
+       */
+      CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
+      ValueKind valueKind = ValueKind.INSERT;
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+        drainingValueFromUpstream =
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
+        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+      }
+      InputStream inputStream = message.getData().newInput();
+      ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+      return WindowedValues.of(
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          null,
+          null,
+          drainingValueFromUpstream,
+          null,
+          valueKind);
+    } catch (RuntimeException | IOException e) {
+      if (!skipUndecodableElements) {
+        throw new RuntimeException(e);
+      }
+      LOG.error(
+          "Skipping input element for work token {} on sharding key {} due to decoding error",
+          workItem.getWorkToken(),
+          workItem.getShardingKey(),
+          e);
+      return null;
+    }
   }
 
   @Override
+  @SuppressWarnings("nullness")
   public Iterable<WindowedValue<ElemT>> elementsIterable() {
     return FluentIterable.from(workItem.getMessageBundlesList())
         .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
-        .transform(
-            message -> {
-              try {
-                Instant timestamp =
-                    WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
-                Collection<? extends BoundedWindow> windows =
-                    WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-                PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-
-                InputStream inputStream = message.getData().newInput();
-                ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
-                return WindowedValues.of(value, timestamp, windows, paneInfo);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+        .transform(this::parseElem)
+        .filter(Objects::nonNull);
   }
 
   @Override
@@ -207,12 +282,13 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
       return kvCoder.getValueCoder();
     }
 
+    @SuppressWarnings("unchecked")
     protected FakeKeyedWorkItemCoder(Coder<?> elemCoder) {
       if (elemCoder instanceof KeyedWorkItemCoder) {
-        KeyedWorkItemCoder kwiCoder = (KeyedWorkItemCoder) elemCoder;
+        KeyedWorkItemCoder<K, ElemT> kwiCoder = (KeyedWorkItemCoder<K, ElemT>) elemCoder;
         this.kvCoder = KvCoder.of(kwiCoder.getKeyCoder(), kwiCoder.getElementCoder());
       } else if (elemCoder instanceof KvCoder) {
-        this.kvCoder = ((KvCoder) elemCoder);
+        this.kvCoder = (KvCoder<K, ElemT>) elemCoder;
       } else {
         throw new IllegalArgumentException(
             "FakeKeyedWorkItemCoder only works with KeyedWorkItemCoder or KvCoder; was: "

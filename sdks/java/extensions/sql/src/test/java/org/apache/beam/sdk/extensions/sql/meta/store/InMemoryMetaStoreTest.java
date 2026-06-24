@@ -94,10 +94,10 @@ public class InMemoryMetaStoreTest {
   @Test
   public void testRegisterProvider() throws Exception {
     store.registerProvider(new MockTableProvider("mock", "hello", "world"));
-    assertNotNull(store.getProviders());
-    assertEquals(2, store.getProviders().size());
-    assertEquals("text", store.getProviders().get("text").getTableType());
-    assertEquals("mock", store.getProviders().get("mock").getTableType());
+    assertNotNull(store.tableProviders());
+    assertEquals(2, store.tableProviders().size());
+    assertEquals("text", store.tableProviders().get("text").getTableType());
+    assertEquals("mock", store.tableProviders().get("mock").getTableType());
 
     assertEquals(2, store.getTables().size());
   }
@@ -119,6 +119,7 @@ public class InMemoryMetaStoreTest {
         .name(name)
         .comment(name + " table")
         .location("/home/admin/" + name)
+        //        .path("default.default." + name)
         .schema(
             Stream.of(
                     Schema.Field.nullable("id", Schema.FieldType.INT32),

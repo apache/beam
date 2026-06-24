@@ -237,9 +237,9 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  *
  * <pre>{@code PCollection<KV<String, byte[]>> data = ...;
  *
- * data.apply(KinesisIO.write()
+ * data.apply(KinesisIO.<KV<String, byte[]>>write()
  *     .withStreamName("streamName")
- *     .withPartitionKey(KV::getKey)
+ *     .withPartitioner(KV::getKey)
  *     .withSerializer(KV::getValue);
  * }</pre>
  *
@@ -490,8 +490,8 @@ public final class KinesisIO {
     /**
      * Specifies the {@code WatermarkPolicyFactory} as ArrivalTimeWatermarkPolicyFactory.
      *
-     * <p>{@param watermarkIdleDurationThreshold} Denotes the duration for which the watermark can
-     * be idle.
+     * <p>{@code watermarkIdleDurationThreshold} Denotes the duration for which the watermark can be
+     * idle.
      */
     public Read withArrivalTimeWatermarkPolicy(Duration watermarkIdleDurationThreshold) {
       return toBuilder()

@@ -1067,6 +1067,7 @@ class _PartialGroupByKeyCombiningValues(core.DoFn):
         self._cache[k, window], vi, *side_input_args, **side_input_kwargs)
     self._cached_windowed_side_inputs[window] = (
         side_input_args, side_input_kwargs)
+    return []  # to prevent DoFn-no-iterator warning
 
   def finish_bundle(self):
     for (k, w), va in self._cache.items():

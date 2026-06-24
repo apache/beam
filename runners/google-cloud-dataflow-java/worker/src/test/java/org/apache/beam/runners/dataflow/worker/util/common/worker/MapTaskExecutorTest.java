@@ -100,6 +100,9 @@ public class MapTaskExecutorTest {
       aborted = true;
       super.abort();
     }
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
   }
 
   // A mock ReadOperation fed to a MapTaskExecutor in test.
@@ -213,6 +216,9 @@ public class MapTaskExecutorTest {
 
     @Override
     public void abort() {}
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */
@@ -309,6 +315,9 @@ public class MapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(1L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context2) {
               @Override
@@ -318,6 +327,9 @@ public class MapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(2L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context3) {
               @Override
@@ -327,6 +339,9 @@ public class MapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(3L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             });
 
     assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
@@ -518,5 +533,44 @@ public class MapTaskExecutorTest {
     Mockito.verify(o1, atLeastOnce()).abortReadLoop();
     Mockito.verify(o2, atLeastOnce()).abortReadLoop();
     Mockito.verify(stateTracker).deactivate();
+  }
+
+  @Test
+  public void testCloseAbortsOperations() throws Exception {
+    Operation o1 = Mockito.mock(Operation.class);
+    Operation o2 = Mockito.mock(Operation.class);
+    List<Operation> operations = Arrays.asList(o1, o2);
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
+    Mockito.verifyNoMoreInteractions(stateTracker);
+    try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {}
+
+    Mockito.verify(o1).abort();
+    Mockito.verify(o2).abort();
+  }
+
+  @Test
+  public void testExceptionAndThenCloseAbortsJustOnce() throws Exception {
+    Operation o1 = Mockito.mock(Operation.class);
+    Operation o2 = Mockito.mock(Operation.class);
+    Mockito.doThrow(new Exception("in start")).when(o2).start();
+
+    ExecutionStateTracker stateTracker = Mockito.spy(ExecutionStateTracker.newForTest());
+    MapTaskExecutor executor = new MapTaskExecutor(Arrays.asList(o1, o2), counterSet, stateTracker);
+    try {
+      executor.execute();
+      fail("Should have thrown");
+    } catch (Exception e) {
+    }
+    InOrder inOrder = Mockito.inOrder(o2, stateTracker);
+    inOrder.verify(stateTracker).activate();
+    inOrder.verify(o2).start();
+    inOrder.verify(o2).abort();
+    inOrder.verify(stateTracker).deactivate();
+
+    // Order of o1 abort doesn't matter
+    Mockito.verify(o1).abort();
+    Mockito.verifyNoMoreInteractions(o1);
+    // Closing after already closed should not call abort again.
+    executor.close();
   }
 }

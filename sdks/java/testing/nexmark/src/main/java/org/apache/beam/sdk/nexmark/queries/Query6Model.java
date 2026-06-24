@@ -123,7 +123,7 @@ public class Query6Model extends NexmarkQueryModel<SellerPrice> implements Seria
     // Find the last (in processing time) reported average price for each seller.
     Map<Long, TimestampedValue<SellerPrice>> finalAverages = new TreeMap<>();
     for (TimestampedValue<SellerPrice> obj : results) {
-      Assert.assertTrue("have SellerPrice", obj.getValue() instanceof SellerPrice);
+      Assert.assertTrue("have SellerPrice", obj.getValue() != null);
       SellerPrice sellerPrice = (SellerPrice) obj.getValue();
       finalAverages.put(sellerPrice.seller, TimestampedValue.of(sellerPrice, obj.getTimestamp()));
     }

@@ -26,6 +26,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 # pytype: skip-file
+# pylint: disable=wrong-import-order, wrong-import-position
 
 import datetime
 import decimal
@@ -39,13 +40,11 @@ import uuid
 from json.decoder import JSONDecodeError
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
 import fastavro
 import numpy as np
-import regex
 
 import apache_beam
 from apache_beam import coders
@@ -53,12 +52,12 @@ from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
-from apache_beam.internal.metrics.metric import Metrics
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
@@ -68,14 +67,16 @@ from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
 
 # Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
 try:
+  import regex
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
   from apitools.base.py.transfer import Upload
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
   from google.api_core.client_info import ClientInfo
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
-except ImportError:
+except Exception:
   gcp_bigquery = None
   pass
 
@@ -121,6 +122,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "FLOAT": np.float64,
     "NUMERIC": decimal.Decimal,
     "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
+    "GEOGRAPHY": str,
 }
 
 
@@ -177,7 +179,7 @@ V = TypeVar('V')
 
 
 def to_hashable_table_ref(
-    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+    table_ref_elem_kv: tuple[Union[str, TableReference], V]) -> tuple[str, V]:
   """Turns the key of the input tuple to its string representation. The key
   should be either a string or a TableReference.
 
@@ -418,7 +420,7 @@ class BigQueryWrapper(object):
 
   def _get_temp_table_project(self, fallback_project_id):
     """Returns the project ID for temporary table operations.
-    
+
     If temp_table_ref exists, returns its projectId.
     Otherwise, returns the fallback_project_id.
     """
@@ -839,7 +841,13 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_dataset(
-      self, project_id, dataset_id, location=None, labels=None, kms_key=None):
+      self,
+      project_id,
+      dataset_id,
+      location=None,
+      labels=None,
+      kms_key=None,
+      default_table_expiration_ms=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(
@@ -865,6 +873,8 @@ class BigQueryWrapper(object):
         if kms_key is not None:
           dataset.defaultEncryptionConfiguration = (
               _build_dataset_encryption_config(kms_key))
+        if default_table_expiration_ms is not None:
+          dataset.defaultTableExpirationMs = default_table_expiration_ms
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
@@ -1771,18 +1781,23 @@ bigquery_v2_messages.TableSchema):
       "root", dict_table_schema)
 
 
-def get_beam_typehints_from_tableschema(schema):
+def get_beam_typehints_from_tableschema(schema, type_overrides=None):
   """Extracts Beam Python type hints from the schema.
 
   Args:
     schema (~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema):
       The TableSchema to extract type hints from.
+    type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
+      to Python types. These override the default mappings in
+      BIGQUERY_TYPE_TO_PYTHON_TYPE. For example:
+      ``{'DATE': datetime.date, 'JSON': dict}``
 
   Returns:
     List[Tuple[str, Any]]: A list of type hints that describe the input schema.
     Nested and repeated fields are supported.
   """
+  effective_types = {**BIGQUERY_TYPE_TO_PYTHON_TYPE, **(type_overrides or {})}
   if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
     schema = get_bq_tableschema(schema)
   typehints = []
@@ -1792,9 +1807,9 @@ bigquery_v2_messages.TableSchema):
     if field_type in ["STRUCT", "RECORD"]:
       # Structs can be represented as Beam Rows.
       typehint = RowTypeConstraint.from_fields(
-          get_beam_typehints_from_tableschema(field))
-    elif field_type in BIGQUERY_TYPE_TO_PYTHON_TYPE:
-      typehint = BIGQUERY_TYPE_TO_PYTHON_TYPE[field_type]
+          get_beam_typehints_from_tableschema(field, type_overrides))
+    elif field_type in effective_types:
+      typehint = effective_types[field_type]
     else:
       raise ValueError(
           f"Converting BigQuery type [{field_type}] to "

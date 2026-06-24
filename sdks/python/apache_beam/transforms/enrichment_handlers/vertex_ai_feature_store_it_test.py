@@ -29,12 +29,12 @@ from apache_beam.testing.util import BeamAssertException
 # pylint: disable=ungrouped-imports
 try:
   from testcontainers.redis import RedisContainer
+
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
+  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import \
-    VertexAIFeatureStoreEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import \
-    VertexAIFeatureStoreLegacyEnrichmentHandler
+      VertexAIFeatureStoreLegacyEnrichmentHandler
 except ImportError:
   raise unittest.SkipTest(
       'VertexAI Feature Store test dependencies '

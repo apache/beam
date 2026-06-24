@@ -49,6 +49,7 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -73,7 +74,7 @@ import org.joda.time.Instant;
  *       Double>>}
  * </ul>
  *
- * <p>In addition to this, it passes {@Code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
+ * <p>In addition to this, it passes {@code OutputReceiver<RestrictionT>} to the DoFn GetRestriction
  * method.
  */
 @Internal
@@ -315,6 +316,8 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
   private <T> void outputTo(FnDataReceiver<WindowedValue<T>> consumer, WindowedValue<T> output) {
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }
@@ -338,22 +341,24 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
     }
 
     @Override
-    public void output(RestrictionT subrestriction) {
-      // This OutputReceiver is only for being passed to SplitRestriction OutputT == RestrictionT
-      double size = getSize(subrestriction);
+    public OutputBuilder<RestrictionT> builder(RestrictionT subrestriction) {
+      return WindowedValues.builder(getCurrentElement())
+          .withValue(subrestriction)
+          .setWindow(getCurrentWindow())
+          .setReceiver(
+              windowedValue -> {
+                double size = getSize(windowedValue.getValue());
 
-      // Don't need to check timestamp since we can always output using the input timestamp.
-      outputTo(
-          mainOutputConsumer,
-          WindowedValues.of(
-              KV.of(
-                  KV.of(
-                      getCurrentElement().getValue(),
-                      KV.of(subrestriction, getCurrentWatermarkEstimatorState())),
-                  size),
-              getCurrentElement().getTimestamp(),
-              getCurrentWindow(),
-              getCurrentElement().getPaneInfo()));
+                outputTo(
+                    mainOutputConsumer,
+                    windowedValue.withValue(
+                        KV.of(
+                            KV.of(
+                                getCurrentElement().getValue(),
+                                KV.of(
+                                    windowedValue.getValue(), getCurrentWatermarkEstimatorState())),
+                            size)));
+              });
     }
   }
 
@@ -361,19 +366,23 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
   private class SizedRestrictionNonWindowObservingArgumentProvider
       extends SplitRestrictionArgumentProvider {
     @Override
-    public void output(RestrictionT subrestriction) {
-      double size = getSize(subrestriction);
+    public OutputBuilder<RestrictionT> builder(RestrictionT subrestriction) {
+      return WindowedValues.builder(getCurrentElement())
+          .withValue(subrestriction)
+          .setReceiver(
+              windowedValue -> {
+                double size = getSize(windowedValue.getValue());
 
-      // Don't need to check timestamp since we can always output using the input timestamp.
-      outputTo(
-          mainOutputConsumer,
-          getCurrentElement()
-              .withValue(
-                  KV.of(
-                      KV.of(
-                          getCurrentElement().getValue(),
-                          KV.of(subrestriction, getCurrentWatermarkEstimatorState())),
-                      size)));
+                outputTo(
+                    mainOutputConsumer,
+                    windowedValue.withValue(
+                        KV.of(
+                            KV.of(
+                                getCurrentElement().getValue(),
+                                KV.of(
+                                    windowedValue.getValue(), getCurrentWatermarkEstimatorState())),
+                            size)));
+              });
     }
   }
 

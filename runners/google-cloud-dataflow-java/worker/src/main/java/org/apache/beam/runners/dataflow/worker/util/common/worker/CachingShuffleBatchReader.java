@@ -83,8 +83,8 @@ public class CachingShuffleBatchReader implements ShuffleBatchReader {
 
   /** The key for the entries stored in the batch cache. */
   static final class BatchRange {
-    protected final @Nullable ShufflePosition startPosition;
-    protected final @Nullable ShufflePosition endPosition;
+    final @Nullable ShufflePosition startPosition;
+    final @Nullable ShufflePosition endPosition;
 
     public BatchRange(
         @Nullable ShufflePosition startPosition, @Nullable ShufflePosition endPosition) {

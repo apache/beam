@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.protobuf;
 
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getFieldNumber;
+import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
@@ -55,7 +56,6 @@ import net.bytebuddy.description.modifier.Visibility;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
 import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.dynamic.scaffold.InstrumentedType;
 import net.bytebuddy.implementation.FixedValue;
 import net.bytebuddy.implementation.Implementation;
@@ -78,6 +78,7 @@ import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -87,7 +88,6 @@ import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
-import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -186,6 +186,7 @@ class ProtoByteBuddyUtils {
           TypeName.MAP, "putAll");
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
+  private static final String DEFAULT_PROTO_HAVER_PREFIX = "has";
 
   // https://github.com/apache/beam/issues/21626: there is a slight difference between 'protoc' and
   // Guava CaseFormat regarding the camel case conversion
@@ -245,6 +246,11 @@ class ProtoByteBuddyUtils {
 
   static String protoSetterPrefix(FieldType fieldType) {
     return PROTO_SETTER_PREFIX.getOrDefault(fieldType.getTypeName(), DEFAULT_PROTO_SETTER_PREFIX);
+  }
+
+  static String protoHaverName(String name) {
+    String camel = convertProtoPropertyNameToJavaPropertyName(name);
+    return DEFAULT_PROTO_HAVER_PREFIX + camel;
   }
 
   static class ProtoConvertType extends ConvertType {
@@ -504,8 +510,16 @@ class ProtoByteBuddyUtils {
 
     int[] keys = getterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
+    Class<?> targetClass = getLoadingTarget(protoClass);
+    @SuppressWarnings("unchecked")
     DynamicType.Builder<FieldValueGetter<@NonNull ProtoT, OneOfType.Value>> builder =
-        ByteBuddyUtils.subclassGetterInterface(BYTE_BUDDY, protoClass, OneOfType.Value.class);
+        (DynamicType.Builder<FieldValueGetter<@NonNull ProtoT, OneOfType.Value>>)
+            BYTE_BUDDY
+                .with(new InjectPackageStrategy(targetClass))
+                .subclass(
+                    TypeDescription.Generic.Builder.parameterizedType(
+                            FieldValueGetter.class, protoClass, OneOfType.Value.class)
+                        .build());
     builder =
         builder
             .method(ElementMatchers.named("name"))
@@ -539,7 +553,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(targetClass.getClassLoader(), getClassLoadingStrategy(targetClass))
           .getLoaded()
           .getDeclaredConstructor(List.class, OneOfType.class)
           .newInstance(getters, oneOfType);
@@ -561,9 +575,16 @@ class ProtoByteBuddyUtils {
     boolean contiguous = isContiguous(indices);
     int[] keys = setterMethodMap.keySet().stream().mapToInt(Integer::intValue).toArray();
 
+    Class<?> targetClass = getLoadingTarget(protoBuilderClass);
+    @SuppressWarnings("unchecked")
     DynamicType.Builder<FieldValueSetter<ProtoBuilderT, Object>> builder =
-        ByteBuddyUtils.subclassSetterInterface(
-            BYTE_BUDDY, protoBuilderClass, OneOfType.Value.class);
+        (DynamicType.Builder<FieldValueSetter<ProtoBuilderT, Object>>)
+            BYTE_BUDDY
+                .with(new InjectPackageStrategy(targetClass))
+                .subclass(
+                    TypeDescription.Generic.Builder.parameterizedType(
+                            FieldValueSetter.class, protoBuilderClass, OneOfType.Value.class)
+                        .build());
     builder =
         builder
             .method(ElementMatchers.named("name"))
@@ -591,7 +612,7 @@ class ProtoByteBuddyUtils {
       return builder
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
-          .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+          .load(targetClass.getClassLoader(), getClassLoadingStrategy(targetClass))
           .getLoaded()
           .getDeclaredConstructor(List.class)
           .newInstance(setters);
@@ -986,7 +1007,29 @@ class ProtoByteBuddyUtils {
       return createOneOfGetter(
           fieldValueTypeInformation, oneOfGetters, clazz, oneOfType, caseMethod);
     } else {
-      return JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
+      FieldValueGetter<@NonNull ProtoT, Object> getter =
+          JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
+
+      @Nullable Method hasMethod = getProtoHaver(methods, field.getName());
+      if (hasMethod != null) {
+        FieldValueHaver<ProtoT> haver = JavaBeanUtils.createHaver(clazz, hasMethod);
+        return new FieldValueGetter<@NonNull ProtoT, Object>() {
+          @Override
+          public @Nullable Object get(@NonNull ProtoT object) {
+            if (haver.has(object)) {
+              return getter.get(object);
+            }
+            return null;
+          }
+
+          @Override
+          public String name() {
+            return getter.name();
+          }
+        };
+      } else {
+        return getter;
+      }
     }
   }
 
@@ -1018,6 +1061,13 @@ class ProtoByteBuddyUtils {
         .filter(m -> m.getParameterCount() == 0)
         .findAny()
         .orElseThrow(IllegalArgumentException::new);
+  }
+
+  static @Nullable Method getProtoHaver(Multimap<String, Method> methods, String name) {
+    return methods.get(protoHaverName(name)).stream()
+        .filter(m -> m.getParameterCount() == 0)
+        .findAny()
+        .orElse(null);
   }
 
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
@@ -1067,11 +1117,16 @@ class ProtoByteBuddyUtils {
       List<FieldValueSetter<ProtoBuilderT, Object>> setters,
       Schema schema) {
     try {
+      Class<?> targetClass = getLoadingTarget(builderClass);
+      @SuppressWarnings("unchecked")
       DynamicType.Builder<Supplier<ProtoBuilderT>> builder =
-          (DynamicType.Builder)
+          (DynamicType.Builder<Supplier<ProtoBuilderT>>)
               BYTE_BUDDY
-                  .with(new InjectPackageStrategy(builderClass))
-                  .subclass(Supplier.class)
+                  .with(new InjectPackageStrategy(targetClass))
+                  .subclass(
+                      TypeDescription.Generic.Builder.parameterizedType(
+                              Supplier.class, builderClass)
+                          .build())
                   .method(ElementMatchers.named("get"))
                   .intercept(new BuilderSupplier(protoClass));
       Supplier<ProtoBuilderT> supplier =
@@ -1080,7 +1135,7 @@ class ProtoByteBuddyUtils {
                   new AsmVisitorWrapper.ForDeclaredMethods()
                       .writerFlags(ClassWriter.COMPUTE_FRAMES))
               .make()
-              .load(ReflectHelpers.findClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+              .load(targetClass.getClassLoader(), getClassLoadingStrategy(targetClass))
               .getLoaded()
               .getDeclaredConstructor()
               .newInstance();
@@ -1107,10 +1162,13 @@ class ProtoByteBuddyUtils {
     }
 
     @Override
-    public Object create(Object... params) {
+    public Object create(@Nullable Object... params) {
       ProtoBuilderT builder = builderCreator.get();
       for (int i = 0; i < params.length; ++i) {
-        setters.get(i).set(builder, params[i]);
+        @Nullable Object param = params[i];
+        if (param != null) {
+          setters.get(i).set(builder, param);
+        }
       }
       return builder.build();
     }
@@ -1150,5 +1208,13 @@ class ProtoByteBuddyUtils {
         return new ByteCodeAppender.Size(size.getMaximalSize(), numLocals);
       };
     }
+  }
+
+  private static Class<?> getLoadingTarget(Class<?> protoClass) {
+    ClassLoader loader = ReflectHelpers.findClassLoader(ProtoByteBuddyUtils.class, protoClass);
+    if (loader == ProtoByteBuddyUtils.class.getClassLoader()) {
+      return ProtoByteBuddyUtils.class;
+    }
+    return protoClass;
   }
 }

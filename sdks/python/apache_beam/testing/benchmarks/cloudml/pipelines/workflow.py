@@ -19,14 +19,15 @@ import argparse
 import logging
 import os
 
-import apache_beam as beam
 import tensorflow_transform as tft
 import tensorflow_transform.beam as tft_beam
-from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
 from tensorflow_transform import coders
 from tensorflow_transform.tf_metadata import dataset_metadata
 from tensorflow_transform.tf_metadata import schema_utils
 from tfx_bsl.public import tfxio
+
+import apache_beam as beam
+from apache_beam.testing.benchmarks.cloudml.criteo_tft import criteo
 
 # Name of the column for the synthetic version of the benchmark.
 _SYNTHETIC_COLUMN = 'x'

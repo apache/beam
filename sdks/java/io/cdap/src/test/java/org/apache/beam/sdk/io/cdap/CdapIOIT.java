@@ -72,7 +72,7 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * IO Integration test for {@link org.apache.beam.sdk.io.cdap.CdapIO}.
  *
- * <p>{@see https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
+ * <p>{@link https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
  * more details.
  */
 @RunWith(JUnit4.class)

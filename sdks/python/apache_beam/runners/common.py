@@ -22,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import logging
 import sys
 import threading
@@ -65,12 +66,12 @@ from apache_beam.utils.windowed_value import WindowedBatch
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.runners.worker.bundle_processor import ExecutionContext
-  from apache_beam.transforms import sideinputs
-  from apache_beam.transforms.core import TimerSpec
   from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
+  from apache_beam.runners.worker.bundle_processor import ExecutionContext
+  from apache_beam.transforms import sideinputs
+  from apache_beam.transforms.core import TimerSpec
 
 IMPULSE_VALUE_CODER_IMPL = coders.WindowedValueCoder(
     coders.BytesCoder(), coders.GlobalWindowCoder()).get_impl()

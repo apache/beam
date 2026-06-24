@@ -26,22 +26,88 @@ This page describes how to work with the shell, but does not focus on specific f
 
 ## Quickstart
 
-To use Beam SQL shell, you must first clone the [Beam SDK repository](https://github.com/apache/beam). Then, from the root of the repository clone, execute the following commands to run the shell:
+The easiest way to get started with the Beam SQL shell is using the `beam-sql.sh` script:
+
+### Using beam-sql.sh Script
+
+The `beam-sql.sh` script automatically downloads and sets up the Beam SQL shell with all dependencies.
+
+#### Installation
+
+1. **Download the script:**
+   ```bash
+   curl -O https://raw.githubusercontent.com/apache/beam/master/scripts/beam-sql.sh
+   chmod +x beam-sql.sh
+   ```
+
+2. **Run the shell:**
+   ```bash
+   ./beam-sql.sh
+   ```
+
+The script will automatically:
+- Download a recent stable Beam version by default
+- Build a self-contained JAR with all dependencies
+- Cache the JAR for future use (stored in `~/.beam/cache/`)
+- Launch the Beam SQL shell
+
+#### Prerequisites
+
+- **Java**: Java 11 or higher must be installed and available in your PATH
+- **curl**: Required for downloading the Maven wrapper and dependencies
+
+#### Command-line Options
+
+The `beam-sql.sh` script supports several options:
+
+```bash
+./beam-sql.sh [--version <beam_version>] [--runner <runner_name>] [--io <io_connector>] [--list-versions] [--list-ios] [--list-runners] [--debug] [-h|--help]
+```
+
+**Options:**
+- `--version <beam_version>`: Specify the Apache Beam version (a recent stable version is used by default).
+- `--runner <runner_name>`: Specify the Beam runner to use (default: direct).
+- `--io <io_connector>`: Specify an IO connector to include. Can be used multiple times. Available connectors include: amazon-web-services2, amqp, azure, azure-cosmos, cassandra, cdap, clickhouse, csv, debezium, elasticsearch, google-ads, google-cloud-platform, hadoop-format, hbase, hcatalog, iceberg, influxdb, jdbc, jms, json, kafka, kinesis, kudu, mongodb, mqtt, neo4j, parquet, pulsar, rabbitmq, redis, singlestore, snowflake, solace, solr, sparkreceiver, splunk, synthetic, thrift, tika, xml
+- `--list-versions`: List all available Beam versions from Maven Central and exit
+- `--list-ios`: List all available IO connectors from Maven Central and exit (provides the most up-to-date list)
+- `--list-runners`: List all available runners from Maven Central for the specified Beam version with detailed descriptions and exit
+- `--debug`: Enable debug mode (sets bash -x flag)
+- `-h, --help`: Show help message
+
+**Examples:**
+
+```bash
+# Use a specific Beam version
+./beam-sql.sh --version 2.66.0
+
+# Include Kafka IO connector
+./beam-sql.sh --io kafka
+
+# Use Dataflow runner with multiple IO connectors
+./beam-sql.sh --runner dataflow --io kafka --io iceberg
+
+# List available versions
+./beam-sql.sh --list-versions
+
+# List available IO connectors
+./beam-sql.sh --list-ios
+
+# List available runners (for default version)
+./beam-sql.sh --list-runners
+
+# List available runners for a specific version
+./beam-sql.sh --version 2.66.0 --list-runners
+```
+
+
+### Starting the Shell
+
+After you run the script, the SQL shell starts and you can type queries:
 
 ```
-./gradlew -p sdks/java/extensions/sql/jdbc -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
-
-./sdks/java/extensions/sql/jdbc/build/install/jdbc/bin/jdbc
-```
-
-After you run the commands,  the SQL shell starts and you can type queries:
-
-```
-Welcome to Beam SQL 2.66.0-SNAPSHOT (based on sqlline version 1.4.0)
+Welcome to Beam SQL 2.67.0 (based on sqlline version 1.4.0)
 0: BeamSQL>
 ```
-
-_Note: If you haven't built the project before running the Gradle command, the command will take a few minutes as Gradle must build all dependencies first._
 
 The shell converts the queries into Beam pipelines, runs them using `DirectRunner`, and returns the results as tables when the pipelines finish:
 
@@ -112,23 +178,35 @@ When you're satisfied with the logic of your SQL statements, you can submit the 
 
 ## Specifying the Runner
 
-By default, Beam uses the `DirectRunner` to run the pipeline on the machine where you're executing the commands. If you want to run the pipeline with a different runner, you must perform two steps:
+By default, Beam uses the `DirectRunner` to run the pipeline on the machine where you're executing the commands. If you want to run the pipeline with a different runner, you can specify it using the `beam-sql.sh` script:
 
-1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle.kts)). For example, use the following command to include Flink runner and KafkaIO:
+### Using beam-sql.sh Script
 
-    ```
-    ./gradlew -p sdks/java/extensions/sql/jdbc -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
-    ```
+### How Runner Values are Determined
 
-    _Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os._
+The `beam-sql.sh` script determines the runner in the following way:
 
-1.  Then, specify the runner using the `SET` command ([reference page](/documentation/dsls/sql/set/)):
+1. **Default**: If no `--runner` option is specified, it defaults to `direct` (DirectRunner)
+2. **Command-line**: The `--runner` option accepts case-insensitive values (`Direct`, `DATAFLOW`, etc.)
 
-    ```
-    0: BeamSQL> SET runner='FlinkRunner';
-    ```
+For example, use the following commands for the Dataflow runner when using the `beam-sql.sh` script:
 
-Beam will submit all future `INSERT` statements as pipelines to the specified runner. In this case, the Beam SQL shell does not display the query results. You must manage the submitted jobs through the corresponding runner's UI (for example, using the Flink UI or command line).
+```bash
+# Use Dataflow runner
+./beam-sql.sh --runner dataflow
+
+# Use Dataflow runner with specific IO connectors
+./beam-sql.sh --runner dataflow --io kafka --io iceberg
+```
+
+Then, configure the runner using the `SET` command ([reference page](/documentation/dsls/sql/set/)):
+
+```
+0: BeamSQL> SET runner='DataflowRunner';
+0: BeamSQL> SET projectId='your-gcp-project';
+0: BeamSQL> SET tempLocation='gs://your-bucket/temp';
+```
+
 
 ## Specifying the PipelineOptions
 

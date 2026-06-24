@@ -166,6 +166,31 @@ public class KafkaReadSchemaTransformProvider
       return SchemaRegistryProvider.UNSPECIFIED;
     }
 
+    private static <K, V> KafkaIO.Read<K, V> applyRedistributeSettings(
+        KafkaIO.Read<K, V> kafkaRead, KafkaReadSchemaTransformConfiguration configuration) {
+      Boolean redistribute = configuration.getRedistributed();
+      if (redistribute != null && redistribute) {
+        kafkaRead = kafkaRead.withRedistribute();
+      }
+      Integer redistributeNumKeys = configuration.getRedistributeNumKeys();
+      if (redistributeNumKeys != null && redistributeNumKeys > 0) {
+        kafkaRead = kafkaRead.withRedistributeNumKeys(redistributeNumKeys);
+      }
+      Boolean allowDuplicates = configuration.getAllowDuplicates();
+      if (allowDuplicates != null) {
+        kafkaRead = kafkaRead.withAllowDuplicates(allowDuplicates);
+      }
+      Boolean redistributeByRecordKey = configuration.getRedistributeByRecordKey();
+      if (redistributeByRecordKey != null) {
+        kafkaRead = kafkaRead.withRedistributeByRecordKey(redistributeByRecordKey);
+      }
+      Boolean offsetDeduplication = configuration.getOffsetDeduplication();
+      if (offsetDeduplication != null) {
+        kafkaRead = kafkaRead.withOffsetDeduplication(offsetDeduplication);
+      }
+      return kafkaRead;
+    }
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       configuration.validate();
@@ -233,6 +258,8 @@ public class KafkaReadSchemaTransformProvider
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
         }
 
+        kafkaRead = applyRedistributeSettings(kafkaRead, configuration);
+
         PCollection<GenericRecord> kafkaValues =
             input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
@@ -282,6 +309,8 @@ public class KafkaReadSchemaTransformProvider
       if (maxReadTimeSeconds != null) {
         kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
       }
+
+      kafkaRead = applyRedistributeSettings(kafkaRead, configuration);
 
       PCollection<byte[]> kafkaValues =
           input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
@@ -373,31 +402,24 @@ public class KafkaReadSchemaTransformProvider
             LOG.info(
                 "Downloading {} into local filesystem ({})", configStr, localFile.toAbsolutePath());
             // TODO(pabloem): Only copy if file does not exist.
-            ReadableByteChannel channel =
-                FileSystems.open(FileSystems.match(configStr).metadata().get(0).resourceId());
-            FileOutputStream outputStream = new FileOutputStream(localFile.toFile());
-
-            // Create a WritableByteChannel to write data to the FileOutputStream
-            WritableByteChannel outputChannel = Channels.newChannel(outputStream);
-
-            // Read data from the ReadableByteChannel and write it to the WritableByteChannel
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            while (channel.read(buffer) != -1) {
-              buffer.flip();
-              outputChannel.write(buffer);
-              buffer.compact();
+            try (ReadableByteChannel channel =
+                    FileSystems.open(FileSystems.match(configStr).metadata().get(0).resourceId());
+                FileOutputStream outputStream = new FileOutputStream(localFile.toFile());
+                WritableByteChannel outputChannel = Channels.newChannel(outputStream)) {
+              ByteBuffer buffer = ByteBuffer.allocate(1024);
+              while (channel.read(buffer) != -1) {
+                buffer.flip();
+                outputChannel.write(buffer);
+                buffer.compact();
+              }
             }
-
-            // Close the channels and the output stream
-            channel.close();
-            outputChannel.close();
-            outputStream.close();
             return localFile.toAbsolutePath().toString();
           } catch (IOException e) {
             throw new IllegalArgumentException(
                 String.format(
                     "Unable to fetch file %s to be used locally to create a Kafka Consumer.",
-                    configStr));
+                    configStr),
+                e);
           }
         } else {
           return configValue;

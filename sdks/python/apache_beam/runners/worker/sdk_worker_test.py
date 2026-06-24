@@ -37,6 +37,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statecache
 from apache_beam.runners.worker.sdk_worker import BundleProcessorCache
@@ -126,7 +127,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -153,7 +157,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_progress_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
@@ -176,7 +183,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_inactive_bundle_processor_returns_empty_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
     split_request = beam_fn_api_pb2.InstructionRequest(
@@ -262,7 +272,10 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_failed_bundle_processor_returns_failed_split_response(self):
     bundle_processor = mock.MagicMock()
-    bundle_processor_cache = BundleProcessorCache(None, None, None, {})
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
     bundle_processor_cache.activate('instruction_id')
     worker = SdkWorker(bundle_processor_cache)
 
@@ -337,6 +350,29 @@ class SdkWorkerTest(unittest.TestCase):
             }))
 
     self.assertEqual(response, expected_response)
+
+  def test_bundle_processor_creation_failure_cleans_up_grpc_data_channel(self):
+    data_channel_factory = data_plane.GrpcClientDataChannelFactory()
+    channel = data_channel_factory.create_data_channel_from_url('some_url')
+    state_handler_factory = mock.create_autospec(
+        sdk_worker.GrpcStateHandlerFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        frozenset(), state_handler_factory, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    bundle_processor_cache.get = mock.MagicMock(
+        side_effect=RuntimeError('test error'))
+
+    worker = SdkWorker(bundle_processor_cache)
+    instruction_id = 'instruction_id'
+    request = beam_fn_api_pb2.ProcessBundleRequest(
+        process_bundle_descriptor_id='descriptor_id')
+
+    with self.assertRaises(RuntimeError):
+      worker.process_bundle(request, instruction_id)
+
+    self.assertIn(instruction_id, channel._cleaned_instruction_ids)
 
 
 class CachingStateHandlerTest(unittest.TestCase):
@@ -666,6 +702,38 @@ class ShortIdCacheTest(unittest.TestCase):
           cache.get_short_id(case.info),
           "Got incorrect short id on second retrieval for monitoring info:\n%s"
           % case.info)
+
+
+class DeferredCallTest(unittest.TestCase):
+  """Tests for _DeferredCall.get()."""
+  def test_get_single_arg(self):
+    f = sdk_worker._Future().set(42)
+    call = sdk_worker._DeferredCall(lambda x: x, f)
+    self.assertEqual(call.get(), 42)
+
+  def test_get_multiple_args(self):
+    futures = [sdk_worker._Future().set(i) for i in range(5)]
+    call = sdk_worker._DeferredCall(lambda *args: sum(args), *futures)
+    self.assertEqual(call.get(), sum(range(5)))
+
+  def test_get_non_future_args_are_wrapped(self):
+    # __init__ wraps non-Future values in _Future().set(v); get() must work.
+    call = sdk_worker._DeferredCall(lambda x, y: x * y, 3, 7)
+    self.assertEqual(call.get(), 21)
+
+  def test_get_mixed_future_and_value_args(self):
+    a = sdk_worker._Future().set(10)
+    call = sdk_worker._DeferredCall(lambda x, y: x + y, a, 5)
+    self.assertEqual(call.get(), 15)
+
+  def test_get_zero_args(self):
+    call = sdk_worker._DeferredCall(lambda: 99)
+    self.assertEqual(call.get(), 99)
+
+  def test_get_preserves_return_value_type(self):
+    f = sdk_worker._Future().set({'key': 'val'})
+    call = sdk_worker._DeferredCall(lambda d: d, f)
+    self.assertEqual(call.get(), {'key': 'val'})
 
 
 def monitoringInfoMetadata(info):

@@ -120,11 +120,12 @@ public class SubProcessIOFiles implements Closeable {
       }
 
       LOG.info(
-          String.format(
-              "Log Files for process: %s outFile was: %s errFile was: %s",
-              params, outFileLocation, errFileLocation));
+          "Log Files for process: {} outFile was: {} errFile was: {}",
+          params,
+          outFileLocation,
+          errFileLocation);
     } else {
-      LOG.error(String.format("There was no output file or err file for process %s", params));
+      LOG.error("There was no output file or err file for process {}", params);
     }
   }
 }

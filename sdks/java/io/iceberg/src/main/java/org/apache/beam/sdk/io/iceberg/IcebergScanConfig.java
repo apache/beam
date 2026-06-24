@@ -19,14 +19,14 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.hadoop.util.Sets.newHashSet;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -37,7 +37,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
-import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.TypeUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -68,8 +68,7 @@ public abstract class IcebergScanConfig implements Serializable {
   @Pure
   public Table getTable() {
     if (cachedTable == null) {
-      cachedTable =
-          getCatalogConfig().catalog().loadTable(TableIdentifier.parse(getTableIdentifier()));
+      cachedTable = TableCache.get(getCatalogConfig(), TableIdentifier.parse(getTableIdentifier()));
     }
     return cachedTable;
   }
@@ -93,10 +92,16 @@ public abstract class IcebergScanConfig implements Serializable {
     if (keep != null && !keep.isEmpty()) {
       selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
-      Set<String> fields =
-          schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
-      drop.forEach(fields::remove);
-      selectedFieldsBuilder.addAll(fields);
+      List<String> paths = new ArrayList<>(TypeUtil.indexNameById(schema.asStruct()).values());
+      Collections.sort(paths);
+      for (int i = 0; i < paths.size(); i++) {
+        String path = paths.get(i);
+        boolean isParent = i + 1 < paths.size() && paths.get(i + 1).startsWith(path + ".");
+        boolean isDrop = drop.stream().anyMatch(d -> path.equals(d) || path.startsWith(d + "."));
+        if (!isParent && !isDrop) {
+          selectedFieldsBuilder.add(path);
+        }
+      }
     } else {
       // default: include all columns
       return schema;
@@ -327,7 +332,7 @@ public abstract class IcebergScanConfig implements Serializable {
         param = "drop";
         fieldsSpecified = newHashSet(checkNotNull(drop));
       }
-      table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
+      fieldsSpecified.removeIf(name -> table.schema().findField(name) != null);
 
       checkArgument(
           fieldsSpecified.isEmpty(),

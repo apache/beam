@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -65,7 +66,8 @@ public class SpannerChangeStreamPostgresIT {
   public static final IntegrationTestEnv ENV =
       new IntegrationTestEnv(
           /*isPostgres=*/ true,
-          /*isPlacementTableBasedChangeStream=*/ false,
+          /*isMutableChangeStream=*/ false,
+          /*isPlacementTable=*/ false,
           /*host=*/ Optional.empty());
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -113,10 +115,11 @@ public class SpannerChangeStreamPostgresIT {
     final Timestamp endAt = deleteTimestamps.getRight();
 
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId)
+        SpannerTestHelper.setUpSpannerConfig(
+                SpannerConfig.create()
+                    .withProjectId(projectId)
+                    .withInstanceId(instanceId)
+                    .withDatabaseId(databaseId))
             .withHost(ValueProvider.StaticValueProvider.of(host));
 
     final PCollection<String> tokens =

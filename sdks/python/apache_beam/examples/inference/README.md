@@ -856,6 +856,12 @@ Each line represents a prediction of the flower type along with the confidence i
 
 ## Text classifcation with a Vertex AI LLM
 
+**NOTE**
+Google has deprecated PaLM LLMs like text-bison and no longer supports querying them on Vertex AI endpoints. Separately, the use of the Vertex AI Predict API is
+not supported for Gemini models in favor of use of the google-genai API. As a result, this example no longer works as-written. To perform inference with
+Gemini models deployed on Google infrastructure, please see the `GeminiModelHandler` (in `apache_beam.ml.inference.gemini_inference`) and the
+[`gemini_text_classification.py` example](./gemini_text_classification.py). For custom LLMs, you may still follow this design pattern.
+
 [`vertex_ai_llm_text_classification.py`](./vertex_ai_llm_text_classification.py) contains an implementation for a RunInference pipeline that performs image classification using a model hosted on Vertex AI (based on https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom).
 
 The pipeline reads image urls, performs basic preprocessing to convert them into a List of floats, passes the masked sentence to the Vertex AI implementation of RunInference, and then writes the predictions to a text file.
@@ -924,6 +930,12 @@ python -m apache_beam.examples.inference.vllm_text_completion \
 
 Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
 
+On GPUs with about 16GiB of memory (for example NVIDIA T4), vLLM’s defaults can fail
+during engine startup with CUDA out of memory. The example therefore passes conservative
+``--max-num-seqs`` and ``--gpu-memory-utilization`` values by default (overridable with
+``--vllm_max_num_seqs`` and ``--vllm_gpu_memory_utilization``) via
+`vllm_server_kwargs`, matching the pattern used in other vLLM examples.
+
 This writes the output to the output file location with contents like:
 
 ```
@@ -961,5 +973,71 @@ and produce the following result in your output file location:
 ```
 An emperor penguin is an adorable creature that lives in Antarctica.
 ```
+
+---
+## Table row inference
+
+[`table_row_inference.py`](./table_row_inference.py) contains an implementation for a RunInference pipeline that processes structured table rows from a file or Pub/Sub, runs ML inference while preserving the table schema, and writes results to BigQuery. It supports both batch (file input) and streaming (Pub/Sub) modes.
+
+### Prerequisites for table row inference
+
+Install dependencies (or use `apache_beam/ml/inference/table_row_inference_requirements.txt` from the `sdks/python` directory):
+
+```sh
+pip install apache-beam[gcp] scikit-learn google-cloud-pubsub
+```
+
+For streaming mode you need a Pub/Sub topic and subscription, a BigQuery dataset, and a GCS bucket for model and temp files.
+
+### Model and data for table row inference
+
+1. Create a scikit-learn model and sample data using the provided utilities:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference_utils --action=create_model --output_path=model.pkl --num_features=3
+python -m apache_beam.examples.inference.table_row_inference_utils --action=generate_data --output_path=input_data.jsonl --num_rows=1000 --num_features=3
+```
+
+2. Input data should be JSONL with an `id` field and feature columns, for example:
+
+```json
+{"id": "row_1", "feature1": 1.5, "feature2": 2.3, "feature3": 3.7}
+```
+
+### Running `table_row_inference.py` (batch)
+
+To run the table row inference pipeline in batch mode locally:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=batch \
+  --input_file=input_data.jsonl \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DirectRunner
+```
+
+### Running `table_row_inference.py` (streaming)
+
+For streaming mode, use a Pub/Sub subscription and DataflowRunner. Set up a topic and subscription first, then run:
+
+```sh
+python -m apache_beam.examples.inference.table_row_inference \
+  --mode=streaming \
+  --input_subscription=projects/PROJECT/subscriptions/SUBSCRIPTION \
+  --output_table=PROJECT:DATASET.predictions \
+  --model_path=gs://BUCKET/model.pkl \
+  --feature_columns=feature1,feature2,feature3 \
+  --runner=DataflowRunner \
+  --project=PROJECT \
+  --region=us-central1 \
+  --temp_location=gs://BUCKET/temp \
+  --staging_location=gs://BUCKET/staging
+```
+
+See the script for full pipeline options (window size, trigger interval, worker settings, etc.).
+
+Output is written to the BigQuery table with columns such as `row_key`, `prediction`, and the original input feature columns.
 
 ---

@@ -182,16 +182,20 @@ async def check_workflow_flakiness(workflow):
 
     success_rate = 1.0
     if len(workflow_runs):
-        failed_runs = list(filter(lambda r: r.status == "failure", workflow_runs))
+        failed_runs = list(filter(lambda r: r.status == "failure" or r.status == "cancelled", workflow_runs))
         print(f"Number of failed workflow runs: {len(failed_runs)}")
         success_rate -= len(failed_runs) / len(workflow_runs)
 
     print(f"Success rate: {success_rate}")
 
-    # Check if last 5 runs are all failures
-    last_5_failed = len(workflow_runs) >= 5 and all(run.status == "failure" for run in workflow_runs[:5])
+    # Check if last 5 runs are all failures or cancelled (e.g. job timeout)
+    last_5_failed = len(workflow_runs) >= 5 and all(
+        run.status in ("failure", "cancelled") for run in workflow_runs[:5]
+    )
     if last_5_failed:
-        print(f"The last 5 workflow runs for {workflow.name} have all failed")
+        print(
+            f"The last 5 workflow runs for {workflow.name} have all failed or been cancelled"
+        )
 
     return success_rate < workflow.threshold or last_5_failed
 
@@ -285,13 +289,12 @@ async def fetch_workflow_runs():
     def append_workflow_runs(workflow, runs):
         workflow_runs = {}
         for run in runs:
-            # Getting rid of all runs with a "skipped" status to display
-            # only actual runs
+            # Getting rid of all "skipped" runs to display only actual runs
+            # Possible values for run["status"] are ["queued", "in_progress", "completed"]
             if run["conclusion"] != "skipped":
-                status = ""
                 if run["status"] == "completed":
                     status = run["conclusion"]
-                elif run["status"] != "cancelled":
+                else:
                     status = run["status"]
                 workflow_run = WorkflowRun(
                     run["id"],

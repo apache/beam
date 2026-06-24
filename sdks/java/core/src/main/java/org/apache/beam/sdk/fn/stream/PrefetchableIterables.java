@@ -94,7 +94,7 @@ public class PrefetchableIterables {
    * constructed that ensures that {@link PrefetchableIterator#prefetch()} is a no-op and {@link
    * PrefetchableIterator#isReady()} always returns true.
    */
-  private static <T> PrefetchableIterable<T> maybePrefetchable(Iterable<T> iterable) {
+  public static <T> PrefetchableIterable<T> maybePrefetchable(Iterable<T> iterable) {
     if (iterable instanceof PrefetchableIterable) {
       return (PrefetchableIterable<T>) iterable;
     }

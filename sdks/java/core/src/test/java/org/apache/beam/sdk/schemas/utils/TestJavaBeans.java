@@ -19,10 +19,14 @@ package org.apache.beam.sdk.schemas.utils;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -33,7 +37,10 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -69,7 +76,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NullableBean)) {
         return false;
       }
       NullableBean that = (NullableBean) o;
@@ -102,7 +109,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MismatchingNullableBean)) {
         return false;
       }
       MismatchingNullableBean that = (MismatchingNullableBean) o;
@@ -260,7 +267,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBean)) {
         return false;
       }
       SimpleBean that = (SimpleBean) o;
@@ -447,7 +454,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBean)) {
         return false;
       }
       SimpleBean that = (SimpleBean) o;
@@ -617,7 +624,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SimpleBeanWithAnnotations)) {
         return false;
       }
       SimpleBeanWithAnnotations that = (SimpleBeanWithAnnotations) o;
@@ -696,7 +703,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedBean)) {
         return false;
       }
       NestedBean that = (NestedBean) o;
@@ -758,7 +765,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveArrayBean)) {
         return false;
       }
       PrimitiveArrayBean that = (PrimitiveArrayBean) o;
@@ -808,7 +815,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArrayBean)) {
         return false;
       }
       NestedArrayBean that = (NestedArrayBean) o;
@@ -849,7 +856,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedArraysBean)) {
         return false;
       }
       NestedArraysBean that = (NestedArraysBean) o;
@@ -900,12 +907,12 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedCollectionBean)) {
         return false;
       }
       NestedCollectionBean that = (NestedCollectionBean) o;
       return Objects.equals(simples, that.simples)
-          && Objects.equals(iterableSimples, that.iterableSimples);
+          && Iterables.elementsEqual(iterableSimples, that.iterableSimples);
     }
 
     @Override
@@ -945,7 +952,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PrimitiveMapBean)) {
         return false;
       }
       PrimitiveMapBean that = (PrimitiveMapBean) o;
@@ -986,7 +993,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof NestedMapBean)) {
         return false;
       }
       NestedMapBean that = (NestedMapBean) o;
@@ -1070,7 +1077,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithBoxedFields)) {
         return false;
       }
       BeanWithBoxedFields that = (BeanWithBoxedFields) o;
@@ -1131,7 +1138,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithByteArray)) {
         return false;
       }
       BeanWithByteArray that = (BeanWithByteArray) o;
@@ -1174,11 +1181,11 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof IterableBean)) {
         return false;
       }
       IterableBean that = (IterableBean) o;
-      return Objects.equals(strings, that.strings);
+      return Iterables.elementsEqual(strings, that.strings);
     }
 
     @Override
@@ -1215,7 +1222,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ArrayOfByteArray)) {
         return false;
       }
       ArrayOfByteArray that = (ArrayOfByteArray) o;
@@ -1264,7 +1271,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithCaseFormat)) {
         return false;
       }
       BeanWithCaseFormat that = (BeanWithCaseFormat) o;
@@ -1337,7 +1344,7 @@ public class TestJavaBeans {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof BeanWithCaseFormat)) {
         return false;
       }
       BeanWithCaseFormat that = (BeanWithCaseFormat) o;
@@ -1397,4 +1404,122 @@ public class TestJavaBeans {
               Schema.Field.nullable("value", FieldType.FLOAT)
                   .withDescription("This value is the value stored in the object as a float."))
           .build();
+
+  /** A Bean containing JSR-310 date/time types and a UUID, all inferred as Beam logical types. */
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class JavaTimeBean {
+    private LocalDate localDate;
+    private LocalTime localTime;
+    private LocalDateTime localDateTime;
+    private java.time.Instant instant;
+    private UUID uuid;
+
+    public JavaTimeBean() {}
+
+    public LocalDate getLocalDate() {
+      return localDate;
+    }
+
+    public void setLocalDate(LocalDate localDate) {
+      this.localDate = localDate;
+    }
+
+    public LocalTime getLocalTime() {
+      return localTime;
+    }
+
+    public void setLocalTime(LocalTime localTime) {
+      this.localTime = localTime;
+    }
+
+    public LocalDateTime getLocalDateTime() {
+      return localDateTime;
+    }
+
+    public void setLocalDateTime(LocalDateTime localDateTime) {
+      this.localDateTime = localDateTime;
+    }
+
+    public java.time.Instant getInstant() {
+      return instant;
+    }
+
+    public void setInstant(java.time.Instant instant) {
+      this.instant = instant;
+    }
+
+    public UUID getUuid() {
+      return uuid;
+    }
+
+    public void setUuid(UUID uuid) {
+      this.uuid = uuid;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof JavaTimeBean)) {
+        return false;
+      }
+      JavaTimeBean that = (JavaTimeBean) o;
+      return Objects.equals(localDate, that.localDate)
+          && Objects.equals(localTime, that.localTime)
+          && Objects.equals(localDateTime, that.localDateTime)
+          && Objects.equals(instant, that.instant)
+          && Objects.equals(uuid, that.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(localDate, localTime, localDateTime, instant, uuid);
+    }
+  }
+
+  /** The schema for {@link JavaTimeBean}. */
+  public static final Schema JAVA_TIME_BEAN_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("localDate", SqlTypes.DATE)
+          .addLogicalTypeField("localTime", SqlTypes.TIME)
+          .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+          .addLogicalTypeField("instant", new NanosInstant())
+          .addLogicalTypeField("uuid", SqlTypes.UUID)
+          .build();
+
+  @DefaultSchema(JavaBeanSchema.class)
+  public static class GenericBean<T> {
+    @Nullable private T t;
+
+    @Nullable
+    public T getT() {
+      return t;
+    }
+
+    public void setT(@Nullable T t) {
+      this.t = t;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof GenericBean)) {
+        return false;
+      }
+      GenericBean<?> that = (GenericBean<?>) o;
+      return Objects.equals(t, that.t);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(t);
+    }
+  }
+
+  public static Schema genericBeanSchema(FieldType genericFieldType) {
+    return Schema.builder().addNullableField("t", genericFieldType).build();
+  }
 }

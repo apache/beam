@@ -491,7 +491,7 @@ func (controller *playgroundController) SaveSnippet(ctx context.Context, req *pb
 		logger.Error("SaveSnippet(): the runner is trying to save the snippet")
 		return nil, cerrors.InvalidArgumentError(errorTitleSaveSnippet, "The runner doesn't support snippets")
 	}
-	if req.Files == nil || len(req.Files) == 0 {
+	if len(req.Files) == 0 {
 		logger.Error("SaveSnippet(): files are empty")
 		return nil, cerrors.InvalidArgumentError(errorTitleSaveSnippet, "Snippet must have files")
 	}

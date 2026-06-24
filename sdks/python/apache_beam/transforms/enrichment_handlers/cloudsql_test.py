@@ -20,18 +20,15 @@ from parameterized import parameterized
 
 # pylint: disable=ungrouped-imports
 try:
-  from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      CloudSQLEnrichmentHandler,
-      DatabaseTypeAdapter,
-      CustomQueryConfig,
-      TableFieldsQueryConfig,
-      TableFunctionQueryConfig,
-      CloudSQLConnectionConfig,
-      ExternalSQLDBConnectionConfig)
-  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
-      query_fn,
-      where_clause_value_fn,
-  )
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CloudSQLEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.cloudsql import CustomQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import DatabaseTypeAdapter
+  from apache_beam.transforms.enrichment_handlers.cloudsql import ExternalSQLDBConnectionConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFieldsQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql import TableFunctionQueryConfig
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import query_fn
+  from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import where_clause_value_fn
 except ImportError as e:
   raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 
@@ -215,6 +212,59 @@ class TestCloudSQLEnrichment(unittest.TestCase):
     # Verify that get_cache_key raises NotImplementedError.
     with self.assertRaises(NotImplementedError):
       handler.get_cache_key(request)
+
+  def test_batch_elements_kwargs_include_max_batch_duration_secs(self):
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+    query_config = TableFieldsQueryConfig(
+        table_id='my_table',
+        where_clause_template='id = :id',
+        where_clause_fields=['id'])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=query_config,
+        min_batch_size=2,
+        max_batch_size=10,
+        max_batch_duration_secs=0.5)
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(),
+        {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+            'max_batch_duration_secs': 0.5,
+        })
+
+  def test_batch_elements_kwargs_omit_max_batch_duration_secs_by_default(self):
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+    query_config = TableFieldsQueryConfig(
+        table_id='my_table',
+        where_clause_template='id = :id',
+        where_clause_fields=['id'])
+
+    handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=query_config,
+        min_batch_size=2,
+        max_batch_size=10)
+
+    self.assertEqual(
+        handler.batch_elements_kwargs(), {
+            'min_batch_size': 2,
+            'max_batch_size': 10,
+        })
 
   def test_extract_parameter_names(self):
     """Test parameter extraction from SQL templates."""

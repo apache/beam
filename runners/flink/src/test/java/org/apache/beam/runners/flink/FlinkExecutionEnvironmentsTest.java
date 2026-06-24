@@ -563,7 +563,16 @@ public class FlinkExecutionEnvironmentsTest {
   }
 
   private String getSavepointPath(Object env) {
-    return ((Configuration) Whitebox.getInternalState(env, "configuration"))
-        .getString("execution.savepoint.path", null);
+    // pre Flink 1.20 config
+    String path =
+        ((Configuration) Whitebox.getInternalState(env, "configuration"))
+            .getString("execution.savepoint.path", null);
+    if (path == null) {
+      // Flink 1.20+
+      path =
+          ((Configuration) Whitebox.getInternalState(env, "configuration"))
+              .getString("execution.state-recovery.path", null);
+    }
+    return path;
   }
 }

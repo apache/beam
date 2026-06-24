@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
+import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -35,24 +37,30 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.Int64Value;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -77,105 +85,115 @@ public class TableRowToStorageApiProtoTest {
       new TableSchema()
           .setFields(
               ImmutableList.<TableFieldSchema>builder()
-                  .add(new TableFieldSchema().setType("STRING").setName("stringValue"))
+                  .add(new TableFieldSchema().setType("STRING").setName("stringvalue"))
                   .add(new TableFieldSchema().setType("STRING").setName("f"))
-                  .add(new TableFieldSchema().setType("BYTES").setName("bytesValue"))
-                  .add(new TableFieldSchema().setType("INT64").setName("int64Value"))
-                  .add(new TableFieldSchema().setType("INTEGER").setName("intValue"))
-                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64Value"))
-                  .add(new TableFieldSchema().setType("FLOAT").setName("floatValue"))
-                  .add(new TableFieldSchema().setType("BOOL").setName("boolValue"))
-                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValue"))
-                  .add(new TableFieldSchema().setType("TIME").setName("timeValue"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
-                  .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
-                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
-                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
-                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue2"))
-                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue2"))
+                  .add(new TableFieldSchema().setType("BYTES").setName("bytesvalue"))
+                  .add(new TableFieldSchema().setType("INT64").setName("int64value"))
+                  .add(new TableFieldSchema().setType("INTEGER").setName("intvalue"))
+                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64value"))
+                  .add(new TableFieldSchema().setType("FLOAT").setName("floatvalue"))
+                  .add(new TableFieldSchema().setType("BOOL").setName("boolvalue"))
+                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanvalue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvalue"))
+                  .add(new TableFieldSchema().setType("TIME").setName("timevalue"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimevalue"))
+                  .add(new TableFieldSchema().setType("DATE").setName("datevalue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericvalue"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bignumericvalue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericvalue2"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bignumericvalue2"))
                   .add(
                       new TableFieldSchema()
                           .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampisovalue"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampISOValueOffsetHH"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                          .setName("timestampisovalueOffsethh"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluelong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluespace"))
                   .add(
-                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceUtc"))
-                  .add(
-                      new TableFieldSchema()
-                          .setType("TIMESTAMP")
-                          .setName("timestampValueZoneRegion"))
+                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluespaceutc"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampValueSpaceMilli"))
+                          .setName("timestampvaluezoneregion"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampValueSpaceTrailingZero"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
+                          .setName("timestampvaluespacemilli"))
                   .add(
-                      new TableFieldSchema().setType("STRING").setName("123_IllegalProtoFieldName"))
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampvaluespacetrailingzero"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimevaluespace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluemaximum"))
+                  .add(
+                      new TableFieldSchema().setType("STRING").setName("123_illegalprotofieldname"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestamppicosvalue")
+                          .setTimestampPrecision(12L))
                   .build());
 
   private static final TableSchema BASE_TABLE_SCHEMA_NO_F =
       new TableSchema()
           .setFields(
               ImmutableList.<TableFieldSchema>builder()
-                  .add(new TableFieldSchema().setType("STRING").setName("stringValue"))
-                  .add(new TableFieldSchema().setType("BYTES").setName("bytesValue"))
-                  .add(new TableFieldSchema().setType("INT64").setName("int64Value"))
-                  .add(new TableFieldSchema().setType("INTEGER").setName("intValue"))
-                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64Value"))
-                  .add(new TableFieldSchema().setType("FLOAT").setName("floatValue"))
-                  .add(new TableFieldSchema().setType("BOOL").setName("boolValue"))
-                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValue"))
-                  .add(new TableFieldSchema().setType("TIME").setName("timeValue"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValue"))
-                  .add(new TableFieldSchema().setType("DATE").setName("dateValue"))
-                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue"))
-                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue"))
-                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericValue2"))
-                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bigNumericValue2"))
+                  .add(new TableFieldSchema().setType("STRING").setName("stringvalue"))
+                  .add(new TableFieldSchema().setType("BYTES").setName("bytesvalue"))
+                  .add(new TableFieldSchema().setType("INT64").setName("int64value"))
+                  .add(new TableFieldSchema().setType("INTEGER").setName("intvalue"))
+                  .add(new TableFieldSchema().setType("FLOAT64").setName("float64value"))
+                  .add(new TableFieldSchema().setType("FLOAT").setName("floatvalue"))
+                  .add(new TableFieldSchema().setType("BOOL").setName("boolvalue"))
+                  .add(new TableFieldSchema().setType("BOOLEAN").setName("booleanvalue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvalue"))
+                  .add(new TableFieldSchema().setType("TIME").setName("timevalue"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimevalue"))
+                  .add(new TableFieldSchema().setType("DATE").setName("datevalue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericvalue"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bignumericvalue"))
+                  .add(new TableFieldSchema().setType("NUMERIC").setName("numericvalue2"))
+                  .add(new TableFieldSchema().setType("BIGNUMERIC").setName("bignumericvalue2"))
                   .add(
                       new TableFieldSchema()
                           .setType("BYTES")
                           .setMode("REPEATED")
                           .setName("arrayValue"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampISOValue"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampisovalue"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampISOValueOffsetHH"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueLong"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpace"))
+                          .setName("timestampisovalueOffsethh"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluelong"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluespace"))
                   .add(
-                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueSpaceUtc"))
-                  .add(
-                      new TableFieldSchema()
-                          .setType("TIMESTAMP")
-                          .setName("timestampValueZoneRegion"))
+                      new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluespaceutc"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampValueSpaceMilli"))
+                          .setName("timestampvaluezoneregion"))
                   .add(
                       new TableFieldSchema()
                           .setType("TIMESTAMP")
-                          .setName("timestampValueSpaceTrailingZero"))
-                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimeValueSpace"))
-                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampValueMaximum"))
+                          .setName("timestampvaluespacemilli"))
                   .add(
-                      new TableFieldSchema().setType("STRING").setName("123_IllegalProtoFieldName"))
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestampvaluespacetrailingzero"))
+                  .add(new TableFieldSchema().setType("DATETIME").setName("datetimevaluespace"))
+                  .add(new TableFieldSchema().setType("TIMESTAMP").setName("timestampvaluemaximum"))
+                  .add(
+                      new TableFieldSchema().setType("STRING").setName("123_illegalprotofieldname"))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("TIMESTAMP")
+                          .setName("timestamppicosvalue")
+                          .setTimestampPrecision(12L))
                   .build());
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR =
@@ -184,196 +202,196 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("stringvalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("f")
                   .setNumber(2)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bytesvalue")
                   .setNumber(3)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int64value")
                   .setNumber(4)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("intvalue")
                   .setNumber(5)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("float64value")
                   .setNumber(6)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(7)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("boolvalue")
                   .setNumber(8)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("booleanvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timevalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
                   .setNumber(12)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_INT32)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue")
                   .setNumber(14)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bignumericvalue")
                   .setNumber(15)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue2")
                   .setNumber(16)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bignumericvalue2")
                   .setNumber(17)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
                   .setNumber(18)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalue")
                   .setNumber(19)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalueoffsethh")
                   .setNumber(20)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluelong")
                   .setNumber(21)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespace")
                   .setNumber(22)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespaceutc")
                   .setNumber(23)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluezoneregion")
                   .setNumber(24)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespacemilli")
                   .setNumber(25)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespacetrailingzero")
                   .setNumber(26)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevaluespace")
                   .setNumber(27)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluemaximum")
                   .setNumber(28)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -381,13 +399,21 @@ public class TableRowToStorageApiProtoTest {
                   .setName(
                       BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"))
                   .setNumber(29)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .setOptions(
                       DescriptorProtos.FieldOptions.newBuilder()
                           .setField(
                               AnnotationsProto.columnName.getDescriptor(),
                               "123_illegalprotofieldname"))
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setNumber(30)
+                  .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .setTypeName("TimestampPicos")
                   .build())
           .build();
 
@@ -538,6 +564,12 @@ public class TableRowToStorageApiProtoTest {
                   .setName("123_illegalprotofieldname")
                   .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
                   .build())
+          .addFields(
+              com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                  .setTimestampPrecision(Int64Value.newBuilder().setValue(12L))
+                  .build())
           .build();
 
   private static final DescriptorProto BASE_TABLE_SCHEMA_NO_F_PROTO =
@@ -546,189 +578,189 @@ public class TableRowToStorageApiProtoTest {
               FieldDescriptorProto.newBuilder()
                   .setName("stringvalue")
                   .setNumber(1)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bytesvalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("int64value")
                   .setNumber(3)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("intvalue")
                   .setNumber(4)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("float64value")
                   .setNumber(5)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("floatvalue")
                   .setNumber(6)
-                  .setType(Type.TYPE_DOUBLE)
+                  .setType(FieldDescriptorProto.Type.TYPE_DOUBLE)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("boolvalue")
                   .setNumber(7)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("booleanvalue")
                   .setNumber(8)
-                  .setType(Type.TYPE_BOOL)
+                  .setType(FieldDescriptorProto.Type.TYPE_BOOL)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvalue")
                   .setNumber(9)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timevalue")
                   .setNumber(10)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevalue")
                   .setNumber(11)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datevalue")
                   .setNumber(2)
-                  .setType(Type.TYPE_INT32)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT32)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue")
                   .setNumber(13)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bignumericvalue")
                   .setNumber(14)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("numericvalue2")
                   .setNumber(15)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("bignumericvalue2")
                   .setNumber(16)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("arrayvalue")
                   .setNumber(17)
-                  .setType(Type.TYPE_BYTES)
+                  .setType(FieldDescriptorProto.Type.TYPE_BYTES)
                   .setLabel(Label.LABEL_REPEATED)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalue")
                   .setNumber(18)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampisovalueoffsethh")
                   .setNumber(19)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluelong")
                   .setNumber(20)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespace")
                   .setNumber(21)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespaceutc")
                   .setNumber(22)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluezoneregion")
                   .setNumber(23)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespacemilli")
                   .setNumber(24)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluespacetrailingzero")
                   .setNumber(25)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("datetimevaluespace")
                   .setNumber(26)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
               FieldDescriptorProto.newBuilder()
                   .setName("timestampvaluemaximum")
                   .setNumber(27)
-                  .setType(Type.TYPE_INT64)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .build())
           .addField(
@@ -736,13 +768,21 @@ public class TableRowToStorageApiProtoTest {
                   .setName(
                       BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"))
                   .setNumber(28)
-                  .setType(Type.TYPE_STRING)
+                  .setType(FieldDescriptorProto.Type.TYPE_STRING)
                   .setLabel(Label.LABEL_OPTIONAL)
                   .setOptions(
                       DescriptorProtos.FieldOptions.newBuilder()
                           .setField(
                               AnnotationsProto.columnName.getDescriptor(),
                               "123_illegalprotofieldname"))
+                  .build())
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("timestamppicosvalue")
+                  .setNumber(29)
+                  .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                  .setLabel(Label.LABEL_OPTIONAL)
+                  .setTypeName("TimestampPicos")
                   .build())
           .build();
 
@@ -889,6 +929,12 @@ public class TableRowToStorageApiProtoTest {
                       .setName("123_illegalprotofieldname")
                       .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
                       .build())
+              .addFields(
+                  com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                      .setName("timestamppicosvalue")
+                      .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                      .setTimestampPrecision(Int64Value.newBuilder().setValue(12L))
+                      .build())
               .build();
   private static final TableSchema NESTED_TABLE_SCHEMA =
       new TableSchema()
@@ -920,17 +966,41 @@ public class TableRowToStorageApiProtoTest {
                           .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
                   .build());
 
+  private static final TableSchema NESTED_TABLE_SCHEMA_NO_F =
+      new TableSchema()
+          .setFields(
+              ImmutableList.<TableFieldSchema>builder()
+                  .add(
+                      new TableFieldSchema()
+                          .setType("STRUCT")
+                          .setName("nestedvalue1")
+                          .setMode("NULLABLE")
+                          .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("RECORD")
+                          .setName("nestedvalue2")
+                          .setMode("NULLABLE")
+                          .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
+                  .add(
+                      new TableFieldSchema()
+                          .setType("RECORD")
+                          .setName("repeatedvalue")
+                          .setMode("REPEATED")
+                          .setFields(BASE_TABLE_SCHEMA_NO_F.getFields()))
+                  .build());
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testDescriptorFromTableSchema() throws Exception {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(BASE_TABLE_SCHEMA, true, false);
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, Type> expectedTypes =
+    Map<String, FieldDescriptorProto.Type> expectedTypes =
         BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -960,16 +1030,16 @@ public class TableRowToStorageApiProtoTest {
   public void testNestedFromTableSchema() throws Exception {
     DescriptorProto descriptor =
         TableRowToStorageApiProto.descriptorSchemaFromTableSchema(NESTED_TABLE_SCHEMA, true, false);
-    Map<String, Type> expectedBaseTypes =
+    Map<String, FieldDescriptorProto.Type> expectedBaseTypes =
         BASE_TABLE_SCHEMA_PROTO_DESCRIPTOR.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
-    Map<String, Type> expectedBaseTypesNoF =
+    Map<String, FieldDescriptorProto.Type> expectedBaseTypesNoF =
         BASE_TABLE_SCHEMA_NO_F_PROTO.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
 
-    Map<String, Type> types =
+    Map<String, FieldDescriptorProto.Type> types =
         descriptor.getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -983,32 +1053,32 @@ public class TableRowToStorageApiProtoTest {
         descriptor.getNestedTypeList().stream()
             .collect(Collectors.toMap(DescriptorProto::getName, Functions.identity()));
     assertEquals(4, nestedTypes.size());
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedvalue1"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedvalue1"));
     String nestedTypeName1 = typeNames.get("nestedvalue1");
-    Map<String, Type> nestedTypes1 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes1 =
         nestedTypes.get(nestedTypeName1).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes1);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedvalue2"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedvalue2"));
     String nestedTypeName2 = typeNames.get("nestedvalue2");
-    Map<String, Type> nestedTypes2 =
+    Map<String, FieldDescriptorProto.Type> nestedTypes2 =
         nestedTypes.get(nestedTypeName2).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypes, nestedTypes2);
 
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedvaluenof1"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedvaluenof1"));
     String nestedTypeNameNoF1 = typeNames.get("nestedvaluenof1");
-    Map<String, Type> nestedTypesNoF1 =
+    Map<String, FieldDescriptorProto.Type> nestedTypesNoF1 =
         nestedTypes.get(nestedTypeNameNoF1).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
     assertEquals(expectedBaseTypesNoF, nestedTypesNoF1);
-    assertEquals(Type.TYPE_MESSAGE, types.get("nestedvaluenof2"));
+    assertEquals(FieldDescriptorProto.Type.TYPE_MESSAGE, types.get("nestedvaluenof2"));
     String nestedTypeNameNoF2 = typeNames.get("nestedvaluenof2");
-    Map<String, Type> nestedTypesNoF2 =
+    Map<String, FieldDescriptorProto.Type> nestedTypesNoF2 =
         nestedTypes.get(nestedTypeNameNoF2).getFieldList().stream()
             .collect(
                 Collectors.toMap(FieldDescriptorProto::getName, FieldDescriptorProto::getType));
@@ -1106,6 +1176,34 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(roundTripExpectedBaseTypesNoF, nestedRoundTripTypes);
   }
 
+  private static final DescriptorProto TIMESTAMP_PICOS_PROTO =
+      DescriptorProto.newBuilder()
+          .setName("TimestampPicos")
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("seconds")
+                  .setNumber(1)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL))
+          .addField(
+              FieldDescriptorProto.newBuilder()
+                  .setName("picoseconds")
+                  .setNumber(2)
+                  .setType(FieldDescriptorProto.Type.TYPE_INT64)
+                  .setLabel(Label.LABEL_OPTIONAL))
+          .build();
+
+  private static final Descriptor TIMESTAMP_PICOS_DESCRIPTOR;
+
+  static {
+    try {
+      TIMESTAMP_PICOS_DESCRIPTOR =
+          TableRowToStorageApiProto.wrapDescriptorProto(TIMESTAMP_PICOS_PROTO);
+    } catch (DescriptorValidationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static final List<Object> REPEATED_BYTES =
       ImmutableList.of(
           BaseEncoding.base64().encode("hello".getBytes(StandardCharsets.UTF_8)),
@@ -1152,41 +1250,43 @@ public class TableRowToStorageApiProtoTest {
                   new TableCell().setV("1970-01-01 00:00:00.1230"),
                   new TableCell().setV("2019-08-16 00:52:07.123456"),
                   new TableCell().setV("9999-12-31 23:59:59.999999Z"),
-                  new TableCell().setV("madeit")));
+                  new TableCell().setV("madeit"),
+                  new TableCell().setV("2024-01-15T10:30:45.123456789012Z")));
 
   private static final TableRow BASE_TABLE_ROW_NO_F =
       new TableRow()
-          .set("stringValue", "string")
+          .set("stringvalue", "string")
           .set(
-              "bytesValue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
-          .set("int64Value", "42")
-          .set("intValue", "43")
-          .set("float64Value", "2.8168")
-          .set("floatValue", "2")
-          .set("boolValue", "true")
-          .set("booleanValue", "true")
+              "bytesvalue", BaseEncoding.base64().encode("string".getBytes(StandardCharsets.UTF_8)))
+          .set("int64value", "42")
+          .set("intvalue", "43")
+          .set("float64value", "2.8168")
+          .set("floatvalue", "2")
+          .set("boolvalue", "true")
+          .set("booleanvalue", "true")
           // UTC time
-          .set("timestampValue", "1970-01-01T00:00:00.000043Z")
-          .set("timeValue", "00:52:07.123456")
-          .set("datetimeValue", "2019-08-16T00:52:07.123456")
-          .set("dateValue", "2019-08-16")
-          .set("numericValue", "23.4")
-          .set("bigNumericValue", "2312345.4")
-          .set("numericValue2", 23)
-          .set("bigNumericValue2", 123456789012345678L)
+          .set("timestampvalue", "1970-01-01T00:00:00.000043Z")
+          .set("timevalue", "00:52:07.123456")
+          .set("datetimevalue", "2019-08-16T00:52:07.123456")
+          .set("datevalue", "2019-08-16")
+          .set("numericvalue", "23.4")
+          .set("bignumericvalue", "2312345.4")
+          .set("numericvalue2", 23)
+          .set("bignumericvalue2", 123456789012345678L)
           .set("arrayValue", REPEATED_BYTES)
-          .set("timestampISOValue", "1970-01-01T00:00:00.000+01:00")
-          .set("timestampISOValueOffsetHH", "1970-01-01T00:00:00.000+01")
-          .set("timestampValueLong", "1234567")
+          .set("timestampisovalue", "1970-01-01T00:00:00.000+01:00")
+          .set("timestampisovalueOffsethh", "1970-01-01T00:00:00.000+01")
+          .set("timestampvaluelong", "1234567")
           // UTC time for backwards compatibility
-          .set("timestampValueSpace", "1970-01-01 00:00:00.000343")
-          .set("timestampValueSpaceUtc", "1970-01-01 00:00:00.000343 UTC")
-          .set("timestampValueZoneRegion", "1970-01-01 00:00:00.123456 America/New_York")
-          .set("timestampValueSpaceMilli", "1970-01-01 00:00:00.123")
-          .set("timestampValueSpaceTrailingZero", "1970-01-01 00:00:00.1230")
-          .set("datetimeValueSpace", "2019-08-16 00:52:07.123456")
-          .set("timestampValueMaximum", "9999-12-31 23:59:59.999999Z")
-          .set("123_illegalprotofieldname", "madeit");
+          .set("timestampvaluespace", "1970-01-01 00:00:00.000343")
+          .set("timestampvaluespaceutc", "1970-01-01 00:00:00.000343 UTC")
+          .set("timestampvaluezoneregion", "1970-01-01 00:00:00.123456 America/New_York")
+          .set("timestampvaluespacemilli", "1970-01-01 00:00:00.123")
+          .set("timestampvaluespacetrailingzero", "1970-01-01 00:00:00.1230")
+          .set("datetimevaluespace", "2019-08-16 00:52:07.123456")
+          .set("timestampvaluemaximum", "9999-12-31 23:59:59.999999Z")
+          .set("123_illegalprotofieldname", "madeit")
+          .set("timestamppicosvalue", "2024-01-15T10:30:45.123456789012Z");
 
   private static final Map<String, Object> BASE_ROW_EXPECTED_PROTO_VALUES =
       ImmutableMap.<String, Object>builder()
@@ -1230,6 +1330,15 @@ public class TableRowToStorageApiProtoTest {
           .put(
               BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"),
               "madeit")
+          .put(
+              "timestamppicosvalue",
+              DynamicMessage.newBuilder(TIMESTAMP_PICOS_DESCRIPTOR)
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("seconds"),
+                      Instant.parse("2024-01-15T10:30:45Z").getEpochSecond())
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("picoseconds"), 123456789012L)
+                  .build())
           .build();
 
   private static final Map<String, String> BASE_ROW_EXPECTED_NAME_OVERRIDES =
@@ -1278,12 +1387,161 @@ public class TableRowToStorageApiProtoTest {
           .put(
               BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"),
               "madeit")
+          .put(
+              "timestamppicosvalue",
+              DynamicMessage.newBuilder(TIMESTAMP_PICOS_DESCRIPTOR)
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("seconds"),
+                      Instant.parse("2024-01-15T10:30:45Z").getEpochSecond())
+                  .setField(
+                      TIMESTAMP_PICOS_DESCRIPTOR.findFieldByName("picoseconds"), 123456789012L)
+                  .build())
           .build();
 
   private static final Map<String, String> BASE_ROW_NO_F_EXPECTED_NAME_OVERRIDES =
       ImmutableMap.of(
           BigQuerySchemaUtil.generatePlaceholderFieldName("123_illegalprotofieldname"),
           "123_illegalprotofieldname");
+
+  private TableRow normalizeTableRow(
+      TableRow row, SchemaInformation schemaInformation, boolean outputUsingF) throws Exception {
+    @Nullable Object fValue = row.get("f");
+    if (fValue instanceof List) {
+      return normalizeTableRowF((List<TableCell>) fValue, schemaInformation, outputUsingF);
+    } else {
+      return normalizeTableRowNoF(row, schemaInformation, outputUsingF);
+    }
+  }
+
+  private TableRow normalizeTableRowNoF(
+      TableRow row, SchemaInformation schemaInformation, boolean outputUsingF) throws Exception {
+    TableRow normalizedRow = new TableRow();
+    if (outputUsingF) {
+      normalizedRow.setF(Lists.newArrayList());
+    }
+    for (final Map.Entry<String, Object> entry : row.entrySet()) {
+      String key = entry.getKey().toLowerCase();
+      SchemaInformation fieldSchemaInformation =
+          schemaInformation.getSchemaForField(entry.getKey());
+      Object normalizedValue =
+          normalizeFieldValue(entry.getValue(), fieldSchemaInformation, outputUsingF);
+      if (outputUsingF) {
+        normalizedRow.getF().add(new TableCell().setV(normalizedValue));
+      } else {
+        normalizedRow.set(key, normalizedValue);
+      }
+    }
+    return normalizedRow;
+  }
+
+  private TableRow normalizeTableRowF(
+      List<TableCell> cells, SchemaInformation schemaInformation, boolean outputUsingF)
+      throws Exception {
+    TableRow normalizedRow = new TableRow();
+    if (outputUsingF) {
+      normalizedRow.setF(Lists.newArrayList());
+    }
+    for (int i = 0; i < cells.size(); i++) {
+      SchemaInformation fieldSchemaInformation = schemaInformation.getSchemaForField(i);
+      Object normalizedValue =
+          normalizeFieldValue(cells.get(i).getV(), fieldSchemaInformation, outputUsingF);
+      if (outputUsingF) {
+        normalizedRow.getF().add(new TableCell().setV(normalizedValue));
+      } else {
+        normalizedRow.set(fieldSchemaInformation.getName(), normalizedValue);
+      }
+    }
+    return normalizedRow;
+  }
+
+  private @Nullable Object normalizeFieldValue(
+      @Nullable Object value, SchemaInformation schemaInformation, boolean outputUsingF)
+      throws Exception {
+    if (value == null) {
+      return schemaInformation.isRepeated() ? Collections.emptyList() : null;
+    }
+    if (schemaInformation.isRepeated()) {
+      List<Object> list = (List<Object>) value;
+      List<Object> normalizedList = Lists.newArrayListWithCapacity(list.size());
+      for (@Nullable Object item : list) {
+        if (item != null) {
+          normalizedList.add(normalizeSingularField(schemaInformation, item, outputUsingF));
+        }
+      }
+      return normalizedList;
+    }
+
+    return normalizeSingularField(schemaInformation, value, outputUsingF);
+  }
+
+  private @Nullable Object normalizeSingularField(
+      SchemaInformation schemaInformation, Object value, boolean outputUsingF) throws Exception {
+    Object convertedValue;
+    if (schemaInformation.getType()
+        == com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT) {
+      return normalizeTableRow((TableRow) value, schemaInformation, outputUsingF);
+    } else {
+      if (schemaInformation.getType()
+          == com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP) {
+        // Handle picosecond timestamp (12-digit precision)
+        if (schemaInformation.getTimestampPrecision() == 12) {
+          // Already a string, return as-is.
+          if (value instanceof String) {
+            return value;
+          }
+        }
+      }
+      convertedValue = TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType()).apply("", value);
+      switch (schemaInformation.getType()) {
+        case BOOL:
+        case JSON:
+        case GEOGRAPHY:
+        case STRING:
+        case INT64:
+          return convertedValue.toString();
+        case DOUBLE:
+          return TableRowToStorageApiProto.DECIMAL_FORMAT.format((double) convertedValue);
+        case BYTES:
+          ByteString byteString =
+              (ByteString)
+                  TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType()).apply("", value);
+          return BaseEncoding.base64().encode(byteString.toByteArray());
+        case TIMESTAMP:
+          long timestampLongValue = (long) convertedValue;
+          long epochSeconds = timestampLongValue / 1_000_000L;
+          long nanoAdjustment = (timestampLongValue % 1_000_000L) * 1_000L;
+          Instant instant = Instant.ofEpochSecond(epochSeconds, nanoAdjustment);
+          return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
+        case DATE:
+          int daysInt = (int) convertedValue;
+          return LocalDate.ofEpochDay(daysInt).toString();
+        case NUMERIC:
+          ByteString numericByteString = (ByteString) convertedValue;
+          return BigDecimalByteStringEncoder.decodeNumericByteString(numericByteString)
+              .stripTrailingZeros()
+              .toString();
+        case BIGNUMERIC:
+          ByteString bigNumericByteString = (ByteString) convertedValue;
+          return BigDecimalByteStringEncoder.decodeBigNumericByteString(bigNumericByteString)
+              .stripTrailingZeros()
+              .toString();
+        case DATETIME:
+          long packedDateTime = (long) convertedValue;
+          return CivilTimeEncoder.decodePacked64DatetimeMicrosAsJavaTime(packedDateTime)
+              .format(BigQueryUtils.BIGQUERY_DATETIME_FORMATTER);
+        case TIME:
+          long packedTime = (long) convertedValue;
+          return CivilTimeEncoder.decodePacked64TimeMicrosAsJavaTime(packedTime).toString();
+        default:
+          return value.toString();
+      }
+    }
+  }
+
+  private static long toEpochMicros(Instant timestamp) {
+    // i.e 1970-01-01T00:01:01.000040Z: 61 * 1000_000L + 40000/1000 = 61000040
+    return timestamp.getEpochSecond() * 1000_000L + timestamp.getNano() / 1000;
+  }
 
   private void assertBaseRecord(DynamicMessage msg, boolean withF) {
     Map<String, Object> recordFields =
@@ -1300,8 +1558,42 @@ public class TableRowToStorageApiProtoTest {
                     entry ->
                         entry.getKey().getOptions().getExtension(AnnotationsProto.columnName)));
 
-    assertEquals(
-        withF ? BASE_ROW_EXPECTED_PROTO_VALUES : BASE_ROW_NO_F_EXPECTED_PROTO_VALUES, recordFields);
+    // Get expected values
+    Map<String, Object> expectedValues =
+        withF ? BASE_ROW_EXPECTED_PROTO_VALUES : BASE_ROW_NO_F_EXPECTED_PROTO_VALUES;
+
+    // Handle timestamppicosvalue separately since DynamicMessage doesn't have proper equals()
+    Object actualPicos = recordFields.get("timestamppicosvalue");
+    Object expectedPicos = expectedValues.get("timestamppicosvalue");
+
+    if (actualPicos != null && expectedPicos != null) {
+      // Compare DynamicMessages by their field values
+      DynamicMessage actualPicosMsg = (DynamicMessage) actualPicos;
+      DynamicMessage expectedPicosMsg = (DynamicMessage) expectedPicos;
+
+      Descriptor actualDescriptor = actualPicosMsg.getDescriptorForType();
+
+      assertEquals(
+          "TimestampPicos seconds mismatch",
+          expectedPicosMsg.getField(
+              expectedPicosMsg.getDescriptorForType().findFieldByName("seconds")),
+          actualPicosMsg.getField(actualDescriptor.findFieldByName("seconds")));
+      assertEquals(
+          "TimestampPicos picoseconds mismatch",
+          expectedPicosMsg.getField(
+              expectedPicosMsg.getDescriptorForType().findFieldByName("picoseconds")),
+          actualPicosMsg.getField(actualDescriptor.findFieldByName("picoseconds")));
+    }
+
+    // Remove timestamppicosvalue from both maps for remaining comparison
+    Map<String, Object> recordFieldsWithoutPicos = new HashMap<>(recordFields);
+    Map<String, Object> expectedValuesWithoutPicos = new HashMap<>(expectedValues);
+    recordFieldsWithoutPicos.remove("timestamppicosvalue");
+    expectedValuesWithoutPicos.remove("timestamppicosvalue");
+
+    // Compare remaining fields
+    assertEquals(expectedValuesWithoutPicos, recordFieldsWithoutPicos);
+
     assertEquals(
         withF ? BASE_ROW_EXPECTED_NAME_OVERRIDES : BASE_ROW_NO_F_EXPECTED_NAME_OVERRIDES,
         overriddenNames);
@@ -1322,7 +1614,16 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -1335,6 +1636,133 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
+  public void testTableRowFromMessageNoF() throws Exception {
+    TableRow tableRow =
+        new TableRow()
+            .set("nestedvalue1", BASE_TABLE_ROW_NO_F)
+            .set("nestedvalue2", BASE_TABLE_ROW_NO_F)
+            .set("repeatedvalue", ImmutableList.of(BASE_TABLE_ROW_NO_F, BASE_TABLE_ROW_NO_F));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            NESTED_TABLE_SCHEMA_NO_F, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA_NO_F);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            schemaInformation, msg, true, Predicates.alwaysTrue());
+    TableRow expected = normalizeTableRow(tableRow, schemaInformation, false);
+    assertEquals(expected, recovered);
+  }
+
+  @Test
+  public void testTableRowFromMessageWithF() throws Exception {
+    final TableSchema nestedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.<TableFieldSchema>builder()
+                    .add(
+                        new TableFieldSchema()
+                            .setType("STRUCT")
+                            .setName("nestedvalue1")
+                            .setMode("NULLABLE")
+                            .setFields(BASE_TABLE_SCHEMA.getFields()))
+                    .add(
+                        new TableFieldSchema()
+                            .setType("RECORD")
+                            .setName("nestedvalue2")
+                            .setMode("NULLABLE")
+                            .setFields(BASE_TABLE_SCHEMA.getFields()))
+                    .add(
+                        new TableFieldSchema()
+                            .setType("RECORD")
+                            .setName("repeatedvalue")
+                            .setMode("REPEATED")
+                            .setFields(BASE_TABLE_SCHEMA.getFields()))
+                    .build());
+
+    TableRow tableRow = new TableRow();
+    tableRow.setF(
+        Lists.newArrayList(
+            new TableCell().setV(BASE_TABLE_ROW),
+            new TableCell().setV(BASE_TABLE_ROW),
+            new TableCell().setV(ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW))));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(nestedSchema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(nestedSchema);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            schemaInformation, msg, true, Predicates.alwaysTrue());
+    TableRow expected = normalizeTableRow(tableRow, schemaInformation, true);
+    assertEquals(expected, recovered);
+  }
+
+  @Test
+  public void testTableRowFromMessageWithNestedArrayF() throws Exception {
+    final TableSchema nestedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.<TableFieldSchema>builder()
+                    .add(
+                        new TableFieldSchema()
+                            .setType("RECORD")
+                            .setName("repeatedvalue")
+                            .setMode("REPEATED")
+                            .setFields(BASE_TABLE_SCHEMA.getFields()))
+                    .build());
+
+    TableRow tableRow = new TableRow();
+    tableRow.setF(
+        Lists.newArrayList(new TableCell().setV(ImmutableList.of(BASE_TABLE_ROW, BASE_TABLE_ROW))));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(nestedSchema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(nestedSchema);
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            schemaInformation, msg, true, Predicates.alwaysTrue());
+    TableRow expected = normalizeTableRow(tableRow, schemaInformation, true);
+    assertEquals(expected, recovered);
+  }
+
+  @Test
   public void testMessageWithFFromTableRow() throws Exception {
     Descriptor descriptor =
         TableRowToStorageApiProto.getDescriptorFromTableSchema(BASE_TABLE_SCHEMA, true, false);
@@ -1342,7 +1770,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, BASE_TABLE_ROW, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            BASE_TABLE_ROW,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertBaseRecord(msg, true);
   }
 
@@ -1386,7 +1822,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, repeatedRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            repeatedRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -1432,7 +1876,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, repeatedRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            repeatedRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
@@ -1486,7 +1938,7 @@ public class TableRowToStorageApiProtoTest {
       try {
         Object converted =
             TableRowToStorageApiProto.singularFieldToProtoValue(
-                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
+                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null, null);
         assertEquals(expectedConvertedValue, converted);
       } catch (SchemaConversionException e) {
         fail(
@@ -1532,7 +1984,7 @@ public class TableRowToStorageApiProtoTest {
       String expectedError = (String) invalidValue[1];
       try {
         TableRowToStorageApiProto.singularFieldToProtoValue(
-            fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
+            fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null, null);
         fail(
             "Expected to throw an exception converting "
                 + sourceValue
@@ -1558,7 +2010,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1575,7 +2035,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1593,7 +2061,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1613,7 +2089,15 @@ public class TableRowToStorageApiProtoTest {
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
 
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1629,7 +2113,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow ignored = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, true, false, ignored, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        true,
+        false,
+        ignored,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(1, ignored.size());
     assertEquals("foobar", ignored.get("unknown"));
   }
@@ -1648,7 +2140,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow ignored = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, true, false, ignored, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        true,
+        false,
+        ignored,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(BASE_TABLE_ROW.getF().size() + 1, ignored.getF().size());
     assertEquals("foobar", ignored.getF().get(BASE_TABLE_ROW.getF().size()).getV());
   }
@@ -1679,7 +2179,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow unknown = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, true, false, unknown, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        true,
+        false,
+        unknown,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(3, unknown.size());
     assertEquals("foobar", unknown.get("unknowntop"));
     assertEquals(1, ((TableRow) unknown.get("nestedvalue1")).size());
@@ -1726,7 +2234,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow unknown = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, repeatedRow, true, false, unknown, null, -1);
+        schemaInformation,
+        descriptor,
+        repeatedRow,
+        true,
+        false,
+        unknown,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     System.out.println(unknown);
     // unkown at top level
     assertEquals(2, unknown.size());
@@ -1778,7 +2294,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(2, msg.getAllFields().size());
     assertTrue(unknown.isEmpty());
   }
@@ -1817,7 +2341,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(2, msg.getAllFields().size());
     assertFalse(unknown.isEmpty());
     assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
@@ -1825,6 +2357,160 @@ public class TableRowToStorageApiProtoTest {
     assertNotNull(((List<?>) unknown.get("repeated1")).get(1));
     assertTrue(((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty());
     assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
+  }
+
+  @Test
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedField() throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema schema = new TableSchema().setFields(fields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("unknown", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(schema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("unknown"));
+
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(schema),
+            schemaInformation,
+            unknown,
+            true);
+
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    assertNotNull(array);
+    assertEquals(2, array.size());
+  }
+
+  @Test
+  public void testMergeUnknownRepeatedNestedFieldWithUnknownInRepeatedFieldWhenSchemaChanges()
+      throws Exception {
+
+    List<TableFieldSchema> fields = new ArrayList<>();
+    fields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    fields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"))));
+    TableSchema oldSchema = new TableSchema().setFields(fields);
+
+    List<TableFieldSchema> newFields = new ArrayList<>();
+    newFields.add(new TableFieldSchema().setName("foo").setType("STRING"));
+    newFields.add(
+        new TableFieldSchema()
+            .setName("repeated1")
+            .setMode("REPEATED")
+            .setType("RECORD")
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING").setMode("REQUIRED"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("type").setType("STRING"))));
+    TableSchema newSchema = new TableSchema().setFields(newFields);
+    TableRow tableRow =
+        new TableRow()
+            .set("foo", "bar")
+            .set(
+                "repeated1",
+                ImmutableList.of(
+                    new TableCell().set("key1", "valueA").set("key2", "valueC"),
+                    new TableCell()
+                        .set("key1", "valueB")
+                        .set("key2", "valueD")
+                        .set("type", "valueE")));
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(oldSchema, true, false);
+    TableRowToStorageApiProto.SchemaInformation schemaInformation =
+        TableRowToStorageApiProto.SchemaInformation.fromTableSchema(oldSchema);
+    TableRow unknown = new TableRow();
+    DynamicMessage msg =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertTrue(
+        ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
+    assertEquals("valueE", ((TableRow) ((List<?>) unknown.get("repeated1")).get(1)).get("type"));
+
+    // schema is updated
+    descriptor = TableRowToStorageApiProto.getDescriptorFromTableSchema(newSchema, true, false);
+    schemaInformation = TableRowToStorageApiProto.SchemaInformation.fromTableSchema(newSchema);
+
+    ByteString bytes =
+        TableRowToStorageApiProto.mergeNewFields(
+            msg.toByteString(),
+            descriptor.toProto(),
+            TableRowToStorageApiProto.schemaToProtoTableSchema(newSchema),
+            schemaInformation,
+            unknown,
+            true);
+
+    DynamicMessage merged = DynamicMessage.parseFrom(descriptor, bytes);
+    assertNotNull(merged);
+    assertEquals(2, merged.getAllFields().size());
+    FieldDescriptor repeated1 = descriptor.findFieldByName("repeated1");
+    List<?> array = (List) merged.getField(repeated1);
+    FieldDescriptor type =
+        descriptor.findFieldByName("repeated1").getMessageType().findFieldByName("type");
+    assertNotNull(array);
+    assertEquals(2, array.size());
+    assertEquals("valueE", ((DynamicMessage) array.get(1)).getField(type));
   }
 
   @Test
@@ -1845,7 +2531,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, "UPDATE", 42);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            "UPDATE",
+            42,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(6, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -1859,5 +2553,145 @@ public class TableRowToStorageApiProtoTest {
     assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
     assertEquals(
         Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+  }
+
+  @Test
+  public void testTableSchemaHash() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schema1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaNameDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1_diff")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaTypeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaModeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaOrderDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hash2 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hashNameDiff = TableRowToStorageApiProto.tableSchemaHash(schemaNameDiff);
+    byte[] hashTypeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaTypeDiff);
+    byte[] hashModeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaModeDiff);
+    byte[] hashOrderDiff = TableRowToStorageApiProto.tableSchemaHash(schemaOrderDiff);
+
+    assertTrue(Arrays.equals(hash1, hash2));
+    assertFalse(Arrays.equals(hash1, hashNameDiff));
+    assertFalse(Arrays.equals(hash1, hashTypeDiff));
+    assertFalse(Arrays.equals(hash1, hashModeDiff));
+    assertFalse(Arrays.equals(hash1, hashOrderDiff));
+  }
+
+  @Test
+  public void testTableSchemaHashWithStruct() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStruct1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedField")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStructDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedFieldDiff")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schemaWithStruct1);
+    byte[] hashDiff = TableRowToStorageApiProto.tableSchemaHash(schemaWithStructDiff);
+
+    assertFalse(Arrays.equals(hash1, hashDiff));
   }
 }

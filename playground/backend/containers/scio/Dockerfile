@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BASE_IMAGE=openjdk:11
+ARG BASE_IMAGE=eclipse-temurin:11
 FROM golang:1-bullseye AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
@@ -80,9 +80,17 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod
 RUN mkdir -p /opt/sbt-template
 RUN chown -R appuser:appgroup /opt/sbt-template
 
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends unzip \
+ && rm -rf /var/lib/apt/lists/* \
+
 #Download spotify g8 template at specific commit
-ARG g8_commit=7c1ba7c1651dfd70976028842e721da4107c0d6d
-RUN wget https://codeload.github.com/spotify/scio.g8/zip/$g8_commit -O scio.g8.zip && unzip scio.g8.zip && mv scio.g8-$g8_commit /opt/scio.g8
+#ARG g8_commit=7c1ba7c1651dfd70976028842e721da4107c0d6d
+
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+RUN git clone https://github.com/spotify/scio.g8 /opt/scio.g8 && \
+    cd /opt/scio.g8 && git checkout "7c1ba7c1651dfd70976028842e721da4107c0d6d"
 
 # Switch to appuser
 USER appuser

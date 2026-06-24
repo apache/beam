@@ -20,7 +20,7 @@
 --input=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --machine_type=n1-standard-8
 --worker_zone=us-central1-b
---disk_size_gb=50
+--disk_size_gb=200
 --input_options={}
 --num_workers=8
 --max_num_workers=25
@@ -32,5 +32,6 @@
 --metrics_table=gemma_vllm_batch
 --influx_measurement=gemma_vllm_batch
 --model_gcs_path=gs://apache-beam-ml/models/gemma-2b-it
+--requirements_file=apache_beam/ml/inference/vllm_tests_requirements.txt
 --dataflow_service_options=worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
 --experiments=use_runner_v2

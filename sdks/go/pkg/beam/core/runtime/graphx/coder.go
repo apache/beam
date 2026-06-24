@@ -266,9 +266,9 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 
 		// No payload means this coder was length prefixed by the runner
 		// but is likely self describing - AKA a beam coder.
-		if len(sub.GetSpec().GetPayload()) == 0 {
-			return b.makeCoder(components[0], sub)
-		}
+		// if len(sub.GetSpec().GetPayload()) == 0 {
+		// 	return b.makeCoder(components[0], sub)
+		// }
 		// TODO(lostluck) 2018/10/17: Make this strict again, once dataflow can use
 		// the portable pipeline model directly (BEAM-2885)
 		switch u := sub.GetSpec().GetUrn(); u {
@@ -285,8 +285,8 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			t := typex.New(custom.Type)
 			cc := &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}
 			return cc, nil
-		case urnBytesCoder, urnStringCoder: // implicitly length prefixed types.
-			return b.makeCoder(components[0], sub)
+		// case urnBytesCoder, urnStringCoder: // implicitly length prefixed types.
+		//	return b.makeCoder(components[0], sub)
 		default:
 			// Handle Length prefixing dictated by the runner.
 			cc, err := b.makeCoder(components[0], sub)

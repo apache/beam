@@ -173,6 +173,21 @@ func (t *testStateReader) OpenMultimapKeysUserStateClearer(ctx context.Context, 
 	return nil, nil
 }
 
+// OpenOrderedListUserStateReader for the testStateReader is a no-op.
+func (t *testStateReader) OpenOrderedListUserStateReader(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.ReadCloser, error) {
+	return nil, nil
+}
+
+// OpenOrderedListUserStateAppender for the testStateReader is a no-op.
+func (t *testStateReader) OpenOrderedListUserStateAppender(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte) (io.Writer, error) {
+	return nil, nil
+}
+
+// OpenOrderedListUserStateClearer for the testStateReader is a no-op.
+func (t *testStateReader) OpenOrderedListUserStateClearer(ctx context.Context, id StreamID, userStateID string, key []byte, w []byte, start, end int64) (io.Writer, error) {
+	return nil, nil
+}
+
 func (t *testStateReader) GetSideInputCache() SideCache {
 	return &testSideCache{}
 }

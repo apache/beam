@@ -225,15 +225,15 @@ interface RpcQos {
        */
       boolean offer(ElementT newElement);
 
-      /** @return the number of elements that are currently buffered in this instance */
+      /** Returns the number of elements that are currently buffered in this instance. */
       int getBufferedElementsCount();
 
-      /** @return the number of bytes that are currently buffered in this instance */
+      /** Returns the number of bytes that are currently buffered in this instance. */
       long getBufferedElementsBytes();
 
       /**
-       * @return true if the buffer contains enough {@link Element}s such that a flush should
-       *     happen, false otherwise
+       * Returns true if the buffer contains enough {@link Element}s such that a flush should
+       * happen, false otherwise.
        */
       boolean isFull();
 
@@ -253,7 +253,7 @@ interface RpcQos {
      */
     interface Element<T> {
 
-      /** @return the value that will be sent in a request */
+      /** Returns the value that will be sent in a request. */
       T getValue();
 
       /**

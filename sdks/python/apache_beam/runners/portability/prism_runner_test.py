@@ -19,7 +19,10 @@
 import argparse
 import logging
 import os.path
+import queue
 import shlex
+import threading
+import time
 import typing
 import unittest
 import zipfile
@@ -35,10 +38,16 @@ from parameterized import parameterized
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.runners.portability import prism_runner
+from apache_beam.runners.worker import worker_pool_main
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.utils import shared
 
 # Run as
@@ -64,6 +73,8 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     self.environment_type = None
     self.environment_config = None
     self.enable_commit = False
+    self.streaming = False
+    self.allow_unsafe_triggers = False
 
   def setUp(self):
     self.enable_commit = False
@@ -175,6 +186,9 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
     options.view_as(
         PortableOptions).environment_options = self.environment_options
 
+    options.view_as(StandardOptions).streaming = self.streaming
+    options.view_as(
+        TypeOptions).allow_unsafe_triggers = self.allow_unsafe_triggers
     return options
 
   # Can't read host files from within docker, read a "local" file there.
@@ -225,7 +239,77 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_metrics(self):
     super().test_metrics(check_bounded_trie=False)
 
-  # Inherits all other tests.
+  def construct_timestamped(k, t):
+    return window.TimestampedValue((k, t), t)
+
+  def format_result(k, vs):
+    return ('%s-%s' % (k, len(list(vs))), set(vs))
+
+  def test_after_count_trigger_batch(self):
+    self.allow_unsafe_triggers = True
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create([1, 2, 3, 4, 5, 10, 11])
+          | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+          #A1, A2, A3, A4, A5, A10, A11, B6, B7, B8, B9, B10, B15, B16
+          | beam.MapTuple(PrismRunnerTest.construct_timestamped)
+          | beam.WindowInto(
+              window.FixedWindows(10),
+              trigger=trigger.AfterCount(3),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.GroupByKey()
+          | beam.MapTuple(PrismRunnerTest.format_result))
+      assert_that(
+          result,
+          equal_to(
+              list([
+                  ('A-5', {1, 2, 3, 4, 5}),
+                  ('A-2', {10, 11}),
+                  ('B-4', {6, 7, 8, 9}),
+                  ('B-3', {10, 15, 16}),
+              ])))
+
+  def test_after_count_trigger_streaming(self):
+    self.allow_unsafe_triggers = True
+    self.streaming = True
+    with self.create_pipeline() as p:
+      result = (
+          p
+          | beam.Create([1, 2, 3, 4, 5, 10, 11])
+          | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+          #A1, A2, A3, A4, A5, A10, A11, B6, B7, B8, B9, B10, B15, B16
+          | beam.MapTuple(PrismRunnerTest.construct_timestamped)
+          | beam.WindowInto(
+              window.FixedWindows(10),
+              trigger=trigger.AfterCount(3),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING,
+          )
+          | beam.GroupByKey()
+          | beam.MapTuple(PrismRunnerTest.format_result))
+      assert_that(
+          result,
+          equal_to(
+              list([
+                  ('A-3', {1, 2, 3}),
+                  ('A-2', {4, 5}),
+                  ('A-2', {10, 11}),
+                  ('B-3', {6, 7, 8}),
+                  ('B-1', {9}),
+                  ('B-3', {10, 15, 16}),
+              ])))
+
+  def test_failing_dofn(self):
+    # Prism interprets all bundle failures as RuntimeError
+    with self.assertRaisesRegex(
+        RuntimeError, "Intentional DoFn failure for prism logging test"):
+      with self.create_pipeline() as p:
+
+        def failing_fn(x):
+          raise ValueError("Intentional DoFn failure for prism logging test")
+
+        _ = p | beam.Create([1, 2, 3]) | beam.Map(failing_fn)
 
 
 class PrismJobServerTest(unittest.TestCase):
@@ -393,9 +477,9 @@ class PrismRunnerSingletonTest(unittest.TestCase):
   @parameterized.expand([True, False])
   def test_singleton(self, enable_singleton):
     if enable_singleton:
-      options = DebugOptions(["--experiment=enable_prism_server_singleton"])
+      options = DebugOptions()  # prism singleton is enabled by default
     else:
-      options = DebugOptions()
+      options = DebugOptions(["--experiment=disable_prism_server_singleton"])
 
     runner = prism_runner.PrismRunner()
     with mock.patch(
@@ -419,6 +503,63 @@ class PrismRunnerSingletonTest(unittest.TestCase):
         mock_prism_server.assert_not_called()
       else:
         mock_prism_server.assert_called_once()
+
+  def test_loopback_worker_daemon_thread_accumulation(self):
+    """Verifies that in LOOPBACK mode, the external worker pool servicer properly
+    tracks active thread-based SdkHarness workers and cleanly shuts them down in
+    StopWorker via sentinel messages. This prevents background daemon threads from
+    accumulating across sequential pipeline executions and leaking resources.
+    """
+    servicer = worker_pool_main.BeamFnExternalWorkerPoolServicer(
+        use_process=False, state_cache_size=0, data_buffer_time_limit_ms=0)
+
+    active_workers = []
+    mock_responses = queue.Queue()
+
+    def mock_run(self_worker):
+      active_workers.append(self_worker)
+      mock_responses.get()
+      active_workers.remove(self_worker)
+
+    def wait_for_workers(expected_count, timeout=5.0):
+      start = time.time()
+      while time.time() - start < timeout:
+        if len(active_workers) == expected_count:
+          return
+        time.sleep(0.01)
+      self.assertEqual(len(active_workers), expected_count)
+
+    with mock.patch(
+        'apache_beam.runners.worker.sdk_worker.SdkHarness') as mock_harness:
+      mock_harness.return_value._responses = mock_responses
+      mock_harness.return_value.run = lambda: mock_run(mock_harness)
+
+      # Simulate starting Worker 1 for Pipeline 1
+      req1 = beam_fn_api_pb2.StartWorkerRequest(worker_id="worker_1")
+      req1.control_endpoint.url = "localhost:12345"
+      servicer.StartWorker(req1, None)
+
+      wait_for_workers(1)
+
+      # Simulate stopping Worker 1 at the end of Pipeline 1
+      stop_req1 = beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_1")
+      servicer.StopWorker(stop_req1, None)
+
+      # Verify the fix: StopWorker successfully tells the thread harness to shut down,
+      # completely resolving the thread leak!
+      wait_for_workers(0)
+
+      # Simulate starting Worker 2 for Pipeline 2
+      req2 = beam_fn_api_pb2.StartWorkerRequest(worker_id="worker_2")
+      req2.control_endpoint.url = "localhost:12345"
+      servicer.StartWorker(req2, None)
+
+      wait_for_workers(1)
+
+      # Clean up the second worker
+      servicer.StopWorker(
+          beam_fn_api_pb2.StopWorkerRequest(worker_id="worker_2"), None)
+      wait_for_workers(0)
 
 
 if __name__ == '__main__':

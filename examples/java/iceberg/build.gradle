@@ -33,25 +33,7 @@ applyJavaNature(
 description = "Apache Beam :: Examples :: Java :: Iceberg"
 ext.summary = """Apache Beam Java SDK examples using IcebergIO."""
 
-/** Define the list of runners which execute a precommit test.
- * Some runners are run from separate projects, see the preCommit task below
- * for details.
- */
-def preCommitRunners = ["directRunner", "flinkRunner", "sparkRunner"]
-// The following runners have configuration created but not added to preCommit
-def nonPreCommitRunners = ["dataflowRunner", "prismRunner"]
-for (String runner : preCommitRunners) {
-  configurations.create(runner + "PreCommit")
-}
-for (String runner: nonPreCommitRunners) {
-  configurations.create(runner + "PreCommit")
-}
-configurations.sparkRunnerPreCommit {
-  // Ban certain dependencies to prevent a StackOverflow within Spark
-  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
-  exclude group: "org.slf4j", module: "jul-to-slf4j"
-  exclude group: "org.slf4j", module: "slf4j-jdk14"
-}
+apply from: "$project.rootDir/examples/java/common.gradle"
 
 dependencies {
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
@@ -73,17 +55,14 @@ dependencies {
   for (String runner : preCommitRunners) {
     delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "testRuntimeMigration"))
   }
-  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(":runners:flink:${project.ext.latestFlinkVersion}")
-  sparkRunnerPreCommit project(":runners:spark:3")
-  sparkRunnerPreCommit project(":sdks:java:io:hadoop-file-system")
-  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java")
-  dataflowRunnerPreCommit project(":runners:google-cloud-dataflow-java:worker") // v2 worker
-  dataflowRunnerPreCommit project(":sdks:java:harness") // v2 worker
-  prismRunnerPreCommit project(":runners:prism:java")
 
   // Add dependency if requested on command line for runner
   if (project.hasProperty("runnerDependency")) {
     runtimeOnly project(path: project.getProperty("runnerDependency"))
   }
+}
+
+configurations.all {
+  // iceberg-core needs avro:1.12.0
+  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
 }

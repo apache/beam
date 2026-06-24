@@ -22,7 +22,6 @@ API (https://cloud.google.com/recommendations).
 from __future__ import absolute_import
 
 from typing import Sequence
-from typing import Tuple
 
 from cachetools.func import ttl_cache
 from google.api_core.retry import Retry
@@ -79,22 +78,26 @@ def get_recommendation_user_event_client():
 
 
 class CreateCatalogItem(PTransform):
-  """Creates catalogitem information.
-    The ``PTransform`` returns a PCollectionTuple with a PCollections of
-    successfully and failed created CatalogItems.
+  """Creates catalog item records.
+
+    The ``PTransform`` returns a ``PCollectionTuple`` of successfully created
+    catalog items (``created_catalog_items``) and failures
+    (``failed_catalog_items``).
 
     Example usage::
 
-      pipeline | CreateCatalogItem(
-        project='example-gcp-project',
-        catalog_name='my-catalog')
+      result = (
+          pipeline
+          | CreateCatalogItem(
+              project='example-gcp-project', catalog_name='my-catalog'))
+      created = result.created_catalog_items
     """
   def __init__(
       self,
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = "default_catalog"):
     """Initializes a :class:`CreateCatalogItem` transform.
 
@@ -123,13 +126,15 @@ class CreateCatalogItem(PTransform):
       raise ValueError(
           """GCP project name needs to be specified in "project" pipeline
             option""")
-    return pcoll | ParDo(
+    pardo = ParDo(
         _CreateCatalogItemFn(
             self.project,
             self.retry,
             self.timeout,
             self.metadata,
             self.catalog_name))
+    return pcoll | pardo.with_outputs(
+        FAILED_CATALOG_ITEMS, main='created_catalog_items')
 
 
 class _CreateCatalogItemFn(DoFn):
@@ -138,7 +143,7 @@ class _CreateCatalogItemFn(DoFn):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = None):
     self._client = None
     self.retry = retry
@@ -195,7 +200,7 @@ class ImportCatalogItems(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = "default_catalog"):
     """Initializes a :class:`ImportCatalogItems` transform
 
@@ -295,7 +300,7 @@ class WriteUserEvent(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store"):
     """Initializes a :class:`WriteUserEvent` transform.
@@ -394,7 +399,7 @@ class ImportUserEvents(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store"):
     """Initializes a :class:`WriteUserEvent` transform.
@@ -500,7 +505,7 @@ class PredictUserEvent(PTransform):
       project: str = None,
       retry: Retry = None,
       timeout: float = 120,
-      metadata: Sequence[Tuple[str, str]] = (),
+      metadata: Sequence[tuple[str, str]] = (),
       catalog_name: str = "default_catalog",
       event_store: str = "default_event_store",
       placement_id: str = None):

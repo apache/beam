@@ -28,6 +28,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -98,22 +99,31 @@ public abstract class SnapshotInfo {
     return cachedTableIdentifier;
   }
 
+  @SchemaFieldNumber("0")
   public abstract long getSequenceNumber();
 
+  @SchemaFieldNumber("1")
   public abstract long getSnapshotId();
 
+  @SchemaFieldNumber("2")
   public abstract @Nullable Long getParentId();
 
+  @SchemaFieldNumber("3")
   public abstract long getTimestampMillis();
 
+  @SchemaFieldNumber("4")
   public abstract @Nullable String getOperation();
 
+  @SchemaFieldNumber("5")
   public abstract @Nullable Map<String, String> getSummary();
 
+  @SchemaFieldNumber("6")
   public abstract @Nullable String getManifestListLocation();
 
+  @SchemaFieldNumber("7")
   public abstract @Nullable Integer getSchemaId();
 
+  @SchemaFieldNumber("8")
   public abstract @Nullable String getTableIdentifierString();
 
   @AutoValue.Builder

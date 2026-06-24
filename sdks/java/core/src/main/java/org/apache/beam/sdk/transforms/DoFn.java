@@ -45,11 +45,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -122,12 +125,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract void output(OutputT output, Instant timestamp, BoundedWindow window);
 
-    public abstract void output(
-        OutputT output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
     /**
      * Adds the given element to the output {@code PCollection} with the given tag at the given
      * timestamp in the given window.
@@ -139,14 +136,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract <T> void output(
         TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window);
-
-    public abstract <T> void output(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        BoundedWindow window,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
   }
 
   /**
@@ -225,14 +214,6 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
 
-    public abstract void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
-
     /**
      * Adds the given element to the output {@code PCollection} with the given tag.
      *
@@ -306,14 +287,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo);
 
-    public abstract <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset);
+    public abstract <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue);
+
+    public abstract void outputWindowedValue(WindowedValue<OutputT> windowedValue);
   }
 
   /** Information accessible when running a {@link DoFn.ProcessElement} method. */
@@ -356,10 +332,16 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     public abstract PaneInfo pane();
 
     @Pure
-    public abstract String currentRecordId();
+    public abstract @Nullable String currentRecordId();
 
     @Pure
-    public abstract Long currentRecordOffset();
+    public abstract @Nullable Long currentRecordOffset();
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
+
+    @Pure
+    public abstract ValueKind valueKind();
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -376,6 +358,17 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
+
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
+
+    @Pure
+    public abstract org.apache.beam.sdk.values.CausedByDrain causedByDrain();
   }
 
   public abstract class OnWindowExpirationContext extends WindowedContext {
@@ -383,6 +376,14 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
     /** Returns the window in which the window expiration is firing. */
     @Pure
     public abstract BoundedWindow window();
+
+    /**
+     * Returns the value of the side input.
+     *
+     * @throws IllegalArgumentException if this is not a side input
+     */
+    @Pure
+    public abstract <T> T sideInput(PCollectionView<T> view);
   }
 
   /**
@@ -428,17 +429,36 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
   /** Receives values of the given type. */
   public interface OutputReceiver<T> {
-    void output(T output);
+    OutputBuilder<T> builder(T value);
 
-    void outputWithTimestamp(T output, Instant timestamp);
+    default void output(T value) {
+      builder(value).output();
+    }
+
+    default void outputWithTimestamp(T value, Instant timestamp) {
+      builder(value).setTimestamp(timestamp).output();
+    }
 
     default void outputWindowedValue(
-        T output,
+        T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      throw new UnsupportedOperationException(
-          String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
+      builder(value).setTimestamp(timestamp).setWindows(windows).setPaneInfo(paneInfo).output();
+    }
+
+    default void outputWindowedValue(
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
+      builder(value)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setValueKind(valueKind)
+          .output();
     }
   }
 
@@ -609,8 +629,10 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
    * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
-   * and {@link Timer}. State and timer parameters must be annotated with their {@link StateId} and
-   * {@link TimerId} respectively.
+   * {@link Timer}, {@link FireTimestamp}, {@link Timestamp}, {@link Key}, {@link TimeDomain},
+   * {@link PipelineOptions}, {@link OutputReceiver}, {@link MultiOutputReceiver}, and {@link
+   * org.apache.beam.sdk.values.CausedByDrain CausedByDrain}. State and timer parameters must be
+   * annotated with their {@link StateId} and {@link TimerId} respectively.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -627,8 +649,11 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    * <p>The method annotated with {@code @OnTimerFamily} may have parameters according to the same
    * logic as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State}
-   * subclasses, and {@link org.apache.beam.sdk.state.TimerMap}. State and timer parameters must be
-   * annotated with their {@link StateId} and {@link TimerId} respectively.
+   * subclasses, {@link org.apache.beam.sdk.state.TimerMap}, {@link FireTimestamp}, {@link
+   * Timestamp}, {@link Key}, {@link TimeDomain}, {@link PipelineOptions}, {@link OutputReceiver},
+   * {@link MultiOutputReceiver}, and {@link org.apache.beam.sdk.values.CausedByDrain
+   * CausedByDrain}. State and timer parameters must be annotated with their {@link StateId} and
+   * {@link TimerId} respectively.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
@@ -719,6 +744,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed. The argument type must match the input type
    *       of this DoFn exactly, or both types must have equivalent schemas registered.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordId} annotation, then it
+   *       will be passed the record id of the current element being processed; the argument must be
+   *       of type {@link String}.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordOffset} annotation, then
+   *       it will be passed the record offset of the current element being processed; the argument
+   *       must be of type {@link Long}.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
@@ -809,6 +840,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordId} annotation, then it
+   *       will be passed the record ID of the current element being processed; the argument must be
+   *       of type {@link String}.
+   *   <li>If one of its arguments is tagged with the {@link CurrentRecordOffset} annotation, then
+   *       it will be passed the record offset of the current element being processed; the argument
+   *       must be of type {@link Long}.
    *   <li>If one of its arguments is of the type {@link WatermarkEstimator}, then it will be passed
    *       the watermark estimator.
    *   <li>If one of its arguments is of the type {@link ManualWatermarkEstimator}, then it will be
@@ -852,6 +889,18 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Target(ElementType.PARAMETER)
   public @interface Element {}
 
+  /** Parameter annotation for the input element record id for {@link ProcessElement}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface CurrentRecordId {}
+
+  /** Parameter annotation for the input element record offset for {@link ProcessElement}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface CurrentRecordOffset {}
+
   /**
    * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, {@link
    * GetInitialWatermarkEstimatorState}, {@link NewWatermarkEstimator}, and {@link NewTracker}
@@ -873,6 +922,12 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.PARAMETER)
   public @interface Timestamp {}
+
+  /** Parameter annotation for the firing timestamp for {@link OnTimer}. */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface FireTimestamp {}
 
   /** Parameter annotation for the SideInput for a {@link ProcessElement} method. */
   @Documented
@@ -1068,7 +1123,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
    * inaccurate representation of known work.
    *
-   * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
+   * <p>It is up to each splittable {@link DoFn} to convert between their natural representation of
    * outstanding work and this representation. For example:
    *
    * <ul>

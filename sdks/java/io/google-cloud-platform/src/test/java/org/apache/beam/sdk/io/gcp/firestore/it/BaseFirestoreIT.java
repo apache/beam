@@ -42,6 +42,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreIO;
+import org.apache.beam.sdk.io.gcp.firestore.FirestoreOptions;
 import org.apache.beam.sdk.io.gcp.firestore.RpcQosOptions;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.CleanupMode;
 import org.apache.beam.sdk.io.gcp.firestore.it.FirestoreTestingHelper.DataLayout;
@@ -97,7 +98,7 @@ abstract class BaseFirestoreIT {
   @Before
   public void setup() {
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    databaseId = "firestoredb";
+    databaseId = TestPipeline.testingPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
   }
 
   private static Instant toWriteTime(WriteResult result) {
@@ -162,6 +163,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listCollectionIds()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
 
@@ -177,6 +180,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listCollectionIds()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withReadTime(readTime)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build());
@@ -208,7 +213,13 @@ abstract class BaseFirestoreIT {
             .apply(Create.of("a"))
             .apply(getListDocumentsPTransform(testName.getMethodName()))
             .apply(
-                FirestoreIO.v1().read().listDocuments().withRpcQosOptions(RPC_QOS_OPTIONS).build())
+                FirestoreIO.v1()
+                    .read()
+                    .listDocuments()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build())
             .apply(ParDo.of(new DocumentToName()));
 
     PAssert.that(listDocumentPaths).containsInAnyOrder(allDocumentPaths);
@@ -223,6 +234,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .listDocuments()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withReadTime(readTime)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
@@ -259,7 +272,14 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of(collectionId))
             .apply(getRunQueryPTransform(testName.getMethodName()))
-            .apply(FirestoreIO.v1().read().runQuery().withRpcQosOptions(RPC_QOS_OPTIONS).build())
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .runQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
+                    .withRpcQosOptions(RPC_QOS_OPTIONS)
+                    .build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
@@ -275,6 +295,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .runQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withReadTime(readTime)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
@@ -317,8 +339,21 @@ abstract class BaseFirestoreIT {
         testPipeline
             .apply(Create.of(collectionGroupId))
             .apply(getPartitionQueryPTransform(testName.getMethodName(), partitionCount))
-            .apply(FirestoreIO.v1().read().partitionQuery().withNameOnlyQuery().build())
-            .apply(FirestoreIO.v1().read().runQuery().build())
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .partitionQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
+                    .withNameOnlyQuery()
+                    .build())
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .runQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
+                    .build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
@@ -334,10 +369,19 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .partitionQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withReadTime(readTime)
                     .withNameOnlyQuery()
                     .build())
-            .apply(FirestoreIO.v1().read().runQuery().withReadTime(readTime).build())
+            .apply(
+                FirestoreIO.v1()
+                    .read()
+                    .runQuery()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
+                    .withReadTime(readTime)
+                    .build())
             .apply(ParDo.of(new RunQueryResponseToDocument()))
             .apply(ParDo.of(new DocumentToName()));
 
@@ -380,6 +424,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .batchGetDocuments()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())
             .apply(Filter.by(BatchGetDocumentsResponse::hasFound))
@@ -398,6 +444,8 @@ abstract class BaseFirestoreIT {
                 FirestoreIO.v1()
                     .read()
                     .batchGetDocuments()
+                    .withProjectId(project)
+                    .withDatabaseId(databaseId)
                     .withReadTime(readTime)
                     .withRpcQosOptions(RPC_QOS_OPTIONS)
                     .build())

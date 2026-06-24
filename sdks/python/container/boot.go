@@ -29,9 +29,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -46,8 +47,6 @@ import (
 )
 
 var (
-	acceptableWhlSpecs []string
-
 	// SetupOnly option is used to invoke the boot sequence to only process the provided artifacts and builds new dependency pre-cached images.
 	setupOnly = flag.Bool("setup_only", false, "Execute boot program in setup only mode (optional).")
 	artifacts = flag.String("artifacts", "", "Path to artifacts metadata file used in setup only mode (optional).")
@@ -116,6 +115,47 @@ func main() {
 	}
 }
 
+// The json string of pipeline options is in the following format.
+// We only focus on experiments here.
+//
+//	{
+//		 "display_data": [
+//		  	{...},
+//		 ],
+//		 "options": {
+//		  	...
+//			  "experiments": [
+//				...
+//			 ],
+//		 }
+//	}
+type PipelineOptionsData struct {
+	Options OptionsData `json:"options"`
+}
+
+type OptionsData struct {
+	Experiments                   []string `json:"experiments"`
+	ProfilerAgent                 string   `json:"profiler_agent"`
+	ProfilerExtraArgs             []string `json:"profiler_extra_args"`
+	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
+	ProfileLocation               string   `json:"profile_location"`
+	ProfileTempLocation           string   `json:"profile_temp_location"`
+	ProfileUploadIntervalSec      int      `json:"profile_upload_interval_sec"`
+	ProfilerStopAfterSec          int      `json:"profiler_stop_after_sec"`
+	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
+	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
+	JobId                         string   `json:"jobId,omitempty"`
+}
+
+func getExperiments(options string) []string {
+	var opts PipelineOptionsData
+	err := json.Unmarshal([]byte(options), &opts)
+	if err != nil {
+		return nil
+	}
+	return opts.Options.Experiments
+}
+
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
@@ -155,6 +195,28 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject artifact validation enabled state into context
+	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+
+	experiments := getExperiments(options)
+	logger.Printf(ctx, "Experiments=%v", experiments)
+
+	pipNoBuildIsolation = true
+	if slices.Contains(experiments, "pip_use_build_isolation") {
+		pipNoBuildIsolation = false
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	}
+
+	var opts PipelineOptionsData
+	if err := json.Unmarshal([]byte(options), &opts); err != nil {
+		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
+	}
+
+	ctx = setupProfilerConfig(ctx, logger, &opts)
+	startProfilerBackgroundTasks(ctx, logger)
+
 	// (2) Retrieve and install the staged packages.
 	//
 	// No log.Fatalf() from here on, otherwise deferred cleanups will not be called!
@@ -188,7 +250,7 @@ func launchSDKProcess() error {
 	if err != nil {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		logger.Errorf(ctx, "%s", fmtErr.Error())
 		// No need to fail the job if submission_environment_dependencies.txt cannot be loaded
 		if strings.Contains(fmtErr.Error(), "submission_environment_dependencies.txt") {
 			logger.Printf(ctx, "Ignore the error when loading submission_environment_dependencies.txt.")
@@ -214,13 +276,17 @@ func launchSDKProcess() error {
 	if setupErr := installSetupPackages(ctx, logger, fileNames, dir, requirementsFiles); setupErr != nil {
 		fmtErr := fmt.Errorf("failed to install required packages: %v", setupErr)
 		// Send error message to logging service before returning up the call stack
-		logger.Errorf(ctx, fmtErr.Error())
+		logger.Errorf(ctx, "%s", fmtErr.Error())
 		return fmtErr
 	}
 
 	// (3) Invoke python
 
-	os.Setenv("PIPELINE_OPTIONS", options)
+	// Write the JSON string of pipeline options into a file to prevent "argument list too long" error.
+	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
+		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
+	}
+
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
 	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}).String())
 	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", (&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}).String())
@@ -267,11 +333,6 @@ func launchSDKProcess() error {
 		childPids.mu.Unlock()
 	}()
 
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
@@ -286,12 +347,68 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
+
+				currentProg := "python"
+				currentArgs := []string{"-m", sdkHarnessEntrypoint}
+				currentEnv := map[string]string{"WORKER_ID": workerId}
+
+				profilingActive := false
+				currentProg, currentArgs, currentEnv, profilingActive = maybeWithProfiler(
+					ctx, logger, workerId, currentProg, currentArgs, currentEnv,
+				)
+
+				var envStr string
+				if len(currentEnv) > 0 {
+					var envStrings []string
+					for k, v := range currentEnv {
+						envStrings = append(envStrings, k+"="+v)
+					}
+					slices.Sort(envStrings)
+					envStr = strings.Join(envStrings, ", ")
+				}
+
+				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
+				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
-				if err := cmd.Wait(); err != nil {
+				var timer *time.Timer
+				var profilingTimedOut atomic.Bool
+
+				pcfg := getProfilerConfig(ctx)
+				if profilingActive && pcfg.StopAfterSec > 0 {
+					duration := time.Duration(pcfg.StopAfterSec) * time.Second
+					timer = time.AfterFunc(duration, func() {
+						childPids.mu.Lock()
+						defer childPids.mu.Unlock()
+						if cmd.Process != nil {
+							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
+								pcfg.StopAfterSec, workerId)
+							profilingTimedOut.Store(true)
+							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+						}
+					})
+				}
+
+				err := cmd.Wait()
+				if timer != nil {
+					timer.Stop()
+				}
+
+				if err != nil {
+					if profilingTimedOut.Load() {
+						stopProfiling(ctx)
+						bufLogger.FlushAtDebug(ctx)
+						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
+						// Error is not counted toward error budget.
+						continue
+					}
+
+					if profilingActive && pcfg.StopAfterCrash {
+						stopProfiling(ctx)
+						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
+					}
+
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
@@ -363,37 +480,19 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// setupAcceptableWheelSpecs setup wheel specs according to installed python version
-func setupAcceptableWheelSpecs() error {
-	cmd := exec.Command("python", "-V")
-	stdoutStderr, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	re := regexp.MustCompile(`Python (\d)\.(\d+).*`)
-	pyVersions := re.FindStringSubmatch(string(stdoutStderr[:]))
-	if len(pyVersions) != 3 {
-		return fmt.Errorf("cannot get parse Python version from %s", stdoutStderr)
-	}
-	pyVersion := fmt.Sprintf("%s%s", pyVersions[1], pyVersions[2])
-	wheelName := fmt.Sprintf("cp%s-cp%s-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", pyVersion, pyVersion)
-	acceptableWhlSpecs = append(acceptableWhlSpecs, wheelName)
-	return nil
-}
-
-// installSetupPackages installs Beam SDK and user dependencies.
+// installSetupPackages installs user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing setup packages ...")
+	bufLogger.Printf(ctx, "Installing user dependencies ...")
 
-	if err := setupAcceptableWheelSpecs(); err != nil {
-		bufLogger.Printf(ctx, "Failed to setup acceptable wheel specs, leave it as empty: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
 	// using the --sdk_location pipeline option.
-	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, acceptableWhlSpecs, false); err != nil {
+	if err := installSdk(ctx, logger, files, workDir, sdkSrcFile, false); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	pkgName := "apache-beam"
@@ -414,11 +513,11 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "final runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "Failed to fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
@@ -467,20 +566,20 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, phase string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Python version in %s:", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	args = []string{"-m", "pip", "freeze"}
+	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
+	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
@@ -492,7 +591,7 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Logging submission environment dependencies:")
+	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
@@ -500,6 +599,8 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, string(content))
+	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
 }
+
+

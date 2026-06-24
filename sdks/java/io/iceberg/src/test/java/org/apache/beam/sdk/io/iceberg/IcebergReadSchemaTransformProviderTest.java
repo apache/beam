@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.OUTPUT_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertEquals;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +29,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -149,5 +152,66 @@ public class IcebergReadSchemaTransformProviderTest {
             });
 
     testPipeline.run();
+  }
+
+  @Test
+  public void testSnapshotInfoSchemaFieldNumbers() throws NoSuchSchemaException {
+    Schema schema = SchemaRegistry.createDefault().getSchema(SnapshotInfo.class);
+    assertEquals(9, schema.getFieldCount());
+
+    assertEquals(
+        Schema.Field.of("sequenceNumber", Schema.FieldType.INT64)
+            .withDescription(schema.getField(0).getDescription())
+            .withNullable(false),
+        schema.getField(0));
+
+    assertEquals(
+        Schema.Field.of("snapshotId", Schema.FieldType.INT64)
+            .withDescription(schema.getField(1).getDescription())
+            .withNullable(false),
+        schema.getField(1));
+
+    assertEquals(
+        Schema.Field.of("parentId", Schema.FieldType.INT64)
+            .withDescription(schema.getField(2).getDescription())
+            .withNullable(true),
+        schema.getField(2));
+
+    assertEquals(
+        Schema.Field.of("timestampMillis", Schema.FieldType.INT64)
+            .withDescription(schema.getField(3).getDescription())
+            .withNullable(false),
+        schema.getField(3));
+
+    assertEquals(
+        Schema.Field.of("operation", Schema.FieldType.STRING)
+            .withDescription(schema.getField(4).getDescription())
+            .withNullable(true),
+        schema.getField(4));
+
+    assertEquals(
+        Schema.Field.of(
+                "summary", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.STRING))
+            .withDescription(schema.getField(5).getDescription())
+            .withNullable(true),
+        schema.getField(5));
+
+    assertEquals(
+        Schema.Field.of("manifestListLocation", Schema.FieldType.STRING)
+            .withDescription(schema.getField(6).getDescription())
+            .withNullable(true),
+        schema.getField(6));
+
+    assertEquals(
+        Schema.Field.of("schemaId", Schema.FieldType.INT32)
+            .withDescription(schema.getField(7).getDescription())
+            .withNullable(true),
+        schema.getField(7));
+
+    assertEquals(
+        Schema.Field.of("tableIdentifierString", Schema.FieldType.STRING)
+            .withDescription(schema.getField(8).getDescription())
+            .withNullable(true),
+        schema.getField(8));
   }
 }

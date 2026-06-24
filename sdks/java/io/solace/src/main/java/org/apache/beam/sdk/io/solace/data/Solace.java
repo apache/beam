@@ -318,7 +318,7 @@ public class Solace {
 
     /** Whether the message was published or not. */
     @SchemaFieldNumber("1")
-    public abstract Boolean getPublished();
+    public abstract boolean getPublished();
 
     /**
      * The publishing latency in nanoseconds. This is the difference between the time the message
@@ -340,7 +340,7 @@ public class Solace {
     public abstract static class Builder {
       public abstract Builder setMessageId(String messageId);
 
-      public abstract Builder setPublished(Boolean published);
+      public abstract Builder setPublished(boolean published);
 
       public abstract Builder setLatencyNanos(Long latencyNanos);
 

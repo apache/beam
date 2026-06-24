@@ -54,7 +54,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Load Tests Python Combine Dataflow Batch'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 720
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_LoadTests_Python_Combine_Dataflow_Batch"]
         job_phrase: ["Run Load Tests Python Combine Dataflow Batch"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -92,7 +92,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.9 \
+            -PpythonVersion=3.10 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Batch_test_arguments_1 }} --job_name=load-tests-python-dataflow-batch-combine-1-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Python Load Test 2 (fanout 4)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -101,7 +101,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.9 \
+            -PpythonVersion=3.10 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Batch_test_arguments_2 }} --job_name=load-tests-python-dataflow-batch-combine-2-${{env.NOW_UTC}}' \
       - name: run Combine Dataflow Batch Python Load Test 3 (fanout 8)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -110,5 +110,5 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.9 \
+            -PpythonVersion=3.10 \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_Combine_Dataflow_Batch_test_arguments_3 }} --job_name=load-tests-python-dataflow-batch-combine-3-${{env.NOW_UTC}}'

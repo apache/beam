@@ -38,6 +38,7 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.util.PythonCallableSource;
+import org.apache.beam.sdk.util.construction.BaseExternalTest;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -50,36 +51,37 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PythonExternalTransformTest implements Serializable {
+  @RunWith(JUnit4.class)
+  public static class RunPipelineTest extends BaseExternalTest {
 
-  @Test
-  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
-  public void trivialPythonTransform() {
-    Pipeline p = Pipeline.create();
-    PCollection<String> output =
-        p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
-            .apply(
-                PythonExternalTransform
-                    .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
-                        from("apache_beam.GroupByKey"))
-            .apply(Keys.create());
-    PAssert.that(output).containsInAnyOrder("A", "B");
-    // TODO: Run this on a multi-language supporting runner.
-  }
+    @Test
+    @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+    public void trivialPythonTransform() {
+      PCollection<String> output =
+          testPipeline
+              .apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
+              .apply(
+                  PythonExternalTransform
+                      .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
+                          from("apache_beam.GroupByKey"))
+              .apply(Keys.create());
+      PAssert.that(output).containsInAnyOrder("A", "B");
+    }
 
-  @Test
-  @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
-  public void pythonTransformWithDependencies() {
-    Pipeline p = Pipeline.create();
-    PCollection<String> output =
-        p.apply(Create.of("elephant", "mouse", "sheep"))
-            .apply(
-                PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
-                        "apache_beam.Map")
-                    .withArgs(PythonCallableSource.of("import inflection\ninflection.pluralize"))
-                    .withExtraPackages(ImmutableList.of("inflection"))
-                    .withOutputCoder(StringUtf8Coder.of()));
-    PAssert.that(output).containsInAnyOrder("elephants", "mice", "sheep");
-    // TODO: Run this on a multi-language supporting runner.
+    @Test
+    @Category({ValidatesRunner.class, UsesPythonExpansionService.class})
+    public void pythonTransformWithDependencies() {
+      PCollection<String> output =
+          testPipeline
+              .apply(Create.of("elephant", "mouse", "sheep"))
+              .apply(
+                  PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
+                          "apache_beam.Map")
+                      .withArgs(PythonCallableSource.of("import inflection\ninflection.pluralize"))
+                      .withExtraPackages(ImmutableList.of("inflection"))
+                      .withOutputCoder(StringUtf8Coder.of()));
+      PAssert.that(output).containsInAnyOrder("elephants", "mice", "sheep");
+    }
   }
 
   @Test

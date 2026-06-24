@@ -21,7 +21,6 @@ import logging
 import re
 import time
 from typing import Optional
-from typing import Tuple
 
 from apache_beam import version as beam_version
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -32,7 +31,8 @@ from apache_beam.runners.interactive.utils import progress_indicated
 
 try:
   from google.cloud import dataproc_v1
-  from apache_beam.io.gcp import gcsfilesystem  #pylint: disable=ungrouped-imports
+
+  from apache_beam.io.gcp import gcsfilesystem  # pylint: disable=ungrouped-imports
 except ImportError:
 
   class UnimportedDataproc:
@@ -313,7 +313,7 @@ class DataprocClusterManager:
           self.cluster_metadata.cluster_name)
       raise e
 
-  def parse_master_url_and_dashboard(self, line: str) -> Tuple[str, str]:
+  def parse_master_url_and_dashboard(self, line: str) -> tuple[str, str]:
     """Parses the master_url and YARN application_id of the Flink process from
     an input line. The line containing both the master_url and application id
     is always formatted as such:
@@ -339,7 +339,7 @@ class DataprocClusterManager:
         yarn_endpoint)
     return master_url, dashboard
 
-  def get_master_url_and_dashboard(self) -> Tuple[Optional[str], Optional[str]]:
+  def get_master_url_and_dashboard(self) -> tuple[Optional[str], Optional[str]]:
     """Returns the master_url of the current cluster."""
     startup_logs = []
     for file in self._fs._list(self._staging_directory):

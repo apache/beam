@@ -79,12 +79,10 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
       }
       Preconditions.checkState(
           number == i,
-          "Expected field number "
-              + i
-              + " for field + "
-              + type.getName()
-              + " instead got "
-              + number);
+          "Expected field number %s for field %s instead got %s",
+          i,
+          type.getName(),
+          number);
     }
   }
 
@@ -123,7 +121,7 @@ public class AutoValueSchema extends GetterBasedSchemaProviderV2 {
     // SchemaTypeCreator for creating AutoValue objects.
     SchemaUserTypeCreator creatorFactory =
         AutoValueUtils.getBuilderCreator(
-            targetTypeDescriptor.getRawType(), schema, AbstractGetterTypeSupplier.INSTANCE);
+            targetTypeDescriptor, schema, AbstractGetterTypeSupplier.INSTANCE);
     if (creatorFactory != null) {
       return creatorFactory;
     }

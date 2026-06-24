@@ -406,7 +406,7 @@ public class JacksonTransformsTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MyEmptyBean)) {
         return false;
       }
 

@@ -18,8 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.TestUtils.LINES;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -96,7 +95,7 @@ public class CreateTest {
   public void testCreate() {
     PCollection<String> output = p.apply(Create.of(LINES));
 
-    PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(LINES.toArray(new String[0]));
     p.run();
   }
 
@@ -105,7 +104,7 @@ public class CreateTest {
   public void testCreateEmpty() {
     PCollection<String> output = p.apply(Create.empty(StringUtf8Coder.of()));
 
-    PAssert.that(output).containsInAnyOrder(NO_LINES_ARRAY);
+    PAssert.that(output).containsInAnyOrder(NO_LINES.toArray(new String[0]));
 
     assertEquals(StringUtf8Coder.of(), output.getCoder());
     p.run();

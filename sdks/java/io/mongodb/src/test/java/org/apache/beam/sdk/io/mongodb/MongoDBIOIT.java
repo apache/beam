@@ -24,7 +24,6 @@ import static org.junit.Assert.assertNotEquals;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import java.time.Instant;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -141,7 +140,7 @@ public class MongoDBIOIT {
   public static void setUp() {
     PipelineOptionsFactory.register(MongoDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(MongoDBPipelineOptions.class);
-    collection = String.format("test_%s", new Date().getTime());
+    collection = String.format("test_%s", java.time.Instant.now().toEpochMilli());
     if (StringUtils.isEmpty(options.getMongoDBUsername())) {
       mongoUrl =
           String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());

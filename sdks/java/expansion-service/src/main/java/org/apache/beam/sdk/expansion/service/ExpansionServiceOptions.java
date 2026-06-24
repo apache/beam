@@ -65,6 +65,13 @@ public interface ExpansionServiceOptions extends PipelineOptions {
 
   void setUseAltsServer(boolean useAltsServer);
 
+  @Description(
+      "If true, managed transforms expansion will serve artifacts based on the YAML based expansion service config.")
+  @Default.Boolean(false)
+  boolean getUseConfigDependenciesForManaged();
+
+  void setUseConfigDependenciesForManaged(boolean useConfigDependenciesForManaged);
+
   /**
    * Loads the allow list from {@link #getJavaClassLookupAllowlistFile}, defaulting to an empty
    * {@link JavaClassLookupTransformProvider.AllowList}.

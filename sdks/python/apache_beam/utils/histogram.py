@@ -20,6 +20,8 @@ import math
 import threading
 from collections import Counter
 
+from apache_beam.portability.api import metrics_pb2
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -107,13 +109,16 @@ class Histogram(object):
         return str(int(round(f)))  # pylint: disable=bad-option-value
 
     with self._lock:
-      return (
-          'Total count: %s, '
-          'P99: %s, P90: %s, P50: %s' % (
-              self.total_count(),
-              _format(self._get_linear_interpolation(0.99)),
-              _format(self._get_linear_interpolation(0.90)),
-              _format(self._get_linear_interpolation(0.50))))
+      if self.total_count():
+        return (
+            'Total count: %s, '
+            'P99: %s, P90: %s, P50: %s' % (
+                self.total_count(),
+                _format(self._get_linear_interpolation(0.99)),
+                _format(self._get_linear_interpolation(0.90)),
+                _format(self._get_linear_interpolation(0.50))))
+      else:
+        return ('Total count: %s' % (self.total_count(), ))
 
   def get_linear_interpolation(self, percentile):
     """Calculate percentile estimation based on linear interpolation.
@@ -127,6 +132,8 @@ class Histogram(object):
         method. Should be a floating point number greater than 0 and less
         than 1.
     """
+    if percentile > 1 or percentile < 0:
+      raise ValueError('percentile should be between 0 and 1.')
     with self._lock:
       return self._get_linear_interpolation(percentile)
 
@@ -159,12 +166,16 @@ class Histogram(object):
   def __eq__(self, other):
     if not isinstance(other, Histogram):
       return False
+
+    def nonzero_buckets(buckets):
+      return {k: v for k, v in buckets.items() if v != 0}
+
     return (
         self._bucket_type == other._bucket_type and
         self._num_records == other._num_records and
         self._num_top_records == other._num_top_records and
         self._num_bot_records == other._num_bot_records and
-        self._buckets == other._buckets)
+        nonzero_buckets(self._buckets) == nonzero_buckets(other._buckets))
 
   def __hash__(self):
     return hash((
@@ -173,6 +184,29 @@ class Histogram(object):
         self._num_top_records,
         self._num_bot_records,
         frozenset(self._buckets.items())))
+
+  def to_runner_api(self) -> metrics_pb2.HistogramValue:
+    return metrics_pb2.HistogramValue(
+        count=self.total_count(),
+        bucket_counts=[
+            self._buckets.get(idx, 0)
+            for idx in range(self._bucket_type.num_buckets())
+        ],
+        bucket_options=self._bucket_type.to_runner_api())
+
+  @classmethod
+  def from_runner_api(cls, proto: metrics_pb2.HistogramValue):
+    bucket_options_proto = proto.bucket_options
+    if bucket_options_proto.linear is not None:
+      bucket_options = LinearBucket.from_runner_api(bucket_options_proto)
+    else:
+      raise NotImplementedError
+    histogram = cls(bucket_options)
+    with histogram._lock:
+      for bucket_index, count in enumerate(proto.bucket_counts):
+        histogram._buckets[bucket_index] = count
+      histogram._num_records = sum(proto.bucket_counts)
+    return histogram
 
 
 class BucketType(object):
@@ -203,6 +237,14 @@ class BucketType(object):
     `sigma(0 <= i < endIndex) getBucketSize(i)`. However, a child class could
     provide better optimized calculation.
     """
+    raise NotImplementedError
+
+  def to_runner_api(self):
+    """Convert to the runner API representation."""
+    raise NotImplementedError
+
+  @classmethod
+  def from_runner_api(cls, proto):
     raise NotImplementedError
 
 
@@ -248,3 +290,17 @@ class LinearBucket(BucketType):
 
   def __hash__(self):
     return hash((self._start, self._width, self._num_buckets))
+
+  def to_runner_api(self):
+    return metrics_pb2.HistogramValue.BucketOptions(
+        linear=metrics_pb2.HistogramValue.BucketOptions.Linear(
+            number_of_buckets=self._num_buckets,
+            width=self._width,
+            start=self._start))
+
+  @classmethod
+  def from_runner_api(cls, proto):
+    return LinearBucket(
+        start=proto.linear.start,
+        width=proto.linear.width,
+        num_buckets=proto.linear.number_of_buckets)

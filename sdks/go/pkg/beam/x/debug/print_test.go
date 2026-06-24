@@ -18,6 +18,7 @@ package debug
 import (
 	"bytes"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -92,10 +93,14 @@ func captureRunLogging(p *beam.Pipeline) string {
 	// Pipe output to out
 	var out bytes.Buffer
 	log.SetOutput(&out)
+	defer log.SetOutput(os.Stderr)
+
+	oldLogger := slog.Default()
+	logHandler := slog.NewTextHandler(&out, nil)
+	slog.SetDefault(slog.New(logHandler))
+	defer slog.SetDefault((oldLogger))
 
 	ptest.Run(p)
 
-	// Return to original state
-	log.SetOutput(os.Stderr)
 	return out.String()
 }

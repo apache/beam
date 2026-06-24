@@ -30,6 +30,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 # pylint: disable=ungrouped-imports
 try:
   import onnx
+
   from apache_beam.examples.inference import onnx_sentiment_classification
 except ImportError as e:
   onnx = None

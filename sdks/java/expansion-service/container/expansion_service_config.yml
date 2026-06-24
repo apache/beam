@@ -21,6 +21,7 @@ allowlist:
 # the classpath. Following config can be used to override this behavior per
 # transform URN or schema-transform ID.
 dependencies:
+  # Transform URNs.
   "beam:transform:org.apache.beam:kafka_read_with_metadata:v1":
     - path: "jars/beam-sdks-java-io-expansion-service.jar"
   "beam:transform:org.apache.beam:kafka_read_without_metadata:v1":
@@ -28,8 +29,33 @@ dependencies:
   "beam:transform:org.apache.beam:kafka_write:v1":
     - path: "jars/beam-sdks-java-io-expansion-service.jar"
   "beam:transform:org.apache.beam:schemaio_jdbc_read:v1":
-    - path: "jars/beam-sdks-java-extensions-schemaio-expansion-service.jar"
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
   "beam:transform:org.apache.beam:schemaio_jdbc_write:v1":
-    - path: "jars/beam-sdks-java-extensions-schemaio-expansion-service.jar"
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  # Schema-aware transform IDs.
+  "beam:schematransform:org.apache.beam:iceberg_read:v1":
+    - path: "jars/beam-sdks-java-io-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:iceberg_write:v1":
+    - path: "jars/beam-sdks-java-io-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:kafka_read:v1":
+    - path: "jars/beam-sdks-java-io-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:kafka_write:v1":
+    - path: "jars/beam-sdks-java-io-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:bigquery_storage_read:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
   "beam:schematransform:org.apache.beam:bigquery_storage_write:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:bigquery_write:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:postgres_read:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:postgres_write:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:mysql_read:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:mysql_write:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:sql_server_read:v1":
+    - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"
+  "beam:schematransform:org.apache.beam:sql_server_write:v1":
     - path: "jars/beam-sdks-java-io-google-cloud-platform-expansion-service.jar"

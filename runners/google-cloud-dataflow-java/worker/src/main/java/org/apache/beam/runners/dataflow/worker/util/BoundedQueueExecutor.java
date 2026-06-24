@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -24,13 +27,17 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An executor for executing work on windmill items. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BoundedQueueExecutor {
 
   private final ThreadPoolExecutor executor;
@@ -38,7 +45,19 @@ public class BoundedQueueExecutor {
 
   // Used to guard elementsOutstanding and bytesOutstanding.
   private final Monitor monitor;
-  private final ConcurrentLinkedQueue<Long> decrementQueue = new ConcurrentLinkedQueue<>();
+
+  private static class Budget {
+
+    final int elements;
+    final long bytes;
+
+    Budget(int elements, long bytes) {
+      this.elements = elements;
+      this.bytes = bytes;
+    }
+  }
+
+  private final ConcurrentLinkedQueue<Budget> decrementQueue = new ConcurrentLinkedQueue<>();
   private final Object decrementQueueDrainLock = new Object();
   private final AtomicBoolean isDecrementBatchPending = new AtomicBoolean(false);
   private int elementsOutstanding = 0;
@@ -59,6 +78,9 @@ public class BoundedQueueExecutor {
   @GuardedBy("this")
   private long totalTimeMaxActiveThreadsUsed;
 
+  // If set the keyGroupWorkQueue is used by the underlying executor.
+  private final @Nullable KeyGroupWorkQueue keyGroupWorkQueue;
+
   public BoundedQueueExecutor(
       int initialMaximumPoolSize,
       long keepAliveTime,
@@ -66,7 +88,9 @@ public class BoundedQueueExecutor {
       int maximumElementsOutstanding,
       long maximumBytesOutstanding,
       ThreadFactory threadFactory,
-      boolean useFairMonitor) {
+      boolean useFairMonitor,
+      boolean useKeyGroupWorkQueue) {
+    this.keyGroupWorkQueue = useKeyGroupWorkQueue ? new KeyGroupWorkQueue(useFairMonitor) : null;
     this.maximumPoolSize = initialMaximumPoolSize;
     monitor = new Monitor(useFairMonitor);
     executor =
@@ -75,7 +99,7 @@ public class BoundedQueueExecutor {
             initialMaximumPoolSize,
             keepAliveTime,
             unit,
-            new LinkedBlockingQueue<>(),
+            keyGroupWorkQueue != null ? keyGroupWorkQueue : new LinkedBlockingQueue<>(),
             threadFactory) {
           @Override
           protected void beforeExecute(Thread t, Runnable r) {
@@ -106,7 +130,7 @@ public class BoundedQueueExecutor {
 
   // Before adding a Work to the queue, check that there are enough bytes of space or no other
   // outstanding elements of work.
-  public void execute(Runnable work, long workBytes) {
+  public void execute(ExecutableWork work, long workBytes) {
     monitor.enterWhenUninterruptibly(
         new Guard(monitor) {
           @Override
@@ -119,10 +143,16 @@ public class BoundedQueueExecutor {
     executeMonitorHeld(work, workBytes);
   }
 
-  // Forcibly add something to the queue, ignoring the length limit.
-  public void forceExecute(Runnable work, long workBytes) {
+  // Forcibly add ExecutableWork to the queue, ignoring the limits.
+  public void forceExecute(ExecutableWork work, long workBytes) {
     monitor.enter();
     executeMonitorHeld(work, workBytes);
+  }
+
+  /** Forcibly execute a Runnable callback with 0 bytes of size. */
+  public void forceExecute(Runnable runnable) {
+    monitor.enter();
+    executeMonitorHeld(runnable);
   }
 
   // Set the maximum/core pool size of the executor.
@@ -221,8 +251,115 @@ public class BoundedQueueExecutor {
     }
   }
 
-  private void executeMonitorHeld(Runnable work, long workBytes) {
+  /**
+   * A handle to use when requesting pulling more work from @BoundedQueueExecutor
+   * via @BoundedQueueExecutor.pollWork. A single handle aggregates all budgets from work pulled for
+   * inline execution and releases the budget after the multi work bundle is complete.
+   */
+  final class BoundedQueueExecutorWorkHandleImpl
+      implements BoundedQueueExecutorWorkHandle, AutoCloseable {
+
+    @GuardedBy("this")
+    private int elements;
+
+    @GuardedBy("this")
+    private long bytes;
+
+    @GuardedBy("this")
+    private boolean closed = false;
+
+    private BoundedQueueExecutorWorkHandleImpl(int elements, long bytes) {
+      checkArgument(elements >= 0 && bytes >= 0);
+      this.elements = elements;
+      this.bytes = bytes;
+    }
+
+    /**
+     * Merges the budget from another handle into this handle.
+     *
+     * <p>This transfers the budget (elements and bytes) from the {@code other} handle to this
+     * handle, and marks the {@code other} handle as closed to prevent it from releasing the budget
+     * again if it is closed.
+     */
+    public void merge(BoundedQueueExecutorWorkHandleImpl other) {
+      checkArgumentNotNull(other);
+      synchronized (this) {
+        Preconditions.checkState(!closed, "Cannot merge into a closed handle");
+        synchronized (other) {
+          Preconditions.checkState(!other.closed, "Cannot merge a closed handle");
+          this.elements += other.elements;
+          this.bytes += other.bytes;
+          other.closed = true;
+          other.elements = 0;
+          other.bytes = 0;
+        }
+      }
+    }
+
+    public synchronized boolean isClosed() {
+      return closed;
+    }
+
+    @VisibleForTesting
+    synchronized int elements() {
+      return elements;
+    }
+
+    @VisibleForTesting
+    synchronized long bytes() {
+      return bytes;
+    }
+
+    @Override
+    public synchronized void close() {
+      if (closed) return;
+      closed = true;
+      decrementCounters(this.elements, this.bytes);
+    }
+  }
+
+  static final class QueuedWork implements Runnable {
+
+    private final ExecutableWork work;
+    private final BoundedQueueExecutorWorkHandleImpl handle;
+
+    public QueuedWork(ExecutableWork work, BoundedQueueExecutorWorkHandleImpl handle) {
+      this.work = work;
+      this.handle = handle;
+    }
+
+    public ExecutableWork getWork() {
+      return work;
+    }
+
+    public BoundedQueueExecutorWorkHandleImpl getHandle() {
+      return handle;
+    }
+
+    @Override
+    public void run() {
+      checkArgument(!handle.isClosed());
+      try (handle) {
+        work.run(handle);
+      }
+    }
+  }
+
+  private void executeMonitorHeld(ExecutableWork work, long workBytes) {
+    ++elementsOutstanding;
     bytesOutstanding += workBytes;
+    monitor.leave();
+    BoundedQueueExecutorWorkHandleImpl handle =
+        new BoundedQueueExecutorWorkHandleImpl(1, workBytes);
+    try {
+      executor.execute(new QueuedWork(work, handle));
+    } catch (Throwable t) {
+      handle.close();
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
+    }
+  }
+
+  private void executeMonitorHeld(Runnable work) {
     ++elementsOutstanding;
     monitor.leave();
 
@@ -232,21 +369,41 @@ public class BoundedQueueExecutor {
             try {
               work.run();
             } finally {
-              decrementCounters(workBytes);
+              decrementCounters(1, 0L);
             }
           });
-    } catch (RuntimeException e) {
-      // If the execute() call threw an exception, decrement counters here.
-      decrementCounters(workBytes);
-      throw e;
+    } catch (Throwable t) {
+      decrementCounters(1, 0L);
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
     }
   }
 
-  private void decrementCounters(long workBytes) {
+  @VisibleForTesting
+  BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
+    return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
+  }
+
+  public @Nullable ExecutableWork pollWork(
+      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+    checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    checkArgument(computationId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT));
+    BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
+    if (keyGroupWorkQueue == null) {
+      return null;
+    }
+    @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
+    if (queuedWork == null) {
+      return null;
+    }
+    internalHandle.merge(queuedWork.getHandle());
+    return queuedWork.getWork();
+  }
+
+  private void decrementCounters(int elements, long bytes) {
     // All threads queue decrements and one thread grabs the monitor and updates
     // counters. We do this to reduce contention on monitor which is locked by
     // GetWork thread
-    decrementQueue.add(workBytes);
+    decrementQueue.add(new Budget(elements, bytes));
     boolean submittedToExistingBatch = isDecrementBatchPending.getAndSet(true);
     if (submittedToExistingBatch) {
       // There is already a thread about to drain the decrement queue
@@ -265,12 +422,12 @@ public class BoundedQueueExecutor {
       long bytesToDecrement = 0;
       int elementsToDecrement = 0;
       while (true) {
-        Long pollResult = decrementQueue.poll();
+        Budget pollResult = decrementQueue.poll();
         if (pollResult == null) {
           break;
         }
-        bytesToDecrement += pollResult;
-        ++elementsToDecrement;
+        bytesToDecrement += pollResult.bytes;
+        elementsToDecrement += pollResult.elements;
       }
       if (elementsToDecrement == 0) {
         return;

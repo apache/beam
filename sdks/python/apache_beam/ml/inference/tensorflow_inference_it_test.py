@@ -31,6 +31,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   import tensorflow as tf
   import tensorflow_hub as hub
+
   from apache_beam.examples.inference import tensorflow_imagenet_segmentation
   from apache_beam.examples.inference import tensorflow_mnist_classification
   from apache_beam.examples.inference import tensorflow_mnist_with_weights

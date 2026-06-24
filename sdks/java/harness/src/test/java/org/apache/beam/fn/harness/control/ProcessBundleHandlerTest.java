@@ -37,7 +37,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -94,6 +93,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.Cache
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.AccumulationMode;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ClosingBehavior;
@@ -120,6 +120,8 @@ import org.apache.beam.sdk.fn.data.TimerEndpoint;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.function.ThrowingRunnable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -142,6 +144,7 @@ import org.apache.beam.sdk.util.construction.ModelCoders;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -935,6 +938,19 @@ public class ProcessBundleHandlerTest {
   private static final class SimpleDoFn extends DoFn<KV<String, String>, String> {
     private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<>("mainOutput");
     private static final String TIMER_FAMILY_ID = "timer_family";
+    private final Counter timersFired = Metrics.counter(SimpleDoFn.class, "timersFired");
+    private final Counter bundlesStarted = Metrics.counter(SimpleDoFn.class, "bundlesStarted");
+    private final Counter bundlesFinished = Metrics.counter(SimpleDoFn.class, "bundlesFinished");
+
+    @StartBundle
+    public void startBundle() {
+      bundlesStarted.inc();
+    }
+
+    @FinishBundle
+    public void finishBundle() {
+      bundlesFinished.inc();
+    }
 
     @TimerFamily(TIMER_FAMILY_ID)
     private final TimerSpec timer = TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
@@ -944,6 +960,7 @@ public class ProcessBundleHandlerTest {
 
     @OnTimerFamily(TIMER_FAMILY_ID)
     public void onTimer(@TimerFamily(TIMER_FAMILY_ID) TimerMap timerFamily) {
+      timersFired.inc();
       timerFamily
           .get("output_timer")
           .withOutputTimestamp(Instant.ofEpochMilli(100L))
@@ -1053,28 +1070,20 @@ public class ProcessBundleHandlerTest {
                   dataOutput.add(input.getValue());
                 }));
 
-    Mockito.doAnswer(
-            (invocation) ->
-                new BeamFnDataOutboundAggregator(
-                    PipelineOptionsFactory.create(),
-                    invocation.getArgument(1),
-                    new StreamObserver<Elements>() {
-                      @Override
-                      public void onNext(Elements elements) {
-                        for (Timers timer : elements.getTimersList()) {
-                          timerOutput.addAll(elements.getTimersList());
-                        }
-                      }
+    Mockito.when(beamFnDataClient.getOutboundObserver(any(), any()))
+        .thenReturn(
+            new StreamObserver<Elements>() {
+              @Override
+              public void onNext(Elements elements) {
+                timerOutput.addAll(elements.getTimersList());
+              }
 
-                      @Override
-                      public void onError(Throwable throwable) {}
+              @Override
+              public void onError(Throwable throwable) {}
 
-                      @Override
-                      public void onCompleted() {}
-                    },
-                    invocation.getArgument(2)))
-        .when(beamFnDataClient)
-        .createOutboundAggregator(any(), any(), anyBoolean());
+              @Override
+              public void onCompleted() {}
+            });
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -1112,7 +1121,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
     Elements elements =
         Elements.newBuilder()
@@ -1231,7 +1241,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     assertThrows(
@@ -1325,7 +1336,8 @@ public class ProcessBundleHandlerTest {
                 Collections.singletonList(GlobalWindow.INSTANCE),
                 Instant.ofEpochMilli(1L),
                 Instant.ofEpochMilli(1L),
-                PaneInfo.ON_TIME_AND_ONLY_FIRING),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
             encodedTimer);
 
     InstructionResponse.Builder builder =
@@ -1388,7 +1400,7 @@ public class ProcessBundleHandlerTest {
             (invocation) -> {
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(2, CloseableFnDataReceiver.class);
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1400,7 +1412,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any());
+        .registerReceiver(any(), any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1430,8 +1442,8 @@ public class ProcessBundleHandlerTest {
             .build());
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
-    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
+    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any(), any());
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
@@ -1454,7 +1466,7 @@ public class ProcessBundleHandlerTest {
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(2, CloseableFnDataReceiver.class);
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1468,7 +1480,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any());
+        .registerReceiver(any(), any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1505,7 +1517,7 @@ public class ProcessBundleHandlerTest {
                     .build()));
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
     verify(beamFnDataClient).poisonInstructionId(eq("instructionId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
@@ -1829,7 +1841,7 @@ public class ProcessBundleHandlerTest {
                     response =
                         handler.progress(
                             BeamFnApi.InstructionRequest.newBuilder()
-                                .setInstructionId("thread-" + threadId + "-" + (++requestCount))
+                                .setInstructionId("thread-" + threadId + "-" + ++requestCount)
                                 .setProcessBundleProgress(
                                     ProcessBundleProgressRequest.newBuilder()
                                         .setInstructionId("999L")
@@ -1924,6 +1936,124 @@ public class ProcessBundleHandlerTest {
                         BeamFnApi.ProcessBundleRequest.newBuilder()
                             .setProcessBundleDescriptorId("1L"))
                     .build()));
+  }
+
+  @Test
+  public void testTimerMetrics() throws Exception {
+    List<String> dataOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
+
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
+    KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
+    ByteStringOutputStream encodedTimer = new ByteStringOutputStream();
+    Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)
+        .encode(
+            Timer.of(
+                "",
+                "timer_id",
+                Collections.singletonList(GlobalWindow.INSTANCE),
+                Instant.ofEpochMilli(1L),
+                Instant.ofEpochMilli(1L),
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                CausedByDrain.NORMAL),
+            encodedTimer);
+    Elements elements =
+        Elements.newBuilder()
+            .addData(
+                Data.newBuilder().setInstructionId("998L").setTransformId("2L").setIsLast(true))
+            .addTimers(
+                Timers.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("3L")
+                    .setTimerFamilyId(TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
+                    .setTimers(encodedTimer.toByteString()))
+            .addTimers(
+                Timers.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("3L")
+                    .setTimerFamilyId(TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
+                    .setIsLast(true))
+            .build();
+    InstructionResponse.Builder response =
+        handler.processBundle(
+            InstructionRequest.newBuilder()
+                .setInstructionId("998L")
+                .setProcessBundle(
+                    ProcessBundleRequest.newBuilder()
+                        .setProcessBundleDescriptorId("1L")
+                        .setElements(elements))
+                .build());
+    handler.shutdown();
+
+    int timerCounterFound = 0;
+    for (MetricsApi.MonitoringInfo info : response.getProcessBundle().getMonitoringInfosList()) {
+      if (info.getLabelsOrDefault("NAME", "").equals("timersFired")) {
+        ++timerCounterFound;
+        assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
+        assertEquals("beam:metrics:sum_int64:v1", info.getType());
+        assertEquals(
+            "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+            info.getLabelsOrDefault("NAMESPACE", ""));
+        assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
+        assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
+      }
+    }
+    assertEquals(1, timerCounterFound);
+  }
+
+  @Test
+  public void testStartFinishBundleMetrics() throws Exception {
+    List<String> dataOutput = new ArrayList<>();
+    List<Timers> timerOutput = new ArrayList<>();
+    ProcessBundleHandler handler =
+        setupProcessBundleHandlerForSimpleRecordingDoFn(dataOutput, timerOutput, false);
+
+    ByteStringOutputStream encodedData = new ByteStringOutputStream();
+    KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()).encode(KV.of("", "data"), encodedData);
+    Elements elements =
+        Elements.newBuilder()
+            .addData(
+                Data.newBuilder().setInstructionId("998L").setTransformId("2L").setIsLast(true))
+            .addTimers(
+                Timers.newBuilder()
+                    .setInstructionId("998L")
+                    .setTransformId("3L")
+                    .setTimerFamilyId(TimerFamilyDeclaration.PREFIX + SimpleDoFn.TIMER_FAMILY_ID)
+                    .setIsLast(true))
+            .build();
+    InstructionResponse.Builder response =
+        handler.processBundle(
+            InstructionRequest.newBuilder()
+                .setInstructionId("998L")
+                .setProcessBundle(
+                    ProcessBundleRequest.newBuilder()
+                        .setProcessBundleDescriptorId("1L")
+                        .setElements(elements))
+                .build());
+    handler.shutdown();
+
+    int startCounterFound = 0;
+    int finishCounterFound = 0;
+    for (MetricsApi.MonitoringInfo info : response.getProcessBundle().getMonitoringInfosList()) {
+      if (info.getLabelsOrDefault("NAME", "").equals("bundlesStarted")) {
+        ++startCounterFound;
+      } else if (info.getLabelsOrDefault("NAME", "").equals("bundlesFinished")) {
+        ++finishCounterFound;
+      } else {
+        continue;
+      }
+      assertEquals("beam:metric:user:sum_int64:v1", info.getUrn());
+      assertEquals("beam:metrics:sum_int64:v1", info.getType());
+      assertEquals(
+          "org.apache.beam.fn.harness.control.ProcessBundleHandlerTest$SimpleDoFn",
+          info.getLabelsOrDefault("NAMESPACE", ""));
+      assertEquals("3L", info.getLabelsOrDefault("PTRANSFORM", ""));
+      assertEquals(ByteString.copyFromUtf8("\001"), info.getPayload());
+    }
+    assertEquals(1, startCounterFound);
+    assertEquals(1, finishCounterFound);
   }
 
   private static void throwException() {

@@ -155,7 +155,7 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
         totalSecondsWaited += waitSeconds;
         if (totalSecondsWaited > deadlineSeconds) {
           String errorMessage = constructStreamCancelledErrorMessage(totalSecondsWaited);
-          LOG.error(errorMessage);
+          LOG.error("{}", errorMessage);
           throw new WindmillRpcException(errorMessage, e);
         }
 
@@ -182,8 +182,8 @@ final class DirectStreamObserver<T> implements TerminatingStreamObserver<T> {
       Preconditions.checkState(!isUserClosed);
       isUserClosed = true;
       if (!isOutboundObserverClosed) {
-        outboundObserver.onError(t);
         isOutboundObserverClosed = true;
+        outboundObserver.onError(t);
       }
     }
   }

@@ -40,6 +40,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
@@ -122,7 +123,8 @@ class RecordWriterManager implements AutoCloseable {
                       RuntimeException rethrow =
                           new RuntimeException(
                               String.format(
-                                  "Encountered an error when closing data writer for table '%s', path: %s",
+                                  "Encountered an error when closing data writer for table '%s',"
+                                      + " path: %s",
                                   icebergDestination.getTableIdentifier(), recordWriter.path()),
                               e);
                       exceptions.add(rethrow);
@@ -195,7 +197,41 @@ class RecordWriterManager implements AutoCloseable {
     }
   }
 
-  private final Catalog catalog;
+  /**
+   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
+   * {@link DataFile}.
+   */
+  @VisibleForTesting
+  static String getPartitionDataPath(
+      String partitionPath, Map<String, PartitionField> partitionFieldMap) {
+    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
+      return partitionPath;
+    }
+    List<String> resolved = new ArrayList<>();
+    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
+      String transformName =
+          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
+      if (Transforms.month().toString().equals(transformName)) {
+        long months =
+            ChronoUnit.MONTHS.between(EPOCH, YearMonth.parse(value).atDay(1).atStartOfDay());
+        value = String.valueOf(months);
+      } else if (Transforms.hour().toString().equals(transformName)) {
+        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
+        value = String.valueOf(hour);
+      }
+      resolved.add(name + "=" + value);
+    }
+    return String.join("/", resolved);
+  }
+
+  private static final DateTimeFormatter HOUR_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
+
+  private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
   private final long maxFileSize;
   private final int maxNumWriters;
@@ -207,14 +243,11 @@ class RecordWriterManager implements AutoCloseable {
   private final Map<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
       totalSerializableDataFiles = Maps.newHashMap();
 
-  @VisibleForTesting
-  static final Cache<TableIdentifier, Table> TABLE_CACHE =
-      CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
-
   private boolean isClosed = false;
 
-  RecordWriterManager(Catalog catalog, String filePrefix, long maxFileSize, int maxNumWriters) {
-    this.catalog = catalog;
+  RecordWriterManager(
+      IcebergCatalogConfig catalogConfig, String filePrefix, long maxFileSize, int maxNumWriters) {
+    this.catalogConfig = catalogConfig;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
@@ -223,7 +256,7 @@ class RecordWriterManager implements AutoCloseable {
   /**
    * Returns an Iceberg {@link Table}.
    *
-   * <p>First attempts to fetch the table from the {@link #TABLE_CACHE}. If it's not there, we
+   * <p>First attempts to fetch the table from the shared {@link TableCache}. If it's not there, we
    * attempt to load it using the Iceberg API. If the table doesn't exist at all, we attempt to
    * create it, inferring the table schema from the record schema.
    *
@@ -231,63 +264,68 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+  @VisibleForTesting
+  Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
     TableIdentifier identifier = destination.getTableIdentifier();
-    @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
-    if (table != null) {
-      // If fetching from cache, refresh the table to avoid working with stale metadata
-      // (e.g. partition spec)
-      table.refresh();
-      return table;
-    }
+    return TableCache.getAndRefreshIfStale(
+        catalogConfig, identifier, () -> loadOrCreateTable(destination, dataSchema));
+  }
 
+  private Table loadOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    Catalog catalog = catalogConfig.catalog();
+    TableIdentifier identifier = destination.getTableIdentifier();
     Namespace namespace = identifier.namespace();
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    SortOrder sortOrder = createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
     Map<String, String> tableProperties =
         createConfig != null && createConfig.getTableProperties() != null
             ? createConfig.getTableProperties()
             : Maps.newHashMap();
 
-    synchronized (TABLE_CACHE) {
-      // Create namespace if it does not exist yet
-      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
-        SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
-        if (!supportsNamespaces.namespaceExists(namespace)) {
-          try {
-            supportsNamespaces.createNamespace(namespace);
-            LOG.info("Created new namespace '{}'.", namespace);
-          } catch (AlreadyExistsException ignored) {
-            // race condition: another worker already created this namespace
-          }
-        }
-      }
-
-      // If table exists, just load it
-      // Note: the implementation of catalog.tableExists() will load the table to check its
-      // existence. We don't use it here to avoid double loadTable() calls.
-      try {
-        table = catalog.loadTable(identifier);
-      } catch (NoSuchTableException e) { // Otherwise, create the table
-        org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+    // Create namespace if it does not exist yet
+    if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
+      SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
+      if (!supportsNamespaces.namespaceExists(namespace)) {
         try {
-          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
-          LOG.info(
-              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
-              identifier,
-              tableSchema,
-              partitionSpec,
-              tableProperties);
+          supportsNamespaces.createNamespace(namespace);
+          LOG.info("Created new namespace '{}'.", namespace);
         } catch (AlreadyExistsException ignored) {
-          // race condition: another worker already created this table
-          table = catalog.loadTable(identifier);
+          // race condition: another worker already created this namespace
         }
       }
     }
 
-    TABLE_CACHE.put(identifier, table);
-    return table;
+    // If table exists, just load it
+    // Note: the implementation of catalog.tableExists() will load the table to check its
+    // existence. We don't use it here to avoid double loadTable() calls.
+    try {
+      return catalog.loadTable(identifier);
+    } catch (NoSuchTableException e) { // Otherwise, create the table
+      org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
+      try {
+        Table table =
+            catalog
+                .buildTable(identifier, tableSchema)
+                .withPartitionSpec(partitionSpec)
+                .withSortOrder(sortOrder)
+                .withProperties(tableProperties)
+                .create();
+        LOG.info(
+            "Created Iceberg table '{}' with schema: {}\n"
+                + ", partition spec: {}, sort order: {}, table properties: {}",
+            identifier,
+            tableSchema,
+            partitionSpec,
+            sortOrder,
+            tableProperties);
+        return table;
+      } catch (AlreadyExistsException ignored) {
+        // race condition: another worker already created this table
+        return catalog.loadTable(identifier);
+      }
+    }
   }
 
   /**
@@ -317,33 +355,36 @@ class RecordWriterManager implements AutoCloseable {
    */
   @Override
   public void close() throws IOException {
-    for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
-        windowedDestinationAndState : destinations.entrySet()) {
-      DestinationState state = windowedDestinationAndState.getValue();
+    try {
+      for (Map.Entry<WindowedValue<IcebergDestination>, DestinationState>
+          windowedDestinationAndState : destinations.entrySet()) {
+        DestinationState state = windowedDestinationAndState.getValue();
 
-      // removing writers from the state's cache will trigger the logic to collect each writer's
-      // data file.
-      state.writers.invalidateAll();
-      // first check for any exceptions swallowed by the cache
-      if (!state.exceptions.isEmpty()) {
-        IllegalStateException exception =
-            new IllegalStateException(
-                String.format("Encountered %s failed writer(s).", state.exceptions.size()));
-        for (Exception e : state.exceptions) {
-          exception.addSuppressed(e);
+        // removing writers from the state's cache will trigger the logic to collect each writer's
+        // data file.
+        state.writers.invalidateAll();
+        // first check for any exceptions swallowed by the cache
+        if (!state.exceptions.isEmpty()) {
+          IllegalStateException exception =
+              new IllegalStateException(
+                  String.format("Encountered %s failed writer(s).", state.exceptions.size()));
+          for (Exception e : state.exceptions) {
+            exception.addSuppressed(e);
+          }
+          throw exception;
         }
-        throw exception;
-      }
 
-      if (state.dataFiles.isEmpty()) {
-        continue;
-      }
+        if (state.dataFiles.isEmpty()) {
+          continue;
+        }
 
-      totalSerializableDataFiles.put(
-          windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
-      state.dataFiles.clear();
+        totalSerializableDataFiles.put(
+            windowedDestinationAndState.getKey(), new ArrayList<>(state.dataFiles));
+        state.dataFiles.clear();
+      }
+    } finally {
+      destinations.clear();
     }
-    destinations.clear();
     checkArgument(
         openWriters == 0,
         "Expected all data writers to be closed, but found %s data writer(s) still open",

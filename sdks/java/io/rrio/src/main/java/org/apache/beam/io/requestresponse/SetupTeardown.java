@@ -20,7 +20,7 @@ package org.apache.beam.io.requestresponse;
 import java.io.Serializable;
 
 /**
- * Provided by user and called within {@link org.apache.beam.sdk.transforms.DoFn.Setup} and @{link
+ * Provided by user and called within {@link org.apache.beam.sdk.transforms.DoFn.Setup} and {@link
  * org.apache.beam.sdk.transforms.DoFn.Teardown} lifecycle methods of {@link Call}'s {@link
  * org.apache.beam.sdk.transforms.DoFn}.
  */

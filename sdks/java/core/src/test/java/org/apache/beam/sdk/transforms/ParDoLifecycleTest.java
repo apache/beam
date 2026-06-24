@@ -32,9 +32,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -293,7 +293,7 @@ public class ParDoLifecycleTest implements Serializable {
 
   @Before
   public void setup() {
-    ExceptionThrowingFn.callStateMap = new HashMap<>();
+    ExceptionThrowingFn.callStateMap.clear();
     ExceptionThrowingFn.exceptionWasThrown.set(false);
   }
 
@@ -356,7 +356,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   private static class ExceptionThrowingFn<T> extends DoFn<T, T> {
-    static HashMap<Integer, DelayedCallStateTracker> callStateMap = new HashMap<>();
+    static Map<Integer, DelayedCallStateTracker> callStateMap = new ConcurrentHashMap<>();
     // exception is not necessarily thrown on every instance. But we expect at least
     // one during tests
     static AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
@@ -373,7 +373,10 @@ public class ParDoLifecycleTest implements Serializable {
       Map<Integer, DelayedCallStateTracker> callStates;
       synchronized (ExceptionThrowingFn.class) {
         callStates =
-            (Map<Integer, DelayedCallStateTracker>) ExceptionThrowingFn.callStateMap.clone();
+            (Map<Integer, DelayedCallStateTracker>)
+                Collections.synchronizedMap(
+                    ExceptionThrowingFn.callStateMap.entrySet().stream()
+                        .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue())));
       }
       assertThat(callStates, is(not(anEmptyMap())));
       // assert that callStateMap contains only TEARDOWN as a value. Note: We do not expect

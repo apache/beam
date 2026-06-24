@@ -15,7 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ###############################################################################
-ARG BEAM_VERSION=2.44.0
+ARG BEAM_VERSION=2.68.0
 FROM golang:1-bullseye AS build
 ARG BEAM_VERSION
 ARG GIT_COMMIT="<unknown>"
@@ -56,15 +56,15 @@ FROM apache/beam_java11_sdk:$BEAM_VERSION
 
 ARG BEAM_VERSION
 ARG SPRING_VERSION=5.3.27
-ARG KAFKA_CLIENTS_VERSION=2.3.1
+ARG KAFKA_CLIENTS_VERSION=2.8.2
 ENV BEAM_VERSION=$BEAM_VERSION
 ENV SERVER_IP=0.0.0.0
 ENV SERVER_PORT=8080
 ENV APP_WORK_DIR=/opt/playground/backend/
 ENV BEAM_SDK="SDK_JAVA"
 ENV PROPERTY_PATH=/opt/playground/backend/properties.yaml
-ARG CALCITE_VERSION=1_28_0
-ARG BYTEBUDDY_VERSION=1.12.14
+ARG CALCITE_VERSION=1_40_0
+ARG BYTEBUDDY_VERSION=1.14.12
 ARG JANINO_VERSION=3.0.11
 
 # Copy build result
@@ -94,8 +94,8 @@ RUN wget https://repo1.maven.org/maven2/org/springframework/spring-jcl/$SPRING_V
 RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-sdks-java-extensions-sql/$BEAM_VERSION/beam-sdks-java-extensions-sql-$BEAM_VERSION.jar &&\
     mv beam-sdks-java-extensions-sql-$BEAM_VERSION.jar /opt/apache/beam/jars/beam-sdks-java-extensions-sql.jar
 
-RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-$CALCITE_VERSION/0.2/beam-vendor-calcite-$CALCITE_VERSION-0.2.jar &&\
-    mv beam-vendor-calcite-$CALCITE_VERSION-0.2.jar /opt/apache/beam/jars/beam-vendor-calcite-$CALCITE_VERSION.jar
+RUN wget https://repo1.maven.org/maven2/org/apache/beam/beam-vendor-calcite-$CALCITE_VERSION/0.1/beam-vendor-calcite-$CALCITE_VERSION-0.1.jar &&\
+    mv beam-vendor-calcite-$CALCITE_VERSION-0.1.jar /opt/apache/beam/jars/beam-vendor-calcite-$CALCITE_VERSION.jar
 
 RUN wget  https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/$BYTEBUDDY_VERSION/byte-buddy-$BYTEBUDDY_VERSION.jar &&\
     mv byte-buddy-$BYTEBUDDY_VERSION.jar /opt/apache/beam/jars/byte-buddy-$BYTEBUDDY_VERSION.jar
@@ -105,7 +105,7 @@ RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/janino/$JANINO_VERS
 
 RUN wget  https://repo1.maven.org/maven2/org/codehaus/janino/commons-compiler/$JANINO_VERSION/commons-compiler-$JANINO_VERSION.jar &&\
     mv commons-compiler-$JANINO_VERSION.jar /opt/apache/beam/jars/commons-compiler-$JANINO_VERSION.jar
-    
+
 # Install Java Katas Utils
 COPY katas /go/src/katas
 RUN cd /go/src/katas &&\

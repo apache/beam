@@ -190,7 +190,8 @@ class BatchGroupAlsoByWindowAndCombineFn<K, InputT, AccumT, OutputT, W extends B
       W window,
       Map<W, AccumT> accumulators,
       Map<W, Instant> accumulatorOutputTimes,
-      WindowedValueReceiver<KV<K, OutputT>> output) {
+      WindowedValueReceiver<KV<K, OutputT>> output)
+      throws Exception {
     AccumT accum = accumulators.remove(window);
     Instant timestamp = accumulatorOutputTimes.remove(window);
     checkState(accum != null && timestamp != null);

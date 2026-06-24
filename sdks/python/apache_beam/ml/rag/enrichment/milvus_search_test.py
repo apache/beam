@@ -19,19 +19,18 @@ import unittest
 from parameterized import parameterized
 
 try:
+  from apache_beam.ml.rag.enrichment.milvus_search import HybridSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import KeywordSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusBaseRanker
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusCollectionLoadParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusConnectionParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.milvus_search import MilvusSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import VectorSearchParameters
+  from apache_beam.ml.rag.enrichment.milvus_search import unpack_dataclass_with_kwargs
   from apache_beam.ml.rag.types import Chunk
-  from apache_beam.ml.rag.types import Embedding
   from apache_beam.ml.rag.types import Content
-  from apache_beam.ml.rag.enrichment.milvus_search import (
-      MilvusSearchEnrichmentHandler,
-      MilvusConnectionParameters,
-      MilvusSearchParameters,
-      MilvusCollectionLoadParameters,
-      VectorSearchParameters,
-      KeywordSearchParameters,
-      HybridSearchParameters,
-      MilvusBaseRanker,
-      unpack_dataclass_with_kwargs)
+  from apache_beam.ml.rag.types import Embedding
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
@@ -170,7 +169,7 @@ class TestMilvusVectorSearchEnrichment(unittest.TestCase):
 
       _ = handler._get_vector_search_data(chunk)
 
-    err_msg = "Chunk 1 missing dense embedding required for vector search"
+    err_msg = "Item 1 missing dense embedding required for vector search"
     self.assertIn(err_msg, str(context.exception))
 
 
@@ -229,7 +228,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
       _ = handler._get_keyword_search_data(chunk)
 
     err_msg = (
-        "Chunk 1 missing both text content and sparse embedding "
+        "Item 1 missing both text content and sparse embedding "
         "required for keyword search")
     self.assertIn(err_msg, str(context.exception))
 

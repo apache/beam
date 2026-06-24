@@ -70,6 +70,8 @@ public class GrpcDirectGetWorkStreamTest {
           serializedWorkItemSize,
           watermarks,
           processingContext,
+          drainMode,
+          appliedFinalizeIds,
           getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
@@ -283,6 +285,8 @@ public class GrpcDirectGetWorkStreamTest {
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
+                drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
@@ -327,8 +331,13 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            (work, serializedWorkItemSize, watermarks, processingContext, getWorkStreamLatencies) ->
-                scheduledWorkItems.add(work));
+            (work,
+                serializedWorkItemSize,
+                watermarks,
+                processingContext,
+                drainMode,
+                appliedFinalizeIds,
+                getWorkStreamLatencies) -> scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
         Windmill.WorkItem.newBuilder()
             .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
@@ -365,6 +374,8 @@ public class GrpcDirectGetWorkStreamTest {
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
+                drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
@@ -408,6 +419,8 @@ public class GrpcDirectGetWorkStreamTest {
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
+                drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });

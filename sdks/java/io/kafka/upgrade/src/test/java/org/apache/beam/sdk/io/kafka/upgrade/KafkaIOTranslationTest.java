@@ -66,6 +66,7 @@ public class KafkaIOTranslationTest {
     READ_TRANSFORM_SCHEMA_MAPPING.put("getStopReadTime", "stop_read_time");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeNumKeys", "redistribute_num_keys");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getOffsetDeduplication", "offset_deduplication");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getRedistributeByRecordKey", "redistribute_by_record_key");
     READ_TRANSFORM_SCHEMA_MAPPING.put(
         "isCommitOffsetsInFinalizeEnabled", "is_commit_offset_finalize_enabled");
     READ_TRANSFORM_SCHEMA_MAPPING.put("isDynamicRead", "is_dynamic_read");
@@ -93,6 +94,8 @@ public class KafkaIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getValueSerializer", "value_serializer");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getPublishTimestampFunction", "publish_timestamp_fn");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("isEOS", "eos");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getEosTriggerTimeout", "eos_trigger_timeout_ms");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put("getEosTriggerNumElements", "eos_trigger_num_elements");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getSinkGroupId", "sink_group_id");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getNumShards", "num_shards");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getConsumerFactoryFn", "consumer_factory_fn");

@@ -32,10 +32,11 @@
 #    --tests -> A space-seperated list of targets for "go test", written with
 #        beam/sdks/go as the working directory. Defaults to all packages in the
 #        integration and regression directories.
+#    --run -> To select which tests to run
 #    --timeout -> Timeout for the go test command, on a per-package level.
 #    --simultaneous -> Number of simultaneous packages to test.
 #        Controls the -p flag for the go test command.
-#        Not used for Flink, Spark, or Samza runners.  Defaults to 3 otherwise.
+#        Not used for Flink or Spark runners. Defaults to 3 otherwise.
 #    --endpoint -> An endpoint for an existing job server outside the script.
 #        If present, job server jar flags are ignored.
 #    --test_expansion_jar -> Filepath to jar for an expansion service, for
@@ -129,6 +130,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --run)
+        TEST_RUN="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --timeout)
         TIMEOUT="$2"
         shift # past argument
@@ -161,11 +167,6 @@ case $key in
         ;;
     --flink_job_server_jar)
         FLINK_JOB_SERVER_JAR="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --samza_job_server_jar)
-        SAMZA_JOB_SERVER_JAR="$2"
         shift # past argument
         shift # past value
         ;;
@@ -229,8 +230,8 @@ case $key in
         shift # past argument
         shift # past value
         ;;
-    --java11_home)
-        JAVA11_HOME="$2"
+    --prebuild_go_docker_tag)
+        PREBUILD_GO_DOCKER_TAG="$2"
         shift # past argument
         shift # past value
         ;;
@@ -266,22 +267,20 @@ else
 fi
 
 # Set up environment based on runner.
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
     JOB_PORT=$(python3 -c "$SOCKET_SCRIPT")
     ENDPOINT="localhost:$JOB_PORT"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
       "$JAVA_CMD" \
+          -Dslf4j.provider=org.slf4j.simple.SimpleServiceProvider \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.metrics=error \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.runtime=error \
+          -Dorg.slf4j.simpleLogger.log.org.apache.flink.streaming=error \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
-          --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
-          --job-port $JOB_PORT \
-          --expansion-port 0 \
-          --artifact-port 0 &
-    elif [[ "$RUNNER" == "samza" ]]; then
-      "$JAVA_CMD" \
-          -jar $SAMZA_JOB_SERVER_JAR \
+          --flink-conf-dir $CURRENT_DIRECTORY/build/flink-conf/ \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
@@ -344,7 +343,7 @@ if [[ "$RUNNER" != "direct" ]]; then
 fi
 
 # Disable parallelism on runners that don't support it.
-if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" ]]; then
+if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" ]]; then
   SIMULTANEOUS=1
 fi
 
@@ -423,8 +422,12 @@ if [[ "$RUNNER" == "dataflow" ]]; then
     fi
   fi
 else
-  TAG=dev
-  ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
+  if [[ -n {PREBUILD_GO_DOCKER_TAG} ]]; then
+    TAG=$PREBUILD_GO_DOCKER_TAG
+  else
+    TAG=dev
+    ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
+  fi
   CONTAINER=apache/beam_go_sdk
 fi
 
@@ -443,6 +446,9 @@ ARGS="$ARGS --environment_config=$CONTAINER:$TAG"
 ARGS="$ARGS --staging_location=$GCS_LOCATION/staging-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --temp_location=$GCS_LOCATION/temp-validatesrunner-test/$GCS_SUBFOLDER"
 ARGS="$ARGS --endpoint=$ENDPOINT"
+if [[ -n "$TEST_RUN" ]]; then
+  ARGS="$ARGS -run $TEST_RUN"
+fi
 if [[ -n "$TEST_EXPANSION_ADDR" ]]; then
   ARGS="$ARGS --test_expansion_addr=$TEST_EXPANSION_ADDR"
 fi

@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
@@ -73,32 +74,46 @@ public abstract class SerializableDataFile {
     return new AutoValue_SerializableDataFile.Builder();
   }
 
+  @SchemaFieldNumber("0")
   abstract String getPath();
 
+  @SchemaFieldNumber("1")
   abstract String getFileFormat();
 
+  @SchemaFieldNumber("2")
   abstract long getRecordCount();
 
+  @SchemaFieldNumber("3")
   abstract long getFileSizeInBytes();
 
+  @SchemaFieldNumber("4")
   abstract String getPartitionPath();
 
+  @SchemaFieldNumber("5")
   abstract int getPartitionSpecId();
 
+  @SchemaFieldNumber("6")
   abstract @Nullable ByteBuffer getKeyMetadata();
 
+  @SchemaFieldNumber("7")
   abstract @Nullable List<Long> getSplitOffsets();
 
+  @SchemaFieldNumber("8")
   abstract @Nullable Map<Integer, Long> getColumnSizes();
 
+  @SchemaFieldNumber("9")
   abstract @Nullable Map<Integer, Long> getValueCounts();
 
+  @SchemaFieldNumber("10")
   abstract @Nullable Map<Integer, Long> getNullValueCounts();
 
+  @SchemaFieldNumber("11")
   abstract @Nullable Map<Integer, Long> getNanValueCounts();
 
+  @SchemaFieldNumber("12")
   abstract @Nullable Map<Integer, byte[]> getLowerBounds();
 
+  @SchemaFieldNumber("13")
   abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
   @AutoValue.Builder
@@ -151,8 +166,8 @@ public abstract class SerializableDataFile {
   public static SerializableDataFile from(DataFile f, PartitionSpec spec) {
     String partitionPath = getPartitionDataPath(f.partition(), spec);
 
-    return builder()
-        .setPath(f.location())
+    return SerializableDataFile.builder()
+        .setPath(f.location().toString())
         .setFileFormat(f.format().toString())
         .setRecordCount(f.recordCount())
         .setFileSizeInBytes(f.fileSizeInBytes())
@@ -253,9 +268,21 @@ public abstract class SerializableDataFile {
     }
     Map<Integer, byte[]> output = new HashMap<>(input.size());
     for (Map.Entry<Integer, ByteBuffer> e : input.entrySet()) {
-      output.put(e.getKey(), e.getValue().array());
+      output.put(e.getKey(), toByteArray(e.getValue()));
     }
     return output;
+  }
+
+  // Copy only [position, limit). ByteBuffer.array() returns the full backing
+  // array, which is sometimes larger than the buffer's content (e.g. trailing
+  // 0x00 bytes). Leaking those into manifest bounds shifts the lower bound
+  // above the real min and breaks equality predicate pushdown in some query
+  // engines.
+  private static byte[] toByteArray(ByteBuffer buf) {
+    ByteBuffer view = buf.duplicate();
+    byte[] bytes = new byte[view.remaining()];
+    view.get(bytes);
+    return bytes;
   }
 
   private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
@@ -275,7 +302,7 @@ public abstract class SerializableDataFile {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SerializableDataFile)) {
       return false;
     }
     SerializableDataFile that = (SerializableDataFile) o;

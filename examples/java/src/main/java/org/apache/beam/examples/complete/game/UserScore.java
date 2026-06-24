@@ -34,6 +34,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -121,7 +123,7 @@ public class UserScore {
       if (this == o) {
         return true;
       }
-      if (o == null || o.getClass() != this.getClass()) {
+      if (!(o instanceof GameActionInfo)) {
         return false;
       }
 
@@ -161,18 +163,18 @@ public class UserScore {
     private final Counter numParseErrors = Metrics.counter("main", "ParseErrors");
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      String[] components = c.element().split(",", -1);
+    public void processElement(@Element String element, OutputReceiver<GameActionInfo> receiver) {
+      String[] components = element.split(",", -1);
       try {
         String user = components[0].trim();
         String team = components[1].trim();
         Integer score = Integer.parseInt(components[2].trim());
         Long timestamp = Long.parseLong(components[3].trim());
         GameActionInfo gInfo = new GameActionInfo(user, team, score, timestamp);
-        c.output(gInfo);
+        receiver.output(gInfo);
       } catch (ArrayIndexOutOfBoundsException | NumberFormatException e) {
         numParseErrors.inc();
-        LOG.info("Parse error on " + c.element() + ", " + e.getMessage());
+        LOG.info("Parse error on {}", element, e);
       }
     }
   }
@@ -232,8 +234,8 @@ public class UserScore {
    */
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>> configureOutput() {
     Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
-    config.put("user", (c, w) -> c.element().getKey());
-    config.put("total_score", (c, w) -> c.element().getValue());
+    config.put("user", (e, w, t, p) -> e.getKey());
+    config.put("total_score", (e, w, t, p) -> e.getValue());
     return config;
   }
 

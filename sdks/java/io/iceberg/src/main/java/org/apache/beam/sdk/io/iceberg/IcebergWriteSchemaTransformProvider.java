@@ -42,6 +42,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -96,6 +97,10 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getTriggeringFrequencySeconds();
 
     @SchemaFieldDescription(
+        "For a streaming pipeline, sets the limit for lifting bundles into the direct write path.")
+    public abstract @Nullable Integer getDirectWriteByteLimit();
+
+    @SchemaFieldDescription(
         "A list of field names to keep in the input record. All other fields are dropped before writing. "
             + "Is mutually exclusive with 'drop' and 'only'.")
     public abstract @Nullable List<String> getKeep();
@@ -130,6 +135,29 @@ public class IcebergWriteSchemaTransformProvider
             + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
+    @SchemaFieldDescription(
+        "Fields used to set the table's sort order, applied when the table is created. "
+            + "Each entry has the form `<term> [asc|desc] [nulls first|nulls last]`, where `<term>` "
+            + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
+            + "Direction defaults to ascending; null order defaults to nulls-first for ascending and "
+            + "nulls-last for descending. Note: this sets the table's declared sort order as metadata; "
+            + "it does not cause Beam to physically sort records before writing.\n"
+            + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
+    public abstract @Nullable List<String> getSortFields();
+
+    @SchemaFieldDescription(
+        "Defines distribution of write data. Supported distributions:"
+            + "\n- none: don't shuffle rows (default)"
+            + "\n- hash: shuffle rows by partition key before writing data")
+    public abstract @Nullable String getDistributionMode();
+
+    @SchemaFieldDescription(
+        "Enables dynamic sharding to automatically adjust the number of parallel writers "
+            + "based on data volume. It handles data skew "
+            + "by further sub-dividing partitions into multiple shards to prevent bottlenecks "
+            + "during high-throughput writes. Only available with 'hash' distribution mode.")
+    public abstract @Nullable Boolean getAutosharding();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -142,6 +170,8 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setTriggeringFrequencySeconds(Integer triggeringFrequencySeconds);
 
+      public abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
+
       public abstract Builder setKeep(List<String> keep);
 
       public abstract Builder setDrop(List<String> drop);
@@ -151,6 +181,12 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setPartitionFields(List<String> partitionFields);
 
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
+
+      public abstract Builder setSortFields(List<String> sortFields);
+
+      public abstract Builder setDistributionMode(String mode);
+
+      public abstract Builder setAutosharding(Boolean autosharding);
 
       public abstract Configuration build();
     }
@@ -217,6 +253,7 @@ public class IcebergWriteSchemaTransformProvider
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
                       configuration.getPartitionFields(),
+                      configuration.getSortFields(),
                       configuration.getTableProperties(),
                       configuration.getDrop(),
                       configuration.getKeep(),
@@ -225,6 +262,21 @@ public class IcebergWriteSchemaTransformProvider
       Integer trigFreq = configuration.getTriggeringFrequencySeconds();
       if (trigFreq != null) {
         writeTransform = writeTransform.withTriggeringFrequency(Duration.standardSeconds(trigFreq));
+      }
+
+      Integer directWriteByteLimit = configuration.getDirectWriteByteLimit();
+      if (directWriteByteLimit != null) {
+        writeTransform = writeTransform.withDirectWriteByteLimit(directWriteByteLimit);
+      }
+
+      @Nullable String mode = configuration.getDistributionMode();
+      if (mode != null) {
+        writeTransform = writeTransform.withDistributionMode(DistributionMode.fromName(mode));
+      }
+
+      @Nullable Boolean autoSharding = configuration.getAutosharding();
+      if (autoSharding != null && autoSharding) {
+        writeTransform = writeTransform.withAutosharding();
       }
 
       // TODO: support dynamic destinations

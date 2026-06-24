@@ -34,14 +34,15 @@ from apache_beam.io.filesystems import FileSystems
 
 # pylint: disable=wrong-import-position, ungrouped-imports
 try:
+  import tensorflow as tf
+  from tensorflow_transform.tf_metadata import dataset_metadata
+  from tensorflow_transform.tf_metadata import schema_utils
+
   from apache_beam.ml.transforms import handlers
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.tft import TFTOperation
   from apache_beam.testing.util import assert_that
   from apache_beam.testing.util import equal_to
-  import tensorflow as tf
-  from tensorflow_transform.tf_metadata import dataset_metadata
-  from tensorflow_transform.tf_metadata import schema_utils
 except ImportError:
   tft = None  # type: ignore[assignment]
 

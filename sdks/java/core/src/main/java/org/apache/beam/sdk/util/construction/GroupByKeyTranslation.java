@@ -25,6 +25,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Utility methods for translating a {@link GroupByKey} to and from {@link RunnerApi}
@@ -44,8 +45,21 @@ public class GroupByKeyTranslation {
     }
 
     @Override
+    public String getUrn(GroupByKey<?, ?> transform) {
+      if (transform.surroundsGBEK()) {
+        return PTransformTranslation.GROUP_BY_KEY_WRAPPER_TRANSFORM_URN;
+      }
+      return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
+    }
+
+    @Override
+    @Nullable
     public FunctionSpec translate(
         AppliedPTransform<?, ?, GroupByKey<?, ?>> transform, SdkComponents components) {
+      if (transform.getTransform().surroundsGBEK()) {
+        // Can use null for spec for empty composite.
+        return null;
+      }
       return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }

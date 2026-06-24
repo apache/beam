@@ -12,6 +12,7 @@
 
 host: https://storage.googleapis.com
 path: public_looker_explores_us_a3853f40
+static_base: /images/performance/looks
 looks:
   bigquery:
     read:
@@ -238,15 +239,80 @@ looks:
     write:
       folder: 86
       cost:
-        - id: tJWFWW3cnF2CWpmK2zZdXGvWmtNnJgrC
+        - id: J5TtpRykjwPs4W6S88FnJ28Tr8sSHpqN
           title: RunTime and EstimatedCost
       date:
-        - id: J5TtpRykjwPs4W6S88FnJ28Tr8sSHpqN
+        - id: tJWFWW3cnF2CWpmK2zZdXGvWmtNnJgrC
           title: AvgThroughputBytesPerSec by Date
         - id: Jf6qGqN25Zf787DpkNDX5CBpGRvCGMXp
           title: AvgThroughputElementsPerSec by Date
       version:
-        - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
-          title: AvgThroughputBytesPerSec by Version
         - id: Qwxm27qY4fqT4CxXsFfKm2g3734TFJNN
+          title: AvgThroughputBytesPerSec by Version
+        - id: dKyJy5ZKhkBdSTXRY3wZR6fXzptSs2qm
           title: AvgThroughputElementsPerSec by Version
+  tablerowinference:
+    write:
+      folder: 96
+      cost:
+        - id: Yj3r3VpFDxQwNmPzSsq7wJKf628FxtTg
+          title: RunTime and EstimatedCost
+      date:
+        - id: 82WSkFRcNHm5gbzWdSJFQxDPyGMwFMRj
+          title: AvgThroughputBytesPerSec by Date
+        - id: cN8GSph5PfJgTFxhZHgW4KfkvzhnXcFG
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: cxkwmK48MWZWB5bd4DHmGMsMs4VTf4Jd
+          title: AvgThroughputBytesPerSec by Version
+        - id: kCbhxxJbh2fyyZZFVtPQdpV5jX36CySQ
+          title: AvgThroughputElementsPerSec by Version
+  tablerowinferencestreaming:
+    write:
+      folder: 106
+      cost:
+        - id: WcSwy6KG8JQdYBVspDjbXqQgynrNWdxR
+          title: RunTime and EstimatedCost
+      date:
+        - id: c7h74dqjc4J7r4cGWFZwmzZK4WDBpRgt
+          title: AvgThroughputBytesPerSec by Date
+        - id: 7bznmBXqc2fwsQrGMfVWXZgNsyyq7Tdx
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: Y4464V8V4ngydnypmrrTVDmrYQsfb8mz
+          title: AvgThroughputBytesPerSec by Version
+        - id: P7wKZy6tQFWbbDfm4HzfCJnsQrVgfGsJ
+          title: AvgThroughputElementsPerSec by Version
+  mltransformvocab:
+    write:
+      folder: 107
+      cost:
+        - id: CccNCHQ23Js2tmxTDYVnjxwfx2zSFSjY
+          title: RunTime and EstimatedCost
+      date:
+        - id: n7Gn7c7KSW52ZgXCQXndHgWtjVPK8W33
+          title: AvgThroughputBytesPerSec by Date
+        - id: 3tcg6cSh6tBg6FmpTxgzyMtvFqWKkQn3
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: tPYwJngPDBsKjK3DNgGHGsCyTpxdfmTB
+          title: AvgThroughputBytesPerSec by Version
+        - id: cC75NnCbQT3mQmKVHtDxzptXpwPb64qz
+          title: AvgThroughputElementsPerSec by Version
+  mltransformonehot:
+    write:
+      folder: 108
+      cost:
+        - id: 37DYwfbr5y4gt7g7g7RzRSzGTjd4Jjbj
+          title: RunTime and EstimatedCost
+      date:
+        - id: trcXrBCyPjYj2jTGc3px3d72xMXPCmZb
+          title: AvgThroughputBytesPerSec by Date
+        - id: yczZ4G8rYcP3SHjtQXz7p4BdRhGcXydx
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: mHtwwXKndpJVPjnkcHqRZpfPzfzHtT38
+          title: AvgThroughputBytesPerSec by Version
+        - id: Cn5FsXkdy2ZXCxCJshSCxcjsTW3TXf3c
+          title: AvgThroughputElementsPerSec by Version
+

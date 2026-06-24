@@ -77,34 +77,34 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   /** @deprecated Use {@link Compression} instead */
   @Deprecated
   public enum CompressionMode implements DecompressingChannelFactory {
-    /** @see Compression#UNCOMPRESSED */
+    /** See {@link Compression#UNCOMPRESSED}. */
     UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    /** @see Compression#AUTO */
+    /** See {@link Compression#AUTO}. */
     AUTO(Compression.AUTO),
 
-    /** @see Compression#GZIP */
+    /** See {@link Compression#GZIP}. */
     GZIP(Compression.GZIP),
 
-    /** @see Compression#BZIP2 */
+    /** See {@link Compression#BZIP2}. */
     BZIP2(Compression.BZIP2),
 
-    /** @see Compression#ZIP */
+    /** See {@link Compression#ZIP}. */
     ZIP(Compression.ZIP),
 
-    /** @see Compression#ZSTD */
+    /** See {@link Compression#ZSTD}. */
     ZSTD(Compression.ZSTD),
 
-    /** @see Compression#LZO */
+    /** See {@link Compression#LZO}. */
     LZO(Compression.LZO),
 
-    /** @see Compression#LZOP */
+    /** See {@link Compression#LZOP}. */
     LZOP(Compression.LZOP),
 
-    /** @see Compression#DEFLATE */
+    /** See {@link Compression#DEFLATE}. */
     DEFLATE(Compression.DEFLATE),
 
-    /** @see Compression#SNAPPY */
+    /** See {@link Compression#SNAPPY}. */
     SNAPPY(Compression.SNAPPY);
 
     private final Compression canonical;

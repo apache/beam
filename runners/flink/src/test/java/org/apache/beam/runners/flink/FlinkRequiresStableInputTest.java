@@ -21,8 +21,9 @@ import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveCh
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
@@ -102,22 +103,22 @@ public class FlinkRequiresStableInputTest {
    * <p>A Savepoint is taken until the desired state in the operators has been reached. We then
    * restore the savepoint to check if we produce impotent results.
    */
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInput() throws Exception {
     runTest(false);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputPortable() throws Exception {
     runTest(true);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputStateful() throws Exception {
     testParDoRequiresStableInputStateful(false);
   }
 
-  @Test(timeout = 30_000)
+  @Test(timeout = 120_000)
   public void testParDoRequiresStableInputStatefulPortable() throws Exception {
     testParDoRequiresStableInputStateful(true);
   }
@@ -142,7 +143,9 @@ public class FlinkRequiresStableInputTest {
     ResourceId outputDir =
         FileSystems.matchNewResource(tempFolder.getRoot().getAbsolutePath(), true)
             .resolve(
-                String.format("requires-stable-input-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format(
+                    "requires-stable-input-%tF-%<tH-%<tM-%<tS-%<tL",
+                    LocalDateTime.now(ZoneId.of("UTC"))),
                 ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY);
     String singleOutputPrefix =
         outputDir

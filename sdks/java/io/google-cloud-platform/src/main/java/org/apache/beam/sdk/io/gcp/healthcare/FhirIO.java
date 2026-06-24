@@ -84,7 +84,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -342,7 +341,7 @@ public class FhirIO {
     return new Export(StaticValueProvider.of(fhirStore), StaticValueProvider.of(exportUri));
   }
 
-  /** @see FhirIO#exportResources(String, String) */
+  /** See {@link FhirIO#exportResources(String, String)}. */
   public static Export exportResources(
       ValueProvider<String> fhirStore, ValueProvider<String> exportUri) {
     return new Export(fhirStore, exportUri);
@@ -420,13 +419,14 @@ public class FhirIO {
     com.google.api.services.healthcare.v1.model.Status error = operation.getError();
     if (error == null) {
       operationSuccessCounter.inc();
-      LOG.debug(String.format("Operation %s finished successfully.", operation.getName()));
+      LOG.debug("Operation {} finished successfully.", operation.getName());
     } else {
       operationFailureCounter.inc();
       LOG.error(
-          String.format(
-              "Operation %s failed with error code: %d and message: %s.",
-              operation.getName(), error.getCode(), error.getMessage()));
+          "Operation {} failed with error code: {} and message: {}.",
+          operation.getName(),
+          error.getCode(),
+          error.getMessage());
     }
 
     // Update resource counters.
@@ -441,11 +441,11 @@ public class FhirIO {
           Long numFailures = Long.parseLong(counters.get(LRO_FAILURE_KEY));
           resourceFailureCounter.inc(numFailures);
           if (numFailures > 0) {
-            LOG.error("Operation " + operation.getName() + " had " + numFailures + " failures.");
+            LOG.error("Operation {} had {} failures.", operation.getName(), numFailures);
           }
         }
       } catch (Exception e) {
-        LOG.error("failed to increment LRO counters, error message: " + e.getMessage());
+        LOG.error("failed to increment LRO counters, error message", e);
       }
     }
   }
@@ -607,10 +607,9 @@ public class FhirIO {
           } catch (Exception e) {
             READ_RESOURCE_ERRORS.inc();
             LOG.warn(
-                String.format(
-                    "Error fetching Fhir resource with ID %s writing to Dead Letter "
-                        + "Queue. Cause: %s Stack Trace: %s",
-                    resourceId, e.getMessage(), Throwables.getStackTraceAsString(e)));
+                "Error fetching Fhir resource with ID {} writing to Dead Letter Queue. ",
+                resourceId,
+                e);
             context.output(FhirIO.Read.DEAD_LETTER, HealthcareIOError.of(resourceId, e));
           }
         }
@@ -1137,7 +1136,7 @@ public class FhirIO {
                             Collections.singleton(path.resourceId()),
                             StandardMoveOptions.IGNORE_MISSING_FILES);
                       } catch (IOException e) {
-                        LOG.error("error cleaning up tempGcsDir: %s", e);
+                        LOG.error("error cleaning up tempGcsDir", e);
                       }
                     }
                   }))
@@ -1210,7 +1209,7 @@ public class FhirIO {
                   "Failed to parse payload: %s as json at: %s : %s."
                       + "Dropping resource from batch import.",
                   httpBody, e.getLocation().getCharOffset(), e.getMessage());
-          LOG.warn(resource);
+          LOG.warn("{}", resource);
           context.output(
               Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
         }
@@ -1344,9 +1343,10 @@ public class FhirIO {
           ResourceId deadLetterResourceId =
               FileSystems.matchNewResource(deadLetterGcsPath.get(), true);
           LOG.warn(
-              String.format(
-                  "Failed to import %s with error: %s. Moving to deadletter path %s",
-                  importUri, e.getMessage(), deadLetterResourceId.toString()));
+              "Failed to import {} with error. Moving to deadletter path {}",
+              importUri,
+              deadLetterResourceId.toString(),
+              e);
           IMPORT_OPERATION_ERRORS.inc();
 
           FileSystems.rename(tempDestinations, deadLetterDestinations);
@@ -1540,6 +1540,7 @@ public class FhirIO {
         try {
           statusCode = Integer.parseInt(status.substring(0, 3));
         } catch (IndexOutOfBoundsException | NumberFormatException ignored) {
+          // Ignore parsing exception so we can return the default 404
         }
         return statusCode;
       }
@@ -1988,11 +1989,7 @@ public class FhirIO {
                       fhirSearchParameters.getResourceType(), fhirSearchParameters.getQueries())));
         } catch (IllegalArgumentException | NoSuchElementException e) {
           searchResourcesErrorCount.inc();
-          log.warn(
-              String.format(
-                  "Error search FHIR resources writing to Dead Letter "
-                      + "Queue. Cause: %s Stack Trace: %s",
-                  e.getMessage(), Throwables.getStackTraceAsString(e)));
+          log.warn("Error search FHIR resources writing to Dead Letter Queue.", e);
           context.output(
               FhirIO.Search.DEAD_LETTER, HealthcareIOError.of(fhirSearchParameters.toString(), e));
         }

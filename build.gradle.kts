@@ -75,6 +75,7 @@ tasks.rat {
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
+    "website/www/site/assets/css/**/*",
     "website/www/site/assets/scss/_bootstrap.scss",
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/assets/js/**/*",
@@ -217,7 +218,10 @@ tasks.rat {
     "learning/prompts/**/*.md",
 
     // Ignore terraform lock files
-    "**/.terraform.lock.hcl"
+    "**/.terraform.lock.hcl",
+
+    // Ignore pytest cache files
+    "**/.pytest_cache/**"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -271,16 +275,12 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:windmill:build")
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
-  dependsOn(":runners:samza:build")
-  dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -321,8 +321,11 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
+  dependsOn("sdks:java:ml:inference:remote:build")
+  dependsOn("sdks:java:ml:inference:openai:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
+  dependsOn(":sdks:java:testing:junit:build")
   dependsOn(":sdks:java:testing:load-tests:build")
   dependsOn(":sdks:java:testing:nexmark:build")
   dependsOn(":sdks:java:testing:test-utils:build")
@@ -340,6 +343,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
+  dependsOn(":sdks:java:io:datadog:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
@@ -352,6 +356,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:jms:build")
   dependsOn(":sdks:java:io:kafka:build")
   dependsOn(":sdks:java:io:kafka:upgrade:build")
+  dependsOn(":sdks:java:extensions:kafka-factories:build")
   dependsOn(":sdks:java:io:kudu:build")
   dependsOn(":sdks:java:io:mongodb:build")
   dependsOn(":sdks:java:io:mqtt:build")
@@ -403,7 +408,6 @@ tasks.register("javaPostCommit") {
 }
 
 tasks.register("javaPostCommitSickbay") {
-  dependsOn(":runners:samza:validatesRunnerSickbay")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
   }
@@ -484,11 +488,11 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
   dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
+  dependsOn(":sdks:python:test-suites:tox:py314:preCommitPy314")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -501,11 +505,11 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
   dependsOn(":sdks:python:container:py313:docker")
+  dependsOn(":sdks:python:container:py314:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -774,28 +778,19 @@ tasks.register("validateChanges") {
     println("Found ${errors.size} errors")
 
     if (errors.isNotEmpty()) {
-      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run ./gradlew formatChanges to correct some issues.")
+      throw GradleException("CHANGES.md validation failed with the following errors:\n${errors.joinToString("\n")}\n\nYou can run `./gradlew formatChanges` to correct some issues.")
     }
 
     println("CHANGES.md validation successful")
   }
 }
 
-tasks.register("python39PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py39:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
-  // TODO (https://github.com/apache/beam/issues/23966)
-  // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
-  dependsOn(":sdks:python:test-suites:direct:py39:inferencePostCommitIT")
-}
-
 tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py310:azureIntegrationTest")
   // TODO: https://github.com/apache/beam/issues/22651
   // The default container uses Python 3.10. The goal here is to
   // duild Docker images for TensorRT tests during run time for python versions
@@ -822,18 +817,24 @@ tasks.register("python313PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py313:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py313:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py313:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy312")
-  dependsOn(":sdks:python:test-suites:dataflow:py313:inferencePostCommitITPy312")
+  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy313")
+}
+
+tasks.register("python314PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py314:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py314:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py314:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py314:postCommitPy314")
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
-  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
+  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py314:preCommitPy314")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py314:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -856,15 +857,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py39:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py39:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py39:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py310:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py310:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py310:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py39:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py39:jest")
+  dependsOn(":sdks:python:test-suites:tox:py310:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py310:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {

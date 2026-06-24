@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -41,9 +42,21 @@ public class InMemoryTimerInternalsTest {
   public void testFiringEventTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTimer1 =
-        TimerData.of(ID1, NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            ID1,
+            NS1,
+            new Instant(19),
+            new Instant(19),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
     TimerData eventTimer2 =
-        TimerData.of(ID2, NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            ID2,
+            NS1,
+            new Instant(29),
+            new Instant(29),
+            TimeDomain.EVENT_TIME,
+            CausedByDrain.NORMAL);
 
     underTest.setTimer(eventTimer1);
     underTest.setTimer(eventTimer2);
@@ -111,9 +124,19 @@ public class InMemoryTimerInternalsTest {
   public void testFiringProcessingTimeTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData processingTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            NS1,
+            new Instant(19),
+            new Instant(19),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData processingTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            NS1,
+            new Instant(29),
+            new Instant(29),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(processingTime2);
@@ -142,19 +165,39 @@ public class InMemoryTimerInternalsTest {
   public void testTimerOrdering() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
     TimerData processingTime1 =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            NS1,
+            new Instant(19),
+            new Instant(19),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTime1 =
         TimerData.of(
-            NS1, new Instant(19), new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            NS1,
+            new Instant(19),
+            new Instant(19),
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData eventTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            NS1, new Instant(29), new Instant(29), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
     TimerData processingTime2 =
-        TimerData.of(NS1, new Instant(29), new Instant(29), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            NS1,
+            new Instant(29),
+            new Instant(29),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     TimerData synchronizedProcessingTime2 =
         TimerData.of(
-            NS1, new Instant(29), new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+            NS1,
+            new Instant(29),
+            new Instant(29),
+            TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
+            CausedByDrain.NORMAL);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(eventTime1);
@@ -188,9 +231,15 @@ public class InMemoryTimerInternalsTest {
   public void testDeduplicate() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME);
+        TimerData.of(
+            NS1, new Instant(19), new Instant(19), TimeDomain.EVENT_TIME, CausedByDrain.NORMAL);
     TimerData processingTime =
-        TimerData.of(NS1, new Instant(19), new Instant(19), TimeDomain.PROCESSING_TIME);
+        TimerData.of(
+            NS1,
+            new Instant(19),
+            new Instant(19),
+            TimeDomain.PROCESSING_TIME,
+            CausedByDrain.NORMAL);
     underTest.setTimer(eventTime);
     underTest.setTimer(eventTime);
     underTest.setTimer(processingTime);

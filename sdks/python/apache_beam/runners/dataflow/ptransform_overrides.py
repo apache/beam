@@ -30,8 +30,8 @@ class StreamingPubSubWriteDoFnOverride(PTransformOverride):
   and replaces it with Write(sink) for streaming optimization.
   """
   def matches(self, applied_ptransform):
-    from apache_beam.transforms import ParDo
     from apache_beam.io.gcp.pubsub import _PubSubWriteDoFn
+    from apache_beam.transforms import ParDo
 
     if not isinstance(applied_ptransform.transform, ParDo):
       return False

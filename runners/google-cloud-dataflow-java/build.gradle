@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250811'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250811'
+ext.dataflowLegacyContainerVersion = 'beam-master-20260601'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260601'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -102,8 +102,6 @@ dependencies {
   permitUnusedDeclared library.java.flogger_system_backend
   implementation library.java.google_api_client
   // Ensures SequencedMessage availability for Spotless
-  implementation library.java.proto_google_cloud_pubsublite_v1
-  permitUnusedDeclared library.java.proto_google_cloud_pubsublite_v1
   implementation library.java.google_api_services_dataflow
   implementation library.java.google_api_services_storage
   permitUnusedDeclared library.java.google_api_services_storage // BEAM-11761
@@ -112,6 +110,9 @@ dependencies {
   implementation library.java.google_http_client
   implementation library.java.google_http_client_gson
   permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
+  implementation library.java.google_cloud_logging
+  permitUnusedDeclared library.java.google_cloud_logging // BEAM-11761
+  implementation library.java.opentelemetry_context
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -153,9 +154,11 @@ def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 
 def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${gcpProject.replaceAll(':', '/')}/java-postcommit-it"
 def dockerJavaImageContainer = "${dockerImageRoot}/java"
+def dockerJavaDistrolessImageContainer = "${dockerImageRoot}/java_distroless"
 def dockerPythonImageContainer = "${dockerImageRoot}/python"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 ext.dockerJavaImageName = "${dockerJavaImageContainer}:${dockerTag}"
+ext.dockerJavaDistrolessImageName = "${dockerJavaDistrolessImageContainer}:${dockerTag}"
 ext.dockerPythonImageName = "${dockerPythonImageContainer}:${dockerTag}"
 
 def legacyPipelineOptions = [
@@ -164,6 +167,7 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -174,16 +178,25 @@ if (!project.hasProperty('testJavaVersion')) {
   legacyPipelineOptions += ["--workerHarnessContainerImage="]
 }
 
-def runnerV2PipelineOptions = [
+def runnerV2CommonPipelineOptions = [
   "--runner=TestDataflowRunner",
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
-  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
+
+def runnerV2PipelineOptions = runnerV2CommonPipelineOptions + [
+  "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}"
+]
+
+def runnerV2DistrolessPipelineOptions = runnerV2CommonPipelineOptions + [
+  "--sdkContainerImage=${dockerJavaDistrolessImageContainer}:${dockerTag}"
+]
+
 
 def commonLegacyExcludeCategories = [
   // Should be run only in a properly configured SDK harness environment
@@ -193,26 +206,19 @@ def commonLegacyExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesExternalService',
   'org.apache.beam.sdk.testing.UsesDistributionMetrics',
   'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-  'org.apache.beam.sdk.testing.UsesMultimapState',
   'org.apache.beam.sdk.testing.UsesTestStream',
-  'org.apache.beam.sdk.testing.UsesParDoLifecycle', // doesn't support remote runner
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
-  'org.apache.beam.sdk.testing.UsesBundleFinalizer',
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 def commonRunnerV2ExcludeCategories = [
-        'org.apache.beam.sdk.testing.UsesExternalService',
-        'org.apache.beam.sdk.testing.UsesGaugeMetrics',
-        'org.apache.beam.sdk.testing.UsesSetState',
-        'org.apache.beam.sdk.testing.UsesMapState',
-        'org.apache.beam.sdk.testing.UsesMultimapState',
-        'org.apache.beam.sdk.testing.UsesMetricsPusher',
-        'org.apache.beam.sdk.testing.UsesOrderedListState',
-        'org.apache.beam.sdk.testing.UsesTestStream',
-        'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
-        'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-        'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
+  'org.apache.beam.sdk.testing.UsesExternalService',
+  'org.apache.beam.sdk.testing.UsesGaugeMetrics',
+  'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+  'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime',
+  'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+  'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
@@ -231,7 +237,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonLegacyExcludeCategories.each {
@@ -264,7 +270,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     maxParallelForks Integer.MAX_VALUE
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-            files(project(project.path).sourceSets.test.output.classesDirs)
+      files(project(project.path).sourceSets.test.output.classesDirs)
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
@@ -282,81 +288,23 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   }
 }
 
-tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
-  group = "verification"
-  dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-  def tag = project.findProperty('dockerTag')
-  def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
-  def pipelineOptions = [
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowValidatesTempRoot}",
-          "--sdkContainerImage=${imageURL}",
-          "--experiments=use_unified_worker,use_runner_v2",
-          "--firestoreDb=${firestoreDb}",
-  ]
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
-
-  include '**/*IT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
-  // Only Java 17 and 21 are supported.
-  // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
-  def allowed = ["java17", "java21"]
-  doLast {
-    def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-    if (!allowed.contains(javaVer)) {
-      throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
-    }
-    if (!project.hasProperty('dockerTag')) {
-      throw new GradleException("dockerTag is missing but required")
-    }
-    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-    def tag = project.findProperty('dockerTag')
-    def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
-    exec {
-      executable 'docker'
-      workingDir rootDir
-      args = [
-              'buildx',
-              'build',
-              '-t',
-              imageURL,
-              '-f',
-              'sdks/java/container/distroless/Dockerfile',
-              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
-              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
-              '.'
-      ]
-    }
-    exec {
-      executable 'docker'
-      args = ['push', imageURL]
-    }
-  }
-}
-
-// Push docker images to a container registry for use within tests.
-// NB: Tasks which consume docker images from the registry should depend on this
-// task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
+// ************************************************************************************************
+// Tasks for pushing containers for testing. These ensure that Dataflow integration tests run with
+// containers built from HEAD, for testing in-progress code changes.
+//
+// Tasks which consume docker images from the registry should depend on these
+// tasks directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
+// ************************************************************************************************
+
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
   def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
 
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
+    name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
@@ -366,6 +314,25 @@ def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaCont
     }
   }
 }
+
+def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
+
+  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
+  def defaultDockerImageName = containerImageName(
+    name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
+    root: "apache",
+    tag: project.sdk_version)
+  doLast {
+    exec {
+      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaDistrolessImageName}"
+    }
+    exec {
+      commandLine "gcloud", "docker", "--", "push", "${dockerJavaDistrolessImageName}"
+    }
+  }
+}
+
 
 // Clean up built Java images
 def cleanUpDockerJavaImages = tasks.register("cleanUpDockerJavaImages") {
@@ -397,14 +364,37 @@ def buildAndPushDockerPythonContainer = tasks.create("buildAndPushDockerPythonCo
   def pythonVer = project.project(':sdks:python').pythonVersion
   dependsOn ":sdks:python:container:py"+pythonVer.replace('.', '')+":docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
-          root: "apache",
-          tag: project.sdk_version)
+    name: "${project.docker_image_default_repo_prefix}python${pythonVer}_sdk",
+    root: "apache",
+    tag: project.sdk_version)
+  doFirst {
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG")
+    if (cloudsdkConfig == null || !new File(cloudsdkConfig).canWrite()) {
+      cloudsdkConfig = "/tmp/gcloud"
+    }
+    if (cloudsdkConfig == "/tmp/gcloud") {
+      def tmpGcloudDir = new File(cloudsdkConfig)
+      tmpGcloudDir.mkdirs()
+      System.setProperty("CLOUDSDK_CONFIG", cloudsdkConfig)
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "us.gcr.io"
+      ignoreExitValue = false
+    }
+    exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
+      commandLine "gcloud", "--quiet", "auth", "configure-docker", "gcr.io"
+      ignoreExitValue = false
+    }
+  }
   doLast {
     exec {
       commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerPythonImageName}"
     }
+    def cloudsdkConfig = System.getenv("CLOUDSDK_CONFIG") ?: System.getProperty("CLOUDSDK_CONFIG") ?: "/tmp/gcloud"
     exec {
+      environment "CLOUDSDK_CONFIG", cloudsdkConfig
       commandLine "gcloud", "docker", "--", "push", "${dockerPythonImageName}"
     }
   }
@@ -443,7 +433,7 @@ task printRunnerV2PipelineOptions {
   dependsOn buildAndPushDockerJavaContainer
 
   doLast {
-    println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
+    println "To run a Dataflow job with Dataflow Portable Runner, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
     println "docker rmi ${dockerJavaImageName}; gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
@@ -458,30 +448,77 @@ task validatesRunner {
     excludedTests: [
       // TODO(https://github.com/apache/beam/issues/21472)
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    ]
+
+      // These tests use static state and don't work with remote execution.
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
+      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+    ],
+    // Batch legacy worker does not support bundle finalization.
+    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
   ))
 }
+
+def validatesRunnerStreamingConfig = [
+  pipelineOptions: legacyPipelineOptions + ['--streaming'],
+  excludedCategories: [
+    'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+    'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
+  ],
+  excludedTests: [
+    // TODO(https://github.com/apache/beam/issues/21472)
+    'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
+    // GroupIntoBatches.withShardedKey not supported on Streaming Java Runner
+    // https://github.com/apache/beam/issues/22592
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
+
+    // These tests use static state and don't work with remote execution.
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElementStateful',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetup',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
+    'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+  ]
+]
 
 task validatesRunnerStreaming {
   group = "Verification"
   description "Validates Dataflow runner forcing streaming mode"
-  dependsOn(createLegacyWorkerValidatesRunnerTest(
+  dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
     name: 'validatesRunnerLegacyWorkerTestStreaming',
-    pipelineOptions: legacyPipelineOptions + ['--streaming'],
-    excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-      'org.apache.beam.sdk.testing.UsesMapState',
-      'org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput',
-      'org.apache.beam.sdk.testing.UsesSetState',
+  ]))
+}
+
+task validatesRunnerStreamingTagEncodingV2 {
+  group = "Verification"
+  description "Validates Dataflow runner (legacy) with Tag Encoding V2 experiments"
+  dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
+    name: 'validatesRunnerLegacyWorkerTestStreamingTagEncodingV2',
+    pipelineOptions: validatesRunnerStreamingConfig.pipelineOptions + [
+      '--experiments=enable_streaming_engine',
+      '--experiments=enable_streaming_engine_state_tag_encoding_v2',
+      '--experiments=streaming_engine_state_tag_encoding_v2_supported'
     ],
-    excludedTests: [
-      // TODO(https://github.com/apache/beam/issues/21472)
-      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      // GroupIntoBatches.withShardedKey not supported on streaming runner v1
-      // https://github.com/apache/beam/issues/22592
-      'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-    ]
-  ))
+  ]))
+}
+
+task validatesRunnerStreamingEngine {
+  group = "Verification"
+  description "Validates Dataflow runner forcing streaming mode on streaming engine"
+  dependsOn(createLegacyWorkerValidatesRunnerTest(validatesRunnerStreamingConfig + [
+    name: 'validatesRunnerLegacyWorkerTestStreamingEngine',
+    pipelineOptions: validatesRunnerStreamingConfig.pipelineOptions + [
+      '--experiments=enable_streaming_engine',
+    ],
+  ]))
 }
 
 def setupXVR = tasks.register("setupXVR") {
@@ -515,6 +552,7 @@ createCrossLanguageValidatesRunnerTask(
     "--tempRoot=${dataflowValidatesTempRoot}",
     "--sdkContainerImage=${dockerJavaImageContainer}:${dockerTag}",
     "--sdkHarnessContainerImageOverrides=.*python.*,${dockerPythonImageContainer}:${dockerTag}",
+    "--customBeamRequirement=${project.project(":sdks:python").projectDir}/build/apache-beam.tar.gz",
   ],
   pytestOptions: [
     "--capture=no",
@@ -534,13 +572,11 @@ createCrossLanguageValidatesRunnerTask(
 
 task validatesRunnerV2 {
   group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
+  description = "Runs the ValidatesRunner tests on Dataflow Portable Runner"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     pipelineOptions: runnerV2PipelineOptions,
     excludedCategories: [
-      'org.apache.beam.sdk.testing.UsesOnWindowExpiration',
-      'org.apache.beam.sdk.testing.UsesStatefulParDo',
       'org.apache.beam.sdk.testing.UsesTimersInParDo',
       'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
       'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
@@ -548,8 +584,11 @@ task validatesRunnerV2 {
     excludedTests: [
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
-      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
-      'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testFnCallSequenceStateful',
+      // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
+
+      // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
@@ -573,7 +612,7 @@ task validatesRunnerV2 {
 
 task validatesRunnerV2Streaming {
   group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
+  description = "Runs the ValidatesRunner tests on Dataflow Portable Runner forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
@@ -591,7 +630,7 @@ task validatesRunnerV2Streaming {
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
       'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
 
-      // TODO(https://github.com/apache/beam/issues/18592): respect ParDo lifecycle.
+      // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundleStateful',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInProcessElement',
@@ -622,18 +661,22 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryIODynamicReadTableRowIT.class'
+  exclude '**/BigQueryTimestampPicosIT.java'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/DicomIOReadIT.class'
@@ -645,6 +688,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
     filter {
       // Error handling tests, only needs to run on direct runner
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableReadWithSkippingLargeRows'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyMutationFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithEmptyRowFailures'
       excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteIT.testE2EBigtableWriteWithInvalidTimestampFailures'
@@ -658,14 +702,14 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRootKms}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
-          "--dataflowKmsKey=${dataflowKmsKey}",
-          "--firestoreDb=${firestoreDb}",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRootKms}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
+    "--dataflowKmsKey=${dataflowKmsKey}",
+    "--firestoreDb=${firestoreDb}",
   ])
 
   include '**/*IT.class'
@@ -686,6 +730,10 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
 
   include '**/*IT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryIODynamicReadTableRowIT.class'
+  exclude '**/BigQueryTimestampPicosIT.java'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'
@@ -713,20 +761,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   }
 }
 
-task examplesJavaRunnerV2PreCommit(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDockerJavaContainer
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
-}
-
-task examplesJavaRunnerV2IntegrationTest(type: Test) {
+tasks.register('examplesJavaRunnerV2IntegrationTest', Test.class) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
   if (project.hasProperty("testJavaVersion")) {
@@ -751,17 +786,34 @@ task examplesJavaRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
+tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  if (project.hasProperty("testJavaVersion")) {
+    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
+  }
+
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2DistrolessPipelineOptions)
+
+  include '**/*IT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${gcpProject}",
-          "--region=${gcpRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-          "--workerHarnessContainerImage=",
+    "--runner=TestDataflowRunner",
+    "--project=${gcpProject}",
+    "--region=${gcpRegion}",
+    "--tempRoot=${dataflowPostCommitTempRoot}",
+    "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+    "--workerHarnessContainerImage=",
   ])
 
   include '**/*IT.class'
@@ -788,6 +840,38 @@ task coreSDKJavaRunnerV2IntegrationTest(type: Test) {
   useJUnit { }
 }
 
+// ****************************************************************************************
+// Tasks for easy invocation from GitHub Actions and command line.
+// These tasks reference whether they are expected to be run "precommit" or "postcommit"
+// in CI/CD settings.
+// ****************************************************************************************
+
+tasks.register("examplesJavaRunnerV2PreCommit", Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+tasks.register("examplesJavaDistrolessRunnerV2PreCommit", Test.class) {
+  group = "Verification"
+  dependsOn buildAndPushDistrolessDockerJavaContainer
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2DistrolessPipelineOptions)
+  include '**/WordCountIT.class'
+  include '**/WindowedWordCountIT.class'
+
+  maxParallelForks 4
+  classpath = configurations.examplesJavaIntegrationTest
+  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
 task postCommit {
   group = "Verification"
   description = "Various integration tests using the Dataflow runner."
@@ -798,10 +882,14 @@ task postCommit {
 
 task postCommitRunnerV2 {
   group = "Verification"
-  description = "Various integration tests using the Dataflow runner V2."
+  description = "Various integration tests using the Dataflow Portable Runner."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }
+
+//
+// Archetype validations
+//
 
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
@@ -825,47 +913,17 @@ createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
 
 // Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflowBom
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
-        runner: 'DataflowBom',
-        gcpProject: gcpProject,
-        gcpRegion: gcpRegion,
-        gcsBucket: gcsBucket,
-        bqDataset: bqDataset,
-        pubsubTopic: pubsubTopic)
+  runner: 'DataflowBom',
+  gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)
 
 // Standalone task for testing GCS upload, use with -PfilesToStage and -PgcpTempRoot.
 task GCSUpload(type: JavaExec) {
   mainClass = 'org.apache.beam.runners.dataflow.util.GCSUploadMain'
   classpath = sourceSets.test.runtimeClasspath
   args "--stagingLocation=${dataflowUploadTemp}/staging",
-       "--filesToStage=${testFilesToStage}"
-}
-
-def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
-  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
-  def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
-          root: "apache",
-          tag: project.sdk_version)
-  doLast {
-    exec {
-      commandLine "docker", "tag", "${defaultDockerImageName}", "${dockerJavaImageName}"
-    }
-    exec {
-      commandLine "gcloud", "docker", "--", "push", "${dockerJavaImageName}"
-    }
-  }
-}
-
-task examplesJavaDistrolessRunnerV2PreCommit(type: Test) {
-  group = "Verification"
-  dependsOn buildAndPushDistrolessDockerJavaContainer
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
-  include '**/WordCountIT.class'
-  include '**/WindowedWordCountIT.class'
-
-  maxParallelForks 4
-  classpath = configurations.examplesJavaIntegrationTest
-  testClassesDirs = files(project(":examples:java").sourceSets.test.output.classesDirs)
-  useJUnit { }
+    "--filesToStage=${testFilesToStage}"
 }

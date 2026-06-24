@@ -336,8 +336,10 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
+                ImmutableList<Long> appliedFinalizeIds,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
@@ -412,7 +414,8 @@ public class GrpcWindmillServerTest {
                                 ComputationWorkItemMetadata.newBuilder()
                                     .setComputationId("comp")
                                     .setDependentRealtimeInputWatermark(17000)
-                                    .setInputDataWatermark(18000));
+                                    .setInputDataWatermark(18000)
+                                    .setDrainMode(true));
                     int loopVariant = loop % 3;
                     if (loopVariant < 1) {
                       responseChunk.addSerializedWorkItem(serializedResponses.pop());
@@ -469,12 +472,15 @@ public class GrpcWindmillServerTest {
             (String computation,
                 @Nullable Instant inputDataWatermark,
                 Instant synchronizedProcessingTime,
+                boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
+                ImmutableList<Long> appliedFinalizeIds,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));
               assertEquals(workItem.getKey(), ByteString.copyFromUtf8("somewhat_long_key"));
+              assertTrue(drainMode);
               assertTrue(sentResponseIds.containsKey(workItem.getWorkToken()));
               sentResponseIds.remove(workItem.getWorkToken());
               latch.countDown();
@@ -609,7 +615,7 @@ public class GrpcWindmillServerTest {
                     responseObserver.onNext(responseBuilder.build());
                   } catch (Exception e) {
                     // Stream is already closed.
-                    LOG.warn(Arrays.toString(e.getStackTrace()));
+                    LOG.warn("{}", Arrays.toString(e.getStackTrace()));
                   }
                   responseBuilder.clear();
                 }

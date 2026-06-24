@@ -15,6 +15,6 @@
 # limitations under the License.
 #
 
-from apache_beam.ml.anomaly.detectors.zscore import ZScore
-from apache_beam.ml.anomaly.detectors.robust_zscore import RobustZScore
 from apache_beam.ml.anomaly.detectors.iqr import IQR
+from apache_beam.ml.anomaly.detectors.robust_zscore import RobustZScore
+from apache_beam.ml.anomaly.detectors.zscore import ZScore

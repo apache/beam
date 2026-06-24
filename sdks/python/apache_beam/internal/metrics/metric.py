@@ -30,22 +30,16 @@ import logging
 import threading
 import time
 from typing import TYPE_CHECKING
-from typing import Dict
 from typing import Optional
-from typing import Type
 from typing import Union
 
-from apache_beam.internal.metrics.cells import HistogramCellFactory
 from apache_beam.metrics import monitoring_infos
-from apache_beam.metrics.execution import MetricUpdater
 from apache_beam.metrics.metric import Metrics as UserMetrics
-from apache_beam.metrics.metricbase import Histogram
 from apache_beam.metrics.metricbase import MetricName
 
 if TYPE_CHECKING:
   from apache_beam.metrics.cells import MetricCell
   from apache_beam.metrics.cells import MetricCellFactory
-  from apache_beam.utils.histogram import BucketType
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -63,7 +57,7 @@ class Metrics(object):
   @staticmethod
   def counter(
       urn: str,
-      labels: Optional[Dict[str, str]] = None,
+      labels: Optional[dict[str, str]] = None,
       process_wide: bool = False) -> UserMetrics.DelegatingCounter:
     """Obtains or creates a Counter metric.
 
@@ -82,58 +76,18 @@ class Metrics(object):
         MetricName(namespace=None, name=None, urn=urn, labels=labels),
         process_wide=process_wide)
 
-  @staticmethod
-  def histogram(
-      namespace: Union[Type, str],
-      name: str,
-      bucket_type: 'BucketType',
-      logger: Optional['MetricLogger'] = None) -> 'Metrics.DelegatingHistogram':
-    """Obtains or creates a Histogram metric.
-
-    Args:
-      namespace: A class or string that gives the namespace to a metric
-      name: A string that gives a unique name to a metric
-      bucket_type: A type of bucket used in a histogram. A subclass of
-        apache_beam.utils.histogram.BucketType
-      logger: MetricLogger for logging locally aggregated metric
-
-    Returns:
-      A Histogram object.
-    """
-    namespace = UserMetrics.get_namespace(namespace)
-    return Metrics.DelegatingHistogram(
-        MetricName(namespace, name), bucket_type, logger)
-
-  class DelegatingHistogram(Histogram):
-    """Metrics Histogram that Delegates functionality to MetricsEnvironment."""
-    def __init__(
-        self,
-        metric_name: MetricName,
-        bucket_type: 'BucketType',
-        logger: Optional['MetricLogger']) -> None:
-      super().__init__(metric_name)
-      self.metric_name = metric_name
-      self.cell_type = HistogramCellFactory(bucket_type)
-      self.logger = logger
-      self.updater = MetricUpdater(self.cell_type, self.metric_name)
-
-    def update(self, value: object) -> None:
-      self.updater(value)
-      if self.logger:
-        self.logger.update(self.cell_type, self.metric_name, value)
-
 
 class MetricLogger(object):
   """Simple object to locally aggregate and log metrics."""
   def __init__(self) -> None:
-    self._metric: Dict[MetricName, 'MetricCell'] = {}
+    self._metric: dict[MetricName, 'MetricCell'] = {}
     self._lock = threading.Lock()
     self._last_logging_millis = int(time.time() * 1000)
     self.minimum_logging_frequency_msec = 180000
 
   def update(
       self,
-      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      cell_type: Union[type['MetricCell'], 'MetricCellFactory'],
       metric_name: MetricName,
       value: object) -> None:
     cell = self._get_metric_cell(cell_type, metric_name)
@@ -141,7 +95,7 @@ class MetricLogger(object):
 
   def _get_metric_cell(
       self,
-      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      cell_type: Union[type['MetricCell'], 'MetricCellFactory'],
       metric_name: MetricName) -> 'MetricCell':
     with self._lock:
       if metric_name not in self._metric:
@@ -183,7 +137,7 @@ class ServiceCallMetric(object):
   def __init__(
       self,
       request_count_urn: str,
-      base_labels: Optional[Dict[str, str]] = None) -> None:
+      base_labels: Optional[dict[str, str]] = None) -> None:
     self.base_labels = base_labels if base_labels else {}
     self.request_count_urn = request_count_urn
 

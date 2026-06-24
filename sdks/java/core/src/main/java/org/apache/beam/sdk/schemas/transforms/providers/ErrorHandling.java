@@ -22,11 +22,13 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.values.Row;
 
 @AutoValue
 public abstract class ErrorHandling implements Serializable {
   @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
+  @SchemaFieldNumber("0")
   public abstract String getOutput();
 
   public static Builder builder() {

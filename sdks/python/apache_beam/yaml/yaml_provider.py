@@ -68,6 +68,8 @@ from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import maybe_with_exception_handling_transform_fn
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class NotAvailableWithReason:
   """A False value that provides additional content.
@@ -467,10 +469,14 @@ class ExternalPythonProvider(ExternalProvider):
 
 @ExternalProvider.register_provider_type('yaml')
 class YamlProvider(Provider):
-  def __init__(self, transforms: Mapping[str, Mapping[str, Any]]):
+  def __init__(
+      self,
+      transforms: Mapping[str, Mapping[str, Any]],
+      provider_base_path: Optional[str] = None):
     if not isinstance(transforms, dict):
       raise ValueError('Transform mapping must be a dict.')
     self._transforms = transforms
+    self._provider_base_path = provider_base_path
 
   def available(self):
     return True
@@ -488,7 +494,7 @@ class YamlProvider(Provider):
     return dict(
         type='object',
         additionalProperties=False,
-        **self._transforms[type]['config_schema'])
+        **self._transforms[type].get('config_schema', {}))
 
   def description(self, type):
     return self._transforms[type].get('description')
@@ -504,8 +510,9 @@ class YamlProvider(Provider):
       yaml_create_transform: Callable[
           [Mapping[str, Any], Iterable[beam.PCollection]], beam.PTransform]
   ) -> beam.PTransform:
-    from apache_beam.yaml.yaml_transform import expand_jinja, preprocess
     from apache_beam.yaml.yaml_transform import SafeLineLoader
+    from apache_beam.yaml.yaml_transform import expand_jinja
+    from apache_beam.yaml.yaml_transform import preprocess
     spec = self._transforms[type]
     try:
       import jsonschema
@@ -521,7 +528,10 @@ class YamlProvider(Provider):
     else:
       body_str = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
     # Now re-parse resolved templatization.
-    body = yaml.load(expand_jinja(body_str, args), Loader=SafeLineLoader)
+    search_paths = [FileSystems.split(self._provider_base_path)[0]
+                    ] if self._provider_base_path else []
+    body = yaml.load(
+        expand_jinja(body_str, args, search_paths), Loader=SafeLineLoader)
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'
@@ -861,6 +871,19 @@ class YamlProviders:
                 str: "bar"
                  values: [4, 5, 6]
 
+    If the elements are a mix of dicts and non-dicts, the non-dict elements
+    will be wrapped in a Row with a single field "element". For example::
+
+        type: Create
+        config:
+          elements: [1, {"a": 2}]
+
+    will result in an output with two elements with a schema of
+    Row(element=int, a=int) looking like:
+
+        Row(element=1, a=None)
+        Row(element=None, a=2)
+
     Args:
         elements: The set of elements that should belong to the PCollection.
             YAML/JSON-style mappings will be interpreted as Beam rows.
@@ -874,6 +897,25 @@ class YamlProviders:
     # not the intent.
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
+
+    if elements:
+      # Normalize elements to be all dicts or all primitives.
+      has_dict = False
+      has_non_dict = False
+      for e in elements:
+        if isinstance(e, dict):
+          has_dict = True
+        else:
+          has_non_dict = True
+        if has_dict and has_non_dict:
+          break
+
+      if has_dict and has_non_dict:
+        elements = [
+            e if isinstance(e, dict) else {
+                'element': e
+            } for e in elements
+        ]
 
     # Check if elements have different keys
     updated_elements = elements
@@ -1060,7 +1102,7 @@ class YamlProviders:
            size: 30s
 
     Note that any Yaml transform can have a
-    [windowing parameter](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/README.md#windowing),
+    [windowing parameter](https://beam.apache.org/documentation/sdks/yaml/#windowing),
     which is applied to its inputs (if any) or outputs (if there are no inputs)
     which means that explicit WindowInto operations are not typically needed.
 
@@ -1172,6 +1214,22 @@ class YamlProviders:
 
     return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
+  class Reshuffle(beam.PTransform):
+    """Reshuffles the elements of a PCollection.
+
+    Redistributes the elements of a PCollection to prevent fusion or balance
+    load.
+
+    Args:
+      num_buckets: (optional) Specifies the maximum random keys that would be
+        generated. If not set, a default value is used.
+    """
+    def __init__(self, num_buckets: Optional[int] = None):
+      self.num_buckets = num_buckets
+
+    def expand(self, pcoll):
+      return pcoll | beam.Reshuffle(num_buckets=self.num_buckets)
+
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
@@ -1181,6 +1239,7 @@ class YamlProviders:
         'PyTransform': YamlProviders.fully_qualified_named_transform,
         'Flatten': YamlProviders.Flatten,
         'WindowInto': YamlProviders.WindowInto,
+        'Reshuffle': YamlProviders.Reshuffle,
     },
                           no_input_transforms=('Create', ))
 
@@ -1322,6 +1381,18 @@ class PypiExpansionService:
         venv_python = os.path.join(venv, 'bin', 'python')
         venv_pip = os.path.join(venv, 'bin', 'pip')
         subprocess.run([venv_python, '-m', 'ensurepip'], check=True)
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            " WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
@@ -1342,6 +1413,18 @@ class PypiExpansionService:
         clonable_venv = cls._create_venv_to_clone(base_python)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')
+        # Issue warning when installing packages from PyPI
+        _LOGGER.warning(
+            "   WARNING: Apache Beam is installing Python packages "
+            "from PyPI at runtime.\n"
+            "   This may pose security risks or cause instability due to "
+            "repository availability.\n"
+            "   Packages: %s\n"
+            "   Consider pre-staging dependencies or using a private "
+            "repository mirror.\n"
+            "   For more information, see: "
+            "https://beam.apache.org/documentation/sdks/python-dependencies/",
+            ', '.join(packages))
         subprocess.run([venv_pip, 'install'] + packages, check=True)
         with open(venv + '-requirements.txt', 'w') as fout:
           fout.write('\n'.join(packages))
@@ -1353,7 +1436,13 @@ class PypiExpansionService:
 
   @classmethod
   def _create_venv_to_clone(cls, base_python: str) -> str:
-    if '.dev' in beam_version:
+    # For '.dev', the default clone source is the venv that owns base_python.
+    # In CI that is often the active tox/sandbox tree; clonevirtualenv can
+    # race with ephemeral paths (tmp/, caches) under that tree. Use the
+    # scratch clonable venv in CI instead. Locally, keep cloning the dev venv
+    # for speed.
+    _ci = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
+    if '.dev' in beam_version and not _ci:
       base_venv = os.path.dirname(os.path.dirname(base_python))
       print('Cloning dev environment from', base_venv)
       return base_venv
@@ -1483,6 +1572,9 @@ class RenamingProvider(Provider):
     """Creates a PTransform instance for the given transform type and arguments.
     """
     mappings = self._mappings[typ]
+    # NOTE: If the `key` is not found in the mappings
+    # (e.g. standard_io.yaml), the `key` is passed down
+    # as is to the underlying transform.
     remapped_args = {
         mappings.get(key, key): value
         for key, value in args.items()
@@ -1603,9 +1695,9 @@ def merge_providers(*provider_sets) -> Mapping[str, Iterable[Provider]]:
 @functools.cache
 def standard_providers():
   from apache_beam.yaml.yaml_combine import create_combine_providers
-  from apache_beam.yaml.yaml_mapping import create_mapping_providers
-  from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_join import create_join_providers
+  from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(

@@ -18,21 +18,27 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -43,20 +49,21 @@ import org.joda.time.Instant;
 /**
  * A Reader that receives input data from a Windmill server, and returns it as individual elements.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
-  private StreamingModeExecutionContext context;
+  private final StreamingModeExecutionContext context;
+  private final ValueProvider<Boolean> skipUndecodableElements;
 
-  UngroupedWindmillReader(Coder<WindowedValue<T>> coder, StreamingModeExecutionContext context) {
+  UngroupedWindmillReader(
+      Coder<WindowedValue<T>> coder,
+      StreamingModeExecutionContext context,
+      ValueProvider<Boolean> skipUndecodableElements) {
     FullWindowedValueCoder<T> inputCoder = (FullWindowedValueCoder<T>) coder;
     this.valueCoder = inputCoder.getValueCoder();
     this.windowsCoder = inputCoder.getWindowsCoder();
     this.context = context;
+    this.skipUndecodableElements = skipUndecodableElements;
   }
 
   /** A {@link ReaderFactory.Registrar} for ungrouped windmill sources. */
@@ -73,6 +80,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
     }
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
   static class Factory implements ReaderFactory {
     @Override
     public NativeReader<?> create(
@@ -82,30 +90,32 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
         @Nullable DataflowExecutionContext executionContext,
         DataflowOperationContext operationContext)
         throws Exception {
-      coder = checkArgumentNotNull(coder);
-      @SuppressWarnings("unchecked")
-      Coder<WindowedValue<Object>> typedCoder = (Coder<WindowedValue<Object>>) coder;
+      Coder<WindowedValue<Object>> typedCoder =
+          (Coder<WindowedValue<Object>>) checkArgumentNotNull(coder);
+      @Nullable
+      ValueProvider<Boolean> skipUndecodableElements =
+          options != null
+              ? options
+                  .as(DataflowStreamingPipelineOptions.class)
+                  .getSkipInputElementsWithDecodingExceptions()
+              : null;
       return new UngroupedWindmillReader<>(
-          typedCoder, (StreamingModeExecutionContext) executionContext);
+          typedCoder,
+          (StreamingModeExecutionContext) checkArgumentNotNull(executionContext),
+          skipUndecodableElements != null
+              ? skipUndecodableElements
+              : ValueProvider.StaticValueProvider.of(false));
     }
   }
 
   @Override
   public NativeReaderIterator<WindowedValue<T>> iterator() throws IOException {
-    return new UngroupedWindmillReaderIterator(context.getWorkItem());
+    return new UngroupedWindmillReaderIterator();
   }
 
-  class UngroupedWindmillReaderIterator extends WindmillReaderIteratorBase {
-    UngroupedWindmillReaderIterator(Windmill.WorkItem work) {
-      super(work);
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      if (context.workIsFailed()) {
-        return false;
-      }
-      return super.advance();
+  class UngroupedWindmillReaderIterator extends WindmillReaderIteratorBase<T> {
+    UngroupedWindmillReaderIterator() {
+      super(context, skipUndecodableElements);
     }
 
     @Override
@@ -117,18 +127,53 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
       Collection<? extends BoundedWindow> windows =
           WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
       PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
+      /**
+       * https://s.apache.org/beam-drain-mode - propagate drain bit if aggregation/expiry induced by
+       * drain happened upstream
+       */
+      CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
+      ValueKind valueKind = ValueKind.INSERT;
+      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
+        BeamFnApi.Elements.ElementMetadata elementMetadata =
+            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
+        drainingValueFromUpstream =
+            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                ? CausedByDrain.CAUSED_BY_DRAIN
+                : CausedByDrain.NORMAL;
+        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+      }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
-        InputStream key = context.getSerializedKey().newInput();
+        InputStream key = checkNotNull(context.getSerializedKey()).newInput();
         notifyElementRead(key.available() + data.available() + metadata.available());
 
         @SuppressWarnings("unchecked")
         T result =
             (T) KV.of(decode(kvCoder.getKeyCoder(), key), decode(kvCoder.getValueCoder(), data));
-        return WindowedValues.of(result, timestampMillis, windows, paneInfo);
+        // todo #37030 parse context from previous stage
+        return WindowedValues.of(
+            result,
+            timestampMillis,
+            windows,
+            paneInfo,
+            null,
+            null,
+            drainingValueFromUpstream,
+            null,
+            valueKind);
       } else {
         notifyElementRead(data.available() + metadata.available());
-        return WindowedValues.of(decode(valueCoder, data), timestampMillis, windows, paneInfo);
+        // todo #37030 parse context from previous stage
+        return WindowedValues.of(
+            decode(valueCoder, data),
+            timestampMillis,
+            windows,
+            paneInfo,
+            null,
+            null,
+            drainingValueFromUpstream,
+            null,
+            valueKind);
       }
     }
 

@@ -136,7 +136,7 @@ public class TestDataWarehouse extends ExternalResource {
       case PARQUET:
         appender =
             Parquet.write(fromPath(path, hadoopConf))
-                .createWriterFunc(GenericParquetWriter::buildWriter)
+                .createWriterFunc(GenericParquetWriter::create)
                 .schema(schema)
                 .overwrite()
                 .build();

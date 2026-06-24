@@ -98,8 +98,8 @@ object.
 #### Using a string
 
 To specify a table with a string, use the format
-`[project_id]:[dataset_id].[table_id]` to specify the fully-qualified BigQuery
-table name.
+`[project_id]:[dataset_id].[table_id]` or `[project_id].[dataset_id].[table_id]`
+to specify the fully-qualified BigQuery table name.
 
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
@@ -855,7 +855,7 @@ pipeline uses. You can set it explicitly on the transform via
 [`withNumStorageWriteApiStreams`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.html#withNumStorageWriteApiStreams-int-)
 or provide the `numStorageWriteApiStreams` option to the pipeline as defined in
 [`BigQueryOptions`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryOptions.html).
-Please note this is only supported for streaming pipelines.
+Fixed stream counts can be used with both batch and streaming pipelines.
 
 Triggering frequency determines how soon the data is visible for querying in
 BigQuery. You can explicitly set it via

@@ -23,7 +23,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -61,6 +59,8 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
   private static final String DEFAULT_CLICKHOUSE_CONTAINER_TAG = "23.8";
 
   private final String jdbcConnectionString;
+  private final String username;
+  private final String password;
 
   final List<String> managedTableNames = new ArrayList<>();
 
@@ -69,16 +69,9 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
   }
 
   private static ClickHouseContainer buildContainer(Builder builder) {
-    ClickHouseContainer container =
-        new ClickHouseContainer(
-                DockerImageName.parse(builder.containerImageName)
-                    .withTag(builder.containerImageTag))
-            .withStartupAttempts(10);
-
-    Duration startupTimeout = Duration.ofMinutes(2);
-    container.setWaitStrategy(new LogMessageWaitStrategy().withStartupTimeout(startupTimeout));
-
-    return container;
+    return new ClickHouseContainer(
+            DockerImageName.parse(builder.containerImageName).withTag(builder.containerImageTag))
+        .withStartupAttempts(10);
   }
 
   //    @VisibleForTesting
@@ -88,12 +81,18 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
       throws SQLException {
     super(container, builder);
 
+    this.username = container.getUsername();
+    this.password = container.getPassword();
     this.jdbcConnectionString =
         "jdbc:clickhouse://"
             + this.getHost()
             + ":"
             + this.getPort(CLICKHOUSE_INTERNAL_PORT)
-            + "/default";
+            + "/default"
+            + "?user="
+            + this.username
+            + "&password="
+            + this.password;
 
     this.connection =
         clickHosueConnection != null ? clickHosueConnection : container.createConnection("");
@@ -124,6 +123,16 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
   /** Returns the JDBC connection string to the ClickHouse service. */
   public synchronized String getJdbcConnectionString() {
     return jdbcConnectionString;
+  }
+
+  /** Returns the username for the ClickHouse service. */
+  public synchronized String getUsername() {
+    return username;
+  }
+
+  /** Returns the password for the ClickHouse service. */
+  public synchronized String getPassword() {
+    return password;
   }
 
   synchronized boolean tableExists(String tableName) throws SQLException {

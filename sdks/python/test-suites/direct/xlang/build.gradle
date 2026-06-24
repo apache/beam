@@ -62,6 +62,7 @@ createCrossLanguageValidatesRunnerTask(
     "--jobEndpoint=localhost:${jobPort}",
     "--environmentCacheMillis=10000",
     "--experiments=beam_fn_api",
+    "--customBeamRequirement=${project.project(":sdks:python").projectDir}/build/apache-beam.tar.gz",
   ],
   goScriptOptions: [
     "--runner portable",

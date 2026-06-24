@@ -327,20 +327,20 @@ public class JoinReorderingTest {
 
   private void createThreeTables(TestTableProvider tableProvider) {
     BeamSqlEnv env = BeamSqlEnv.withTableProvider(tableProvider);
-    env.executeDdl("CREATE EXTERNAL TABLE small_table (id INTEGER, medium_key INTEGER) TYPE text");
+    env.executeDdl("CREATE EXTERNAL TABLE small_table (id INTEGER, medium_key INTEGER) TYPE test");
 
     env.executeDdl(
         "CREATE EXTERNAL TABLE medium_table ("
             + "id INTEGER,"
             + "small_key INTEGER,"
             + "large_key INTEGER"
-            + ") TYPE text");
+            + ") TYPE test");
 
     env.executeDdl(
         "CREATE EXTERNAL TABLE large_table ("
             + "id INTEGER,"
             + "medium_key INTEGER"
-            + ") TYPE text");
+            + ") TYPE test");
 
     Row row =
         Row.withSchema(tableProvider.getTable("small_table").getSchema()).addValues(1, 1).build();

@@ -77,6 +77,12 @@ func TestTriggerAfterAny(t *testing.T) {
 	ptest.BuildAndRun(t, TriggerAfterAny)
 }
 
+func TestTriggerAfterProcessingTime(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TriggerAfterProcessingTime)
+	ptest.BuildAndRun(t, TriggerAfterProcessingTimeNotTriggered)
+}
+
 func TestTriggerAfterSynchronizedProcessingTime(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TriggerAfterSynchronizedProcessingTime)

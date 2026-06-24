@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.service.AutoService;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -47,17 +46,19 @@ import org.joda.time.Duration;
  * is likely useful.
  */
 public class Redistribute {
-  /** @return a {@link RedistributeArbitrarily} transform with default configuration. */
+  /** Returns a {@link RedistributeArbitrarily} transform with default configuration. */
   public static <T> RedistributeArbitrarily<T> arbitrarily() {
     return new RedistributeArbitrarily<>(null, false);
   }
 
-  /** @return a {@link RedistributeByKey} transform with default configuration. */
+  /** Returns a {@link RedistributeByKey} transform with default configuration. */
   public static <K, V> RedistributeByKey<K, V> byKey() {
     return new RedistributeByKey<>(false);
   }
 
   /**
+   * A by-key redistribute transform.
+   *
    * @param <K> The type of key being reshuffled on.
    * @param <V> The type of value being reshuffled.
    */
@@ -132,7 +133,7 @@ public class Redistribute {
   public static class RedistributeArbitrarily<T>
       extends PTransform<PCollection<T>, PCollection<T>> {
     // The number of buckets to shard into.
-    // A runner is free to ignore this (a runner may ignore the transorm
+    // A runner is free to ignore this (a runner may ignore the transform
     // entirely!) This is a performance optimization to prevent having
     // unit sized bundles on the output. If unset, uses a random integer key.
     private @Nullable Integer numBuckets = null;
@@ -178,12 +179,17 @@ public class Redistribute {
 
                 @ProcessElement
                 public void processElement(
-                    @Element KV<K, ValueInSingleWindow<V>> kv, OutputReceiver<KV<K, V>> r) {
-                  r.outputWindowedValue(
-                      KV.of(kv.getKey(), kv.getValue().getValue()),
-                      kv.getValue().getTimestamp(),
-                      Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPaneInfo());
+                    @Element KV<K, ValueInSingleWindow<V>> kv,
+                    OutputReceiver<KV<K, V>> outputReceiver) {
+                  // todo #33176 specify additional metadata in the future
+                  outputReceiver
+                      .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
+                      .setTimestamp(kv.getValue().getTimestamp())
+                      .setWindow(kv.getValue().getWindow())
+                      .setPaneInfo(kv.getValue().getPaneInfo())
+                      .setCausedByDrain(kv.getValue().getCausedByDrain())
+                      .setValueKind(kv.getValue().getValueKind())
+                      .output();
                 }
               }));
     }

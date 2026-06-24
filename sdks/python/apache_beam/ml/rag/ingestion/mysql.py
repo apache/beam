@@ -19,7 +19,6 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import Callable
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 
@@ -33,7 +32,7 @@ from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.ingestion.mysql_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.mysql_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.mysql_common import ConflictResolution
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,23 +40,23 @@ _LOGGER = logging.getLogger(__name__)
 class _ConflictResolutionStrategy(ABC):
   """Abstract base class for conflict resolution strategies."""
   @abstractmethod
-  def get_conflict_clause(self, all_columns: List[str]) -> str:
+  def get_conflict_clause(self, all_columns: list[str]) -> str:
     """Generate the MySQL conflict clause."""
     pass
 
 
 class _NoConflictStrategy(_ConflictResolutionStrategy):
   """Strategy for when no conflict resolution is needed."""
-  def get_conflict_clause(self, all_columns: List[str]) -> str:
+  def get_conflict_clause(self, all_columns: list[str]) -> str:
     return ""
 
 
 class _UpdateStrategy(_ConflictResolutionStrategy):
   """Strategy for UPDATE action on conflict."""
-  def __init__(self, update_fields: Optional[List[str]] = None):
+  def __init__(self, update_fields: Optional[list[str]] = None):
     self.update_fields = update_fields
 
-  def get_conflict_clause(self, all_columns: List[str]) -> str:
+  def get_conflict_clause(self, all_columns: list[str]) -> str:
     # Use provided fields or default to all columns
     fields_to_update = self.update_fields or all_columns
     assert len(fields_to_update) > 0
@@ -71,7 +70,7 @@ class _IgnoreStrategy(_ConflictResolutionStrategy):
   def __init__(self, primary_key_field: str):
     self.primary_key_field = primary_key_field
 
-  def get_conflict_clause(self, all_columns: List[str]) -> str:
+  def get_conflict_clause(self, all_columns: list[str]) -> str:
     return f"ON DUPLICATE KEY UPDATE {self.primary_key_field}"\
        f" = {self.primary_key_field}"
 
@@ -94,9 +93,9 @@ class _MySQLQueryBuilder:
       self,
       table_name: str,
       *,
-      column_specs: List[ColumnSpec],
+      column_specs: list[ColumnSpec],
       conflict_resolution: Optional[ConflictResolution] = None):
-    """Builds SQL queries for writing Chunks with Embeddings to MySQL.
+    """Builds SQL queries for writing EmbeddableItems with Embeddings to MySQL.
     """
     self.table_name = table_name
 
@@ -132,9 +131,9 @@ class _MySQLQueryBuilder:
     _LOGGER.info("MySQL Query with placeholders %s", query)
     return query
 
-  def create_converter(self) -> Callable[[Chunk], NamedTuple]:
-    """Creates a function to convert Chunks to records."""
-    def convert(chunk: Chunk) -> self.record_type:  # type: ignore
+  def create_converter(self) -> Callable[[EmbeddableItem], NamedTuple]:
+    """Creates a function to convert EmbeddableItems to records."""
+    def convert(chunk: EmbeddableItem) -> self.record_type:  # type: ignore
       return self.record_type(
           **{col.column_name: col.value_fn(chunk)
              for col in self.column_specs})  # type: ignore
@@ -150,7 +149,7 @@ class MySQLVectorWriterConfig(VectorDatabaseWriteConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
+      column_specs: list[ColumnSpec] = ColumnSpecsBuilder.with_defaults().build(
       ),
       conflict_resolution: Optional[ConflictResolution] = None):
     """Configuration for writing vectors to MySQL using jdbc.
@@ -167,7 +166,8 @@ class MySQLVectorWriterConfig(VectorDatabaseWriteConfig):
         column_specs:
             Use :class:`~.mysql_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written to the database
-            schema. If None, uses default Chunk schema with MySQL vector
+            schema. If None, uses default EmbeddableItem
+            schema with MySQL vector
             functions.
         conflict_resolution: Optional
             :class:`~.mysql_common.ConflictResolution`
@@ -248,7 +248,7 @@ class _WriteToMySQLVectorDatabase(beam.PTransform):
     self.connection_config = config.connection_config
     self.write_config = config.write_config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
     return (
         pcoll
         |

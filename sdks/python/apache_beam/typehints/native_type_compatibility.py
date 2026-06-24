@@ -19,8 +19,10 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections
 import collections.abc
+import dataclasses
 import logging
 import sys
 import types
@@ -34,6 +36,14 @@ try:
   from typing import is_typeddict
 except ImportError:
   from typing_extensions import is_typeddict
+
+# Python 3.12 adds TypeAliasType for `type` statements; keep optional import.
+# pylint: disable=ungrouped-imports
+# isort: off
+try:
+  from typing import TypeAliasType  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - pre-3.12
+  TypeAliasType = None  # type: ignore[assignment]
 
 T = TypeVar('T')
 
@@ -74,7 +84,12 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.Mapping,
 ]
 
-_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
+_CONVERTED_MODULES = (
+    'typing',
+    'collections',
+    'collections.abc',
+    'annotationlib',
+)
 
 
 def _get_args(typ):
@@ -87,7 +102,7 @@ def _get_args(typ):
     A tuple of args.
   """
   try:
-    if typ.__args__ is None:
+    if typ.__args__ is None or not isinstance(typ.__args__, tuple):
       return ()
     return typ.__args__
   except AttributeError:
@@ -164,7 +179,53 @@ def _match_is_exactly_sequence(user_type):
 def match_is_named_tuple(user_type):
   return (
       _safe_issubclass(user_type, typing.Tuple) and
-      hasattr(user_type, '__annotations__'))
+      hasattr(user_type, '__annotations__') and hasattr(user_type, '_fields'))
+
+
+def match_dataclass_for_row(user_type):
+  """Match whether the type is a dataclass handled by row coder.
+
+  For frozen dataclasses, only true when explicitly registered with row coder:
+
+    beam.coders.typecoders.registry.register_coder(
+        MyDataClass, beam.coders.RowCoder)
+
+  (for backward-compatibility reason).
+
+  For non-frozen dataclasses, default to true otherwise explicitly registered
+  with a coder other than the row coder.
+  """
+
+  if not dataclasses.is_dataclass(user_type):
+    return False
+
+  # pylint: disable=wrong-import-position
+  try:
+    from apache_beam.options.pipeline_options_context import get_pipeline_options  # pylint: disable=line-too-long
+  except AttributeError:
+    pass
+  else:
+    opts = get_pipeline_options()
+    if opts and opts.is_compat_version_prior_to("2.73.0"):
+      return False
+
+  is_frozen = user_type.__dataclass_params__.frozen
+  # avoid circular import
+  try:
+    from apache_beam.coders.typecoders import registry as coders_registry
+    from apache_beam.coders import RowCoder
+  except AttributeError:
+    # coder registery not yet initialized so it must be absent
+    return not is_frozen
+
+  if is_frozen:
+    return (
+        user_type in coders_registry._coders and
+        coders_registry._coders[user_type] == RowCoder)
+  else:
+    return (
+        user_type not in coders_registry._coders or
+        coders_registry._coders[user_type] == RowCoder)
 
 
 def _match_is_optional(user_type):
@@ -328,9 +389,16 @@ def convert_to_beam_type(typ):
   # pipe operator as Union and types.UnionType are introduced
   # in Python 3.10.
   # GH issue: https://github.com/apache/beam/issues/21972
-  if (sys.version_info.major == 3 and
-      sys.version_info.minor >= 10) and (isinstance(typ, types.UnionType)):
+  if isinstance(typ, types.UnionType):
     typ = typing.Union[typ]
+
+  # Unwrap Python 3.12 `type` aliases (TypeAliasType) to their underlying value.
+  # This ensures Beam sees the actual aliased type (e.g., tuple[int, ...]).
+  if sys.version_info >= (3, 12) and TypeAliasType is not None:
+    if isinstance(typ, TypeAliasType):  # pylint: disable=isinstance-second-argument-not-valid-type
+      underlying = getattr(typ, '__value__', None)
+      if underlying is not None:
+        typ = underlying
 
   if getattr(typ, '__module__', None) == 'typing':
     typ = convert_typing_to_builtin(typ)
@@ -352,7 +420,7 @@ def convert_to_beam_type(typ):
     # TODO(https://github.com/apache/beam/issues/19954): Currently unhandled.
     _LOGGER.info('Converting string literal type hint to Any: "%s"', typ)
     return typehints.Any
-  elif sys.version_info >= (3, 10) and isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
+  elif isinstance(typ, typing.NewType):  # pylint: disable=isinstance-second-argument-not-valid-type
     # Special case for NewType, where, since Python 3.10, NewType is now a class
     # rather than a function.
     # TODO(https://github.com/apache/beam/issues/20076): Currently unhandled.

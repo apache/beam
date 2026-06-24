@@ -46,7 +46,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 # Protect against environments where apitools library is not available.
 try:
-  from google.cloud.exceptions import BadRequest, NotFound
+  from google.cloud.exceptions import BadRequest
+  from google.cloud.exceptions import NotFound
 except ImportError:
   _http_error_imported = False
 else:
@@ -243,6 +244,9 @@ class IPythonLogHandlerTest(unittest.TestCase):
     reason='[interactive] dependency is not installed.')
 class ProgressIndicatorTest(unittest.TestCase):
   def setUp(self):
+    self.gcs_patcher = patch(
+        'apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.delete')
+    self.gcs_patcher.start()
     ie.new_env()
 
   @patch('IPython.get_ipython', new_callable=mock_get_ipython)
@@ -278,6 +282,9 @@ class ProgressIndicatorTest(unittest.TestCase):
         mocked_html.assert_called()
       mocked_js.assert_called()
 
+  def tearDown(self):
+    self.gcs_patcher.stop()
+
 
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
@@ -286,6 +293,9 @@ class MessagingUtilTest(unittest.TestCase):
   SAMPLE_DATA = {'a': [1, 2, 3], 'b': 4, 'c': '5', 'd': {'e': 'f'}}
 
   def setUp(self):
+    self.gcs_patcher = patch(
+        'apache_beam.io.gcp.gcsfilesystem.GCSFileSystem.delete')
+    self.gcs_patcher.start()
     ie.new_env()
 
   def test_as_json_decorator(self):
@@ -296,6 +306,9 @@ class MessagingUtilTest(unittest.TestCase):
     # As of Python 3.6, for the CPython implementation of Python,
     # dictionaries remember the order of items inserted.
     self.assertEqual(json.loads(dummy()), MessagingUtilTest.SAMPLE_DATA)
+
+  def tearDown(self):
+    self.gcs_patcher.stop()
 
 
 class GeneralUtilTest(unittest.TestCase):

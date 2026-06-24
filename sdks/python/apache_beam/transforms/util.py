@@ -20,8 +20,11 @@
 
 # pytype: skip-file
 
+import bisect
 import collections
 import contextlib
+import hashlib
+import hmac
 import logging
 import random
 import re
@@ -36,12 +39,13 @@ from typing import Optional
 from typing import TypeVar
 from typing import Union
 
+from cryptography.fernet import Fernet
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
-from apache_beam.options import pipeline_options
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSideInput
@@ -84,10 +88,14 @@ from apache_beam.utils.timestamp import Timestamp
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
+_LOGGER = logging.getLogger(__name__)
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
+    'GcpSecret',
+    'GroupByEncryptedKey',
     'Keys',
     'KvSwap',
     'LogElements',
@@ -95,6 +103,8 @@ __all__ = [
     'Reify',
     'RemoveDuplicates',
     'Reshuffle',
+    'Secret',
+    'SortAndBatchElements',
     'ToString',
     'Tee',
     'Values',
@@ -315,6 +325,415 @@ def Distinct(pcoll):  # pylint: disable=invalid-name
 def RemoveDuplicates(pcoll):
   """Produces a PCollection containing distinct elements of a PCollection."""
   return pcoll | 'RemoveDuplicates' >> Distinct()
+
+
+class Secret():
+  """A secret management class used for handling sensitive data.
+
+  This class provides a generic interface for secret management. Implementations
+  of this class should handle fetching secrets from a secret management system.
+  """
+  def get_secret_bytes(self) -> bytes:
+    """Returns the secret as a byte string."""
+    raise NotImplementedError()
+
+  @staticmethod
+  def generate_secret_bytes() -> bytes:
+    """Generates a new secret key."""
+    return Fernet.generate_key()
+
+  @staticmethod
+  def parse_secret_option(secret) -> 'Secret':
+    """Parses a secret string and returns the appropriate secret type.
+
+    The secret string should be formatted like:
+    'type:<secret_type>;<secret_param>:<value>'
+
+    For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
+    would return a GcpSecret initialized with 'my_secret/versions/latest'.
+    """
+    param_map = {}
+    for param in secret.split(';'):
+      parts = param.split(':')
+      param_map[parts[0]] = parts[1]
+
+    if 'type' not in param_map:
+      raise ValueError('Secret string must contain a valid type parameter')
+
+    secret_type = param_map['type'].lower()
+    del param_map['type']
+    secret_class = Secret
+    secret_params = None
+    if secret_type == 'gcpsecret':
+      secret_class = GcpSecret  # type: ignore[assignment]
+      secret_params = ['version_name']
+    elif secret_type == 'gcphsmgeneratedsecret':
+      secret_class = GcpHsmGeneratedSecret  # type: ignore[assignment]
+      secret_params = [
+          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
+      ]
+    else:
+      raise ValueError(
+          f'Invalid secret type {secret_type}, currently only '
+          'GcpSecret and GcpHsmGeneratedSecret are supported')
+
+    for param_name in param_map.keys():
+      if param_name not in secret_params:
+        raise ValueError(
+            f'Invalid secret parameter {param_name}, '
+            f'{secret_type} only supports the following '
+            f'parameters: {secret_params}')
+    return secret_class(**param_map)
+
+
+class GcpSecret(Secret):
+  """A secret manager implementation that retrieves secrets from Google Cloud
+  Secret Manager.
+  """
+  def __init__(self, version_name: str):
+    """Initializes a GcpSecret object.
+
+    Args:
+      version_name: The full version name of the secret in Google Cloud Secret
+        Manager. For example:
+        projects/<id>/secrets/<secret_name>/versions/1.
+        For more info, see
+        https://cloud.google.com/python/docs/reference/secretmanager/latest/google.cloud.secretmanager_v1beta1.services.secret_manager_service.SecretManagerServiceClient#google_cloud_secretmanager_v1beta1_services_secret_manager_service_SecretManagerServiceClient_access_secret_version
+    """
+    self._version_name = version_name
+
+  def get_secret_bytes(self) -> bytes:
+    try:
+      from google.cloud import secretmanager
+      client = secretmanager.SecretManagerServiceClient()
+      response = client.access_secret_version(
+          request={"name": self._version_name})
+      secret = response.payload.data
+      return secret
+    except Exception as e:
+      raise RuntimeError(
+          'Failed to retrieve secret bytes for secret '
+          f'{self._version_name} with exception {e}')
+
+  def __eq__(self, secret):
+    return self._version_name == getattr(secret, '_version_name', None)
+
+
+class GcpHsmGeneratedSecret(Secret):
+  """A secret manager implementation that generates a secret using a GCP HSM key
+  and stores it in Google Cloud Secret Manager. If the secret already exists,
+  it will be retrieved.
+  """
+  def __init__(
+      self,
+      project_id: str,
+      location_id: str,
+      key_ring_id: str,
+      key_id: str,
+      job_name: str):
+    """Initializes a GcpHsmGeneratedSecret object.
+
+    Args:
+      project_id: The GCP project ID.
+      location_id: The GCP location ID for the HSM key.
+      key_ring_id: The ID of the KMS key ring.
+      key_id: The ID of the KMS key.
+      job_name: The name of the job, used to generate a unique secret name.
+    """
+    self._project_id = project_id
+    self._location_id = location_id
+    self._key_ring_id = key_ring_id
+    self._key_id = key_id
+    self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
+
+  def get_secret_bytes(self) -> bytes:
+    """Retrieves the secret bytes.
+
+    If the secret version already exists in Secret Manager, it is retrieved.
+    Otherwise, a new secret and version are created. The new secret is
+    generated using the HSM key.
+
+    Returns:
+      The secret as a byte string.
+    """
+    try:
+      from google.api_core import exceptions as api_exceptions
+      from google.cloud import secretmanager
+      client = secretmanager.SecretManagerServiceClient()
+
+      project_path = f"projects/{self._project_id}"
+      secret_path = f"{project_path}/secrets/{self._secret_version_name}"
+      # Since we may generate multiple versions when doing this on workers,
+      # just always take the first version added to maintain consistency.
+      secret_version_path = f"{secret_path}/versions/1"
+
+      try:
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      try:
+        client.create_secret(
+            request={
+                "parent": project_path,
+                "secret_id": self._secret_version_name,
+                "secret": {
+                    "replication": {
+                        "automatic": {}
+                    }
+                },
+            })
+      except api_exceptions.AlreadyExists:
+        # Don't bother logging yet, we'll only log if we actually add the
+        # secret version below
+        pass
+
+      new_key = self.generate_dek()
+      try:
+        # Try one more time in case it was created while we were generating the
+        # DEK.
+        response = client.access_secret_version(
+            request={"name": secret_version_path})
+        return response.payload.data
+      except api_exceptions.NotFound:
+        _LOGGER.info(
+            "Secret version %s not found. "
+            "Creating new secret and version.",
+            secret_version_path)
+      client.add_secret_version(
+          request={
+              "parent": secret_path, "payload": {
+                  "data": new_key
+              }
+          })
+      response = client.access_secret_version(
+          request={"name": secret_version_path})
+      return response.payload.data
+
+    except Exception as e:
+      raise RuntimeError(
+          f'Failed to retrieve or create secret bytes for secret '
+          f'{self._secret_version_name} with exception {e}')
+
+  def generate_dek(self, dek_size: int = 32) -> bytes:
+    """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
+
+    This function follows a key derivation process that incorporates entropy
+    from the HSM-backed key into the nonce used for key derivation.
+
+    Args:
+      dek_size: The size of the DEK to generate.
+
+    Returns:
+        A new DEK of the specified size, url-safe base64-encoded.
+    """
+    try:
+      import base64
+      import os
+
+      from cryptography.hazmat.primitives import hashes
+      from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+      from google.cloud import kms
+
+      # 1. Generate a random nonce (nonce_one)
+      nonce_one = os.urandom(dek_size)
+
+      # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
+      kms_client = kms.KeyManagementServiceClient()
+      key_path = kms_client.crypto_key_path(
+          self._project_id, self._location_id, self._key_ring_id, self._key_id)
+      response = kms_client.encrypt(
+          request={
+              'name': key_path, 'plaintext': nonce_one
+          })
+      nonce_two = response.ciphertext
+
+      # 3. Generate a Derivation Key (DK)
+      dk = os.urandom(dek_size)
+
+      # 4. Use a KDF to derive the DEK using DK and nonce_two
+      hkdf = HKDF(
+          algorithm=hashes.SHA256(),
+          length=dek_size,
+          salt=nonce_two,
+          info=None,
+      )
+      dek = hkdf.derive(dk)
+      return base64.urlsafe_b64encode(dek)
+    except Exception as e:
+      raise RuntimeError(f'Failed to generate DEK with exception {e}')
+
+
+class _EncryptMessage(DoFn):
+  """A DoFn that encrypts the key and value of each element."""
+  def __init__(
+      self,
+      hmac_key_secret: Secret,
+      key_coder: coders.Coder,
+      value_coder: coders.Coder):
+    self.hmac_key_secret = hmac_key_secret
+    self.key_coder = key_coder
+    self.value_coder = value_coder
+
+  def setup(self):
+    self._hmac_key = self.hmac_key_secret.get_secret_bytes()
+    self.fernet = Fernet(self._hmac_key)
+
+  def process(self,
+              element: Any) -> Iterable[tuple[bytes, tuple[bytes, bytes]]]:
+    """Encrypts the key and value of an element.
+
+    Args:
+      element: A tuple containing the key and value to be encrypted.
+
+    Yields:
+      A tuple containing the HMAC of the encoded key, and a tuple of the
+      encrypted key and value.
+    """
+    k, v = element
+    encoded_key = self.key_coder.encode(k)
+    encoded_value = self.value_coder.encode(v)
+    hmac_encoded_key = hmac.new(self._hmac_key, encoded_key,
+                                hashlib.sha256).digest()
+    out_element = (
+        hmac_encoded_key,
+        (self.fernet.encrypt(encoded_key), self.fernet.encrypt(encoded_value)))
+    yield out_element
+
+
+class _DecryptMessage(DoFn):
+  """A DoFn that decrypts the key and value of each element."""
+  def __init__(
+      self,
+      hmac_key_secret: Secret,
+      key_coder: coders.Coder,
+      value_coder: coders.Coder):
+    self.hmac_key_secret = hmac_key_secret
+    self.key_coder = key_coder
+    self.value_coder = value_coder
+
+  def setup(self):
+    hmac_key = self.hmac_key_secret.get_secret_bytes()
+    self.fernet = Fernet(hmac_key)
+
+  def decode_value(self, encoded_element: tuple[bytes, bytes]) -> Any:
+    encrypted_value = encoded_element[1]
+    encoded_value = self.fernet.decrypt(encrypted_value)
+    real_val = self.value_coder.decode(encoded_value)
+    return real_val
+
+  def filter_elements_by_key(
+      self,
+      encrypted_key: bytes,
+      encoded_elements: Iterable[tuple[bytes, bytes]]) -> Iterable[Any]:
+    for e in encoded_elements:
+      if encrypted_key == self.fernet.decrypt(e[0]):
+        yield self.decode_value(e)
+
+  # Right now, GBK always returns a list of elements, so we match this behavior
+  # here. This does mean that the whole list will be materialized every time,
+  # but passing an Iterable containing an Iterable breaks when pickling happens
+  def process(
+      self, element: tuple[bytes, Iterable[tuple[bytes, bytes]]]
+  ) -> Iterable[tuple[Any, list[Any]]]:
+    """Decrypts the key and values of an element.
+
+    Args:
+      element: A tuple containing the HMAC of the encoded key and an iterable
+        of tuples of encrypted keys and values.
+
+    Yields:
+      A tuple containing the decrypted key and a list of decrypted values.
+    """
+    unused_hmac_encoded_key, encoded_elements = element
+    seen_keys = set()
+
+    # Since there could be hmac collisions, we will use the fernet encrypted
+    # key to confirm that the mapping is actually correct.
+    for e in encoded_elements:
+      encrypted_key, unused_encrypted_value = e
+      encoded_key = self.fernet.decrypt(encrypted_key)
+      if encoded_key in seen_keys:
+        continue
+      seen_keys.add(encoded_key)
+      real_key = self.key_coder.decode(encoded_key)
+
+      yield (
+          real_key,
+          list(self.filter_elements_by_key(encoded_key, encoded_elements)))
+
+
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, Iterable[V]])
+class GroupByEncryptedKey(PTransform):
+  """A PTransform that provides a secure alternative to GroupByKey.
+
+  This transform encrypts the keys of the input PCollection, performs a
+  GroupByKey on the encrypted keys, and then decrypts the keys in the output.
+  This is useful when the keys contain sensitive data that should not be
+  stored at rest by the runner. Note the following caveats:
+  
+  1) Runners can implement arbitrary materialization steps, so this does not
+  guarantee that the whole pipeline will not have unencrypted data at rest by
+  itself.
+  2) If using this transform in streaming mode, this transform may not properly
+  handle update compatibility checks around coders. This means that an improper
+  update could lead to invalid coders, causing pipeline failure or data
+  corruption. If you need to update, make sure that the input type passed into
+  this transform does not change.
+  """
+  def __init__(self, hmac_key: Secret):
+    """Initializes a GroupByEncryptedKey transform.
+
+    Args:
+      hmac_key: A Secret object that provides the secret key for HMAC and
+        encryption. For example, a GcpSecret can be used to access a secret
+        stored in GCP Secret Manager
+    """
+    self._hmac_key = hmac_key
+
+  def expand(self, pcoll):
+    key_type, value_type = (typehints.typehints.coerce_to_kv_type(
+        pcoll.element_type).tuple_types)
+    kv_type_hint = typehints.KV[key_type, value_type]
+    if kv_type_hint and kv_type_hint != typehints.Any:
+      coder = coders.registry.get_coder(kv_type_hint)
+      try:
+        coder = coder.as_deterministic_coder(self.label)
+      except ValueError:
+        _LOGGER.warning(
+            'GroupByEncryptedKey %s: '
+            'The key coder is not deterministic. This may result in incorrect '
+            'pipeline output. This can be fixed by adding a type hint to the '
+            'operation preceding the GroupByKey step, and for custom key '
+            'classes, by writing a deterministic custom Coder. Please see the '
+            'documentation for more details.',
+            self.label)
+      if not coder.is_kv_coder():
+        raise ValueError(
+            'Input elements to the transform %s with stateful DoFn must be '
+            'key-value pairs.' % self)
+      key_coder = coder.key_coder()
+      value_coder = coder.value_coder()
+    else:
+      key_coder = coders.registry.get_coder(typehints.Any)
+      value_coder = key_coder
+
+    gbk = beam.GroupByKey()
+    gbk._inside_gbek = True
+    output_type = tuple[key_type, Iterable[value_type]]
+
+    return (
+        pcoll
+        | beam.ParDo(_EncryptMessage(self._hmac_key, key_coder, value_coder))
+        | gbk
+        | beam.ParDo(
+            _DecryptMessage(self._hmac_key, key_coder,
+                            value_coder)).with_output_types(output_type))
 
 
 class _BatchSizeEstimator(object):
@@ -607,7 +1026,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    logging.info(
+    _LOGGER.info(
         "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
@@ -791,6 +1210,30 @@ class WithSharedKey(DoFn):
     yield (self.key, element)
 
 
+class WithLengthBucketKey(DoFn):
+  """Keys elements with (worker_uuid, length_bucket) for length-aware
+  stateful batching. Elements of similar length are routed to the same
+  state partition, reducing padding waste."""
+  def __init__(self, length_fn, bucket_boundaries):
+    self.shared_handle = shared.Shared()
+    self._length_fn = length_fn
+    self._bucket_boundaries = bucket_boundaries
+
+  def setup(self):
+    self.key = self.shared_handle.acquire(
+        load_shared_key, "WithLengthBucketKey").key
+
+  def _get_bucket(self, length):
+    # bisect_right: boundaries are lower-inclusive.
+    # e.g., for boundaries [10, 50], buckets are (-inf, 10), [10, 50), [50, inf)
+    return bisect.bisect_right(self._bucket_boundaries, length)
+
+  def process(self, element):
+    length = self._length_fn(element)
+    bucket = self._get_bucket(length)
+    yield ((self.key, bucket), element)
+
+
 @typehints.with_input_types(T)
 @typehints.with_output_types(list[T])
 class BatchElements(PTransform):
@@ -850,7 +1293,18 @@ class BatchElements(PTransform):
         donwstream operations (mostly for testing)
     record_metrics: (optional) whether or not to record beam metrics on
         distributions of the batch size. Defaults to True.
+    length_fn: (optional) a callable mapping an element to its length (int).
+        When set together with bucket_boundaries, enables length-aware bucketed
+        keying on the stateful path so that elements of similar length are
+        routed to the same batch, reducing padding waste.
+    bucket_boundaries: (optional) a sorted list of positive boundary values
+        for length bucketing. Boundaries are lower-inclusive (bisect_right
+        semantics): e.g., for boundaries [10, 50], buckets are (-inf, 10),
+        [10, 50), [50, inf). Defaults to [16, 32, 64, 128, 256, 512] when
+        length_fn is set. Requires length_fn.
   """
+  _DEFAULT_BUCKET_BOUNDARIES = [16, 32, 64, 128, 256, 512]
+
   def __init__(
       self,
       min_batch_size=1,
@@ -863,7 +1317,17 @@ class BatchElements(PTransform):
       element_size_fn=lambda x: 1,
       variance=0.25,
       clock=time.time,
-      record_metrics=True):
+      record_metrics=True,
+      length_fn=None,
+      bucket_boundaries=None):
+    if bucket_boundaries is not None and length_fn is None:
+      raise ValueError('bucket_boundaries requires length_fn to be set.')
+    if bucket_boundaries is not None:
+      if (not bucket_boundaries or any(b <= 0 for b in bucket_boundaries) or
+          bucket_boundaries != sorted(bucket_boundaries)):
+        raise ValueError(
+            'bucket_boundaries must be a non-empty sorted list of '
+            'positive values.')
     self._batch_size_estimator = _BatchSizeEstimator(
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
@@ -877,13 +1341,23 @@ class BatchElements(PTransform):
     self._element_size_fn = element_size_fn
     self._max_batch_dur = max_batch_duration_secs
     self._clock = clock
+    self._length_fn = length_fn
+    if length_fn is not None and bucket_boundaries is None:
+      self._bucket_boundaries = self._DEFAULT_BUCKET_BOUNDARIES
+    else:
+      self._bucket_boundaries = bucket_boundaries
 
   def expand(self, pcoll):
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
       coder = coders.registry.get_coder(pcoll)
-      return pcoll | ParDo(WithSharedKey()) | ParDo(
+      if self._length_fn is not None:
+        keying_dofn = WithLengthBucketKey(
+            self._length_fn, self._bucket_boundaries)
+      else:
+        keying_dofn = WithSharedKey()
+      return pcoll | ParDo(keying_dofn) | ParDo(
           _pardo_stateful_batch_elements(
               coder,
               self._batch_size_estimator,
@@ -899,6 +1373,285 @@ class BatchElements(PTransform):
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
               self._batch_size_estimator, self._element_size_fn))
+
+
+class _SortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with the default (global) window. It accumulates all
+  elements in the current bundle, sorts them by size in ascending order,
+  and emits optimally-sized batches on ``finish_bundle``.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffer = []
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, element):
+    self._buffer.append(element)
+
+  def finish_bundle(self):
+    if not self._buffer:
+      return
+
+    # Sort elements by size (ascending) for optimal batching
+    # Elements of similar sizes will be grouped together
+    sorted_elements = sorted(self._buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      # Check if adding this element would exceed limits
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        # Emit current batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    # Emit remaining elements
+    if batch:
+      yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+
+    self._buffer = None
+
+
+class _WindowAwareSortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements per window.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with non-default (e.g. fixed, sliding, or session) windows.
+  Elements are buffered per window and each window is flushed independently.
+  To prevent a single bundle from retaining too many per-window buffers at
+  once, when the number of live windows exceeds ``_MAX_LIVE_WINDOWS`` the
+  largest window buffer is flushed early. This DoFn reuses
+  ``_WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS`` so it follows the same
+  existing window-aware batching behavior already used in this module.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+
+  _MAX_LIVE_WINDOWS = _WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS
+
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffers = collections.defaultdict(list)
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffers = collections.defaultdict(list)
+
+  def process(self, element, window=DoFn.WindowParam):
+    self._buffers[window].append(element)
+
+    # If we have too many live windows, flush the largest one
+    if len(self._buffers) > self._MAX_LIVE_WINDOWS:
+      largest_window = max(
+          self._buffers.keys(), key=lambda w: len(self._buffers[w]))
+      yield from self._flush_window(largest_window)
+
+  def _flush_window(self, win):
+    """Flush all elements for a given window."""
+    buffer = self._buffers.pop(win, [])
+    if not buffer:
+      return
+
+    # Sort elements by size (ascending)
+    sorted_elements = sorted(buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    if batch:
+      yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+
+  def finish_bundle(self):
+    for win in list(self._buffers.keys()):
+      yield from self._flush_window(win)
+    self._buffers = None
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(list[T])
+class SortAndBatchElements(PTransform):
+  """A Transform that sorts elements by size before batching.
+
+  This transform is designed to optimize batch processing by grouping elements
+  of similar sizes together. This is particularly useful for ML inference
+  workloads where input sequences of varying lengths need to be padded to the
+  maximum length in the batch - by sorting elements by size before batching,
+  padding overhead is minimized.
+
+  The transform consumes a PCollection of element type T and produces a
+  PCollection of element type list[T], where elements within each batch are
+  sorted by their size (as determined by element_size_fn).
+
+  Elements are batched per-window and batches emitted in the window
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  Unlike BatchElements which emits batches as soon as size limits are reached,
+  SortAndBatchElements buffers all elements in a bundle, sorts them by size,
+  and then creates optimally-sized batches. This trade-off of increased memory
+  usage for better batch homogeneity can significantly reduce padding overhead.
+
+  Args:
+    min_batch_size: The minimum number of elements in a batch. Must be >= 1.
+    max_batch_size: The maximum number of elements in a batch.
+        Must be >= min_batch_size.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by element_size_fn. Must be >= 1.
+    element_size_fn: (optional) A function mapping an element to its
+        size/weight.
+        If not provided, defaults to trying len(element) and falling back to 1
+        if the element doesn't support len(). This default allows sorting to
+        work for common types like strings, lists, and arrays.
+
+  Example usage::
+
+      # Batch strings by total character count
+      strings = ['a', 'bb', 'ccc', 'dddd', 'eeeee']
+      batched = strings | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=3,
+          max_batch_weight=10)
+      # Possible output: [['a', 'bb', 'ccc'], ['dddd', 'eeeee']]
+      # Elements are sorted by length and batched optimally
+
+      # Batch with custom size function
+      data = [{'text': 'short'}, {'text': 'medium text'},
+              {'text': 'long text here'}]
+      batched = data | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=10,
+          max_batch_weight=100,
+          element_size_fn=lambda x: len(x['text']))
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
+    if min_batch_size < 1:
+      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
+    if max_batch_size < min_batch_size:
+      raise ValueError(
+          f'max_batch_size ({max_batch_size}) must be >= '
+          f'min_batch_size ({min_batch_size})')
+    if max_batch_weight < 1:
+      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
+    if element_size_fn is not None and not callable(element_size_fn):
+      raise TypeError('element_size_fn must be callable')
+
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+
+    # None means the DoFn will use its own _default_element_size method,
+    # which tries len() and warns once on TypeError before falling back to 1.
+    self._element_size_fn = element_size_fn
+
+  def expand(self, pcoll):
+    if pcoll.windowing.is_default():
+      return pcoll | ParDo(
+          _SortAndBatchElementsDoFn(
+              self._min_batch_size,
+              self._max_batch_size,
+              self._max_batch_weight,
+              self._element_size_fn))
+    return pcoll | ParDo(
+        _WindowAwareSortAndBatchElementsDoFn(
+            self._min_batch_size,
+            self._max_batch_size,
+            self._max_batch_weight,
+            self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
@@ -930,27 +1683,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
 
   def get_window_coder(self):
     return self._window_coder
-
-
-def is_v1_prior_to_v2(*, v1, v2):
-  if v1 is None:
-    return False
-
-  v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
-  v2_parts = (v2.split('.') + ['0', '0', '0'])[:3]
-  return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
-
-
-def is_compat_version_prior_to(options, breaking_change_version):
-  # This function is used in a branch statement to determine whether we should
-  # keep the old behavior prior to a breaking change or use the new behavior.
-  # - If update_compatibility_version < breaking_change_version, we will return
-  #   True and keep the old behavior.
-  update_compatibility_version = options.view_as(
-      pipeline_options.StreamingOptions).update_compatibility_version
-
-  return is_v1_prior_to_v2(
-      v1=update_compatibility_version, v2=breaking_change_version)
 
 
 def reify_metadata_default_window(
@@ -1030,8 +1762,8 @@ class ReshufflePerKey(PTransform):
             for (value, timestamp) in values
         ]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1050,8 +1782,8 @@ class ReshufflePerKey(PTransform):
         key, windowed_values = element
         return [wv.with_value((key, wv.value)) for wv in windowed_values]
 
-      if is_compat_version_prior_to(pcoll.pipeline.options,
-                                    RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+      if pcoll.pipeline.options.is_compat_version_prior_to(
+          RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
         pre_gbk_map = Map(reify_timestamps).with_output_types(Any)
       else:
         pre_gbk_map = Map(reify_timestamps).with_input_types(
@@ -1075,7 +1807,7 @@ class ReshufflePerKey(PTransform):
     return result
 
   def expand(self, pcoll):
-    if is_compat_version_prior_to(pcoll.pipeline.options, "2.65.0"):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.65.0"):
       return self.expand_2_64_0(pcoll)
 
     windowing_saved = pcoll.windowing
@@ -1132,8 +1864,8 @@ class Reshuffle(PTransform):
 
   def expand(self, pcoll):
     # type: (pvalue.PValue) -> pvalue.PCollection
-    if is_compat_version_prior_to(pcoll.pipeline.options,
-                                  RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
+    if pcoll.pipeline.options.is_compat_version_prior_to(
+        RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION):
       reshuffle_step = ReshufflePerKey()
     else:
       reshuffle_step = ReshufflePerKey().with_input_types(
@@ -1185,13 +1917,18 @@ def WithKeys(pcoll, k, *args, **kwargs):
       if all(isinstance(arg, AsSideInput)
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
-        return pcoll | Map(
+        # Map(lambda) produces a label formatted like this, but it cannot be
+        # changed without breaking update compat. Here, we pin to the transform
+        # name used in the 2.68 release to avoid breaking changes when the line
+        # number changes. Context: https://github.com/apache/beam/pull/36381
+        return pcoll | "Map(<lambda at util.py:1189>)" >> Map(
             lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
-      return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
-    return pcoll | Map(lambda v: (k(v), v))
-  return pcoll | Map(lambda v: (k, v))
+      return pcoll | "Map(<lambda at util.py:1192>)" >> Map(
+          lambda v: (k(v, *args, **kwargs), v))
+    return pcoll | "Map(<lambda at util.py:1193>)" >> Map(lambda v: (k(v), v))
+  return pcoll | "Map(<lambda at util.py:1194>)" >> Map(lambda v: (k, v))
 
 
 @typehints.with_input_types(tuple[K, V])
@@ -1271,7 +2008,11 @@ class GroupIntoBatches(PTransform):
 
     def expand(self, pcoll):
       key_type, value_type = pcoll.element_type.tuple_types
-      sharded_pcoll = pcoll | Map(
+      # Map(lambda) produces a label formatted like this, but it cannot be
+      # changed without breaking update compat. Here, we pin to the transform
+      # name used in the 2.68 release to avoid breaking changes when the line
+      # number changes. Context: https://github.com/apache/beam/pull/36381
+      sharded_pcoll = pcoll | "Map(<lambda at util.py:1275>)" >> Map(
           lambda key_value: (
               ShardedKey(
                   key_value[0],
@@ -1496,15 +2237,15 @@ class LogElements(PTransform):
         log_line += ', pane_info=' + repr(pane_info)
 
       if self.level == logging.DEBUG:
-        logging.debug(log_line)
+        _LOGGER.debug(log_line)
       elif self.level == logging.INFO:
-        logging.info(log_line)
+        _LOGGER.info(log_line)
       elif self.level == logging.WARNING:
-        logging.warning(log_line)
+        _LOGGER.warning(log_line)
       elif self.level == logging.ERROR:
-        logging.error(log_line)
+        _LOGGER.error(log_line)
       elif self.level == logging.CRITICAL:
-        logging.critical(log_line)
+        _LOGGER.critical(log_line)
       else:
         print(log_line)
 
@@ -1776,7 +2517,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1779>)" >> Map(
+        lambda elem: regex.sub(replacement, elem))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1792,7 +2538,12 @@ class Regex(object):
       replacement: the string to be substituted for each match.
     """
     regex = Regex._regex_compile(regex)
-    return pcoll | Map(lambda elem: regex.sub(replacement, elem, 1))
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1795>)" >> Map(
+        lambda elem: regex.sub(replacement, elem, 1))
 
   @staticmethod
   @typehints.with_input_types(str)
@@ -1883,4 +2634,9 @@ class WaitOn(PTransform):
             | f"WaitOn{ix}" >> (beam.FlatMap(lambda x: ()) | GroupByKey()))
         for (ix, side) in enumerate(self._to_be_waited_on)
     ]
-    return pcoll | beam.Map(lambda x, *unused_sides: x, *sides)
+    # Map(lambda) produces a label formatted like this, but it cannot be
+    # changed without breaking update compat. Here, we pin to the transform
+    # name used in the 2.68 release to avoid breaking changes when the line
+    # number changes. Context: https://github.com/apache/beam/pull/36381
+    return pcoll | "Map(<lambda at util.py:1886>)" >> beam.Map(
+        lambda x, *unused_sides: x, *sides)

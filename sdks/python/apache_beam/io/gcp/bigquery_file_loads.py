@@ -134,7 +134,13 @@ def _make_new_file_writer(
   directory = fs.FileSystems.join(file_prefix, destination)
 
   if not fs.FileSystems.exists(directory):
-    fs.FileSystems.mkdirs(directory)
+    try:
+      fs.FileSystems.mkdirs(directory)
+    except IOError:
+      # Concurrent workers may race to create the same directory.
+      # Ignore the IOError if another worker successfully created it.
+      if not fs.FileSystems.exists(directory):
+        raise
 
   file_name = str(uuid.uuid4())
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)
@@ -1120,8 +1126,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
-    self.reshuffle_before_load = not util.is_compat_version_prior_to(
-        p.options, "2.65.0")
+    self.reshuffle_before_load = not p.options.is_compat_version_prior_to(
+        "2.65.0")
     if self.reshuffle_before_load:
       # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
       # fusion for inputs.

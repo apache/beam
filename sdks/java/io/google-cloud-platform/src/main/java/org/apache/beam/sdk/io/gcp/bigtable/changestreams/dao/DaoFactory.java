@@ -72,6 +72,7 @@ public class DaoFactory implements Serializable, AutoCloseable {
         BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).close();
       }
     } catch (Exception ignored) {
+      // Ignore exceptions on close.
     }
   }
 

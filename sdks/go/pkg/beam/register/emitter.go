@@ -28,13 +28,15 @@ type emit struct {
 	est *sdf.WatermarkEstimator
 
 	ctx   context.Context
+	pn    typex.PaneInfo
 	ws    []typex.Window
 	et    typex.EventTime
 	value exec.FullValue
 }
 
-func (e *emit) Init(ctx context.Context, ws []typex.Window, et typex.EventTime) error {
+func (e *emit) Init(ctx context.Context, pn typex.PaneInfo, ws []typex.Window, et typex.EventTime) error {
 	e.ctx = ctx
+	e.pn = pn
 	e.ws = ws
 	e.et = et
 	return nil
@@ -54,7 +56,7 @@ func (e *emit1[T]) Value() any {
 }
 
 func (e *emit1[T]) invoke(val T) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: e.et, Elm: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -73,7 +75,7 @@ func (e *emit2[T1, T2]) Value() any {
 }
 
 func (e *emit2[T1, T2]) invoke(key T1, val T2) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: e.et, Elm: key, Elm2: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(e.et.ToTime())
 	}
@@ -92,7 +94,7 @@ func (e *emit1WithTimestamp[T]) Value() any {
 }
 
 func (e *emit1WithTimestamp[T]) invoke(et typex.EventTime, val T) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: et, Elm: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
 	}
@@ -111,7 +113,7 @@ func (e *emit2WithTimestamp[T1, T2]) Value() any {
 }
 
 func (e *emit2WithTimestamp[T1, T2]) invoke(et typex.EventTime, key T1, val T2) {
-	e.value = exec.FullValue{Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
+	e.value = exec.FullValue{Pane: e.pn, Windows: e.ws, Timestamp: et, Elm: key, Elm2: val}
 	if e.est != nil {
 		(*e.est).(sdf.TimestampObservingEstimator).ObserveTimestamp(et.ToTime())
 	}

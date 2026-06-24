@@ -39,8 +39,6 @@ import traceback
 import types
 import zlib
 from typing import Any
-from typing import Dict
-from typing import Tuple
 
 import dill
 
@@ -50,7 +48,7 @@ from apache_beam.internal.set_pickler import save_set
 
 settings = {'dill_byref': None}
 
-patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
+patch_save_code = dill.__version__ == "0.3.1.1"
 
 if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
@@ -315,7 +313,7 @@ if 'save_module' in dir(dill.dill):
   # Pickle module dictionaries (commonly found in lambda's globals)
   # by referencing their module.
   old_save_module_dict = dill.dill.save_module_dict
-  known_module_dicts: Dict[int, Tuple[types.ModuleType, Dict[str, Any]]] = {}
+  known_module_dicts: dict[int, tuple[types.ModuleType, dict[str, Any]]] = {}
 
   @dill.dill.register(dict)
   def new_save_module_dict(pickler, obj):
@@ -381,6 +379,25 @@ def dumps(
     use_zlib=False,
     enable_best_effort_determinism=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
+  s = _dumps(o, enable_trace, enable_best_effort_determinism)
+
+  # Compress as compactly as possible (compresslevel=9) to decrease peak memory
+  # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
+  # limits.
+  # WARNING: Be cautious about compressor change since it can lead to pipeline
+  # representation change, and can break streaming job update compatibility on
+  # runners such as Dataflow.
+  if use_zlib:
+    c = zlib.compress(s, 9)
+  else:
+    c = bz2.compress(s, compresslevel=9)
+  del s  # Free up some possibly large and no-longer-needed memory.
+
+  return base64.b64encode(c)
+
+
+def _dumps(o, enable_trace=True, enable_best_effort_determinism=False) -> bytes:
+  """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     if enable_best_effort_determinism:
       old_save_set = dill.dill.Pickler.dispatch[set]
@@ -400,20 +417,7 @@ def dumps(
       if enable_best_effort_determinism:
         dill.dill.pickle(set, old_save_set)
         dill.dill.pickle(frozenset, old_save_frozenset)
-
-  # Compress as compactly as possible (compresslevel=9) to decrease peak memory
-  # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
-  # limits.
-  # WARNING: Be cautious about compressor change since it can lead to pipeline
-  # representation change, and can break streaming job update compatibility on
-  # runners such as Dataflow.
-  if use_zlib:
-    c = zlib.compress(s, 9)
-  else:
-    c = bz2.compress(s, compresslevel=9)
-  del s  # Free up some possibly large and no-longer-needed memory.
-
-  return base64.b64encode(c)
+  return s
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):
@@ -427,7 +431,10 @@ def loads(encoded, enable_trace=True, use_zlib=False):
     s = bz2.decompress(c)
 
   del c  # Free up some possibly large and no-longer-needed memory.
+  return _loads(s, enable_trace)
 
+
+def _loads(s, enable_trace=True):
   with _pickle_lock:
     try:
       return dill.loads(s)
@@ -439,6 +446,11 @@ def loads(encoded, enable_trace=True, use_zlib=False):
         raise
     finally:
       dill.dill._trace(False)  # pylint: disable=protected-access
+
+
+def roundtrip(o):
+  """Internal utility for testing round-trip pickle serialization."""
+  return _loads(_dumps(o))
 
 
 def dump_session(file_path):

@@ -196,12 +196,12 @@ from apache_beam.utils.annotations import deprecated
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # pylint: disable=unused-import
 try:
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud.spanner import Client
   from google.cloud.spanner import KeySet
   from google.cloud.spanner_v1 import batch
   from google.cloud.spanner_v1.database import BatchSnapshot
-  from google.api_core.exceptions import ClientError, GoogleAPICallError
-  from apitools.base.py.exceptions import HttpError
 except ImportError:
   Client = None
   KeySet = None
@@ -323,7 +323,7 @@ class _BeamSpannerConfiguration(namedtuple("_BeamSpannerConfiguration",
 
 
 @with_input_types(ReadOperation, _SPANNER_TRANSACTION)
-@with_output_types(typing.List[typing.Any])
+@with_output_types(list[typing.Any])
 class _NaiveSpannerReadDoFn(DoFn):
   def __init__(self, spanner_configuration):
     """
@@ -436,13 +436,10 @@ class _NaiveSpannerReadDoFn(DoFn):
       except (ClientError, GoogleAPICallError) as e:
         metric_action(metric_id, e.code.value)
         raise
-      except HttpError as e:
-        metric_action(metric_id, e)
-        raise
 
 
 @with_input_types(ReadOperation)
-@with_output_types(typing.Dict[typing.Any, typing.Any])
+@with_output_types(dict[typing.Any, typing.Any])
 class _CreateReadPartitions(DoFn):
   """
   A DoFn to create partitions. Uses the Partitioning API (PartitionRead /
@@ -587,8 +584,8 @@ def create_transaction(
               exact_staleness)))
 
 
-@with_input_types(typing.Dict[typing.Any, typing.Any])
-@with_output_types(typing.List[typing.Any])
+@with_input_types(dict[typing.Any, typing.Any])
+@with_output_types(list[typing.Any])
 class _ReadFromPartitionFn(DoFn):
   """
   A DoFn to perform reads from the partition.
@@ -666,9 +663,6 @@ class _ReadFromPartitionFn(DoFn):
       self.service_metric.call('ok')
     except (ClientError, GoogleAPICallError) as e:
       self.service_metric(str(e.code.value))
-      raise
-    except HttpError as e:
-      self.service_metric(str(e))
       raise
 
   def teardown(self):
@@ -1269,10 +1263,6 @@ class _WriteToSpannerDoFn(DoFn):
     except (ClientError, GoogleAPICallError) as e:
       for service_metric in self.service_metrics.values():
         service_metric.call(str(e.code.value))
-      raise
-    except HttpError as e:
-      for service_metric in self.service_metrics.values():
-        service_metric.call(str(e))
       raise
     else:
       for service_metric in self.service_metrics.values():

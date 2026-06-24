@@ -41,7 +41,6 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -329,8 +328,7 @@ public class MongoDbIO {
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
       checkArgument(
-          Arrays.asList(AutoValue_FindQuery.class, AutoValue_AggregationQuery.class)
-              .contains(queryBuilderFn.getClass()),
+          (queryBuilderFn instanceof FindQuery || queryBuilderFn instanceof AggregationQuery),
           String.format("[%s]" + ERROR_MSG_QUERY_FN, queryBuilderFn.getClass().getName()));
       return builder().setQueryFn(queryBuilderFn).build();
     }
@@ -504,7 +502,7 @@ public class MongoDbIO {
         List<Document> splitKeys;
         List<BoundedSource<Document>> sources = new ArrayList<>();
 
-        if (spec.queryFn().getClass() == AutoValue_FindQuery.class) {
+        if (spec.queryFn() instanceof FindQuery) {
           if (spec.bucketAuto()) {
             splitKeys = buildAutoBuckets(mongoDatabase, spec);
           } else {
@@ -553,7 +551,7 @@ public class MongoDbIO {
                         ? Filters.and(findQuery.filters(), filters)
                         : filters);
             FindQuery queryWithFilter = findQuery.toBuilder().setFilters(allFilters).build();
-            LOG.debug("using filters: " + allFilters.toJson());
+            LOG.debug("using filters: {}", allFilters.toJson());
             sources.add(new BoundedMongoDbSource(spec.withQueryFn(queryWithFilter)));
           }
         } else {

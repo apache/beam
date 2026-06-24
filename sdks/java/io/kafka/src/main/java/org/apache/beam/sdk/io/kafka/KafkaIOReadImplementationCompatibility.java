@@ -139,6 +139,12 @@ class KafkaIOReadImplementationCompatibility {
     },
     OFFSET_DEDUPLICATION(LEGACY),
     LOG_TOPIC_VERIFICATION,
+    REDISTRIBUTE_BY_RECORD_KEY {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
     ;
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;
@@ -233,16 +239,16 @@ class KafkaIOReadImplementationCompatibility {
     }
 
     /**
-     * @return true, if the implementation can "use" every configuration,<br>
-     *     false, otherwise
+     * Returns true, if the implementation can "use" every configuration,<br>
+     * false, otherwise.
      */
     boolean supports(KafkaIOReadImplementation implementation) {
       return !notSupported.containsKey(implementation);
     }
 
     /**
-     * @return true, if the implementation - and only that - can "use" every configuration, <br>
-     *     false, otherwise
+     * Returns true, if the implementation - and only that - can "use" every configuration, <br>
+     * false, otherwise.
      */
     boolean supportsOnly(KafkaIOReadImplementation implementation) {
       return EnumSet.complementOf(EnumSet.of(implementation)).equals(notSupported.keySet());

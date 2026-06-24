@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -181,7 +180,7 @@ public class DebeziumReadSchemaTransformProvider
 
     public abstract String getHost();
 
-    public abstract Integer getPort();
+    public abstract int getPort();
 
     public abstract String getTable();
 
@@ -202,7 +201,7 @@ public class DebeziumReadSchemaTransformProvider
 
       public abstract Builder setHost(String host);
 
-      public abstract Builder setPort(Integer port);
+      public abstract Builder setPort(int port);
 
       public abstract Builder setDatabase(String database);
 

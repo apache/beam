@@ -35,7 +35,6 @@ from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.options.pipeline_options import AzureOptions
 from apache_beam.utils import retry
-from apache_beam.utils.annotations import deprecated
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,10 +42,8 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   from azure.core.exceptions import ResourceNotFoundError
-  from azure.storage.blob import (
-      BlobServiceClient,
-      ContentSettings,
-  )
+  from azure.storage.blob import BlobServiceClient
+  from azure.storage.blob import ContentSettings
   AZURE_DEPS_INSTALLED = True
 except ImportError:
   AZURE_DEPS_INSTALLED = False
@@ -209,7 +206,7 @@ class BlobStorageIO(object):
     assert dest.endswith('/')
 
     results = []
-    for entry in self.list_prefix(src):
+    for entry, _ in self.list_files(src):
       rel_path = entry[len(src):]
       try:
         self.copy(entry, dest + rel_path)
@@ -506,7 +503,7 @@ class BlobStorageIO(object):
     assert root.endswith('/')
 
     # Get the blob under the root directory.
-    paths_to_delete = self.list_prefix(root)
+    paths_to_delete = [p for p, _ in self.list_files(root)]
 
     return self.delete_files(paths_to_delete)
 
@@ -579,25 +576,6 @@ class BlobStorageIO(object):
 
     return results
 
-  @deprecated(since='2.45.0', current='list_files')
-  def list_prefix(self, path, with_metadata=False):
-    """Lists files matching the prefix.
-
-    Args:
-      path: Azure Blob Storage file path pattern in the form
-            azfs://<storage-account>/<container>/[name].
-      with_metadata: Experimental. Specify whether returns file metadata.
-
-    Returns:
-      If ``with_metadata`` is False: dict of file name -> size; if
-        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
-    """
-    file_info = {}
-    for file_metadata in self.list_files(path, with_metadata):
-      file_info[file_metadata[0]] = file_metadata[1]
-
-    return file_info
-
   def list_files(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
@@ -646,7 +624,7 @@ class BlobStorageIO(object):
           yield file_name, item.size
 
     logging.log(
-        # do not spam logs when list_prefix is likely used to check empty folder
+        # do not spam logs when list_files is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,

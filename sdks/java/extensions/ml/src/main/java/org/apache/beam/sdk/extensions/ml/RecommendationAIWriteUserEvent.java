@@ -59,13 +59,13 @@ public abstract class RecommendationAIWriteUserEvent
         .setEventStore("default_event_store");
   }
 
-  /** @return ID of Google Cloud project to be used for creating user events. */
+  /** Returns ID of Google Cloud project to be used for creating user events. */
   public abstract @Nullable String projectId();
 
-  /** @return Name of the catalog where the user events will be created. */
+  /** Returns name of the catalog where the user events will be created. */
   public abstract @Nullable String catalogName();
 
-  /** @return Name of the event store where the user events will be created. */
+  /** Returns name of the event store where the user events will be created. */
   public abstract @Nullable String eventStore();
 
   /**
@@ -84,13 +84,25 @@ public abstract class RecommendationAIWriteUserEvent
 
   @AutoValue.Builder
   abstract static class Builder {
-    /** @param projectId ID of Google Cloud project to be used for creating user events. */
+    /**
+     * Sets ID of Google Cloud project to be used for creating user events.
+     *
+     * @param projectId ID of Google Cloud project to be used for creating user events.
+     */
     public abstract Builder setProjectId(@Nullable String projectId);
 
-    /** @param catalogName Name of the catalog where the user events will be created. */
+    /**
+     * Sets name of the catalog where the user events will be created.
+     *
+     * @param catalogName Name of the catalog where the user events will be created.
+     */
     public abstract Builder setCatalogName(@Nullable String catalogName);
 
-    /** @param eventStore Name of the event store where the user events will be created. */
+    /**
+     * Sets name of the event store where the user events will be created.
+     *
+     * @param eventStore Name of the event store where the user events will be created.
+     */
     public abstract Builder setEventStore(@Nullable String eventStore);
 
     public abstract RecommendationAIWriteUserEvent build();

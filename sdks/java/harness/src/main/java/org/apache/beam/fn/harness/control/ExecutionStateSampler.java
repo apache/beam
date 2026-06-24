@@ -131,6 +131,16 @@ public class ExecutionStateSampler {
   /** An {@link ExecutionState} represents the current state of an execution thread. */
   public interface ExecutionState {
 
+    interface ActiveState extends AutoCloseable {}
+
+    /**
+     * Activates this execution state within the {@link ExecutionStateTracker}. The returned
+     * closable will restore the previously active execution state.
+     *
+     * <p>Must only be invoked by the bundle processing thread.
+     */
+    ActiveState scopedActivate();
+
     /**
      * Activates this execution state within the {@link ExecutionStateTracker}.
      *
@@ -441,30 +451,27 @@ public class ExecutionStateSampler {
             Thread thread = trackedThread.get();
             if (thread == null) {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting "
-                          + "or completing (stack trace unable to be generated).",
-                      processBundleId.get(),
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
+                  "Operation ongoing in bundle {} for at least {} without outputting "
+                      + "or completing (stack trace unable to be generated).",
+                  processBundleId.get(),
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()));
             } else if (currentExecutionState == null) {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting "
-                          + "or completing:%n  at %s",
-                      processBundleId.get(),
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+                  "Operation ongoing in bundle {} for at least {} without outputting "
+                      + "or completing:\n  at {}",
+                  processBundleId.get(),
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                  Joiner.on("\n  at ").join(thread.getStackTrace()));
             } else {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
-                          + "for at least %s without outputting or completing:%n  at %s",
-                      processBundleId.get(),
-                      currentExecutionState.ptransformId,
-                      currentExecutionState.ptransformUniqueName,
-                      currentExecutionState.stateName,
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+                  "Operation ongoing in bundle {} for PTransform{{id={}, name={}, state={}}} "
+                      + "for at least {} without outputting or completing:\n  at {}",
+                  processBundleId.get(),
+                  currentExecutionState.ptransformId,
+                  currentExecutionState.ptransformUniqueName,
+                  currentExecutionState.stateName,
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                  Joiner.on("\n  at ").join(thread.getStackTrace()));
             }
           }
         }
@@ -527,6 +534,9 @@ public class ExecutionStateSampler {
       // Read and written by the bundle processing thread frequently.
       private @Nullable ExecutionStateImpl previousState;
 
+      @SuppressWarnings("methodref")
+      private final ActiveState activeState = this::deactivate;
+
       private ExecutionStateImpl(
           String shortId,
           String ptransformId,
@@ -579,6 +589,12 @@ public class ExecutionStateSampler {
         currentStateLazy.lazySet(this);
         numTransitions += 1;
         numTransitionsLazy.lazySet(numTransitions);
+      }
+
+      @Override
+      public ActiveState scopedActivate() {
+        activate();
+        return activeState;
       }
 
       @Override

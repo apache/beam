@@ -11,20 +11,21 @@ limitations under the License. See accompanying LICENSE file.
 */}}
 
 <div>
-  {{ $host := .Site.Data.performance.host }}
-  {{ $path := .Site.Data.performance.path }}
+  {{ $staticBase := .Site.Data.performance.static_base | default "/images/performance/looks" }}
   {{ $looks := .Site.Data.performance.looks }}
   {{ $io := index $looks (.Get "io") }}
   {{ $rw := index $io (.Get "read_or_write") }}
   {{ $section := index $rw (.Get "section") }}
-  {{ range $section }}
   {{ $folder := index $rw "folder" }}
-  <h4>{{.title}}</h4>
-    <div class="performance">
-      <img 
-         src="{{$host}}/{{$path}}/{{$folder}}/{{.id}}.png"
-         alt="{{.title}}"
-      >
-    </div>
+
+  {{ range $section }}
+  <h4>{{ .title }}</h4>
+  <div class="performance">
+    <img
+      src="{{ $staticBase }}/{{ $folder }}/{{ .id }}.png"
+      alt="{{ .title }}"
+      loading="lazy"
+    >
+  </div>
   {{ end }}
 </div>

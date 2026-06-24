@@ -57,8 +57,10 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError, HttpForbiddenError
-  from google.api_core.exceptions import ClientError, DeadlineExceeded
+  from apitools.base.py.exceptions import HttpError
+  from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core.exceptions import ClientError
+  from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
 except ImportError:
   ClientError = None
@@ -1090,6 +1092,321 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
         Sequence[RowTypeConstraint.from_fields(self.EXPECTED_TYPEHINTS)])]
 
     self.assertEqual(typehints, expected_typehints)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestGeographyTypeSupport(unittest.TestCase):
+  """Tests for GEOGRAPHY data type support in BigQuery."""
+  def test_geography_in_bigquery_type_mapping(self):
+    """Test that GEOGRAPHY is properly mapped in type mapping."""
+    from apache_beam.io.gcp.bigquery_tools import BIGQUERY_TYPE_TO_PYTHON_TYPE
+
+    self.assertIn("GEOGRAPHY", BIGQUERY_TYPE_TO_PYTHON_TYPE)
+    self.assertEqual(BIGQUERY_TYPE_TO_PYTHON_TYPE["GEOGRAPHY"], str)
+
+  def test_geography_field_conversion(self):
+    """Test that GEOGRAPHY fields are converted correctly."""
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    # Create a mock field with GEOGRAPHY type
+    field = bigquery.TableFieldSchema()
+    field.type = 'GEOGRAPHY'
+    field.name = 'location'
+    field.mode = 'NULLABLE'
+
+    wrapper = BigQueryWrapper(client=mock.Mock())
+
+    # Test various WKT formats
+    test_cases = [
+        "POINT(30 10)",
+        "LINESTRING(30 10, 10 30, 40 40)",
+        "POLYGON((30 10, 40 40, 20 40, 10 20, 30 10))",
+        "MULTIPOINT((10 40), (40 30), (20 20), (30 10))",
+        "GEOMETRYCOLLECTION(POINT(4 6),LINESTRING(4 6,7 10))"
+    ]
+
+    for wkt_value in test_cases:
+      result = wrapper._convert_cell_value_to_dict(wkt_value, field)
+      self.assertEqual(result, wkt_value)
+      self.assertIsInstance(result, str)
+
+  def test_geography_typehints_from_schema(self):
+    """Test that GEOGRAPHY fields generate correct type hints."""
+    schema = {
+        "fields": [{
+            "name": "location", "type": "GEOGRAPHY", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "optional_location",
+                       "type": "GEOGRAPHY",
+                       "mode": "NULLABLE"
+                   }, {
+                       "name": "locations",
+                       "type": "GEOGRAPHY",
+                       "mode": "REPEATED"
+                   }]
+    }
+
+    typehints = get_beam_typehints_from_tableschema(schema)
+
+    expected_typehints = [("location", str),
+                          ("optional_location", Optional[str]),
+                          ("locations", Sequence[str])]
+
+    self.assertEqual(typehints, expected_typehints)
+
+  def test_geography_beam_row_conversion(self):
+    """Test converting dictionary with GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "location", "type": "GEOGRAPHY", "mode": "NULLABLE"
+        }, {
+            "name": "name", "type": "STRING", "mode": "REQUIRED"
+        }]
+    }
+
+    row_dict = {"id": 1, "location": "POINT(30 10)", "name": "Test Location"}
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertEqual(beam_row.location, "POINT(30 10)")
+    self.assertEqual(beam_row.name, "Test Location")
+
+  def test_geography_beam_row_conversion_with_null(self):
+    """Test converting dictionary with null GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "location", "type": "GEOGRAPHY", "mode": "NULLABLE"
+        }]
+    }
+
+    row_dict = {"id": 1, "location": None}
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertIsNone(beam_row.location)
+
+  def test_geography_beam_row_conversion_repeated(self):
+    """Test converting dictionary with repeated GEOGRAPHY to Beam Row."""
+    schema = {
+        "fields": [{
+            "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+        }, {
+            "name": "locations", "type": "GEOGRAPHY", "mode": "REPEATED"
+        }]
+    }
+
+    row_dict = {
+        "id": 1,
+        "locations": ["POINT(30 10)", "POINT(40 20)", "LINESTRING(0 0, 1 1)"]
+    }
+
+    beam_row = beam_row_from_dict(row_dict, schema)
+
+    self.assertEqual(beam_row.id, 1)
+    self.assertEqual(len(beam_row.locations), 3)
+    self.assertEqual(beam_row.locations[0], "POINT(30 10)")
+    self.assertEqual(beam_row.locations[1], "POINT(40 20)")
+    self.assertEqual(beam_row.locations[2], "LINESTRING(0 0, 1 1)")
+
+  def test_geography_json_encoding(self):
+    """Test that GEOGRAPHY values are properly JSON encoded."""
+    coder = RowAsDictJsonCoder()
+
+    row_with_geography = {"id": 1, "location": "POINT(30 10)", "name": "Test"}
+
+    encoded = coder.encode(row_with_geography)
+    decoded = coder.decode(encoded)
+
+    self.assertEqual(decoded["location"], "POINT(30 10)")
+    self.assertIsInstance(decoded["location"], str)
+
+  def test_geography_with_special_characters(self):
+    """Test GEOGRAPHY values with special characters and geometries."""
+    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
+    field = bigquery.TableFieldSchema()
+    field.type = 'GEOGRAPHY'
+    field.name = 'complex_geo'
+    field.mode = 'NULLABLE'
+
+    wrapper = BigQueryWrapper(client=mock.Mock())
+
+    # Test complex WKT with various coordinate systems and precision
+    complex_wkt = (
+        "POLYGON((-122.4194 37.7749, -122.4094 37.7849, "
+        "-122.3994 37.7749, -122.4194 37.7749))")
+
+    result = wrapper._convert_cell_value_to_dict(complex_wkt, field)
+    self.assertEqual(result, complex_wkt)
+    self.assertIsInstance(result, str)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestTypeOverrides(unittest.TestCase):
+  """Tests for type_overrides parameter in BigQuery type mappings."""
+  def test_type_overrides_enables_unsupported_types(self):
+    """Test that type_overrides enables support for DATE/DATETIME/JSON."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }, {
+                       "name": "json_field", "type": "JSON", "mode": "REQUIRED"
+                   }]
+    }
+
+    # Without overrides, these types are not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
+
+    # With overrides, they work
+    type_overrides = {"DATE": str, "DATETIME": str, "JSON": str}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+    self.assertEqual(
+        typehints, [("date_field", str), ("datetime_field", str),
+                    ("json_field", str)])
+
+  def test_type_overrides_with_custom_types(self):
+    """Test type_overrides with custom Python types."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        },
+                   {
+                       "name": "datetime_field",
+                       "type": "DATETIME",
+                       "mode": "REQUIRED"
+                   }]
+    }
+
+    type_overrides = {"DATE": datetime.date, "DATETIME": datetime.datetime}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+    self.assertEqual(
+        typehints, [("date_field", datetime.date),
+                    ("datetime_field", datetime.datetime)])
+
+  def test_type_overrides_with_modes(self):
+    """Test that type_overrides works with NULLABLE and REPEATED modes."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "required_date", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "optional_date", "type": "DATE", "mode": "NULLABLE"
+        }, {
+            "name": "repeated_dates", "type": "DATE", "mode": "REPEATED"
+        }]
+    }
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("required_date", datetime.date),
+                ("optional_date", Optional[datetime.date]),
+                ("repeated_dates", Sequence[datetime.date])]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_mixed_with_default_types(self):
+    """Test type_overrides alongside default type mappings."""
+    import datetime
+    schema = {
+        "fields": [{
+            "name": "date_field", "type": "DATE", "mode": "REQUIRED"
+        }, {
+            "name": "string_field", "type": "STRING", "mode": "REQUIRED"
+        }, {
+            "name": "int_field", "type": "INTEGER", "mode": "REQUIRED"
+        }]
+    }
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    expected = [("date_field", datetime.date), ("string_field", str),
+                ("int_field", np.int64)]
+    self.assertEqual(typehints, expected)
+
+  def test_type_overrides_with_nested_struct(self):
+    """Test that type_overrides is propagated to nested STRUCT fields."""
+    import datetime
+    schema = bigquery.TableSchema()
+
+    # Root field
+    date_field = bigquery.TableFieldSchema()
+    date_field.name = "date_field"
+    date_field.type = "DATE"
+    date_field.mode = "REQUIRED"
+
+    # Nested struct with DATE field
+    struct_field = bigquery.TableFieldSchema()
+    struct_field.name = "nested"
+    struct_field.type = "RECORD"
+    struct_field.mode = "REQUIRED"
+
+    nested_date = bigquery.TableFieldSchema()
+    nested_date.name = "nested_date"
+    nested_date.type = "DATE"
+    nested_date.mode = "REQUIRED"
+    struct_field.fields.append(nested_date)
+
+    schema.fields.append(date_field)
+    schema.fields.append(struct_field)
+
+    type_overrides = {"DATE": datetime.date}
+    typehints = get_beam_typehints_from_tableschema(schema, type_overrides)
+
+    self.assertEqual(len(typehints), 2)
+    self.assertEqual(typehints[0], ("date_field", datetime.date))
+    # The nested field's DATE should also be overridden
+    nested_constraint = typehints[1][1]
+    nested_fields = nested_constraint._fields
+    self.assertEqual(nested_fields[0], ("nested_date", datetime.date))
+
+  def test_type_overrides_can_override_default_types(self):
+    """Test that type_overrides can override default type mappings."""
+    schema = {
+        "fields": [{
+            "name": "geo_field", "type": "GEOGRAPHY", "mode": "REQUIRED"
+        }]
+    }
+
+    # Without overrides, GEOGRAPHY maps to str (default)
+    typehints = get_beam_typehints_from_tableschema(schema, None)
+    self.assertEqual(typehints, [("geo_field", str)])
+
+    # With overrides, we can change it
+    typehints_override = get_beam_typehints_from_tableschema(
+        schema, {"GEOGRAPHY": bytes})
+    self.assertEqual(typehints_override, [("geo_field", bytes)])
+
+  def test_type_overrides_json_to_dict(self):
+    """Test using type_overrides to map JSON to dict."""
+    schema = {"fields": [{"name": "data", "type": "JSON", "mode": "NULLABLE"}]}
+
+    # Without overrides, JSON is not supported
+    with self.assertRaises(ValueError):
+      get_beam_typehints_from_tableschema(schema)
+
+    # With overrides, can map to str
+    typehints_str = get_beam_typehints_from_tableschema(schema, {"JSON": str})
+    self.assertEqual(typehints_str, [("data", Optional[str])])
+
+    # Or map to dict
+    typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
+    self.assertEqual(typehints_dict, [("data", Optional[dict])])
 
 
 if __name__ == '__main__':

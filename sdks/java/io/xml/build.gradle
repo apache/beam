@@ -30,8 +30,8 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.stax2_api
   implementation "javax.xml.stream:stax-api:1.0-2"
-  implementation library.java.woodstox_core_asl
-  permitUnusedDeclared library.java.woodstox_core_asl // BEAM-11761
+  implementation library.java.woodstox_core
+  permitUnusedDeclared library.java.woodstox_core // BEAM-11761
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
   testRuntimeOnly library.java.slf4j_jdk14

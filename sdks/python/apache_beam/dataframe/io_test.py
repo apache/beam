@@ -47,9 +47,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
-  HttpError = None
+  GoogleAPICallError = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -296,6 +296,51 @@ A     B
     self._run_truncating_file_handle_iter_test('aaa b cccccccccccccccccccc')
     self._run_truncating_file_handle_iter_test('aaa b ccccccccccccccccc ')
 
+  def test_truncating_filehandle_flush_on_closed_stream(self):
+    class ClosedFlushingStream(StringIO):
+      def flush(self):
+        if self.closed:
+          raise ValueError("I/O operation on closed file.")
+        super().flush()
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = ClosedFlushingStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that calling flush() when the underlying stream is closed
+    # succeeds without raising ValueError.
+    underlying.close()
+    handle.flush()
+    handle.close()
+
+  def test_truncating_filehandle_exception_suppression(self):
+    class FaultyStream(StringIO):
+      @property
+      def closed(self):
+        return False
+
+      def flush(self):
+        raise ValueError("Simulated flush error")
+
+      def close(self):
+        raise OSError("Simulated close error")
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = FaultyStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that ValueError raised during flush() is safely suppressed.
+    handle.flush()
+
+    # Verify that OSError raised during close() is safely suppressed.
+    handle.close()
+
   @parameterized.expand([
       ('defaults', {}),
       ('header', dict(header=1)),
@@ -440,7 +485,8 @@ X     , c1, c2
                           set(self.read_all_lines(output + 'out2.csv*')))
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    GoogleAPICallError is None, 'GCP dependencies are not installed')
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):

@@ -19,25 +19,33 @@ package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.UpdatePartitionSpec;
+import org.apache.iceberg.UpdateProperties;
+import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.types.Type;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -46,7 +54,8 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogConfig.class);
-  private transient @MonotonicNonNull Catalog cachedCatalog;
+  private static final ConcurrentHashMap<IcebergCatalogConfig, Catalog> CATALOG_CACHE =
+      new ConcurrentHashMap<>();
 
   @Pure
   @Nullable
@@ -67,27 +76,28 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public abstract Builder toBuilder();
 
-  public org.apache.iceberg.catalog.Catalog catalog() {
-    if (cachedCatalog == null) {
-      String catalogName = getCatalogName();
-      if (catalogName == null) {
-        catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-      }
-      Map<String, String> catalogProps = getCatalogProperties();
-      if (catalogProps == null) {
-        catalogProps = Maps.newHashMap();
-      }
-      Map<String, String> confProps = getConfigProperties();
-      if (confProps == null) {
-        confProps = Maps.newHashMap();
-      }
-      Configuration config = new Configuration();
-      for (Map.Entry<String, String> prop : confProps.entrySet()) {
-        config.set(prop.getKey(), prop.getValue());
-      }
-      cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+  public Catalog catalog() {
+    return CATALOG_CACHE.computeIfAbsent(this, IcebergCatalogConfig::buildCatalog);
+  }
+
+  private static Catalog buildCatalog(IcebergCatalogConfig catalogConfig) {
+    String catalogName = catalogConfig.getCatalogName();
+    if (catalogName == null) {
+      catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
     }
-    return cachedCatalog;
+    Map<String, String> catalogProps = catalogConfig.getCatalogProperties();
+    if (catalogProps == null) {
+      catalogProps = Maps.newHashMap();
+    }
+    Map<String, String> confProps = catalogConfig.getConfigProperties();
+    if (confProps == null) {
+      confProps = Maps.newHashMap();
+    }
+    Configuration config = new Configuration();
+    for (Map.Entry<String, String> prop : confProps.entrySet()) {
+      config.set(prop.getKey(), prop.getValue());
+    }
+    return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
   }
 
   private void checkSupportsNamespaces() {
@@ -107,6 +117,11 @@ public abstract class IcebergCatalogConfig implements Serializable {
     } catch (AlreadyExistsException e) {
       return false;
     }
+  }
+
+  public boolean namespaceExists(String namespace) {
+    checkSupportsNamespaces();
+    return ((SupportsNamespaces) catalog()).namespaceExists(Namespace.of(namespace));
   }
 
   public Set<String> listNamespaces() {
@@ -136,19 +151,121 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public void createTable(
-      String tableIdentifier, Schema tableSchema, @Nullable List<String> partitionFields) {
+      String tableIdentifier,
+      Schema tableSchema,
+      @Nullable List<String> partitionFields,
+      @Nullable Map<String, String> properties) {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
-      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
       LOG.info(
-          "Created table '{}' with schema: {}\n, partition spec: {}",
+          "Attempting to create table '{}', with schema: {}, partition spec: {}.",
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
+      Catalog.TableBuilder builder =
+          catalog().buildTable(icebergIdentifier, icebergSchema).withPartitionSpec(icebergSpec);
+      if (properties != null) {
+        builder = builder.withProperties(properties);
+      }
+      builder.create();
+
+      LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
+    }
+  }
+
+  public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
+    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    try {
+      Table table = catalog().loadTable(icebergIdentifier);
+      return new IcebergTableInfo(tableIdentifier, table);
+    } catch (NoSuchTableException ignored) {
+      return null;
+    }
+  }
+
+  // Helper class to pass information to Beam SQL module without relying on Iceberg deps
+  public static class IcebergTableInfo {
+    private final String identifier;
+    private final Table table;
+
+    IcebergTableInfo(String identifier, Table table) {
+      this.identifier = identifier;
+      this.table = table;
+    }
+
+    public String getIdentifier() {
+      return identifier;
+    }
+
+    public Schema getSchema() {
+      return IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+    }
+
+    public Map<String, String> getProperties() {
+      return table.properties();
+    }
+
+    public void updateTableProps(Map<String, String> setProps, List<String> resetProps) {
+      if (setProps.isEmpty() && resetProps.isEmpty()) {
+        return;
+      }
+
+      UpdateProperties update = table.updateProperties();
+      resetProps.forEach(update::remove);
+      setProps.forEach(update::set);
+
+      update.commit();
+    }
+
+    public void updateSchema(List<Schema.Field> columnsToAdd, Collection<String> columnsToDrop) {
+      if (columnsToAdd.isEmpty() && columnsToDrop.isEmpty()) {
+        return;
+      }
+      UpdateSchema update = table.updateSchema();
+      ImmutableList.Builder<String> requiredColumns = ImmutableList.builder();
+
+      for (Schema.Field col : columnsToAdd) {
+        String name = col.getName();
+        Type type = IcebergUtils.beamFieldTypeToIcebergFieldType(col.getType(), 0).type;
+        String desc = col.getDescription();
+
+        if (col.getType().getNullable()) {
+          if (desc.isEmpty()) {
+            update.addColumn(name, type);
+          } else {
+            update.addColumn(name, type, desc);
+          }
+        } else {
+          requiredColumns.add(name);
+        }
+      }
+      if (!requiredColumns.build().isEmpty()) {
+        throw new UnsupportedOperationException(
+            "Adding required columns is not yet supported. "
+                + "Encountered required columns: "
+                + requiredColumns.build());
+      }
+
+      columnsToDrop.forEach(update::deleteColumn);
+
+      update.commit();
+    }
+
+    public void updatePartitionSpec(
+        List<String> partitionsToAdd, Collection<String> partitionsToDrop) {
+      if (partitionsToAdd.isEmpty() && partitionsToDrop.isEmpty()) {
+        return;
+      }
+      UpdatePartitionSpec update = table.updateSpec();
+
+      partitionsToDrop.stream().map(PartitionUtils::toIcebergTerm).forEach(update::removeField);
+      partitionsToAdd.stream().map(PartitionUtils::toIcebergTerm).forEach(update::addField);
+
+      update.commit();
     }
   }
 
@@ -159,7 +276,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public Set<String> listTables(String namespace) {
     return catalog().listTables(Namespace.of(namespace)).stream()
-        .map(TableIdentifier::name)
+        .map(TableIdentifier::toString)
         .collect(Collectors.toSet());
   }
 

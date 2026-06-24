@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static java.lang.String.format;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
@@ -37,21 +37,20 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.ExecutableStatement {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlCreateDatabase.class);
   private final SqlIdentifier databaseName;
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("CREATE DATABASE", SqlKind.OTHER_DDL);
 
   public SqlCreateDatabase(
-      SqlParserPos pos, boolean replace, boolean ifNotExists, SqlNode databaseName) {
+      SqlParserPos pos, boolean replace, boolean ifNotExists, SqlIdentifier databaseName) {
     super(OPERATOR, pos, replace, ifNotExists);
-    this.databaseName = SqlDdlNodes.getIdentifier(databaseName, pos);
+    this.databaseName = databaseName;
   }
 
   @Override
@@ -78,44 +77,39 @@ public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.Execut
   public void execute(CalcitePrepare.Context context) {
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, databaseName);
     Schema schema = pair.left.schema;
-    String name = pair.right;
 
-    if (!(schema instanceof BeamCalciteSchema)) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal("Schema is not of instance BeamCalciteSchema"));
-    }
+    List<String> components = Lists.newArrayList(Splitter.on('.').split(databaseName.toString()));
+    @Nullable
+    String catalogName = components.size() > 1 ? components.get(components.size() - 2) : null;
 
-    @Nullable CatalogManager catalogManager = ((BeamCalciteSchema) schema).getCatalogManager();
-    if (catalogManager == null) {
+    if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(
           databaseName.getParserPosition(),
           RESOURCE.internal(
-              format(
-                  "Unexpected 'CREATE DATABASE' call using Schema '%s' that is not a Catalog.",
-                  name)));
+              "Attempting to create database '"
+                  + databaseName
+                  + "' with unexpected Calcite Schema of type "
+                  + schema.getClass()));
     }
 
-    // Attempt to create the database.
-    Catalog catalog = catalogManager.currentCatalog();
-    try {
-      LOG.info("Creating database '{}'", name);
-      boolean created = catalog.createDatabase(name);
-
-      if (created) {
-        LOG.info("Successfully created database '{}'", name);
-      } else if (ifNotExists) {
-        LOG.info("Database '{}' already exists.", name);
-      } else {
-        throw SqlUtil.newContextException(
-            databaseName.getParserPosition(),
-            RESOURCE.internal(format("Database '%s' already exists.", name)));
-      }
-    } catch (Exception e) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal(
-              format("Encountered an error when creating database '%s': %s", name, e)));
+    CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+    CatalogSchema catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
+    // override if a catalog name is present
+    if (catalogName != null) {
+      Schema overridden =
+          checkStateNotNull(
+              catalogManagerSchema.getSubSchema(catalogName),
+              "Could not find Calcite Schema for catalog '%s'.",
+              catalogName);
+      checkState(
+          overridden instanceof CatalogSchema,
+          "Catalog '%s' had unexpected Calcite Schema of type %s. Expected type: %s.",
+          catalogName,
+          overridden.getClass(),
+          CatalogSchema.class.getSimpleName());
+      catalogSchema = (CatalogSchema) overridden;
     }
+
+    catalogSchema.createDatabase(databaseName, ifNotExists);
   }
 }

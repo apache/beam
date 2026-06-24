@@ -57,6 +57,13 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
       }
     }
     dependsOn ':sdks:python:container:py' + cur + ':docker'
+    // 3.14 does not have dependencies for ML yet.
+    if (project.hasProperty("include-ml") && i < 14) {
+      dependsOn ':sdks:python:container:ml:push' + cur
+    }
+    if (project.hasProperty("include-distroless")) {
+      dependsOn ':sdks:python:container:distroless:push' + cur
+    }
 
     doLast {
       if (project.hasProperty("prune-images")) {
@@ -70,8 +77,6 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
 }
 
 tasks.register("pushAll") {
-  dependsOn ':sdks:python:container:distroless:pushAll'
-  dependsOn ':sdks:python:container:ml:pushAll'
   for(int ver=min_python_version; ver<=max_python_version; ++ver) {
       if (!project.hasProperty("skip-python-3" + ver + "-images")) {
         dependsOn ':sdks:python:container:push3' + ver

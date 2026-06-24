@@ -54,9 +54,9 @@ class RangeCoder<T extends Comparable<?>> extends StructuredCoder<Range<T>> {
   @Override
   public void encode(Range<T> value, OutputStream outStream) throws IOException {
     Preconditions.checkState(
-        value.lowerBoundType().equals(BoundType.CLOSED), "unexpected range " + value);
+        value.lowerBoundType().equals(BoundType.CLOSED), "unexpected range %s", value);
     Preconditions.checkState(
-        value.upperBoundType().equals(BoundType.OPEN), "unexpected range " + value);
+        value.upperBoundType().equals(BoundType.OPEN), "unexpected range %s", value);
     boundCoder.encode(value.hasLowerBound() ? value.lowerEndpoint() : null, outStream);
     boundCoder.encode(value.hasUpperBound() ? value.upperEndpoint() : null, outStream);
   }

@@ -92,7 +92,7 @@ public class Flatten {
    * {@code other} and then applying {@link #pCollections()}, but has the advantage that it can be
    * more easily used inline.
    *
-   * <p>Both {@cpde PCollections} must have equal {@link WindowFn}s. The output elements of {@code
+   * <p>Both {@code PCollection}s must have equal {@link WindowFn}s. The output elements of {@code
    * Flatten<T>} are in the same windows and have the same timestamps as their corresponding input
    * elements. The output {@code PCollection} will have the same {@link WindowFn} as both inputs.
    *

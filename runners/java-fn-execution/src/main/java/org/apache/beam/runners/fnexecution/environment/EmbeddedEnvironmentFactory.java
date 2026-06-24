@@ -139,6 +139,8 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
         () -> {
           try {
             fnHarness.get();
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             // Print stacktrace to stderr. Could be useful if underlying error not surfaced earlier
             t.printStackTrace();

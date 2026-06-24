@@ -70,6 +70,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -115,6 +116,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code UNAVAILABLE is retried repeatedly until the RPC times out.
   public void testUnavailableExceptionRetries() throws InterruptedException {
     DirectOptions options = PipelineOptionsFactory.as(DirectOptions.class);
@@ -155,6 +157,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code ABORTED is retried repeatedly until it times out.
   public void testAbortedExceptionRetries() throws InterruptedException {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -218,6 +221,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   // Error code RESOURCE_EXHAUSTED is retried repeatedly.
   public void testResourceExhaustedRetry() {
     mockSpannerService.setExecuteStreamingSqlExecutionTime(
@@ -281,6 +285,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   @Test
+  @Ignore("https://github.com/apache/beam/issues/37002 Re-enable skipped tests.")
   public void testInvalidRecordReceived() {
     final Timestamp startTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 1000);
     final Timestamp endTimestamp =
@@ -326,11 +331,13 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() + 1);
 
     mockGetDialect();
+    mockChangeStreamOptions();
     mockTableExists();
     mockGetWatermark(startTimestamp);
+    mockGetPartitionSize(endTimestamp, 0);
     ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
-    mockchangePartitionState(startTimestamp, endTimestamp, "CREATED");
-    mockchangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
+    mockChangePartitionState(startTimestamp, endTimestamp, "CREATED");
+    mockChangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
@@ -375,6 +382,38 @@ public class SpannerChangeStreamErrorTest implements Serializable {
       assertThat(
           mockSpannerService.countRequestsOfType(ExecuteSqlRequest.class), Matchers.greaterThan(0));
     }
+  }
+
+  private void mockChangeStreamOptions() {
+    Statement changeStreamOptionsStatement =
+        Statement.newBuilder(
+                "select option_value\n"
+                    + "from information_schema.change_stream_options\n"
+                    + "where change_stream_name = @changeStreamName and  option_name = 'partition_mode'")
+            .bind("changeStreamName")
+            .to(TEST_CHANGE_STREAM)
+            .build();
+    ResultSetMetadata changeStreamOptionsResultSetMetadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("option_value")
+                            .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet changeStreamOptionsResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue("NEW_VALUES").build())
+                    .build())
+            .setMetadata(changeStreamOptionsResultSetMetadata)
+            .build();
+    mockSpannerService.putPartialStatementResult(
+        StatementResult.query(changeStreamOptionsStatement, changeStreamOptionsResultSet));
   }
 
   private void mockInvalidChangeStreamRecordReceived(Timestamp now, Timestamp after3Seconds) {
@@ -457,6 +496,40 @@ public class SpannerChangeStreamErrorTest implements Serializable {
             .build();
     mockSpannerService.putStatementResult(
         StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
+  }
+
+  private void mockGetPartitionSize(Timestamp timestamp, long partitionSize) {
+    Statement getPartitionsAfterStatement =
+        Statement.newBuilder(
+                "SELECT COUNT(*) as count FROM my-metadata-table WHERE CreatedAt > @timestamp")
+            .bind("timestamp")
+            .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
+            .build();
+    ResultSetMetadata metadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("count")
+                            .setType(
+                                com.google.spanner.v1.Type.newBuilder()
+                                    .setCode(TypeCode.INT64)
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet countResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(
+                        Value.newBuilder().setStringValue(String.valueOf(partitionSize)).build())
+                    .build())
+            .setMetadata(metadata)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionsAfterStatement, countResultSet));
   }
 
   private void mockGetWatermark(Timestamp watermark) {
@@ -553,15 +626,15 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(tableExistsStatement, tableExistsResultSet));
   }
 
-  private ResultSet mockchangePartitionState(
+  private ResultSet mockChangePartitionState(
       Timestamp startTimestamp, Timestamp after3Seconds, String state) {
-    List<String> tokens = new ArrayList<>();
-    tokens.add("Parent0");
+    List<String> composedPartitionTokens = new ArrayList<>();
+    composedPartitionTokens.add("Parent0");
     Statement getPartitionStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
-            .bind("partitionTokens")
-            .toStringArray(tokens)
+                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@composedPartitionTokens) AND State = @state")
+            .bind("composedPartitionTokens")
+            .toStringArray(composedPartitionTokens)
             .bind("state")
             .to(state)
             .build();

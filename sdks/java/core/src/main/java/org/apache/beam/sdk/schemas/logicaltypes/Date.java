@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import java.time.LocalDate;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A date without a time-zone.
@@ -29,27 +32,21 @@ import org.apache.beam.sdk.schemas.Schema;
  * <p>Its input type is a {@link LocalDate}, and base type is a {@link Long} that represents a
  * incrementing count of days where day 0 is 1970-01-01 (ISO).
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Date implements Schema.LogicalType<LocalDate, Long> {
-  public static final String IDENTIFIER = "beam:logical_type:date:v1";
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.DATE
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   @Override
   public String getIdentifier() {
     return IDENTIFIER;
   }
 
-  // unused
   @Override
-  public Schema.FieldType getArgumentType() {
-    return Schema.FieldType.STRING;
-  }
-
-  // unused
-  @Override
-  public String getArgument() {
-    return "";
+  public Schema.@Nullable FieldType getArgumentType() {
+    return null;
   }
 
   @Override
@@ -59,11 +56,11 @@ public class Date implements Schema.LogicalType<LocalDate, Long> {
 
   @Override
   public Long toBaseType(LocalDate input) {
-    return input == null ? null : input.toEpochDay();
+    return input.toEpochDay();
   }
 
   @Override
   public LocalDate toInputType(Long base) {
-    return base == null ? null : LocalDate.ofEpochDay(base);
+    return LocalDate.ofEpochDay(base);
   }
 }

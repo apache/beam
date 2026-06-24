@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
@@ -171,7 +172,7 @@ final class StructUtils {
               @Nullable BigDecimal decimal = row.getDecimal(column);
               // BigDecimal is not nullable
               if (decimal == null) {
-                checkNotNull(decimal, "Null decimal at column " + column);
+                checkNotNull(decimal, "Null decimal at column %s", column);
               } else {
                 structBuilder.set(column).to(decimal);
               }
@@ -352,6 +353,11 @@ final class StructUtils {
     }
   }
 
+  private static java.time.Instant fromSpannerTimestamp(Timestamp spannerTimestamp) {
+    long micros = spannerTimestamp.getSeconds() * 1_000_000L + spannerTimestamp.getNanos() / 1_000L;
+    return java.time.Instant.ofEpochSecond(micros / 1_000_000L, (micros % 1_000_000L) * 1_000L);
+  }
+
   private static @Nullable Object getStructValue(Struct struct, Schema.Field field) {
     String column = field.getName();
     Type.Code typeCode = struct.getColumnType(column).getCode();
@@ -365,7 +371,19 @@ final class StructUtils {
         return struct.getBytes(column).toByteArray();
         // TODO: implement logical datetime
       case TIMESTAMP:
-        return Instant.ofEpochSecond(struct.getTimestamp(column).getSeconds()).toDateTime();
+        Timestamp spannerTimestamp = struct.getTimestamp(column);
+
+        // Check if the Beam schema expects MicrosInstant logical type
+        Schema.FieldType fieldType = field.getType();
+        if (fieldType.getTypeName().isLogicalType()) {
+          Schema.@Nullable LogicalType<?, ?> logicalType = fieldType.getLogicalType();
+          if (logicalType != null && logicalType.getIdentifier().equals(MicrosInstant.IDENTIFIER)) {
+            return fromSpannerTimestamp(spannerTimestamp);
+          }
+        }
+        // Default DATETIME behavior: convert to Joda DateTime
+        return Instant.ofEpochSecond(spannerTimestamp.getSeconds()).toDateTime();
+
         // TODO: implement logical date
       case DATE:
         return DateTime.parse(struct.getDate(column).toString());
@@ -407,11 +425,26 @@ final class StructUtils {
         return struct.getBooleanList(column);
       case BYTES:
         return struct.getBytesList(column);
-        // TODO: implement logical datetime
       case TIMESTAMP:
+        // Check if expects MicrosInstant in arrays
+        Schema.@Nullable FieldType elementType = field.getType().getCollectionElementType();
+        if (elementType != null && elementType.getTypeName().isLogicalType()) {
+          Schema.@Nullable LogicalType<?, ?> logicalType = elementType.getLogicalType();
+          if (logicalType != null && logicalType.getIdentifier().equals(MicrosInstant.IDENTIFIER)) {
+            // Return List<java.time.Instant> for MicrosInstant arrays
+            return struct.getTimestampList(column).stream()
+                .map(
+                    timestamp -> {
+                      return fromSpannerTimestamp(timestamp);
+                    })
+                .collect(toList());
+          }
+        }
+        // Default: return List<DateTime> for DATETIME type
         return struct.getTimestampList(column).stream()
             .map(timestamp -> Instant.ofEpochSecond(timestamp.getSeconds()).toDateTime())
             .collect(toList());
+
         // TODO: implement logical date
       case DATE:
         return struct.getDateList(column).stream()

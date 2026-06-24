@@ -28,22 +28,10 @@ from typing import Any
 from typing import Optional
 from typing import cast
 
+import vertexai
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials
-
-import apache_beam as beam
-import vertexai
-from apache_beam.ml.inference.base import ModelHandler
-from apache_beam.ml.inference.base import RemoteModelHandler
-from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.rag.types import Chunk
-from apache_beam.ml.rag.types import Embedding
-from apache_beam.ml.transforms.base import EmbeddingsManager
-from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
-from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
-from apache_beam.ml.transforms.base import _MultiModalEmbeddingHandler
-from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_models import Image
@@ -52,6 +40,18 @@ from vertexai.vision_models import MultiModalEmbeddingResponse
 from vertexai.vision_models import Video
 from vertexai.vision_models import VideoEmbedding
 from vertexai.vision_models import VideoSegmentConfig
+
+import apache_beam as beam
+from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import RemoteModelHandler
+from apache_beam.ml.inference.base import RunInference
+from apache_beam.ml.rag.types import EmbeddableItem
+from apache_beam.ml.rag.types import Embedding
+from apache_beam.ml.transforms.base import EmbeddingsManager
+from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
+from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
+from apache_beam.ml.transforms.base import _MultiModalEmbeddingHandler
+from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 
 __all__ = [
     "VertexAITextEmbeddings",
@@ -316,7 +316,7 @@ class VertexVideo:
 class VertexAIMultiModalInput:
   image: Optional[VertexImage] = None
   video: Optional[VertexVideo] = None
-  contextual_text: Optional[Chunk] = None
+  contextual_text: Optional[EmbeddableItem] = None
 
 
 class _VertexAIMultiModalEmbeddingHandler(RemoteModelHandler):
@@ -387,7 +387,7 @@ def _multimodal_dict_input_fn(
   for item in batch:
     img: Optional[VertexImage] = None
     vid: Optional[VertexVideo] = None
-    text: Optional[Chunk] = None
+    text: Optional[EmbeddableItem] = None
     if image_column:
       img = item[image_column]
     if video_column:
@@ -472,8 +472,8 @@ class VertexAIMultiModalEmbeddings(EmbeddingsManager):
         is expected to be formatted as VertexVideo objects, containing a Vertex
         Video object an a VideoSegmentConfig object.
       text_column: The column containing text data to be embedded. This data is
-        expected to be formatted as Chunk objects, containing the string to be
-        embedded in the Chunk's content field.
+        expected to be formatted as EmbeddableItem objects, containing the string
+        to be embedded in the item's content field.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
         If submitting video content, dimension *musst* be 1408.

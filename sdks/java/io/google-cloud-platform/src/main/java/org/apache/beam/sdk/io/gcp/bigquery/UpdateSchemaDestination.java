@@ -80,15 +80,10 @@ public class UpdateSchemaDestination<DestinationT>
   private static class PendingJobData {
     final BigQueryHelpers.PendingJob retryJob;
     final TableDestination tableDestination;
-    final BoundedWindow window;
 
-    public PendingJobData(
-        BigQueryHelpers.PendingJob retryJob,
-        TableDestination tableDestination,
-        BoundedWindow window) {
+    public PendingJobData(BigQueryHelpers.PendingJob retryJob, TableDestination tableDestination) {
       this.retryJob = retryJob;
       this.tableDestination = tableDestination;
-      this.window = window;
     }
   }
 
@@ -145,7 +140,7 @@ public class UpdateSchemaDestination<DestinationT>
   public void processElement(
       @Element Iterable<KV<DestinationT, WriteTables.Result>> element,
       ProcessContext context,
-      BoundedWindow window)
+      @SuppressWarnings("unused") BoundedWindow window)
       throws IOException {
     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
     List<KV<TableDestination, WriteTables.Result>> outputs = Lists.newArrayList();
@@ -179,7 +174,7 @@ public class UpdateSchemaDestination<DestinationT>
               schemaUpdateOptions);
       if (updateSchemaDestinationJob != null) {
         pendingJobs.put(
-            destination, new PendingJobData(updateSchemaDestinationJob, tableDestination, window));
+            destination, new PendingJobData(updateSchemaDestinationJob, tableDestination));
       }
     }
     if (!pendingJobs.isEmpty()) {

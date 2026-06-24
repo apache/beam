@@ -24,7 +24,9 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -131,7 +133,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private final PipelineOptions options;
 
-  static class PipelineRunEnforcement {
+  private static class PipelineRunEnforcement {
 
     @SuppressWarnings("WeakerAccess")
     protected boolean enableAutoRunIfMissing;
@@ -140,7 +142,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     protected boolean runAttempted;
 
-    PipelineRunEnforcement(final Pipeline pipeline) {
+    private PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
     }
 
@@ -161,7 +163,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
+  private static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
 
     // Null until the pipeline has been run
     private @MonotonicNonNull List<TransformHierarchy.Node> runVisitedNodes;
@@ -187,7 +189,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
 
-    PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
+    private PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
       super(pipeline);
       runVisitedNodes = null;
     }
@@ -296,6 +298,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     return fromOptions(testingPipelineOptions());
   }
 
+  /** */
+  static TestPipeline createWithEnforcement() {
+    TestPipeline p = create();
+
+    return p;
+  }
+
   public static TestPipeline fromOptions(PipelineOptions options) {
     return new TestPipeline(options);
   }
@@ -310,49 +319,55 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this.options;
   }
 
+  // package private for JUnit5 TestPipelineExtension
+  void setDeducedEnforcementLevel(Collection<Annotation> annotations) {
+    // if the enforcement level has not been set by the user do auto-inference
+    if (!enforcement.isPresent()) {
+
+      final boolean annotatedWithNeedsRunner =
+          FluentIterable.from(annotations)
+              .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+              .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
+
+      final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+
+      checkState(
+          !(annotatedWithNeedsRunner && crashingRunner),
+          "The test was annotated with a [@%s] / [@%s] while the runner "
+              + "was set to [%s]. Please re-check your configuration.",
+          NeedsRunner.class.getSimpleName(),
+          ValidatesRunner.class.getSimpleName(),
+          CrashingRunner.class.getSimpleName());
+
+      enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+    }
+  }
+
+  // package private for JUnit5 TestPipelineExtension
+  void afterUserCodeFinished() {
+    enforcement.get().afterUserCodeFinished();
+  }
+
   @Override
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
-
-      private void setDeducedEnforcementLevel() {
-        // if the enforcement level has not been set by the user do auto-inference
-        if (!enforcement.isPresent()) {
-
-          final boolean annotatedWithNeedsRunner =
-              FluentIterable.from(description.getAnnotations())
-                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
-                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
-
-          final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
-
-          checkState(
-              !(annotatedWithNeedsRunner && crashingRunner),
-              "The test was annotated with a [@%s] / [@%s] while the runner "
-                  + "was set to [%s]. Please re-check your configuration.",
-              NeedsRunner.class.getSimpleName(),
-              ValidatesRunner.class.getSimpleName(),
-              CrashingRunner.class.getSimpleName());
-
-          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
-        }
-      }
 
       @Override
       public void evaluate() throws Throwable {
         options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
 
-        setDeducedEnforcementLevel();
+        setDeducedEnforcementLevel(description.getAnnotations());
 
         // statement.evaluate() essentially runs the user code contained in the unit test at hand.
         // Exceptions thrown during the execution of the user's test code will propagate here,
         // unless the user explicitly handles them with a "catch" clause in his code. If the
-        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
+        // exception is handled by a user's "catch" clause, it does not interrupt the flow, and
         // we move on to invoking the configured enforcements.
         // If the user does not handle a thrown exception, it will propagate here and interrupt
         // the flow, preventing the enforcement(s) from being activated.
         // The motivation for this is avoiding enforcements over faulty pipelines.
         statement.evaluate();
-        enforcement.get().afterUserCodeFinished();
+        afterUserCodeFinished();
       }
     };
   }
@@ -597,7 +612,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  static class IsEmptyVisitor extends PipelineVisitor.Defaults {
+  private static class IsEmptyVisitor extends PipelineVisitor.Defaults {
     private boolean empty = true;
 
     public boolean isEmpty() {

@@ -25,5 +25,5 @@ import org.apache.beam.sdk.values.WindowedValue;
 @FunctionalInterface
 public interface WindowedValueReceiver<OutputT> {
   /** Outputs a value with windowing information. */
-  void output(WindowedValue<OutputT> output);
+  void output(WindowedValue<OutputT> output) throws Exception;
 }

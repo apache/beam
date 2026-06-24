@@ -59,14 +59,18 @@ public class WriteToPostgresSchemaTransformProvider extends JdbcWriteSchemaTrans
       JdbcWriteSchemaTransformConfiguration configuration) {
     String jdbcType = configuration.getJdbcType();
     if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
-      throw new IllegalArgumentException(
-          String.format("Wrong JDBC type. Expected '%s' but got '%s'", jdbcType(), jdbcType));
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
     }
 
     List<@org.checkerframework.checker.nullness.qual.Nullable String> connectionInitSql =
         configuration.getConnectionInitSql();
     if (connectionInitSql != null && !connectionInitSql.isEmpty()) {
-      LOG.warn("Postgres does not support connectionInitSql, ignoring.");
+      throw new IllegalArgumentException("Postgres does not support connectionInitSql.");
     }
 
     // Override "connectionInitSql" for postgres

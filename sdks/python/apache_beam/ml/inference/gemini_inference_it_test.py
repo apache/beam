@@ -23,11 +23,13 @@ import uuid
 
 import pytest
 
+from apache_beam.io.filesystem import MatchResult
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=ungrouped-imports
 try:
+  from apache_beam.examples.inference import gemini_image_generation
   from apache_beam.examples.inference import gemini_text_classification
 except ImportError as e:
   raise unittest.SkipTest("Gemini model handler dependencies are not installed")
@@ -51,6 +53,29 @@ class GeminiInference(unittest.TestCase):
     gemini_text_classification.run(
         test_pipeline.get_full_options_as_args(**extra_opts))
     self.assertEqual(FileSystems().exists(output_file), True)
+
+  def _flatten_match(self, match_results):
+    return [
+        file_metadata for match_result in match_results
+        for file_metadata in match_result.metadata_list
+    ]
+
+  @pytest.mark.gemini_postcommit
+  def test_gemini_image_generation(self):
+    output_dir = '/'.join([_OUTPUT_DIR, str(uuid.uuid4())])
+    test_pipeline = TestPipeline(is_integration_test=False)
+    extra_opts = {
+        'output': output_dir,
+        'cloud_project': _TEST_PROJECT,
+        'cloud_region': _TEST_REGION
+    }
+    gemini_image_generation.run(
+        test_pipeline.get_full_options_as_args(**extra_opts))
+    matches: MatchResult = FileSystems().match([output_dir + '/*'])
+    self.assertGreater(len(matches), 0)
+    for match in matches:
+      for file in match.metadata_list:
+        self.assertTrue(file.path.endswith(".png"))
 
 
 if __name__ == '__main__':

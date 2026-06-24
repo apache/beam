@@ -47,12 +47,18 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -211,9 +217,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
+      ValueInSingleWindow<InputT> templateElement =
+          ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING);
+      WindowedValue<InputT> templateWv =
+          WindowedValues.of(element, timestamp, window, PaneInfo.NO_FIRING);
       final DoFn<InputT, OutputT>.ProcessContext processContext =
-          createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING, null, null));
+          createProcessContext(templateElement);
+      final OutputBuilderSupplier builderSupplier =
+          OutputBuilderSuppliers.supplierForElement(templateWv);
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.BaseArgumentProvider<InputT, OutputT>() {
 
@@ -225,6 +236,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public BoundedWindow window() {
               return window;
+            }
+
+            @Override
+            public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+              return processContext.causedByDrain();
             }
 
             @Override
@@ -286,12 +302,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-              return DoFnOutputReceivers.windowedReceiver(processContext, null);
+              return DoFnOutputReceivers.windowedReceiver(processContext, builderSupplier, null);
             }
 
             @Override
             public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-              return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+              return DoFnOutputReceivers.windowedMultiReceiver(
+                  processContext, builderSupplier, null);
             }
 
             @Override
@@ -480,36 +497,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           getMutableOutput(tag)
               .add(
                   ValueInSingleWindow.of(
-                      output, timestamp, window, PaneInfo.NO_FIRING, null, null));
-        }
-
-        @Override
-        public void output(
-            OutputT output,
-            Instant timestamp,
-            BoundedWindow window,
-            @Nullable String currentRecordId,
-            @Nullable Long currentRecordOffset) {
-          output(mainOutputTag, output, timestamp, window, currentRecordId, currentRecordOffset);
-        }
-
-        @Override
-        public <T> void output(
-            TupleTag<T> tag,
-            T output,
-            Instant timestamp,
-            BoundedWindow window,
-            @Nullable String currentRecordId,
-            @Nullable Long currentRecordOffset) {
-          getMutableOutput(tag)
-              .add(
-                  ValueInSingleWindow.of(
                       output,
                       timestamp,
                       window,
                       PaneInfo.NO_FIRING,
-                      currentRecordId,
-                      currentRecordOffset));
+                      null,
+                      null,
+                      CausedByDrain.NORMAL,
+                      null,
+                      ValueKind.INSERT));
         }
       };
     }
@@ -609,6 +605,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public CausedByDrain causedByDrain() {
+      return element.getCausedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind() {
+      return element.getValueKind();
+    }
+
+    @Override
     public PipelineOptions getPipelineOptions() {
       return options;
     }
@@ -633,24 +639,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      outputWindowedValue(
-          mainOutputTag,
-          output,
-          timestamp,
-          windows,
-          paneInfo,
-          currentRecordId,
-          currentRecordOffset);
-    }
-
-    @Override
     public <T> void output(TupleTag<T> tag, T output) {
       outputWithTimestamp(tag, output, element.getTimestamp());
     }
@@ -660,7 +648,38 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       getMutableOutput(tag)
           .add(
               ValueInSingleWindow.of(
-                  output, timestamp, element.getWindow(), element.getPaneInfo(), null, null));
+                  output,
+                  timestamp,
+                  element.getWindow(),
+                  element.getPaneInfo(),
+                  null,
+                  null,
+                  CausedByDrain.NORMAL,
+                  element.getOpenTelemetryContext(),
+                  ValueKind.INSERT));
+    }
+
+    @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputWindowedValue(mainOutputTag, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      for (BoundedWindow w : windowedValue.getWindows()) {
+        getMutableOutput(tag)
+            .add(
+                ValueInSingleWindow.of(
+                    windowedValue.getValue(),
+                    windowedValue.getTimestamp(),
+                    w,
+                    windowedValue.getPaneInfo(),
+                    windowedValue.getRecordId(),
+                    windowedValue.getRecordOffset(),
+                    windowedValue.causedByDrain(),
+                    windowedValue.getOpenTelemetryContext(),
+                    windowedValue.getValueKind()));
+      }
     }
 
     @Override
@@ -672,24 +691,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         PaneInfo paneInfo) {
       for (BoundedWindow w : windows) {
         getMutableOutput(tag)
-            .add(ValueInSingleWindow.of(output, timestamp, w, paneInfo, null, null));
-      }
-    }
-
-    @Override
-    public <T> void outputWindowedValue(
-        TupleTag<T> tag,
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo,
-        @Nullable String currentRecordId,
-        @Nullable Long currentRecordOffset) {
-      for (BoundedWindow w : windows) {
-        getMutableOutput(tag)
             .add(
                 ValueInSingleWindow.of(
-                    output, timestamp, w, paneInfo, currentRecordId, currentRecordOffset));
+                    output,
+                    timestamp,
+                    w,
+                    paneInfo,
+                    null,
+                    null,
+                    CausedByDrain.NORMAL,
+                    null,
+                    ValueKind.INSERT));
       }
     }
   }

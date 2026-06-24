@@ -103,13 +103,13 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -1403,20 +1403,16 @@ class FlinkStreamingTransformTranslators {
       @Override
       public void collect(WindowedValue<ValueWithRecordId<OutputT>> element) {
         OutputT originalValue = element.getValue().getValue();
-        WindowedValue<OutputT> output =
-            WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
-        ctx.collect(output);
+        WindowedValues.builder(element).withValue(originalValue).setReceiver(ctx::collect).output();
       }
 
       @Override
       public void collectWithTimestamp(
           WindowedValue<ValueWithRecordId<OutputT>> element, long timestamp) {
         OutputT originalValue = element.getValue().getValue();
-        WindowedValue<OutputT> output =
-            WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
-        ctx.collectWithTimestamp(output, timestamp);
+        WindowedValues.builder(element)
+            .withValue(originalValue)
+            .setReceiver(wv -> ctx.collectWithTimestamp(wv, timestamp));
       }
 
       @Override

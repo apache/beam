@@ -234,25 +234,27 @@ func TestCircleBuffer(t *testing.T) {
 
 func TestElementProcessingTimeoutParsing(t *testing.T) {
 	ctx := context.Background()
-	if got, want := parseTimeoutDurationFlag(ctx, "5m"), 5*time.Minute; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
+	tests := []struct {
+		in   string
+		want time.Duration
+		err  bool
+	}{
+		{"5m", 5 * time.Minute, false},
+		{"1h", 1 * time.Hour, false},
+		{"1m5s", 1*time.Minute + 5*time.Second, false},
+		{"5s1m", 5*time.Second + 1*time.Minute, false},
+		{"-1", 0, true},
+		{"", 0, true},
+		{"5mmm", 0, true},
 	}
-	if got, want := parseTimeoutDurationFlag(ctx, "1h"), 1*time.Hour; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
-	}
-	if got, want := parseTimeoutDurationFlag(ctx, "1m5s"), 1*time.Minute+5*time.Second; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
-	}
-	if got, want := parseTimeoutDurationFlag(ctx, "5s1m"), 5*time.Second+1*time.Minute; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
-	}
-	if got, want := parseTimeoutDurationFlag(ctx, "-1"), 0*time.Minute; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
-	}
-	if got, want := parseTimeoutDurationFlag(ctx, ""), 0*time.Minute; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
-	}
-	if got, want := parseTimeoutDurationFlag(ctx, "5mmm"), 0*time.Minute; got != want {
-		t.Errorf("parseTimeoutDurationFlag() = %v, want %v", got, want)
+
+	for _, test := range tests {
+		got, err := parseTimeoutDurationFlag(ctx, test.in)
+		if (err != nil) != test.err {
+			t.Errorf("parseTimeoutDurationFlag(ctx, %q) err = %v, want err? %v", test.in, err, test.err)
+		}
+		if got != test.want {
+			t.Errorf("parseTimeoutDurationFlag(ctx, %q) = %v, want %v", test.in, got, test.want)
+		}
 	}
 }

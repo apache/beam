@@ -32,11 +32,9 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchEnrichmentHandler
+  from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchEnrichmentHandler
-  from apache_beam.ml.rag.enrichment.bigquery_vector_search import \
-    BigQueryVectorSearchParameters
 except ImportError:
   raise unittest.SkipTest('BigQuery dependencies not installed')
 

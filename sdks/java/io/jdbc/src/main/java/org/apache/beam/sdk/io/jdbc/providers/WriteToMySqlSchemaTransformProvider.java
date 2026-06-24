@@ -18,20 +18,28 @@
 package org.apache.beam.sdk.io.jdbc.providers;
 
 import static org.apache.beam.sdk.io.jdbc.JdbcUtil.MYSQL;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.io.jdbc.JdbcWriteSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransformProvider {
 
+  private static final Logger LOG =
+      LoggerFactory.getLogger(WriteToMySqlSchemaTransformProvider.class);
+
   @Override
   public @UnknownKeyFor @NonNull @Initialized String identifier() {
-    return "beam:schematransform:org.apache.beam:mysql_write:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.MYSQL_WRITE);
   }
 
   @Override
@@ -42,5 +50,26 @@ public class WriteToMySqlSchemaTransformProvider extends JdbcWriteSchemaTransfor
   @Override
   protected String jdbcType() {
     return MYSQL;
+  }
+
+  @Override
+  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
+      JdbcWriteSchemaTransformConfiguration configuration) {
+    String jdbcType = configuration.getJdbcType();
+    if (jdbcType != null && !jdbcType.isEmpty() && !jdbcType.equals(jdbcType())) {
+      LOG.warn(
+          "Wrong JDBC type. Expected '{}' but got '{}'. Overriding with '{}'.",
+          jdbcType(),
+          jdbcType,
+          jdbcType());
+      configuration = configuration.toBuilder().setJdbcType(jdbcType()).build();
+    }
+    return new MySqlWriteSchemaTransform(configuration);
+  }
+
+  public static class MySqlWriteSchemaTransform extends JdbcWriteSchemaTransform {
+    public MySqlWriteSchemaTransform(JdbcWriteSchemaTransformConfiguration config) {
+      super(config, MYSQL);
+    }
   }
 }

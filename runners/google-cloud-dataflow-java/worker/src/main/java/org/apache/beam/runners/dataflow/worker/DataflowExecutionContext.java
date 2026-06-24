@@ -30,6 +30,7 @@ import java.util.IntSummaryStatistics;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.stream.Collectors;
@@ -103,8 +104,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
    * PCollectionView PCollectionViews}.
    *
    * <p>If side input source metadata is provided by the service in {@link SideInputInfo
-   * sideInputInfos}, we request a {@link SideInputReader} from the {@code executionContext} using
-   * that info. If no side input source metadata is provided but the DoFn expects side inputs, as a
+   * sideInputInfos}, we request a {@link SideInputReader} from the execution context using that
+   * info. If no side input source metadata is provided but the DoFn expects side inputs, as a
    * fallback, we request a {@link SideInputReader} based only on the expected views.
    *
    * <p>These cases are not disjoint: Whenever a {@link GroupAlsoByWindowFn} takes side inputs,
@@ -365,7 +366,7 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
           message.append(
               "Time spent in this step(millis): "
                   + (clock.currentTimeMillis()
-                      - getActiveMessageMetadata().get().stopwatch().elapsed().toMillis())
+                      - getActiveMessageMetadata().get().stopwatch().elapsed(TimeUnit.MILLISECONDS))
                   + "\n");
         }
         message.append("Processing times in each step(millis)\n");
@@ -476,7 +477,8 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
       if (this.activeMessageMetadata == null) {
         return;
       }
-      int processingTime = (int) (this.activeMessageMetadata.stopwatch().elapsed().toMillis());
+      int processingTime =
+          (int) this.activeMessageMetadata.stopwatch().elapsed(TimeUnit.MILLISECONDS);
       this.processingTimesByStep.compute(
           this.activeMessageMetadata.userStepName(),
           (k, v) -> {

@@ -256,7 +256,7 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
       return BeamTableStatistics.createBoundedTableStatistics(rowCount.doubleValue());
 
     } catch (IOException | InterruptedException e) {
-      LOG.warn("Could not get the row count for the table " + bqLocation, e);
+      LOG.warn("Could not get the row count for the table {}", bqLocation, e);
     }
 
     return BeamTableStatistics.BOUNDED_UNKNOWN;

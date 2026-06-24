@@ -43,15 +43,12 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 /** A set of utilities for working with Avro files. */
 class BigQueryAvroUtils {
@@ -60,7 +57,7 @@ class BigQueryAvroUtils {
       Optional.ofNullable(Schema.class.getPackage())
           .map(Package::getImplementationVersion)
           .orElse("");
-
+  private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
   // org.apache.avro.LogicalType
   static class DateTimeLogicalType extends LogicalType {
     public DateTimeLogicalType() {
@@ -104,9 +101,15 @@ class BigQueryAvroUtils {
         // boolean
         return SchemaBuilder.builder().booleanType();
       case "TIMESTAMP":
-        // in Extract Jobs, it always uses the Avro logical type
-        // we may have to change this if we move to EXPORT DATA
-        return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+        if (schema.getTimestampPrecision() == null || schema.getTimestampPrecision() == 6) {
+          // in Extract Jobs, it always uses the Avro logical type
+          // we may have to change this if we move to EXPORT DATA
+          return LogicalTypes.timestampMicros().addToSchema(SchemaBuilder.builder().longType());
+        }
+        return SchemaBuilder.builder()
+            .longBuilder()
+            .prop("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE)
+            .endLong();
       case "DATE":
         if (useAvroLogicalTypes) {
           return LogicalTypes.date().addToSchema(SchemaBuilder.builder().intType());
@@ -161,34 +164,71 @@ class BigQueryAvroUtils {
    * Formats BigQuery seconds-since-epoch into String matching JSON export. Thread-safe and
    * immutable.
    */
-  private static final DateTimeFormatter DATE_AND_SECONDS_FORMATTER =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+  private static final java.time.format.DateTimeFormatter DATE_TIME_FORMATTER =
+      java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+          .withZone(java.time.ZoneOffset.UTC);
 
+  /** Enum to define the precision of a timestamp since the epoch. */
+  enum TimestampPrecision {
+    MILLISECONDS,
+    MICROSECONDS,
+    NANOSECONDS;
+
+    /** Converts an epoch value of this precision to an Instant. */
+    java.time.Instant toInstant(long epochValue) {
+      switch (this) {
+        case MILLISECONDS:
+          return java.time.Instant.ofEpochMilli(epochValue);
+        case MICROSECONDS:
+          {
+            long seconds = Math.floorDiv(epochValue, 1_000_000L);
+            long microsOfSecond = Math.floorMod(epochValue, 1_000_000L);
+            return java.time.Instant.ofEpochSecond(seconds, microsOfSecond * 1_000L);
+          }
+        case NANOSECONDS:
+          {
+            long seconds = Math.floorDiv(epochValue, 1_000_000_000L);
+            long nanosOfSecond = Math.floorMod(epochValue, 1_000_000_000L);
+            return java.time.Instant.ofEpochSecond(seconds, nanosOfSecond);
+          }
+        default:
+          throw new IllegalStateException("Unknown precision: " + this);
+      }
+    }
+  }
+
+  /**
+   * Formats an Instant with minimal fractional second precision. Shows 0, 3, 6, or 9 decimal places
+   * based on actual precision of the value.
+   */
   @VisibleForTesting
-  static String formatTimestamp(Long timestampMicro) {
-    String dateTime = formatDatetime(timestampMicro);
-    return dateTime + " UTC";
+  @SuppressWarnings("JavaInstantGetSecondsGetNano")
+  static String formatDatetime(java.time.Instant instant) {
+    String dateTime = DATE_TIME_FORMATTER.format(instant);
+    int nanos = instant.getNano();
+
+    if (nanos == 0) {
+      return dateTime;
+    } else if (nanos % 1_000_000 == 0) {
+      return dateTime + String.format(".%03d", nanos / 1_000_000);
+    } else if (nanos % 1_000 == 0) {
+      return dateTime + String.format(".%06d", nanos / 1_000);
+    } else {
+      return dateTime + String.format(".%09d", nanos);
+    }
   }
 
   @VisibleForTesting
-  static String formatDatetime(Long timestampMicro) {
-    // timestampMicro is in "microseconds since epoch" format,
-    // e.g., 1452062291123456L means "2016-01-06 06:38:11.123456 UTC".
-    // Separate into seconds and microseconds.
-    long timestampSec = timestampMicro / 1_000_000;
-    long micros = timestampMicro % 1_000_000;
-    if (micros < 0) {
-      micros += 1_000_000;
-      timestampSec -= 1;
-    }
-    String dayAndTime = DATE_AND_SECONDS_FORMATTER.print(timestampSec * 1000);
-    if (micros == 0) {
-      return dayAndTime;
-    } else if (micros % 1000 == 0) {
-      return String.format("%s.%03d", dayAndTime, micros / 1000);
-    } else {
-      return String.format("%s.%06d", dayAndTime, micros);
-    }
+  static String formatDatetime(long epochValue, TimestampPrecision precision) {
+    return formatDatetime(precision.toInstant(epochValue));
+  }
+
+  static String formatTimestamp(java.time.Instant instant) {
+    return formatDatetime(instant) + " UTC";
+  }
+
+  static String formatTimestamp(long epochValue, TimestampPrecision precision) {
+    return formatTimestamp(precision.toInstant(epochValue));
   }
 
   /**
@@ -283,7 +323,7 @@ class BigQueryAvroUtils {
   }
 
   private static @Nullable Object getTypedCellValue(String name, Schema schema, Object v) {
-    Type type = schema.getType();
+    Schema.Type type = schema.getType();
     switch (type) {
       case ARRAY:
         return convertRepeatedField(name, schema.getElementType(), v);
@@ -335,8 +375,7 @@ class BigQueryAvroUtils {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", name);
-
-    Type type = schema.getType();
+    Schema.Type type = schema.getType();
     LogicalType logicalType = schema.getLogicalType();
     switch (type) {
       case BOOLEAN:
@@ -364,21 +403,26 @@ class BigQueryAvroUtils {
         } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
           // Write only: SQL type TIMESTAMP
           // ideally Instant but TableRowJsonCoder encodes as String
-          return formatTimestamp((Long) v * 1000L);
+          return formatTimestamp((Long) v, TimestampPrecision.MILLISECONDS);
         } else if (logicalType instanceof LogicalTypes.TimestampMicros) {
           // SQL type TIMESTAMP
           // ideally Instant but TableRowJsonCoder encodes as String
-          return formatTimestamp((Long) v);
+          return formatTimestamp((Long) v, TimestampPrecision.MICROSECONDS);
+          // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
+        } else if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(schema.getProp("logicalType"))) {
+          // SQL type TIMESTAMP
+          // ideally Instant but TableRowJsonCoder encodes as String
+          return formatTimestamp((Long) v, TimestampPrecision.NANOSECONDS);
         } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))
             && logicalType instanceof LogicalTypes.LocalTimestampMillis) {
           // Write only: SQL type DATETIME
           // ideally LocalDateTime but TableRowJsonCoder encodes as String
-          return formatDatetime(((Long) v) * 1000);
+          return formatDatetime(((Long) v), TimestampPrecision.MILLISECONDS);
         } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))
             && logicalType instanceof LogicalTypes.LocalTimestampMicros) {
           // Write only: SQL type DATETIME
           // ideally LocalDateTime but TableRowJsonCoder encodes as String
-          return formatDatetime((Long) v);
+          return formatDatetime((Long) v, TimestampPrecision.MICROSECONDS);
         } else {
           // SQL type INT64 (INT, SMALLINT, INTEGER, BIGINT, TINYINT, BYTEINT)
           // ideally Long if in [2^53+1, 2^53-1] but keep consistency with BQ JSON export that uses
@@ -427,7 +471,7 @@ class BigQueryAvroUtils {
   private static @Nullable Object convertNullableField(String name, Schema union, Object v) {
     // NULLABLE fields are represented as an Avro Union of the corresponding type and "null".
     verify(
-        union.getType() == Type.UNION,
+        union.getType() == Schema.Type.UNION,
         "Expected Avro schema type UNION, not %s, for BigQuery NULLABLE field %s",
         union.getType(),
         name);
@@ -439,7 +483,7 @@ class BigQueryAvroUtils {
         union);
 
     Schema type = union.getTypes().get(GenericData.get().resolveUnion(union, v));
-    if (type.getType() == Type.NULL) {
+    if (type.getType() == Schema.Type.NULL) {
       return null;
     } else {
       return convertRequiredField(name, type, v);
@@ -538,7 +582,7 @@ class BigQueryAvroUtils {
 
   static TableSchema fromGenericAvroSchema(Schema schema, Boolean useAvroLogicalTypes) {
     verify(
-        schema.getType() == Type.RECORD,
+        schema.getType() == Schema.Type.RECORD,
         "Expected Avro schema type RECORD, not %s",
         schema.getType());
 
@@ -557,7 +601,7 @@ class BigQueryAvroUtils {
       case UNION:
         List<Schema> types = fieldSchema.getTypes();
         verify(
-            types.size() == 2 && types.get(0).getType() == Type.NULL,
+            types.size() == 2 && types.get(0).getType() == Schema.Type.NULL,
             "Avro union field %s should be of null and another type, not %s",
             avrofield.name(),
             fieldSchema);
@@ -602,6 +646,11 @@ class BigQueryAvroUtils {
           return fieldSchema.setType("INTEGER");
         }
       case LONG:
+        // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
+        if (useAvroLogicalTypes
+            && TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType"))) {
+          return fieldSchema.setType("TIMESTAMP").setTimestampPrecision(12L);
+        }
         if (logicalType instanceof LogicalTypes.TimeMicros) {
           return fieldSchema.setType("TIME");
         } else if (!(VERSION_AVRO.startsWith("1.8") || VERSION_AVRO.startsWith("1.9"))

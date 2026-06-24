@@ -24,6 +24,9 @@ on:
         description: Whether to publish the python artifacts into PyPi. Should be yes unless you've already completed this step.
         required: true
         default: 'no'
+      REPO_TOKEN:
+        description: Github Personal Access Token with repo permissions.
+        required: true
       TAG_RELEASE:
         description: Whether to tag the release on GitHub. Should be yes unless you've already completed this step.
         required: true
@@ -38,22 +41,26 @@ permissions:
 jobs:
   push_docker_artifacts:
     if: ${{github.event.inputs.PUSH_DOCKER_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
-      uses: docker/login-action@v2
+      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Install dependencies
+      run: |
+        sudo apt-get update --yes
+        sudo apt-get install -y wget
     - name: Publish to Docker
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
         RC_NUM: "${{ github.event.inputs.RC }}"
         RC_VERSION: "rc${{ github.event.inputs.RC }}"
       run: |
-        
+
         echo "Publish SDK docker images to Docker Hub."
-        
+
         echo "================Pull RC Containers from DockerHub==========="
         IMAGES=$(docker search apache/beam --format "{{.Name}}" --limit 100)
         KNOWN_IMAGES=()
@@ -64,7 +71,7 @@ jobs:
             KNOWN_IMAGES+=( $IMAGE )
           fi
         done < <(echo "${IMAGES}")
-        
+
         echo "================Confirming Release and RC version==========="
         echo "Publishing the following images:"
         # Sort by name for easy examination
@@ -75,17 +82,23 @@ jobs:
         for IMAGE in "${KNOWN_IMAGES[@]}"; do
           # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as ${RELEASE}.
           docker buildx imagetools create --tag "${IMAGE}:${RELEASE}" "${IMAGE}:${RELEASE}${RC_VERSION}"
-      
+
           # Perform a carbon copy of ${RC_VERSION} to dockerhub with a new tag as latest.
           docker buildx imagetools create --tag "${IMAGE}:latest" "${IMAGE}:${RELEASE}"
         done
 
+        # Flink 2 images have different tagging, add latest tag to latest supported Flink version
+        echo "================Confirming Runner container Release and RC version==========="
+        BEAM_FLINK_REPO=apache/beam_flink_job_server
+        LATEST_FLINK_VERSION=$(wget -qO- https://raw.githubusercontent.com/apache/beam/refs/tags/v${RELEASE}-RC${RC_NUM}/gradle.properties | grep -E flink_versions |  tr ',' '\n' | tail -1)
+        docker buildx imagetools create --tag "${BEAM_FLINK_REPO}:latest" "${BEAM_FLINK_REPO}:${RELEASE}${RC_VERSION}-flink${LATEST_FLINK_VERSION}"
+
   publish_python_artifacts:
     if: ${{github.event.inputs.PUBLISH_PYTHON_ARTIFACTS == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -108,6 +121,8 @@ jobs:
         disable-cache: true
     - name: Install dependencies
       run: |
+        sudo apt-get update --yes
+        sudo apt-get install -y wget
         pip install python-dateutil
         pip install requests
         pip install twine
@@ -123,17 +138,21 @@ jobs:
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
+      with:
+        token: ${{ github.event.inputs.REPO_TOKEN }}
+        repository: apache/beam
+        persist-credentials: true
     - name: Set git config
       run: |
         git config user.name $GITHUB_ACTOR
         git config user.email actions@"$RUNNER_NAME".local
     - name: Import GPG key
       id: import_gpg
-      uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
+      uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd
       with:
         gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
     - name: Push tags
@@ -144,20 +163,20 @@ jobs:
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
-        
+
         # If the tag exists, a commit number is produced, otherwise there's an error.
         git rev-list $RC_TAG -n 1
-        
+
         # Tag for Go SDK
         git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "sdks/$VERSION_TAG"
-        
+        git push origin "sdks/$VERSION_TAG"
+
         # Tag for repo root.
         git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
-        git push https://github.com/apache/beam "$VERSION_TAG"
+        git push origin "$VERSION_TAG"
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
-        git push https://github.com/apache/beam "$POST_RELEASE_BRANCH"
+        git push origin "$POST_RELEASE_BRANCH"
 
   update_master:
     needs: push_git_tags
@@ -166,7 +185,10 @@ jobs:
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          token: ${{ github.event.inputs.REPO_TOKEN }}
+          ref: master
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

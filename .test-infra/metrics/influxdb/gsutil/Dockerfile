@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-FROM python:3.9-slim
+FROM python:3.10-slim
 
 # google-compute-engine package allows to obtain credentials for service
 # account specified in .boto file.

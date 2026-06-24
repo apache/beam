@@ -19,7 +19,6 @@
 plugins { id 'org.apache.beam.module' }
 
 applyJavaNature(
-    exportJavadoc: false,
     automaticModuleName: 'org.apache.beam.sdk.testing.junit',
     archivesBaseName: 'beam-sdks-java-testing-junit'
 )
@@ -33,11 +32,11 @@ dependencies {
   // Needed to resolve TestPipeline's JUnit 4 TestRule type and @Category at compile time,
   // but should not leak to consumers at runtime.
   provided library.java.junit
+  permitUnusedDeclared(library.java.junit)
 
   // JUnit 5 API needed to compile the extension; not packaged for consumers of core.
   provided library.java.jupiter_api
 
-  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation library.java.jupiter_api
   testImplementation library.java.junit
   testRuntimeOnly library.java.jupiter_engine

@@ -29,12 +29,14 @@ from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
 from typing import Optional
+from typing import Union
 
 import fastavro
 
 import apache_beam as beam
 import apache_beam.io as beam_io
 from apache_beam import coders
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io import ReadFromBigQuery
 from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
@@ -44,6 +46,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
@@ -164,9 +167,12 @@ def write_to_bigquery(
         Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
 
       error_handling: If specified, should be a mapping giving an output into
-        which to emit records that failed to bet written to BigQuery, as
+        which to emit records that failed to be written to BigQuery, as
         described at https://beam.apache.org/documentation/sdks/yaml-errors/
         Otherwise permanently failing records will cause pipeline failure.
+        Note: error_handling requires the Storage Write API method and is not
+        supported with File Loads (FILE_LOADS method). When error_handling is
+        specified, the transform will automatically use STORAGE_WRITE_API.
   """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
@@ -242,11 +248,13 @@ def _create_parser(
     _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
-    # pylint: disable=line-too-long
     return (
-        beam_schema,
-        lambda record: covert_to_row(
-            fastavro.schemaless_reader(io.BytesIO(record), schema)))  # type: ignore[call-arg]
+        beam_schema, lambda record: covert_to_row(
+            fastavro.schemaless_reader(io.BytesIO(record), schema)))
+  elif format == 'PROTO':
+    _validate_schema()
+    beam_schema = json_utils.json_schema_to_beam_schema(schema)
+    return beam_schema, RowCoder(beam_schema).decode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -291,6 +299,8 @@ def _create_formatter(
       return buffer.read()
 
     return formatter
+  elif format == 'PROTO':
+    return RowCoder(beam_schema).encode
   else:
     raise ValueError(f'Unknown format: {format}')
 
@@ -307,7 +317,8 @@ def read_from_pubsub(
     attributes: Optional[Iterable[str]] = None,
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
-    timestamp_attribute: Optional[str] = None):
+    timestamp_attribute: Optional[str] = None,
+    publish_time_field: Optional[str] = None):
   """Reads messages from Cloud Pub/Sub.
 
   Args:
@@ -357,14 +368,19 @@ def read_from_pubsub(
         ``2015-10-29T23:41:41.123Z``. The sub-second component of the
         timestamp is optional, and digits beyond the first three (i.e., time
         units smaller than milliseconds) may be ignored.
+    publish_time_field: Field to add to output messages with the Pub/Sub
+      message publish time. If None, no such field is added.
   """
   if topic and subscription:
     raise TypeError('Only one of topic and subscription may be specified.')
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
+  if publish_time_field is not None and not publish_time_field.strip():
+    raise ValueError('publish_time_field must be a non-empty field name.')
+  has_publish_time_field = publish_time_field is not None
   payload_schema, parser = _create_parser(format, schema)
   extra_fields: list[schema_pb2.Field] = []
-  if not attributes and not attributes_map:
+  if not attributes and not attributes_map and not has_publish_time_field:
     mapper = lambda msg: parser(msg)
   else:
     if isinstance(attributes, str):
@@ -375,6 +391,9 @@ def read_from_pubsub(
     if attributes_map:
       extra_fields.append(
           schemas.schema_field(attributes_map, Mapping[str, str]))
+    if has_publish_time_field:
+      extra_fields.append(
+          schemas.schema_field(publish_time_field, Optional[Timestamp]))
 
     def mapper(msg):
       values = parser(msg.data).as_dict()
@@ -384,6 +403,10 @@ def read_from_pubsub(
           values[attr] = msg.attributes[attr]
       if attributes_map:
         values[attributes_map] = msg.attributes
+      if has_publish_time_field:
+        values[publish_time_field] = (
+            Timestamp.of(msg.publish_time)
+            if msg.publish_time is not None else None)
       return beam.Row(**values)
 
   output = (
@@ -391,7 +414,8 @@ def read_from_pubsub(
       | beam.io.ReadFromPubSub(
           topic=topic,
           subscription=subscription,
-          with_attributes=bool(attributes or attributes_map),
+          with_attributes=bool(
+              attributes or attributes_map or has_publish_time_field),
           id_label=id_attribute,
           timestamp_attribute=timestamp_attribute)
       | 'ParseMessage' >> beam.Map(mapper))
@@ -416,7 +440,7 @@ def write_to_pubsub(
 
   Args:
     topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
-    format: How to format the message payload.  Currently suported
+    format: How to format the message payload.  Currently supported
       formats are
 
         - RAW: Expects a message with a single field (excluding
@@ -426,6 +450,8 @@ def write_to_pubsub(
             from the input PCollection schema.
         - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
+        - PROTO: Encodes records with a given Protobuf schema, which may be
+            inferred from the input PCollection schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be pulled out as
@@ -550,6 +576,8 @@ def write_to_iceberg(
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
     only: Optional[str] = None,
+    distribution_mode: Optional[str] = None,
+    autosharding: Optional[bool] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -599,6 +627,15 @@ def write_to_iceberg(
     only: The name of exactly one field to keep as the top level record when
       writing to the destination. All other fields are dropped. This field must
       be of row type. Mutually exclusive with drop and keep.
+    distribution_mode: Defines distribution of write data. Supported
+      distributions:
+      - none: don't shuffle rows (default)
+      - hash: shuffle rows by partition key before writing data
+    autosharding: Enables dynamic sharding to automatically adjust the number
+      of parallel writers based on data volume. It handles data skew by
+      further sub-dividing partitions into multiple shards to prevent
+      bottlenecks during high-throughput writes. Only available with 'hash'
+      distribution mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -612,7 +649,9 @@ def write_to_iceberg(
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,
-          only=only))
+          only=only,
+          distribution_mode=distribution_mode,
+          autosharding=autosharding))
 
 
 def io_providers():
@@ -633,7 +672,7 @@ def read_from_tfrecord(
     compression_type (CompressionTypes): Used to handle compressed input files.
       Default value is CompressionTypes.AUTO, in which case the file_path's
       extension will be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the 
+    validate (bool): Boolean flag to verify that the files exist during the
       pipeline creation time.
   """
   return ReadFromTFRecord(
@@ -698,3 +737,107 @@ def write_to_tfrecord(
           num_shards=num_shards,
           shard_name_template=shard_name_template,
           compression_type=getattr(CompressionTypes, compression_type))
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def write_to_mongodb(
+    pcoll,
+    *,
+    database: str,
+    collection: str,
+    connection_uri: Optional[str] = None,
+    batch_size: int = 1024,
+    extra_client_params: Optional[Mapping[str, Any]] = None):
+  """Writes data to MongoDB.
+
+  Args:
+    pcoll: The input PCollection of Beam Rows.
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    batch_size: Number of documents per bulk_write to MongoDB.
+    extra_client_params: Optional MongoClient parameters.
+  """
+  from apache_beam.io import mongodbio
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  return (
+      pcoll
+      | beam.Map(row_to_dict)
+      | mongodbio.WriteToMongoDB(
+          uri=connection_uri,
+          db=database,
+          coll=collection,
+          batch_size=batch_size,
+          extra_client_params=extra_client_params))
+
+
+@beam.ptransform_fn
+def match_all(
+    pcoll,
+    *,
+    file_pattern: Optional[str] = None,
+    empty_match_treatment: str = 'ALLOW',
+):
+  """Matches file patterns from the input PCollection.
+
+  This transform returns a PCollection of matching files, each represented as a
+  Row with path, size_in_bytes, and last_updated_in_seconds fields.
+
+  Args:
+    file_pattern (str): The name of the field in the input PCollection that contains
+      the file pattern string. If not specified and the input PCollection has
+      exactly one field, that field will be used.
+    empty_match_treatment (str): How to treat empty matches. Possible values are
+      'ALLOW', 'DISALLOW', and 'ALLOW_IF_WILDCARD'. Defaults to 'ALLOW'.
+  """
+  from apache_beam.typehints import schemas
+
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception:
+    field_names = None
+
+  if field_names:
+    if file_pattern is not None:
+      if file_pattern not in field_names:
+        raise ValueError(
+            f"Field '{file_pattern}' not found in input schema fields: {field_names}"
+        )
+      pattern_field = file_pattern
+    elif len(field_names) == 1:
+      pattern_field = field_names[0]
+    else:
+      raise ValueError(
+          f"Input schema has multiple fields {field_names}. "
+          f"Please specify the 'file_pattern' parameter to select which field "
+          f"contains the file pattern.")
+    patterns = pcoll | beam.Map(lambda x: str(getattr(x, pattern_field)))
+  else:
+    patterns = pcoll
+
+  matched = patterns | beam.io.fileio.MatchAll(
+      empty_match_treatment=empty_match_treatment)
+
+  return matched | beam.Map(
+      lambda x: beam.Row(
+          path=str(x.path), size_in_bytes=int(x.size_in_bytes),
+          last_updated_in_seconds=float(x.last_updated_in_seconds)
+          if x.last_updated_in_seconds is not None else None))

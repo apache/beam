@@ -31,8 +31,9 @@ from apache_beam.typehints.decorators import TypeCheckError
 # Protect against environments where video intelligence lib is not available.
 # pylint: disable=ungrouped-imports
 try:
-  from google.cloud.videointelligence import VideoIntelligenceServiceClient
   from google.cloud import videointelligence
+  from google.cloud.videointelligence import VideoIntelligenceServiceClient
+
   from apache_beam.ml.gcp import videointelligenceml
 except ImportError:
   VideoIntelligenceServiceClient = None

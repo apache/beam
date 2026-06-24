@@ -18,7 +18,7 @@
 """ A sample pipeline using the RunInference API to classify text using an LLM.
 This pipeline creates a set of prompts and sends it to a Gemini service then
 returns the predictions from the classifier model. This example uses the
-gemini-2.0-flash-001 model.
+gemini-2.5-flash model.
 """
 
 import argparse
@@ -67,11 +67,13 @@ def parse_known_args(argv):
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
-    try:
-      output_text = element.inference[1][0].content.parts[0].text
-      yield f"Input: {element.example}, Output: {output_text}"
-    except Exception:
-      yield f"Can't decode inference for element: {element.example}"
+    for part in element.inference.parts:
+      try:
+        output_text = part.text
+        yield f"Input: {element.example}, Output: {output_text}"
+      except Exception as e:
+        print(f"Can't decode inference for element: {element.example}, got {e}")
+        raise e
 
 
 def run(
@@ -86,7 +88,7 @@ def run(
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
   model_handler = GeminiModelHandler(
-      model_name='gemini-2.0-flash-001',
+      model_name='gemini-2.5-flash',
       request_fn=generate_from_string,
       api_key=known_args.api_key,
       project=known_args.project,

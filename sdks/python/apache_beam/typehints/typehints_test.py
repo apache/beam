@@ -19,10 +19,10 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections.abc
 import functools
 import re
-import sys
 import typing
 import unittest
 
@@ -713,7 +713,8 @@ class DictHintTestCase(TypeHintTestCase):
 
   def test_type_check_collection(self):
     hint = typehints.Dict[str, int]
-    l = collections.defaultdict(list[("blue", 2)])
+    element = ("blue", 2)
+    l = collections.defaultdict(list[element])
     self.assertIsNone(hint.type_check(l))
 
   def test_type_check_invalid_key_type(self):
@@ -1422,7 +1423,7 @@ class OutputDecoratorTestCase(TypeHintTestCase):
       return 5, 'bar'
 
   def test_no_kwargs_accepted(self):
-    with self.assertRaisesRegex(ValueError, r'must be positional'):
+    with self.assertRaisesRegex(ValueError, r'single positional argument'):
 
       @with_output_types(m=int)
       def unused_foo():
@@ -1596,6 +1597,49 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertTrue(is_consistent_with(str, Union[str, int]))
     self.assertFalse(is_consistent_with(Union[str, int], str))
     self.assertFalse(is_consistent_with(str, NonBuiltInGeneric[str]))
+
+  def test_hint_helper_pipe_union(self):
+    pipe_union = int | None  # pylint: disable=unsupported-binary-operation
+    typing_union = Union[int, None]
+    self.assertTrue(is_consistent_with(int, pipe_union))
+    self.assertTrue(is_consistent_with(type(None), pipe_union))
+    self.assertFalse(is_consistent_with(str, pipe_union))
+    self.assertTrue(
+        is_consistent_with(int, pipe_union) == is_consistent_with(
+            int, typing_union))
+    self.assertTrue(
+        is_consistent_with(str, pipe_union) == is_consistent_with(
+            str, typing_union))
+    pipe_union_2 = int | float  # pylint: disable=unsupported-binary-operation
+    self.assertTrue(is_consistent_with(int, pipe_union_2))
+    self.assertTrue(is_consistent_with(float, pipe_union_2))
+
+  def test_is_consistent_with_disable_beartype(self):
+    import unittest.mock
+
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options_context import scoped_pipeline_options
+
+    with unittest.mock.patch(
+        'apache_beam.typehints.typehints.is_subhint') as mock_is_subhint:
+      mock_is_subhint.return_value = True
+
+      class A:
+        pass
+
+      class B(A):
+        pass
+
+      options = PipelineOptions([])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertTrue(mock_is_subhint.called)
+        mock_is_subhint.reset_mock()
+
+      options = PipelineOptions(['--disable_beartype'])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertFalse(mock_is_subhint.called)
 
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
@@ -1929,12 +1973,19 @@ class TestPTransformAnnotations(unittest.TestCase):
   def test_pipe_operator_as_union(self):
     # union types can be written using pipe operator from Python 3.10.
     # https://peps.python.org/pep-0604/
-    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
-      type_a = int | float  # pylint: disable=unsupported-binary-operation
-      type_b = typing.Union[int, float]
-      self.assertEqual(
-          native_type_compatibility.convert_to_beam_type(type_a),
-          native_type_compatibility.convert_to_beam_type(type_b))
+    type_a = int | float  # pylint: disable=unsupported-binary-operation
+    type_b = typing.Union[int, float]
+    self.assertEqual(
+        native_type_compatibility.convert_to_beam_type(type_a),
+        native_type_compatibility.convert_to_beam_type(type_b))
+
+  def test_normalize_pipe_union(self):
+    pipe_union = int | None  # pylint: disable=unsupported-binary-operation
+    normalized = typehints.normalize(pipe_union)
+    self.assertIsInstance(normalized, typehints.UnionConstraint)
+    pipe_union_2 = int | float  # pylint: disable=unsupported-binary-operation
+    normalized_2 = typehints.normalize(pipe_union_2)
+    self.assertIsInstance(normalized_2, typehints.UnionConstraint)
 
 
 class TestNonBuiltInGenerics(unittest.TestCase):

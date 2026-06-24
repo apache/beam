@@ -17,6 +17,7 @@ package state
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
@@ -27,15 +28,16 @@ var (
 )
 
 type fakeProvider struct {
-	initialState      map[string]any
-	initialBagState   map[string][]any
-	initialMapState   map[string]map[string]any
-	transactions      map[string][]Transaction
-	err               map[string]error
-	createAccumForKey map[string]bool
-	addInputForKey    map[string]bool
-	mergeAccumForKey  map[string]bool
-	extractOutForKey  map[string]bool
+	initialState            map[string]any
+	initialBagState         map[string][]any
+	initialMapState         map[string]map[string]any
+	initialOrderedListState map[string][]any
+	transactions            map[string][]Transaction
+	err                     map[string]error
+	createAccumForKey       map[string]bool
+	addInputForKey          map[string]bool
+	mergeAccumForKey        map[string]bool
+	extractOutForKey        map[string]bool
 }
 
 func (s *fakeProvider) ReadValueState(userStateID string) (any, []Transaction, error) {
@@ -174,6 +176,36 @@ func (s *fakeProvider) ClearMapStateKey(val Transaction) error {
 
 func (s *fakeProvider) ClearMapState(val Transaction) error {
 	s.transactions[val.Key] = []Transaction{val}
+	return nil
+}
+
+func (s *fakeProvider) ReadOrderedListState(userStateID string) ([]any, []Transaction, error) {
+	if err, ok := s.err[userStateID]; ok {
+		return nil, nil, err
+	}
+	base := s.initialOrderedListState[userStateID]
+	trans, ok := s.transactions[userStateID]
+	if !ok {
+		trans = []Transaction{}
+	}
+	return base, trans, nil
+}
+
+func (s *fakeProvider) WriteOrderedListState(val Transaction) error {
+	if transactions, ok := s.transactions[val.Key]; ok {
+		s.transactions[val.Key] = append(transactions, val)
+	} else {
+		s.transactions[val.Key] = []Transaction{val}
+	}
+	return nil
+}
+
+func (s *fakeProvider) ClearOrderedListState(val Transaction) error {
+	if transactions, ok := s.transactions[val.Key]; ok {
+		s.transactions[val.Key] = append(transactions, val)
+	} else {
+		s.transactions[val.Key] = []Transaction{val}
+	}
 	return nil
 }
 
@@ -1197,6 +1229,199 @@ func TestSetClear(t *testing.T) {
 			if !eq {
 				t.Errorf("Set.Keys()=%v, want %v for state key %v", val, tt.keys, vs.Key)
 			}
+		}
+	}
+}
+
+func TestOrderedListRead(t *testing.T) {
+	il := make(map[string][]any)
+	ts := make(map[string][]Transaction)
+	es := make(map[string]error)
+	il["no_transactions"] = []any{
+		OrderedListEntry{SortKey: 100, Value: 1},
+		OrderedListEntry{SortKey: 200, Value: 2},
+	}
+	ts["no_transactions"] = nil
+	il["basic_append"] = []any{}
+	ts["basic_append"] = []Transaction{
+		{Key: "basic_append", Type: TransactionTypeAppend, MapKey: int64(50), Val: 5},
+	}
+	il["multi_append"] = []any{
+		OrderedListEntry{SortKey: 100, Value: 1},
+	}
+	ts["multi_append"] = []Transaction{
+		{Key: "multi_append", Type: TransactionTypeAppend, MapKey: int64(50), Val: 5},
+		{Key: "multi_append", Type: TransactionTypeAppend, MapKey: int64(150), Val: 15},
+	}
+	il["basic_clear"] = []any{
+		OrderedListEntry{SortKey: 100, Value: 1},
+		OrderedListEntry{SortKey: 200, Value: 2},
+	}
+	ts["basic_clear"] = []Transaction{
+		{Key: "basic_clear", Type: TransactionTypeClear, MapKey: [2]int64{math.MinInt64, math.MaxInt64}},
+	}
+	il["clear_range"] = []any{
+		OrderedListEntry{SortKey: 100, Value: 1},
+		OrderedListEntry{SortKey: 200, Value: 2},
+		OrderedListEntry{SortKey: 300, Value: 3},
+	}
+	ts["clear_range"] = []Transaction{
+		{Key: "clear_range", Type: TransactionTypeClear, MapKey: [2]int64{150, 250}},
+	}
+	il["err"] = []any{}
+	es["err"] = errFake
+
+	f := fakeProvider{
+		initialOrderedListState: il,
+		transactions:            ts,
+		err:                     es,
+	}
+
+	tests := []struct {
+		name  string
+		vs    OrderedList[int]
+		start int64
+		end   int64
+		val   []OrderedListValue[int]
+		ok    bool
+		err   error
+	}{
+		{"no_transactions", MakeOrderedListState[int]("no_transactions"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{100, 1}, {200, 2}}, true, nil},
+		{"basic_append", MakeOrderedListState[int]("basic_append"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{50, 5}}, true, nil},
+		{"multi_append_sorted", MakeOrderedListState[int]("multi_append"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{50, 5}, {100, 1}, {150, 15}}, true, nil},
+		{"basic_clear", MakeOrderedListState[int]("basic_clear"), math.MinInt64, math.MaxInt64, nil, false, nil},
+		{"clear_range", MakeOrderedListState[int]("clear_range"), math.MinInt64, math.MaxInt64, []OrderedListValue[int]{{100, 1}, {300, 3}}, true, nil},
+		{"read_range", MakeOrderedListState[int]("no_transactions"), 150, 250, []OrderedListValue[int]{{200, 2}}, true, nil},
+		{"err", MakeOrderedListState[int]("err"), math.MinInt64, math.MaxInt64, nil, false, errFake},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, ok, err := tt.vs.ReadRange(&f, tt.start, tt.end)
+			if err != nil && tt.err == nil {
+				t.Errorf("OrderedList.ReadRange() returned error %v when it shouldn't have", err)
+			} else if err == nil && tt.err != nil {
+				t.Errorf("OrderedList.ReadRange() returned no error when it should have returned %v", tt.err)
+			} else if ok != tt.ok {
+				t.Errorf("OrderedList.ReadRange() ok=%v, want %v", ok, tt.ok)
+			} else if len(val) != len(tt.val) {
+				t.Errorf("OrderedList.ReadRange()=%v, want %v", val, tt.val)
+			} else {
+				for i, v := range val {
+					if v != tt.val[i] {
+						t.Errorf("OrderedList.ReadRange()[%d]=%v, want %v", i, v, tt.val[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestOrderedListAdd(t *testing.T) {
+	tests := []struct {
+		name string
+		adds []OrderedListValue[int]
+		val  []OrderedListValue[int]
+		ok   bool
+	}{
+		{"empty", nil, nil, false},
+		{"single", []OrderedListValue[int]{{100, 1}}, []OrderedListValue[int]{{100, 1}}, true},
+		{"sorted", []OrderedListValue[int]{{200, 2}, {100, 1}}, []OrderedListValue[int]{{100, 1}, {200, 2}}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := fakeProvider{
+				initialOrderedListState: make(map[string][]any),
+				transactions:            make(map[string][]Transaction),
+				err:                     make(map[string]error),
+			}
+			vs := MakeOrderedListState[int]("vs")
+			for _, a := range tt.adds {
+				if err := vs.Add(&f, a.SortKey, a.Value); err != nil {
+					t.Fatalf("OrderedList.Add() returned error %v", err)
+				}
+			}
+			val, ok, err := vs.Read(&f)
+			if err != nil {
+				t.Fatalf("OrderedList.Read() returned error %v", err)
+			}
+			if ok != tt.ok {
+				t.Errorf("OrderedList.Read() ok=%v, want %v", ok, tt.ok)
+			}
+			if len(val) != len(tt.val) {
+				t.Fatalf("OrderedList.Read()=%v, want %v", val, tt.val)
+			}
+			for i, v := range val {
+				if v != tt.val[i] {
+					t.Errorf("OrderedList.Read()[%d]=%v, want %v", i, v, tt.val[i])
+				}
+			}
+		})
+	}
+}
+
+func TestOrderedListClear(t *testing.T) {
+	tests := []struct {
+		name string
+		adds []OrderedListValue[int]
+	}{
+		{"empty", nil},
+		{"with_data", []OrderedListValue[int]{{100, 1}, {200, 2}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := fakeProvider{
+				initialOrderedListState: make(map[string][]any),
+				transactions:            make(map[string][]Transaction),
+				err:                     make(map[string]error),
+			}
+			vs := MakeOrderedListState[int]("vs")
+			for _, a := range tt.adds {
+				vs.Add(&f, a.SortKey, a.Value)
+			}
+			if err := vs.Clear(&f); err != nil {
+				t.Fatalf("OrderedList.Clear() returned error %v", err)
+			}
+			_, ok, err := vs.Read(&f)
+			if err != nil {
+				t.Fatalf("OrderedList.Read() returned error %v", err)
+			}
+			if ok {
+				t.Error("OrderedList.Read() returned ok=true after Clear()")
+			}
+		})
+	}
+}
+
+func TestOrderedListClearRange(t *testing.T) {
+	f := fakeProvider{
+		initialOrderedListState: make(map[string][]any),
+		transactions:            make(map[string][]Transaction),
+		err:                     make(map[string]error),
+	}
+	vs := MakeOrderedListState[int]("vs")
+	vs.Add(&f, 100, 1)
+	vs.Add(&f, 200, 2)
+	vs.Add(&f, 300, 3)
+	if err := vs.ClearRange(&f, 150, 250); err != nil {
+		t.Fatalf("OrderedList.ClearRange() returned error %v", err)
+	}
+	val, ok, err := vs.Read(&f)
+	if err != nil {
+		t.Fatalf("OrderedList.Read() returned error %v", err)
+	}
+	if !ok {
+		t.Fatal("OrderedList.Read() returned ok=false, want true")
+	}
+	want := []OrderedListValue[int]{{100, 1}, {300, 3}}
+	if len(val) != len(want) {
+		t.Fatalf("OrderedList.Read()=%v, want %v", val, want)
+	}
+	for i, v := range val {
+		if v != want[i] {
+			t.Errorf("OrderedList.Read()[%d]=%v, want %v", i, v, want[i])
 		}
 	}
 }

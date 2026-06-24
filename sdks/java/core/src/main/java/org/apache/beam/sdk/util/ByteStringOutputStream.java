@@ -158,6 +158,14 @@ public final class ByteStringOutputStream extends OutputStream implements Append
     return rval;
   }
 
+  /*
+   * Resets the output stream to be re-used possibly re-using any existing buffers.
+   */
+  public void reset() {
+    bufferPos = 0;
+    result = ByteString.EMPTY;
+  }
+
   /**
    * Creates a byte string with the given size containing the prefix of the contents of this output
    * stream.
@@ -204,6 +212,12 @@ public final class ByteStringOutputStream extends OutputStream implements Append
    */
   public int size() {
     return result.size() + bufferPos;
+  }
+
+  /** Returns if the output stream is currently empty. */
+  @SuppressWarnings("ReferenceEquality")
+  public boolean isEmpty() {
+    return bufferPos == 0 && result == ByteString.EMPTY;
   }
 
   @Override

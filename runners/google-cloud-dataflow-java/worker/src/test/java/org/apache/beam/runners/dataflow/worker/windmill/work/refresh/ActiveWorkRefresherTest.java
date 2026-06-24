@@ -65,8 +65,10 @@ import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class ActiveWorkRefresherTest {
-  private static final Supplier<Instant> A_LONG_TIME_AGO =
-      () -> Instant.parse("1998-09-04T00:00:00Z");
+  private static Instant aLongTimeAgo() {
+    return Instant.parse("1998-09-04T00:00:00Z");
+  }
+
   private static final String COMPUTATION_ID_PREFIX = "ComputationId-";
   private final HeartbeatSender heartbeatSender = mock(HeartbeatSender.class);
 
@@ -78,7 +80,8 @@ public class ActiveWorkRefresherTest {
         1,
         10000000,
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        /*useFairMonitor=*/ false);
+        /*useFairMonitor=*/ false,
+        /*useKeyGroupWorkQueue=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {
@@ -133,8 +136,11 @@ public class ActiveWorkRefresherTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
-            A_LONG_TIME_AGO),
-        processWork);
+            false,
+            ActiveWorkRefresherTest::aLongTimeAgo),
+        (work, handle) -> {
+          processWork.accept(work);
+        });
   }
 
   @Test

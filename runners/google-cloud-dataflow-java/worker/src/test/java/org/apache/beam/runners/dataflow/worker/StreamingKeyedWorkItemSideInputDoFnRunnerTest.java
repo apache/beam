@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -166,7 +167,8 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
         StateNamespaces.window(IntervalWindow.getCoder(), window),
         timestamp,
         timestamp,
-        type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME);
+        type == Windmill.Timer.Type.WATERMARK ? TimeDomain.EVENT_TIME : TimeDomain.PROCESSING_TIME,
+        CausedByDrain.NORMAL);
   }
 
   private IntervalWindow window(long start, long end) {
@@ -200,8 +202,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
             (WindowedValue<KV<String, Integer>> windowedValue) ->
                 outputManager.output(mainOutputTag, windowedValue),
             stepContext);
-    return new StreamingKeyedWorkItemSideInputDoFnRunner<
-        String, Integer, KV<String, Integer>, IntervalWindow>(
+    return new StreamingKeyedWorkItemSideInputDoFnRunner<>(
         simpleDoFnRunner, keyCoder, sideInputFetcher, stepContext);
   }
 }

@@ -64,7 +64,7 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof OffsetHolder)) {
         return false;
       }
       OffsetHolder that = (OffsetHolder) o;
@@ -189,7 +189,8 @@ final class ReadFromTwitterDoFn extends DoFn<TwitterConfig, String> {
         return DoFn.ProcessContinuation.stop();
       }
       if (status != null) {
-        Instant currentInstant = Instant.ofEpochMilli(status.getCreatedAt().getTime());
+        Instant currentInstant =
+            Instant.ofEpochMilli(status.getCreatedAt().toInstant().toEpochMilli());
         watermarkEstimator.setWatermark(currentInstant);
         out.outputWithTimestamp(status.getText(), currentInstant);
       }

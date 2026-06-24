@@ -395,14 +395,13 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
 
       if (isSoftDeletePolicyEnabled(options, tempLocation)) {
         LOG.warn(
-            String.format(
-                "The bucket of gcpTempLocation %s has soft delete policy enabled."
-                    + " Dataflow jobs use Cloud Storage to store temporary files during pipeline"
-                    + " execution. To avoid being billed for unnecessary storage costs, turn off the soft"
-                    + " delete feature on buckets that your Dataflow jobs use for temporary storage."
-                    + " For more information, see"
-                    + " https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy.",
-                tempLocation));
+            "The bucket of gcpTempLocation {} has soft delete policy enabled."
+                + " Dataflow jobs use Cloud Storage to store temporary files during pipeline"
+                + " execution. To avoid being billed for unnecessary storage costs, turn off the soft"
+                + " delete feature on buckets that your Dataflow jobs use for temporary storage."
+                + " For more information, see"
+                + " https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy.",
+            tempLocation);
       }
 
       return tempLocation;
@@ -420,9 +419,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           return true;
         }
       } catch (Exception e) {
-        LOG.warn(
-            String.format(
-                "Failed to access bucket for gcpTempLocation: %s.%nCaused by %s", tempLocation, e));
+        LOG.warn("Failed to access bucket for gcpTempLocation: {}", tempLocation, e);
       }
       return false;
     }

@@ -51,7 +51,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java Load Tests GBK Smoke'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 720
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
@@ -59,7 +59,7 @@ jobs:
         job_name: ["beam_LoadTests_Java_GBK_Smoke"]
         job_phrase: ["Run Java Load Tests GBK Smoke"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -106,7 +106,7 @@ jobs:
           arguments: |
             --info \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
-            -Prunner=:runners:flink:1.19 \
+            -Prunner=:runners:flink:1.20 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_3 }}' \
       - name: run GroupByKey load test Spark
         uses: ./.github/actions/gradle-command-self-hosted-action

@@ -57,7 +57,7 @@ import org.junit.rules.TestName;
 
 public abstract class FileReadSchemaTransformFormatProviderTest {
 
-  /** Returns the format of the {@linke FileReadSchemaTransformFormatProviderTest} subclass. */
+  /** Returns the format of the {@link FileReadSchemaTransformFormatProviderTest} subclass. */
   protected abstract String getFormat();
 
   /** Given a Beam Schema, returns the relevant source's String schema representation. */

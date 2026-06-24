@@ -24,13 +24,11 @@ import static org.junit.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -49,24 +47,6 @@ public class ReadFromSparkReceiverWithOffsetDoFnTest {
         .withSparkReceiverBuilder(receiverBuilder)
         .withGetOffsetFn(Long::valueOf)
         .withTimestampFn(Instant::parse);
-  }
-
-  private static class MockOutputReceiver implements DoFn.OutputReceiver<String> {
-
-    private final List<String> records = new ArrayList<>();
-
-    @Override
-    public void output(String output) {}
-
-    @Override
-    public void outputWithTimestamp(
-        String output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
-      records.add(output);
-    }
-
-    public List<String> getOutputs() {
-      return this.records;
-    }
   }
 
   private final ManualWatermarkEstimator<Instant> mockWatermarkEstimator =
@@ -131,7 +111,7 @@ public class ReadFromSparkReceiverWithOffsetDoFnTest {
 
   @Test
   public void testProcessElement() {
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    TestOutputReceiver<String> receiver = new TestOutputReceiver<>();
     DoFn.ProcessContinuation result =
         dofnInstance.processElement(
             TEST_ELEMENT,

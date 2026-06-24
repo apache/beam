@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -27,9 +27,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Sink;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,10 +39,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -49,16 +53,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
-  private WindmillStreamWriter writer;
+  private final WindmillStreamWriter writer;
   private final Coder<T> valueCoder;
   private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
-  private StreamingModeExecutionContext context;
+  private final StreamingModeExecutionContext context;
   private static final Logger LOG = LoggerFactory.getLogger(WindmillSink.class);
 
   WindmillSink(
@@ -72,15 +72,43 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     this.context = context;
   }
 
+  private static ByteString encodeMetadata(
+      ByteStringOutputStream stream,
+      Coder<Collection<? extends BoundedWindow>> windowsCoder,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
+      throws IOException {
+    boolean resetNeeded = true;
+    try {
+      // element metadata is behind the experiment
+      boolean elementMetadata = WindowedValues.WindowedValueCoder.isMetadataSupported();
+      if (elementMetadata) {
+        PaneInfoCoder.INSTANCE.encode(paneInfo.withElementMetadata(true), stream);
+        windowsCoder.encode(windows, stream);
+        ByteArrayCoder.of().encode(metadata.toByteArray(), stream, Coder.Context.OUTER);
+      } else {
+        PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
+        windowsCoder.encode(windows, stream, Coder.Context.OUTER);
+      }
+      ByteString result = stream.toByteStringAndReset();
+      resetNeeded = false;
+      return result;
+    } finally {
+      if (resetNeeded) {
+        stream.reset();
+      }
+    }
+  }
+
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo paneInfo)
+      PaneInfo paneInfo,
+      BeamFnApi.Elements.ElementMetadata metadata)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
-    windowsCoder.encode(windows, stream, Coder.Context.OUTER);
-    return stream.toByteString();
+    return encodeMetadata(stream, windowsCoder, windows, paneInfo, metadata);
   }
 
   public static PaneInfo decodeMetadataPane(ByteString metadata) throws IOException {
@@ -88,12 +116,27 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     return PaneInfoCoder.INSTANCE.decode(inStream);
   }
 
+  public static BeamFnApi.Elements.ElementMetadata decodeAdditionalMetadata(
+      Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
+      throws IOException {
+    InputStream inStream = metadata.newInput();
+    PaneInfo paneInfo = PaneInfoCoder.INSTANCE.decode(inStream);
+    windowsCoder.decode(inStream);
+    if (paneInfo.isElementMetadata()) {
+      return BeamFnApi.Elements.ElementMetadata.parseFrom(
+          ByteArrayCoder.of().decode(inStream, Coder.Context.OUTER));
+    } else {
+      // empty
+      return BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+    }
+  }
+
   public static Collection<? extends BoundedWindow> decodeMetadataWindows(
       Coder<Collection<? extends BoundedWindow>> windowsCoder, ByteString metadata)
       throws IOException {
     InputStream inStream = metadata.newInput();
     PaneInfoCoder.INSTANCE.decode(inStream);
-    return windowsCoder.decode(inStream, Coder.Context.OUTER);
+    return windowsCoder.decode(inStream);
   }
 
   /** A {@link SinkFactory.Registrar} for windmill sinks. */
@@ -109,6 +152,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
   }
 
+  @SuppressWarnings("rawtypes")
   public static class Factory implements SinkFactory {
 
     @Override
@@ -125,7 +169,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       return new WindmillSink<>(
           getString(spec, "stream_id"),
           typedCoder,
-          (StreamingModeExecutionContext) executionContext);
+          checkNotNull((StreamingModeExecutionContext) executionContext));
     }
   }
 
@@ -153,42 +197,59 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
+      if (!stream.isEmpty()) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but had " + stream.toByteString());
+      }
+      boolean resetNeeded = true;
       try {
         coder.encode(object, stream, Coder.Context.OUTER);
-        return stream.toByteStringAndReset();
-      } catch (Exception e) {
-        stream.toByteStringAndReset();
-        throw e;
+        ByteString result = stream.toByteStringAndReset();
+        resetNeeded = false;
+        return result;
+      } finally {
+        if (resetNeeded) {
+          stream.reset();
+        }
       }
     }
 
     @Override
-    @SuppressWarnings("NestedInstanceOfConditions")
+    @SuppressWarnings("rawtypes")
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
+      // todo #33176 specify additional metadata in the future
+      BeamFnApi.Elements.ElementMetadata additionalMetadata =
+          BeamFnApi.Elements.ElementMetadata.newBuilder()
+              .setDrain(
+                  data.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                      ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                      : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+              .setValueKind(WindmillValueKindHelper.toProto(data.getValueKind()))
+              .build();
+      ByteString metadata =
+          encodeMetadata(
+              stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
-        KV kv = (KV) data.getValue();
+        KV kv = checkNotNull((KV) data.getValue());
         key = encode(kvCoder.getKeyCoder(), kv.getKey());
-        Coder valueCoder = kvCoder.getValueCoder();
+        Coder nestedValueCoder = kvCoder.getValueCoder();
         // If ids are explicitly provided, use that instead of the windmill-generated id.
         // This is used when reading an UnboundedSource to deduplicate records.
-        if (valueCoder instanceof ValueWithRecordId.ValueWithRecordIdCoder) {
-          ValueWithRecordId valueAndId = (ValueWithRecordId) kv.getValue();
+        if (nestedValueCoder instanceof ValueWithRecordId.ValueWithRecordIdCoder) {
+          ValueWithRecordId valueAndId = checkNotNull((ValueWithRecordId) kv.getValue());
           value =
-              encode(((ValueWithRecordIdCoder) valueCoder).getValueCoder(), valueAndId.getValue());
+              encode(
+                  ((ValueWithRecordIdCoder) nestedValueCoder).getValueCoder(),
+                  valueAndId.getValue());
           id = ByteString.copyFrom(valueAndId.getId());
         } else {
-          value = encode(valueCoder, kv.getValue());
+          value = encode(nestedValueCoder, kv.getValue());
         }
       } else {
-        key = context.getSerializedKey();
+        key = checkNotNull(context.getSerializedKey());
         value = encode(valueCoder, data.getValue());
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
@@ -196,12 +257,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Key too large: " + key.size());
         } else {
           LOG.error(
-              "Trying to output too large key with size "
-                  + key.size()
-                  + ". Limit is "
-                  + context.getMaxOutputKeyBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large key with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              key.size(),
+              context.getMaxOutputKeyBytes());
         }
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
@@ -209,20 +267,21 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           throw new OutputTooLargeException("Value too large: " + value.size());
         } else {
           LOG.error(
-              "Trying to output too large value with size "
-                  + value.size()
-                  + ". Limit is "
-                  + context.getMaxOutputValueBytes()
-                  + ". See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception."
-                  + " Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.");
+              "Trying to output too large value with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              value.size(),
+              context.getMaxOutputValueBytes());
         }
       }
 
-      Windmill.KeyedMessageBundle.Builder keyedOutput = productionMap.get(key);
-      if (keyedOutput == null) {
-        keyedOutput = Windmill.KeyedMessageBundle.newBuilder().setKey(key);
-        productionMap.put(key, keyedOutput);
-      }
+      Windmill.KeyedMessageBundle.Builder keyedOutput =
+          productionMap.computeIfAbsent(
+              key,
+              (k) -> {
+                Windmill.KeyedMessageBundle.Builder builder =
+                    Windmill.KeyedMessageBundle.newBuilder();
+                builder.setKey(k);
+                return builder;
+              });
 
       try {
         messageBuilder
@@ -241,8 +300,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         }
         byte[] rawId = null;
 
-        if (data.getCurrentRecordId() != null) {
-          rawId = data.getCurrentRecordId().getBytes(StandardCharsets.UTF_8);
+        @Nullable String recordId = data.getRecordId();
+        if (recordId != null) {
+          rawId = recordId.getBytes(StandardCharsets.UTF_8);
         } else {
           rawId = context.getCurrentRecordId();
         }
@@ -253,8 +313,9 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         id = ByteString.copyFrom(rawId);
 
         byte[] rawOffset = null;
-        if (data.getCurrentRecordOffset() != null) {
-          rawOffset = Longs.toByteArray(data.getCurrentRecordOffset());
+        @Nullable Long recordOffset = data.getRecordOffset();
+        if (recordOffset != null) {
+          rawOffset = Longs.toByteArray(recordOffset);
         } else {
           rawOffset = context.getCurrentRecordOffset();
         }

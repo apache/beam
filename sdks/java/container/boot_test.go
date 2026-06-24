@@ -90,3 +90,48 @@ func TestHeapSizeLimit(t *testing.T) {
 		t.Errorf("HeapSizeLimit(200 GB). Actual (%d). want 168 GB", lim)
 	}
 }
+
+func TestExtractProfilerServiceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  string
+		metadata map[string]string
+		expected string
+	}{
+		{
+			name: "Extracts custom profiler name from options",
+			options: `{
+				"display_data": [
+					{
+						"key": "dataflowServiceOptions",
+						"value": "[enable_google_cloud_profiler=custom_profiler, enable_google_cloud_heap_sampling]"
+					}
+				]
+			}`,
+			metadata: map[string]string{"job_name": "fallback_profiler"},
+			expected: "custom_profiler",
+		},
+		{
+			name: "Fallback to job_name when profiler not specified",
+			options: `{
+				"display_data": [
+					{
+						"key": "dataflowServiceOptions",
+						"value": "[enable_google_cloud_heap_sampling]"
+					}
+				]
+			}`,
+			metadata: map[string]string{"job_name": "fallback_profiler"},
+			expected: "fallback_profiler",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ExtractProfilerServiceName(tt.options, tt.metadata)
+			if result != tt.expected {
+				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
+			}
+		})
+	}
+}

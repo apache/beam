@@ -42,6 +42,8 @@ on:
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login}}'
   cancel-in-progress: true
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 jobs:
   typescript_unit_tests:
     name: 'TypeScript Unit Tests'
@@ -49,52 +51,71 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [[self-hosted, ubuntu-20.04], macos-latest]
+        os: [[self-hosted, ubuntu-24.04, main], macos-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
-          node-version: '16'
+          node-version: '18'
+      - name: Install Develocity npm Agent
+        run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
+        working-directory: ./sdks/typescript
       - run: npm ci
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm run build
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm run prettier-check
         working-directory: ./sdks/typescript
-        if: contains(matrix.os, 'ubuntu-20.04')
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
+        if: contains(matrix.os, 'ubuntu-24.04')
 #      - run: npm run codecovTest
 #        working-directory: ./sdks/typescript
 #        if: ${{ matrix.os == 'ubuntu-latest' }}
       - run: npm test
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
 #        if: ${{ matrix.os != 'ubuntu-latest' }}
   typescript_xlang_tests:
     name: 'TypeScript xlang Tests'
     # TODO(https://github.com/apache/beam/issues/33346): remove manual trigger after fixing referenced issue.
     if: (github.event_name == 'workflow_dispatch' && github.event.inputs.runXlang == 'true')
-    runs-on: [self-hosted, ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 15
     strategy:
       fail-fast: false
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
-          node-version: '16'
+          node-version: '18'
+      - name: Install Develocity npm Agent
+        run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
+        working-directory: ./sdks/typescript
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.10'
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
@@ -102,12 +123,17 @@ jobs:
           pip install -e .
       - run: npm ci
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm run build
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm test -- --grep "@xlang" --grep "@ulr"
         working-directory: ./sdks/typescript
         env:
           BEAM_SERVICE_OVERRIDES: '{"python:*": "python"}'
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
 
   check_gcp_variables:
     timeout-minutes: 5
@@ -116,7 +142,7 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -138,18 +164,26 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
-          node-version: '16'
+          node-version: '18'
+      - name: Install Develocity npm Agent
+        run: npm exec -y -- pacote extract @gradle-tech/develocity-agent@2.0.2 ~/.node_libraries/@gradle-tech/develocity-agent
+        working-directory: ./sdks/typescript
       - name: Install python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: '3.10'
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
@@ -157,8 +191,12 @@ jobs:
           pip install -e ".[gcp]"
       - run: npm ci
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm run build
         working-directory: ./sdks/typescript
+        env:
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'
       - run: npm test -- --grep "@dataflow"
         working-directory: ./sdks/typescript
         env:
@@ -166,3 +204,4 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_REGION: ${{ secrets.GCP_REGION }}
           GCP_TESTING_BUCKET: 'gs://${{ secrets.GCP_TESTING_BUCKET }}/tmp'
+          NODE_OPTIONS: '-r @gradle-tech/develocity-agent/preload'

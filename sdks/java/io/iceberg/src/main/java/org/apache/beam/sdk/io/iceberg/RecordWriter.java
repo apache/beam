@@ -22,8 +22,8 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
-import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -32,7 +32,6 @@ import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.encryption.EncryptedOutputFile;
 import org.apache.iceberg.encryption.EncryptionKeyMetadata;
 import org.apache.iceberg.io.DataWriter;
-import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
 import org.slf4j.Logger;
@@ -58,11 +57,10 @@ class RecordWriter {
         partitionKey);
   }
 
-  RecordWriter(Table table, FileFormat fileFormat, String filename, PartitionKey partitionKey)
+  RecordWriter(Table table, FileFormat fileFormat, String filename, StructLike partitionKey)
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;
-    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
 
     if (table.spec().isUnpartitioned()) {
       absoluteFilename =
@@ -74,22 +72,20 @@ class RecordWriter {
     }
     OutputFile outputFile;
     EncryptionKeyMetadata keyMetadata;
-    try (FileIO io = table.io()) {
-      OutputFile tmpFile = io.newOutputFile(absoluteFilename);
-      EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
-      outputFile = encryptedOutputFile.encryptingOutputFile();
-      keyMetadata = encryptedOutputFile.keyMetadata();
-    }
+    // table.io() may return a shared FileIO instance.
+    // FileIO lifecycle is managed by RecordWriterManager.close().
+    OutputFile tmpFile = table.io().newOutputFile(absoluteFilename);
+    EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
+    outputFile = encryptedOutputFile.encryptingOutputFile();
+    keyMetadata = encryptedOutputFile.keyMetadata();
 
     switch (fileFormat) {
       case AVRO:
         icebergDataWriter =
             Avro.writeData(outputFile)
+                .forTable(table)
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
-                .schema(table.schema())
-                .withSpec(table.spec())
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig)
                 .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
@@ -97,11 +93,9 @@ class RecordWriter {
       case PARQUET:
         icebergDataWriter =
             Parquet.writeData(outputFile)
-                .createWriterFunc(GenericParquetWriter::buildWriter)
-                .schema(table.schema())
-                .withSpec(table.spec())
+                .forTable(table)
+                .createWriterFunc(GenericParquetWriter::create)
                 .withPartition(partitionKey)
-                .metricsConfig(metricsConfig)
                 .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
@@ -126,16 +120,24 @@ class RecordWriter {
   }
 
   public void close() throws IOException {
+    IOException closeError = null;
     try {
       icebergDataWriter.close();
     } catch (IOException e) {
-      throw new IOException(
-          String.format(
-              "Failed to close %s writer for table %s, path: %s",
-              fileFormat, table.name(), absoluteFilename),
-          e);
+      closeError =
+          new IOException(
+              String.format(
+                  "Failed to close %s writer for table %s, path: %s",
+                  fileFormat, table.name(), absoluteFilename),
+              e);
+    } finally {
+      activeIcebergWriters.dec();
     }
-    activeIcebergWriters.dec();
+
+    if (closeError != null) {
+      throw closeError;
+    }
+
     DataFile dataFile = icebergDataWriter.toDataFile();
     LOG.info(
         "Closed {} writer for table '{}' ({} records, {} bytes), path: {}",

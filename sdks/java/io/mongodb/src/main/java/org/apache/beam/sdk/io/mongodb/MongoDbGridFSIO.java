@@ -141,7 +141,7 @@ public class MongoDbGridFSIO {
    */
   private static final Parser<String> TEXT_PARSER =
       (gridFSFile, downloadStream, callback) -> {
-        final Instant time = new Instant(gridFSFile.getUploadDate().getTime());
+        final Instant time = new Instant(gridFSFile.getUploadDate().toInstant().toEpochMilli());
         try (BufferedReader reader =
             new BufferedReader(new InputStreamReader(downloadStream, StandardCharsets.UTF_8))) {
           for (String line = reader.readLine(); line != null; line = reader.readLine()) {

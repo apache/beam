@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v17;
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v1_8;
 import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v21;
+import static org.apache.beam.sdk.testutils.jvmverification.JvmVerification.Java.v25;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -41,17 +42,13 @@ public class JvmVerification {
     versionMapping.put("0037", v11);
     versionMapping.put("003d", v17);
     versionMapping.put("0041", v21);
+    versionMapping.put("0045", v25);
   }
 
-  // bytecode
+  // bytecode compatibility
   @Test
-  public void verifyCodeIsCompiledWithJava8() throws IOException {
-    assertEquals(v1_8, getByteCodeVersion(DoFn.class));
-  }
-
-  @Test
-  public void verifyTestCodeIsCompiledWithJava8() throws IOException {
-    assertEquals(v1_8, getByteCodeVersion(JvmVerification.class));
+  public void verifyCodeIsCompiledWithJava11() throws IOException {
+    assertEquals(v11, getByteCodeVersion(DoFn.class));
   }
 
   @Test
@@ -69,13 +66,12 @@ public class JvmVerification {
     assertEquals(v21, getByteCodeVersion(JvmVerification.class));
   }
 
-  // jvm
   @Test
-  public void verifyRunningJVMVersionIs8() {
-    final String version = getJavaSpecification();
-    assertEquals(v1_8.name, version);
+  public void verifyTestCodeIsCompiledWithJava25() throws IOException {
+    assertEquals(v25, getByteCodeVersion(JvmVerification.class));
   }
 
+  // jvm
   @Test
   public void verifyRunningJVMVersionIs11() {
     final String version = getJavaSpecification();
@@ -92,6 +88,12 @@ public class JvmVerification {
   public void verifyRunningJVMVersionIs21() {
     final String version = getJavaSpecification();
     assertEquals(v21.name, version);
+  }
+
+  @Test
+  public void verifyRunningJVMVersionIs25() {
+    final String version = getJavaSpecification();
+    assertEquals(v25.name, version);
   }
 
   private static <T> Java getByteCodeVersion(final Class<T> clazz) throws IOException {
@@ -111,7 +113,8 @@ public class JvmVerification {
     v1_8("1.8"),
     v11("11"),
     v17("17"),
-    v21("21");
+    v21("21"),
+    v25("25");
 
     final String name;
 

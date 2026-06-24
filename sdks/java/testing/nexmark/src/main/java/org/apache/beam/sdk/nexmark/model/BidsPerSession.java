@@ -94,7 +94,7 @@ public class BidsPerSession implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof BidsPerSession)) {
       return false;
     }
     BidsPerSession that = (BidsPerSession) o;

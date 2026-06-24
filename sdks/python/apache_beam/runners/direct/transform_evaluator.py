@@ -27,10 +27,6 @@ import time
 from collections import abc
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Type
 
 from apache_beam import coders
 from apache_beam import io
@@ -76,8 +72,8 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from apache_beam.io.gcp.pubsub import _PubSubSource
   from apache_beam.io.gcp.pubsub import PubsubMessage
+  from apache_beam.io.gcp.pubsub import _PubSubSource
   from apache_beam.runners.direct.evaluation_context import EvaluationContext
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,13 +85,13 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides: Dict[Type[core.PTransform],
-                                   Type['_TransformEvaluator']] = {}
+  _test_evaluators_overrides: dict[type[core.PTransform],
+                                   type['_TransformEvaluator']] = {}
 
   def __init__(self, evaluation_context: 'EvaluationContext') -> None:
     assert evaluation_context
     self._evaluation_context = evaluation_context
-    self._evaluators: Dict[Type[core.PTransform], Type[_TransformEvaluator]] = {
+    self._evaluators: dict[type[core.PTransform], type[_TransformEvaluator]] = {
         io.Read: _BoundedReadEvaluator,
         _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
@@ -587,7 +583,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   # A mapping of transform to _PubSubSubscriptionWrapper.
   # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
   # collection of pipeline instances.
-  _subscription_cache: Dict[AppliedPTransform, str] = {}
+  _subscription_cache: dict[AppliedPTransform, str] = {}
 
   def __init__(
       self,
@@ -651,9 +647,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(
-      self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
-    from apache_beam.io.gcp.pubsub import PubsubMessage
+      self, timestamp_attribute) -> list[tuple[Timestamp, 'PubsubMessage']]:
     from google.cloud import pubsub
+
+    from apache_beam.io.gcp.pubsub import PubsubMessage
 
     def _get_element(message):
       parsed_message = PubsubMessage._from_message(message)
@@ -822,7 +819,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     # TODO(aaltay): Consider storing the serialized form as an optimization.
     dofn = (
-        pickler.loads(pickler.dumps(transform.dofn))
+        pickler.roundtrip(transform.dofn)
         if self._perform_dofn_pickle_test else transform.dofn)
 
     args = transform.args if hasattr(transform, 'args') else []

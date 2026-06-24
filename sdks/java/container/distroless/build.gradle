@@ -26,7 +26,8 @@ configurations {
     dockerDependency
 }
 
-task pushAll {
-    dependsOn ":sdks:java:container:distroless:java17:docker"
-    dependsOn ":sdks:java:container:distroless:java21:docker"
+tasks.register('pushAll') {
+  dependsOn ":sdks:java:container:distroless:java17:docker"
+  dependsOn ":sdks:java:container:distroless:java21:docker"
+  // TODO(#35627) add Java25 distroless container once gcr.io/distroless includes java25
 }

@@ -26,11 +26,8 @@ import logging
 import os
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Type
 from typing import TypeVar
 
 import apache_beam as beam
@@ -38,6 +35,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logger
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -63,7 +61,15 @@ _LOGGER = logging.getLogger(__name__)
 # Map defined with option names to flag names for boolean options
 # that have a destination(dest) in parser.add_argument() different
 # from the flag name and whose default value is `None`.
-_FLAG_THAT_SETS_FALSE_VALUE = {'use_public_ips': 'no_use_public_ips'}
+_FLAG_THAT_SETS_FALSE_VALUE = {
+    'use_public_ips': 'no_use_public_ips',
+    'save_main_session': 'no_save_main_session'
+}
+# Set of options which should not be overriden when applying options from a
+# different language. This is relevant when using x-lang transforms where the
+# expansion service is started up with some pipeline options, and will
+# impact which options are passed in to expanded transforms' expand functions.
+_NON_OVERIDABLE_XLANG_OPTIONS = ['runner', 'experiments']
 
 
 def _static_value_provider_of(value_type):
@@ -287,6 +293,10 @@ class _CommaSeparatedListAction(argparse.Action):
 
 
 class PipelineOptions(HasDisplayData):
+  # Set of options which should not be overriden when pipeline options are
+  # being merged (see from_runner_api). This primarily comes up when expanding
+  # the Python expansion service
+
   """This class and subclasses are used as containers for command line options.
 
   These classes are wrappers over the standard argparse Python module
@@ -466,18 +476,19 @@ class PipelineOptions(HasDisplayData):
         suggestions = difflib.get_close_matches(arg_name, all_known_options)
         if suggestions:
           msg += f". Did you mean '{suggestions[0]}'?'"
-      _LOGGER.warning(msg)
+      logger.log_first_n(logging.WARN, msg, key="message")
 
   def get_all_options(
       self,
       drop_default=False,
       add_extra_args_fn: Optional[Callable[[_BeamArgumentParser], None]] = None,
       retain_unknown_options=False,
-      display_warnings=False) -> Dict[str, Any]:
+      display_warnings=False,
+      current_only=False,
+  ) -> dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
-    Returns a dictionary of all defined arguments (arguments that are defined in
-    any subclass of PipelineOptions) into a dictionary.
+    Returns a dictionary of all defined arguments into a dictionary.
 
     Args:
       drop_default: If set to true, options that are equal to their default
@@ -487,6 +498,9 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options: If set to true, options not recognized by any
         known pipeline options class will still be included in the result. If
         set to false, they will be discarded.
+      current_only: If set to true, only returns options defined in this class.
+      Otherwise, arguments that are defined in any subclass of PipelineOptions
+      are returned (default).
 
     Returns:
       Dictionary of all args and values.
@@ -497,8 +511,11 @@ class PipelineOptions(HasDisplayData):
     # instance of each subclass to avoid conflicts.
     subset = {}
     parser = _BeamArgumentParser(allow_abbrev=False)
-    for cls in PipelineOptions.__subclasses__():
-      subset[str(cls)] = cls
+    if current_only:
+      subset.setdefault(str(type(self)), type(self))
+    else:
+      for cls in PipelineOptions.__subclasses__():
+        subset.setdefault(str(cls), cls)
     for cls in subset.values():
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
@@ -549,7 +566,7 @@ class PipelineOptions(HasDisplayData):
           continue
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
-      if unknown_args:
+      if unknown_args and not current_only:
         _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
       parsed_args = known_args
     result = vars(parsed_args)
@@ -567,7 +584,7 @@ class PipelineOptions(HasDisplayData):
     if overrides:
       if retain_unknown_options:
         result.update(overrides)
-      else:
+      elif not current_only:
         _LOGGER.warning("Discarding invalid overrides: %s", overrides)
 
     return result
@@ -592,20 +609,24 @@ class PipelineOptions(HasDisplayData):
         })
 
   @classmethod
-  def from_runner_api(cls, proto_options):
+  def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
       assert key.endswith(':v1')
       return key[12:-3]
 
-    return cls(
-        **{from_urn(key): value
-           for (key, value) in proto_options.items()})
+    parsed = {from_urn(key): value for (key, value) in proto_options.items()}
+    if original_options is None:
+      return cls(**parsed)
+    for (key, value) in parsed.items():
+      if value and key not in _NON_OVERIDABLE_XLANG_OPTIONS:
+        original_options._all_options[key] = value
+    return original_options
 
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
-  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
+  def view_as(self, cls: type[PipelineOptionsT]) -> PipelineOptionsT:
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -644,11 +665,30 @@ class PipelineOptions(HasDisplayData):
     view._all_options = self._all_options
     return view
 
-  def _visible_option_list(self) -> List[str]:
+  def is_compat_version_prior_to(self, breaking_change_version):
+    """Check if update_compatibility_version is prior to a breaking change.
+
+    Returns True if the pipeline should use old behavior (i.e., the
+    update_compatibility_version is set and is earlier than the given version).
+    Returns False if update_compatibility_version is not set or is >= the
+    breaking change version.
+
+    Args:
+      breaking_change_version: Version string (e.g., "2.72.0") at which
+        the breaking change was introduced.
+    """
+    v1 = self.view_as(StreamingOptions).update_compatibility_version
+    if v1 is None:
+      return False
+    v1_parts = (v1.split('.') + ['0', '0', '0'])[:3]
+    v2_parts = (breaking_change_version.split('.') + ['0', '0', '0'])[:3]
+    return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
+
+  def _visible_option_list(self) -> list[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self) -> List[str]:
+  def __dir__(self) -> list[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -810,7 +850,7 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks: Dict[str, Callable[[], None]] = {
+additional_type_checks: dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
 }
 
@@ -844,6 +884,20 @@ class TypeOptions(PipelineOptions):
         help='Disable type checking at pipeline construction '
         'time')
     parser.add_argument(
+        '--disable_beartype',
+        default=False,
+        action='store_true',
+        help='Disable the use of beartype for type checking.')
+    parser.add_argument(
+        '--exclude_infer_dataclass_field_type',
+        default=False,
+        action='store_true',
+        help='Exclude certain typehint inference involving dataclass fields '
+        'and resolve to Any (as in beam<=2.74.0). NOTE: this option is '
+        'for backward compatibility only and the exclusion scenarios are '
+        'subject to change or remove in a future version. For details see: '
+        'https://beam.apache.org/releases/pydoc/current/apache_beam.typehints.trivial_inference.html#apache_beam.typehints.trivial_inference.resolve_dataclass_field_type')  # pylint: disable=line-too-long
+    parser.add_argument(
         '--runtime_type_check',
         default=False,
         action='store_true',
@@ -874,6 +928,18 @@ class TypeOptions(PipelineOptions):
         'their condition met. Some operations, such as GroupByKey, disallow '
         'this. This exists for cases where such loss is acceptable and for '
         'backwards compatibility. See BEAM-9487.')
+    parser.add_argument(
+        '--force_cloudpickle_deterministic_coders',
+        default=False,
+        action='store_true',
+        help=(
+            'Force the use of cloudpickle-based deterministic coders '
+            'instead of dill-based coders, even when '
+            'update_compatibility_version  would normally trigger dill usage '
+            'for backward compatibility. This flag overrides automatic coder '
+            'selection to always use the modern cloudpickle serialization '
+            ' path. Warning: May break pipeline update compatibility with '
+            ' SDK versions prior to 2.68.0.'))
 
   def validate(self, unused_validator):
     errors = []
@@ -1146,7 +1212,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
@@ -1162,14 +1228,19 @@ class GoogleCloudOptions(PipelineOptions):
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
-            "Bucket specified in %s has soft-delete policy enabled."
+        logger.log_first_n(
+            logging.WARN,
+            "Bucket %s used as %s has soft-delete policy enabled."
             " To avoid being billed for unnecessary storage costs, turn"
             " off the soft delete feature on buckets that your Dataflow"
             " jobs use for temporary and staging storage. For more"
             " information, see"
             " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+            "#remove-soft-delete-policy.",
+            gcs_path,
+            arg_name,
+            n=1,
+            key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
@@ -1345,6 +1416,24 @@ class WorkerOptions(PipelineOptions):
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
+    parser.add_argument(
+        '--disk_provisioned_iops',
+        type=int,
+        default=None,
+        dest='disk_provisioned_iops',
+        help=(
+            'The provisioned IOPS of the disk. If not set, the Dataflow service'
+            ' will choose a reasonable default.'),
+    )
+    parser.add_argument(
+        '--disk_provisioned_throughput_mibps',
+        type=int,
+        default=None,
+        dest='disk_provisioned_throughput_mibps',
+        help=(
+            'The provisioned throughput of the disk in MiB/s. If not set, the'
+            ' Dataflow service will choose a reasonable default.'),
+    )
     parser.add_argument(
         '--worker_region',
         default=None,
@@ -1569,6 +1658,82 @@ class ProfilingOptions(PipelineOptions):
         default=1.0,
         help='A number between 0 and 1 indicating the ratio '
         'of bundles that should be profiled.')
+    parser.add_argument(
+        '--profiler_agent',
+        default=None,
+        help=(
+            'Specifies the profiling agent to launch the SDK worker harness '
+            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'
+        ))
+    parser.add_argument(
+        '--profiler_extra_arg',
+        '--profiler_extra_args',
+        dest='profiler_extra_args',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=
+        'Comma-separated list of extra arguments to pass to the profiler agent.'
+    )
+    parser.add_argument(
+        '--profiler_extra_env_var',
+        '--profiler_extra_env_vars',
+        dest='profiler_extra_env_vars',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=(
+            'Comma-separated list of environment variables required by the profiler agent '
+            'in format "KEY1=VAL1,KEY2=VAL2".'))
+    parser.add_argument(
+        '--profile_temp_location',
+        default=None,
+        help=(
+            'Directory path on the worker where local profiles are saved. '
+            'Defaults to ${semi_persist_dir}/profiles if not specified.'))
+    parser.add_argument(
+        '--profile_upload_interval_sec',
+        type=int,
+        default=300,
+        help=(
+            'Frequency (in seconds) at which the local profiles are uploaded to GCS. '
+            'Defaults to 300 (5 min).'))
+    parser.add_argument(
+        '--profiler_stop_after_sec',
+        type=int,
+        default=0,
+        help=(
+            'Time limit (in seconds) for profiling a single process. When exceeded, '
+            'the worker process is restarted without the profiler.'))
+    parser.add_argument(
+        '--profiler_stop_after_crash',
+        action='store_true',
+        default=False,
+        help=(
+            'If True, the profiling agent won\'t be re-enabled after a worker '
+            'process crash.'))
+    parser.add_argument(
+        '--profile_postprocess_interval_sec',
+        type=int,
+        default=600,
+        help=(
+            'Frequency (in seconds) at which the local profiles are post-processed '
+            'on-the-fly. Defaults to 600 (10 minutes). Set to 0 to disable.'))
+
+  def validate(self, validator):
+    errors = []
+    if self.profiler_agent:
+      if self.profile_cpu or self.profile_memory:
+        errors.append(
+            '--profiler_agent is mutually exclusive with --profile_cpu '
+            'and --profile_memory.')
+
+      if not self.profile_location:
+        temp_location = self.view_as(GoogleCloudOptions).temp_location
+        if temp_location:
+          self.profile_location = temp_location.rstrip('/') + '/profiles'
+          _LOGGER.info(
+              'Setting --profile_location to %s since profiling is enabled.',
+              self.profile_location)
+    return errors
 
 
 class SetupOptions(PipelineOptions):
@@ -1641,14 +1806,24 @@ class SetupOptions(PipelineOptions):
         choices=['cloudpickle', 'default', 'dill', 'dill_unsafe'])
     parser.add_argument(
         '--save_main_session',
-        default=False,
+        default=None,
         action='store_true',
         help=(
             'Save the main session state so that pickled functions and classes '
             'defined in __main__ (e.g. interactive session) can be unpickled. '
             'Some workflows do not need the session state if for instance all '
             'their functions/classes are defined in proper modules '
-            '(not __main__) and the modules are importable in the worker. '))
+            '(not __main__) and the modules are importable in the worker. '
+            'It is disabled by default except for cloudpickle as pickle '
+            'library on Dataflow runner.'))
+    parser.add_argument(
+        '--no_save_main_session',
+        default=None,
+        action='store_false',
+        dest='save_main_session',
+        help=(
+            'Disable saving the main session state. See "save_main_session".'))
+
     parser.add_argument(
         '--sdk_location',
         default='default',
@@ -1716,11 +1891,62 @@ class SetupOptions(PipelineOptions):
         help=(
             'Docker registry url to use for tagging and pushing the prebuilt '
             'sdk worker container image.'))
+    parser.add_argument(
+        '--gbek',
+        default=None,
+        help=(
+            'When set, will replace all GroupByKey transforms in the pipeline '
+            'with EncryptedGroupByKey transforms using the secret passed in '
+            'the option. Beam will infer the secret type and value based on '
+            'secret itself. This guarantees that any data at rest during the '
+            'GBK will be encrypted. Many runners only store data at rest when '
+            'performing a GBK, so this can be used to guarantee that data is '
+            'not unencrypted. The secret should be a url safe base64 encoded '
+            '32 byte value. To generate a secret in this format, you can use '
+            'Secret.generate_secret_bytes(). For an example of this, see '
+            'https://github.com/apache/beam/blob/c8df4da229da49d533491857e1bb4ab5dbf4fd37/sdks/python/apache_beam/transforms/util_test.py#L356. '  # pylint: disable=line-too-long
+            'Runners with this behavior include the Dataflow, '
+            'Flink, and Spark runners. The option should be '
+            'structured like: '
+            '--gbek=type:<secret_type>;<secret_param>:<value>, for example '
+            '--gbek=type:GcpSecret;version_name:my_secret/versions/latest'))
+    parser.add_argument(
+        '--user_agent',
+        default=None,
+        help=(
+            'A user agent string describing the pipeline to external services. '
+            'The format should follow RFC2616.'))
+    parser.add_argument(
+        '--maven_repository_url',
+        default=None,
+        help=(
+            'Custom Maven repository URL to use for downloading JAR files. '
+            'If not specified, the default Maven Central repository will be '
+            'used.'))
+
+  def _handle_load_main_session(self, validator):
+    save_main_session = getattr(self, 'save_main_session')
+    if save_main_session is None:
+      if not validator.is_service_runner():
+        setattr(self, 'save_main_session', False)
+      else:
+        # save_main_session default to False for dill, while default to true
+        # for cloudpickle on service runner
+        pickle_library = getattr(self, 'pickle_library')
+        if pickle_library == 'default':
+          from apache_beam.internal.pickler import DEFAULT_PICKLE_LIB
+          pickle_library = DEFAULT_PICKLE_LIB
+        if pickle_library == 'cloudpickle':
+          setattr(self, 'save_main_session', True)
+        else:
+          setattr(self, 'save_main_session', False)
+    return []
 
   def validate(self, validator):
     errors = []
     errors.extend(validator.validate_container_prebuilding_options(self))
     errors.extend(validator.validate_pickle_library(self))
+    errors.extend(self._handle_load_main_session(validator))
     return errors
 
 
@@ -1747,7 +1973,7 @@ class PortableOptions(PipelineOptions):
     parser.add_argument(
         '--job_server_timeout',
         '--job-server-timeout',  # For backwards compatibility.
-        default=60,
+        default=300,
         type=int,
         help=(
             'Job service request timeout in seconds. The timeout '
@@ -1880,7 +2106,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19']
+  PUBLISHED_FLINK_VERSIONS = ['1.19', '1.20', '2.0', '2.1', '2.2']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -2048,7 +2274,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides: List[Dict[str, Any]] = []
+  overrides: list[dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

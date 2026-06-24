@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro.coders;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -131,8 +132,6 @@ public class AvroCoderTest {
           ImmutableList.of(AVRO_NESTED_SPECIFIC_RECORD, AVRO_NESTED_SPECIFIC_RECORD),
           ImmutableMap.of("k1", AVRO_NESTED_SPECIFIC_RECORD, "k2", AVRO_NESTED_SPECIFIC_RECORD));
 
-  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
-
   @DefaultCoder(AvroCoder.class)
   private static class Pojo {
     public String text;
@@ -156,7 +155,7 @@ public class AvroCoderTest {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof Pojo)) {
         return false;
       }
       Pojo that = (Pojo) other;
@@ -286,6 +285,7 @@ public class AvroCoderTest {
 
     // Kryo instantiation
     Kryo kryo = new Kryo();
+    kryo.setRegistrationRequired(false);
     kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
     kryo.addDefaultSerializer(AvroCoder.SerializableSchemaSupplier.class, JavaSerializer.class);
 
@@ -874,6 +874,7 @@ public class AvroCoderTest {
 
   @Test
   public void testDeterminismCyclicClass() {
+    // Note: this test fails on Avro 1.12.1 due to https://issues.apache.org/jira/browse/AVRO-4209
     assertNonDeterministic(
         AvroCoder.of(Cyclic.class),
         reasonField(Cyclic.class, "cyclicField", "appears recursively"));
@@ -920,6 +921,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     GenericRecord genericRecord;
   }
 
@@ -937,6 +939,7 @@ public class AvroCoderTest {
     @AvroSchema(
         "{\"name\": \"bar\", \"type\": \"record\", \"fields\": ["
             + "{\"name\": \"foo\", \"type\": \"int\"}]}")
+    @SuppressWarnings("unused")
     int withCustomSchema;
   }
 
@@ -1161,6 +1164,7 @@ public class AvroCoderTest {
 
   @Test
   public void testNullableNonDeterministicField() {
+    // Note: this test fails on Avro 1.12.1 due to https://issues.apache.org/jira/browse/AVRO-4209
     assertNonDeterministic(
         AvroCoder.of(NullableCyclic.class),
         reasonField(

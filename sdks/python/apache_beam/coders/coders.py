@@ -43,13 +43,9 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import overload
 
@@ -68,7 +64,6 @@ from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
-  from apache_beam.coders.typecoders import CoderRegistry
   from apache_beam.runners.pipeline_context import PipelineContext
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -91,6 +86,7 @@ __all__ = [
     'Coder',
     'AvroGenericCoder',
     'BooleanCoder',
+    'ByteCoder',
     'BytesCoder',
     'CloudpickleCoder',
     'DillCoder',
@@ -121,7 +117,7 @@ __all__ = [
 T = TypeVar('T')
 CoderT = TypeVar('CoderT', bound='Coder')
 ProtoCoderT = TypeVar('ProtoCoderT', bound='ProtoCoder')
-ConstructorFn = Callable[[Optional[Any], List['Coder'], 'PipelineContext'], Any]
+ConstructorFn = Callable[[Optional[Any], list['Coder'], 'PipelineContext'], Any]
 
 
 def serialize_coder(coder):
@@ -394,6 +390,15 @@ class Coder(object):
         return cls(*components)
       else:
         return cls()
+
+  def version_tag(self) -> str:
+    """For internal use. Appends a version tag to the coder key in the pipeline
+    proto. Some runners (e.g. DataflowRunner) use coder key/id to verify if a
+    pipeline is update compatible. If the implementation of a coder changed
+    in an update incompatible way a version tag can be added to fail
+    compatibility checks.
+    """
+    return ""
 
 
 @Coder.register_urn(
@@ -689,6 +694,25 @@ class BigEndianShortCoder(FastCoder):
     return hash(type(self))
 
 
+class ByteCoder(FastCoder):
+  """A coder used for single byte values"""
+  def _create_impl(self):
+    return coder_impl.ByteCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
 class SinglePrecisionFloatCoder(FastCoder):
   """A coder used for single-precision floating-point values."""
   def _create_impl(self):
@@ -921,13 +945,22 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
   def __init__(self, coder, step_label):
     self._underlying_coder = coder
     self._step_label = step_label
+    self._use_relative_filepaths = True
+    self._version_tag = "v2_69"
+
+    # Versions prior to 2.69.0 did not use relative filepaths.
+    from apache_beam.options.pipeline_options_context import get_pipeline_options
+    opts = get_pipeline_options()
+    if opts and opts.is_compat_version_prior_to("2.69.0"):
+      self._version_tag = ""
+      self._use_relative_filepaths = False
 
   def _create_impl(self):
-
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
         requires_deterministic_step_label=self._step_label,
-        force_use_dill=False)
+        force_use_dill=False,
+        use_relative_filepaths=self._use_relative_filepaths)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -952,6 +985,9 @@ class DeterministicFastPrimitivesCoderV2(FastCoder):
         python_urns.PICKLED_CODER,
         google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
+
+  def version_tag(self):
+    return self._version_tag
 
 
 class DeterministicFastPrimitivesCoder(FastCoder):
@@ -985,14 +1021,10 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
 
 def _should_force_use_dill():
-  from apache_beam.coders import typecoders
-  from apache_beam.transforms.util import is_v1_prior_to_v2
-  update_compat_version = typecoders.registry.update_compatibility_version
+  from apache_beam.options.pipeline_options_context import get_pipeline_options
 
-  if not update_compat_version:
-    return False
-
-  if not is_v1_prior_to_v2(v1=update_compat_version, v2="2.68.0"):
+  opts = get_pipeline_options()
+  if opts is None or not opts.is_compat_version_prior_to("2.68.0"):
     return False
 
   try:
@@ -1007,6 +1039,16 @@ def _should_force_use_dill():
 
 
 def _update_compatible_deterministic_fast_primitives_coder(coder, step_label):
+  """ Returns the update compatible version of DeterministicFastPrimitivesCoder
+   The differences are in how "special types" e.g. NamedTuples, Dataclasses are
+   deterministically encoded.
+
+   - In SDK version <= 2.67.0 dill is used to encode "special types"
+   - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+   absolute filepaths in code objects and dynamic functions.
+   - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+   relative filepaths in code objects and dynamic functions.
+  """
   if _should_force_use_dill():
     return DeterministicFastPrimitivesCoder(coder, step_label)
   return DeterministicFastPrimitivesCoderV2(coder, step_label)
@@ -1461,7 +1503,7 @@ Coder.register_structured_urn(
 
 class _OrderedUnionCoder(FastCoder):
   def __init__(
-      self, *coder_types: Tuple[type, Coder], fallback_coder: Optional[Coder]):
+      self, *coder_types: tuple[type, Coder], fallback_coder: Optional[Coder]):
     self._coder_types = coder_types
     self._fallback_coder = fallback_coder
 
@@ -1473,7 +1515,7 @@ class _OrderedUnionCoder(FastCoder):
 
   def is_deterministic(self) -> bool:
     return (
-        all(c.is_deterministic for _, c in self._coder_types) and (
+        all(c.is_deterministic() for _, c in self._coder_types) and (
             self._fallback_coder is None or
             self._fallback_coder.is_deterministic()))
 
@@ -1536,7 +1578,7 @@ class WindowedValueCoder(FastCoder):
   def __repr__(self):
     return (
         f'WindowedValueCoder[window_coder={self.window_coder}, '
-        f'value_coder={self.value_coder()}]')
+        f'wrapped_value_coder={self.wrapped_value_coder}]')
 
   def __eq__(self, other):
     return (
@@ -1769,7 +1811,7 @@ class TimestampPrefixingWindowCoder(FastCoder):
   def to_type_hint(self):
     return self._window_coder.to_type_hint()
 
-  def _get_component_coders(self) -> List[Coder]:
+  def _get_component_coders(self) -> list[Coder]:
     return [self._window_coder]
 
   def is_deterministic(self) -> bool:

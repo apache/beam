@@ -49,7 +49,6 @@ from apache_beam.io.gcp import gcsio_retry
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils.annotations import deprecated
 
 __all__ = ['GcsIO', 'create_storage_client']
 
@@ -78,6 +77,48 @@ def default_gcs_bucket_name(project, region):
       region, md5(project.encode('utf8')).hexdigest())
 
 
+def _get_project_number(project_id, credentials=None):
+  """Resolves a project ID to its project number using Cloud Resource Manager API."""
+  from google.cloud import resourcemanager_v3
+  client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+  project_info = client.get_project(name=f"projects/{project_id}")
+  # project_info.name is of the form "projects/PROJECT_NUMBER"
+  return int(project_info.name.split('/')[-1])
+
+
+def _validate_bucket_project(bucket, project_id, credentials=None):
+  """Verifies that the GCS bucket is owned by the executing project."""
+  bucket_project_number = bucket.project_number
+
+  # Skip validation if the bucket project number is a mock object
+  if (type(bucket_project_number).__name__.endswith('Mock') or
+      hasattr(bucket_project_number, '_mock_self')):
+    _LOGGER.warning(
+        'Bucket project number is a mock object. Skipping ownership validation.'
+    )
+    return
+
+  if bucket_project_number is None:
+    _LOGGER.warning(
+        'Bucket gs://%s does not have a project number. Skipping ownership validation.',
+        bucket.name)
+    return
+
+  try:
+    project_number = _get_project_number(project_id, credentials=credentials)
+  except Exception as e:
+    _LOGGER.warning(
+        'Failed to resolve project number for project %s: %s. '
+        'Skipping bucket ownership validation.',
+        project_id,
+        e)
+    return
+
+  if bucket_project_number != project_number:
+    raise ValueError(
+        f'Bucket gs://{bucket.name} is not owned by project {project_id}.')
+
+
 def get_or_create_default_gcs_bucket(options):
   """Create a default GCS bucket for this project."""
   if getattr(options, 'dataflow_kms_key', None):
@@ -91,16 +132,18 @@ def get_or_create_default_gcs_bucket(options):
     return None
 
   bucket_name = default_gcs_bucket_name(project, region)
-  bucket = GcsIO(pipeline_options=options).get_bucket(bucket_name)
+  gcs = GcsIO(pipeline_options=options)
+  bucket = gcs.get_bucket(bucket_name)
   if bucket:
+    _validate_bucket_project(
+        bucket, project, credentials=getattr(gcs.client, '_credentials', None))
     return bucket
   else:
     _LOGGER.warning(
         'Creating default GCS bucket for project %s: gs://%s',
         project,
         bucket_name)
-    return GcsIO(pipeline_options=options).create_bucket(
-        bucket_name, project, location=region)
+    return gcs.create_bucket(bucket_name, project, location=region)
 
 
 def create_storage_client(pipeline_options, use_credentials=True):
@@ -459,7 +502,7 @@ class GcsIO(object):
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    for entry in self.list_prefix(src):
+    for entry, _ in self.list_files(src):
       rel_path = entry[len(src):]
       self.copy(entry, dest + rel_path)
 
@@ -564,27 +607,6 @@ class GcsIO(object):
     else:
       raise NotFound('Object %s not found', path)
 
-  @deprecated(since='2.45.0', current='list_files')
-  def list_prefix(self, path, with_metadata=False):
-    """Lists files matching the prefix.
-
-    ``list_prefix`` has been deprecated. Use `list_files` instead, which returns
-    a generator of file information instead of a dict.
-
-    Args:
-      path: GCS file path pattern in the form gs://<bucket>/[name].
-      with_metadata: Experimental. Specify whether returns file metadata.
-
-    Returns:
-      If ``with_metadata`` is False: dict of file name -> size; if
-        ``with_metadata`` is True: dict of file name -> tuple(size, timestamp).
-    """
-    file_info = {}
-    for file_metadata in self.list_files(path, with_metadata):
-      file_info[file_metadata[0]] = file_metadata[1]
-
-    return file_info
-
   def list_files(self, path, with_metadata=False):
     """Lists files matching the prefix.
 
@@ -627,7 +649,7 @@ class GcsIO(object):
           yield file_name, item.size
 
     _LOGGER.log(
-        # do not spam logs when list_prefix is likely used to check empty folder
+        # do not spam logs when list_files is likely used to check empty folder
         logging.INFO if counter > 0 else logging.DEBUG,
         "Finished listing %s files in %s seconds.",
         counter,
@@ -642,7 +664,7 @@ class GcsIO(object):
 
   def is_soft_delete_enabled(self, gcs_path):
     try:
-      bucket_name, _ = parse_gcs_path(gcs_path)
+      bucket_name, _ = parse_gcs_path(gcs_path, object_optional=True)
       bucket = self.get_bucket(bucket_name)
       if (bucket.soft_delete_policy is not None and
           bucket.soft_delete_policy.retention_duration_seconds > 0):

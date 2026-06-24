@@ -22,8 +22,8 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertTrue;
-import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
-import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
+import static org.apache.beam.sdk.TestUtils.LINES;
+import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.io.Compression.AUTO;
 import static org.apache.beam.sdk.io.Compression.BZIP2;
 import static org.apache.beam.sdk.io.Compression.DEFLATE;
@@ -951,25 +951,25 @@ public class ContextualTextIOTest {
     @Test
     @Category(NeedsRunner.class)
     public void testReadStrings() throws Exception {
-      runTestRead(LINES_ARRAY);
+      runTestRead(LINES.toArray(new String[0]));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadStringsWithContext() throws Exception {
-      runTestReadLineNumsAndFileName(LINES_ARRAY);
+      runTestReadLineNumsAndFileName(LINES.toArray(new String[0]));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadEmptyStrings() throws Exception {
-      runTestRead(NO_LINES_ARRAY);
+      runTestRead(NO_LINES.toArray(new String[0]));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testReadEmptyStringsWithContext() throws Exception {
-      runTestReadLineNumsAndFileName(NO_LINES_ARRAY);
+      runTestReadLineNumsAndFileName(NO_LINES.toArray(new String[0]));
     }
 
     @Test

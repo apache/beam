@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
@@ -54,7 +56,6 @@ import org.apache.avro.Conversion;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
@@ -80,6 +81,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
@@ -97,6 +99,7 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CaseFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -133,6 +136,9 @@ import org.joda.time.ReadableInstant;
  *   LogicalTypes.Date              <-----> LogicalType(DATE)
  *                                  <------ LogicalType(urn="beam:logical_type:date:v1")
  *   LogicalTypes.TimestampMillis   <-----> DATETIME
+ *   LogicalTypes.TimestampMicros   ------> Long
+ *   LogicalTypes.TimestampMicros   <------ LogicalType(urn="beam:logical_type:micros_instant:v1")
+ *   LogicalTypes.TimestampNanos   <------> LogicalType(TIMESTAMP(9))
  *   LogicalTypes.Decimal           <-----> DECIMAL
  * </pre>
  *
@@ -150,6 +156,8 @@ import org.joda.time.ReadableInstant;
   "rawtypes"
 })
 public class AvroUtils {
+  public static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
   private static final ForLoadedType JAVA_LOCALE_DATE =
@@ -159,6 +167,8 @@ public class AvroUtils {
   private static final ForLoadedType JODA_INSTANT = new ForLoadedType(Instant.class);
 
   private static final GenericData GENERIC_DATA_WITH_DEFAULT_CONVERSIONS;
+
+  private static final String TIMESTAMP_NANOS_LOGICAL_TYPE = "timestamp-nanos";
 
   static {
     GENERIC_DATA_WITH_DEFAULT_CONVERSIONS = new GenericData();
@@ -229,7 +239,7 @@ public class AvroUtils {
     }
 
     TypeWithNullability(org.apache.avro.Schema avroSchema) {
-      if (avroSchema.getType() == Type.UNION) {
+      if (avroSchema.getType() == org.apache.avro.Schema.Type.UNION) {
         List<org.apache.avro.Schema> types = avroSchema.getTypes();
 
         // optional fields in AVRO have form of:
@@ -237,7 +247,9 @@ public class AvroUtils {
 
         // don't need recursion because nested unions aren't supported in AVRO
         List<org.apache.avro.Schema> nonNullTypes =
-            types.stream().filter(x -> x.getType() != Type.NULL).collect(Collectors.toList());
+            types.stream()
+                .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
+                .collect(Collectors.toList());
 
         if (nonNullTypes.size() == types.size() || nonNullTypes.isEmpty()) {
           // union without `null` or all 'null' union, keep as is.
@@ -294,7 +306,7 @@ public class AvroUtils {
 
     /** Create a {@link FixedBytesField} from an AVRO type. */
     public static @Nullable FixedBytesField fromAvroType(org.apache.avro.Schema type) {
-      if (type.getType().equals(Type.FIXED)) {
+      if (type.getType().equals(org.apache.avro.Schema.Type.FIXED)) {
         return new FixedBytesField(type.getFixedSize());
       } else {
         return null;
@@ -323,15 +335,20 @@ public class AvroUtils {
     }
 
     @Override
-    protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
+    protected java.lang.reflect.Type convertLogicalType(TypeDescriptor<?> type) {
       if (type.isSubtypeOf(TypeDescriptor.of(java.time.Instant.class))
           || type.isSubtypeOf(TypeDescriptor.of(java.time.LocalDate.class))) {
         return convertDateTime(type);
-      } else if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        return byte[].class;
-      } else {
-        return super.convertDefault(type);
       }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected java.lang.reflect.Type convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        return byte[].class;
+      }
+      return super.convertDefault(type);
     }
   }
 
@@ -346,18 +363,8 @@ public class AvroUtils {
     }
 
     @Override
-    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // Generate the following code:
-        // return value.bytes();
-        return new Compound(
-            readValue,
-            MethodInvocation.invoke(
-                new ForLoadedType(GenericFixed.class)
-                    .getDeclaredMethods()
-                    .filter(ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTES)))
-                    .getOnly()));
-      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+    protected StackManipulation convertLogicalType(TypeDescriptor<?> type) {
+      if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
         // Generates the following code:
         //   return Instant.ofEpochMilli(value.toEpochMilli())
         StackManipulation onNotNull =
@@ -396,6 +403,22 @@ public class AvroUtils {
                         .getOnly()));
         return shortCircuitReturnNull(readValue, onNotNull);
       }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        // return value.bytes();
+        return new Compound(
+            readValue,
+            MethodInvocation.invoke(
+                new ForLoadedType(GenericFixed.class)
+                    .getDeclaredMethods()
+                    .filter(ElementMatchers.named("bytes").and(ElementMatchers.returns(BYTES)))
+                    .getOnly()));
+      }
       return super.convertDefault(type);
     }
   }
@@ -411,25 +434,8 @@ public class AvroUtils {
     }
 
     @Override
-    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
-      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
-        // Generate the following code:
-        //   return new T((byte[]) value);
-        ForLoadedType loadedType = new ForLoadedType(type.getRawType());
-        return new Compound(
-            TypeCreation.of(loadedType),
-            Duplication.SINGLE,
-            // Load the parameter and cast it to a byte[].
-            readValue,
-            TypeCasting.to(BYTES),
-            // Create a new instance that wraps this byte[].
-            MethodInvocation.invoke(
-                loadedType
-                    .getDeclaredMethods()
-                    .filter(
-                        ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(BYTES)))
-                    .getOnly()));
-      } else if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
+    protected StackManipulation convertLogicalType(TypeDescriptor<?> type) {
+      if (java.time.Instant.class.isAssignableFrom(type.getRawType())) {
         // Generates the following code:
         //   return java.time.Instant.ofEpochMilli(value.getMillis())
         StackManipulation onNotNull =
@@ -466,6 +472,29 @@ public class AvroUtils {
                         .filter(ElementMatchers.isStatic().and(ElementMatchers.named("ofEpochDay")))
                         .getOnly()));
         return shortCircuitReturnNull(readValue, onNotNull);
+      }
+      return super.convertLogicalType(type);
+    }
+
+    @Override
+    protected StackManipulation convertDefault(TypeDescriptor<?> type) {
+      if (type.isSubtypeOf(TypeDescriptor.of(GenericFixed.class))) {
+        // Generate the following code:
+        //   return new T((byte[]) value);
+        ForLoadedType loadedType = new ForLoadedType(type.getRawType());
+        return new Compound(
+            TypeCreation.of(loadedType),
+            Duplication.SINGLE,
+            // Load the parameter and cast it to a byte[].
+            readValue,
+            TypeCasting.to(BYTES),
+            // Create a new instance that wraps this byte[].
+            MethodInvocation.invoke(
+                loadedType
+                    .getDeclaredMethods()
+                    .filter(
+                        ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(BYTES)))
+                    .getOnly()));
       }
       return super.convertDefault(type);
     }
@@ -663,7 +692,9 @@ public class AvroUtils {
   public static @Nullable <T> Schema getSchema(
       Class<T> clazz, org.apache.avro.@Nullable Schema schema) {
     if (schema != null) {
-      return schema.getType().equals(Type.RECORD) ? toBeamSchema(schema) : null;
+      return schema.getType().equals(org.apache.avro.Schema.Type.RECORD)
+          ? toBeamSchema(schema)
+          : null;
     }
     if (GenericRecord.class.equals(clazz)) {
       throw new IllegalArgumentException("No schema provided for getSchema(GenericRecord)");
@@ -755,7 +786,7 @@ public class AvroUtils {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof GenericRecordToRowFn)) {
         return false;
       }
       GenericRecordToRowFn that = (GenericRecordToRowFn) other;
@@ -794,7 +825,7 @@ public class AvroUtils {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof RowToGenericRecordFn)) {
         return false;
       }
       RowToGenericRecordFn that = (RowToGenericRecordFn) other;
@@ -1023,6 +1054,11 @@ public class AvroUtils {
         fieldType = FieldType.DATETIME;
       }
     }
+    // TODO: Remove once Avro 1.12+ has timestamp-nanos
+    if (fieldType == null
+        && TIMESTAMP_NANOS_LOGICAL_TYPE.equals(avroSchema.getProp("logicalType"))) {
+      fieldType = FieldType.logicalType(Timestamp.NANOS);
+    }
 
     if (fieldType == null) {
       switch (type.type.getType()) {
@@ -1104,44 +1140,45 @@ public class AvroUtils {
       case BYTE:
       case INT16:
       case INT32:
-        baseType = org.apache.avro.Schema.create(Type.INT);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT);
         break;
 
       case INT64:
-        baseType = org.apache.avro.Schema.create(Type.LONG);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
         break;
 
       case DECIMAL:
         baseType =
             LogicalTypes.decimal(Integer.MAX_VALUE)
-                .addToSchema(org.apache.avro.Schema.create(Type.BYTES));
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES));
         break;
 
       case FLOAT:
-        baseType = org.apache.avro.Schema.create(Type.FLOAT);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT);
         break;
 
       case DOUBLE:
-        baseType = org.apache.avro.Schema.create(Type.DOUBLE);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE);
         break;
 
       case STRING:
-        baseType = org.apache.avro.Schema.create(Type.STRING);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.STRING);
         break;
 
       case DATETIME:
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
         baseType =
-            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
+            LogicalTypes.timestampMillis()
+                .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
         break;
 
       case BOOLEAN:
-        baseType = org.apache.avro.Schema.create(Type.BOOLEAN);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BOOLEAN);
         break;
 
       case BYTES:
-        baseType = org.apache.avro.Schema.create(Type.BYTES);
+        baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
         break;
 
       case LOGICAL_TYPE:
@@ -1153,7 +1190,7 @@ public class AvroUtils {
           baseType = fixedBytesField.toAvroType("fixed", namespace + "." + fieldName);
         } else if (VariableBytes.IDENTIFIER.equals(identifier)) {
           // treat VARBINARY as bytes as that is what avro supports
-          baseType = org.apache.avro.Schema.create(Type.BYTES);
+          baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES);
         } else if (FixedString.IDENTIFIER.equals(identifier)
             || "CHAR".equals(identifier)
             || "NCHAR".equals(identifier)) {
@@ -1176,9 +1213,25 @@ public class AvroUtils {
                       .map(x -> getFieldSchema(x.getType(), x.getName(), namespace))
                       .collect(Collectors.toList()));
         } else if ("DATE".equals(identifier) || SqlTypes.DATE.getIdentifier().equals(identifier)) {
-          baseType = LogicalTypes.date().addToSchema(org.apache.avro.Schema.create(Type.INT));
+          baseType =
+              LogicalTypes.date()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
         } else if ("TIME".equals(identifier)) {
-          baseType = LogicalTypes.timeMillis().addToSchema(org.apache.avro.Schema.create(Type.INT));
+          baseType =
+              LogicalTypes.timeMillis()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT));
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          baseType =
+              LogicalTypes.timestampMicros()
+                  .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG));
+        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          int precision = checkNotNull(logicalType.getArgument());
+          if (precision != 9) {
+            throw new RuntimeException(
+                "Timestamp logical type precision not supported:" + precision);
+          }
+          baseType = org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG);
+          baseType.addProp("logicalType", TIMESTAMP_NANOS_LOGICAL_TYPE);
         } else {
           throw new RuntimeException(
               "Unhandled logical type " + checkNotNull(fieldType.getLogicalType()).getIdentifier());
@@ -1214,10 +1267,20 @@ public class AvroUtils {
     return fieldType.getNullable() ? ReflectData.makeNullable(baseType) : baseType;
   }
 
+  private static final Map<org.apache.avro.Schema, Function<Number, ? extends Number>>
+      NUMERIC_CONVERTERS =
+          ImmutableMap.of(
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT), Number::intValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG), Number::longValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.FLOAT), Number::floatValue,
+              org.apache.avro.Schema.create(org.apache.avro.Schema.Type.DOUBLE),
+                  Number::doubleValue);
+
+  /** Convert a value from Beam Row to a vlue used for Avro GenericRecord. */
   private static @Nullable Object genericFromBeamField(
       FieldType fieldType, org.apache.avro.Schema avroSchema, @Nullable Object value) {
     TypeWithNullability typeWithNullability = new TypeWithNullability(avroSchema);
-    if (!fieldType.getNullable().equals(typeWithNullability.nullable)) {
+    if (fieldType.getNullable() != typeWithNullability.nullable) {
       throw new IllegalArgumentException(
           "FieldType "
               + fieldType
@@ -1230,6 +1293,11 @@ public class AvroUtils {
       return value;
     }
 
+    if (NUMERIC_CONVERTERS.containsKey(typeWithNullability.type)) {
+      return NUMERIC_CONVERTERS.get(typeWithNullability.type).apply((Number) value);
+    }
+
+    // TODO: should we use Avro Schema as the source-of-truth in general?
     switch (fieldType.getTypeName()) {
       case BYTE:
       case INT16:
@@ -1251,10 +1319,10 @@ public class AvroUtils {
         return result;
 
       case DATETIME:
-        if (typeWithNullability.type.getType() == Type.INT) {
+        if (typeWithNullability.type.getType() == org.apache.avro.Schema.Type.INT) {
           ReadableInstant instant = (ReadableInstant) value;
           return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
-        } else if (typeWithNullability.type.getType() == Type.LONG) {
+        } else if (typeWithNullability.type.getType() == org.apache.avro.Schema.Type.LONG) {
           ReadableInstant instant = (ReadableInstant) value;
           return (long) instant.getMillis();
         } else {
@@ -1315,6 +1383,20 @@ public class AvroUtils {
           return ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
+        } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {
+          java.time.Instant instant = (java.time.Instant) value;
+          return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
+              + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
+        } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          java.time.Instant instant = (java.time.Instant) value;
+          // Use BigInteger to work around long overflows so that epochNanos = Long.MIN_VALUE can be
+          // supported. Instant always stores nanos as positive adjustment so the math will silently
+          // overflow with regular int64.
+          BigInteger epochSeconds = BigInteger.valueOf(instant.getEpochSecond());
+          BigInteger nanosOfSecond = BigInteger.valueOf(instant.getNano());
+          BigInteger epochNanos =
+              epochSeconds.multiply(BigInteger.valueOf(1_000_000_000L)).add(nanosOfSecond);
+          return epochNanos.longValueExact();
         } else {
           throw new RuntimeException("Unhandled logical type " + identifier);
         }
@@ -1362,6 +1444,24 @@ public class AvroUtils {
       @Nonnull FieldType fieldType,
       @Nonnull GenericData genericData) {
     TypeWithNullability type = new TypeWithNullability(avroSchema);
+
+    // TODO: Remove this workaround once Avro is upgraded to 1.12+ where timestamp-nanos
+    if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.type.getProp("logicalType"))) {
+      if (type.type.getType() == org.apache.avro.Schema.Type.LONG) {
+        Long nanos = (Long) value;
+        // Check if Beam expects Timestamp logical type
+        if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
+            && org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+                fieldType.getLogicalType().getIdentifier())) {
+          long seconds = Math.floorDiv(nanos, 1_000_000_000L);
+          long nanoAdjustment = Math.floorMod(nanos, 1_000_000_000L);
+          return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);
+        } else {
+          return nanos;
+        }
+      }
+    }
+
     LogicalType logicalType = LogicalTypes.fromSchema(type.type);
     if (logicalType == null) {
       return null;

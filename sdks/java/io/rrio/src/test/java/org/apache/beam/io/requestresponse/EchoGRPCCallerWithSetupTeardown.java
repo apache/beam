@@ -90,6 +90,7 @@ class EchoGRPCCallerWithSetupTeardown implements Caller<EchoRequest, EchoRespons
       try {
         boolean ignored = cachedManagedChannel.awaitTermination(1L, TimeUnit.SECONDS);
       } catch (InterruptedException ignored) {
+        // Ignore the InterruptedException on shutdown.
       }
     }
   }

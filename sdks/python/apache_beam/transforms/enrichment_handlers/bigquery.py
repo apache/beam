@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import logging
+from collections import defaultdict
 from collections.abc import Callable
 from collections.abc import Mapping
 from typing import Any
@@ -29,6 +31,8 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _validate_bigquery_metadata(
@@ -69,8 +73,9 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
   names to fetch.
 
   This handler pulls data from BigQuery per element by default. To change this
-  behavior, set the `min_batch_size` and `max_batch_size` parameters.
-  These min and max values for batch size are sent to the
+  behavior, set the `min_batch_size`, `max_batch_size`, and
+  `max_batch_duration_secs` parameters.
+  These batching values are sent to the
   :class:`apache_beam.transforms.utils.BatchElements` transform.
 
   NOTE: Elements cannot be batched when using the `query_fn` parameter.
@@ -87,6 +92,8 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
       query_fn: Optional[QueryFn] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
+      max_batch_duration_secs: Optional[float] = None,
+      throw_exception_on_empty_results: bool = True,
       **kwargs,
   ):
     """
@@ -119,11 +126,14 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         querying BigQuery. Defaults to 1 if `query_fn` is not specified.
       max_batch_size (int): Maximum number of rows to batch together.
         Defaults to 10,000 if `query_fn` is not specified.
+      max_batch_duration_secs (float): Maximum amount of time in seconds to
+        buffer a batch before emitting it. If not provided, batching duration
+        is determined by `BatchElements` defaults.
       **kwargs: Additional keyword arguments to pass to `bigquery.Client`.
 
     Note:
-      * `min_batch_size` and `max_batch_size` cannot be defined if the
-        `query_fn` is provided.
+      * `min_batch_size`, `max_batch_size`, and `max_batch_duration_secs`
+        are not used if `query_fn` is provided.
       * Either `fields` or `condition_value_fn` must be provided for query
         construction if `query_fn` is not provided.
       * Ensure appropriate permissions are granted for BigQuery access.
@@ -145,11 +155,15 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     self.query_template = (
         "SELECT %s FROM %s WHERE %s" %
         (self.select_fields, self.table_name, self.row_restriction_template))
+    self.throw_exception_on_empty_results = throw_exception_on_empty_results
     self.kwargs = kwargs
     self._batching_kwargs = {}
     if not query_fn:
       self._batching_kwargs['min_batch_size'] = min_batch_size
       self._batching_kwargs['max_batch_size'] = max_batch_size
+      if max_batch_duration_secs is not None:
+        self._batching_kwargs[
+            'max_batch_duration_secs'] = max_batch_duration_secs
 
   def __enter__(self):
     self.client = bigquery.Client(project=self.project, **self.kwargs)
@@ -157,10 +171,13 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
   def _execute_query(self, query: str):
     try:
       results = self.client.query(query=query).result()
+      row_list = [dict(row.items()) for row in results]
+      if not row_list:
+        return None
       if self._batching_kwargs:
-        return [dict(row.items()) for row in results]
+        return row_list
       else:
-        return [dict(row.items()) for row in results][0]
+        return row_list[0]
     except BadRequest as e:
       raise BadRequest(
           f'Could not execute the query: {query}. Please check if '
@@ -181,7 +198,7 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
     if isinstance(request, list):
       values = []
       responses = []
-      requests_map: dict[Any, Any] = {}
+      requests_map: dict[Any, list[beam.Row]] = defaultdict(list)
       batch_size = len(request)
       raw_query = self.query_template
       if batch_size > 1:
@@ -200,15 +217,29 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
               "Make sure the values passed in `fields` are the "
               "keys in the input `beam.Row`." + str(e))
         values.extend(current_values)
-        requests_map[self.create_row_key(req)] = req
+        requests_map[self.create_row_key(req)].append(req)
       query = raw_query.format(*values)
 
       responses_dict = self._execute_query(query)
-      for response in responses_dict:
-        response_row = beam.Row(**response)
-        response_key = self.create_row_key(response_row)
-        if response_key in requests_map:
-          responses.append((requests_map[response_key], response_row))
+      unmatched_requests = {
+          key: list(reqs)
+          for key, reqs in requests_map.items()
+      }
+      if responses_dict:
+        for response in responses_dict:
+          response_row = beam.Row(**response)
+          response_key = self.create_row_key(response_row)
+          if response_key in unmatched_requests:
+            for req in unmatched_requests.pop(response_key):
+              responses.append((req, response_row))
+      if unmatched_requests:
+        if self.throw_exception_on_empty_results:
+          raise ValueError(f"no matching row found for query: {query}")
+        else:
+          _LOGGER.warning('no matching row found for query: %s', query)
+          for reqs in unmatched_requests.values():
+            for req in reqs:
+              responses.append((req, beam.Row()))
       return responses
     else:
       request_dict = request._asdict()
@@ -223,6 +254,12 @@ class BigQueryEnrichmentHandler(EnrichmentSourceHandler[Union[Row, list[Row]],
         # construct the query.
         query = self.query_template.format(*values)
       response_dict = self._execute_query(query)
+      if response_dict is None:
+        if self.throw_exception_on_empty_results:
+          raise ValueError(f"no matching row found for query: {query}")
+        else:
+          _LOGGER.warning('no matching row found for query: %s', query)
+        return request, beam.Row()
       return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /** Describes the table a {@link ReadTask} belongs to. */
@@ -46,6 +47,7 @@ abstract class ReadTaskDescriptor {
     return new AutoValue_ReadTaskDescriptor.Builder();
   }
 
+  @SchemaFieldNumber("0")
   abstract String getTableIdentifierString();
 
   @AutoValue.Builder

@@ -88,7 +88,8 @@ type stage struct {
 	OutputsToCoders   map[string]engine.PColInfo
 
 	// Stage specific progress and splitting interval.
-	baseProgTick atomic.Value // time.Duration
+	baseProgTick  atomic.Value // time.Duration
+	sdfSplittable bool
 }
 
 // The minimum and maximum durations between each ProgressBundleRequest and split evaluation.
@@ -174,7 +175,7 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 
 		s.prepareSides(b, rb.Watermark)
 
-		slog.Debug("Execute: processing", "bundle", rb)
+		slog.Debug("Execute: sdk worker transform(s)", "bundle", rb)
 		defer b.Cleanup(wk)
 		dataReady = b.ProcessOn(ctx, wk)
 	default:
@@ -206,8 +207,9 @@ progress:
 			return context.Cause(ctx)
 		case resp = <-b.Resp:
 			bundleFinished = true
-			if b.BundleErr != nil {
-				return b.BundleErr
+			if err := b.GetErr(); err != nil {
+				slog.Error("stage.Execute aborting due to bundle error", "stage", s.ID, "bundle", rb.BundleID)
+				return err
 			}
 			if dataFinished && bundleFinished {
 				break progress // exit progress loop on close.
@@ -234,15 +236,21 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit && b.EstimatedInputElements > 0 {
+			if slow && unsplit && b.EstimatedInputElements > 0 && s.sdfSplittable {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
-					if b.BundleErr != nil {
-						b.BundleErr = err
+					// Safely set the split error if no primary bundle error has been set yet.
+					// Both SetErr and GetErr are synchronized under the same mutex, guaranteeing
+					// no memory races occur. The write-read inconsistency is explicitly guarded
+					// by the nil/null check inside SetErr(): if a concurrent primary error (e.g.,
+					// worker crash) was set first, it will not be overwritten and b.GetErr() will
+					// correctly preserve and return it instead of the secondary split error.
+					if !b.SetErr(err) {
+						slog.Debug("Error for bundle already set, logging dropped split error", "bundle", rb, "error", err)
 					}
-					return b.BundleErr
+					return b.GetErr()
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
@@ -354,7 +362,7 @@ progress:
 			slog.Error("SDK Error from bundle finalization", "bundle", rb, "error", err.Error())
 			panic(err)
 		}
-		slog.Info("finalized bundle", "bundle", rb)
+		slog.Debug("finalized bundle", "bundle", rb)
 	}
 	b.OutputData = engine.TentativeData{} // Clear the data.
 	return nil

@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.schemas.logicaltypes;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.time.Duration;
 import org.apache.beam.sdk.values.Row;
 
 /** A duration represented in nanoseconds. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class NanosDuration extends NanosType<Duration> {
   public static final String IDENTIFIER = "beam:logical_type:nanos_duration:v1";
 
@@ -38,6 +37,10 @@ public class NanosDuration extends NanosType<Duration> {
 
   @Override
   public Duration toInputType(Row row) {
-    return Duration.ofSeconds(row.getInt64(0), row.getInt32(1));
+    return Duration.ofSeconds(
+        checkArgumentNotNull(
+            row.getInt64(0), "While trying to convert to Duration: Row missing seconds field"),
+        checkArgumentNotNull(
+            row.getInt32(1), "While trying to convert to Duration: Row missing nanos field"));
   }
 }

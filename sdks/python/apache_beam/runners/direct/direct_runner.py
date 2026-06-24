@@ -76,10 +76,10 @@ class SwitchingDirectRunner(PipelineRunner):
 
   def run_pipeline(self, pipeline, options):
 
-    from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.testing.test_stream import TestStream
     from apache_beam.io.gcp.pubsub import ReadFromPubSub
     from apache_beam.io.gcp.pubsub import WriteToPubSub
+    from apache_beam.pipeline import PipelineVisitor
+    from apache_beam.testing.test_stream import TestStream
 
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the FnApiRunner."""
@@ -250,8 +250,8 @@ K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupByKeyOnly(PTransform):
   """A group by key transform, ignoring windows."""
   def infer_output_type(self, input_type):
@@ -263,8 +263,8 @@ class _GroupByKeyOnly(PTransform):
     return PCollection.from_(pcoll)
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupAlsoByWindow(ParDo):
   """The GroupAlsoByWindow transform."""
   def __init__(self, windowing):
@@ -292,6 +292,7 @@ class _GroupAlsoByWindowDoFn(DoFn):
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms.trigger import create_trigger_driver
+
     # pylint: enable=wrong-import-order, wrong-import-position
     self.driver = create_trigger_driver(self.windowing, True)
 
@@ -300,8 +301,8 @@ class _GroupAlsoByWindowDoFn(DoFn):
     return self.driver.process_entire_key(k, vs)
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
   """Streaming GroupByKeyOnly placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gbko:v0.1"
@@ -317,8 +318,8 @@ class _StreamingGroupByKeyOnly(_GroupByKeyOnly):
     return _StreamingGroupByKeyOnly()
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   """Streaming GroupAlsoByWindow placeholder for overriding in DirectRunner."""
   urn = "direct_runner:streaming_gabw:v0.1"
@@ -337,8 +338,8 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class _GroupByKey(PTransform):
   """The DirectRunner GroupByKey implementation."""
   def expand(self, pcoll):
@@ -398,9 +399,9 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.transforms.combiners import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
   from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
+  from apache_beam.transforms.combiners import LiftedCombinePerKey
 
   class CombinePerKeyOverride(PTransformOverride):
     def matches(self, applied_ptransform):
@@ -555,12 +556,10 @@ class BundleBasedDirectRunner(PipelineRunner):
     # with resolving imports when they are at top.
     # pylint: disable=wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
-      ConsumerTrackingPipelineVisitor
+    from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
     from apache_beam.runners.direct.evaluation_context import EvaluationContext
     from apache_beam.runners.direct.executor import Executor
-    from apache_beam.runners.direct.transform_evaluator import \
-      TransformEvaluatorRegistry
+    from apache_beam.runners.direct.transform_evaluator import TransformEvaluatorRegistry
     from apache_beam.testing.test_stream import TestStream
     from apache_beam.transforms.external import ExternalTransform
 

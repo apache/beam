@@ -97,12 +97,18 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+  public abstract @Nullable ValueProvider<String> getClientCertPath();
+
+  public abstract @Nullable ValueProvider<String> getClientCertKeyPath();
+
   @VisibleForTesting
   abstract @Nullable ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   public abstract @Nullable ValueProvider<Boolean> getDataBoostEnabled();
 
   public abstract @Nullable ValueProvider<Credentials> getCredentials();
+
+  public abstract @Nullable ValueProvider<java.time.Duration> getWaitForSessionCreationDuration();
 
   abstract Builder toBuilder();
 
@@ -188,6 +194,13 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setCredentials(ValueProvider<Credentials> credentials);
 
     abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+    abstract Builder setWaitForSessionCreationDuration(
+        ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+
+    abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+    abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
     public abstract SpannerConfig build();
   }
@@ -388,5 +401,54 @@ public abstract class SpannerConfig implements Serializable {
    */
   public SpannerConfig withUsingPlainTextChannel(boolean plainText) {
     return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+  }
+
+  /**
+   * Sets the wait time for a multiplexed session to be available when creating a database client.
+   *
+   * <p>Setting this will block the {@link com.google.cloud.spanner.DatabaseClient} creation.
+   *
+   * @param waitForSessionCreationDuration The duration to wait. Defaults to {@link
+   *     SpannerAccessor#DEFAULT_SESSION_WAIT_DURATION}.
+   * @return {@link SpannerConfig}
+   */
+  public SpannerConfig withWaitForSessionCreationDuration(
+      ValueProvider<java.time.Duration> waitForSessionCreationDuration) {
+    return toBuilder().setWaitForSessionCreationDuration(waitForSessionCreationDuration).build();
+  }
+
+  public SpannerConfig withWaitForSessionCreationDuration(
+      java.time.Duration waitForSessionCreationDuration) {
+    return withWaitForSessionCreationDuration(
+        ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(
+      ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+    return toBuilder().setClientCertPath(certPath).setClientCertKeyPath(keyPath).build();
+  }
+
+  /**
+   * Specifies certificate paths to use for mTLS channel.
+   *
+   * <p>Note: These parameters are only valid when using a Spanner Omni instance (set via {@code
+   * withExperimentalHost}).
+   *
+   * @param certPath Path to the client certificate file.
+   * @param keyPath Path to the client certificate key file.
+   */
+  public SpannerConfig withClientCert(String certPath, String keyPath) {
+    return withClientCert(
+        ValueProvider.StaticValueProvider.of(certPath),
+        ValueProvider.StaticValueProvider.of(keyPath));
   }
 }

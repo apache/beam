@@ -366,10 +366,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import fastavro
@@ -425,8 +422,8 @@ from apache_beam.utils.annotations import deprecated
 
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
   from apache_beam.io.gcp.internal.clients.bigquery import JobReference
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
 except ImportError:
   DatasetReference = None
   TableReference = None
@@ -638,7 +635,7 @@ def _BigQuerySource(*args, **kwargs):
 @dataclass
 class _BigQueryExportResult:
   coder: beam.coders.Coder
-  paths: List[str]
+  paths: list[str]
 
 
 class _CustomBigQuerySource(BoundedSource):
@@ -975,12 +972,12 @@ class _CustomBigQueryStorageSource(BoundedSource):
       dataset: Optional[str] = None,
       project: Optional[str] = None,
       query: Optional[str] = None,
-      selected_fields: Optional[List[str]] = None,
+      selected_fields: Optional[list[str]] = None,
       row_restriction: Optional[str] = None,
       pipeline_options: Optional[GoogleCloudOptions] = None,
       unique_id: Optional[uuid.UUID] = None,
-      bigquery_job_labels: Optional[Dict] = None,
-      bigquery_dataset_labels: Optional[Dict] = None,
+      bigquery_job_labels: Optional[dict] = None,
+      bigquery_dataset_labels: Optional[dict] = None,
       job_name: Optional[str] = None,
       step_name: Optional[str] = None,
       use_standard_sql: Optional[bool] = False,
@@ -1028,6 +1025,16 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
+
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+    if self.pipeline_options:
+      project = self.pipeline_options.view_as(GoogleCloudOptions).project
+      if isinstance(project, vp.ValueProvider):
+        project = project.get()
+      if project:
+        return project
+    return self.project
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
@@ -1163,6 +1170,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.query is not None:
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
+
+      if not self.table_reference.projectId:
+        self.table_reference.projectId = self._get_project()
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
@@ -1594,7 +1604,7 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
-  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+  def _check_row_size(self, row_and_insert_id) -> tuple[int, Optional[str]]:
     """Returns error string when the row estimated size is too big"""
     row_byte_size = get_deep_size(row_and_insert_id)
 
@@ -1994,8 +2004,10 @@ class WriteToBigQuery(PTransform):
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
-      expansion_service=None):
+      primary_key: list[str] = None,
+      expansion_service=None,
+      big_lake_configuration=None,
+      type_overrides=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2143,8 +2155,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
       num_storage_api_streams: Specifies the number of write streams that the
-        Storage API sink will use. This parameter is only applicable when
-        writing unbounded data.
+        Storage API sink will use.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2172,6 +2183,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
         STORAGE_WRITE_API, working on 'at least once' mode.
+      type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
+        to Python types. These override the default type mappings when
+        converting BigQuery schemas to Python types for STORAGE_WRITE_API.
+        For example: ``{'DATE': datetime.date, 'JSON': dict}``.
+        Default mappings include STRING->str, INT64->np.int64, etc.
     """
     self._table = table
     self._dataset = dataset
@@ -2216,6 +2232,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2328,6 +2346,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         find_in_nested_dict(self.schema)
 
       from apache_beam.io.gcp.bigquery_file_loads import BigQueryBatchFileLoads
+
       # Only cast to int when a value is given.
       # We only use an int for BigQueryBatchFileLoads
       if self.triggering_frequency is not None:
@@ -2378,7 +2397,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           num_storage_api_streams=self._num_storage_api_streams,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
-          expansion_service=self.expansion_service)
+          big_lake_configuration=self._big_lake_configuration,
+          expansion_service=self.expansion_service,
+          type_overrides=self._type_overrides)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2471,13 +2492,13 @@ class WriteResult:
   def __init__(
       self,
       method: str = None,
-      destination_load_jobid_pairs: PCollection[Tuple[str,
+      destination_load_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      destination_file_pairs: PCollection[Tuple[str, Tuple[str, int]]] = None,
-      destination_copy_jobid_pairs: PCollection[Tuple[str,
+      destination_file_pairs: PCollection[tuple[str, tuple[str, int]]] = None,
+      destination_copy_jobid_pairs: PCollection[tuple[str,
                                                       JobReference]] = None,
-      failed_rows: PCollection[Tuple[str, dict]] = None,
-      failed_rows_with_errors: PCollection[Tuple[str, dict, list]] = None):
+      failed_rows: PCollection[tuple[str, dict]] = None,
+      failed_rows_with_errors: PCollection[tuple[str, dict, list]] = None):
 
     self._method = method
     self._destination_load_jobid_pairs = destination_load_jobid_pairs
@@ -2508,7 +2529,7 @@ class WriteResult:
 
   @property
   def destination_load_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2522,7 +2543,7 @@ class WriteResult:
     return self._destination_load_jobid_pairs
 
   @property
-  def destination_file_pairs(self) -> PCollection[Tuple[str, Tuple[str, int]]]:
+  def destination_file_pairs(self) -> PCollection[tuple[str, tuple[str, int]]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations along with the
@@ -2536,7 +2557,7 @@ class WriteResult:
 
   @property
   def destination_copy_jobid_pairs(
-      self) -> PCollection[Tuple[str, JobReference]]:
+      self) -> PCollection[tuple[str, JobReference]]:
     """A ``FILE_LOADS`` method attribute
 
     Returns: A PCollection of the table destinations that were successfully
@@ -2550,7 +2571,7 @@ class WriteResult:
     return self._destination_copy_jobid_pairs
 
   @property
-  def failed_rows(self) -> PCollection[Tuple[str, dict]]:
+  def failed_rows(self) -> PCollection[tuple[str, dict]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
@@ -2566,7 +2587,7 @@ class WriteResult:
     return self._failed_rows
 
   @property
-  def failed_rows_with_errors(self) -> PCollection[Tuple[str, dict, list]]:
+  def failed_rows_with_errors(self) -> PCollection[tuple[str, dict, list]]:
     """A ``[STREAMING_INSERTS, STORAGE_WRITE_API]`` method attribute
 
     Returns:
@@ -2625,8 +2646,10 @@ class StorageWriteToBigQuery(PTransform):
       with_auto_sharding=False,
       num_storage_api_streams=0,
       use_cdc_writes: bool = False,
-      primary_key: List[str] = None,
-      expansion_service=None):
+      primary_key: list[str] = None,
+      big_lake_configuration=None,
+      expansion_service=None,
+      type_overrides=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
     self._schema = schema
@@ -2639,6 +2662,8 @@ class StorageWriteToBigQuery(PTransform):
     self._num_storage_api_streams = num_storage_api_streams
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
+    self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2672,7 +2697,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False).with_output_types())
+                schema, False, self._type_overrides).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2704,7 +2729,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True).with_output_types())
+                schema, True, self._type_overrides).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2733,6 +2758,7 @@ class StorageWriteToBigQuery(PTransform):
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
             clustering_fields=clustering_fields,
+            big_lake_configuration=self._big_lake_configuration,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2756,32 +2782,51 @@ class StorageWriteToBigQuery(PTransform):
         failed_rows=failed_rows,
         failed_rows_with_errors=failed_rows_with_errors)
 
+  class ConvertToBeamRowsSetupSchema:
+    def __init__(self, schema):
+      self._value = schema
+
+    def __enter__(self):
+      if not isinstance(self._value,
+                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+        return bigquery_tools.get_bq_tableschema(self._value)
+
+      return self._value
+
+    def __exit__(self, *args):
+      pass
+
   class ConvertToBeamRows(PTransform):
-    def __init__(self, schema, dynamic_destinations):
+    def __init__(self, schema, dynamic_destinations, type_overrides=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
+      self.type_overrides = type_overrides
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: beam.Row(
-                    **{
-                        StorageWriteToBigQuery.DESTINATION: row[
-                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                        beam_row_from_dict(row[1], self.schema)
-                    })))
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
+                    [self.schema]): beam.Row(
+                        **{
+                            StorageWriteToBigQuery.DESTINATION: row[0],
+                            StorageWriteToBigQuery.RECORD: bigquery_tools.
+                            beam_row_from_dict(row[1], schema)
+                        })))
       else:
         return (
             input_dicts
             | "Convert dict to Beam Row" >> beam.Map(
-                lambda row: bigquery_tools.beam_row_from_dict(row, self.schema))
-        )
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-          self.schema)
+          self.schema, self.type_overrides)
       if self.dynamic_destinations:
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
@@ -3142,7 +3187,7 @@ class ReadAllFromBigQuery(PTransform):
       validate: bool = False,
       kms_key: str = None,
       temp_dataset: Union[str, DatasetReference] = None,
-      bigquery_job_labels: Dict[str, str] = None,
+      bigquery_job_labels: dict[str, str] = None,
       query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
       if not isinstance(gcs_location, (str, ValueProvider)):

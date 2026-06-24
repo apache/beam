@@ -155,7 +155,7 @@ public class BagUserState<T> {
                   .setAppend(StateAppendRequest.newBuilder().setData(out.toByteStringAndReset())));
         }
       }
-      if (out.size() > 0) {
+      if (!out.isEmpty()) {
         beamFnStateClient.handle(
             request
                 .toBuilder()

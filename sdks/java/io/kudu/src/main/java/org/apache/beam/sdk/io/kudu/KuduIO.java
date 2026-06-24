@@ -430,12 +430,14 @@ public class KuduIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext context) throws KuduException {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext context)
+          throws KuduException {
         writer.openSession();
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws KuduException {
+      public void processElement(@SuppressWarnings("unused") ProcessContext c)
+          throws KuduException {
         writer.write(c.element());
       }
 

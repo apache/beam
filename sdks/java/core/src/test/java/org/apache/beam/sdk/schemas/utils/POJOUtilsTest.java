@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.schemas.utils;
 
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.JAVA_TIME_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_COLLECTION_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_POJO_WITH_SIMPLE_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_BOXED_FIELDS_SCHEMA;
-import static org.apache.beam.sdk.schemas.utils.TestPOJOs.POJO_WITH_BYTE_ARRAY_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.PRIMITIVE_MAP_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.SIMPLE_POJO_SCHEMA;
@@ -37,16 +37,18 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
-import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.JavaFieldSchema.JavaFieldTypeSupplier;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.DefaultTypeConversionsFactory;
+import org.apache.beam.sdk.schemas.utils.TestPOJOs.JavaTimePOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedCollectionPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedMapPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.NestedPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithBoxedFields;
-import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithByteArray;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.POJOWithNullables;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveArrayPOJO;
 import org.apache.beam.sdk.schemas.utils.TestPOJOs.PrimitiveMapPOJO;
@@ -83,6 +85,33 @@ public class POJOUtilsTest {
         POJOUtils.schemaFromPojoClass(
             new TypeDescriptor<SimplePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
     assertEquals(SIMPLE_POJO_SCHEMA, schema);
+  }
+
+  @Test
+  public void testJavaTimePOJO() {
+    Schema schema =
+        POJOUtils.schemaFromPojoClass(
+            new TypeDescriptor<JavaTimePOJO>() {}, JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(JAVA_TIME_POJO_SCHEMA, schema);
+  }
+
+  /**
+   * Regression test for #37524: Joda {@link Instant} must continue to map to {@link
+   * FieldType#DATETIME}, not the new {@code java.time.Instant} logical type. This guards the branch
+   * ordering in {@code StaticSchemaInference.fieldFromType}.
+   */
+  @Test
+  public void testJodaInstantStillInfersAsDatetime() {
+    FieldType jodaInferred =
+        StaticSchemaInference.fieldFromType(
+            TypeDescriptor.of(Instant.class), JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(FieldType.DATETIME, jodaInferred);
+
+    FieldType javaTimeInferred =
+        StaticSchemaInference.fieldFromType(
+            TypeDescriptor.of(java.time.Instant.class), JavaFieldTypeSupplier.INSTANCE);
+    assertEquals(TypeName.LOGICAL_TYPE, javaTimeInferred.getTypeName());
+    assertEquals(NanosInstant.IDENTIFIER, javaTimeInferred.getLogicalType().getIdentifier());
   }
 
   @Test
@@ -183,44 +212,6 @@ public class POJOUtilsTest {
   }
 
   @Test
-  public void testGeneratedSimpleSetters() {
-    SimplePOJO simplePojo = new SimplePOJO();
-    List<FieldValueSetter<SimplePOJO, Object>> setters =
-        POJOUtils.getSetters(
-            new TypeDescriptor<SimplePOJO>() {},
-            SIMPLE_POJO_SCHEMA,
-            JavaFieldTypeSupplier.INSTANCE,
-            new DefaultTypeConversionsFactory());
-    assertEquals(12, setters.size());
-
-    setters.get(0).set(simplePojo, "field1");
-    setters.get(1).set(simplePojo, (byte) 41);
-    setters.get(2).set(simplePojo, (short) 42);
-    setters.get(3).set(simplePojo, (int) 43);
-    setters.get(4).set(simplePojo, (long) 44);
-    setters.get(5).set(simplePojo, true);
-    setters.get(6).set(simplePojo, DATE.toInstant());
-    setters.get(7).set(simplePojo, INSTANT);
-    setters.get(8).set(simplePojo, BYTE_ARRAY);
-    setters.get(9).set(simplePojo, BYTE_BUFFER.array());
-    setters.get(10).set(simplePojo, new BigDecimal(42));
-    setters.get(11).set(simplePojo, "stringBuilder");
-
-    assertEquals("field1", simplePojo.str);
-    assertEquals((byte) 41, simplePojo.aByte);
-    assertEquals((short) 42, simplePojo.aShort);
-    assertEquals((int) 43, simplePojo.anInt);
-    assertEquals((long) 44, simplePojo.aLong);
-    assertTrue(simplePojo.aBoolean);
-    assertEquals(DATE, simplePojo.dateTime);
-    assertEquals(INSTANT, simplePojo.instant);
-    assertArrayEquals("Unexpected bytes", BYTE_ARRAY, simplePojo.bytes);
-    assertEquals(BYTE_BUFFER, simplePojo.byteBuffer);
-    assertEquals(new BigDecimal(42), simplePojo.bigDecimal);
-    assertEquals("stringBuilder", simplePojo.stringBuilder.toString());
-  }
-
-  @Test
   public void testGeneratedSimpleBoxedGetters() {
     POJOWithBoxedFields pojo = new POJOWithBoxedFields((byte) 41, (short) 42, 43, 44L, true);
 
@@ -235,44 +226,5 @@ public class POJOUtilsTest {
     assertEquals((int) 43, getters.get(2).get(pojo));
     assertEquals((long) 44, getters.get(3).get(pojo));
     assertTrue((Boolean) getters.get(4).get(pojo));
-  }
-
-  @Test
-  public void testGeneratedSimpleBoxedSetters() {
-    POJOWithBoxedFields pojo = new POJOWithBoxedFields();
-    List<FieldValueSetter<POJOWithBoxedFields, Object>> setters =
-        POJOUtils.getSetters(
-            new TypeDescriptor<POJOWithBoxedFields>() {},
-            POJO_WITH_BOXED_FIELDS_SCHEMA,
-            JavaFieldTypeSupplier.INSTANCE,
-            new DefaultTypeConversionsFactory());
-
-    setters.get(0).set(pojo, (byte) 41);
-    setters.get(1).set(pojo, (short) 42);
-    setters.get(2).set(pojo, (int) 43);
-    setters.get(3).set(pojo, (long) 44);
-    setters.get(4).set(pojo, true);
-
-    assertEquals((byte) 41, pojo.aByte.byteValue());
-    assertEquals((short) 42, pojo.aShort.shortValue());
-    assertEquals((int) 43, pojo.anInt.intValue());
-    assertEquals((long) 44, pojo.aLong.longValue());
-    assertTrue(pojo.aBoolean.booleanValue());
-  }
-
-  @Test
-  public void testGeneratedByteBufferSetters() {
-    POJOWithByteArray pojo = new POJOWithByteArray();
-    List<FieldValueSetter<POJOWithByteArray, Object>> setters =
-        POJOUtils.getSetters(
-            new TypeDescriptor<POJOWithByteArray>() {},
-            POJO_WITH_BYTE_ARRAY_SCHEMA,
-            JavaFieldTypeSupplier.INSTANCE,
-            new DefaultTypeConversionsFactory());
-    setters.get(0).set(pojo, BYTE_ARRAY);
-    setters.get(1).set(pojo, BYTE_BUFFER.array());
-
-    assertArrayEquals("not equal", BYTE_ARRAY, pojo.bytes1);
-    assertEquals(BYTE_BUFFER, pojo.bytes2);
   }
 }

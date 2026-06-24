@@ -20,7 +20,13 @@
 # one branch and another.
 
 # Usage:
-#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh origin/master <your branch>
+#  /bin/bash sdks/java/build-tools/beam-linkage-check.sh <baseline ref> <proposed ref>
+#
+#  The <baseline ref> and <proposed ref> can be any valid git reference such as:
+#  - A remote branch: origin/master, upstream/main
+#  - A local branch: master, my-feature-branch
+#  - A commit SHA: abc123def
+#  - A tag: v2.50.0
 #
 #  By default, this checks the Maven artifacts listed in ARTIFACTS variable below.
 #
@@ -69,9 +75,12 @@ if [ ! -z "$(git diff)" ]; then
   exit 1
 fi
 
-STARTING_REF=$(git rev-parse --abbrev-ref HEAD)
+# Use the full commit SHA instead of branch name to handle detached HEAD state.
+# This commonly happens when verifying someone else's PR, which involves
+# merging two non-branch references. See https://github.com/apache/beam/issues/20558
+STARTING_REF=$(git rev-parse HEAD)
 function cleanup() {
-  git checkout $STARTING_REF
+  git -c advice.detachedHead=false checkout $STARTING_REF
 }
 trap cleanup EXIT
 

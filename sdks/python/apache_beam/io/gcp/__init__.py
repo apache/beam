@@ -22,6 +22,7 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   import email.generator as email_generator
+
   from apitools.base.py import transfer
 
   class _WrapperNamespace(object):

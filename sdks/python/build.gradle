@@ -73,6 +73,7 @@ tasks.register("generateExternalTransformsConfig") {
   // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:messaging-expansion-service:build"
   // Keep this in-sync with pyproject.toml
   def PyYaml = "'pyyaml>=3.12,<7.0.0'"
 
@@ -101,16 +102,32 @@ tasks.register("generateManagedIOPage") {
   }
 }
 
+tasks.register("prepareExpansionServicesForYamlDocs") {
+  description "Builds all expansion services referenced in apache_beam/yaml/*.*"
+
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+
+  doLast {
+    // Copy expansion service jar into cache path (.apache_beam/cache/jars/).
+    copy {
+      from project.tasks.findByPath(":sdks:java:extensions:schemaio-expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:extensions:sql:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+      into "${System.getProperty('user.home')}/.apache_beam/cache/jars/"
+    }
+  }
+}
+
 tasks.register("generateYamlDocs") {
   description "Generates the reference documentation for all YAML transforms."
 
   dependsOn buildPython
-  // Need to build all expansion services referenced in apache_beam/yaml/*.*
-  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
-  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
-  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn prepareExpansionServicesForYamlDocs
+
   def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
 
   doLast {
@@ -175,7 +192,7 @@ tasks.register("postCommitYamlIntegrationTests") {
       }
       exec {
         executable 'sh'
-        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
       }
     }
   }
@@ -200,6 +217,7 @@ platform_identifiers_map.each { platform, idsuffix ->
   }
   getVersionsAsList('python_versions').each { it ->
     def pyversion = it.replace('.', '')
+    def cibuildwheel_version = it == '3.10' ? '2.23.3' : '3.4.0'
 
     project.tasks.register("bdistPy${pyversion}${platform}") {
       description "Build a Python wheel distribution for Py${pyversion} ${platform}"
@@ -220,7 +238,7 @@ platform_identifiers_map.each { platform, idsuffix ->
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel==2.17.0 setuptools && " +
+                 "pip install cibuildwheel==${cibuildwheel_version} setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }

@@ -102,6 +102,7 @@ public class KafkaIOTranslation {
             .addBooleanField("allows_duplicates")
             .addNullableInt32Field("redistribute_num_keys")
             .addNullableBooleanField("offset_deduplication")
+            .addNullableBooleanField("redistribute_by_record_key")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -228,6 +229,9 @@ public class KafkaIOTranslation {
       fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
       if (transform.getOffsetDeduplication() != null) {
         fieldValues.put("offset_deduplication", transform.getOffsetDeduplication());
+      }
+      if (transform.getRedistributeByRecordKey() != null) {
+        fieldValues.put("redistribute_by_record_key", transform.getRedistributeByRecordKey());
       }
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
@@ -363,6 +367,12 @@ public class KafkaIOTranslation {
             transform = transform.withOffsetDeduplication(offsetDeduplication);
           }
         }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.69.0") >= 0) {
+          @Nullable Boolean byRecordKey = configRow.getValue("redistribute_by_record_key");
+          if (byRecordKey != null) {
+            transform = transform.withRedistributeByRecordKey(byRecordKey);
+          }
+        }
         Duration maxReadTime = configRow.getValue("max_read_time");
         if (maxReadTime != null) {
           transform =
@@ -469,6 +479,8 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("producer_factory_fn")
             .addNullableByteArrayField("publish_timestamp_fn")
             .addBooleanField("eos")
+            .addInt32Field("eos_trigger_num_elements")
+            .addNullableInt64Field("eos_trigger_timeout_ms")
             .addInt32Field("num_shards")
             .addNullableStringField("sink_group_id")
             .addNullableByteArrayField("consumer_factory_fn")
@@ -537,6 +549,11 @@ public class KafkaIOTranslation {
       }
 
       fieldValues.put("eos", writeRecordsTransform.isEOS());
+      org.joda.time.Duration eosTriggerTimeout = writeRecordsTransform.getEosTriggerTimeout();
+      if (eosTriggerTimeout != null) {
+        fieldValues.put("eos_trigger_timeout_ms", eosTriggerTimeout.getMillis());
+      }
+      fieldValues.put("eos_trigger_num_elements", writeRecordsTransform.getEosTriggerNumElements());
       fieldValues.put("num_shards", writeRecordsTransform.getNumShards());
 
       if (writeRecordsTransform.getSinkGroupId() != null) {

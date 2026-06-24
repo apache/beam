@@ -186,9 +186,7 @@ public class CombineTest implements Serializable {
       pipeline.run();
     }
 
-    ////////////////////////////////////////////////////////////////////////////
     // Test classes, for different kinds of combining fns.
-
     /** Another example AccumulatingCombineFn. */
     public static class TestCounter
         extends Combine.AccumulatingCombineFn<Integer, TestCounter.Counter, Iterable<Long>> {

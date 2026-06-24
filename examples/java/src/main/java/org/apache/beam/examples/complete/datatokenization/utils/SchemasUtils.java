@@ -73,7 +73,7 @@ public class SchemasUtils {
       byte[] encoded = Files.readAllBytes(Paths.get(path));
       parseJson(new String(encoded, encoding));
     }
-    LOG.info("Extracted schema: " + bigQuerySchema.toPrettyString());
+    LOG.info("Extracted schema: {}", bigQuerySchema.toPrettyString());
   }
 
   public TableSchema getBigQuerySchema() {
@@ -132,7 +132,6 @@ public class SchemasUtils {
    *
    * @param filePath path to file in GCS
    * @return contents of the file as a string
-   * @throws IOException thrown if not able to read file
    */
   public static String getGcsFileAsString(String filePath) {
     MatchResult result;
@@ -140,14 +139,15 @@ public class SchemasUtils {
       result = FileSystems.match(filePath);
       checkArgument(
           result.status() == MatchResult.Status.OK && !result.metadata().isEmpty(),
-          "Failed to match any files with the pattern: " + filePath);
+          "Failed to match any files with the pattern: %s",
+          filePath);
 
       List<ResourceId> rId =
           result.metadata().stream()
               .map(MatchResult.Metadata::resourceId)
               .collect(Collectors.toList());
 
-      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got " + rId.size() + " files.");
+      checkArgument(rId.size() == 1, "Expected exactly 1 file, but got %s files.", rId.size());
 
       Reader reader =
           Channels.newReader(FileSystems.open(rId.get(0)), StandardCharsets.UTF_8.name());
@@ -155,7 +155,7 @@ public class SchemasUtils {
       return CharStreams.toString(reader);
 
     } catch (IOException ioe) {
-      LOG.error("File system i/o error: " + ioe.getMessage());
+      LOG.error("File system i/o error", ioe);
       throw new RuntimeException(ioe);
     }
   }

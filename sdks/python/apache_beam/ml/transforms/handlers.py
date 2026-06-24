@@ -27,10 +27,17 @@ from typing import Optional
 from typing import Union
 
 import numpy as np
-
-import apache_beam as beam
 import tensorflow as tf
 import tensorflow_transform.beam as tft_beam
+from tensorflow_metadata.proto.v0 import schema_pb2
+from tensorflow_transform import common_types
+from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
+from tensorflow_transform.beam.tft_beam_io import transform_fn_io
+from tensorflow_transform.tf_metadata import dataset_metadata
+from tensorflow_transform.tf_metadata import metadata_io
+from tensorflow_transform.tf_metadata import schema_utils
+
+import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.transforms.base import ArtifactMode
@@ -39,13 +46,6 @@ from apache_beam.ml.transforms.tft import _EXPECTED_TYPES
 from apache_beam.ml.transforms.tft import TFTOperation
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints.row_type import RowTypeConstraint
-from tensorflow_metadata.proto.v0 import schema_pb2
-from tensorflow_transform import common_types
-from tensorflow_transform.beam.tft_beam_io import beam_metadata_io
-from tensorflow_transform.beam.tft_beam_io import transform_fn_io
-from tensorflow_transform.tf_metadata import dataset_metadata
-from tensorflow_transform.tf_metadata import metadata_io
-from tensorflow_transform.tf_metadata import schema_utils
 
 __all__ = [
     'TFTProcessHandler',

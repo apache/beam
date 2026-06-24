@@ -108,7 +108,7 @@ class DataframeTransform(transforms.PTransform):
         for tag in input_dict
     }
     input_frames: dict[Any, frame_base.DeferredFrame] = {
-        k: convert.to_dataframe(pc, proxies[k])
+        k: convert.to_dataframe(pc, proxies[k], str(k))
         for k, pc in input_dict.items()
     }  # noqa: F821
 

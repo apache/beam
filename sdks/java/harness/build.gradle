@@ -34,6 +34,7 @@ dependencies {
   provided library.java.jackson_databind
   provided library.java.joda_time
   provided library.java.slf4j_api
+  provided library.java.hamcrest
   provided library.java.vendored_grpc_1_69_0
   provided library.java.vendored_guava_32_1_2_jre
 
@@ -79,4 +80,5 @@ dependencies {
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTestRuntimeClasspath library.java.slf4j_jdk14
   permitUnusedDeclared library.java.avro
+  permitUnusedDeclared library.java.hamcrest
 }

@@ -31,10 +31,7 @@ import typing
 import unittest
 import uuid
 from typing import Any
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Tuple
 from typing import no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -69,8 +66,10 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import has_at_least_one
 from apache_beam.tools import utils
 from apache_beam.transforms import environments
+from apache_beam.transforms import trigger
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
@@ -834,7 +833,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -851,7 +849,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -867,7 +864,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     # The timer will fire at T + 10. After the timer is set, it is never
@@ -946,7 +942,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(
               window.FixedWindows(1) if windowed else window.GlobalWindows())
           | beam.Map(lambda x: (key, x)).with_output_types(
-              Tuple[key_type if key_type else type(key), Any])
+              tuple[key_type if key_type else type(key), Any])
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
@@ -1593,6 +1589,22 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Filter(lambda x: False)
           | beam.GroupByKey())
       assert_that(res, equal_to([]))
+
+  def test_first_pane(self):
+    with self.create_pipeline() as p:
+      res = (
+          p | beam.Create([1, 2])
+          | beam.WithKeys(0)
+          | beam.WindowInto(
+              window.GlobalWindows(),
+              trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+              accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
+              allowed_lateness=0,
+          )
+          | beam.GroupByKey()
+          | beam.Values())
+      has_at_least_one(res, lambda e, t, w, p: p.is_first)
+      has_at_least_one(res, lambda e, t, w, p: p.index == 0)
 
 
 # These tests are kept in a separate group so that they are
@@ -2425,7 +2437,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name, )
 
 
-_pickled_element_counters: Dict[str, ElementCounter] = {}
+_pickled_element_counters: dict[str, ElementCounter] = {}
 
 
 def _unpickle_element_counter(name):
@@ -2664,8 +2676,8 @@ class ArrayMultiplyDoFn(beam.DoFn):
 
 
 class ListPlusOneDoFn(beam.DoFn):
-  def process_batch(self, batch: List[np.int64], *unused_args,
-                    **unused_kwargs) -> Iterator[List[np.int64]]:
+  def process_batch(self, batch: list[np.int64], *unused_args,
+                    **unused_kwargs) -> Iterator[list[np.int64]]:
     assert isinstance(batch, list)
     yield [element + 1 for element in batch]
 

@@ -82,7 +82,7 @@ LogOutput "Input variables:
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
  DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE
  FORCE_CD=$FORCE_CD"
- 
+
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -97,19 +97,20 @@ LogOutput "Installing python and dependencies."
 export DEBIAN_FRONTEND=noninteractive
 apt install -y apt-transport-https ca-certificates software-properties-common curl unzip apt-utils > /dev/null 2>&1
 add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1 && apt update > /dev/null 2>&1
-apt install -y python3.9 python3-distutils python3-pip > /dev/null 2>&1
+apt install -y python3.10 python3-distutils python3-pip > /dev/null 2>&1
 apt install -y --reinstall python3-distutils > /dev/null 2>&1
 apt install -y python3-virtualenv
 virtualenv play_venv
 source play_venv/bin/activate
 pip install --upgrade google-api-python-client > /dev/null 2>&1
-python3.9 -m pip install pip --upgrade > /dev/null 2>&1
-ln -s /usr/bin/python3.9 /usr/bin/python > /dev/null 2>&1
-apt install -y python3.9-venv > /dev/null 2>&1
+python3.10 -m pip install pip --upgrade > /dev/null 2>&1
+ln -s /usr/bin/python3.10 /usr/bin/python > /dev/null 2>&1
+apt install -y python3.10-venv > /dev/null 2>&1
 
 LogOutput "Installing Python packages from beam/playground/infrastructure/requirements.txt"
 cd $BEAM_ROOT_DIR
 pip install -r playground/infrastructure/requirements.txt
+pip install setuptools
 
 LogOutput "Looking for files changed by the merge commit $MERGE_COMMIT"
 git fetch origin $MERGE_COMMIT
@@ -130,7 +131,7 @@ do
         LogOutput "FORCE_CD is true. Example deployment for SDK_${sdk^^} is forced"
         example_has_changed="true"
     else
-        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
         cd $BEAM_ROOT_DIR/playground/infrastructure
         python3 checker.py \
         --verbose \
@@ -159,7 +160,7 @@ do
         eval "check_${sdk}_passed"="true"
         continue
     fi
-    
+
     cd $BEAM_ROOT_DIR/playground/infrastructure
     LogOutput "Running ci_cd.py for SDK $sdk"
 

@@ -30,7 +30,6 @@ import collections
 import itertools
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Generic
 from typing import Iterator
 from typing import NamedTuple
@@ -47,12 +46,12 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 
 if TYPE_CHECKING:
-  from apache_beam.transforms import sideinputs
-  from apache_beam.transforms.core import ParDo
-  from apache_beam.transforms.core import Windowing
   from apache_beam.pipeline import AppliedPTransform
   from apache_beam.pipeline import Pipeline
   from apache_beam.runners.pipeline_context import PipelineContext
+  from apache_beam.transforms import sideinputs
+  from apache_beam.transforms.core import ParDo
+  from apache_beam.transforms.core import Windowing
 
 __all__ = [
     'PCollection',
@@ -246,6 +245,8 @@ class DoOutputsTuple(object):
     self._tags = tags
     self._main_tag = main_tag
     self._transform = transform
+    self._tagged_output_types = (
+        transform.get_type_hints().tagged_output_types() if transform else {})
     self._allow_unknown_tags = (
         not tags if allow_unknown_tags is None else allow_unknown_tags)
     # The ApplyPTransform instance for the application of the multi FlatMap
@@ -253,7 +254,7 @@ class DoOutputsTuple(object):
     # gets applied.
     self.producer: Optional[AppliedPTransform] = None
     # Dictionary of PCollections already associated with tags.
-    self._pcolls: Dict[Optional[str], PCollection] = {}
+    self._pcolls: dict[Optional[str], PCollection] = {}
 
   def __str__(self):
     return '<%s>' % self._str_internal()
@@ -303,7 +304,7 @@ class DoOutputsTuple(object):
       pcoll = PCollection(
           self._pipeline,
           tag=tag,
-          element_type=typehints.Any,
+          element_type=self._tagged_output_types.get(tag, typehints.Any),
           is_bounded=is_bounded)
       # Transfer the producer from the DoOutputsTuple to the resulting
       # PCollection.
@@ -323,7 +324,11 @@ class DoOutputsTuple(object):
     return pcoll
 
 
-class TaggedOutput(object):
+TagType = TypeVar('TagType', bound=str)
+ValueType = TypeVar('ValueType')
+
+
+class TaggedOutput(Generic[TagType, ValueType]):
   """An object representing a tagged value.
 
   ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
@@ -331,7 +336,7 @@ class TaggedOutput(object):
   if it wants to emit on the main output and TaggedOutput objects
   if it wants to emit a value on a specific tagged output.
   """
-  def __init__(self, tag: str, value: Any) -> None:
+  def __init__(self, tag: TagType, value: ValueType) -> None:
     if not isinstance(tag, str):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' %

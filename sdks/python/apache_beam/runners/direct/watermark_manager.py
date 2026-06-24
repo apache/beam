@@ -21,11 +21,7 @@
 
 import threading
 from typing import TYPE_CHECKING
-from typing import Dict
 from typing import Iterable
-from typing import List
-from typing import Set
-from typing import Tuple
 
 from apache_beam import pipeline
 from apache_beam import pvalue
@@ -55,7 +51,7 @@ class WatermarkManager(object):
     self._value_to_consumers = value_to_consumers
     self._transform_keyed_states = transform_keyed_states
     # AppliedPTransform -> TransformWatermarks
-    self._transform_to_watermarks: Dict[AppliedPTransform,
+    self._transform_to_watermarks: dict[AppliedPTransform,
                                         _TransformWatermarks] = {}
 
     for root_transform in root_transforms:
@@ -179,10 +175,10 @@ class WatermarkManager(object):
     return unblocked_tasks
 
   def extract_all_timers(
-      self) -> Tuple[List[Tuple[AppliedPTransform, List[TimerFiring]]], bool]:
+      self) -> tuple[list[tuple[AppliedPTransform, list[TimerFiring]]], bool]:
     """Extracts fired timers for all transforms
     and reports if there are any timers set."""
-    all_timers: List[Tuple[AppliedPTransform, List[TimerFiring]]] = []
+    all_timers: list[tuple[AppliedPTransform, list[TimerFiring]]] = []
     has_realtime_timer = False
     for applied_ptransform, tw in self._transform_to_watermarks.items():
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
@@ -201,19 +197,19 @@ class _TransformWatermarks(object):
   def __init__(self, clock, keyed_states, transform):
     self._clock = clock
     self._keyed_states = keyed_states
-    self._input_transform_watermarks: List[_TransformWatermarks] = []
+    self._input_transform_watermarks: list[_TransformWatermarks] = []
     self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
     self._keyed_earliest_holds = {}
     # Scheduled bundles targeted for this transform.
-    self._pending: Set['_Bundle'] = set()
+    self._pending: set['_Bundle'] = set()
     self._fired_timers = set()
     self._lock = threading.Lock()
 
     self._label = str(transform)
 
   def update_input_transform_watermarks(
-      self, input_transform_watermarks: List['_TransformWatermarks']) -> None:
+      self, input_transform_watermarks: list['_TransformWatermarks']) -> None:
     with self._lock:
       self._input_transform_watermarks = input_transform_watermarks
 
@@ -300,7 +296,7 @@ class _TransformWatermarks(object):
   def synchronized_processing_output_time(self):
     return self._clock.time()
 
-  def extract_transform_timers(self) -> Tuple[List[TimerFiring], bool]:
+  def extract_transform_timers(self) -> tuple[list[TimerFiring], bool]:
     """Extracts fired timers and reports of any timers set per transform."""
     with self._lock:
       fired_timers = []

@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -486,6 +487,9 @@ public final class TransformTranslator {
                 TranslationUtils.getTupleTagCoders(outputs);
             all =
                 all.mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+                    .filter(
+                        Objects::nonNull) // skip nulls to save on encoding, nulls are tags that are
+                    // not read
                     .persist(level)
                     .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
           }

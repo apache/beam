@@ -57,13 +57,13 @@ class TransformServiceLauncher(object):
 
   # Maintaining a static list of launchers to prevent temporary resources
   # from being created unnecessarily.
-  def __new__(cls, project_name, port, beam_version=None):
+  def __new__(cls, project_name, port, beam_version=None, user_agent=None):
     if project_name not in TransformServiceLauncher._launchers:
       TransformServiceLauncher._launchers[project_name] = super(
           TransformServiceLauncher, cls).__new__(cls)
     return TransformServiceLauncher._launchers[project_name]
 
-  def __init__(self, project_name, port, beam_version=None):
+  def __init__(self, project_name, port, beam_version=None, user_agent=None):
     logging.info('Initializing the Beam Transform Service %s.' % project_name)
 
     self._project_name = project_name
@@ -85,7 +85,8 @@ class TransformServiceLauncher(object):
     # Get the jar with configs
     path_to_local_jar = subprocess_server.JavaJarServer.local_jar(
         subprocess_server.JavaJarServer.path_to_beam_jar(
-            _EXPANSION_SERVICE_LAUNCHER_JAR))
+            _EXPANSION_SERVICE_LAUNCHER_JAR),
+        user_agent=user_agent)
 
     with zipfile.ZipFile(path_to_local_jar) as launcher_jar:
       launcher_jar.extract('docker-compose.yml', path=temp_dir)

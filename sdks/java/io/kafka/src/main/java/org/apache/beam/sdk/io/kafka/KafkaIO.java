@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -70,6 +71,7 @@ import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.transforms.Convert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -79,6 +81,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Redistribute.RedistributeArbitrarily;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -92,7 +95,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTime;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
@@ -110,7 +113,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -122,6 +124,8 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -646,6 +650,8 @@ public class KafkaIO {
     return new AutoValue_KafkaIO_WriteRecords.Builder<K, V>()
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
+        .setEosTriggerNumElements(1) // keep default numElements
+        .setEosTriggerTimeout(null) // keep default trigger (timeout)
         .setNumShards(0)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
@@ -731,6 +737,9 @@ public class KafkaIO {
     public abstract @Nullable Boolean getOffsetDeduplication();
 
     @Pure
+    public abstract @Nullable Boolean getRedistributeByRecordKey();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -799,6 +808,8 @@ public class KafkaIO {
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
       abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
+
+      abstract Builder<K, V> setRedistributeByRecordKey(Boolean redistributeByRecordKey);
 
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
@@ -915,11 +926,43 @@ public class KafkaIO {
               && config.offsetDeduplication != null) {
             builder.setOffsetDeduplication(config.offsetDeduplication);
           }
+          if (config.redistribute && config.redistributeByRecordKey != null) {
+            builder.setRedistributeByRecordKey(config.redistributeByRecordKey);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
           builder.setOffsetDeduplication(false);
+          builder.setRedistributeByRecordKey(false);
+        }
+
+        if (config.consumerFactoryFnClass != null) {
+          if (config.consumerFactoryFnClass.contains("KerberosConsumerFactoryFn")) {
+            try {
+              if (!config.consumerFactoryFnParams.containsKey("krb5Location")) {
+                throw new IllegalArgumentException(
+                    "The KerberosConsumerFactoryFn requires a location for the krb5.conf file. "
+                        + "Please provide either a GCS location or Google Secret Manager location for this file.");
+              }
+              String krb5Location = config.consumerFactoryFnParams.get("krb5Location");
+              builder.setConsumerFactoryFn(
+                  InstanceBuilder.ofType(
+                          new TypeDescriptor<
+                              SerializableFunction<
+                                  Map<String, Object>, Consumer<byte[], byte[]>>>() {})
+                      .fromClassName(config.consumerFactoryFnClass)
+                      .withArg(String.class, Objects.requireNonNull(krb5Location))
+                      .build());
+            } catch (Exception e) {
+              throw new RuntimeException(
+                  "Unable to construct FactoryFn "
+                      + config.consumerFactoryFnClass
+                      + ": "
+                      + e.getMessage(),
+                  e);
+            }
+          }
         }
       }
 
@@ -989,7 +1032,10 @@ public class KafkaIO {
         private Boolean redistribute;
         private Boolean allowDuplicates;
         private Boolean offsetDeduplication;
+        private Boolean redistributeByRecordKey;
         private Long dynamicReadPollIntervalSeconds;
+        private String consumerFactoryFnClass;
+        private Map<String, String> consumerFactoryFnParams;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1051,8 +1097,20 @@ public class KafkaIO {
           this.offsetDeduplication = offsetDeduplication;
         }
 
+        public void setRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+          this.redistributeByRecordKey = redistributeByRecordKey;
+        }
+
         public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
           this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
+        }
+
+        public void setConsumerFactoryFnClass(String consumerFactoryFnClass) {
+          this.consumerFactoryFnClass = consumerFactoryFnClass;
+        }
+
+        public void setConsumerFactoryFnParams(Map<String, String> consumerFactoryFnParams) {
+          this.consumerFactoryFnParams = consumerFactoryFnParams;
         }
       }
     }
@@ -1159,6 +1217,10 @@ public class KafkaIO {
      */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
+    }
+
+    public Read<K, V> withRedistributeByRecordKey(Boolean redistributeByRecordKey) {
+      return toBuilder().setRedistributeByRecordKey(redistributeByRecordKey).build();
     }
 
     /**
@@ -1679,6 +1741,11 @@ public class KafkaIO {
         LOG.warn(
             "Offsets used for deduplication are available in WindowedValue's metadata. Combining, aggregating, mutating them may risk with data loss.");
       }
+      if (getRedistributeByRecordKey() != null && getRedistributeByRecordKey()) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeByRecordKey can only be used when withRedistribute is set.");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
@@ -1753,6 +1820,13 @@ public class KafkaIO {
       }
       return true;
     }
+
+    /** A {@link PTransformOverride} for runners to override redistributed Kafka Read transforms. */
+    @Internal
+    public static final PTransformOverride KAFKA_REDISTRIBUTE_OVERRIDE =
+        PTransformOverride.of(
+            KafkaReadWithRedistributeOverride.matcher(),
+            new KafkaReadWithRedistributeOverride.Factory<>());
 
     /**
      * A {@link PTransformOverride} for runners to swap {@link ReadFromKafkaViaSDF} to legacy Kafka
@@ -1858,18 +1932,25 @@ public class KafkaIO {
                 "Offsets committed due to usage of commitOffsetsInFinalize() and may not capture all work processed due to use of withRedistribute() with duplicates enabled");
           }
 
-          if (kafkaRead.getRedistributeNumKeys() == 0) {
-            return output.apply(
-                "Insert Redistribute",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates()));
-          } else {
-            return output.apply(
-                "Insert Redistribute with Shards",
-                Redistribute.<KafkaRecord<K, V>>arbitrarily()
-                    .withAllowDuplicates(kafkaRead.isAllowDuplicates())
-                    .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
+          if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
+            if (kafkaRead.getRedistributeByRecordKey() != null
+                && kafkaRead.getRedistributeByRecordKey()) {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byRecordKey(kafkaRead.getRedistributeNumKeys()));
+            } else {
+              return output.apply(
+                  KafkaReadRedistribute.<K, V>byOffsetShard(kafkaRead.getRedistributeNumKeys()));
+            }
           }
+          RedistributeArbitrarily<KafkaRecord<K, V>> redistribute =
+              Redistribute.<KafkaRecord<K, V>>arbitrarily()
+                  .withAllowDuplicates(kafkaRead.isAllowDuplicates());
+          String redistributeName = "Insert Redistribute";
+          if (kafkaRead.getRedistributeNumKeys() != 0) {
+            redistribute = redistribute.withNumBuckets((int) kafkaRead.getRedistributeNumKeys());
+            redistributeName = "Insert Redistribute with Shards";
+          }
+          return output.apply(redistributeName, redistribute);
         }
         return output;
       }
@@ -1984,22 +2065,15 @@ public class KafkaIO {
         extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
 
       @ProcessElement
-      public void processElement(ProcessContext pc) {
-        KafkaRecord<K, V> element = pc.element();
+      public void processElement(
+          @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> outputReceiver) {
         Long offset = null;
         String uniqueId = null;
         if (element != null) {
           offset = element.getOffset();
-          uniqueId =
-              (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
+          uniqueId = String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset);
         }
-        pc.outputWindowedValue(
-            element,
-            pc.timestamp(),
-            Lists.newArrayList(GlobalWindow.INSTANCE),
-            pc.pane(),
-            uniqueId,
-            offset);
+        outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
     }
 
@@ -2059,10 +2133,8 @@ public class KafkaIO {
                 if (logTopicVerification == null || !logTopicVerification) {
                   checkState(
                       partitionInfoList != null && !partitionInfoList.isEmpty(),
-                      "Could not find any partitions info for topic "
-                          + topic
-                          + ". Please check Kafka configuration and make sure "
-                          + "that provided topics exist.");
+                      "Could not find any partitions info for topic %s. Please check Kafka configuration and make sure that provided topics exist.",
+                      topic);
                 } else {
                   LOG.warn(
                       "Could not find any partitions info for topic {}. Please check Kafka configuration "
@@ -2202,8 +2274,10 @@ public class KafkaIO {
    * generating Rows.
    */
   static class KafkaHeader {
-
+    @SchemaFieldNumber("0")
     String key;
+
+    @SchemaFieldNumber("1")
     byte @Nullable [] value;
 
     @SchemaCreate
@@ -2222,15 +2296,32 @@ public class KafkaIO {
    * Schema inference supports generics.
    */
   static class ByteArrayKafkaRecord {
-
+    @SchemaFieldNumber("0")
     String topic;
+
+    @SchemaFieldNumber("1")
     int partition;
+
+    @SchemaFieldNumber("2")
     long offset;
+
+    @SchemaFieldNumber("3")
     long timestamp;
+
+    @SchemaFieldNumber("4")
     byte @Nullable [] key;
+
+    @SchemaFieldNumber("5")
     byte @Nullable [] value;
-    @Nullable List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("6")
+    @Nullable
+    List<KafkaHeader> headers;
+
+    @SchemaFieldNumber("7")
     int timestampTypeId;
+
+    @SchemaFieldNumber("8")
     String timestampTypeName;
 
     @SchemaCreate
@@ -3095,6 +3186,10 @@ public class KafkaIO {
     @Pure
     public abstract boolean isEOS();
 
+    public abstract int getEosTriggerNumElements();
+
+    public abstract @Nullable Duration getEosTriggerTimeout();
+
     @Pure
     public abstract @Nullable String getSinkGroupId();
 
@@ -3130,6 +3225,10 @@ public class KafkaIO {
           KafkaPublishTimestampFunction<ProducerRecord<K, V>> timestampFunction);
 
       abstract Builder<K, V> setEOS(boolean eosEnabled);
+
+      abstract Builder<K, V> setEosTriggerNumElements(int numElements);
+
+      abstract Builder<K, V> setEosTriggerTimeout(@Nullable Duration timeout);
 
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
 
@@ -3276,6 +3375,15 @@ public class KafkaIO {
       checkArgument(numShards >= 1, "numShards should be >= 1");
       checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
       return toBuilder().setEOS(true).setNumShards(numShards).setSinkGroupId(sinkGroupId).build();
+    }
+
+    public WriteRecords<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
+      checkArgument(numElements >= 1, "numElements should be >= 1");
+      checkArgument(timeout != null, "timeout is required for exactly-once sink");
+      return toBuilder()
+          .setEosTriggerNumElements(numElements)
+          .setEosTriggerTimeout(timeout)
+          .build();
     }
 
     /**
@@ -3445,12 +3553,17 @@ public class KafkaIO {
     public static class External implements ExternalTransformRegistrar {
 
       public static final String URN = "beam:transform:org.apache.beam:kafka_write:v1";
+      public static final String URN_WITH_HEADERS =
+          "beam:transform:org.apache.beam:kafka_write_with_headers:v1";
 
       @Override
       public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
         return ImmutableMap.of(
             URN,
-            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class);
+            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class,
+            URN_WITH_HEADERS,
+            (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                (Class<?>) WriteWithHeaders.Builder.class);
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */
@@ -3561,6 +3674,19 @@ public class KafkaIO {
      */
     public Write<K, V> withEOS(int numShards, String sinkGroupId) {
       return withWriteRecordsTransform(getWriteRecordsTransform().withEOS(numShards, sinkGroupId));
+    }
+
+    /**
+     * Set the frequency and numElements threshold at which messages are triggered.
+     *
+     * <p>This is only applicable when the write method is set to EOS.
+     *
+     * <p>Every timeout duration, or numElements (repeated, after first condition is met) collection
+     * of elements written.
+     */
+    public Write<K, V> withEOSTriggerConfig(int numElements, Duration timeout) {
+      return withWriteRecordsTransform(
+          getWriteRecordsTransform().withEOSTriggerConfig(numElements, timeout));
     }
 
     /**
@@ -3722,6 +3848,7 @@ public class KafkaIO {
     }
   }
 
+  @SuppressWarnings("NullableTypeParameter")
   private static class NullOnlyCoder<@Nullable T> extends AtomicCoder<T> {
     @Override
     public void encode(T value, OutputStream outStream) {
@@ -3732,6 +3859,137 @@ public class KafkaIO {
     @Override
     public T decode(InputStream inStream) {
       return null;
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to Kafka with support for record headers.
+   *
+   * <p>This transform accepts {@link Row} elements with the following schema:
+   *
+   * <ul>
+   *   <li>key: bytes (required) - The key of the record.
+   *   <li>value: bytes (required) - The value of the record.
+   *   <li>headers: List&lt;Row(key=str, value=bytes)&gt; (optional) - Record headers.
+   *   <li>topic: str (optional) - Per-record topic override.
+   *   <li>partition: int (optional) - Per-record partition.
+   *   <li>timestamp: long (optional) - Per-record timestamp in milliseconds.
+   * </ul>
+   *
+   * <p>This class is primarily used as a cross-language transform.
+   */
+  static class WriteWithHeaders extends PTransform<PCollection<Row>, PDone> {
+    private static final String FIELD_KEY = "key";
+    private static final String FIELD_VALUE = "value";
+    private static final String FIELD_HEADERS = "headers";
+    private static final String FIELD_TOPIC = "topic";
+    private static final String FIELD_PARTITION = "partition";
+    private static final String FIELD_TIMESTAMP = "timestamp";
+    private static final String HEADER_FIELD_KEY = "key";
+    private static final String HEADER_FIELD_VALUE = "value";
+
+    private final WriteRecords<byte[], byte[]> writeRecords;
+
+    WriteWithHeaders(WriteRecords<byte[], byte[]> writeRecords) {
+      this.writeRecords = writeRecords;
+    }
+
+    static class Builder
+        implements ExternalTransformBuilder<Write.External.Configuration, PCollection<Row>, PDone> {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public PTransform<PCollection<Row>, PDone> buildExternal(
+          Write.External.Configuration configuration) {
+        Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);
+        Class<Serializer<byte[]>> keySerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.keySerializer);
+        Class<Serializer<byte[]>> valueSerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.valueSerializer);
+
+        WriteRecords<byte[], byte[]> writeRecords =
+            KafkaIO.<byte[], byte[]>writeRecords()
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valueSerializer);
+
+        if (configuration.topic != null) {
+          writeRecords = writeRecords.withTopic(configuration.topic);
+        }
+
+        return new WriteWithHeaders(writeRecords);
+      }
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+      final @Nullable String defaultTopic = writeRecords.getTopic();
+      return input
+          .apply(
+              "Row to ProducerRecord",
+              MapElements.via(
+                  new SimpleFunction<Row, ProducerRecord<byte[], byte[]>>() {
+                    @Override
+                    public ProducerRecord<byte[], byte[]> apply(Row row) {
+                      return toProducerRecord(row, defaultTopic);
+                    }
+                  }))
+          .setCoder(
+              ProducerRecordCoder.of(
+                  NullableCoder.of(ByteArrayCoder.of()), NullableCoder.of(ByteArrayCoder.of())))
+          .apply(writeRecords);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      writeRecords.populateDisplayData(builder);
+    }
+
+    @SuppressWarnings("argument")
+    private static ProducerRecord<byte[], byte[]> toProducerRecord(
+        Row row, @Nullable String defaultTopic) {
+      String topic = defaultTopic;
+      if (row.getSchema().hasField(FIELD_TOPIC)) {
+        String rowTopic = row.getString(FIELD_TOPIC);
+        if (rowTopic != null) {
+          topic = rowTopic;
+        }
+      }
+      checkArgument(
+          topic != null, "Row is missing field '%s' and no default topic configured", FIELD_TOPIC);
+
+      byte[] key = row.getBytes(FIELD_KEY);
+      byte[] value = row.getBytes(FIELD_VALUE);
+      Integer partition =
+          row.getSchema().hasField(FIELD_PARTITION) ? row.getInt32(FIELD_PARTITION) : null;
+      Long timestamp =
+          row.getSchema().hasField(FIELD_TIMESTAMP) ? row.getInt64(FIELD_TIMESTAMP) : null;
+
+      boolean hasHeaders = ConsumerSpEL.hasHeaders();
+      Iterable<Header> headers = Collections.emptyList();
+      if (hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        Iterable<Row> headerRows = row.getArray(FIELD_HEADERS);
+        if (headerRows != null) {
+          List<Header> headerList = new ArrayList<>();
+          for (Row headerRow : headerRows) {
+            String headerKey = headerRow.getString(HEADER_FIELD_KEY);
+            checkArgument(headerKey != null, "Header key is required");
+            byte[] headerValue = headerRow.getBytes(HEADER_FIELD_VALUE);
+            headerList.add(new RecordHeader(headerKey, headerValue));
+          }
+          headers = headerList;
+        }
+      } else if (!hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        // Log warning when headers are present but Kafka client doesn't support them
+        LOG.warn(
+            "Dropping headers from Kafka record because the Kafka client version "
+                + "does not support headers (requires Kafka 0.11+).");
+      }
+
+      return hasHeaders
+          ? new ProducerRecord<>(topic, partition, timestamp, key, value, headers)
+          : new ProducerRecord<>(topic, partition, timestamp, key, value);
     }
   }
 

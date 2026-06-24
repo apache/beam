@@ -31,9 +31,10 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -61,7 +62,8 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
   private static final String COLUMN_FAMILY_NAME_2 = "test_cf_2";
   private BigtableTableAdminClient tableAdminClient;
   private BigtableDataClient dataClient;
-  private String tableId = String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+  private String tableId =
+      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC")));
   private String projectId;
   private String instanceId;
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> writeTransform;

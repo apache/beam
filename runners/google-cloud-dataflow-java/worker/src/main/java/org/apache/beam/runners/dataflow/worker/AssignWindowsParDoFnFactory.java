@@ -111,15 +111,16 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
                 }
               });
 
-      WindowedValue<T> res =
-          WindowedValues.of(elem.getValue(), elem.getTimestamp(), windows, elem.getPaneInfo());
-      receiver.process(res);
+      WindowedValues.builder(elem).setWindows(windows).setReceiver(receiver::process).output();
     }
 
     @Override
     public void processTimers() throws Exception {
       // Nothing.
     }
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
 
     @Override
     public void finishBundle() throws Exception {

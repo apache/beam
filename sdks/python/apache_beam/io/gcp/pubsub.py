@@ -31,13 +31,12 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 """
 
 # pytype: skip-file
-
+import logging
 import re
+import time
 from typing import Any
-from typing import List
 from typing import NamedTuple
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam import coders
@@ -390,7 +389,8 @@ class WriteToPubSub(PTransform):
       topic: str,
       with_attributes: bool = False,
       id_label: Optional[str] = None,
-      timestamp_attribute: Optional[str] = None) -> None:
+      timestamp_attribute: Optional[str] = None,
+      publish_with_ordering_key: bool = False) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -406,14 +406,19 @@ class WriteToPubSub(PTransform):
         in a ReadFromPubSub PTransform to deduplicate messages.
       timestamp_attribute: If set, will set an attribute for each Cloud Pub/Sub
         message with the given name and the message's publish time as the value.
+      publish_with_ordering_key: If True, enables message ordering on the
+        PublisherClient. Messages with an ordering_key will be delivered
+        in order. Requires messages to have ordering_key set.
     """
     super().__init__()
     self.with_attributes = with_attributes
+    self.publish_with_ordering_key = publish_with_ordering_key
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute
     self.project, self.topic_name = parse_topic(topic)
     self.full_topic = topic
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
+    self.pipeline_options = None  # Will be set during expand()
 
   @staticmethod
   def message_to_proto_str(element: PubsubMessage) -> bytes:
@@ -429,6 +434,18 @@ class WriteToPubSub(PTransform):
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
+    # Store pipeline options for use in DoFn
+    self.pipeline_options = pcoll.pipeline.options if pcoll.pipeline else None
+    # Warn Dataflow users to use the XLang path for ordering key support,
+    # since _PubSubWriteDoFn._flush() is not used by Dataflow's implementation.
+    runner = self.pipeline_options.get_all_options().get(
+        'runner', '') if self.pipeline_options else ''
+    if 'Dataflow' in str(runner) and self.publish_with_ordering_key:
+      logging.warning(
+          'WriteToPubSub ordering_key support is not available on Dataflow '
+          'via this transform. Use the XLang WriteToPubSub path instead: '
+          'apache_beam.io.external.gcp.pubsub.WriteToPubSub with '
+          'publish_with_ordering_key=True.')
     if self.with_attributes:
       pcoll = pcoll | 'ToProtobufX' >> ParDo(
           _AddMetricsAndMap(
@@ -455,6 +472,9 @@ class WriteToPubSub(PTransform):
             True, label='With Attributes').drop_if_none(),
         'timestamp_attribute': DisplayDataItem(
             self.timestamp_attribute, label='Timestamp Attribute'),
+        'publish_with_ordering_key': DisplayDataItem(
+            self.publish_with_ordering_key,
+            label='Publish With Ordering Key').drop_if_none(),
     }
 
 
@@ -463,7 +483,7 @@ SUBSCRIPTION_REGEXP = 'projects/([^/]+)/subscriptions/(.+)'
 TOPIC_REGEXP = 'projects/([^/]+)/topics/(.+)'
 
 
-def parse_topic(full_topic: str) -> Tuple[str, str]:
+def parse_topic(full_topic: str) -> tuple[str, str]:
   match = re.match(TOPIC_REGEXP, full_topic)
   if not match:
     raise ValueError(
@@ -561,18 +581,79 @@ class _PubSubWriteDoFn(DoFn):
     self.id_label = transform.id_label
     self.timestamp_attribute = transform.timestamp_attribute
     self.with_attributes = transform.with_attributes
+    self.with_ordering = transform.publish_with_ordering_key
 
     # TODO(https://github.com/apache/beam/issues/18939): Add support for
     # id_label and timestamp_attribute.
-    if transform.id_label:
-      raise NotImplementedError('id_label is not supported for PubSub writes')
-    if transform.timestamp_attribute:
-      raise NotImplementedError(
-          'timestamp_attribute is not supported for PubSub writes')
+    # Only raise errors for DirectRunner or batch pipelines
+    pipeline_options = transform.pipeline_options
+    output_labels_supported = True
+
+    if pipeline_options:
+      from apache_beam.options.pipeline_options import StandardOptions
+
+      # Check if using DirectRunner
+      try:
+        # Get runner from pipeline options
+        all_options = pipeline_options.get_all_options()
+        runner_name = all_options.get('runner', StandardOptions.DEFAULT_RUNNER)
+
+        # Check if it's a DirectRunner variant
+        if (runner_name is None or
+            (runner_name in StandardOptions.LOCAL_RUNNERS or 'DirectRunner'
+             in str(runner_name) or 'TestDirectRunner' in str(runner_name))):
+          output_labels_supported = False
+      except Exception:
+        # If we can't determine runner, assume DirectRunner for safety
+        output_labels_supported = False
+
+      # Check if in batch mode (not streaming)
+      standard_options = pipeline_options.view_as(StandardOptions)
+      if not standard_options.streaming:
+        output_labels_supported = False
+    else:
+      # If no pipeline options available, fall back to original behavior
+      output_labels_supported = False
+
+    # Log debug information for troubleshooting
+
+    runner_info = getattr(
+        pipeline_options, 'runner',
+        'None') if pipeline_options else 'No options'
+    streaming_info = 'Unknown'
+    if pipeline_options:
+      try:
+        standard_options = pipeline_options.view_as(StandardOptions)
+        streaming_info = 'streaming=%s' % standard_options.streaming
+      except Exception:
+        streaming_info = 'streaming=unknown'
+
+    logging.debug(
+        'PubSub unsupported feature check: runner=%s, %s',
+        runner_info,
+        streaming_info)
+
+    if not output_labels_supported:
+
+      if transform.id_label:
+        raise NotImplementedError(
+            f'id_label is not supported for PubSub writes with DirectRunner '
+            f'or in batch mode (runner={runner_info}, {streaming_info})')
+      if transform.timestamp_attribute:
+        raise NotImplementedError(
+            f'timestamp_attribute is not supported for PubSub writes with '
+            f'DirectRunner or in batch mode '
+            f'(runner={runner_info}, {streaming_info})')
 
   def setup(self):
     from google.cloud import pubsub
-    self._pub_client = pubsub.PublisherClient()
+    if self.with_ordering:
+      self._pub_client = pubsub.PublisherClient(
+          publisher_options=pubsub.types.PublisherOptions(
+              enable_message_ordering=True,
+          ))
+    else:
+      self._pub_client = pubsub.PublisherClient()
     self._topic = self._pub_client.topic_path(
         self.project, self.short_topic_name)
 
@@ -591,13 +672,22 @@ class _PubSubWriteDoFn(DoFn):
     if not self._buffer:
       return
 
-    import time
+    # The elements in buffer are serialized protobuf bytes from the previous
+    # transforms. We need to deserialize them to extract data and attributes.
+    futures = []
+    for elem in self._buffer:
+      # Deserialize the protobuf to get the original PubsubMessage
+      pubsub_msg = PubsubMessage._from_proto_str(elem)
 
-    # The elements in buffer are already serialized bytes from the previous
-    # transforms
-    futures = [
-        self._pub_client.publish(self._topic, elem) for elem in self._buffer
-    ]
+      # Publish with the correct data, attributes, and ordering_key
+      kwargs = {}
+      if self.with_attributes and pubsub_msg.attributes:
+        kwargs.update(pubsub_msg.attributes)
+      if pubsub_msg.ordering_key:
+        kwargs['ordering_key'] = pubsub_msg.ordering_key
+      future = self._pub_client.publish(self._topic, pubsub_msg.data, **kwargs)
+
+      futures.append(future)
 
     timer_start = time.time()
     for future in futures:
@@ -686,7 +776,7 @@ class MultipleReadFromPubSub(PTransform):
   """
   def __init__(
       self,
-      pubsub_source_descriptors: List[PubSubSourceDescriptor],
+      pubsub_source_descriptors: list[PubSubSourceDescriptor],
       with_attributes: bool = False,
   ):
     """Initializes ``PubSubMultipleReader``.

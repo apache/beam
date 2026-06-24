@@ -41,6 +41,10 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.Combine.Globally;
+import org.apache.beam.sdk.transforms.Combine.PerKey;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
@@ -1499,6 +1503,7 @@ public class Combine {
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
+    private boolean shouldSkipReplacement;
 
     private PerKey(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
@@ -1508,6 +1513,7 @@ public class Combine {
       this.fnDisplayData = fnDisplayData;
       this.fewKeys = fewKeys;
       this.sideInputs = ImmutableList.of();
+      this.shouldSkipReplacement = false;
     }
 
     private PerKey(
@@ -1519,6 +1525,7 @@ public class Combine {
       this.fnDisplayData = fnDisplayData;
       this.fewKeys = fewKeys;
       this.sideInputs = sideInputs;
+      this.shouldSkipReplacement = false;
     }
 
     @Override
@@ -1592,6 +1599,11 @@ public class Combine {
       return sideInputs;
     }
 
+    /** Returns whether a runner should skip replacing this transform. For runner use only */
+    public boolean shouldSkipReplacement() {
+      return this.shouldSkipReplacement;
+    }
+
     /**
      * Returns the side inputs of this {@link Combine}, tagged with the tag of the {@link
      * PCollectionView}. The values of the returned map will be equal to the result of {@link
@@ -1604,6 +1616,13 @@ public class Combine {
 
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
+      PipelineOptions options = input.getPipeline().getOptions();
+      String gbekOveride = options.getGbek();
+      if (gbekOveride != null && !gbekOveride.trim().isEmpty()) {
+        // Don't replace this transform if we're using GBEK since the runner may insert
+        // its own GBK which doesn't perform encryption.
+        this.shouldSkipReplacement = true;
+      }
       return input
           .apply(fewKeys ? GroupByKey.createWithFewKeys() : GroupByKey.create())
           .apply(

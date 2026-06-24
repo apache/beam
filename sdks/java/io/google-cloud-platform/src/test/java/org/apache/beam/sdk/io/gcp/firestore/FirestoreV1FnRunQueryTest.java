@@ -59,6 +59,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
@@ -70,15 +72,21 @@ public final class FirestoreV1FnRunQueryTest
 
   @Parameterized.Parameter public Instant readTime;
 
+  @Parameter(1)
+  public boolean setDatabaseOnFn;
+
   @Rule public MockitoRule rule = MockitoJUnit.rule();
 
   @Mock private ServerStreamingCallable<RunQueryRequest, RunQueryResponse> callable;
   @Mock private ServerStream<RunQueryResponse> responseStream;
   @Mock private ServerStream<RunQueryResponse> retryResponseStream;
 
-  @Parameterized.Parameters(name = "readTime = {0}")
-  public static Collection<Object> data() {
-    return Arrays.asList(null, Instant.now());
+  @Parameters(name = "readTime = {0}, setDatabaseOnFn = {1}")
+  public static Collection<Object[]> data() {
+    return Arrays.asList(
+        new Object[][] {
+          {null, false}, {null, true}, {Instant.now(), false}, {Instant.now(), true}
+        });
   }
 
   private RunQueryRequest withReadTime(RunQueryRequest request, Instant readTime) {
@@ -100,7 +108,7 @@ public final class FirestoreV1FnRunQueryTest
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     RpcQosOptions options = RpcQosOptions.defaultOptions();
     when(ff.getRpcQos(any()))
         .thenReturn(FirestoreStatefulComponentFactory.INSTANCE.getRpcQos(options));
@@ -112,7 +120,7 @@ public final class FirestoreV1FnRunQueryTest
 
     when(processContext.element()).thenReturn(testData.request);
 
-    RunQueryFn fn = new RunQueryFn(clock, ff, options, readTime);
+    RunQueryFn fn = getFnWithParameters();
 
     runFunction(fn);
 
@@ -242,7 +250,7 @@ public final class FirestoreV1FnRunQueryTest
 
     when(stub.runQueryCallable()).thenReturn(callable);
 
-    when(ff.getFirestoreStub(any())).thenReturn(stub);
+    when(ff.getFirestoreStub(any(), any(), any())).thenReturn(stub);
     when(ff.getRpcQos(any())).thenReturn(rpcQos);
     when(rpcQos.newReadAttempt(any())).thenReturn(attempt);
     when(attempt.awaitSafeToProceed(any())).thenReturn(true);
@@ -300,6 +308,14 @@ public final class FirestoreV1FnRunQueryTest
       FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
       RpcQosOptions rpcQosOptions) {
     return new RunQueryFn(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+  }
+
+  private RunQueryFn getFnWithParameters() {
+    if (setDatabaseOnFn) {
+      return new RunQueryFn(clock, ff, rpcQosOptions, readTime, projectId, "(default)");
+    } else {
+      return new RunQueryFn(clock, ff, rpcQosOptions, readTime);
+    }
   }
 
   private static final class TestData {

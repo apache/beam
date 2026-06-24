@@ -96,7 +96,7 @@ public abstract class AvroDatumFactory<T>
     if (this == other) {
       return true;
     }
-    if (other == null || getClass() != other.getClass()) {
+    if (!(other instanceof AvroDatumFactory)) {
       return false;
     }
     AvroDatumFactory<?> that = (AvroDatumFactory<?>) other;

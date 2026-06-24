@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
-import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
+import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -59,8 +59,17 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
+import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.DoubleValue;
+import com.google.protobuf.FloatValue;
+import com.google.protobuf.Int32Value;
+import com.google.protobuf.Int64Value;
+import com.google.protobuf.Timestamp;
+import com.google.protobuf.UInt32Value;
+import com.google.protobuf.UInt64Value;
+import com.google.protobuf.util.Timestamps;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,6 +91,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -182,6 +192,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -1288,7 +1299,7 @@ public class BigQueryIOWriteTest implements Serializable {
                       "CreateTableSchemaString",
                       Create.of(KV.of(tableName, BigQueryHelpers.toJsonString(tableSchema))))
                   .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-                  .apply(View.<String, String>asMap()));
+                  .apply(View.asMap()));
     } else {
       bqWrite = bqWrite.withSchema(tableSchema);
     }
@@ -1302,34 +1313,46 @@ public class BigQueryIOWriteTest implements Serializable {
 
     p.run();
 
+    // Convert values string before comparing.
+    List<TableRow> allRows =
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(
+                (TableRow tr) -> {
+                  Map<String, Object> stringed =
+                      tr.entrySet().stream()
+                          .collect(
+                              Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toString()));
+
+                  TableRow tableRow = new TableRow();
+                  tableRow.putAll(stringed);
+                  return tableRow;
+                })
+            .collect(Collectors.toList());
     assertThat(
-        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        allRows,
         containsInAnyOrder(
             new TableRow()
                 .set("strval", "test")
                 .set("longval", "1")
-                .set("doubleval", 1.0)
+                .set("doubleval", "1.0")
                 .set(
                     "instantval",
                     useStorageApi || useStorageApiApproximate
-                        ? String.valueOf(Instant.parse("2019-01-01T00:00:00Z").getMillis() * 1000)
+                        ? "2019-01-01 T00:00:00"
                         : "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strval", "test2")
                 .set("longval", "2")
-                .set("doubleval", 2.0)
+                .set("doubleval", "2.0")
                 .set(
                     "instantval",
                     useStorageApi || useStorageApiApproximate
-                        ? String.valueOf(Instant.parse("2019-02-01T00:00:00Z").getMillis() * 1000)
+                        ? "2019-02-01 T00:00:00"
                         : "2019-02-01 00:00:00 UTC")));
   }
 
   @Test
   public void testWriteAvro() throws Exception {
-    // only streaming inserts don't support avro types
-    assumeTrue(!useStreaming);
-
     runTestWriteAvro(false);
   }
 
@@ -1911,7 +1934,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  /** Coder for @link{PartitionedGlobalWindow}. */
+  /** Coder for {@link PartitionedGlobalWindow}. */
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream) throws IOException {
@@ -2492,6 +2515,200 @@ public class BigQueryIOWriteTest implements Serializable {
                 Iterables.concat(expectedDroppedValues, expectedFullValues), TableRow.class)));
   }
 
+  @Test
+  public void testAutoPatchTableSchemaTest() throws Exception {
+    assumeTrue(useStreaming);
+    assumeTrue(useStorageApi);
+
+    // Make sure that GroupIntoBatches does not buffer data.
+    p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
+    p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
+    p.getOptions().as(BigQueryOptions.class).setSchemaUpgradeBufferingShards(2);
+
+    BigQueryIO.Write.Method method =
+        useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
+    p.enableAbandonedNodeEnforcement(false);
+
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset-id.table");
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INT64"),
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("req").setType("INT64").setMode("REQUIRED")));
+    fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
+
+    final int stride = 5;
+    Function<Integer, TableSchema> getUpdatedSchema =
+        currentStride -> {
+          TableSchema tableSchemaUpdated = new TableSchema();
+          tableSchemaUpdated.setFields(
+              Lists.newArrayList(
+                  new TableFieldSchema().setName("number").setType("INT64").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("name").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("req").setType("INT64").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("new1").setType("STRING").setMode("NULLABLE"),
+                  new TableFieldSchema().setName("new2").setType("STRING").setMode("NULLABLE")));
+
+          if (currentStride >= 2) {
+            List<TableFieldSchema> nestedFields =
+                Lists.newArrayList(
+                    new TableFieldSchema()
+                        .setName("nested_field1")
+                        .setType("STRING")
+                        .setMode("NULLABLE"),
+                    new TableFieldSchema()
+                        .setName("nested_field2")
+                        .setType("STRING")
+                        .setMode("NULLABLE"));
+            if (currentStride >= 3) {
+              List<TableFieldSchema> doubleNestedFields =
+                  Lists.newArrayList(
+                      new TableFieldSchema()
+                          .setName("double_nested_field1")
+                          .setType("STRING")
+                          .setMode("NULLABLE"));
+              nestedFields.add(
+                  new TableFieldSchema()
+                      .setName("double_nested")
+                      .setType("STRUCT")
+                      .setMode("NULLABLE")
+                      .setFields(doubleNestedFields));
+
+              List<TableFieldSchema> repeatedNestedFields =
+                  Lists.newArrayList(
+                      new TableFieldSchema()
+                          .setName("repeated_nested_field1")
+                          .setType("STRING")
+                          .setMode("NULLABLE"),
+                      new TableFieldSchema()
+                          .setName("repeated_nested_field2")
+                          .setType("STRING")
+                          .setMode("NULLABLE"));
+
+              nestedFields.add(
+                  new TableFieldSchema()
+                      .setName("repeated_nested")
+                      .setType("STRUCT")
+                      .setMode("REPEATED")
+                      .setFields(repeatedNestedFields));
+            }
+            tableSchemaUpdated
+                .getFields()
+                .add(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setMode("NULLABLE")
+                        .setFields(nestedFields));
+          }
+          return tableSchemaUpdated;
+        };
+
+    IntFunction<TableRow> getRow =
+        (IntFunction<TableRow> & Serializable)
+            (int i) -> {
+              TableRow row = new TableRow().set("name", "name" + i).set("number", Long.toString(i));
+              if (i < stride) {
+                row = row.set("req", "42");
+              } else {
+                row = row.set("new1", "blah" + i);
+                row = row.set("new2", "baz" + i);
+
+                if (i >= 2 * stride) {
+                  TableRow nested =
+                      new TableRow()
+                          .set("nested_field1", "nested1" + i)
+                          .set("nested_field2", "nested2" + i);
+
+                  if (i >= 3 * stride) {
+                    TableRow doubleNested =
+                        new TableRow().set("double_nested_field1", "double_nested1" + i);
+                    nested = nested.set("double_nested", doubleNested);
+
+                    // Add a repeated struct to ensure that we capture this code path as well.
+                    TableRow repeatedNested1 =
+                        new TableRow().set("repeated_nested_field1", "repeated_nested1" + i);
+                    TableRow repeatedNested2 =
+                        new TableRow().set("repeated_nested_field2", "repeated_nested2" + i);
+                    nested =
+                        nested.set(
+                            "repeated_nested", ImmutableList.of(repeatedNested1, repeatedNested2));
+                  }
+                  row.set("nested", nested);
+                }
+              }
+              return row;
+            };
+
+    TestStream.Builder<TableRow> testStream =
+        TestStream.create(TableRowJsonCoder.of()).advanceWatermarkTo(new Instant(0));
+    List<TableRow> expectedRows = Lists.newArrayList();
+    for (int i = 0; i < 4 * stride; i += stride) {
+      for (int j = i; j < i + stride; ++j) {
+        TableRow tableRow = getRow.apply(j);
+        expectedRows.add(tableRow);
+        testStream = testStream.addElements(tableRow);
+      }
+      if (i > 0 && (i % 5) == 0) {
+        for (int n = 0; n < 5; ++n) {
+          testStream = testStream.advanceProcessingTime(Duration.standardSeconds(2));
+        }
+      }
+    }
+    // Test making disallowed changes - these should show up in the dead letter PCollection.
+    List<TableRow> expectedFailedRows = Lists.newArrayList();
+
+    TableRow invalid = getRow.apply(4 * stride + 1);
+    invalid.set("req", ImmutableList.of("43", "44"));
+    expectedFailedRows.add(invalid);
+    testStream = testStream.addElements(invalid);
+
+    invalid = getRow.apply(4 * stride + 2);
+    invalid.set("req", new TableRow());
+    expectedFailedRows.add(invalid);
+    testStream = testStream.addElements(invalid);
+
+    for (int i = 0; i < 5; ++i) {
+      testStream = testStream.advanceProcessingTime(Duration.standardSeconds(2));
+    }
+
+    PCollection<TableRow> tableRows = p.apply(testStream.advanceWatermarkToInfinity());
+
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to(tableRef)
+            .withMethod(method)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withSchemaUpdateOptions(
+                ImmutableSet.of(
+                    SchemaUpdateOption.ALLOW_FIELD_ADDITION,
+                    SchemaUpdateOption.ALLOW_FIELD_RELAXATION))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+    if (method == Method.STORAGE_WRITE_API) {
+      write =
+          write
+              .withTriggeringFrequency(Duration.standardSeconds(1))
+              .withNumStorageWriteApiStreams(2);
+    }
+    WriteResult result = tableRows.apply(write);
+    PCollection<TableRow> failedInserts =
+        result
+            .getFailedStorageApiInserts()
+            .apply(
+                MapElements.into(TypeDescriptor.of(TableRow.class))
+                    .via(BigQueryStorageApiInsertError::getRow));
+    PAssert.that(failedInserts).containsInAnyOrder(expectedFailedRows);
+
+    p.run();
+    assertEquals(
+        getUpdatedSchema.apply(Integer.MAX_VALUE),
+        fakeDatasetService.getTable(tableRef).getSchema());
+    assertThat(fakeDatasetService.getAllRows(tableRef), containsInAnyOrder(expectedRows.toArray()));
+  }
+
   TableRow filterUnknownValues(TableRow row, List<TableFieldSchema> tableSchemaFields) {
     Map<String, String> schemaTypes =
         tableSchemaFields.stream()
@@ -2717,8 +2934,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.enableAbandonedNodeEnforcement(false);
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Auto-sharding is only applicable to an unbounded PCollection, but the input PCollection is BOUNDED.");
+    thrown.expectMessage("Auto-sharding is only applicable to an unbounded PCollection.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
@@ -2844,7 +3060,10 @@ public class BigQueryIOWriteTest implements Serializable {
             multiPartitionsTag,
             singlePartitionTag,
             RowWriterFactory.tableRows(
-                SerializableFunctions.identity(), SerializableFunctions.identity()));
+                BigQueryIO.TableRowFormatFunction.fromSerializableFunction(
+                    SerializableFunctions.identity()),
+                BigQueryIO.TableRowFormatFunction.fromSerializableFunction(
+                    SerializableFunctions.identity())));
 
     DoFnTester<
             Iterable<WriteBundlesToFiles.Result<TableDestination>>,
@@ -2939,7 +3158,7 @@ public class BigQueryIOWriteTest implements Serializable {
         partitions.add(
             KV.of(
                 ShardedKey.of(tableDestination.getTableSpec(), j),
-                new AutoValue_WritePartition_Result(filesPerPartition, true)));
+                WritePartition.Result.of(filesPerPartition, true)));
 
         String json =
             String.format(
@@ -2982,7 +3201,7 @@ public class BigQueryIOWriteTest implements Serializable {
     PCollection<KV<TableDestination, WriteTables.Result>> writeTablesOutput =
         writeTablesInput
             .apply(writeTables)
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), INSTANCE))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), new WriteTables.ResultCoder()))
             .apply(
                 ParDo.of(
                     new DoFn<
@@ -3066,8 +3285,7 @@ public class BigQueryIOWriteTest implements Serializable {
         expectedRowsPerTable.putAll(tableDestination, rows);
         String tableJson = toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
-        tempTablesElement.add(
-            KV.of(tableDestination, new AutoValue_WriteTables_Result(tableJson, true)));
+        tempTablesElement.add(KV.of(tableDestination, WriteTables.Result.of(tableJson, true)));
       }
     }
 
@@ -3091,7 +3309,9 @@ public class BigQueryIOWriteTest implements Serializable {
             Create.of(
                     ImmutableList.of(
                         (Iterable<KV<TableDestination, WriteTables.Result>>) tempTablesElement))
-                .withCoder(IterableCoder.of(KvCoder.of(TableDestinationCoder.of(), INSTANCE))))
+                .withCoder(
+                    IterableCoder.of(
+                        KvCoder.of(TableDestinationCoder.of(), WriteTables.ResultCoder.INSTANCE))))
         .apply(writeRename);
 
     p.run().waitUntilFinish();
@@ -3146,7 +3366,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     for (TableReference ref : tableRefs) {
       loggedWriteRename.verifyDebug("Deleting table " + toJsonString(ref));
-      checkState(datasetService.getTable(ref) == null, "Table " + ref + " was not deleted!");
+      checkState(datasetService.getTable(ref) == null, "Table %s was not deleted!", ref);
     }
   }
 
@@ -3285,9 +3505,9 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("primitive_double", Double.valueOf(i))
-                .set("primitive_float", Float.valueOf(i).doubleValue())
-                .set("primitive_int32", i.intValue())
+                .set("primitive_double", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_int32", i.toString())
                 .set("primitive_int64", i.toString())
                 .set("primitive_uint32", i.toString())
                 .set("primitive_uint64", i.toString())
@@ -3295,7 +3515,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("primitive_sint64", i.toString())
                 .set("primitive_fixed32", i.toString())
                 .set("primitive_fixed64", i.toString())
-                .set("primitive_bool", true)
+                .set("primitive_bool", "true")
                 .set("primitive_string", i.toString())
                 .set(
                     "primitive_bytes",
@@ -3308,7 +3528,7 @@ public class BigQueryIOWriteTest implements Serializable {
         (Function<TableRow, Boolean> & Serializable)
             tr ->
                 tr.containsKey("primitive_int32")
-                    && (Integer) tr.get("primitive_int32") >= failFrom;
+                    && Integer.parseInt((String) tr.get("primitive_int32")) >= failFrom;
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
     SerializableFunction<Proto3SchemaMessages.Primitive, TableRow> formatRecordOnFailureFunction =
@@ -3477,7 +3697,7 @@ public class BigQueryIOWriteTest implements Serializable {
     String fieldName = "number";
     Function<TableRow, Boolean> shouldFailRow =
         (Function<TableRow, Boolean> & Serializable)
-            tr -> (Long.valueOf((String) tr.get(fieldName))) >= failFrom;
+            tr -> Long.valueOf((String) tr.get(fieldName)) >= failFrom;
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
     SerializableFunction<Long, TableRow> formatRecordOnFailureFunction =
@@ -3567,7 +3787,14 @@ public class BigQueryIOWriteTest implements Serializable {
     TableSchema subSchema =
         new TableSchema()
             .setFields(
-                ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
+                    new TableFieldSchema().setName("time").setType("TIME"),
+                    new TableFieldSchema().setName("datetime").setType("DATETIME"),
+                    new TableFieldSchema().setName("date").setType("DATE"),
+                    new TableFieldSchema().setName("numeric").setType("NUMERIC"),
+                    new TableFieldSchema().setName("bignumeric").setType("BIGNUMERIC")));
 
     TableSchema tableSchema =
         new TableSchema()
@@ -3583,10 +3810,19 @@ public class BigQueryIOWriteTest implements Serializable {
                         .setType("RECORD")
                         .setFields(subSchema.getFields())));
 
-    TableRow goodNested = new TableRow().set("number", "42");
+    TableRow goodNested =
+        new TableRow()
+            .set("number", "42")
+            .set("timestamp", "1970-01-01 T00:00:00.000043")
+            .set("time", "00:52:07.123456")
+            .set("datetime", "2019-08-16T00:52:07.123456")
+            .set("date", "2019-08-16")
+            .set("numeric", "23.4")
+            .set("bignumeric", "123456789012345678");
     TableRow badNested = new TableRow().set("number", "nAn");
 
     final String failValue = "failme";
+
     List<TableRow> goodRows =
         ImmutableList.of(
             new TableRow().set("name", "n1").set("number", "1"),
@@ -3594,6 +3830,7 @@ public class BigQueryIOWriteTest implements Serializable {
             new TableRow().set("name", "n2").set("number", "2"),
             new TableRow().set("name", failValue).set("number", "2"),
             new TableRow().set("name", "parent1").set("nested", goodNested),
+            new TableRow().set("name", failValue).set("number", "2").set("nested", goodNested),
             new TableRow().set("name", failValue).set("number", "1"));
     List<TableRow> badRows =
         ImmutableList.of(
@@ -3626,22 +3863,6 @@ public class BigQueryIOWriteTest implements Serializable {
             tr -> tr.containsKey("name") && tr.get("name").equals(failValue);
     fakeDatasetService.setShouldFailRow(shouldFailRow);
 
-    SerializableFunction<TableRow, TableRow> formatRecordOnFailureFunction =
-        input -> {
-          TableRow failedTableRow = new TableRow().set("testFailureFunctionField", "testValue");
-          if (input != null) {
-            Object name = input.get("name");
-            if (name != null) {
-              failedTableRow.set("name", name);
-            }
-            Object number = input.get("number");
-            if (number != null) {
-              failedTableRow.set("number", number);
-            }
-          }
-          return failedTableRow;
-        };
-
     WriteResult result =
         p.apply(Create.of(Iterables.concat(goodRows, badRows)))
             .apply(
@@ -3653,7 +3874,6 @@ public class BigQueryIOWriteTest implements Serializable {
                     .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
                     .withPropagateSuccessfulStorageApiWrites(true)
                     .withTestServices(fakeBqServices)
-                    .withFormatRecordOnFailureFunction(formatRecordOnFailureFunction)
                     .withoutValidation());
 
     PCollection<TableRow> deadRows =
@@ -3664,13 +3884,10 @@ public class BigQueryIOWriteTest implements Serializable {
                     .via(BigQueryStorageApiInsertError::getRow));
     PCollection<TableRow> successfulRows = result.getSuccessfulStorageApiInserts();
 
-    List<TableRow> expectedFailedRows =
-        badRows.stream().map(formatRecordOnFailureFunction::apply).collect(Collectors.toList());
+    List<TableRow> expectedFailedRows = Lists.newArrayList(badRows);
     expectedFailedRows.addAll(
-        goodRows.stream()
-            .filter(shouldFailRow::apply)
-            .map(formatRecordOnFailureFunction::apply)
-            .collect(Collectors.toList()));
+        goodRows.stream().filter(shouldFailRow::apply).collect(Collectors.toList()));
+
     PAssert.that(deadRows).containsInAnyOrder(expectedFailedRows);
     PAssert.that(successfulRows)
         .containsInAnyOrder(
@@ -4030,9 +4247,9 @@ public class BigQueryIOWriteTest implements Serializable {
     Function<Integer, TableRow> getPrimitiveRow =
         (Integer i) ->
             new TableRow()
-                .set("primitive_double", Double.valueOf(i))
-                .set("primitive_float", Float.valueOf(i).doubleValue())
-                .set("primitive_int32", i.intValue())
+                .set("primitive_double", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(i))
+                .set("primitive_int32", i.toString())
                 .set("primitive_int64", i.toString())
                 .set("primitive_uint32", i.toString())
                 .set("primitive_uint64", i.toString())
@@ -4040,7 +4257,7 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("primitive_sint64", i.toString())
                 .set("primitive_fixed32", i.toString())
                 .set("primitive_fixed64", i.toString())
-                .set("primitive_bool", true)
+                .set("primitive_bool", "true")
                 .set("primitive_string", i.toString())
                 .set(
                     "primitive_bytes",
@@ -4078,6 +4295,440 @@ public class BigQueryIOWriteTest implements Serializable {
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
             .withMethod(method)
             .withoutValidation()
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items)).apply("WriteToBQ", write);
+    p.run();
+
+    // Round trip through the coder to make sure the types match our expected types.
+    List<TableRow> allRows =
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(
+                tr -> {
+                  try {
+                    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), tr);
+                    return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
+    assertThat(allRows, containsInAnyOrder(Iterables.toArray(expectedItems, TableRow.class)));
+  }
+
+  // XXX Test string fields
+  // Test date numeric field
+  @Test
+  public void testWriteProtosEncodedValuesDirectWrite() throws Exception {
+    testWriteProtosEncodedValues(true);
+  }
+
+  @Test
+  public void testWriteProtosEncodedValuesNoDirectWrite() throws Exception {
+    testWriteProtosEncodedValues(false);
+  }
+
+  public void testWriteProtosEncodedValues(boolean directWrite) throws Exception {
+    assumeTrue(useStorageApi);
+
+    BigQueryIO.Write.Method method =
+        useStreaming
+            ? (useStorageApi
+                ? (useStorageApiApproximate
+                    ? Method.STORAGE_API_AT_LEAST_ONCE
+                    : Method.STORAGE_WRITE_API)
+                : Method.STREAMING_INSERTS)
+            : useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    final TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("encoded_timestamp").setType("TIMESTAMP"),
+                    new TableFieldSchema().setName("encoded_date").setType("DATE"),
+                    new TableFieldSchema().setName("encoded_numeric").setType("NUMERIC"),
+                    new TableFieldSchema().setName("encoded_bignumeric").setType("BIGNUMERIC"),
+                    new TableFieldSchema().setName("encoded_packed_datetime").setType("DATETIME"),
+                    new TableFieldSchema().setName("encoded_packed_time").setType("TIME")));
+    final TableSchema nestedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setFields(tableSchema.getFields()),
+                    new TableFieldSchema()
+                        .setName("nested_list")
+                        .setType("STRUCT")
+                        .setMode("REPEATED")
+                        .setFields(tableSchema.getFields())));
+
+    final String timestamp = "1970-01-01 T00:00:00.000043";
+    final String date = "2019-08-16";
+    final String numeric = "23";
+    final String bignumeric = "123456789012345678";
+    final String datetime = "2019-08-16T00:52:07.123456";
+    final String time = "00:52:07.123456";
+
+    Function<Integer, Proto3SchemaMessages.PrimitiveEncodedFields> getPrimitive =
+        (Integer i) -> {
+          try {
+            return Proto3SchemaMessages.PrimitiveEncodedFields.newBuilder()
+                .setEncodedTimestamp(
+                    (long)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type
+                                    .TIMESTAMP)
+                            .apply("", timestamp))
+                .setEncodedDate(
+                    (int)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DATE)
+                            .apply("", date))
+                .setEncodedNumeric(
+                    (ByteString)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.NUMERIC)
+                            .apply("", numeric))
+                .setEncodedBignumeric(
+                    (ByteString)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type
+                                    .BIGNUMERIC)
+                            .apply("", bignumeric))
+                .setEncodedPackedDatetime(
+                    (long)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.DATETIME)
+                            .apply("", datetime))
+                .setEncodedPackedTime(
+                    (long)
+                        TYPE_MAP_PROTO_CONVERTERS
+                            .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIME)
+                            .apply("", time))
+                .build();
+          } catch (TableRowToStorageApiProto.SchemaConversionException e) {
+            throw new RuntimeException(e);
+          }
+        };
+
+    Function<Integer, TableRow> getPrimitiveRow =
+        (Integer i) ->
+            new TableRow()
+                .set("encoded_timestamp", timestamp)
+                .set("encoded_date", date)
+                .set("encoded_numeric", numeric)
+                .set("encoded_bignumeric", bignumeric)
+                .set("encoded_packed_datetime", datetime)
+                .set("encoded_packed_time", time);
+
+    List<Proto3SchemaMessages.PrimitiveEncodedFields> nestedItems =
+        Lists.newArrayList(getPrimitive.apply(1), getPrimitive.apply(2), getPrimitive.apply(3));
+
+    Iterable<Proto3SchemaMessages.NestedEncodedFields> items =
+        nestedItems.stream()
+            .map(
+                p ->
+                    Proto3SchemaMessages.NestedEncodedFields.newBuilder()
+                        .setNested(p)
+                        .addAllNestedList(Lists.newArrayList(p, p, p))
+                        .build())
+            .collect(Collectors.toList());
+
+    List<TableRow> expectedNestedTableRows =
+        Lists.newArrayList(
+            getPrimitiveRow.apply(1), getPrimitiveRow.apply(2), getPrimitiveRow.apply(3));
+    Iterable<TableRow> expectedItems =
+        expectedNestedTableRows.stream()
+            .map(
+                p ->
+                    new TableRow().set("nested", p).set("nested_list", Lists.newArrayList(p, p, p)))
+            .collect(Collectors.toList());
+
+    BigQueryIO.Write<Proto3SchemaMessages.NestedEncodedFields> write =
+        BigQueryIO.writeProtos(Proto3SchemaMessages.NestedEncodedFields.class)
+            .to("dataset-id.table-id")
+            .withSchema(nestedSchema)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withMethod(method)
+            .withoutValidation()
+            .withDirectWriteProtos(directWrite)
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items)).apply("WriteToBQ", write);
+    p.run();
+
+    // Round trip through the coder to make sure the types match our expected types.
+    List<TableRow> allRows =
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(
+                tr -> {
+                  try {
+                    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), tr);
+                    return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
+    assertThat(allRows, containsInAnyOrder(Iterables.toArray(expectedItems, TableRow.class)));
+  }
+
+  @Test
+  public void testWriteProtosUnEncodedValuesDirectWrite() throws Exception {
+    testWriteProtosUnEncodedValues(true);
+  }
+
+  @Test
+  public void testWriteProtosUnEncodedValuesNoDirectWrite() throws Exception {
+    testWriteProtosUnEncodedValues(false);
+  }
+
+  public void testWriteProtosUnEncodedValues(boolean directWrite) throws Exception {
+    BigQueryIO.Write.Method method =
+        useStreaming
+            ? (useStorageApi
+                ? (useStorageApiApproximate
+                    ? Method.STORAGE_API_AT_LEAST_ONCE
+                    : Method.STORAGE_WRITE_API)
+                : Method.STREAMING_INSERTS)
+            : useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    final TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("timestamp").setType("TIMESTAMP"),
+                    new TableFieldSchema().setName("date").setType("DATE"),
+                    new TableFieldSchema().setName("numeric").setType("NUMERIC"),
+                    new TableFieldSchema().setName("bignumeric").setType("BIGNUMERIC"),
+                    new TableFieldSchema().setName("datetime").setType("DATETIME"),
+                    new TableFieldSchema().setName("time").setType("TIME")));
+    final TableSchema nestedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setFields(tableSchema.getFields()),
+                    new TableFieldSchema()
+                        .setName("nested_list")
+                        .setType("STRUCT")
+                        .setMode("REPEATED")
+                        .setFields(tableSchema.getFields())));
+
+    final String timestamp = "1970-01-01 T00:00:00.000043";
+    final String date = "2019-08-16";
+    final String numeric = "23";
+    final String bignumeric = "123456789012345678";
+    final String datetime = "2019-08-16T00:52:07.123456";
+    final String time = "00:52:07.123456";
+
+    Function<Integer, Proto3SchemaMessages.PrimitiveUnEncodedFields> getPrimitive =
+        (Integer i) -> {
+          return Proto3SchemaMessages.PrimitiveUnEncodedFields.newBuilder()
+              .setTimestamp(timestamp)
+              .setDate(date)
+              .setNumeric(numeric)
+              .setBignumeric(bignumeric)
+              .setDatetime(datetime)
+              .setTime(time)
+              .build();
+        };
+
+    Function<Integer, TableRow> getPrimitiveRow =
+        (Integer i) ->
+            new TableRow()
+                .set("timestamp", timestamp)
+                .set("date", date)
+                .set("numeric", numeric)
+                .set("bignumeric", bignumeric)
+                .set("datetime", datetime)
+                .set("time", time);
+
+    List<Proto3SchemaMessages.PrimitiveUnEncodedFields> nestedItems =
+        Lists.newArrayList(getPrimitive.apply(1), getPrimitive.apply(2), getPrimitive.apply(3));
+
+    Iterable<Proto3SchemaMessages.NestedUnEncodedFields> items =
+        nestedItems.stream()
+            .map(
+                p ->
+                    Proto3SchemaMessages.NestedUnEncodedFields.newBuilder()
+                        .setNested(p)
+                        .addAllNestedList(Lists.newArrayList(p, p, p))
+                        .build())
+            .collect(Collectors.toList());
+
+    List<TableRow> expectedNestedTableRows =
+        Lists.newArrayList(
+            getPrimitiveRow.apply(1), getPrimitiveRow.apply(2), getPrimitiveRow.apply(3));
+    Iterable<TableRow> expectedItems =
+        expectedNestedTableRows.stream()
+            .map(
+                p ->
+                    new TableRow().set("nested", p).set("nested_list", Lists.newArrayList(p, p, p)))
+            .collect(Collectors.toList());
+
+    BigQueryIO.Write<Proto3SchemaMessages.NestedUnEncodedFields> write =
+        BigQueryIO.writeProtos(Proto3SchemaMessages.NestedUnEncodedFields.class)
+            .to("dataset-id.table-id")
+            .withSchema(nestedSchema)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withMethod(method)
+            .withoutValidation()
+            .withDirectWriteProtos(directWrite)
+            .withTestServices(fakeBqServices);
+
+    p.apply(Create.of(items)).apply("WriteToBQ", write);
+    p.run();
+
+    // Round trip through the coder to make sure the types match our expected types.
+    List<TableRow> allRows =
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id").stream()
+            .map(
+                tr -> {
+                  try {
+                    byte[] bytes = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), tr);
+                    return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), bytes);
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                })
+            .collect(Collectors.toList());
+    assertThat(allRows, containsInAnyOrder(Iterables.toArray(expectedItems, TableRow.class)));
+  }
+
+  @Test
+  public void testWriteProtosWrappedValuesDirectWrite() throws Exception {
+    testWriteProtosWrappedValues(true);
+  }
+
+  @Test
+  public void testWriteProtosWrappedValuesNoDirectWrite() throws Exception {
+    testWriteProtosWrappedValues(false);
+  }
+
+  public void testWriteProtosWrappedValues(boolean directWrite) throws Exception {
+    assumeTrue(useStorageApi);
+    BigQueryIO.Write.Method method =
+        useStreaming
+            ? (useStorageApi
+                ? (useStorageApiApproximate
+                    ? Method.STORAGE_API_AT_LEAST_ONCE
+                    : Method.STORAGE_WRITE_API)
+                : Method.STREAMING_INSERTS)
+            : useStorageApi ? Method.STORAGE_WRITE_API : Method.FILE_LOADS;
+
+    final TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("float").setType("FLOAT"),
+                    new TableFieldSchema().setName("double").setType("FLOAT"),
+                    new TableFieldSchema().setName("bool").setType("BOOL"),
+                    new TableFieldSchema().setName("int32").setType("INTEGER"),
+                    new TableFieldSchema().setName("int64").setType("INT64"),
+                    new TableFieldSchema().setName("uint32").setType("INTEGER"),
+                    new TableFieldSchema().setName("uint64").setType("INT64"),
+                    new TableFieldSchema().setName("bytes").setType("BYTES"),
+                    new TableFieldSchema().setName("timestamp").setType("TIMESTAMP")));
+
+    final TableSchema nestedSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setFields(tableSchema.getFields()),
+                    new TableFieldSchema()
+                        .setName("nested_list")
+                        .setType("STRUCT")
+                        .setMode("REPEATED")
+                        .setFields(tableSchema.getFields())));
+
+    final String timestamp = "1970-01-01 T00:00:00.000043";
+    long timestampMicros =
+        (long)
+            TYPE_MAP_PROTO_CONVERTERS
+                .get(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.TIMESTAMP)
+                .apply("", timestamp);
+
+    final FloatValue floatValue = FloatValue.newBuilder().setValue(42.4F).build();
+    final DoubleValue doubleValue = DoubleValue.newBuilder().setValue(3.14D).build();
+    final BoolValue boolValue = BoolValue.newBuilder().setValue(true).build();
+    final Int32Value int32Value = Int32Value.newBuilder().setValue(1234).build();
+    final Int64Value int64Value = Int64Value.newBuilder().setValue(12345L).build();
+    final UInt32Value uint32Value = UInt32Value.newBuilder().setValue(345).build();
+    final UInt64Value uint64Value = UInt64Value.newBuilder().setValue(34567L).build();
+    final Timestamp timestampValue = Timestamps.fromMicros(timestampMicros);
+
+    Function<Integer, Proto3SchemaMessages.WrapperUnEncodedFields> getPrimitive =
+        (Integer i) -> {
+          return Proto3SchemaMessages.WrapperUnEncodedFields.newBuilder()
+              .setFloat(floatValue)
+              .setDouble(doubleValue)
+              .setBool(boolValue)
+              .setInt32(int32Value)
+              .setInt64(int64Value)
+              .setUint32(uint32Value)
+              .setUint64(uint64Value)
+              .setTimestamp(timestampValue)
+              .build();
+        };
+
+    Function<Integer, TableRow> getPrimitiveRow =
+        (Integer i) ->
+            new TableRow()
+                .set(
+                    "float", TableRowToStorageApiProto.DECIMAL_FORMAT.format(floatValue.getValue()))
+                .set(
+                    "double",
+                    TableRowToStorageApiProto.DECIMAL_FORMAT.format(doubleValue.getValue()))
+                .set("bool", Boolean.toString(boolValue.getValue()))
+                .set("int32", Integer.toString(int32Value.getValue()))
+                .set("int64", Long.toString(int64Value.getValue()))
+                .set("uint32", Integer.toString(uint32Value.getValue()))
+                .set("uint64", Long.toString(uint64Value.getValue()))
+                .set("timestamp", timestamp);
+    ;
+
+    List<Proto3SchemaMessages.WrapperUnEncodedFields> nestedItems =
+        Lists.newArrayList(getPrimitive.apply(1), getPrimitive.apply(2), getPrimitive.apply(3));
+
+    Iterable<Proto3SchemaMessages.NestedWrapperUnEncodedFields> items =
+        nestedItems.stream()
+            .map(
+                p ->
+                    Proto3SchemaMessages.NestedWrapperUnEncodedFields.newBuilder()
+                        .setNested(p)
+                        .addAllNestedList(Lists.newArrayList(p, p, p))
+                        .build())
+            .collect(Collectors.toList());
+
+    List<TableRow> expectedNestedTableRows =
+        Lists.newArrayList(
+            getPrimitiveRow.apply(1), getPrimitiveRow.apply(2), getPrimitiveRow.apply(3));
+    Iterable<TableRow> expectedItems =
+        expectedNestedTableRows.stream()
+            .map(
+                p ->
+                    new TableRow().set("nested", p).set("nested_list", Lists.newArrayList(p, p, p)))
+            .collect(Collectors.toList());
+
+    BigQueryIO.Write<Proto3SchemaMessages.NestedWrapperUnEncodedFields> write =
+        BigQueryIO.writeProtos(Proto3SchemaMessages.NestedWrapperUnEncodedFields.class)
+            .to("dataset-id.table-id")
+            .withSchema(nestedSchema)
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withMethod(method)
+            .withoutValidation()
+            .withDirectWriteProtos(directWrite)
             .withTestServices(fakeBqServices);
 
     p.apply(Create.of(items)).apply("WriteToBQ", write);
@@ -4441,5 +5092,32 @@ public class BigQueryIOWriteTest implements Serializable {
     assertThat(
         fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  @Test
+  public void testCustomGcsTempLocationNull() throws Exception {
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to("dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(new TableFieldSchema().setName("name").setType("STRING"))))
+            .withMethod(Method.FILE_LOADS)
+            .withoutValidation()
+            .withTestServices(fakeBqServices)
+            .withCustomGcsTempLocation(ValueProvider.StaticValueProvider.of(null));
+
+    p.apply(
+            Create.of(new TableRow().set("name", "a"), new TableRow().set("name", "b"))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply("WriteToBQ", write);
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(new TableRow().set("name", "a"), new TableRow().set("name", "b")));
   }
 }

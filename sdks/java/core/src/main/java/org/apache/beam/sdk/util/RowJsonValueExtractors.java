@@ -140,8 +140,9 @@ class RowJsonValueExtractors {
                     // Or a decimal number which allows lossless conversion to float
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode
-                            .decimalValue()
-                            .equals(BigDecimal.valueOf(jsonNode.doubleValue()))))
+                                .decimalValue()
+                                .compareTo(BigDecimal.valueOf(jsonNode.doubleValue()))
+                            == 0))
         .build();
   }
 
@@ -188,7 +189,14 @@ class RowJsonValueExtractors {
    */
   static ValueExtractor<DateTime> datetimeValueExtractor() {
     return ValidatingValueExtractor.<DateTime>builder()
-        .setExtractor(jsonNode -> DateTime.parse(jsonNode.textValue()))
+        .setExtractor(
+            jsonNode -> {
+              String text = jsonNode.textValue();
+              if (text.contains(" ")) {
+                text = text.replace(' ', 'T');
+              }
+              return DateTime.parse(text);
+            })
         .setValidator(JsonNode::isTextual)
         .build();
   }

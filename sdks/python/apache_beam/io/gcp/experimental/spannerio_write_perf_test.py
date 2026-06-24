@@ -113,6 +113,7 @@ class SpannerWritePerfTest(LoadTest):
 
     def make_insert_mutations(element):
       import uuid  # pylint: disable=reimported
+
       from apache_beam.io.gcp.experimental.spannerio import WriteMutation
       ins_mutation = WriteMutation.insert(
           table='test',

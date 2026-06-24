@@ -325,7 +325,8 @@ public class Schema implements Serializable {
     for (Field field : this.fields) {
       Preconditions.checkArgument(
           fieldIndicesMutable.get(field.getName()) == null,
-          "Duplicate field " + field.getName() + " added to schema");
+          "Duplicate field %s added to schema",
+          field.getName());
       encodingPositions.put(field.getName(), index);
       fieldIndicesMutable.put(field.getName(), index++);
     }
@@ -406,7 +407,7 @@ public class Schema implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Schema)) {
       return false;
     }
     Schema other = (Schema) o;
@@ -491,21 +492,7 @@ public class Schema implements Serializable {
 
   @Override
   public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("Fields:");
-    builder.append(System.lineSeparator());
-    for (Field field : fields) {
-      builder.append(field);
-      builder.append(System.lineSeparator());
-    }
-    builder.append("Encoding positions:");
-    builder.append(System.lineSeparator());
-    builder.append(encodingPositions);
-    builder.append(System.lineSeparator());
-    builder.append("Options:");
-    builder.append(options);
-    builder.append("UUID: " + uuid);
-    return builder.toString();
+    return SchemaUtils.toPrettyString(this);
   }
 
   @Override
@@ -698,7 +685,7 @@ public class Schema implements Serializable {
     public abstract TypeName getTypeName();
 
     // Whether this type is nullable.
-    public abstract Boolean getNullable();
+    public abstract boolean getNullable();
 
     // For logical types, return the implementing class.
 
@@ -757,7 +744,7 @@ public class Schema implements Serializable {
 
       abstract Builder setCollectionElementType(@Nullable FieldType collectionElementType);
 
-      abstract Builder setNullable(Boolean nullable);
+      abstract Builder setNullable(boolean nullable);
 
       abstract Builder setMapKeyType(@Nullable FieldType mapKeyType);
 
@@ -966,7 +953,7 @@ public class Schema implements Serializable {
         }
       }
       return Objects.equals(getTypeName(), other.getTypeName())
-          && Objects.equals(getNullable(), other.getNullable())
+          && getNullable() == other.getNullable()
           && Objects.equals(getCollectionElementType(), other.getCollectionElementType())
           && Objects.equals(getMapKeyType(), other.getMapKeyType())
           && Objects.equals(getMapValueType(), other.getMapValueType())
@@ -987,7 +974,8 @@ public class Schema implements Serializable {
             getLogicalType().getIdentifier(), other.getLogicalType().getIdentifier())) {
           return false;
         }
-        if (!getLogicalType().getArgumentType().equals(other.getLogicalType().getArgumentType())) {
+        if (!Objects.equals(
+            getLogicalType().getArgumentType(), other.getLogicalType().getArgumentType())) {
           return false;
         }
         if (!Row.Equals.deepEquals(
@@ -997,7 +985,7 @@ public class Schema implements Serializable {
           return false;
         }
       }
-      if (!Objects.equals(getNullable(), other.getNullable())) {
+      if (getNullable() != other.getNullable()) {
         return false;
       }
       if (!Objects.equals(getMetadata(), other.getMetadata())) {
@@ -1022,7 +1010,7 @@ public class Schema implements Serializable {
     /** Check whether two types are equivalent. */
     public boolean equivalent(FieldType other, EquivalenceNullablePolicy nullablePolicy) {
       if (nullablePolicy == EquivalenceNullablePolicy.SAME
-          && !other.getNullable().equals(getNullable())) {
+          && other.getNullable() != getNullable()) {
         return false;
       } else if (nullablePolicy == EquivalenceNullablePolicy.WEAKEN) {
         if (getNullable() && !other.getNullable()) {
@@ -1259,7 +1247,7 @@ public class Schema implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Options)) {
         return false;
       }
       Options options1 = (Options) o;
@@ -1309,7 +1297,7 @@ public class Schema implements Serializable {
         if (this == o) {
           return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Option)) {
           return false;
         }
         Option option = (Option) o;
