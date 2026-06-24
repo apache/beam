@@ -486,6 +486,9 @@ def validatesRunnerStreamingConfig = [
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+    // Bundle finalizer tests are flaky https://github.com/apache/beam/issues/38710
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnBoundedSplittableDoFn',
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
   ]
 ]
 
