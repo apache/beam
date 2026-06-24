@@ -222,10 +222,11 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
     # Prism delegation for pipelines containing external (cross-language)
     # transforms (see runners/direct/direct_runner.py) and falls back to the
     # BundleBasedDirectRunner, which cannot execute an unbounded read.
-    p = TestPipeline(blocking=False)
-    standard_options = p.get_pipeline_options().view_as(StandardOptions)
-    standard_options.streaming = True
-    standard_options.runner = 'PrismRunner'
+    # The runner is instantiated during TestPipeline construction, so it must be
+    # passed to the constructor; the remaining harness-provided options are
+    # preserved and only amended (streaming + LOOPBACK environment) afterwards.
+    p = TestPipeline(runner='PrismRunner', blocking=False)
+    p.get_pipeline_options().view_as(StandardOptions).streaming = True
     p.get_pipeline_options().view_as(
         PortableOptions).environment_type = 'LOOPBACK'
     p.not_use_test_runner_api = True
