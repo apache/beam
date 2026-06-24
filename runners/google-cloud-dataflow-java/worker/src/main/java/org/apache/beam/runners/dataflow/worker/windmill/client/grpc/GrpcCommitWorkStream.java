@@ -243,27 +243,25 @@ final class GrpcCommitWorkStream
     public void onDone(Status status) {
       if (maxRetryDuration.compareTo(Duration.ZERO) > 0) {
         // Remove the requests that have exceeded the retry time so they are not retried.
-        long startTimeRetryThresholdMsec = System.currentTimeMillis() - maxRetryDuration.toMillis();
+        long startTimeRetryThresholdNanos = System.nanoTime() - maxRetryDuration.toNanos();
         Iterator<Map.Entry<Long, StreamAndRequest>> iterator = pending.entrySet().iterator();
         int keptRequests = 0, removedRequests = 0;
         while (iterator.hasNext()) {
           StreamAndRequest streamAndRequest = checkNotNull(iterator.next().getValue());
           PendingRequest pendingRequest = streamAndRequest.request;
           if (!belongsToThisHandler(streamAndRequest)
-              || pendingRequest.getStartTimeMillis() > startTimeRetryThresholdMsec) {
+              || pendingRequest.getStartTimeNanos() > startTimeRetryThresholdNanos) {
             ++keptRequests;
             continue;
           }
           ++removedRequests;
           try {
             pendingRequest.completeWithStatus(CommitStatus.ABORTED);
+            iterator.remove();
           } catch (RuntimeException e) {
-            // Catch possible exceptions to ensure that an exception for one commit does not prevent
-            // other commits from being processed. Aggregate all the failures to throw after
-            // processing the response if they exist.
+            // Ignore exceptions and retry the commit.
             LOG.warn("Exception while aborting commit due to retry timeout.", e);
           }
-          iterator.remove();
         }
         if (removedRequests > 0) {
           LOG.info(
@@ -420,14 +418,14 @@ final class GrpcCommitWorkStream
     private final String computationId;
     private final WorkItemCommitRequest request;
     private final Consumer<CommitStatus> onDone;
-    private final long startTimeMillis;
+    private final long startTimeNanos; // System.nanoTime() of when request began.
 
     private PendingRequest(
         String computationId, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
       this.computationId = computationId;
       this.request = request;
       this.onDone = onDone;
-      this.startTimeMillis = System.currentTimeMillis();
+      this.startTimeNanos = System.nanoTime();
     }
 
     String getComputationId() {
@@ -438,8 +436,8 @@ final class GrpcCommitWorkStream
       return request;
     }
 
-    long getStartTimeMillis() {
-      return startTimeMillis;
+    long getStartTimeNanos() {
+      return startTimeNanos;
     }
 
     private long getBytes() {

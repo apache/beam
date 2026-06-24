@@ -201,7 +201,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   @Default.InstanceFactory(CommitWorkStreamRetryTimeoutMillisFactory.class)
   long getCommitWorkStreamRetryTimeoutMillis();
 
-  void getCommitWorkStreamRetryTimeoutMillis(long value);
+  void setCommitWorkStreamRetryTimeoutMillis(long value);
 
   @Description(
       "Period for sending 'global get config' requests to the service. The duration is "
@@ -351,7 +351,6 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
     }
   }
 
-  /** defaults to false unless one of the experiment is set. */
   class CommitWorkStreamRetryTimeoutMillisFactory implements DefaultValueFactory<Long> {
     @Override
     public Long create(PipelineOptions options) {
