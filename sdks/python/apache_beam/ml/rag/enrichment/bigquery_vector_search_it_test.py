@@ -21,8 +21,8 @@ import time
 import unittest
 
 import apache_beam as beam
+from google.cloud import bigquery as gcp_bigquery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
@@ -134,10 +134,12 @@ class BigQueryVectorSearchIT(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, deleteContents=True)
+
     try:
-      cls.bigquery_client.client.datasets.Delete(request)
+      cls.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+          delete_contents=True,
+          not_found_ok=True)
     except Exception:
       _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
@@ -160,30 +162,29 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     Returns:
         Fully qualified table name (project.dataset.table)
     """
-    table_schema = bigquery.TableSchema()
+    table_schema = []
     for field_def in schema_fields:
-      field = bigquery.TableFieldSchema()
-      field.name = field_def[0]
-      field.type = field_def[1]
-      if len(field_def) > 2:
-        field.mode = field_def[2]
-        if len(field_def) > 3:
-          for subfield_def in field_def[3]:
-            subfield = bigquery.TableFieldSchema()
-            subfield.name = subfield_def[0]
-            subfield.type = subfield_def[1]
-            field.fields.append(subfield)
-      table_schema.fields.append(field)
+      name = field_def[0]
+      field_type = field_def[1]
+      mode = field_def[2] if len(field_def) > 2 else 'NULLABLE'
+      subfields = []
+      if len(field_def) > 3:
+        for subfield_def in field_def[3]:
+          subfields.append(
+              gcp_bigquery.SchemaField(
+                  name=subfield_def[0], field_type=subfield_def[1]))
 
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+      field = gcp_bigquery.SchemaField(
+          name=name, field_type=field_type, mode=mode, fields=tuple(subfields))
+      table_schema.append(field)
+
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
 
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, table_data)
 

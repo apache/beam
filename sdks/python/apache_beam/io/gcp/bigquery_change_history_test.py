@@ -34,9 +34,9 @@ from apache_beam.utils.timestamp import Timestamp
 
 # Protect against environments where apitools is not available.
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions
 except ImportError:
-  HttpError = None  # type: ignore
+  exceptions = None  # type: ignore
 
 _DAY = Duration(seconds=86400)
 
@@ -185,7 +185,7 @@ class ComputeRangesTest(unittest.TestCase):
     self.assertEqual(len(ranges), 2)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(exceptions is None, 'GCP dependencies are not installed')
 class ValidationTest(unittest.TestCase):
   """Tests for ReadBigQueryChangeHistory validation."""
   def test_invalid_change_function(self):

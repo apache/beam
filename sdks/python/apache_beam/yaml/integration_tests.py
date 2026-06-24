@@ -92,9 +92,9 @@ from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
 
 import apache_beam as beam
+from google.cloud import bigquery as gcp_bigquery
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
@@ -189,10 +189,9 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
   yield f'{project}.{dataset_id}.tmp_table'
-  request = bigquery.BigqueryDatasetsDeleteRequest(
-      projectId=project, datasetId=dataset_id, deleteContents=True)
+  
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.datasets.Delete(request)
+  bigquery_client.client.delete_dataset(gcp_bigquery.DatasetReference(project, dataset_id), delete_contents=True, not_found_ok=True)
 
 
 def instance_prefix(instance):
