@@ -61,7 +61,7 @@
 
 * Python SDK now supports memory profiling with Memray ([#38853](https://github.com/apache/beam/issues/38853)).
 * (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
-* (CodeQL) Enabled Code scanning alerts in GitHub repo.
+* (CodeQL) Enabled Code scanning alerts in GitHub repo. ([#38893](https://github.com/apache/beam/issues/38893)).
 
 
 ## I/Os
