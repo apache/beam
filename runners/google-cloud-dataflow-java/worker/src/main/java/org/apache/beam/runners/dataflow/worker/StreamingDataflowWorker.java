@@ -1061,6 +1061,12 @@ public final class StreamingDataflowWorker {
             }
           });
       LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
     }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
