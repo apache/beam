@@ -61,7 +61,7 @@
 
 * Python SDK now supports memory profiling with Memray ([#38853](https://github.com/apache/beam/issues/38853)).
 * (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
-* (CodeQL) Enabled Code scanning alerts in Github repo.
+* (CodeQL) Enabled Code scanning alerts in GitHub repo.
 
 
 ## I/Os
@@ -79,10 +79,10 @@
 * (Java) Added support to the FnApi Data stream protocol allowing runners to isolate bundles slowly processing input from other bundles. ([#39001](https://github.com/apache/beam/issues/39001)).
 * (Java) Flink 2.1 support added ([#38947](https://github.com/apache/beam/issues/38947)).
 * (Java) Flink 2.2 support added ([#38978](https://github.com/apache/beam/issues/38978)).
-* (Yaml) Switched js2py library to quickjs ([#38473](https://github.com/apache/beam/issues/38473)).
-* (Yaml) Added HuggingFaceModelHandler for Yaml usage ([#38696](https://github.com/apache/beam/issues/38696)).
-* (Yaml) Added WriteToMongoDB transform ([#38376](https://github.com/apache/beam/issues/38376)).
-* (Yaml) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
+* (YAML) Switched js2py library to Quickjs ([#38473](https://github.com/apache/beam/issues/38473)).
+* (YAML) Added HuggingFaceModelHandler for YAML usage ([#38696](https://github.com/apache/beam/issues/38696)).
+* (YAML) Added WriteToMongoDB transform ([#38376](https://github.com/apache/beam/issues/38376)).
+* (YAML) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
 
 ## Breaking Changes
 
