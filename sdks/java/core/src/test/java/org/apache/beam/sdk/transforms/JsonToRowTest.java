@@ -276,6 +276,31 @@ public class JsonToRowTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testDownstreamExceptionIsNotReportedAsParseError() {
+    PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON.get(0)));
+
+    ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
+
+    results
+        .getResults()
+        .apply(
+            "throwingDownstream",
+            ParDo.of(
+                new DoFn<Row, Row>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context) {
+                    throw new RuntimeException("downstream failure");
+                  }
+                }));
+
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("downstream failure");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testParsesErrorWithErrorMsgRowsDeadLetterWithCustomFieldNames() throws Exception {
     PCollection<String> jsonPersons =
         pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_ERR));
