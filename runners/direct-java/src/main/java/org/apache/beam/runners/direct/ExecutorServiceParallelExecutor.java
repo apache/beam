@@ -349,18 +349,21 @@ final class ExecutorServiceParallelExecutor
       errors.add(e);
     }
     IllegalStateException exception = null;
-    if (!errors.isEmpty()) {
-      exception =
-          new IllegalStateException(
-              "Error"
-                  + (errors.size() == 1 ? "" : "s")
-                  + " during executor shutdown:\n"
-                  + errors.stream()
-                      .map(Exception::getMessage)
-                      .collect(Collectors.joining("\n- ", "- ", "")));
-      visibleUpdates.failed(exception);
+    try {
+      if (!errors.isEmpty()) {
+        exception =
+            new IllegalStateException(
+                "Error"
+                    + (errors.size() == 1 ? "" : "s")
+                    + " occurred during pipeline execution:\\n"
+                    + errors.stream()
+                        .map(e -> e.getMessage() == null ? e.getClass().getName() : e.getMessage())
+                        .collect(Collectors.joining("\\n- ", "- ", "")));
+        visibleUpdates.failed(exception);
+      }
+    } finally {
+      pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     }
-    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
     if (exception != null) {
       throw exception;
     }
