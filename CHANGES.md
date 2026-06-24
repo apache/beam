@@ -69,6 +69,7 @@
 * Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * ClickHouseIO: support writing `DateTime64(precision[, 'timezone'])` columns with sub-second precision (Java) ([#38466](https://github.com/apache/beam/issues/38466)).
+* Upgraded IO Expansion Service to Java 17 ([#38974](https://github.com/apache/beam/issues/38974)).
 
 ## New Features / Improvements
 
@@ -82,7 +83,6 @@
 * (Yaml) Added HuggingFaceModelHandler for Yaml usage ([#38696](https://github.com/apache/beam/issues/38696)).
 * (Yaml) Added WriteToMongoDB transform ([#38376](https://github.com/apache/beam/issues/38376)).
 * (Yaml) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
-* Upgraded IO Expansion Service to Java 17 ([#38974](https://github.com/apache/beam/issues/38974)).
 
 ## Breaking Changes
 
