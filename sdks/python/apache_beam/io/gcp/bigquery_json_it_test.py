@@ -244,31 +244,31 @@ class BigQueryJsonIT(unittest.TestCase):
 
   # Schema for writing to BigQuery
   def generate_schema(self):
-    from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
-    from apache_beam.io.gcp.internal.clients.bigquery import TableSchema
+    from google.cloud.bigquery import SchemaField
+    from google.cloud.bigquery import TableSchema
     json_fields = [
-        TableFieldSchema(name='country_code', type='STRING', mode='NULLABLE'),
-        TableFieldSchema(name='country', type='JSON', mode='NULLABLE'),
-        TableFieldSchema(
+        SchemaField(name='country_code', type='STRING', mode='NULLABLE'),
+        SchemaField(name='country', type='JSON', mode='NULLABLE'),
+        SchemaField(
             name='stats',
             type='STRUCT',
             mode='NULLABLE',
             fields=[
-                TableFieldSchema(
+                SchemaField(
                     name="gdp_per_capita", type='JSON', mode='NULLABLE'),
-                TableFieldSchema(
+                SchemaField(
                     name="co2_emissions", type='JSON', mode='NULLABLE'),
             ]),
-        TableFieldSchema(
+        SchemaField(
             name='cities',
             type='STRUCT',
             mode='REPEATED',
             fields=[
-                TableFieldSchema(
+                SchemaField(
                     name="city_name", type='STRING', mode='NULLABLE'),
-                TableFieldSchema(name="city", type='JSON', mode='NULLABLE'),
+                SchemaField(name="city", type='JSON', mode='NULLABLE'),
             ]),
-        TableFieldSchema(name='landmarks', type='JSON', mode='REPEATED'),
+        SchemaField(name='landmarks', type='JSON', mode='REPEATED'),
     ]
 
     schema = TableSchema(fields=json_fields)

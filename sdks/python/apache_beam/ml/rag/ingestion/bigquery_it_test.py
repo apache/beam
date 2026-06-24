@@ -25,8 +25,8 @@ import hamcrest as hc
 import pytest
 
 import apache_beam as beam
+from google.cloud import bigquery as gcp_bigquery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.ml.rag.ingestion.bigquery import BigQueryVectorWriterConfig
 from apache_beam.ml.rag.ingestion.bigquery import SchemaConfig
@@ -59,13 +59,12 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
+    
     try:
       _LOGGER = logging.getLogger(__name__)
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
+      self.bigquery_client.client.delete_dataset(gcp_bigquery.DatasetReference(self.project, self.dataset_id), delete_contents=True, not_found_ok=True)
     # Failing to delete a dataset should not cause a test failure.
     except Exception:
       _LOGGER = logging.getLogger(__name__)

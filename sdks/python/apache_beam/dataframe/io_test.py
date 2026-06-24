@@ -42,7 +42,7 @@ from apache_beam.dataframe import io
 from apache_beam.io import fileio
 from apache_beam.io import restriction_trackers
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
+from google.cloud import bigquery as gcp_bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 

@@ -26,7 +26,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
 
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
+  from google.cloud.bigquery import DatasetReference
 except ImportError:
   DatasetReference = None
 
@@ -51,7 +51,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
   def test_get_temp_dataset_project_with_dataset_reference(self):
     """Test _get_temp_dataset_project with DatasetReference temp_dataset."""
     dataset_ref = DatasetReference(
-        projectId='custom-project', datasetId='temp_dataset_id')
+        project='custom-project', dataset_id='temp_dataset_id')
     split = bigquery_read_internal._BigQueryReadSplit(
         options=self.options, temp_dataset=dataset_ref)
 
@@ -70,7 +70,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
     """Test _get_temp_dataset_project with ValueProvider project."""
     self.gcp_options.project = StaticValueProvider(str, 'vp-project')
     dataset_ref = DatasetReference(
-        projectId='custom-project', datasetId='temp_dataset_id')
+        project='custom-project', dataset_id='temp_dataset_id')
     split = bigquery_read_internal._BigQueryReadSplit(
         options=self.options, temp_dataset=dataset_ref)
 
@@ -81,7 +81,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
   def test_setup_temporary_dataset_uses_correct_project(self, mock_bq_wrapper):
     """Test that _setup_temporary_dataset uses the correct project."""
     dataset_ref = DatasetReference(
-        projectId='custom-project', datasetId='temp_dataset_id')
+        project='custom-project', dataset_id='temp_dataset_id')
     split = bigquery_read_internal._BigQueryReadSplit(
         options=self.options, temp_dataset=dataset_ref)
 
@@ -108,7 +108,7 @@ class BigQueryReadSplitTest(unittest.TestCase):
   def test_finish_bundle_uses_correct_project(self, mock_bq_wrapper):
     """Test that finish_bundle uses the correct project for cleanup."""
     dataset_ref = DatasetReference(
-        projectId='custom-project', datasetId='temp_dataset_id')
+        project='custom-project', dataset_id='temp_dataset_id')
     split = bigquery_read_internal._BigQueryReadSplit(
         options=self.options, temp_dataset=dataset_ref)
 

@@ -41,7 +41,7 @@ import apache_beam as beam
 from apache_beam.io.gcp.bigquery import BigQueryWriteFn
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import FileFormat
-from apache_beam.io.gcp.internal.clients import bigquery
+
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -51,9 +51,11 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import NotFound
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
-  HttpError = None
+  NotFound = None
+  gcp_bigquery = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,46 +77,27 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
+      self.bigquery_client.client.delete_dataset(
+          f'{self.project}.{self.dataset_id}', delete_contents=True)
+    except NotFound:
       _LOGGER.debug(
           'Failed to clean up dataset %s in project %s',
           self.dataset_id,
           self.project)
 
   def create_table(self, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'int64'
-    table_field.type = 'INT64'
-    table_field.mode = 'REQUIRED'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'bytes'
-    table_field.type = 'BYTES'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'date'
-    table_field.type = 'DATE'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'time'
-    table_field.type = 'TIME'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=table_name),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
+    schema = [
+        gcp_bigquery.SchemaField('int64', 'INT64', mode='REQUIRED'),
+        gcp_bigquery.SchemaField('bytes', 'BYTES'),
+        gcp_bigquery.SchemaField('date', 'DATE'),
+        gcp_bigquery.SchemaField('time', 'TIME'),
+    ]
+    table = gcp_bigquery.Table(
+        f'{self.project}.{self.dataset_id}.{table_name}', schema=schema)
+    self.bigquery_client.client.create_table(table)
 
   @pytest.mark.it_postcommit
   def test_big_query_write(self):
