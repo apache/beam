@@ -756,6 +756,8 @@ public final class StreamingDataflowWorker {
                   new WorkHeartbeatResponseProcessor(computationStateCache::get))
               .setHealthCheckIntervalMillis(
                   options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+              .setCommitWorkStreamRetryTimeout(
+                  java.time.Duration.ofMillis(options.getCommitWorkStreamRetryTimeoutMillis()))
               .build();
       return ConfigFetcherComputationStateCacheAndWindmillClient.builder()
           .setWindmillDispatcherClient(dispatcherClient)
