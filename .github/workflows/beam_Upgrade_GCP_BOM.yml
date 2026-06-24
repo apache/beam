@@ -62,9 +62,18 @@ jobs:
         if: steps.check_bom.outputs.should_upgrade == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_EVENT: ${{ github.event_name }}
           LATEST_VER: ${{ steps.check_bom.outputs.latest_version }}
           CURRENT_VER: ${{ steps.check_bom.outputs.current_version }}
         run: |
+          # Take the current date, subtract from a release cut date in the past (June 24, 2026),
+          # then get the num days % 42 (our release cadence is 42 days).
+          # This will ensure it only runs the week after a release branch has been cut.
+          days_diff=$(( ($(date +%s) - $(date --date="260624" +%s) )/(60*60*24)%42 ))
+          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
+            echo "Exiting early. We only update dependencies the week after we cut the release"
+            exit 0
+          fi
           branchName=upgrade_gcp_bom_${LATEST_VER//./_}
           git checkout -b $branchName
           git add -A
