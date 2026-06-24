@@ -348,9 +348,9 @@ final class ExecutorServiceParallelExecutor
     } catch (final Exception e) {
       errors.add(e);
     }
-    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
+    IllegalStateException exception = null;
     if (!errors.isEmpty()) {
-      final IllegalStateException exception =
+      exception =
           new IllegalStateException(
               "Error"
                   + (errors.size() == 1 ? "" : "s")
@@ -359,6 +359,9 @@ final class ExecutorServiceParallelExecutor
                       .map(Exception::getMessage)
                       .collect(Collectors.joining("\n- ", "- ", "")));
       visibleUpdates.failed(exception);
+    }
+    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
+    if (exception != null) {
       throw exception;
     }
   }
