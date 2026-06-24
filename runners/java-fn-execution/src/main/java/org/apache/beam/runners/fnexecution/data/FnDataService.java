@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.data;
 
+import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
@@ -68,5 +69,5 @@ public interface FnDataService {
    * <p>The returned aggregator is not thread safe.
    */
   BeamFnDataOutboundAggregator createOutboundAggregator(
-      String processBundleId, boolean collectElementsIfNoFlushes);
+      Supplier<String> processBundleRequestIdSupplier, boolean collectElementsIfNoFlushes);
 }

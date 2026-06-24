@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
@@ -55,7 +53,10 @@ import org.slf4j.LoggerFactory;
  * <p>The default time-based buffer threshold can be overridden by specifying the experiment {@code
  * data_buffer_time_limit_ms=<milliseconds>}
  */
-// The calling thread that invokes sendOrCollectBufferedDataAndFinishOutboundStreams synchronizes on
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
+// The calling thread that invokes sendBufferedDataAndFinishOutboundStreams synchronizes on
 // flushLock effectively making the periodic flushing no longer read or mutate hasFlushedForBundle
 // and allowing the calling thread to read and mutate hasFlushedForBundle safely without needing to
 // create another memory barrier. Also note that flush is always invoked when synchronizing on
@@ -71,54 +72,31 @@ public class BeamFnDataOutboundAggregator {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataOutboundAggregator.class);
   private final int sizeLimit;
   private final long timeLimit;
-  // The instructionId is set between prepareForInstruction and finishInstruction/discard.
-  private @Nullable String instructionId = null;
-  @VisibleForTesting final Map<String, Receiver<?>> outputDataReceivers = new HashMap<>();
-  @VisibleForTesting final Map<TimerEndpoint, Receiver<?>> outputTimersReceivers = new HashMap<>();
-  @Nullable private StreamObserver<Elements> outboundObserver;
+  private final Supplier<String> processBundleRequestIdSupplier;
+  @VisibleForTesting final Map<String, Receiver<?>> outputDataReceivers;
+  @VisibleForTesting final Map<TimerEndpoint, Receiver<?>> outputTimersReceivers;
+  private final StreamObserver<Elements> outboundObserver;
   @Nullable @VisibleForTesting ScheduledFuture<?> flushFuture;
-  private long bytesWrittenSinceFlush = 0;
-  private final Object flushLock = new Object();
+  private long bytesWrittenSinceFlush;
+  private final Object flushLock;
   private final boolean collectElementsIfNoFlushes;
-  private boolean hasFlushedForBundle = false;
+  private boolean hasFlushedForBundle;
 
-  public BeamFnDataOutboundAggregator(PipelineOptions options, boolean collectElementsIfNoFlushes) {
+  public BeamFnDataOutboundAggregator(
+      PipelineOptions options,
+      Supplier<String> processBundleRequestIdSupplier,
+      StreamObserver<Elements> outboundObserver,
+      boolean collectElementsIfNoFlushes) {
     this.sizeLimit = getSizeLimit(options);
     this.timeLimit = getTimeLimit(options);
     this.collectElementsIfNoFlushes = collectElementsIfNoFlushes;
-  }
-
-  public void prepareForInstruction(
-      String instructionId, StreamObserver<Elements> outboundObserver) {
-    if (timeLimit > 0) {
-      synchronized (flushLock) {
-        checkState(this.instructionId == null && this.outboundObserver == null);
-        this.instructionId = instructionId;
-        this.outboundObserver = outboundObserver;
-      }
-    } else {
-      checkState(this.instructionId == null && this.outboundObserver == null);
-      this.instructionId = instructionId;
-      this.outboundObserver = outboundObserver;
-    }
-  }
-
-  public void finishInstruction() {
-    if (flushFuture != null) {
-      synchronized (flushLock) {
-        checkState(
-            this.instructionId != null && this.outboundObserver != null,
-            "instruction was not started or previously completed");
-        checkState(bytesWrittenSinceFlush == 0, "bytes were not flushed for instruction");
-        this.instructionId = null;
-        this.outboundObserver = null;
-      }
-    } else {
-      checkState(this.instructionId != null && this.outboundObserver != null);
-      checkState(bytesWrittenSinceFlush == 0, "bytes were not flushed for instruction");
-      this.instructionId = null;
-      this.outboundObserver = null;
-    }
+    this.outputDataReceivers = new HashMap<>();
+    this.outputTimersReceivers = new HashMap<>();
+    this.outboundObserver = outboundObserver;
+    this.processBundleRequestIdSupplier = processBundleRequestIdSupplier;
+    this.bytesWrittenSinceFlush = 0L;
+    this.flushLock = new Object();
+    this.hasFlushedForBundle = false;
   }
 
   /** Starts the flushing daemon thread if data_buffer_time_limit_ms is set. */
@@ -188,7 +166,7 @@ public class BeamFnDataOutboundAggregator {
     }
     Elements.Builder elements = convertBufferForTransmission();
     if (elements.getDataCount() > 0 || elements.getTimersCount() > 0) {
-      checkNotNull(outboundObserver).onNext(elements.build());
+      outboundObserver.onNext(elements.build());
     }
     hasFlushedForBundle = true;
   }
@@ -199,15 +177,10 @@ public class BeamFnDataOutboundAggregator {
    * collectElementsIfNoFlushes=true, and there was no previous flush in this bundle, otherwise
    * returns null.
    */
-  @Nullable
   public Elements sendOrCollectBufferedDataAndFinishOutboundStreams() {
     if (outputTimersReceivers.isEmpty() && outputDataReceivers.isEmpty()) {
       return null;
     }
-    String instructionId =
-        checkNotNull(
-            this.instructionId,
-            "This method should only be called between prepareForInstruction and finishInstruction");
     Elements.Builder bufferedElements;
     if (timeLimit > 0) {
       synchronized (flushLock) {
@@ -218,14 +191,14 @@ public class BeamFnDataOutboundAggregator {
     }
     LOG.debug(
         "Closing streams for instruction {} and outbound data {} and timers {}.",
-        instructionId,
+        processBundleRequestIdSupplier.get(),
         outputDataReceivers,
         outputTimersReceivers);
     for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
       String pTransformId = entry.getKey();
       bufferedElements
           .addDataBuilder()
-          .setInstructionId(instructionId)
+          .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(pTransformId)
           .setIsLast(true);
       entry.getValue().resetStats();
@@ -234,60 +207,35 @@ public class BeamFnDataOutboundAggregator {
       TimerEndpoint timerKey = entry.getKey();
       bufferedElements
           .addTimersBuilder()
-          .setInstructionId(instructionId)
+          .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(timerKey.pTransformId)
           .setTimerFamilyId(timerKey.timerFamilyId)
           .setIsLast(true);
       entry.getValue().resetStats();
     }
-    // This is the end of the bundle so we reset state to prepare for future bundles.
     if (collectElementsIfNoFlushes && !hasFlushedForBundle) {
       return bufferedElements.build();
     }
-    checkNotNull(outboundObserver).onNext(bufferedElements.build());
+    outboundObserver.onNext(bufferedElements.build());
+    // This is now at the end of a bundle, so we reset hasFlushedForBundle to prepare for new
+    // bundles.
     hasFlushedForBundle = false;
     return null;
   }
 
   // Send the elements to the StreamObserver associated with this aggregator.
   public void sendElements(Elements elements) {
-    if (timeLimit > 0) {
-      synchronized (flushLock) {
-        checkNotNull(outboundObserver).onNext(elements);
-      }
-    } else {
-      checkNotNull(outboundObserver).onNext(elements);
-    }
+    outboundObserver.onNext(elements);
   }
 
-  // Prepares for discarding the aggregator without preserving its output or
-  // preparing it for reuse.
   public void discard() {
-    if (timeLimit > 0) {
-      // Short-circuit the possibly concurrently running flush.
-      synchronized (flushLock) {
-        bytesWrittenSinceFlush = 0L;
-        finishInstruction();
-      }
-      if (flushFuture != null) {
-        flushFuture.cancel(false);
-      }
-    } else {
-      bytesWrittenSinceFlush = 0L;
-      finishInstruction();
+    if (flushFuture != null) {
+      flushFuture.cancel(true);
     }
   }
 
   private Elements.Builder convertBufferForTransmission() {
     Elements.Builder bufferedElements = Elements.newBuilder();
-    if (bytesWrittenSinceFlush == 0) {
-      return bufferedElements;
-    }
-    bytesWrittenSinceFlush = 0L;
-    String instructionId =
-        checkNotNull(
-            this.instructionId,
-            "This method should only be called between prepareForInstruction and finishInstruction");
     for (Map.Entry<String, Receiver<?>> entry : outputDataReceivers.entrySet()) {
       if (!entry.getValue().hasBufferedOutput()) {
         continue;
@@ -295,7 +243,7 @@ public class BeamFnDataOutboundAggregator {
       ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
       bufferedElements
           .addDataBuilder()
-          .setInstructionId(instructionId)
+          .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(entry.getKey())
           .setData(bytes);
     }
@@ -306,11 +254,12 @@ public class BeamFnDataOutboundAggregator {
       ByteString bytes = entry.getValue().toByteStringAndResetBuffer();
       bufferedElements
           .addTimersBuilder()
-          .setInstructionId(instructionId)
+          .setInstructionId(processBundleRequestIdSupplier.get())
           .setTransformId(entry.getKey().pTransformId)
           .setTimerFamilyId(entry.getKey().timerFamilyId)
           .setTimers(bytes);
     }
+    bytesWrittenSinceFlush = 0L;
     return bufferedElements;
   }
 
@@ -328,7 +277,7 @@ public class BeamFnDataOutboundAggregator {
 
   /** Check if the flush thread failed with an exception. */
   private void checkFlushThreadException() throws IOException {
-    if (flushFuture != null && flushFuture.isDone()) {
+    if (timeLimit > 0 && flushFuture.isDone()) {
       try {
         flushFuture.get();
         throw new IOException("Periodic flushing thread finished unexpectedly.");
@@ -404,12 +353,10 @@ public class BeamFnDataOutboundAggregator {
       }
     }
 
-    @VisibleForTesting
     public long getByteCount() {
       return perBundleByteCount;
     }
 
-    @VisibleForTesting
     public long getElementCount() {
       return perBundleElementCount;
     }
@@ -445,7 +392,7 @@ public class BeamFnDataOutboundAggregator {
     }
 
     @Override
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
       if (this == o) {
         return true;
       }

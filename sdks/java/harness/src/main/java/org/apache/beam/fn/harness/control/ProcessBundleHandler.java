@@ -224,6 +224,7 @@ public class ProcessBundleHandler {
 
   private void addRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
+      BeamFnDataClient queueingClient,
       String pTransformId,
       PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -256,6 +257,7 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         addRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            queueingClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
@@ -313,7 +315,7 @@ public class ProcessBundleHandler {
 
                 @Override
                 public BeamFnDataClient getBeamFnDataClient() {
-                  return beamFnDataClient;
+                  return queueingClient;
                 }
 
                 @Override
@@ -376,8 +378,9 @@ public class ProcessBundleHandler {
                       outboundAggregatorMap.computeIfAbsent(
                           apiServiceDescriptor,
                           asd ->
-                              new BeamFnDataOutboundAggregator(
-                                  options,
+                              queueingClient.createOutboundAggregator(
+                                  asd,
+                                  processBundleInstructionId,
                                   runnerCapabilities.contains(
                                       BeamUrns.getUrn(
                                           StandardRunnerProtocols.Enum
@@ -388,19 +391,21 @@ public class ProcessBundleHandler {
                 @Override
                 public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
                     String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
+                  BeamFnDataOutboundAggregator aggregator;
                   if (!processBundleDescriptor.hasTimerApiServiceDescriptor()) {
                     throw new IllegalStateException(
                         String.format(
-                            "Timers are unsupported because the ProcessBundleRequest %s does not"
-                                + " provide a timer ApiServiceDescriptor.",
+                            "Timers are unsupported because the "
+                                + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
                             processBundleInstructionId.get()));
                   }
-                  BeamFnDataOutboundAggregator aggregator =
+                  aggregator =
                       outboundAggregatorMap.computeIfAbsent(
                           processBundleDescriptor.getTimerApiServiceDescriptor(),
                           asd ->
-                              new BeamFnDataOutboundAggregator(
-                                  options,
+                              queueingClient.createOutboundAggregator(
+                                  asd,
+                                  processBundleInstructionId,
                                   runnerCapabilities.contains(
                                       BeamUrns.getUrn(
                                           StandardRunnerProtocols.Enum
@@ -494,8 +499,6 @@ public class ProcessBundleHandler {
    */
   public BeamFnApi.InstructionResponse.Builder processBundle(InstructionRequest request)
       throws Exception {
-    String instructionId = request.getInstructionId();
-    String dataStreamId = request.getProcessBundle().getDataStreamId();
     @Nullable BundleProcessor bundleProcessor = null;
     try {
       bundleProcessor =
@@ -512,20 +515,13 @@ public class ProcessBundleHandler {
                     }
                   }));
 
-      for (Map.Entry<ApiServiceDescriptor, BeamFnDataOutboundAggregator> entry :
-          bundleProcessor.getOutboundAggregators().entrySet()) {
-        BeamFnDataOutboundAggregator aggregator = entry.getValue();
-        aggregator.prepareForInstruction(
-            instructionId, beamFnDataClient.getOutboundObserver(entry.getKey(), dataStreamId));
-      }
-
       PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
       PTransformFunctionRegistry finishFunctionRegistry =
           bundleProcessor.getFinishFunctionRegistry();
       ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
       ProcessBundleResponse.Builder response = ProcessBundleResponse.newBuilder();
       try (HandleStateCallsForBundle beamFnStateClient = bundleProcessor.getBeamFnStateClient()) {
-        stateTracker.start(instructionId);
+        stateTracker.start(request.getInstructionId());
         try {
           // Already in reverse topological order so we don't need to do anything.
           for (ThrowingRunnable startFunction : startFunctionRegistry.getFunctions()) {
@@ -549,14 +545,12 @@ public class ProcessBundleHandler {
           } else if (!bundleProcessor.getInboundEndpointApiServiceDescriptors().isEmpty()) {
             BeamFnDataInboundObserver observer = bundleProcessor.getInboundObserver();
             beamFnDataClient.registerReceiver(
-                instructionId,
-                dataStreamId,
+                request.getInstructionId(),
                 bundleProcessor.getInboundEndpointApiServiceDescriptors(),
                 observer);
             observer.awaitCompletion();
             beamFnDataClient.unregisterReceiver(
-                instructionId,
-                dataStreamId,
+                request.getInstructionId(),
                 bundleProcessor.getInboundEndpointApiServiceDescriptors());
           }
 
@@ -587,7 +581,7 @@ public class ProcessBundleHandler {
 
           if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
             finalizeBundleHandler.registerCallbacks(
-                instructionId,
+                bundleProcessor.getInstructionId(),
                 ImmutableList.copyOf(bundleProcessor.getBundleFinalizationCallbackRegistrations()));
             response.setRequiresFinalization(true);
           }
@@ -605,7 +599,7 @@ public class ProcessBundleHandler {
     } catch (Exception e) {
       LOG.debug(
           "Error processing bundle {} with bundleProcessor for {} after exception",
-          instructionId,
+          request.getInstructionId(),
           request.getProcessBundle().getProcessBundleDescriptorId(),
           e);
       if (bundleProcessor != null) {
@@ -613,7 +607,7 @@ public class ProcessBundleHandler {
         bundleProcessorCache.discard(bundleProcessor);
       }
       // Ensure that if more data arrives for the instruction it is discarded.
-      beamFnDataClient.poisonInstructionId(instructionId);
+      beamFnDataClient.poisonInstructionId(request.getInstructionId());
       throw e;
     }
   }
@@ -635,10 +629,6 @@ public class ProcessBundleHandler {
       collectedElements.add(elements);
     }
     if (!hasFlushedAggregator) {
-      for (BeamFnDataOutboundAggregator aggregator :
-          bundleProcessor.getOutboundAggregators().values()) {
-        aggregator.finishInstruction();
-      }
       Elements.Builder elementsToEmbed = Elements.newBuilder();
       for (Elements collectedElement : collectedElements) {
         elementsToEmbed.mergeFrom(collectedElement);
@@ -655,7 +645,6 @@ public class ProcessBundleHandler {
         if (elements != null) {
           aggregator.sendElements(elements);
         }
-        aggregator.finishInstruction();
       }
     }
   }
@@ -886,6 +875,7 @@ public class ProcessBundleHandler {
 
       addRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
+          beamFnDataClient,
           entry.getKey(),
           entry.getValue(),
           bundleProcessor::getInstructionId,

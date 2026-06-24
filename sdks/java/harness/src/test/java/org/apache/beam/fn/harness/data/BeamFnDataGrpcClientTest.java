@@ -23,8 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,7 +49,6 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -170,6 +169,7 @@ public class BeamFnDataGrpcClientTest {
 
       BeamFnDataGrpcClient clientFactory =
           new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
@@ -183,7 +183,7 @@ public class BeamFnDataGrpcClientTest {
               Collections.emptyList());
 
       clientFactory.registerReceiver(
-          INSTRUCTION_ID_A, "", Arrays.asList(apiServiceDescriptor), observerA);
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observerA);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
@@ -193,7 +193,7 @@ public class BeamFnDataGrpcClientTest {
       Thread.sleep(100);
 
       clientFactory.registerReceiver(
-          INSTRUCTION_ID_B, "", Arrays.asList(apiServiceDescriptor), observerB);
+          INSTRUCTION_ID_B, Arrays.asList(apiServiceDescriptor), observerB);
 
       // Show that out of order stream completion can occur.
       observerB.awaitCompletion();
@@ -245,6 +245,7 @@ public class BeamFnDataGrpcClientTest {
 
       BeamFnDataGrpcClient clientFactory =
           new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
@@ -261,7 +262,7 @@ public class BeamFnDataGrpcClientTest {
               Collections.emptyList());
 
       clientFactory.registerReceiver(
-          INSTRUCTION_ID_A, "", Arrays.asList(apiServiceDescriptor), observer);
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observer);
 
       waitForClientToConnect.await();
 
@@ -269,8 +270,12 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
-      Exception e = assertThrows(Exception.class, observer::awaitCompletion);
-      assertEquals(exceptionToThrow, e);
+      try {
+        observer.awaitCompletion();
+        fail("Expected channel to fail");
+      } catch (Exception e) {
+        assertEquals(exceptionToThrow, e);
+      }
       // The server should not have received any values
       assertThat(inboundServerValues, empty());
       // The consumer should have only been invoked once
@@ -316,6 +321,7 @@ public class BeamFnDataGrpcClientTest {
 
       BeamFnDataGrpcClient clientFactory =
           new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
 
@@ -341,7 +347,7 @@ public class BeamFnDataGrpcClientTest {
               });
 
       clientFactory.registerReceiver(
-          INSTRUCTION_ID_A, "", Arrays.asList(apiServiceDescriptor), observerA);
+          INSTRUCTION_ID_A, Arrays.asList(apiServiceDescriptor), observerA);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_B_1);
@@ -352,9 +358,11 @@ public class BeamFnDataGrpcClientTest {
       assertTrue(receivedAElement.await(5, TimeUnit.SECONDS));
 
       clientFactory.poisonInstructionId(INSTRUCTION_ID_A);
-      // We expect the awaitCompletion to fail due to closing.
-      // Expected.
-      assertThrows(Exception.class, future::get);
+      try {
+        future.get();
+        fail(); // We expect the awaitCompletion to fail due to closing.
+      } catch (Exception ignored) {
+      }
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
@@ -396,15 +404,16 @@ public class BeamFnDataGrpcClientTest {
       ManagedChannel channel =
           InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
 
-      PipelineOptions options =
-          PipelineOptionsFactory.fromArgs("--experiments=data_buffer_size_limit=20").create();
       BeamFnDataGrpcClient clientFactory =
           new BeamFnDataGrpcClient(
+              PipelineOptionsFactory.fromArgs(
+                      new String[] {"--experiments=data_buffer_size_limit=20"})
+                  .create(),
               (Endpoints.ApiServiceDescriptor descriptor) -> channel,
               OutboundObserverFactory.trivial());
-      BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
-      aggregator.prepareForInstruction(
-          INSTRUCTION_ID_A, clientFactory.getOutboundObserver(apiServiceDescriptor, ""));
+      BeamFnDataOutboundAggregator aggregator =
+          clientFactory.createOutboundAggregator(
+              apiServiceDescriptor, () -> INSTRUCTION_ID_A, false);
       FnDataReceiver<WindowedValue<String>> fnDataReceiver =
           aggregator.registerOutputDataLocation(TRANSFORM_ID_A, CODER);
       fnDataReceiver.accept(valueInGlobalWindow("ABC"));

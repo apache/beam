@@ -37,6 +37,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -1070,20 +1071,28 @@ public class ProcessBundleHandlerTest {
                   dataOutput.add(input.getValue());
                 }));
 
-    Mockito.when(beamFnDataClient.getOutboundObserver(any(), any()))
-        .thenReturn(
-            new StreamObserver<Elements>() {
-              @Override
-              public void onNext(Elements elements) {
-                timerOutput.addAll(elements.getTimersList());
-              }
+    Mockito.doAnswer(
+            (invocation) ->
+                new BeamFnDataOutboundAggregator(
+                    PipelineOptionsFactory.create(),
+                    invocation.getArgument(1),
+                    new StreamObserver<Elements>() {
+                      @Override
+                      public void onNext(Elements elements) {
+                        for (Timers timer : elements.getTimersList()) {
+                          timerOutput.addAll(elements.getTimersList());
+                        }
+                      }
 
-              @Override
-              public void onError(Throwable throwable) {}
+                      @Override
+                      public void onError(Throwable throwable) {}
 
-              @Override
-              public void onCompleted() {}
-            });
+                      @Override
+                      public void onCompleted() {}
+                    },
+                    invocation.getArgument(2)))
+        .when(beamFnDataClient)
+        .createOutboundAggregator(any(), any(), anyBoolean());
 
     return new ProcessBundleHandler(
         PipelineOptionsFactory.create(),
@@ -1400,7 +1409,7 @@ public class ProcessBundleHandlerTest {
             (invocation) -> {
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(3, CloseableFnDataReceiver.class);
+                  invocation.getArgument(2, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1412,7 +1421,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any(), any());
+        .registerReceiver(any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1442,8 +1451,8 @@ public class ProcessBundleHandlerTest {
             .build());
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
-    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any(), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
+    verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any());
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
@@ -1466,7 +1475,7 @@ public class ProcessBundleHandlerTest {
               StringUtf8Coder.of().encode("A", encodedData);
               String instructionId = invocation.getArgument(0, String.class);
               CloseableFnDataReceiver<BeamFnApi.Elements> data =
-                  invocation.getArgument(3, CloseableFnDataReceiver.class);
+                  invocation.getArgument(2, CloseableFnDataReceiver.class);
               data.accept(
                   BeamFnApi.Elements.newBuilder()
                       .addData(
@@ -1480,7 +1489,7 @@ public class ProcessBundleHandlerTest {
               return null;
             })
         .when(beamFnDataClient)
-        .registerReceiver(any(), any(), any(), any());
+        .registerReceiver(any(), any(), any());
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -1517,7 +1526,7 @@ public class ProcessBundleHandlerTest {
                     .build()));
 
     // Ensure that we unregister during successful processing
-    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
+    verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any());
     verify(beamFnDataClient).poisonInstructionId(eq("instructionId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
