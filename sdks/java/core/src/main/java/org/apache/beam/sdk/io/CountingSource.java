@@ -414,7 +414,6 @@ public class CountingSource {
   private static class UnboundedCountingReader extends UnboundedReader<Long> {
     private UnboundedCountingSource source;
     private long current;
-    private boolean done = false;
 
     // Initialized on first advance()
     private @Nullable Instant currentTimestamp;
@@ -452,7 +451,6 @@ public class CountingSource {
       }
       long nextValue = current + source.stride;
       if (nextValue >= source.end) {
-        done = true;
         return false;
       }
       if (expectedValue() < nextValue) {
@@ -477,7 +475,9 @@ public class CountingSource {
 
     @Override
     public Instant getWatermark() {
-      return done ? BoundedWindow.TIMESTAMP_MAX_VALUE : source.timestampFn.apply(current);
+      return (current >= source.end - source.stride)
+          ? BoundedWindow.TIMESTAMP_MAX_VALUE
+          : source.timestampFn.apply(current);
     }
 
     @Override
