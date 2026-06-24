@@ -33,7 +33,7 @@ import unittest
 import pytest
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -214,12 +214,21 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
     publisher.start()
     subscriber.start()
 
-    options = PipelineOptions([
-        '--runner=PrismRunner',
-        '--environment_type=LOOPBACK',
-        '--streaming',
-    ])
-    p = TestPipeline(options=options)
+    # MqttIO read is unbounded, so this pipeline runs in streaming mode and
+    # never terminates on its own. Amend the harness-provided pipeline options
+    # rather than discarding them: enable streaming, run non-blocking so the
+    # observe-then-cancel logic below can execute, and target the Prism portable
+    # runner. The latter is required because SwitchingDirectRunner disables its
+    # Prism delegation for pipelines containing external (cross-language)
+    # transforms (see runners/direct/direct_runner.py) and falls back to the
+    # BundleBasedDirectRunner, which cannot execute an unbounded read.
+    # The runner is instantiated during TestPipeline construction, so it must be
+    # passed to the constructor; the remaining harness-provided options are
+    # preserved and only amended (streaming + LOOPBACK environment) afterwards.
+    p = TestPipeline(runner='PrismRunner', blocking=False)
+    p.get_pipeline_options().view_as(StandardOptions).streaming = True
+    p.get_pipeline_options().view_as(
+        PortableOptions).environment_type = 'LOOPBACK'
     p.not_use_test_runner_api = True
     _ = (
         p
