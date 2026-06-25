@@ -61,6 +61,7 @@ jobs:
         with:
           ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11

@@ -75,6 +75,8 @@ jobs:
           - "java:expansion-service:container:docker"
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
