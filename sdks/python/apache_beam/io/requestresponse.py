@@ -375,7 +375,8 @@ class _CallDoFn(beam.DoFn):
       response = self._repeater.repeat(
           self._caller, request, self._timeout, self._metrics_collector)
       self._metrics_collector.responses.inc(1)
-      self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
+      if self._throttler:
+        self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
       yield response
     except Exception as e:
       raise e
