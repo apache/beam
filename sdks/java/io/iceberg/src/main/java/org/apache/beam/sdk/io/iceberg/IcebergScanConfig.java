@@ -53,7 +53,6 @@ public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
-  private transient @MonotonicNonNull Evaluator cachedEvaluator;
   private transient @MonotonicNonNull Expression cachedFilter;
 
   public enum ScanType {
@@ -153,10 +152,7 @@ public abstract class IcebergScanConfig implements Serializable {
     if (filter == null) {
       return null;
     }
-    if (cachedEvaluator == null) {
-      cachedEvaluator = new Evaluator(requiredSchema.asStruct(), filter);
-    }
-    return cachedEvaluator;
+    return new Evaluator(requiredSchema.asStruct(), filter);
   }
 
   @Pure

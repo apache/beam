@@ -376,9 +376,9 @@ public final class CdcReadUtils {
     long taskEnd = taskStart + task.getLength();
     long minStart = Long.MAX_VALUE;
     long maxEnd = Long.MIN_VALUE;
-    long[] sortedDeletePositions = sortedDeletePositions(posIndex);
 
     try {
+      long[] sortedDeletePositions = sortedDeletePositions(posIndex);
       InputFile inputFile = table.io().newInputFile(dataFilePath);
       try (ParquetFileReader reader = ParquetFileReader.open(asParquetInputFile(inputFile))) {
         ParquetMetadata footer = reader.getFooter();
