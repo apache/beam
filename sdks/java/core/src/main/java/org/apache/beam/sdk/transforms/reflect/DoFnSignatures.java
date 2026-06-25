@@ -2355,12 +2355,11 @@ public class DoFnSignatures {
     TypeDescriptor<?> valueTypeDescriptor =
         stateType.resolveType(ValueState.class.getTypeParameters()[0]);
 
-    // Skip if the type has unresolved parameters (e.g., TypeVariable, WildcardType)
-    if (valueTypeDescriptor.hasUnresolvedParameters()) {
-      return;
-    }
-
-    // Use TypeDescriptor.isSubtypeOf() for type checking - stays in TypeDescriptor API
+    // Match on the collection's raw type. We intentionally do not skip types with unresolved
+    // parameters: for a parameterized collection such as ValueState<Set<T>> the collection's own
+    // raw type (Set) is known even though the element type T is a type variable, so we can still
+    // recommend SetState. A payload that is itself a bare type variable (e.g. ValueState<T>) simply
+    // matches none of the branches below and produces no recommendation.
     String recommendation = null;
     if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
       recommendation = "MapState";
