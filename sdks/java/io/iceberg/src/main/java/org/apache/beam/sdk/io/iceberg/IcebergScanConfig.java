@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -47,6 +48,7 @@ import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.types.Comparators;
 import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.util.SnapshotUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -432,6 +434,28 @@ public abstract class IcebergScanConfig implements Serializable {
     checkArgument(
         getToTimestamp() == null || getToSnapshot() == null,
         error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
+
+    @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
+    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
+    if (fromSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(fromSnapshotId),
+          error("configured starting snapshot does not exist: '%s'"),
+          fromSnapshotId);
+    }
+    if (toSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(toSnapshotId),
+          error("configured end snapshot does not exist: '%s'"),
+          toSnapshotId);
+    }
+    if (fromSnapshotId != null && toSnapshotId != null) {
+      checkArgument(
+          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
+          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
+          fromSnapshotId,
+          toSnapshotId);
+    }
 
     if (getPollInterval() != null) {
       checkArgument(

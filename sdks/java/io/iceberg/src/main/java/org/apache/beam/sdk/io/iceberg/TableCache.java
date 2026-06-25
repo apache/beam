@@ -76,6 +76,10 @@ public class TableCache {
     return getRefreshed(catalogConfig, TableIdentifier.parse(identifier));
   }
 
+  public static Table getAndRefreshIfStale(IcebergCatalogConfig catalogConfig, String identifier) {
+    return getAndRefreshIfStale(catalogConfig, TableIdentifier.parse(identifier));
+  }
+
   /**
    * Returns the cached table, refreshing it only if it is older than {@link
    * #DEFAULT_REFRESH_INTERVAL}.
