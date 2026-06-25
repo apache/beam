@@ -17,11 +17,11 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
-import java.io.ByteArrayInputStream;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPayloadProtos.KafkaStreamsPayload;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.kafka.common.errors.SerializationException;
@@ -34,17 +34,11 @@ import org.apache.kafka.common.serialization.Serializer;
  * (e.g. the repartition topic a {@code GroupByKey} introduces). Until now {@link KStreamsPayload}
  * only flowed in-JVM via {@code ProcessorContext#forward}, so no serialization was needed.
  *
- * <p>The wire format is a one-byte discriminator followed by the variant body:
- *
- * <ul>
- *   <li><b>data</b>: {@code [0x00][windowedValueCoder-encoded WindowedValue]} — the data element is
- *       encoded with the {@link Coder} supplied for the topic's PCollection.
- *   <li><b>watermark</b>: {@code [0x01][long watermarkMillis][int sourcePartition][int
- *       totalSourcePartitions]} — the in-band watermark report, coder-independent.
- * </ul>
- *
- * <p>A {@link KStreamsPayloadSerde} is parameterized by the {@link Coder} for the data variant
- * because different topics carry different element types; the watermark variant needs no coder.
+ * <p>The wire form is the {@link KafkaStreamsPayload} protobuf message — protobuf gives compatible
+ * schema evolution and compact varint encoding. The data variant carries the {@link WindowedValue}
+ * encoded with the {@link Coder} supplied for the topic's PCollection; the watermark variant
+ * carries the coder-independent watermark report. A {@link KStreamsPayloadSerde} is therefore
+ * parameterized by the data {@link Coder} (different topics carry different element types).
  *
  * <p>The serde assumes non-null payloads: the topics it is used on (repartition and watermark
  * fan-out) are not log-compacted, so no tombstone (null-valued) records occur.
@@ -52,9 +46,6 @@ import org.apache.kafka.common.serialization.Serializer;
  * @param <T> the data element type carried by data payloads on this topic
  */
 public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> {
-
-  private static final byte DATA_TAG = 0;
-  private static final byte WATERMARK_TAG = 1;
 
   private final Coder<WindowedValue<T>> dataCoder;
 
@@ -75,46 +66,55 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
   private final class PayloadSerializer implements Serializer<KStreamsPayload<T>> {
     @Override
     public byte[] serialize(String topic, KStreamsPayload<T> payload) {
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      try {
-        if (payload.isData()) {
-          out.write(DATA_TAG);
-          dataCoder.encode(payload.getData(), out);
-        } else {
-          WatermarkPayload watermark = payload.asWatermark();
-          DataOutputStream dataOut = new DataOutputStream(out);
-          dataOut.writeByte(WATERMARK_TAG);
-          dataOut.writeLong(watermark.getWatermarkMillis());
-          dataOut.writeInt(watermark.getSourcePartition());
-          dataOut.writeInt(watermark.getTotalSourcePartitions());
-          dataOut.flush();
+      KafkaStreamsPayload.Builder proto = KafkaStreamsPayload.newBuilder();
+      if (payload.isData()) {
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        try {
+          dataCoder.encode(payload.getData(), encoded);
+        } catch (IOException e) {
+          throw new SerializationException("Failed to encode KStreamsPayload data element", e);
         }
-      } catch (IOException e) {
-        throw new SerializationException("Failed to serialize KStreamsPayload", e);
+        proto.setData(
+            KafkaStreamsPayload.DataPayload.newBuilder()
+                .setValue(ByteString.copyFrom(encoded.toByteArray())));
+      } else {
+        WatermarkPayload watermark = payload.asWatermark();
+        proto.setWatermark(
+            KafkaStreamsPayload.WatermarkPayload.newBuilder()
+                .setMillis(watermark.getWatermarkMillis())
+                .setSourcePartition(watermark.getSourcePartition())
+                .setTotalPartitions(watermark.getTotalSourcePartitions()));
       }
-      return out.toByteArray();
+      return proto.build().toByteArray();
     }
   }
 
   private final class PayloadDeserializer implements Deserializer<KStreamsPayload<T>> {
     @Override
     public KStreamsPayload<T> deserialize(String topic, byte[] bytes) {
-      ByteArrayInputStream in = new ByteArrayInputStream(bytes);
+      KafkaStreamsPayload proto;
       try {
-        int tag = in.read();
-        if (tag == DATA_TAG) {
-          return KStreamsPayload.data(dataCoder.decode(in));
-        } else if (tag == WATERMARK_TAG) {
-          DataInputStream dataIn = new DataInputStream(in);
-          long watermarkMillis = dataIn.readLong();
-          int sourcePartition = dataIn.readInt();
-          int totalSourcePartitions = dataIn.readInt();
-          return KStreamsPayload.watermark(watermarkMillis, sourcePartition, totalSourcePartitions);
-        } else {
-          throw new SerializationException("Unknown KStreamsPayload tag: " + tag);
-        }
-      } catch (IOException e) {
-        throw new SerializationException("Failed to deserialize KStreamsPayload", e);
+        proto = KafkaStreamsPayload.parseFrom(bytes);
+      } catch (InvalidProtocolBufferException e) {
+        throw new SerializationException("Failed to parse KStreamsPayload", e);
+      }
+      switch (proto.getPayloadCase()) {
+        case DATA:
+          try {
+            return KStreamsPayload.data(dataCoder.decode(proto.getData().getValue().newInput()));
+          } catch (IOException e) {
+            throw new SerializationException("Failed to decode KStreamsPayload data element", e);
+          }
+        case WATERMARK:
+          KafkaStreamsPayload.WatermarkPayload watermark = proto.getWatermark();
+          return KStreamsPayload.watermark(
+              watermark.getMillis(),
+              watermark.getSourcePartition(),
+              watermark.getTotalPartitions());
+        case PAYLOAD_NOT_SET:
+        default:
+          throw new SerializationException(
+              "KStreamsPayload has no payload variant set: " + proto.getPayloadCase());
       }
     }
   }

@@ -77,7 +77,18 @@ public class KStreamsPayloadSerdeTest {
   }
 
   @Test
-  public void unknownTagThrows() {
+  public void roundTripsNegativeWatermark() {
+    // Beam event times can be negative; sint64 must round-trip them losslessly.
+    KStreamsPayload<Integer> payload =
+        KStreamsPayload.watermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(), 0, 1);
+    assertThat(
+        roundTrip(payload).asWatermark().getWatermarkMillis(),
+        is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+  }
+
+  @Test
+  public void malformedBytesThrow() {
+    // 0x7f encodes field 15 with the invalid wire type 7, so protobuf parsing fails.
     byte[] bogus = new byte[] {(byte) 0x7f};
     assertThrows(
         SerializationException.class, () -> serde.deserializer().deserialize(TOPIC, bogus));
