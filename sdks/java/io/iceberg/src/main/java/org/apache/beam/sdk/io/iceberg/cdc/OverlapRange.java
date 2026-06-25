@@ -43,17 +43,18 @@ final class OverlapRange {
   private final Comparator<StructLike> idComp;
 
   private OverlapRange(
-    Schema recordIdSchema, StructProjection recordIdProjection, Comparator<StructLike> idComp) {
+      Schema recordIdSchema, StructProjection recordIdProjection, Comparator<StructLike> idComp) {
     this.recordIdSchema = recordIdSchema;
     this.recordIdProjection = recordIdProjection;
     this.idComp = idComp;
   }
 
   static OverlapRange forScanConfig(IcebergScanConfig scanConfig) {
-    Schema fullSchema = TableCache.get(scanConfig.getTableIdentifier()).schema();
+    Schema fullSchema =
+        TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier()).schema();
     StructProjection projection = StructProjection.create(fullSchema, scanConfig.recordIdSchema());
     return new OverlapRange(
-      scanConfig.recordIdSchema(), projection, scanConfig.recordIdComparator());
+        scanConfig.recordIdSchema(), projection, scanConfig.recordIdComparator());
   }
 
   StructProjection recordIdProjection() {
@@ -87,6 +88,6 @@ final class OverlapRange {
       return true;
     }
     return idComp.compare(recordIdProjection, lower) >= 0
-      && idComp.compare(recordIdProjection, upper) <= 0;
+        && idComp.compare(recordIdProjection, upper) <= 0;
   }
 }

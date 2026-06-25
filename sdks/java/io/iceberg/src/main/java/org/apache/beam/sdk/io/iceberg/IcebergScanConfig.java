@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets.newHashSet;
 
 import com.google.auto.value.AutoValue;
@@ -27,9 +28,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -37,6 +41,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
@@ -52,7 +57,6 @@ public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
-  private transient @MonotonicNonNull Evaluator cachedEvaluator;
   private transient @MonotonicNonNull Expression cachedFilter;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRecordIdSchema;
   private transient @MonotonicNonNull Schema cachedRowIdBeamSchema;
@@ -74,8 +78,7 @@ public abstract class IcebergScanConfig implements Serializable {
   @Pure
   public Table getTable() {
     if (cachedTable == null) {
-      cachedTable =
-          getCatalogConfig().catalog().loadTable(TableIdentifier.parse(getTableIdentifier()));
+      cachedTable = TableCache.get(getCatalogConfig(), TableIdentifier.parse(getTableIdentifier()));
     }
     return cachedTable;
   }
@@ -168,15 +171,12 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   @Nullable
-  public Evaluator getEvaluator() {
+  public Evaluator getEvaluator(org.apache.iceberg.Schema requiredSchema) {
     @Nullable Expression filter = getFilter();
     if (filter == null) {
       return null;
     }
-    if (cachedEvaluator == null) {
-      cachedEvaluator = new Evaluator(getRequiredSchema().asStruct(), filter);
-    }
-    return cachedEvaluator;
+    return new Evaluator(requiredSchema.asStruct(), filter);
   }
 
   @Pure
@@ -252,6 +252,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable List<String> getDropFields();
 
   @Pure
+  public abstract List<String> getMetadataColumns();
+
+  @Pure
   public static Builder builder() {
     return new AutoValue_IcebergScanConfig.Builder()
         .setScanType(ScanType.TABLE)
@@ -273,7 +276,8 @@ public abstract class IcebergScanConfig implements Serializable {
         .setPollInterval(null)
         .setStartingStrategy(null)
         .setTag(null)
-        .setBranch(null);
+        .setBranch(null)
+        .setMetadataColumns(ImmutableList.of());
   }
 
   @AutoValue.Builder
@@ -336,6 +340,8 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setDropFields(@Nullable List<String> fields);
 
+    public abstract Builder setMetadataColumns(List<String> metadataColumns);
+
     public abstract IcebergScanConfig build();
   }
 
@@ -389,6 +395,9 @@ public abstract class IcebergScanConfig implements Serializable {
       if (getStartingStrategy() != null) {
         invalidOptions.add("starting_strategy");
       }
+      if (!getMetadataColumns().isEmpty()) {
+        invalidOptions.add("metadata_columns");
+      }
       if (!invalidOptions.isEmpty()) {
         throw new IllegalArgumentException(
             error(
@@ -396,6 +405,19 @@ public abstract class IcebergScanConfig implements Serializable {
                     + "reading with Managed.ICEBERG_CDC: "
                     + invalidOptions));
       }
+    } else {
+      Set<Integer> primaryKeyIds = new HashSet<>(table.schema().identifierFieldIds());
+      checkState(
+          !primaryKeyIds.isEmpty(),
+          "Cannot read CDC records as the table schema does not specified any primary key fields.");
+      Set<Integer> projectedFieldIds = TypeUtil.getProjectedIds(getProjectedSchema());
+      primaryKeyIds.removeAll(projectedFieldIds);
+      checkArgument(
+          primaryKeyIds.isEmpty(),
+          "When reading CDC records, the projected schema must not drop primary key fields. "
+              + "The specified configuration drops the following PK fields: %s",
+          primaryKeyIds);
+      validateMetadataColumns(table);
     }
 
     if (getStartingStrategy() != null) {
@@ -415,6 +437,47 @@ public abstract class IcebergScanConfig implements Serializable {
       checkArgument(
           Boolean.TRUE.equals(getStreaming()),
           error("'poll_interval_seconds' can only be set when streaming is true"));
+    }
+  }
+
+  private void validateMetadataColumns(Table table) {
+    List<String> metadataColumns = getMetadataColumns();
+    if (metadataColumns.isEmpty()) {
+      return;
+    }
+
+    Set<String> uniqueMetadataColumns = new LinkedHashSet<>(metadataColumns);
+    checkArgument(
+        uniqueMetadataColumns.size() == metadataColumns.size(),
+        error("metadata_columns contains duplicate entries: %s"),
+        metadataColumns);
+
+    List<String> unsupportedMetadataColumns = new ArrayList<>();
+    for (String metadataColumn : metadataColumns) {
+      if (!IcebergCdcMetadataColumns.isSupportedColumn(metadataColumn)) {
+        unsupportedMetadataColumns.add(metadataColumn);
+      }
+    }
+    checkArgument(
+        unsupportedMetadataColumns.isEmpty(),
+        error("unsupported metadata_columns: %s. Supported values are: %s"),
+        unsupportedMetadataColumns,
+        IcebergCdcMetadataColumns.SUPPORTED_COLUMNS);
+
+    for (String metadataColumn : metadataColumns) {
+      checkArgument(
+          getProjectedSchema().findField(metadataColumn) == null,
+          error("metadata column '%s' conflicts with a projected data column"),
+          metadataColumn);
+    }
+
+    boolean includesRowLineage =
+        metadataColumns.stream().anyMatch(IcebergCdcMetadataColumns::isRowMetadataColumn);
+    if (includesRowLineage) {
+      checkArgument(
+          TableUtil.formatVersion(table) >= 3,
+          error("row lineage metadata columns %s are only available for Iceberg format v3+ tables"),
+          metadataColumns);
     }
   }
 

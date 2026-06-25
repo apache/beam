@@ -93,7 +93,7 @@ abstract class CdcResolver<T> {
           for (int idx = 0; idx < candidates.size(); idx++) {
             int insertIdx = candidates.get(idx);
             if (!dupInserts[insertIdx]
-              && nonPkEquals(deletes.get(deleteIdx), inserts.get(insertIdx))) {
+                && nonPkEquals(deletes.get(deleteIdx), inserts.get(insertIdx))) {
               // this (delete, insert) pair is a duplicate --> should be skipped
               dupDeletes[deleteIdx] = true;
               dupInserts[insertIdx] = true;

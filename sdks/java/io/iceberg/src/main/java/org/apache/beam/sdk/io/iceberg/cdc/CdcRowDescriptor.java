@@ -39,28 +39,28 @@ public abstract class CdcRowDescriptor {
   @SuppressWarnings("nullness")
   public static SchemaCoder<CdcRowDescriptor> coder(Schema identifierSchema) {
     Schema descriptorSchema =
-      Schema.builder()
-        .addInt64Field("snapshotSequenceNumber")
-        .addInt64Field("commitSnapshotId")
-        .addRowField("primaryKey", identifierSchema)
-        .build();
+        Schema.builder()
+            .addInt64Field("snapshotSequenceNumber")
+            .addInt64Field("commitSnapshotId")
+            .addRowField("primaryKey", identifierSchema)
+            .build();
 
     return SchemaCoder.of(
-      descriptorSchema,
-      TypeDescriptor.of(CdcRowDescriptor.class),
-      descriptor ->
-        Row.withSchema(descriptorSchema)
-          .addValues(
-            descriptor.getSnapshotSequenceNumber(),
-            descriptor.getCommitSnapshotId(),
-            descriptor.getPrimaryKey())
-          .build(),
-      row ->
-        CdcRowDescriptor.builder()
-          .setSnapshotSequenceNumber(row.getInt64("snapshotSequenceNumber"))
-          .setCommitSnapshotId(row.getInt64("commitSnapshotId"))
-          .setPrimaryKey(row.getRow("primaryKey"))
-          .build());
+        descriptorSchema,
+        TypeDescriptor.of(CdcRowDescriptor.class),
+        descriptor ->
+            Row.withSchema(descriptorSchema)
+                .addValues(
+                    descriptor.getSnapshotSequenceNumber(),
+                    descriptor.getCommitSnapshotId(),
+                    descriptor.getPrimaryKey())
+                .build(),
+        row ->
+            CdcRowDescriptor.builder()
+                .setSnapshotSequenceNumber(row.getInt64("snapshotSequenceNumber"))
+                .setCommitSnapshotId(row.getInt64("commitSnapshotId"))
+                .setPrimaryKey(row.getRow("primaryKey"))
+                .build());
   }
 
   public static Builder builder() {

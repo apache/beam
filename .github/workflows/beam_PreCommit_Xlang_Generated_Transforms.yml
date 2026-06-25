@@ -92,7 +92,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startsWith(github.event.comment.body, 'Run Xlang_Generated_Transforms PreCommit')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -102,7 +102,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: default
+          java-version: |
+            17
+            11
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
@@ -114,3 +116,5 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit --info
+          arguments: |
+            -Pjava17Home=$JAVA_HOME_17_X64

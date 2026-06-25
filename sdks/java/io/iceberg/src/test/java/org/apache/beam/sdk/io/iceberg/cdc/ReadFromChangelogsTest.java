@@ -72,12 +72,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReadFromChangelogsTest {
   private static final org.apache.iceberg.Schema CDC_SCHEMA =
-    new org.apache.iceberg.Schema(
-      ImmutableList.of(
-        Types.NestedField.required(1, "id", Types.LongType.get()),
-        Types.NestedField.optional(2, "visible", Types.StringType.get()),
-        Types.NestedField.optional(3, "hidden", Types.StringType.get())),
-      ImmutableSet.of(1));
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.optional(2, "visible", Types.StringType.get()),
+              Types.NestedField.optional(3, "hidden", Types.StringType.get())),
+          ImmutableSet.of(1));
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -92,60 +92,60 @@ public class ReadFromChangelogsTest {
     IcebergScanConfig scanConfig = scanConfig(table, tableId, ImmutableList.of("id", "visible"));
 
     DataFile addedFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-added.parquet",
-        table.schema(),
-        ImmutableList.of(record(10L, "added", "added-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-added.parquet",
+            table.schema(),
+            ImmutableList.of(record(10L, "added", "added-hidden")));
     DataFile deletedRowsFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-deleted-rows.parquet",
-        table.schema(),
-        ImmutableList.of(
-          record(20L, "deleted-row", "deleted-row-hidden"),
-          record(21L, "not-deleted", "not-deleted-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-deleted-rows.parquet",
+            table.schema(),
+            ImmutableList.of(
+                record(20L, "deleted-row", "deleted-row-hidden"),
+                record(21L, "not-deleted", "not-deleted-hidden")));
     DeleteFile addedPositionDelete =
-      writePositionDelete(table, deletedRowsFile, "deleted-rows-pos-delete.parquet", 0L);
+        writePositionDelete(table, deletedRowsFile, "deleted-rows-pos-delete.parquet", 0L);
     DataFile deletedFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-deleted-file.parquet",
-        table.schema(),
-        ImmutableList.of(record(30L, "deleted-file", "deleted-file-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-deleted-file.parquet",
+            table.schema(),
+            ImmutableList.of(record(30L, "deleted-file", "deleted-file-hidden")));
 
     List<SerializableChangelogTask> tasks =
-      ImmutableList.of(
-        task(
-          SerializableChangelogTask.Type.ADDED_ROWS,
-          addedFile,
-          ImmutableList.of(),
-          ImmutableList.of(),
-          table,
-          100L),
-        task(
-          SerializableChangelogTask.Type.DELETED_ROWS,
-          deletedRowsFile,
-          ImmutableList.of(addedPositionDelete),
-          ImmutableList.of(),
-          table,
-          100L),
-        task(
-          SerializableChangelogTask.Type.DELETED_FILE,
-          deletedFile,
-          ImmutableList.of(),
-          ImmutableList.of(),
-          table,
-          100L));
+        ImmutableList.of(
+            task(
+                SerializableChangelogTask.Type.ADDED_ROWS,
+                addedFile,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                table,
+                100L),
+            task(
+                SerializableChangelogTask.Type.DELETED_ROWS,
+                deletedRowsFile,
+                ImmutableList.of(addedPositionDelete),
+                ImmutableList.of(),
+                table,
+                100L),
+            task(
+                SerializableChangelogTask.Type.DELETED_FILE,
+                deletedFile,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                table,
+                100L));
 
     ReadFromChangelogs.Output output =
-      input(ImmutableList.of(KV.of(descriptor(), tasks)), ImmutableList.of())
-        .apply(new ReadFromChangelogs(scanConfig));
+        input(ImmutableList.of(KV.of(descriptor(), tasks)), ImmutableList.of())
+            .apply(new ReadFromChangelogs(scanConfig));
 
     assertEquals(
-      IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()),
-      output.uniDirectionalRows().getSchema());
+        IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()),
+        output.uniDirectionalRows().getSchema());
     PAssert.that(
-        output.uniDirectionalRows().apply("Format Unidirectional", ParDo.of(new FormatRow())))
-      .containsInAnyOrder(
-        "INSERT:10:added:2", "DELETE:20:deleted-row:2", "DELETE:30:deleted-file:2");
+            output.uniDirectionalRows().apply("Format Unidirectional", ParDo.of(new FormatRow())))
+        .containsInAnyOrder(
+            "INSERT:10:added:2", "DELETE:20:deleted-row:2", "DELETE:30:deleted-file:2");
     PAssert.that(output.biDirectionalInserts()).empty();
     PAssert.that(output.biDirectionalDeletes()).empty();
 
@@ -158,66 +158,66 @@ public class ReadFromChangelogsTest {
     Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
     IcebergScanConfig scanConfig = scanConfig(table, tableId, ImmutableList.of("id", "visible"));
     DataFile oldFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-old.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "old-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "old-hidden")));
     DataFile newFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-new.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "new-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "new-hidden")));
     List<SerializableChangelogTask> tasks =
-      ImmutableList.of(
-        task(
-          SerializableChangelogTask.Type.DELETED_FILE,
-          oldFile,
-          ImmutableList.of(),
-          ImmutableList.of(),
-          table,
-          200L),
-        task(
-          SerializableChangelogTask.Type.ADDED_ROWS,
-          newFile,
-          ImmutableList.of(),
-          ImmutableList.of(),
-          table,
-          200L));
+        ImmutableList.of(
+            task(
+                SerializableChangelogTask.Type.DELETED_FILE,
+                oldFile,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                table,
+                200L),
+            task(
+                SerializableChangelogTask.Type.ADDED_ROWS,
+                newFile,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                table,
+                200L));
 
     ReadFromChangelogs.Output output =
-      input(ImmutableList.of(), ImmutableList.of(KV.of(descriptor(200L, 200L, 1L, 1L), tasks)))
-        .apply(new ReadFromChangelogs(scanConfig));
+        input(ImmutableList.of(), ImmutableList.of(KV.of(descriptor(200L, 200L, 1L, 1L), tasks)))
+            .apply(new ReadFromChangelogs(scanConfig));
 
     PAssert.that(output.uniDirectionalRows()).empty();
     PAssert.that(
-        output.biDirectionalDeletes().apply("Format Deletes", ParDo.of(new FormatKeyedRow())))
-      .containsInAnyOrder("DELETE:200:200:1:shown:old-hidden:3");
+            output.biDirectionalDeletes().apply("Format Deletes", ParDo.of(new FormatKeyedRow())))
+        .containsInAnyOrder("DELETE:200:200:1:shown:old-hidden:3");
     PAssert.that(
-        output.biDirectionalInserts().apply("Format Inserts", ParDo.of(new FormatKeyedRow())))
-      .containsInAnyOrder("INSERT:200:200:1:shown:new-hidden:3");
+            output.biDirectionalInserts().apply("Format Inserts", ParDo.of(new FormatKeyedRow())))
+        .containsInAnyOrder("INSERT:200:200:1:shown:new-hidden:3");
 
     pipeline.run().waitUntilFinish();
   }
 
   private PCollectionTuple input(
-    List<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> unidirectional,
-    List<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> largeBidirectional) {
+      List<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> unidirectional,
+      List<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> largeBidirectional) {
     Schema rowIdBeamSchema =
-      IcebergUtils.icebergSchemaToBeamSchema(
-        TypeUtil.select(CDC_SCHEMA, CDC_SCHEMA.identifierFieldIds()));
+        IcebergUtils.icebergSchemaToBeamSchema(
+            TypeUtil.select(CDC_SCHEMA, CDC_SCHEMA.identifierFieldIds()));
     KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> coder =
-      ChangelogScanner.coder(rowIdBeamSchema);
+        ChangelogScanner.coder(rowIdBeamSchema);
     PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> uni =
-      unidirectional.isEmpty()
-        ? pipeline.apply("Empty Unidirectional", Create.empty(coder))
-        : pipeline.apply("Create Unidirectional", Create.of(unidirectional).withCoder(coder));
+        unidirectional.isEmpty()
+            ? pipeline.apply("Empty Unidirectional", Create.empty(coder))
+            : pipeline.apply("Create Unidirectional", Create.of(unidirectional).withCoder(coder));
     PCollection<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> large =
-      largeBidirectional.isEmpty()
-        ? pipeline.apply("Empty Large Bidirectional", Create.empty(coder))
-        : pipeline.apply(
-        "Create Large Bidirectional", Create.of(largeBidirectional).withCoder(coder));
+        largeBidirectional.isEmpty()
+            ? pipeline.apply("Empty Large Bidirectional", Create.empty(coder))
+            : pipeline.apply(
+                "Create Large Bidirectional", Create.of(largeBidirectional).withCoder(coder));
     return PCollectionTuple.of(ChangelogScanner.UNIDIRECTIONAL_TASKS, uni)
-      .and(ChangelogScanner.LARGE_BIDIRECTIONAL_TASKS, large);
+        .and(ChangelogScanner.LARGE_BIDIRECTIONAL_TASKS, large);
   }
 
   private TableIdentifier tableId() {
@@ -225,39 +225,39 @@ public class ReadFromChangelogsTest {
   }
 
   private IcebergScanConfig scanConfig(
-    Table table, TableIdentifier tableId, List<String> keepFields) {
+      Table table, TableIdentifier tableId, List<String> keepFields) {
     return IcebergScanConfig.builder()
-      .setCatalogConfig(
-        IcebergCatalogConfig.builder()
-          .setCatalogName("name")
-          .setCatalogProperties(
-            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-          .build())
-      .setTableIdentifier(tableId)
-      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-      .setKeepFields(keepFields)
-      .setUseCdc(true)
-      .build();
+        .setCatalogConfig(
+            IcebergCatalogConfig.builder()
+                .setCatalogName("name")
+                .setCatalogProperties(
+                    ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                .build())
+        .setTableIdentifier(tableId)
+        .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+        .setKeepFields(keepFields)
+        .setUseCdc(true)
+        .build();
   }
 
   private ChangelogDescriptor descriptor() {
     return ChangelogDescriptor.builder()
-      .setTableIdentifierString(tableId().toString())
-      .setSnapshotSequenceNumber(100L)
-      .setCommitSnapshotId(100L)
-      .build();
+        .setTableIdentifierString(tableId().toString())
+        .setSnapshotSequenceNumber(100L)
+        .setCommitSnapshotId(100L)
+        .build();
   }
 
   private ChangelogDescriptor descriptor(
-    long sequenceNumber, long snapshotId, long lowerInclusive, long upperInclusive) {
+      long sequenceNumber, long snapshotId, long lowerInclusive, long upperInclusive) {
     Schema pkSchema = Schema.builder().addInt64Field("id").build();
     return ChangelogDescriptor.builder()
-      .setTableIdentifierString(tableId().toString())
-      .setSnapshotSequenceNumber(sequenceNumber)
-      .setCommitSnapshotId(snapshotId)
-      .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
-      .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
-      .build();
+        .setTableIdentifierString(tableId().toString())
+        .setSnapshotSequenceNumber(sequenceNumber)
+        .setCommitSnapshotId(snapshotId)
+        .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
+        .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
+        .build();
   }
 
   private static Record record(long id, String visible, String hidden) {
@@ -269,15 +269,15 @@ public class ReadFromChangelogsTest {
   }
 
   private static DeleteFile writePositionDelete(
-    Table table, DataFile dataFile, String filename, long... positions) throws IOException {
+      Table table, DataFile dataFile, String filename, long... positions) throws IOException {
     GenericAppenderFactory appenderFactory =
-      new GenericAppenderFactory(table.schema(), table.spec());
+        new GenericAppenderFactory(table.schema(), table.spec());
     PositionDeleteWriter<Record> writer =
-      appenderFactory.newPosDeleteWriter(
-        EncryptedFiles.plainAsEncryptedOutput(
-          table.io().newOutputFile(dataFile.location() + "." + filename)),
-        FileFormat.PARQUET,
-        null);
+        appenderFactory.newPosDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table.io().newOutputFile(dataFile.location() + "." + filename)),
+            FileFormat.PARQUET,
+            null);
     try {
       for (long position : positions) {
         writer.write(PositionDelete.<Record>create().set(dataFile.location(), position));
@@ -289,38 +289,38 @@ public class ReadFromChangelogsTest {
   }
 
   private static SerializableChangelogTask task(
-    SerializableChangelogTask.Type type,
-    DataFile dataFile,
-    List<DeleteFile> addedDeletes,
-    List<DeleteFile> existingDeletes,
-    Table table,
-    long snapshotId) {
+      SerializableChangelogTask.Type type,
+      DataFile dataFile,
+      List<DeleteFile> addedDeletes,
+      List<DeleteFile> existingDeletes,
+      Table table,
+      long snapshotId) {
     return SerializableChangelogTask.builder()
-      .setType(type)
-      .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
-      .setAddedDeletes(serializableDeletes(addedDeletes, table))
-      .setExistingDeletes(serializableDeletes(existingDeletes, table))
-      .setSpecId(table.spec().specId())
-      .setOperation(
-        type == SerializableChangelogTask.Type.ADDED_ROWS
-          ? ChangelogOperation.INSERT
-          : ChangelogOperation.DELETE)
-      .setOrdinal(0)
-      .setCommitSnapshotId(snapshotId)
-      .setStart(0L)
-      .setLength(dataFile.fileSizeInBytes())
-      .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
-      .build();
+        .setType(type)
+        .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
+        .setAddedDeletes(serializableDeletes(addedDeletes, table))
+        .setExistingDeletes(serializableDeletes(existingDeletes, table))
+        .setSpecId(table.spec().specId())
+        .setOperation(
+            type == SerializableChangelogTask.Type.ADDED_ROWS
+                ? ChangelogOperation.INSERT
+                : ChangelogOperation.DELETE)
+        .setOrdinal(0)
+        .setCommitSnapshotId(snapshotId)
+        .setStart(0L)
+        .setLength(dataFile.fileSizeInBytes())
+        .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
+        .build();
   }
 
   private static List<SerializableDeleteFile> serializableDeletes(
-    List<DeleteFile> deletes, Table table) {
+      List<DeleteFile> deletes, Table table) {
     return deletes.stream()
-      .map(
-        delete ->
-          SerializableDeleteFile.from(
-            delete, table.spec().partitionToPath(delete.partition()), true))
-      .collect(Collectors.toList());
+        .map(
+            delete ->
+                SerializableDeleteFile.from(
+                    delete, table.spec().partitionToPath(delete.partition()), true))
+        .collect(Collectors.toList());
   }
 
   private static Map<String, String> tableProperties() {
@@ -331,36 +331,36 @@ public class ReadFromChangelogsTest {
     @ProcessElement
     public void process(@Element Row row, ValueKind kind, OutputReceiver<String> out) {
       out.output(
-        kind.name()
-          + ":"
-          + row.getInt64("id")
-          + ":"
-          + row.getString("visible")
-          + ":"
-          + row.getSchema().getFieldCount());
+          kind.name()
+              + ":"
+              + row.getInt64("id")
+              + ":"
+              + row.getString("visible")
+              + ":"
+              + row.getSchema().getFieldCount());
     }
   }
 
   private static class FormatKeyedRow extends DoFn<KV<CdcRowDescriptor, Row>, String> {
     @ProcessElement
     public void process(
-      @Element KV<CdcRowDescriptor, Row> element, ValueKind kind, OutputReceiver<String> out) {
+        @Element KV<CdcRowDescriptor, Row> element, ValueKind kind, OutputReceiver<String> out) {
       Row row = element.getValue();
       CdcRowDescriptor descriptor = element.getKey();
       out.output(
-        kind.name()
-          + ":"
-          + descriptor.getCommitSnapshotId()
-          + ":"
-          + descriptor.getSnapshotSequenceNumber()
-          + ":"
-          + descriptor.getPrimaryKey().getInt64("id")
-          + ":"
-          + row.getString("visible")
-          + ":"
-          + row.getString("hidden")
-          + ":"
-          + row.getSchema().getFieldCount());
+          kind.name()
+              + ":"
+              + descriptor.getCommitSnapshotId()
+              + ":"
+              + descriptor.getSnapshotSequenceNumber()
+              + ":"
+              + descriptor.getPrimaryKey().getInt64("id")
+              + ":"
+              + row.getString("visible")
+              + ":"
+              + row.getString("hidden")
+              + ":"
+              + row.getSchema().getFieldCount());
     }
   }
 }

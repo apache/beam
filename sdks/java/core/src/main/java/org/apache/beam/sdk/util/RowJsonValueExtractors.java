@@ -189,7 +189,14 @@ class RowJsonValueExtractors {
    */
   static ValueExtractor<DateTime> datetimeValueExtractor() {
     return ValidatingValueExtractor.<DateTime>builder()
-        .setExtractor(jsonNode -> DateTime.parse(jsonNode.textValue()))
+        .setExtractor(
+            jsonNode -> {
+              String text = jsonNode.textValue();
+              if (text.contains(" ")) {
+                text = text.replace(' ', 'T');
+              }
+              return DateTime.parse(text);
+            })
         .setValidator(JsonNode::isTextual)
         .build();
   }

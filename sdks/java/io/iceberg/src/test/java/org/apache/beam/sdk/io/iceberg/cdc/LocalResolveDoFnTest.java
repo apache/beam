@@ -61,12 +61,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class LocalResolveDoFnTest {
   private static final org.apache.iceberg.Schema CDC_SCHEMA =
-    new org.apache.iceberg.Schema(
-      ImmutableList.of(
-        Types.NestedField.required(1, "id", Types.LongType.get()),
-        Types.NestedField.optional(2, "visible", Types.StringType.get()),
-        Types.NestedField.optional(3, "hidden", Types.StringType.get())),
-      ImmutableSet.of(1));
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.optional(2, "visible", Types.StringType.get()),
+              Types.NestedField.optional(3, "hidden", Types.StringType.get())),
+          ImmutableSet.of(1));
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
@@ -79,24 +79,24 @@ public class LocalResolveDoFnTest {
     Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
     IcebergScanConfig scanConfig = scanConfig(table, tableId);
     DataFile oldFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-old.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "same-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "same-hidden")));
     DataFile newFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-new.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "same-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "same-hidden")));
 
     List<ValueInSingleWindow<Row>> output =
-      process(
-        scanConfig,
-        descriptor(tableId, 1L, 1L),
-        ImmutableList.of(
-          task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 300L),
-          task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 300L)),
-        new Instant(0L));
+        process(
+            scanConfig,
+            descriptor(tableId, 1L, 1L),
+            ImmutableList.of(
+                task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 300L),
+                task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 300L)),
+            new Instant(0L));
 
     assertThat(output, empty());
   }
@@ -107,42 +107,42 @@ public class LocalResolveDoFnTest {
     Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
     IcebergScanConfig scanConfig = scanConfig(table, tableId);
     DataFile oldFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-old.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "old-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "old-hidden")));
     DataFile newFile =
-      warehouse.writeRecords(
-        testName.getMethodName() + "-new.parquet",
-        table.schema(),
-        ImmutableList.of(record(1L, "shown", "new-hidden")));
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "new-hidden")));
     Instant timestamp = new Instant(1234L);
 
     List<ValueInSingleWindow<Row>> output =
-      process(
-        scanConfig,
-        descriptor(tableId, 1L, 1L),
-        ImmutableList.of(
-          task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 301L),
-          task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 301L)),
-        timestamp);
+        process(
+            scanConfig,
+            descriptor(tableId, 1L, 1L),
+            ImmutableList.of(
+                task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 301L),
+                task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 301L)),
+            timestamp);
 
     assertThat(
-      output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
-      contains("UPDATE_BEFORE:1:shown:2", "UPDATE_AFTER:1:shown:2"));
+        output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
+        contains("UPDATE_BEFORE:1:shown:2", "UPDATE_AFTER:1:shown:2"));
     assertEquals(
-      ImmutableList.of(timestamp, timestamp),
-      output.stream().map(ValueInSingleWindow::getTimestamp).collect(Collectors.toList()));
+        ImmutableList.of(timestamp, timestamp),
+        output.stream().map(ValueInSingleWindow::getTimestamp).collect(Collectors.toList()));
   }
 
   private List<ValueInSingleWindow<Row>> process(
-    IcebergScanConfig scanConfig,
-    ChangelogDescriptor descriptor,
-    List<SerializableChangelogTask> tasks,
-    Instant timestamp)
-    throws Exception {
+      IcebergScanConfig scanConfig,
+      ChangelogDescriptor descriptor,
+      List<SerializableChangelogTask> tasks,
+      Instant timestamp)
+      throws Exception {
     try (DoFnTester<KV<ChangelogDescriptor, List<SerializableChangelogTask>>, Row> tester =
-           DoFnTester.of(new LocalResolveDoFn(scanConfig))) {
+        DoFnTester.of(new LocalResolveDoFn(scanConfig))) {
       tester.processTimestampedElement(TimestampedValue.of(KV.of(descriptor, tasks), timestamp));
       return tester.getMutableOutput(tester.getMainOutputTag());
     }
@@ -154,30 +154,30 @@ public class LocalResolveDoFnTest {
 
   private IcebergScanConfig scanConfig(Table table, TableIdentifier tableId) {
     return IcebergScanConfig.builder()
-      .setCatalogConfig(
-        IcebergCatalogConfig.builder()
-          .setCatalogName("name")
-          .setCatalogProperties(
-            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-          .build())
-      .setTableIdentifier(tableId)
-      .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
-      .setKeepFields(ImmutableList.of("id", "visible"))
-      .setUseCdc(true)
-      .build();
+        .setCatalogConfig(
+            IcebergCatalogConfig.builder()
+                .setCatalogName("name")
+                .setCatalogProperties(
+                    ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                .build())
+        .setTableIdentifier(tableId)
+        .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+        .setKeepFields(ImmutableList.of("id", "visible"))
+        .setUseCdc(true)
+        .build();
   }
 
   private static ChangelogDescriptor descriptor(
-    TableIdentifier tableId, long lowerInclusive, long upperInclusive) {
+      TableIdentifier tableId, long lowerInclusive, long upperInclusive) {
     org.apache.beam.sdk.schemas.Schema pkSchema =
-      org.apache.beam.sdk.schemas.Schema.builder().addInt64Field("id").build();
+        org.apache.beam.sdk.schemas.Schema.builder().addInt64Field("id").build();
     return ChangelogDescriptor.builder()
-      .setTableIdentifierString(tableId.toString())
-      .setSnapshotSequenceNumber(1)
-      .setCommitSnapshotId(1)
-      .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
-      .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
-      .build();
+        .setTableIdentifierString(tableId.toString())
+        .setSnapshotSequenceNumber(1)
+        .setCommitSnapshotId(1)
+        .setOverlapLower(Row.withSchema(pkSchema).addValue(lowerInclusive).build())
+        .setOverlapUpper(Row.withSchema(pkSchema).addValue(upperInclusive).build())
+        .build();
   }
 
   private static Record record(long id, String visible, String hidden) {
@@ -189,23 +189,23 @@ public class LocalResolveDoFnTest {
   }
 
   private static SerializableChangelogTask task(
-    SerializableChangelogTask.Type type, DataFile dataFile, Table table, long snapshotId) {
+      SerializableChangelogTask.Type type, DataFile dataFile, Table table, long snapshotId) {
     return SerializableChangelogTask.builder()
-      .setType(type)
-      .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
-      .setAddedDeletes(ImmutableList.of())
-      .setExistingDeletes(ImmutableList.of())
-      .setSpecId(table.spec().specId())
-      .setOperation(
-        type == SerializableChangelogTask.Type.ADDED_ROWS
-          ? ChangelogOperation.INSERT
-          : ChangelogOperation.DELETE)
-      .setOrdinal(0)
-      .setCommitSnapshotId(snapshotId)
-      .setStart(0L)
-      .setLength(dataFile.fileSizeInBytes())
-      .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
-      .build();
+        .setType(type)
+        .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
+        .setAddedDeletes(ImmutableList.of())
+        .setExistingDeletes(ImmutableList.of())
+        .setSpecId(table.spec().specId())
+        .setOperation(
+            type == SerializableChangelogTask.Type.ADDED_ROWS
+                ? ChangelogOperation.INSERT
+                : ChangelogOperation.DELETE)
+        .setOrdinal(0)
+        .setCommitSnapshotId(snapshotId)
+        .setStart(0L)
+        .setLength(dataFile.fileSizeInBytes())
+        .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
+        .build();
   }
 
   private static Map<String, String> tableProperties() {
@@ -216,11 +216,11 @@ public class LocalResolveDoFnTest {
     ValueKind kind = value.getValueKind();
     Row row = value.getValue();
     return kind.name()
-      + ":"
-      + row.getInt64("id")
-      + ":"
-      + row.getString("visible")
-      + ":"
-      + row.getSchema().getFieldCount();
+        + ":"
+        + row.getInt64("id")
+        + ":"
+        + row.getString("visible")
+        + ":"
+        + row.getSchema().getFieldCount();
   }
 }

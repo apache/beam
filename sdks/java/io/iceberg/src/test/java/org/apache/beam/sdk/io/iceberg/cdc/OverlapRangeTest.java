@@ -50,20 +50,20 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class OverlapRangeTest {
   private static final org.apache.iceberg.Schema SINGLE_PK_SCHEMA =
-    new org.apache.iceberg.Schema(
-      ImmutableList.of(
-        Types.NestedField.required(1, "id", Types.IntegerType.get()),
-        Types.NestedField.optional(2, "data", Types.StringType.get())),
-      ImmutableSet.of(1));
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.IntegerType.get()),
+              Types.NestedField.optional(2, "data", Types.StringType.get())),
+          ImmutableSet.of(1));
 
   private static final org.apache.iceberg.Schema COMPOSITE_PK_SCHEMA =
-    new org.apache.iceberg.Schema(
-      ImmutableList.of(
-        Types.NestedField.optional(3, "data", Types.StringType.get()),
-        Types.NestedField.required(1, "account", Types.StringType.get()),
-        Types.NestedField.optional(4, "extra", Types.IntegerType.get()),
-        Types.NestedField.required(2, "sequence", Types.IntegerType.get())),
-      ImmutableSet.of(1, 2));
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.optional(3, "data", Types.StringType.get()),
+              Types.NestedField.required(1, "account", Types.StringType.get()),
+              Types.NestedField.optional(4, "extra", Types.IntegerType.get()),
+              Types.NestedField.required(2, "sequence", Types.IntegerType.get())),
+          ImmutableSet.of(1, 2));
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
@@ -123,26 +123,26 @@ public class OverlapRangeTest {
   private OverlapRange overlapRange(org.apache.iceberg.Schema schema) throws IOException {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     IcebergCatalogConfig catalogConfig =
-      IcebergCatalogConfig.builder()
-        .setCatalogProperties(
-          ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-        .build();
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(
+                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+            .build();
     catalogConfig.catalog().createTable(tableId, schema);
     IcebergScanConfig scanConfig =
-      IcebergScanConfig.builder()
-        .setCatalogConfig(catalogConfig)
-        .setTableIdentifier(tableId)
-        .setSchema(IcebergUtils.icebergSchemaToBeamSchema(schema))
-        .setUseCdc(true)
-        .build();
+        IcebergScanConfig.builder()
+            .setCatalogConfig(catalogConfig)
+            .setTableIdentifier(tableId)
+            .setSchema(IcebergUtils.icebergSchemaToBeamSchema(schema))
+            .setUseCdc(true)
+            .build();
     TableCache.setup(scanConfig);
     return OverlapRange.forScanConfig(scanConfig);
   }
 
   private static Row pkRow(Schema recordIdSchema, Object... values) {
     return Row.withSchema(IcebergUtils.icebergSchemaToBeamSchema(recordIdSchema))
-      .addValues(values)
-      .build();
+        .addValues(values)
+        .build();
   }
 
   private static Record singlePkRecord(int id) {

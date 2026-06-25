@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -33,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.BoundedQueueExecutorWorkHandleImpl;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -66,13 +69,30 @@ public class BoundedQueueExecutorTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(300);
   private BoundedQueueExecutor executor;
 
+  private static final Work.KeyGroup DEFAULT_KEY_GROUP = Work.KeyGroup.create(1, 2);
+
   private static ExecutableWork createWork(Consumer<Work> executeWorkFn) {
+    return createWorkWithCompId("computationId", executeWorkFn);
+  }
+
+  private static ExecutableWork createWorkWithCompId(
+      String computationId, Consumer<Work> executeWorkFn) {
+    return createWorkWithCompIdAndKeyGroup(computationId, DEFAULT_KEY_GROUP, executeWorkFn);
+  }
+
+  private static ExecutableWork createWorkWithCompIdAndKeyGroup(
+      String computationId, Work.KeyGroup keyGroup, Consumer<Work> executeWorkFn) {
     WorkItem workItem =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setShardingKey(1)
             .setWorkToken(33)
             .setCacheToken(1)
+            .setKeyGroup(
+                Windmill.Uint128Proto.newBuilder()
+                    .setHigh(keyGroup.high())
+                    .setLow(keyGroup.low())
+                    .build())
             .build();
     return ExecutableWork.create(
         Work.create(
@@ -80,10 +100,7 @@ public class BoundedQueueExecutorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                "computationId",
-                new FakeGetDataClient(),
-                ignored -> {},
-                mock(HeartbeatSender.class)),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
         (work, handle) -> {
@@ -116,7 +133,8 @@ public class BoundedQueueExecutorTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            useFairMonitor);
+            useFairMonitor,
+            /*useKeyGroupWorkQueue=*/ false);
   }
 
   @Test
@@ -412,5 +430,127 @@ public class BoundedQueueExecutorTest {
             + "Work Queue Size: 0/102<br>/n"
             + "Work Queue Bytes: 0/10000000<br>/n";
     assertEquals(expectedSummaryHtml, executor.summaryHtml());
+  }
+
+  @Test
+  public void testPollWork() throws Exception {
+    // Create separate BoundedQueueExecutor with 1 thread so we can block it easily
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            1,
+            60,
+            TimeUnit.SECONDS,
+            100,
+            10000000,
+            new ThreadFactoryBuilder().setNameFormat("testStealing-%d").setDaemon(true).build(),
+            useFairMonitor,
+            /*useKeyGroupWorkQueue=*/ true);
+
+    // 1. Create blocker task to occupy the worker thread
+    CountDownLatch blockerStart = new CountDownLatch(1);
+    CountDownLatch blockerStop = new CountDownLatch(1);
+    ExecutableWork blockerWork =
+        createWorkWithCompIdAndKeyGroup(
+            "blockerComp",
+            DEFAULT_KEY_GROUP,
+            ignored -> {
+              blockerStart.countDown();
+              try {
+                blockerStop.await();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    testExecutor.execute(blockerWork, 0);
+    blockerStart.await();
+
+    // 2. Create two distinct key groups
+    Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
+    Work.KeyGroup keyGroup2 = Work.KeyGroup.create(1, 2);
+
+    // Create executable tasks
+    CountDownLatch targetStart = new CountDownLatch(1);
+    ExecutableWork work1 = createWorkWithCompIdAndKeyGroup("compA", keyGroup1, ignored -> {});
+    ExecutableWork work2 =
+        createWorkWithCompIdAndKeyGroup(
+            "compA",
+            keyGroup2,
+            ignored -> {
+              targetStart.countDown();
+            });
+
+    // Enqueue tasks (they will wait in the queue because the thread is blocked)
+    testExecutor.execute(work1, 100);
+    testExecutor.execute(work2, 150);
+
+    // Total outstanding elements must be 3 (blocker + work1 + work2)
+    assertEquals(3, testExecutor.elementsOutstanding());
+
+    // Steal work2 using pollWork with compA and keyGroup2
+    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle);
+      assertNotNull(stolen);
+      assertEquals(work2, stolen);
+
+      // Run the stolen task
+      stolen.run(stealHandle);
+      targetStart.await();
+    }
+
+    // Steal work1 using pollWork with compA and keyGroup1
+    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup1, stealHandle);
+      assertNotNull(stolen);
+      assertEquals(work1, stolen);
+    }
+
+    // Unblock the blocker and shut down
+    blockerStop.countDown();
+    testExecutor.shutdown();
+  }
+
+  @Test
+  public void testPollWorkWithLinkedBlockingQueue() throws Exception {
+    BoundedQueueExecutor testExecutor =
+        new BoundedQueueExecutor(
+            1,
+            60,
+            TimeUnit.SECONDS,
+            100,
+            10000000,
+            new ThreadFactoryBuilder().setNameFormat("testLinkedQueue-%d").setDaemon(true).build(),
+            useFairMonitor,
+            /* useKeyGroupWorkQueue= */ false);
+
+    CountDownLatch blockerStart = new CountDownLatch(1);
+    CountDownLatch blockerStop = new CountDownLatch(1);
+    ExecutableWork blockerWork =
+        createWorkWithCompIdAndKeyGroup(
+            "blockerComp",
+            DEFAULT_KEY_GROUP,
+            ignored -> {
+              blockerStart.countDown();
+              try {
+                blockerStop.await();
+              } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    testExecutor.execute(blockerWork, 0);
+    blockerStart.await();
+
+    Work.KeyGroup keyGroup = Work.KeyGroup.create(1, 1);
+    ExecutableWork work = createWorkWithCompIdAndKeyGroup("compA", keyGroup, ignored -> {});
+    testExecutor.execute(work, 100);
+
+    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
+      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
+      assertNull(stolen);
+    }
+
+    blockerStop.countDown();
+    testExecutor.shutdown();
   }
 }

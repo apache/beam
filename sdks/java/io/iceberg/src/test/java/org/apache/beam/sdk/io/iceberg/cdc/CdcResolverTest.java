@@ -37,8 +37,8 @@ public class CdcResolverTest {
   @Test
   public void duplicateDeleteInsertIsDropped() {
     List<String> emitted =
-      resolve(
-        Collections.singletonList(item("same", 7)), Collections.singletonList(item("same", 7)));
+        resolve(
+            Collections.singletonList(item("same", 7)), Collections.singletonList(item("same", 7)));
 
     assertThat(emitted, empty());
   }
@@ -46,9 +46,9 @@ public class CdcResolverTest {
   @Test
   public void changedDeleteInsertBecomesUpdatePair() {
     List<String> emitted =
-      resolve(
-        Collections.singletonList(item("before", 1)),
-        Collections.singletonList(item("after", 2)));
+        resolve(
+            Collections.singletonList(item("before", 1)),
+            Collections.singletonList(item("after", 2)));
 
     assertThat(emitted, contains("UPDATE_BEFORE:before", "UPDATE_AFTER:after"));
   }
@@ -56,9 +56,9 @@ public class CdcResolverTest {
   @Test
   public void duplicateUpdateAndSingletonsResolveByMultiplicity() {
     List<String> emitted =
-      resolve(
-        Arrays.asList(item("copy", 1), item("old", 2), item("deleted-only", 3)),
-        Arrays.asList(item("copy", 1), item("new", 4)));
+        resolve(
+            Arrays.asList(item("copy", 1), item("old", 2), item("deleted-only", 3)),
+            Arrays.asList(item("copy", 1), item("new", 4)));
 
     assertThat(emitted, contains("UPDATE_BEFORE:old", "UPDATE_AFTER:new", "DELETE:deleted-only"));
   }
@@ -66,9 +66,9 @@ public class CdcResolverTest {
   @Test
   public void hashCollisionOnlyConsumesEqualInsertOnce() {
     List<String> emitted =
-      resolve(
-        Arrays.asList(item("copy", 9), item("deleted-only", 9)),
-        Collections.singletonList(item("copy", 9)));
+        resolve(
+            Arrays.asList(item("copy", 9), item("deleted-only", 9)),
+            Collections.singletonList(item("copy", 9)));
 
     assertThat(emitted, contains("DELETE:deleted-only"));
   }
@@ -76,9 +76,9 @@ public class CdcResolverTest {
   @Test
   public void hashMatchAloneDoesNotDeduplicate() {
     List<String> emitted =
-      resolve(
-        Collections.singletonList(item("before", 42)),
-        Collections.singletonList(item("after", 42)));
+        resolve(
+            Collections.singletonList(item("before", 42)),
+            Collections.singletonList(item("after", 42)));
 
     assertThat(emitted, contains("UPDATE_BEFORE:before", "UPDATE_AFTER:after"));
   }
@@ -90,7 +90,7 @@ public class CdcResolverTest {
   private static List<String> resolve(List<Item> deletes, List<Item> inserts) {
     List<String> emitted = new ArrayList<>();
     RESOLVER.resolve(
-      deletes, inserts, (kind, item) -> emitted.add(kind.name() + ":" + item.nonPkValue));
+        deletes, inserts, (kind, item) -> emitted.add(kind.name() + ":" + item.nonPkValue));
     return emitted;
   }
 

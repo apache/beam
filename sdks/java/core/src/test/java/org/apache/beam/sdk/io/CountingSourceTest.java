@@ -21,6 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -314,5 +315,40 @@ public class CountingSourceTest {
     // Confirm that we get the next element in sequence.
     assertEquals(numToSkip + 1, (long) reader.getCurrent());
     assertEquals(numToSkip + 1, reader.getCurrentTimestamp().getMillis());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedSourceWithFromAndTo() {
+    long start = 5;
+    long end = 10;
+    PCollection<Long> input = p.apply(Read.from(CountingSource.createUnboundedFrom(start).to(end)));
+
+    PAssert.that(input).containsInAnyOrder(5L, 6L, 7L, 8L, 9L);
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnboundedSourceWithFromAndToAndRate() {
+    long start = 5;
+    long end = 15;
+    long elementsPerPeriod = 2;
+    Duration period = Duration.millis(10);
+    PCollection<Long> input =
+        p.apply(
+            Read.from(
+                CountingSource.createUnboundedFrom(start)
+                    .to(end)
+                    .withRate(elementsPerPeriod, period)));
+
+    PAssert.that(input).containsInAnyOrder(5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L);
+
+    Instant startTime = Instant.now();
+    p.run();
+    Instant endTime = Instant.now();
+
+    long expectedMinimumMillis = ((end - start) * period.getMillis()) / elementsPerPeriod;
+    assertFalse(endTime.isBefore(startTime.plus(Duration.millis(expectedMinimumMillis))));
   }
 }
