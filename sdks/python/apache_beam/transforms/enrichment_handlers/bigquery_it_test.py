@@ -69,11 +69,14 @@ class BigQueryEnrichmentIT(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    
+
     try:
       _LOGGER.debug(
           "Deleting dataset %s in project %s", cls.dataset_id, cls.project)
-      cls.bigquery_client.client.delete_dataset(gcp_bigquery.DatasetReference(cls.project, cls.dataset_id), delete_contents=True, not_found_ok=True)
+      cls.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+          delete_contents=True,
+          not_found_ok=True)
     except HttpError:
       _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
@@ -116,9 +119,12 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
               ('distribution_center_id', 'INTEGER')]
     table_schema = []
     for name, field_type in fields:
-      table_schema.append(gcp_bigquery.SchemaField(name=name, field_type=field_type))
+      table_schema.append(
+          gcp_bigquery.SchemaField(name=name, field_type=field_type))
     table = gcp_bigquery.Table(
-        gcp_bigquery.TableReference(gcp_bigquery.DatasetReference(cls.project, cls.dataset_id), table_name),
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
     cls.bigquery_client.client.create_table(table)
     cls.bigquery_client.insert_rows(

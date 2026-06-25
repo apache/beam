@@ -625,13 +625,13 @@ class _ExecuteQueryFn(beam.DoFn):
         _utc(qr.chunk_end))
 
     temp_table_ref = gcp_bigquery.TableReference(
-        gcp_bigquery.DatasetReference(self._project, self._temp_dataset), temp_table_id)
+        gcp_bigquery.DatasetReference(self._project, self._temp_dataset),
+        temp_table_id)
 
     job_config = gcp_bigquery.QueryJobConfig(
         use_legacy_sql=False,
         destination=temp_table_ref,
-        write_disposition='WRITE_TRUNCATE'
-    )
+        write_disposition='WRITE_TRUNCATE')
 
     _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
     query_job = self._bq_wrapper.client.query(
@@ -641,7 +641,7 @@ class _ExecuteQueryFn(beam.DoFn):
         project=self._project,
         location=self._location)
     _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
-    query_job.result() # Wait for completion
+    query_job.result()  # Wait for completion
     _LOGGER.info(
         '[Query] BQ job %s DONE. Results in %s.%s',
         job_id,
@@ -920,7 +920,8 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       yield beam.pvalue.TaggedOutput(
           _CLEANUP_TAG, (table_key, (streams_read, total_streams)))
 
-  def _create_read_session(self, table_ref: 'gcp_bigquery.TableReference') -> Any:
+  def _create_read_session(
+      self, table_ref: 'gcp_bigquery.TableReference') -> Any:
     """Create a BigQuery Storage ReadSession for the given table."""
     table_path = (
         f'projects/{table_ref.project}/'

@@ -189,9 +189,12 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
   yield f'{project}.{dataset_id}.tmp_table'
-  
+
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
-  bigquery_client.client.delete_dataset(gcp_bigquery.DatasetReference(project, dataset_id), delete_contents=True, not_found_ok=True)
+  bigquery_client.client.delete_dataset(
+      gcp_bigquery.DatasetReference(project, dataset_id),
+      delete_contents=True,
+      not_found_ok=True)
 
 
 def instance_prefix(instance):

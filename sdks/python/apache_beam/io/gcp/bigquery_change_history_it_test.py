@@ -94,15 +94,14 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     """Create a table in the temp dataset and insert rows via streaming."""
     if schema is None:
       schema = [('id', 'INTEGER'), ('name', 'STRING'), ('value', 'FLOAT')]
-    
+
     table_schema = [
         gcp_bigquery.SchemaField(field_name, field_type)
         for field_name, field_type in schema
     ]
 
     table_ref = gcp_bigquery.TableReference(
-        gcp_bigquery.DatasetReference(cls.project, cls.temp_dataset),
-        table_id)
+        gcp_bigquery.DatasetReference(cls.project, cls.temp_dataset), table_id)
     table = gcp_bigquery.Table(table_ref, schema=table_schema)
     cls.bq_wrapper.client.create_table(table)
 
@@ -127,7 +126,8 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
 
     job_id = f'beam_ch_ddl_{uuid.uuid4().hex[:8]}'
     job_config = gcp_bigquery.QueryJobConfig(use_legacy_sql=False)
-    response = cls.bq_wrapper.client.query(ddl, job_id=job_id, project=cls.project, job_config=job_config)
+    response = cls.bq_wrapper.client.query(
+        ddl, job_id=job_id, project=cls.project, job_config=job_config)
     cls.bq_wrapper.wait_for_bq_job(response, sleep_duration_sec=2)
 
     # Wait for table to be visible
@@ -145,7 +145,8 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     """Run a DML statement (INSERT/UPDATE/DELETE) and wait for completion."""
     job_id = f'beam_ch_dml_{uuid.uuid4().hex[:8]}'
     job_config = gcp_bigquery.QueryJobConfig(use_legacy_sql=False)
-    response = cls.bq_wrapper.client.query(sql, job_id=job_id, project=cls.project, job_config=job_config)
+    response = cls.bq_wrapper.client.query(
+        sql, job_id=job_id, project=cls.project, job_config=job_config)
     cls.bq_wrapper.wait_for_bq_job(response, sleep_duration_sec=2)
 
 
