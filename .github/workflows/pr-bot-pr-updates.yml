@@ -39,6 +39,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: 'master'
+          persist-credentials: false
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
