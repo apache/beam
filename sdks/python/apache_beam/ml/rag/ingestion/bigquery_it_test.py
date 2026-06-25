@@ -63,12 +63,15 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
   def tearDown(self):
-    
+
     try:
       _LOGGER = logging.getLogger(__name__)
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.delete_dataset(gcp_bigquery.DatasetReference(self.project, self.dataset_id), delete_contents=True, not_found_ok=True)
+      self.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(self.project, self.dataset_id),
+          delete_contents=True,
+          not_found_ok=True)
     # Failing to delete a dataset should not cause a test failure.
     except Exception:
       _LOGGER = logging.getLogger(__name__)

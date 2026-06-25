@@ -34,16 +34,20 @@ from apache_beam.options import value_provider
 
 # Replaced apitools import with google.cloud.bigquery above
 
+
 class DummyTableSchema:
   def __init__(self, fields=None):
     self.fields = fields
+
 
 class TestBigQueryToSchema(unittest.TestCase):
   def test_check_schema_conversions(self):
     fields = [
         bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
 
@@ -60,8 +64,10 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_check_conversion_with_selected_fields(self):
     fields = [
         bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
 
@@ -83,7 +89,8 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_check_schema_conversions_with_timestamp(self):
     fields = [
         bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
         bigquery.SchemaField(
             name='times', field_type='TIMESTAMP', mode="NULLABLE")
     ]
@@ -103,8 +110,10 @@ class TestBigQueryToSchema(unittest.TestCase):
     fields = [
         bigquery.SchemaField(
             name='number', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
@@ -114,9 +123,12 @@ class TestBigQueryToSchema(unittest.TestCase):
 
   def test_unsupported_mode(self):
     fields = [
-        bigquery.SchemaField(name='number', field_type='INTEGER', mode="NESTED"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='number', field_type='INTEGER', mode="NESTED"),
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
     with self.assertRaisesRegex(ValueError,
@@ -128,8 +140,10 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_bad_schema_public_api_export(self, get_table):
     fields = [
         bigquery.SchemaField(name='stn', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
     table = mock.Mock(schema=fields)
@@ -148,8 +162,10 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_bad_schema_public_api_direct_read(self, get_table):
     fields = [
         bigquery.SchemaField(name='stn', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(name='count', field_type='INTEGER', mode="NULLABLE")
+        bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
     table = mock.Mock(schema=fields)

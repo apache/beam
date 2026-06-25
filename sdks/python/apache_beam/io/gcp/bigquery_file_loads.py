@@ -400,8 +400,11 @@ class UpdateDestinationSchema(beam.DoFn):
     if table_reference.project is None:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
-      new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
-      table_reference = TableReference(DatasetReference(new_project, table_reference.dataset_id), table_reference.table_id)
+      new_project = vp.RuntimeValueProvider.get_value(
+          'project', str, '') or self.project
+      table_reference = TableReference(
+          DatasetReference(new_project, table_reference.dataset_id),
+          table_reference.table_id)
 
     try:
       # Check if destination table exists
@@ -542,17 +545,23 @@ class TriggerCopyJobs(beam.DoFn):
     if copy_to_reference.project is None:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
-      new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
-      copy_to_reference = TableReference(DatasetReference(new_project, copy_to_reference.dataset_id), copy_to_reference.table_id)
+      new_project = vp.RuntimeValueProvider.get_value(
+          'project', str, '') or self.project
+      copy_to_reference = TableReference(
+          DatasetReference(new_project, copy_to_reference.dataset_id),
+          copy_to_reference.table_id)
 
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
     new_table_id = job_reference.jobId
     new_project = copy_from_reference.project
     if new_project is None:
-      new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
+      new_project = vp.RuntimeValueProvider.get_value(
+          'project', str, '') or self.project
     from google.cloud.bigquery import DatasetReference
     from google.cloud.bigquery import TableReference
-    copy_from_reference = TableReference(DatasetReference(new_project, copy_from_reference.dataset_id), new_table_id)
+    copy_from_reference = TableReference(
+        DatasetReference(new_project, copy_from_reference.dataset_id),
+        new_table_id)
 
     _LOGGER.info(
         "Triggering copy job from %s to %s",
@@ -728,8 +737,11 @@ class TriggerLoadJobs(beam.DoFn):
     if table_reference.project is None:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
-      new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
-      table_reference = TableReference(DatasetReference(new_project, table_reference.dataset_id), table_reference.table_id)
+      new_project = vp.RuntimeValueProvider.get_value(
+          'project', str, '') or self.project
+      table_reference = TableReference(
+          DatasetReference(new_project, table_reference.dataset_id),
+          table_reference.table_id)
     # Load jobs for a single destination are always triggered from the same
     # worker. This means that we can generate a deterministic numbered job id,
     # and not need to worry.
@@ -773,7 +785,9 @@ class TriggerLoadJobs(beam.DoFn):
       # For temporary tables, we create a new table with the name with JobId.
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
-      table_reference = TableReference(DatasetReference(table_reference.project, table_reference.dataset_id), job_name)
+      table_reference = TableReference(
+          DatasetReference(table_reference.project, table_reference.dataset_id),
+          job_name)
       yield pvalue.TaggedOutput(
           TriggerLoadJobs.TEMP_TABLES,
           bigquery_tools.get_hashable_destination(table_reference))
@@ -796,7 +810,6 @@ class TriggerLoadJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
-
     job_reference = self.bq_wrapper.perform_load_job(
         destination=table_reference,
         source_uris=files,
@@ -808,7 +821,7 @@ class TriggerLoadJobs(beam.DoFn):
         source_format=self.source_format,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
         load_job_project_id=self.load_job_project_id)
-        
+
     print("YIELDING JOB REFERENCE:", type(job_reference), job_reference)
 
     yield pvalue.TaggedOutput(

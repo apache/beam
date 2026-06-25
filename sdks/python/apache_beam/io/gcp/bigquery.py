@@ -443,7 +443,6 @@ except ImportError:
       'used with `method=DIRECT_READ`.')
 
 __all__ = [
-    
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
@@ -1015,7 +1014,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def _get_table_size(self, bq, table_reference):
     project = (
-        self._get_parent_project() if table_reference.project == bigquery_tools.FALLBACK_PROJECT else table_reference.project)
+        self._get_parent_project() if table_reference.project
+        == bigquery_tools.FALLBACK_PROJECT else table_reference.project)
     table = bq.get_table(
         project, table_reference.dataset_id, table_reference.table_id)
     return table.num_bytes
@@ -2762,8 +2762,7 @@ class StorageWriteToBigQuery(PTransform):
       self._value = schema
 
     def __enter__(self):
-      if not isinstance(self._value,
-                        (gcp_bigquery.SchemaField,)):
+      if not isinstance(self._value, (gcp_bigquery.SchemaField, )):
         return bigquery_tools.get_bq_tableschema(self._value)
 
       return self._value
