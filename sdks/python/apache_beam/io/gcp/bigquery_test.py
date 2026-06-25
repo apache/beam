@@ -86,9 +86,7 @@ try:
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
 except ImportError:
-  gcp_bigquery = None
-  bq_storage = None
-  exceptions = None
+  raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)

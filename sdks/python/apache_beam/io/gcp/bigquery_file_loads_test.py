@@ -81,7 +81,6 @@ from parameterized import param
 from parameterized import parameterized
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp import bigquery_file_loads as bqfl
@@ -105,6 +104,7 @@ from apache_beam.utils import timestamp
 
 try:
   from google.api_core import exceptions
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 

@@ -22,10 +22,10 @@ from fastavro.schema import parse_schema
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import bigquery_tools
 
-from google.cloud import bigquery as gcp_bigquery
-
-
-@unittest.skipIf(False, 'GCP dependencies are not installed')
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 class TestBigQueryToAvroSchema(unittest.TestCase):
   def test_convert_bigquery_schema_to_avro_schema(self):
     subfields = [

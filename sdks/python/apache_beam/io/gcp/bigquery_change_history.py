@@ -55,7 +55,10 @@ from typing import Iterable
 from typing import Optional
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  gcp_bigquery = None
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.restriction_trackers import OffsetRange

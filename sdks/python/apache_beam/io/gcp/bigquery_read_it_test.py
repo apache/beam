@@ -33,7 +33,10 @@ from functools import wraps
 import pytest
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools

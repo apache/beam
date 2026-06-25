@@ -28,13 +28,10 @@ from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 try:
   from google.cloud import bigquery
 except ImportError:
-  bigquery = None
+  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.options import value_provider
 
 # Replaced apitools import with google.cloud.bigquery above
-
-
-@unittest.skipIf(bigquery is None, 'GCP dependencies are not installed')
 
 class DummyTableSchema:
   def __init__(self, fields=None):

@@ -41,8 +41,12 @@ from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=wrong-import-order, wrong-import-position
-from google.api_core import exceptions
-from google.cloud import bigquery
+try:
+  from google.api_core import exceptions
+  from google.cloud import bigquery
+except ImportError:
+  import unittest
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 
