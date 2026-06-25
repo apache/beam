@@ -73,7 +73,6 @@ from apache_beam import pvalue
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.metrics.metric import MetricsFlag
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -193,7 +192,6 @@ class Pipeline(HasDisplayData):
       self._options = PipelineOptions([])
 
     FileSystems.set_options(self._options)
-    MetricsFlag.set_default_pipeline_options(self._options)
 
     if runner is None:
       runner = self._options.view_as(StandardOptions).runner

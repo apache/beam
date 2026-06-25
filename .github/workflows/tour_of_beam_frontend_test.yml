@@ -47,10 +47,10 @@ jobs:
       FLUTTER_VERSION: '3.10.4'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: 'Cache Flutter Dependencies'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /opt/hostedtoolcache/flutter
           key: ${{ runner.OS }}-flutter-install-cache-${{ env.FLUTTER_VERSION }}

@@ -80,7 +80,8 @@ public class ActiveWorkRefresherTest {
         1,
         10000000,
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        /*useFairMonitor=*/ false);
+        /*useFairMonitor=*/ false,
+        /*useKeyGroupWorkQueue=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {

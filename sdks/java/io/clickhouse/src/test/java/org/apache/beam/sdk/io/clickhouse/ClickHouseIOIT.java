@@ -32,6 +32,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -48,6 +50,18 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link ClickHouseIO}. */
 @RunWith(JUnit4.class)
 public class ClickHouseIOIT extends BaseClickHouseTest {
+
+  private static final long MICROS_PER_SECOND = 1_000_000L;
+  private static final long NANOS_PER_SECOND = 1_000_000_000L;
+
+  // Shared DateTime64 test instant 2026-05-15T12:34:56Z; its .789012345 sub-second component
+  // exercises every precision bucket.
+  private static final long TEST_EPOCH_SECONDS = 1_778_848_496L;
+  // Nano-of-second; the trailing 345 is not micro-aligned.
+  private static final long TEST_NANOS_OF_SECOND = 789_012_345L;
+  // The same sub-second component truncated to whole microseconds.
+  private static final long TEST_MICROS_OF_SECOND = 789_012L;
+  private static final long TEST_MICRO_ALIGNED_NANOS_OF_SECOND = TEST_MICROS_OF_SECOND * 1_000L;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -478,6 +492,111 @@ public class ClickHouseIOIT extends BaseClickHouseTest {
 
     assertEquals(6L, sum0);
     assertEquals(12L, sum1);
+  }
+
+  @Test
+  public void testDateTime64Millis() throws Exception {
+    Schema schema = Schema.of(Schema.Field.of("ts", FieldType.DATETIME));
+    DateTime ts = new DateTime(2026, 5, 15, 12, 34, 56, 789, DateTimeZone.UTC);
+    Row row = Row.withSchema(schema).addValue(ts).build();
+
+    executeSql("CREATE TABLE test_datetime64_ms (ts DateTime64(3, 'UTC')) ENGINE=Log");
+
+    pipeline.apply(Create.of(row).withRowSchema(schema)).apply(write("test_datetime64_ms"));
+    pipeline.run().waitUntilFinish();
+
+    // toUnixTimestamp64Milli returns the underlying tick count, which is the most stable thing to
+    // assert across CH versions (string formatting may include trailing zeros depending on
+    // version).
+    long ticks = executeQueryAsLong("SELECT toUnixTimestamp64Milli(ts) FROM test_datetime64_ms");
+    assertEquals(ts.getMillis(), ticks);
+  }
+
+  @Test
+  public void testDateTime64Micros() throws Exception {
+    Schema schema = Schema.of(Schema.Field.of("ts", FieldType.logicalType(SqlTypes.TIMESTAMP)));
+    // Micro-aligned nanos, so MicrosInstant accepts the value.
+    java.time.Instant ts =
+        java.time.Instant.ofEpochSecond(TEST_EPOCH_SECONDS, TEST_MICRO_ALIGNED_NANOS_OF_SECOND);
+    Row row = Row.withSchema(schema).addValue(ts).build();
+
+    executeSql("CREATE TABLE test_datetime64_us (ts DateTime64(6)) ENGINE=Log");
+
+    pipeline.apply(Create.of(row).withRowSchema(schema)).apply(write("test_datetime64_us"));
+    pipeline.run().waitUntilFinish();
+
+    long ticks = executeQueryAsLong("SELECT toUnixTimestamp64Micro(ts) FROM test_datetime64_us");
+    assertEquals(TEST_EPOCH_SECONDS * MICROS_PER_SECOND + TEST_MICROS_OF_SECOND, ticks);
+  }
+
+  @Test
+  public void testDateTime64Nanos() throws Exception {
+    // DateTime64(9) must preserve full nanosecond precision. Use NanosInstant directly
+    // because SqlTypes.TIMESTAMP (MicrosInstant) rejects non-micro-aligned nanos like the
+    // trailing 345.
+    Schema schema = Schema.of(Schema.Field.of("ts", FieldType.logicalType(new NanosInstant())));
+    java.time.Instant ts =
+        java.time.Instant.ofEpochSecond(TEST_EPOCH_SECONDS, TEST_NANOS_OF_SECOND);
+    Row row = Row.withSchema(schema).addValue(ts).build();
+
+    executeSql("CREATE TABLE test_datetime64_ns (ts DateTime64(9)) ENGINE=Log");
+
+    pipeline.apply(Create.of(row).withRowSchema(schema)).apply(write("test_datetime64_ns"));
+    pipeline.run().waitUntilFinish();
+
+    long ticks = executeQueryAsLong("SELECT toUnixTimestamp64Nano(ts) FROM test_datetime64_ns");
+    assertEquals(TEST_EPOCH_SECONDS * NANOS_PER_SECOND + TEST_NANOS_OF_SECOND, ticks);
+  }
+
+  @Test
+  public void testNullableDateTime64() throws Exception {
+    Schema schema =
+        Schema.of(Schema.Field.nullable("ts", FieldType.logicalType(SqlTypes.TIMESTAMP)));
+    java.time.Instant ts =
+        java.time.Instant.ofEpochSecond(TEST_EPOCH_SECONDS, TEST_MICRO_ALIGNED_NANOS_OF_SECOND);
+    Row row1 = Row.withSchema(schema).addValue(ts).build();
+    Row row2 = Row.withSchema(schema).addValue(null).build();
+
+    executeSql("CREATE TABLE test_nullable_datetime64 (ts Nullable(DateTime64(6))) ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1, row2).withRowSchema(schema))
+        .apply(write("test_nullable_datetime64"));
+    pipeline.run().waitUntilFinish();
+
+    long total = executeQueryAsLong("SELECT COUNT(*) FROM test_nullable_datetime64");
+    long nonNull = executeQueryAsLong("SELECT COUNT(ts) FROM test_nullable_datetime64");
+    assertEquals(2L, total);
+    assertEquals(1L, nonNull);
+  }
+
+  @Test
+  public void testNullableDateTime64Nanos() throws Exception {
+    // Nullable columns take the writeNullableValue path; verify it preserves full nanosecond
+    // precision alongside an actual null.
+    Schema schema =
+        Schema.of(Schema.Field.nullable("ts", FieldType.logicalType(new NanosInstant())));
+    java.time.Instant ts =
+        java.time.Instant.ofEpochSecond(TEST_EPOCH_SECONDS, TEST_NANOS_OF_SECOND);
+    Row row1 = Row.withSchema(schema).addValue(ts).build();
+    Row row2 = Row.withSchema(schema).addValue(null).build();
+
+    executeSql("CREATE TABLE test_nullable_datetime64_ns (ts Nullable(DateTime64(9))) ENGINE=Log");
+
+    pipeline
+        .apply(Create.of(row1, row2).withRowSchema(schema))
+        .apply(write("test_nullable_datetime64_ns"));
+    pipeline.run().waitUntilFinish();
+
+    long total = executeQueryAsLong("SELECT COUNT(*) FROM test_nullable_datetime64_ns");
+    long nonNull = executeQueryAsLong("SELECT COUNT(ts) FROM test_nullable_datetime64_ns");
+    long ticks =
+        executeQueryAsLong(
+            "SELECT toUnixTimestamp64Nano(ts) FROM test_nullable_datetime64_ns"
+                + " WHERE ts IS NOT NULL");
+    assertEquals(2L, total);
+    assertEquals(1L, nonNull);
+    assertEquals(TEST_EPOCH_SECONDS * NANOS_PER_SECOND + TEST_NANOS_OF_SECOND, ticks);
   }
 
   @Test

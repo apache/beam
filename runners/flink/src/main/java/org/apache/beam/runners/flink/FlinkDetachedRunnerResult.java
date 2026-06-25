@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
@@ -25,6 +26,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   private JobClient jobClient;
   private int jobCheckIntervalInSecs;
+  private volatile @Nullable CompletableFuture<String> drainSavepointFuture;
 
   FlinkDetachedRunnerResult(JobClient jobClient, int jobCheckIntervalInSecs) {
     this.jobClient = jobClient;
@@ -47,10 +51,25 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
 
   @Override
   public State getState() {
+    CompletableFuture<String> drainFuture = drainSavepointFuture;
+    if (drainFuture != null) {
+      try {
+        return getDrainState(drainFuture);
+      } catch (IOException e) {
+        LOG.warn("Failed to drain Flink job. Querying Flink job state instead.", e);
+      }
+    }
+    return getFlinkJobState();
+  }
+
+  private State getFlinkJobState() {
     try {
       return toBeamJobState(jobClient.getJobStatus().get());
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException("Fail to get flink job state", e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Failed to get Flink job state", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("Failed to get Flink job state", e);
     }
   }
 
@@ -66,7 +85,11 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
               .getAccumulators()
               .get()
               .getOrDefault(FlinkMetricContainer.ACCUMULATOR_NAME, new MetricsContainerStepMap());
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      LOG.warn("Fail to get flink job accumulators", e);
+      return new MetricsContainerStepMap();
+    } catch (ExecutionException e) {
       LOG.warn("Fail to get flink job accumulators", e);
       return new MetricsContainerStepMap();
     }
@@ -76,10 +99,38 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
   public State cancel() throws IOException {
     try {
       this.jobClient.cancel().get();
-    } catch (InterruptedException | ExecutionException e) {
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Fail to cancel flink job", e);
+    } catch (ExecutionException e) {
       throw new RuntimeException("Fail to cancel flink job", e);
     }
     return getState();
+  }
+
+  @Override
+  public synchronized State drain() throws IOException {
+    CompletableFuture<String> drainFuture = drainSavepointFuture;
+    if (drainFuture == null || drainFuture.isCompletedExceptionally()) {
+      drainFuture = this.jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT);
+      drainSavepointFuture = drainFuture;
+    }
+    return getDrainState(drainFuture);
+  }
+
+  private State getDrainState(CompletableFuture<String> drainFuture) throws IOException {
+    if (!drainFuture.isDone()) {
+      return State.RUNNING;
+    }
+    try {
+      drainFuture.get();
+      return State.DONE;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Failed to drain Flink job", e);
+    } catch (ExecutionException e) {
+      throw new IOException("Failed to drain Flink job", e.getCause());
+    }
   }
 
   @Override
@@ -100,6 +151,7 @@ public class FlinkDetachedRunnerResult implements PipelineResult {
       try {
         Thread.sleep(jobCheckIntervalInSecs * 1000L);
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
     }

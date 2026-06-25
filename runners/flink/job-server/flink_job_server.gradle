@@ -193,7 +193,7 @@ def portableValidatesRunnerTask(String name, String mode, boolean checkpointing,
           excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
           return
         }
-        if (mode == "batch") {
+        if (mode == "batch" || mode == "batch-dataset") {
             excludeCategories 'org.apache.beam.sdk.testing.UsesTriggeredSideInputs'
         }
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
@@ -248,10 +248,26 @@ def setupTask = project.tasks.register("flinkJobServerSetup", Exec) {
   def flinkJobServerJar = shadowJar.archivePath
   def flinkDir = project.project(":runners:flink").projectDir
   def additionalArgs = ""
-  if (project.hasProperty('flinkConfDir'))
+
+  if (project.hasProperty('flinkConfDir')) {
     additionalArgs += " --flink-conf-dir=${project.property('flinkConfDir')}"
-  else
+  }
+  else if (isFlink2) {
+    def flinkConfDir = "$flinkDir/2.0/src/test/resources"
+    additionalArgs += "--flink-conf-dir=${project.buildDir}/flink-conf"
+
+    doFirst {
+      copy {
+        from "$flinkDir/2.0/src/test/resources/flink-test-config.yaml"
+        into "${project.buildDir}/flink-conf"
+
+        // Rename the file during the copy process
+        rename 'flink-test-config.yaml', 'config.yaml'
+      }
+    }
+  } else {
     additionalArgs += "--flink-conf-dir=$flinkDir/src/test/resources"
+  }
 
   executable 'sh'
   args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar} --additional_args \"${additionalArgs}\""

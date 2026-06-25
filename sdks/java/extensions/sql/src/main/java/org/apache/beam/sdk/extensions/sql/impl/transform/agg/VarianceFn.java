@@ -75,8 +75,12 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   private static final boolean SAMPLE = true;
   private static final boolean POP = false;
 
-  private boolean isSample; // flag to determine return value should be Variance Pop or Sample
-  private SerializableFunction<BigDecimal, T> decimalConverter;
+  private final boolean isSample; // flag to determine return value should be Variance Pop or Sample
+  // When true, extractOutput returns the square root of the variance (i.e. standard deviation).
+  // Beam's enumerable bridge cannot translate a SQRT call layered on top of a window VAR_SAMP, so
+  // STDDEV_SAMP / STDDEV_POP are computed end-to-end inside this combiner instead.
+  private final boolean isStddev;
+  private final SerializableFunction<BigDecimal, T> decimalConverter;
 
   public static VarianceFn newPopulation(Schema.TypeName typeName) {
     return newPopulation(BigDecimalConverter.forSqlType(typeName));
@@ -85,7 +89,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   public static <V extends Number> VarianceFn newPopulation(
       SerializableFunction<BigDecimal, V> decimalConverter) {
 
-    return new VarianceFn<>(POP, decimalConverter);
+    return new VarianceFn<>(POP, false, decimalConverter);
   }
 
   public static VarianceFn newSample(Schema.TypeName typeName) {
@@ -95,11 +99,21 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   public static <V extends Number> VarianceFn newSample(
       SerializableFunction<BigDecimal, V> decimalConverter) {
 
-    return new VarianceFn<>(SAMPLE, decimalConverter);
+    return new VarianceFn<>(SAMPLE, false, decimalConverter);
   }
 
-  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
+  public static VarianceFn newSampleStddev(Schema.TypeName typeName) {
+    return new VarianceFn<>(SAMPLE, true, BigDecimalConverter.forSqlType(typeName));
+  }
+
+  public static VarianceFn newPopulationStddev(Schema.TypeName typeName) {
+    return new VarianceFn<>(POP, true, BigDecimalConverter.forSqlType(typeName));
+  }
+
+  private VarianceFn(
+      boolean isSample, boolean isStddev, SerializableFunction<BigDecimal, T> decimalConverter) {
     this.isSample = isSample;
+    this.isStddev = isStddev;
     this.decimalConverter = decimalConverter;
   }
 
@@ -133,7 +147,19 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
 
   @Override
   public T extractOutput(VarianceAccumulator accumulator) {
-    return decimalConverter.apply(getVariance(accumulator));
+    BigDecimal result = getVariance(accumulator);
+    if (result != null && isStddev) {
+      double doubleVal = result.doubleValue();
+      if (doubleVal < 0.0) {
+        doubleVal = 0.0; // Clamp negative variance due to numerical instability
+      }
+      double sqrtVal = Math.sqrt(doubleVal);
+      if (Double.isInfinite(sqrtVal)) {
+        return decimalConverter.apply(result.sqrt(MATH_CTX));
+      }
+      result = BigDecimal.valueOf(sqrtVal);
+    }
+    return decimalConverter.apply(result);
   }
 
   private BigDecimal getVariance(VarianceAccumulator variance) {

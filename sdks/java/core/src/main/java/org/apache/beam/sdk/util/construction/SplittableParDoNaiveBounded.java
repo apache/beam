@@ -507,6 +507,12 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+          DoFn<InputT, OutputT> doFn) {
+        throw new IllegalStateException();
+      }
+
+      @Override
       public InputT element(DoFn<InputT, OutputT> doFn) {
         return element;
       }

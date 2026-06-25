@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
@@ -87,6 +88,18 @@ public class IcebergMetastoreTest {
     metastore().createTable(table2);
 
     assertEquals(ImmutableSet.of("my_table_1", "my_table_2"), metastore().getTables().keySet());
+  }
+
+  @Test
+  public void testGetTablesLoadsUncachedTablesWithSimpleNames() {
+    String tableName = "uncached_table";
+    catalog.catalogConfig.createTable(
+        catalog.currentDatabase() + "." + tableName, Schema.of(), null, null);
+
+    Map<String, Table> tables = metastore().getTables();
+
+    assertEquals(ImmutableSet.of(tableName), tables.keySet());
+    assertEquals(tableName, tables.get(tableName).getName());
   }
 
   @Test

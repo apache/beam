@@ -924,11 +924,11 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
     from apache_beam.io.gcp.internal.clients.bigquery import TableReference
-    mock_insert_copy_job.assert_has_calls(
-        [
-            call(
-                'project1',
-                mock.ANY,
+    mock_insert_copy_job.assert_has_calls([
+        call(
+            'project1',
+            mock.ANY,
+            [
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
@@ -936,57 +936,168 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 TableReference(
                     datasetId='dataset1',
                     projectId='project1',
-                    tableId='table1'),
-                create_disposition=None,
-                write_disposition='WRITE_TRUNCATE',
-                job_labels={'step_name': 'bigquerybatchfileloads'}),
-            call(
-                'project1',
-                mock.ANY,
-                TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
                     tableId='job_name1'),
-                TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
-                    tableId='table1'),
-                create_disposition=None,
-                write_disposition='WRITE_APPEND',
-                job_labels={'step_name': 'bigquerybatchfileloads'}),
-            call(
-                'project1',
-                mock.ANY,
+            ],
+            TableReference(
+                datasetId='dataset1', projectId='project1', tableId='table1'),
+            create_disposition=None,
+            write_disposition='WRITE_TRUNCATE',
+            job_labels={'step_name': 'bigquerybatchfileloads'}),
+        call(
+            'project1',
+            mock.ANY,
+            [
                 TableReference(
                     datasetId='dataset2',
                     projectId='project1',
                     tableId='job_name1'),
-                TableReference(
-                    datasetId='dataset2',
-                    projectId='project1',
-                    tableId='table1'),
-                create_disposition=None,
-                # Previously this was `WRITE_APPEND`.
-                write_disposition='WRITE_TRUNCATE',
-                job_labels={'step_name': 'bigquerybatchfileloads'}),
-            call(
-                'project1',
-                mock.ANY,
+            ],
+            TableReference(
+                datasetId='dataset2', projectId='project1', tableId='table1'),
+            create_disposition=None,
+            write_disposition='WRITE_TRUNCATE',
+            job_labels={'step_name': 'bigquerybatchfileloads'}),
+        call(
+            'project1',
+            mock.ANY,
+            [
                 TableReference(
                     datasetId='dataset3',
                     projectId='project1',
                     tableId='job_name1'),
-                TableReference(
-                    datasetId='dataset3',
-                    projectId='project1',
-                    tableId='table1'),
-                create_disposition=None,
-                # Previously this was `WRITE_APPEND`.
-                write_disposition='WRITE_TRUNCATE',
-                job_labels={'step_name': 'bigquerybatchfileloads'}),
-        ],
-        any_order=True)
-    self.assertEqual(4, mock_insert_copy_job.call_count)
+            ],
+            TableReference(
+                datasetId='dataset3', projectId='project1', tableId='table1'),
+            create_disposition=None,
+            write_disposition='WRITE_TRUNCATE',
+            job_labels={'step_name': 'bigquerybatchfileloads'}),
+    ],
+                                          any_order=True)
+    self.assertEqual(3, mock_insert_copy_job.call_count)
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper.wait_for_bq_job')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._insert_copy_job')
+  def test_copy_jobs_splitting(
+      self, mock_insert_copy_job, mock_wait_for_bq_job):
+    destination = 'project1:dataset1.table1'
+
+    from apache_beam.io.gcp.bigquery_file_loads import TriggerCopyJobs
+    original_max_sources = TriggerCopyJobs.MAX_SOURCES_PER_COPY_JOB
+    TriggerCopyJobs.MAX_SOURCES_PER_COPY_JOB = 2
+
+    try:
+      job_reference = bigquery_api.JobReference()
+      job_reference.projectId = 'project1'
+      job_reference.jobId = 'job_name1'
+      result_job = mock.Mock()
+      result_job.jobReference = job_reference
+
+      mock_job = mock.Mock()
+      mock_job.status.state = 'DONE'
+      mock_job.status.errorResult = None
+      mock_job.jobReference = job_reference
+
+      bq_client = mock.Mock()
+      bq_client.jobs.Get.return_value = mock_job
+      bq_client.jobs.Insert.return_value = result_job
+      bq_client.tables.Delete.return_value = None
+      mock_insert_copy_job.return_value = job_reference
+      temp_dir = self._new_tempdir()
+
+      with TestPipeline('FnApiRunner') as p:
+        _ = (
+            p
+            | beam.Create([
+                {
+                    'name': 'a'
+                },
+                {
+                    'name': 'b'
+                },
+                {
+                    'name': 'c'
+                },
+                {
+                    'name': 'd'
+                },
+                {
+                    'name': 'e'
+                },
+            ],
+                          reshuffle=False)
+            | bqfl.BigQueryBatchFileLoads(
+                destination,
+                custom_gcs_temp_location=temp_dir,
+                test_client=bq_client,
+                validate=False,
+                temp_file_format=bigquery_tools.FileFormat.JSON,
+                max_file_size=10,
+                max_partition_size=10,
+                max_files_per_partition=1,
+                write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
+
+      self.assertEqual(3, mock_insert_copy_job.call_count)
+
+      from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+      expected_calls = [
+          call(
+              'project1',
+              mock.ANY,
+              [
+                  TableReference(
+                      datasetId='dataset1',
+                      projectId='project1',
+                      tableId='job_name1'),
+                  TableReference(
+                      datasetId='dataset1',
+                      projectId='project1',
+                      tableId='job_name1'),
+              ],
+              TableReference(
+                  datasetId='dataset1', projectId='project1', tableId='table1'),
+              create_disposition=None,
+              write_disposition='WRITE_TRUNCATE',
+              job_labels=mock.ANY),
+          call(
+              'project1',
+              mock.ANY,
+              [
+                  TableReference(
+                      datasetId='dataset1',
+                      projectId='project1',
+                      tableId='job_name1'),
+                  TableReference(
+                      datasetId='dataset1',
+                      projectId='project1',
+                      tableId='job_name1'),
+              ],
+              TableReference(
+                  datasetId='dataset1', projectId='project1', tableId='table1'),
+              create_disposition=None,
+              write_disposition='WRITE_APPEND',
+              job_labels=mock.ANY),
+          call(
+              'project1',
+              mock.ANY,
+              [
+                  TableReference(
+                      datasetId='dataset1',
+                      projectId='project1',
+                      tableId='job_name1'),
+              ],
+              TableReference(
+                  datasetId='dataset1', projectId='project1', tableId='table1'),
+              create_disposition=None,
+              write_disposition='WRITE_APPEND',
+              job_labels=mock.ANY),
+      ]
+      mock_insert_copy_job.assert_has_calls(expected_calls, any_order=True)
+      self.assertEqual(9, mock_wait_for_bq_job.call_count)
+
+    finally:
+      TriggerCopyJobs.MAX_SOURCES_PER_COPY_JOB = original_max_sources
 
   @parameterized.expand([
       param(is_streaming=False, with_auto_sharding=False, compat_version=None),
