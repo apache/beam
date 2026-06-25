@@ -506,22 +506,16 @@ class BigQueryWrapper(object):
     reference = bigquery.JobReference()
     reference.jobId = job_id
     reference.projectId = project_id
-
-    copy_config = bigquery.JobConfigurationTableCopy(
-        destinationTable=to_table_reference,
-        createDisposition=create_disposition,
-        writeDisposition=write_disposition,
-    )
-    if isinstance(from_table_reference, list):
-      copy_config.sourceTables = from_table_reference
-    else:
-      copy_config.sourceTable = from_table_reference
-
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
-                copy=copy_config,
+                copy=bigquery.JobConfigurationTableCopy(
+                    destinationTable=to_table_reference,
+                    sourceTable=from_table_reference,
+                    createDisposition=create_disposition,
+                    writeDisposition=write_disposition,
+                ),
                 labels=_build_job_labels(job_labels),
             ),
             jobReference=reference,
