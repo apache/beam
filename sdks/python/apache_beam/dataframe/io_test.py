@@ -32,10 +32,6 @@ import pandas as pd
 import pandas.testing
 import pyarrow
 import pytest
-try:
-  from google.cloud import bigquery as gcp_bigquery
-except ImportError:
-  gcp_bigquery = None
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
@@ -51,8 +47,10 @@ from apache_beam.testing.util import equal_to
 
 try:
   from google.api_core.exceptions import GoogleAPICallError
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   GoogleAPICallError = None
+  gcp_bigquery = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
