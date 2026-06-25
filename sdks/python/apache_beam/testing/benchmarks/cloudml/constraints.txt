@@ -32,7 +32,7 @@ numpy==1.26.4
 pyarrow==10.0.1
 
 # Google Cloud (pin to avoid transitive resolution)
-google-cloud-aiplatform==1.60.0
+google-cloud-aiplatform==1.133.0
 google-api-core==2.19.1
 
 # Note: google-auth is NOT constrained - let pip resolve it to satisfy
