@@ -25,7 +25,10 @@ import hamcrest as hc
 import pytest
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.ml.rag.ingestion.bigquery import BigQueryVectorWriterConfig

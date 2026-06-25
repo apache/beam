@@ -55,7 +55,6 @@ from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
-from google.cloud import bigquery as gcp_bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 

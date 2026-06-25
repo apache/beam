@@ -30,7 +30,6 @@ from typing import Sequence
 
 import fastavro
 import mock
-from google.api_core import exceptions as google_api_core_exceptions
 import numpy as np
 import pytz
 from parameterized import parameterized
@@ -48,7 +47,6 @@ from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
 from apache_beam.io.gcp.bigquery_tools import get_beam_typehints_from_tableschema
 from apache_beam.io.gcp.bigquery_tools import parse_table_reference
 from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
-from google.cloud import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.value_provider import StaticValueProvider
@@ -63,13 +61,10 @@ try:
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
+  from google.api_core import exceptions as google_api_core_exceptions
+  from google.cloud import bigquery
 except ImportError:
-  ClientError = None
-  DeadlineExceeded = None
-  GoogleAPICallError = None
-  HttpForbiddenError = None
-  InternalServerError = None
-  google = None
+  raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position
 
 

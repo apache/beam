@@ -36,7 +36,8 @@ from apache_beam.utils.timestamp import Timestamp
 try:
   from google.api_core import exceptions
 except ImportError:
-  exceptions = None  # type: ignore
+  import unittest
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _DAY = Duration(seconds=86400)
 
