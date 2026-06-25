@@ -2,4 +2,4 @@ rules:
   unpinned-uses:
     config:
       policies:
-        "*": ref-pin
+        "*": ref-pin # Allow non-hashed pins, but still require versioned
