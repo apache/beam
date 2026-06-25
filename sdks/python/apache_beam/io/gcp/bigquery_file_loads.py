@@ -172,12 +172,12 @@ def _bq_uuid(seed=None):
 
 
 def _bq_uuid_list(list):
-  checksum = hashlib.sha256()
+  cs = hashlib.sha256()
   for item in list:
-    checksum.update(item.encode('utf-8'))
+    cs.update(bigquery_tools.get_hashable_destination(item).encode('utf-8'))
     # separator
-    checksum.update(b'\x00')
-  return checksum.hexdigest()
+    cs.update(b'\x00')
+  return cs.hexdigest()
 
 
 class _ShardDestinations(beam.DoFn):
