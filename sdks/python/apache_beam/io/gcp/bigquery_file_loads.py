@@ -170,6 +170,13 @@ def _bq_uuid(seed=None):
   else:
     return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
+def _bq_uuid_list(list):
+  checksum = hashlib.sha256()
+  for item in list:
+    checksum.update(item.encode('utf-8'))
+    # separator
+    checksum.update(b'\x00')
+  return checksum.hexdigest()
 
 class _ShardDestinations(beam.DoFn):
   """Adds a shard number to the key of the KV element.
@@ -589,9 +596,7 @@ class TriggerCopyJobs(beam.DoFn):
         write_disposition = 'WRITE_APPEND'
         wait_for_job = False
 
-      chunk_job_name = copy_job_name_base
-      if len(chunks) > 1:
-        chunk_job_name = f"{copy_job_name_base}_{i}"
+      chunk_job_name = '%s_%s' % (copy_job_name_base, _bq_uuid_list(chunk))
 
       _LOGGER.info(
           "Triggering copy job %s from %s to %s (write_disposition: %s)",
