@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.JsonToRow.ParseResult;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -285,13 +286,11 @@ public class JsonToRowTest implements Serializable {
         .getResults()
         .apply(
             "throwingDownstream",
-            ParDo.of(
-                new DoFn<Row, Row>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext context) {
-                    throw new RuntimeException("downstream failure");
-                  }
-                }));
+            MapElements.into(TypeDescriptors.rows())
+                .via(
+                    (Row row) -> {
+                      throw new RuntimeException("downstream failure");
+                    }));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("downstream failure");
