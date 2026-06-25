@@ -61,6 +61,7 @@
 
 * Python SDK now supports memory profiling with Memray ([#38853](https://github.com/apache/beam/issues/38853)).
 * (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
+* (CodeQL) Enabled Code scanning alerts in GitHub repo. ([#38893](https://github.com/apache/beam/issues/38893)).
 
 
 ## I/Os
@@ -68,6 +69,7 @@
 * Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * ClickHouseIO: support writing `DateTime64(precision[, 'timezone'])` columns with sub-second precision (Java) ([#38466](https://github.com/apache/beam/issues/38466)).
+* Upgraded IO Expansion Service to Java 17 ([#38974](https://github.com/apache/beam/issues/38974)).
 
 ## New Features / Improvements
 
@@ -75,6 +77,10 @@
 * (Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing `--experiments=disable_streaming_engine_state_tag_encoding_v2` or `--updateCompatibilityVersion=2.74.0` pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. ([#38705](https://github.com/apache/beam/issues/38705)).
 * (Python) Added instrumentation to support off-the-shelf profiling agents when launching Python SDK Harness ([#38853](https://github.com/apache/beam/issues/38853)).
 * (Java) Added support to the FnApi Data stream protocol allowing runners to isolate bundles slowly processing input from other bundles. ([#39001](https://github.com/apache/beam/issues/39001)).
+* (YAML) Switched js2py library to Quickjs ([#38473](https://github.com/apache/beam/issues/38473)).
+* (YAML) Added HuggingFaceModelHandler for YAML usage ([#38696](https://github.com/apache/beam/issues/38696)).
+* (YAML) Added WriteToMongoDB transform ([#38376](https://github.com/apache/beam/issues/38376)).
+* (YAML) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
 * (Java) Flink 2.1 and 2.2 support is added ([#38947](https://github.com/apache/beam/issues/38947)) ([#38978](https://github.com/apache/beam/issues/38978)); Flink 1.17 and 1.18 support is dropped.
 * (Python) MqttIO is now supported in Python via cross-language ([#21060](https://github.com/apache/beam/issues/21060)).
 
