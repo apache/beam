@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
 class WatchForSnapshotsSdf extends DoFn<String, Long> {
   private static final Logger LOG = LoggerFactory.getLogger(WatchForSnapshotsSdf.class);
   private static final Duration DEFAULT_POLL_INTERVAL = Duration.standardSeconds(60);
+  private static final long DEFAULT_STARTING_SEQ = 1L;
 
   private static final Counter snapshotsEmitted =
       Metrics.counter(WatchForSnapshotsSdf.class, "snapshotsEmitted");
@@ -90,8 +91,8 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
 
   @GetInitialRestriction
   public OffsetRange initialRestriction() {
-    TableCache.setup(scanConfig);
-    Table table = TableCache.getRefreshed(scanConfig.getTableIdentifier());
+    Table table =
+        TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
     long toSnapshotExclusiveSeq = POLL_FOREVER;
     @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
@@ -108,7 +109,7 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
     @Nullable Long fromSnapshotInclusiveId = ReadUtils.getFromSnapshotInclusive(table, scanConfig);
     long fromSnapshotInclusiveSeq;
     if (fromSnapshotInclusiveId == null) {
-      fromSnapshotInclusiveSeq = 1L; // sequence numbers start at 1
+      fromSnapshotInclusiveSeq = DEFAULT_STARTING_SEQ; // sequence numbers start at 1
     } else {
       Snapshot fromSnapshotInclusive =
           Preconditions.checkArgumentNotNull(
@@ -143,17 +144,18 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
   }
 
   private long estimateCurrentRangeEndExclusive() {
-    TableCache.setup(scanConfig);
-    Table table = TableCache.get(scanConfig.getTableIdentifier());
+    Table table =
+        TableCache.getAndRefreshIfStale(
+            scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
     @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
     if (toSnapshotId != null) {
       @Nullable Snapshot toSnapshot = table.snapshot(toSnapshotId);
-      return toSnapshot == null ? Long.MIN_VALUE : toSnapshot.sequenceNumber() + 1;
+      return toSnapshot == null ? DEFAULT_STARTING_SEQ : toSnapshot.sequenceNumber() + 1;
     }
 
     @Nullable Snapshot current = table.currentSnapshot();
-    return current == null ? Long.MIN_VALUE : current.sequenceNumber() + 1;
+    return current == null ? DEFAULT_STARTING_SEQ : current.sequenceNumber() + 1;
   }
 
   @GetRestrictionCoder
@@ -177,8 +179,8 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
       RestrictionTracker<OffsetRange, Long> tracker,
       ManualWatermarkEstimator<Instant> watermark,
       OutputReceiver<Long> out) {
-    TableCache.setup(scanConfig);
-    Table table = TableCache.getRefreshed(scanConfig.getTableIdentifier());
+    Table table =
+        TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
     @Nullable Long userToSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
     boolean bounded = userToSnapshotId != null;

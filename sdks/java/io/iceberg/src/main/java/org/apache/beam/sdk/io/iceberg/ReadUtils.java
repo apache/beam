@@ -161,7 +161,8 @@ public class ReadUtils {
     // incremental append scan can only be configured with an *exclusive* starting snapshot,
     // so we need to provide this snapshot's parent id.
     if (fromSnapshot != null) {
-      fromSnapshot = table.snapshot(fromSnapshot).parentId();
+      Snapshot snapshot = table.snapshot(fromSnapshot);
+      fromSnapshot = snapshot != null ? snapshot.parentId() : null;
     }
 
     // if snapshot is still null, the scan will default to the oldest snapshot, i.e. EARLIEST
