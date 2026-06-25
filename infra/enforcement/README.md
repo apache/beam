@@ -171,8 +171,8 @@ python account_keys.py --action generate
 ### Actions
 
 - **check**: Validates service account keys and their permissions against defined policies and reports any differences (default behavior)
-- **announce**: Creates or updates a GitHub issue and sends an email notification when service account keys policies differ from the defined ones. 
-  - For general configuration errors, it updates the main compliance issue. 
+- **announce**: Creates or updates a GitHub issue and sends an email notification when service account keys policies differ from the defined ones.
+  - For general configuration errors, it updates the main compliance issue.
   - **For unmanaged/rogue keys (Security Alerts)**, it consolidates alerts into a dedicated `[SECURITY]` issue acting as a live dashboard. It updates the issue by placing the newest audit report at the top and moving the previous reports into a collapsed `<details>` history section. If the keys are revoked and the infrastructure becomes healthy, the system automatically resolves and closes the issue.
 - **print**: Prints announcement details for testing purposes without creating actual GitHub issues or sending emails
 - **generate**: Updates the compliance file to match the current GCP service account keys and Secret Manager permissions
