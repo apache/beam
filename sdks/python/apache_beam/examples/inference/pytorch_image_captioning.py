@@ -289,33 +289,34 @@ class ClipRankModelHandler(ModelHandler):
 
     with torch.no_grad():
       image_inputs = processor(
-        images=images,
-        return_tensors="pt",
+          images=images,
+          return_tensors="pt",
       )
       image_inputs = {
-        k: (v.to(self.device) if torch.is_tensor(v) else v)
-        for k, v in image_inputs.items()
+          k: (v.to(self.device) if torch.is_tensor(v) else v)
+          for k, v in image_inputs.items()
       }
 
       text_inputs = processor(
-        text=texts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
+          text=texts,
+          return_tensors="pt",
+          padding=True,
+          truncation=True,
       )
       text_inputs = {
-        k: (v.to(self.device) if torch.is_tensor(v) else v)
-        for k, v in text_inputs.items()
+          k: (v.to(self.device) if torch.is_tensor(v) else v)
+          for k, v in text_inputs.items()
       }
 
       image_features = model.get_image_features(
-        pixel_values=image_inputs["pixel_values"])
+          pixel_values=image_inputs["pixel_values"])
       text_features = model.get_text_features(
-        input_ids=text_inputs["input_ids"],
-        attention_mask=text_inputs.get("attention_mask"),
+          input_ids=text_inputs["input_ids"],
+          attention_mask=text_inputs.get("attention_mask"),
       )
 
-      image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+      image_features = image_features / image_features.norm(
+          dim=-1, keepdim=True)
       text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
       logit_scale = model.logit_scale.exp()
@@ -341,9 +342,8 @@ class ClipRankModelHandler(ModelHandler):
       candidate_features = text_features[start_i:end_i]
       image_feature = image_features[image_idx].unsqueeze(0)
 
-      pair_scores = (
-          candidate_features * image_feature
-      ).sum(dim=-1) * logit_scale
+      pair_scores = (candidate_features *
+                     image_feature).sum(dim=-1) * logit_scale
 
       scores = pair_scores.detach().cpu().tolist()
 
@@ -639,9 +639,9 @@ def run(
 
     if known_args.mode == 'streaming':
       cleanup_pubsub_resources(
-        project=known_args.project,
-        topic_path=known_args.pubsub_topic,
-        subscription_path=known_args.pubsub_subscription)
+          project=known_args.project,
+          topic_path=known_args.pubsub_topic,
+          subscription_path=known_args.pubsub_subscription)
 
   return result
 

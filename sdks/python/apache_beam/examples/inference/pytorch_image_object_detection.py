@@ -63,9 +63,7 @@ def now_millis() -> int:
   return int(time.time() * 1000)
 
 
-def decode_to_tens(
-  image_bytes: bytes,
-  image_size: int = 800) -> torch.Tensor:
+def decode_to_tens(image_bytes: bytes, image_size: int = 800) -> torch.Tensor:
   """Decode bytes -> RGB PIL -> resize/pad square -> float tensor [0..1], CHW.
 
   TorchVision detection models accept float tensors in [0..1]. We force a fixed
@@ -523,9 +521,9 @@ def run(
 
     if known_args.mode == 'streaming':
       cleanup_pubsub_resources(
-        project=known_args.project,
-        topic_path=known_args.pubsub_topic,
-        subscription_path=known_args.pubsub_subscription)
+          project=known_args.project,
+          topic_path=known_args.pubsub_topic,
+          subscription_path=known_args.pubsub_subscription)
 
   return result
 

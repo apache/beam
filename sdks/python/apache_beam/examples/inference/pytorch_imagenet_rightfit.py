@@ -123,8 +123,7 @@ class MakeKeyDoFn(beam.DoFn):
 
 class DecodePreprocessDoFn(beam.DoFn):
   """Turn (image_id, bytes|uri) -> (image_id, torch.Tensor)"""
-  def __init__(
-      self, input_mode: str, image_size: int = 224):
+  def __init__(self, input_mode: str, image_size: int = 224):
     self.input_mode = input_mode
     self.image_size = image_size
 
@@ -166,8 +165,7 @@ class PostProcessDoFn(beam.DoFn):
       if logits is None:
         raise ValueError(
             f"Unable to find 'logits' in model output. "
-            f"Available keys: {list(inference_obj.keys())}"
-        )
+            f"Available keys: {list(inference_obj.keys())}")
     else:
       logits = inference_obj
 
@@ -353,9 +351,9 @@ class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
       try:
         model_device = next(model.parameters()).device
         dummy = torch.zeros(
-          (bs, 3, self._rightfit_image_size, self._rightfit_image_size),
-          dtype=torch.float32,
-          device=model_device)
+            (bs, 3, self._rightfit_image_size, self._rightfit_image_size),
+            dtype=torch.float32,
+            device=model_device)
 
         with torch.no_grad():
           model(dummy)
@@ -366,14 +364,13 @@ class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
         return model
       except RuntimeError as e:
         last_err = e
-        logging.warning(
-          "Batch size %s failed during worker warmup: %s", bs, e)
+        logging.warning("Batch size %s failed during worker warmup: %s", bs, e)
 
         if torch.cuda.is_available():
           torch.cuda.empty_cache()
 
     raise RuntimeError(
-      f"No valid inference batch size found from {self._batch_sizes_to_try}"
+        f"No valid inference batch size found from {self._batch_sizes_to_try}"
     ) from last_err
 
 
@@ -527,9 +524,9 @@ def run(
 
     if known_args.mode == 'streaming':
       cleanup_pubsub_resources(
-        project=known_args.project,
-        topic_path=known_args.pubsub_topic,
-        subscription_path=known_args.pubsub_subscription)
+          project=known_args.project,
+          topic_path=known_args.pubsub_topic,
+          subscription_path=known_args.pubsub_subscription)
 
   return result
 
