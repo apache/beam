@@ -25,10 +25,6 @@ import unittest
 
 import pytest
 
-try:
-  import apache_beam.io.gcp.bigquery
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -36,9 +32,11 @@ from apache_beam.testing.util import equal_to
 _LOGGER = logging.getLogger(__name__)
 
 try:
+  import apache_beam.io.gcp.bigquery
   from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
   GoogleAPICallError = None
+  bigquery = None
 
 
 @unittest.skipIf(
