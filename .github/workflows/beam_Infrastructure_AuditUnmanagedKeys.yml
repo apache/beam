@@ -69,7 +69,14 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: python account_keys.py --action announce
+      run: |
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "Running in PR mode: Printing to console to avoid 403 Forbidden..."
+          python account_keys.py --action print
+        else
+          echo "Running in cron/dispatch mode: Creating GitHub issues..."
+          python account_keys.py --action announce
+        fi
 
 
 
