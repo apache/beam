@@ -32,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkRequest;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,7 +156,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
                     .setCacheToken(workRequest.getCacheToken())
                     .setWorkToken(workRequest.getWorkToken())
                     .build(),
-                Windmill.CommitStatus.OK));
+                Windmill.CommitStatus.OK,
+                ImmutableList.copyOf(workRequest.getFinalizeIdsList())));
       }
     }
   }
