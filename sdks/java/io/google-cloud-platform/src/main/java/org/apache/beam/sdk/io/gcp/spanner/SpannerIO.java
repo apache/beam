@@ -61,6 +61,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -104,6 +105,7 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -1461,6 +1463,18 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public Write withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+      return withEnableOpenTelemetryTracing(
+          ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+    }
+
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public Write withEnableOpenTelemetryTracing(ValueProvider<Boolean> enableOpenTelemetryTracing) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEnableOpenTelemetryTracing(enableOpenTelemetryTracing));
+    }
+
     /** Specifies the Cloud Spanner emulator host. */
     public Write withEmulatorHost(ValueProvider<String> emulatorHost) {
       SpannerConfig config = getSpannerConfig();
@@ -1987,6 +2001,19 @@ public class SpannerIO {
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public ReadChangeStream withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+      return withEnableOpenTelemetryTracing(
+          ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+    }
+
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public ReadChangeStream withEnableOpenTelemetryTracing(
+        ValueProvider<Boolean> enableOpenTelemetryTracing) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEnableOpenTelemetryTracing(enableOpenTelemetryTracing));
+    }
+
     /** Specifies the change stream name. */
     public ReadChangeStream withChangeStreamName(String changeStreamName) {
       return toBuilder().setChangeStreamName(changeStreamName).build();
@@ -2213,7 +2240,9 @@ public class SpannerIO {
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final SpannerAccessor spannerAccessor =
-          SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
+          SpannerAccessor.getOrCreate(
+              changeStreamSpannerConfig,
+              input.getPipeline().getOptions().as(SdkHarnessOptions.class).getOpenTelemetry());
       final boolean isMutableChangeStream =
           isMutableChangeStream(
               spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
@@ -2354,7 +2383,11 @@ public class SpannerIO {
     // Allow passing the credential from pipeline options to the getDialect() call.
     SpannerConfig spannerConfigWithCredential =
         buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
-    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential)) {
+    OpenTelemetry otel = null;
+    if (pipelineOptions != null) {
+      otel = pipelineOptions.as(SdkHarnessOptions.class).getOpenTelemetry();
+    }
+    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential, otel)) {
       DatabaseClient databaseClient = sa.getDatabaseClient();
       return databaseClient.getDialect();
     }
@@ -2719,8 +2752,9 @@ public class SpannerIO {
     }
 
     @Setup
-    public void setup() {
-      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
+    public void setup(PipelineOptions options) {
+      OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig, otel);
       bundleWriteBackoff =
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
