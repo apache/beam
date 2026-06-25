@@ -518,6 +518,38 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.assert_called_once_with()
     first_client.close.assert_not_called()
 
+  def test_subscription_creation_does_not_hold_global_cache_lock(
+      self, mock_pubsub):
+    class Transform(object):
+      pass
+
+    def subscription_path(project, subscription):
+      return 'projects/%s/subscriptions/%s' % (project, subscription)
+
+    transform = Transform()
+    client = mock_pubsub.return_value
+    client.subscription_path.side_effect = subscription_path
+    client.topic_path.return_value = 'projects/topic_project/topics/topic'
+    global_lock_available = []
+
+    def create_subscription(name, topic):
+      self.assertTrue(name.startswith('projects/sub_project/subscriptions/'))
+      self.assertEqual('projects/topic_project/topics/topic', topic)
+      acquired = _PubSubReadEvaluator._subscriber_client_cache_lock.acquire(
+          blocking=False)
+      global_lock_available.append(acquired)
+      if acquired:
+        _PubSubReadEvaluator._subscriber_client_cache_lock.release()
+
+    client.create_subscription.side_effect = create_subscription
+
+    sub_name = _PubSubReadEvaluator.get_subscription(
+        transform, 'topic_project', 'topic', 'sub_project', None)
+
+    self.assertTrue(global_lock_available)
+    self.assertTrue(global_lock_available[0])
+    self.assertTrue(sub_name.startswith('projects/sub_project/subscriptions/'))
+
   def test_subscriber_client_cleanup_is_idempotent(self, unused_mock_pubsub):
     client = mock.Mock()
     subscriber_client = transform_evaluator._PubSubSubscriberClient(client)

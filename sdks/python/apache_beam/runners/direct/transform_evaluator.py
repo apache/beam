@@ -584,6 +584,7 @@ class _PubSubSubscriberClient(object):
     self.client = client
     self._temporary_subscription = None
     self._closed = False
+    self._lock = threading.Lock()
 
   def set_temporary_subscription(self, subscription):
     self._temporary_subscription = subscription
@@ -661,10 +662,18 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       return pubsub.SubscriberClient.subscription_path(project, short_sub_name)
 
     with cls._subscriber_client_cache_lock:
-      if transform in cls._subscription_cache:
-        return cls._subscription_cache[transform]
+      sub_name = cls._subscription_cache.get(transform)
+      if sub_name:
+        return sub_name
 
       subscriber_client = cls._get_subscriber_client_state_unlocked(transform)
+
+    with subscriber_client._lock:
+      with cls._subscriber_client_cache_lock:
+        sub_name = cls._subscription_cache.get(transform)
+        if sub_name:
+          return sub_name
+
       sub_client = subscriber_client.client
       sub_name = sub_client.subscription_path(
           sub_project,
@@ -672,8 +681,11 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       topic_name = sub_client.topic_path(project, short_topic_name)
       sub_client.create_subscription(name=sub_name, topic=topic_name)
       subscriber_client.set_temporary_subscription(sub_name)
-      cls._subscription_cache[transform] = sub_name
-      return cls._subscription_cache[transform]
+
+      with cls._subscriber_client_cache_lock:
+        cls._subscription_cache[transform] = sub_name
+
+      return sub_name
 
   @classmethod
   def _get_subscriber_client(cls, transform):
