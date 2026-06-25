@@ -59,21 +59,21 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
   private final Coder<TableRow> successfulRowsCoder;
   private final Coder<DestinationT> destinationCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
-  private final StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> writeDoFn;
+  private final StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT>
+      writeDoFn;
   private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
   private final @Nullable TupleTag<TableRow> successfulRowsTag;
   // This output is effectively ignored, since we only support this code path for
   // StorageApiWriteRecordsInconsistent.
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private static final int NUM_DEFAULT_SHARDS = 20;
-  private static final Duration RETRY_MISMATCHED_ROWS_PERIOD = Duration.standardMinutes(1);
 
   public BufferMismatchedRows(
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
       Coder<DestinationT> destinationCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
-      StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> writeDoFn,
+      StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT> writeDoFn,
       TupleTag<BigQueryStorageApiInsertError> failedRowsTag,
       @Nullable TupleTag<TableRow> successfulRowsTag) {
     this.failedRowsCoder = failedRowsCoder;
@@ -136,7 +136,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
 
   class BufferingDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, MismatchedRow>, KV<String, String>> {
-    private final StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT>
+    private final StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT>
         writeDoFn;
 
     @StateId("mismatchedRows")
@@ -157,7 +157,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
         Metrics.counter(BufferMismatchedRows.BufferingDoFn.class, "rowsSentToFailedRowsCollection");
 
     public BufferingDoFn(
-        StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> writeDoFn) {
+        StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT> writeDoFn) {
       this.writeDoFn = writeDoFn;
     }
 
@@ -168,6 +168,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
 
     @ProcessElement
     public void process(
+        PipelineOptions pipelineOptions,
         ProcessContext processContext,
         @Element KV<ShardedKey<DestinationT>, MismatchedRow> element,
         @StateId("mismatchedRows") BagState<MismatchedRow> mismatchedRowsBag,
@@ -179,6 +180,9 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
       dynamicDestinations.setSideInputAccessorFromProcessContext(processContext);
       TableDestination tableDestination = dynamicDestinations.getTable(element.getKey().getKey());
 
+      Duration timerRetryDuration =
+          Duration.millis(
+              pipelineOptions.as(BigQueryOptions.class).getStorageApiMismatchRetryTimeMilliSec());
       SchemaChangeDetectorHelper.bufferMismatchedRows(
           Collections.singleton(element.getValue()),
           mismatchedRowsBag,
@@ -189,7 +193,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
           o.get(failedRowsTag),
           null,
           rowsSentToFailedRowsCollection,
-          RETRY_MISMATCHED_ROWS_PERIOD);
+          timerRetryDuration);
     }
 
     @Override
@@ -264,6 +268,9 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
                     .map(KV::getValue)
                     .iterator();
 
+        Duration timerRetryDuration =
+            Duration.millis(
+                pipelineOptions.as(BigQueryOptions.class).getStorageApiMismatchRetryTimeMilliSec());
         SchemaChangeDetectorHelper.bufferMismatchedRows(
             mismatchedRows,
             mismatchedRowsBag,
@@ -274,7 +281,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
             o.get(failedRowsTag),
             appendClientInfo,
             rowsSentToFailedRowsCollection,
-            RETRY_MISMATCHED_ROWS_PERIOD);
+            timerRetryDuration);
       }
     }
 

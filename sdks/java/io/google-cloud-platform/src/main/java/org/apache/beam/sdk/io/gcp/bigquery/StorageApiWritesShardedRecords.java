@@ -125,7 +125,6 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiWritesShardedRecords.class);
   private static final Duration DEFAULT_STREAM_IDLE_TIME = Duration.standardHours(1);
-  private static final Duration RETRY_MISMATCHED_ROWS_PERIOD = Duration.standardMinutes(1);
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final CreateDisposition createDisposition;
@@ -831,6 +830,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       messageConverter.getDescriptor(false),
                       AutoCloseable::close);
 
+              Duration timerRetryDuration =
+                  Duration.millis(
+                      pipelineOptions
+                          .as(BigQueryOptions.class)
+                          .getStorageApiMismatchRetryTimeMilliSec());
               SchemaChangeDetectorHelper.bufferMismatchedRows(
                   mismatchedRows,
                   mismatchedRowsBag,
@@ -841,7 +845,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   o.get(failedRowsTag),
                   info,
                   rowsSentToFailedRowsCollection,
-                  RETRY_MISMATCHED_ROWS_PERIOD);
+                  timerRetryDuration);
             }
           };
       processPayloads(
@@ -1076,7 +1080,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         org.joda.time.Instant startMismatchTime = org.joda.time.Instant.now();
         final Duration initialMismatchRetryTime =
             Duration.millis(
-                bigQueryOptions.getStorageApiInitialMismatchRetryTimeMilliSec()); // Retry locally
+                bigQueryOptions.getStorageApiMismatchLocalRetryTimeMilliSec()); // Retry locally
         Iterable<StorageApiWritePayload> payloadsToIterate = element;
         do {
           // Each ProtoRows object contains at most 1MB of rows.
@@ -1314,6 +1318,11 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                       messageConverter.getDescriptor(false),
                       AutoCloseable::close);
 
+              Duration timerRetryDuration =
+                  Duration.millis(
+                      pipelineOptions
+                          .as(BigQueryOptions.class)
+                          .getStorageApiMismatchRetryTimeMilliSec());
               SchemaChangeDetectorHelper.bufferMismatchedRows(
                   mismatchedRows,
                   mismatchedRowsBag,
@@ -1324,7 +1333,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   o.get(failedRowsTag),
                   info,
                   rowsSentToFailedRowsCollection,
-                  RETRY_MISMATCHED_ROWS_PERIOD);
+                  timerRetryDuration);
             }
           };
 

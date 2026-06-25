@@ -120,8 +120,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Ob
     if (mismatchedRowsTag != null) {
       tupleTagList = tupleTagList.and(mismatchedRowsTag);
     }
-    StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> fn =
-        new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
+
+    StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT> fnImpl =
+        new StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<>(
             operationName,
             dynamicDestinations,
             bqServices,
@@ -143,7 +144,10 @@ public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Ob
             defaultMissingValueInterpretation,
             bigQueryOptions.getStorageWriteApiMaxRetries(),
             bigLakeConfiguration,
-            bigQueryOptions.getStorageApiInitialMismatchRetryTimeMilliSec());
+            bigQueryOptions.getStorageApiMismatchLocalRetryTimeMilliSec());
+    StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> fn =
+        new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(fnImpl);
+    ;
     PCollectionTuple result =
         input.apply(
             "Write Records",
@@ -167,7 +171,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Ob
                   successfulRowsCoder,
                   destinationCoder,
                   dynamicDestinations,
-                  fn,
+                  fnImpl,
                   failedRowsTag,
                   successfulRowsTag));
       mismatchedResult.get(failedRowsTag).setCoder(failedRowsCoder);

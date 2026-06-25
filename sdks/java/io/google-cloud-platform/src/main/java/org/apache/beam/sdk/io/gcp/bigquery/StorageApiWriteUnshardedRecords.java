@@ -35,6 +35,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import io.grpc.Status;
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -178,33 +179,35 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     if (successfulRowsTag != null) {
       tupleTagList = tupleTagList.and(successfulRowsTag);
     }
+
     PCollectionTuple writeResults =
         input.apply(
             "Write Records",
             ParDo.of(
                     new WriteRecordsDoFn<>(
-                        operationName,
-                        dynamicDestinations,
-                        bqServices,
-                        false,
-                        options.getStorageApiAppendThresholdBytes(),
-                        options.getStorageApiAppendThresholdRecordCount(),
-                        options.getNumStorageWriteApiStreamAppendClients(),
-                        finalizeTag,
-                        failedRowsTag,
-                        successfulRowsTag,
-                        successfulRowsPredicate,
-                        autoUpdateSchema,
-                        null,
-                        null,
-                        ignoreUnknownValues,
-                        createDisposition,
-                        kmsKey,
-                        usesCdc,
-                        defaultMissingValueInterpretation,
-                        options.getStorageWriteApiMaxRetries(),
-                        bigLakeConfiguration,
-                        options.getStorageApiInitialMismatchRetryTimeMilliSec()))
+                        new WriteRecordsDoFnImpl<>(
+                            operationName,
+                            dynamicDestinations,
+                            bqServices,
+                            false,
+                            options.getStorageApiAppendThresholdBytes(),
+                            options.getStorageApiAppendThresholdRecordCount(),
+                            options.getNumStorageWriteApiStreamAppendClients(),
+                            finalizeTag,
+                            failedRowsTag,
+                            successfulRowsTag,
+                            successfulRowsPredicate,
+                            autoUpdateSchema,
+                            null,
+                            null,
+                            ignoreUnknownValues,
+                            createDisposition,
+                            kmsKey,
+                            usesCdc,
+                            defaultMissingValueInterpretation,
+                            options.getStorageWriteApiMaxRetries(),
+                            bigLakeConfiguration,
+                            options.getStorageApiMismatchLocalRetryTimeMilliSec())))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -225,6 +228,139 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
   static class WriteRecordsDoFn<DestinationT extends @NonNull Object, ElementT>
       extends DoFn<KV<DestinationT, StorageApiWritePayload>, KV<String, String>> {
+    WriteRecordsDoFnImpl<DestinationT, ElementT> writeRecordsDoFnImpl;
+
+    WriteRecordsDoFn(WriteRecordsDoFnImpl<DestinationT, ElementT> writeRecordsDoFnImpl) {
+      this.writeRecordsDoFnImpl = writeRecordsDoFnImpl;
+    }
+
+    @StartBundle
+    public void startBundle() throws IOException {
+      writeRecordsDoFnImpl.startBundle();
+    }
+
+    @FinishBundle
+    public void finishBundle(final FinishBundleContext context) throws Exception {
+      OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver =
+          value ->
+              WindowedValues.<BigQueryStorageApiInsertError>builder()
+                  .setValue(value)
+                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+                  .setWindow(GlobalWindow.INSTANCE)
+                  .setPaneInfo(PaneInfo.NO_FIRING)
+                  .setReceiver(
+                      windowedValue -> {
+                        for (BoundedWindow window : windowedValue.getWindows()) {
+                          context.output(
+                              writeRecordsDoFnImpl.failedRowsTag,
+                              windowedValue.getValue(),
+                              windowedValue.getTimestamp(),
+                              window);
+                        }
+                      });
+
+      OutputReceiver<TableRow> successfulRowsReceiver = null;
+      if (writeRecordsDoFnImpl.successfulRowsTag != null) {
+        successfulRowsReceiver =
+            makeSuccessfulRowsReceiver(context, writeRecordsDoFnImpl.successfulRowsTag);
+      }
+
+      OutputReceiver<KV<String, String>> finalizeOutputRecever =
+          value ->
+              WindowedValues.<KV<String, String>>builder()
+                  .setValue(value)
+                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+                  .setWindow(GlobalWindow.INSTANCE)
+                  .setPaneInfo(PaneInfo.NO_FIRING)
+                  .setReceiver(
+                      windowedValue -> {
+                        for (BoundedWindow window : windowedValue.getWindows()) {
+                          context.output(
+                              writeRecordsDoFnImpl.finalizeTag,
+                              windowedValue.getValue(),
+                              windowedValue.getTimestamp(),
+                              window);
+                        }
+                      });
+      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
+          writeRecordsDoFnImpl.finishBundle(
+              failedRowsReceiver, successfulRowsReceiver, finalizeOutputRecever);
+      if (!Iterables.isEmpty(mismatchedRows)) {
+        mismatchedRows.forEach(
+            m -> {
+              org.joda.time.Instant ts =
+                  MoreObjects.firstNonNull(
+                      m.getValue().getPayload().getTimestamp(),
+                      GlobalWindow.INSTANCE.maxTimestamp());
+              context.output(
+                  Preconditions.checkStateNotNull(writeRecordsDoFnImpl.mismatchedRowsTag),
+                  m,
+                  ts,
+                  GlobalWindow.INSTANCE);
+            });
+      }
+    }
+
+    private OutputReceiver<TableRow> makeSuccessfulRowsReceiver(
+        FinishBundleContext context, TupleTag<TableRow> successfulRowsTag) {
+      return new OutputReceiver<TableRow>() {
+        @Override
+        public OutputBuilder<TableRow> builder(TableRow value) {
+          return WindowedValues.<TableRow>builder()
+              .setValue(value)
+              .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+              .setWindow(GlobalWindow.INSTANCE)
+              .setPaneInfo(PaneInfo.NO_FIRING)
+              .setReceiver(
+                  windowedValue -> {
+                    for (BoundedWindow window : windowedValue.getWindows()) {
+                      context.output(
+                          successfulRowsTag,
+                          windowedValue.getValue(),
+                          windowedValue.getTimestamp(),
+                          window);
+                    }
+                  });
+        }
+      };
+    }
+
+    @ProcessElement
+    public void process(
+        ProcessContext c,
+        PipelineOptions pipelineOptions,
+        @Element KV<DestinationT, StorageApiWritePayload> element,
+        @Timestamp org.joda.time.Instant elementTs,
+        MultiOutputReceiver o)
+        throws Exception {
+      writeRecordsDoFnImpl.dynamicDestinations.setSideInputAccessorFromProcessContext(c);
+      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
+          writeRecordsDoFnImpl.processElement(pipelineOptions, element, elementTs, o);
+      if (!Iterables.isEmpty(mismatchedRows)) {
+        final OutputReceiver<KV<DestinationT, MismatchedRow>> mismatchedReceiver =
+            o.get(Preconditions.checkStateNotNull(writeRecordsDoFnImpl.mismatchedRowsTag));
+        mismatchedRows.forEach(
+            m -> {
+              org.joda.time.Instant ts =
+                  MoreObjects.firstNonNull(m.getValue().getPayload().getTimestamp(), elementTs);
+              mismatchedReceiver.outputWithTimestamp(m, ts);
+            });
+      }
+    }
+
+    @Teardown
+    public void teardown() {
+      writeRecordsDoFnImpl.teardown();
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
+    }
+  }
+
+  static class WriteRecordsDoFnImpl<DestinationT extends @NonNull Object, ElementT>
+      implements Serializable {
     private final Counter forcedFlushes = Metrics.counter(WriteRecordsDoFn.class, "forcedFlushes");
     private final TupleTag<KV<String, String>> finalizeTag;
     private final TupleTag<BigQueryStorageApiInsertError> failedRowsTag;
@@ -504,8 +640,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       long flush(
           RetryManager<AppendRowsResponse, AppendRowsContext> retryManager,
-          OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-          @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+          DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
+          DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
           BiConsumer<DestinationT, MismatchedRow> bufferMismatchedRow)
           throws Exception {
         if (pendingMessages.isEmpty()) {
@@ -525,7 +661,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
         org.joda.time.Instant startMismatchTime = org.joda.time.Instant.now();
         final Duration initialMismatchRetryTime =
-            Duration.millis(WriteRecordsDoFn.this.initialMismatchRetryTimeMilliSec);
+            Duration.millis(WriteRecordsDoFnImpl.this.initialMismatchRetryTimeMilliSec);
 
         AppendRowsPacket rowsToProcess;
         Iterable<StorageApiWritePayload> payloadsToIterate = pendingMessages;
@@ -888,7 +1024,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
       private AppendRowsPacket buildInserts(
           Iterable<StorageApiWritePayload> payloads,
-          OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver) {
+          DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver) {
         Supplier<AppendClientInfo> appendClientInfoSupplier =
             () -> {
               if (appendClientInfo == null) {
@@ -974,7 +1110,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final @Nullable Map<String, String> bigLakeConfiguration;
     private final int initialMismatchRetryTimeMilliSec;
 
-    WriteRecordsDoFn(
+    WriteRecordsDoFnImpl(
         String operationName,
         StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
         BigQueryServices bqServices,
@@ -1028,8 +1164,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     Iterable<KV<DestinationT, MismatchedRow>> flushIfNecessary(
-        OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
+        DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
         int recordBytes)
         throws Exception {
       if (shouldFlush(recordBytes)) {
@@ -1043,8 +1179,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     }
 
     Iterable<KV<DestinationT, MismatchedRow>> flushAll(
-        OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver)
+        DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
+        DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver)
         throws Exception {
       List<KV<DestinationT, MismatchedRow>> mismatchedRows = Lists.newArrayList();
       List<RetryManager<AppendRowsResponse, AppendRowsContext>> retryManagers =
@@ -1102,7 +1238,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return maybeWriteStreamService;
     }
 
-    @StartBundle
     public void startBundle() throws IOException {
       destinations = Maps.newHashMap();
       numPendingRecords = 0;
@@ -1162,34 +1297,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    @ProcessElement
-    public void process(
-        ProcessContext c,
-        PipelineOptions pipelineOptions,
-        @Element KV<DestinationT, StorageApiWritePayload> element,
-        @Timestamp org.joda.time.Instant elementTs,
-        MultiOutputReceiver o)
-        throws Exception {
-      dynamicDestinations.setSideInputAccessorFromProcessContext(c);
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
-          processElement(pipelineOptions, element, elementTs, o);
-      if (!Iterables.isEmpty(mismatchedRows)) {
-        final OutputReceiver<KV<DestinationT, MismatchedRow>> mismatchedReceiver =
-            o.get(Preconditions.checkStateNotNull(mismatchedRowsTag));
-        mismatchedRows.forEach(
-            m -> {
-              org.joda.time.Instant ts =
-                  MoreObjects.firstNonNull(m.getValue().getPayload().getTimestamp(), elementTs);
-              mismatchedReceiver.outputWithTimestamp(m, ts);
-            });
-      }
-    }
-
     Iterable<KV<DestinationT, MismatchedRow>> processElement(
         PipelineOptions pipelineOptions,
         KV<DestinationT, StorageApiWritePayload> element,
         org.joda.time.Instant elementTs,
-        MultiOutputReceiver o)
+        DoFn.MultiOutputReceiver o)
         throws Exception {
       DatasetService initializedDatasetService = getDatasetService(pipelineOptions);
       WriteStreamService initializedWriteStreamService = getWriteStreamService(pipelineOptions);
@@ -1212,9 +1324,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   state.getTableDestination().getTableReference(),
                   pipelineOptions.as(BigQueryOptions.class)));
 
-      OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
-      @Nullable
-      OutputReceiver<TableRow> successfulRowsReceiver =
+      DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
+      DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
 
       int recordBytes = element.getValue().getPayload().length;
@@ -1227,91 +1338,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return mismatchedRows;
     }
 
-    private OutputReceiver<TableRow> makeSuccessfulRowsReceiver(
-        FinishBundleContext context, TupleTag<TableRow> successfulRowsTag) {
-      return new OutputReceiver<TableRow>() {
-        @Override
-        public OutputBuilder<TableRow> builder(TableRow value) {
-          return WindowedValues.<TableRow>builder()
-              .setValue(value)
-              .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-              .setWindow(GlobalWindow.INSTANCE)
-              .setPaneInfo(PaneInfo.NO_FIRING)
-              .setReceiver(
-                  windowedValue -> {
-                    for (BoundedWindow window : windowedValue.getWindows()) {
-                      context.output(
-                          successfulRowsTag,
-                          windowedValue.getValue(),
-                          windowedValue.getTimestamp(),
-                          window);
-                    }
-                  });
-        }
-      };
-    }
-
-    @FinishBundle
-    public void finishBundle(final FinishBundleContext context) throws Exception {
-      OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver =
-          value ->
-              WindowedValues.<BigQueryStorageApiInsertError>builder()
-                  .setValue(value)
-                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-                  .setWindow(GlobalWindow.INSTANCE)
-                  .setPaneInfo(PaneInfo.NO_FIRING)
-                  .setReceiver(
-                      windowedValue -> {
-                        for (BoundedWindow window : windowedValue.getWindows()) {
-                          context.output(
-                              failedRowsTag,
-                              windowedValue.getValue(),
-                              windowedValue.getTimestamp(),
-                              window);
-                        }
-                      });
-
-      @Nullable OutputReceiver<TableRow> successfulRowsReceiver = null;
-      if (successfulRowsTag != null) {
-        successfulRowsReceiver = makeSuccessfulRowsReceiver(context, successfulRowsTag);
-      }
-
-      OutputReceiver<KV<String, String>> finalizeOutputRecever =
-          value ->
-              WindowedValues.<KV<String, String>>builder()
-                  .setValue(value)
-                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
-                  .setWindow(GlobalWindow.INSTANCE)
-                  .setPaneInfo(PaneInfo.NO_FIRING)
-                  .setReceiver(
-                      windowedValue -> {
-                        for (BoundedWindow window : windowedValue.getWindows()) {
-                          context.output(
-                              finalizeTag,
-                              windowedValue.getValue(),
-                              windowedValue.getTimestamp(),
-                              window);
-                        }
-                      });
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
-          finishBundle(failedRowsReceiver, successfulRowsReceiver, finalizeOutputRecever);
-      if (!Iterables.isEmpty(mismatchedRows)) {
-        mismatchedRows.forEach(
-            m -> {
-              org.joda.time.Instant ts =
-                  MoreObjects.firstNonNull(
-                      m.getValue().getPayload().getTimestamp(),
-                      GlobalWindow.INSTANCE.maxTimestamp());
-              context.output(
-                  Preconditions.checkStateNotNull(mismatchedRowsTag), m, ts, GlobalWindow.INSTANCE);
-            });
-      }
-    }
-
     public Iterable<KV<DestinationT, MismatchedRow>> finishBundle(
-        OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        @Nullable OutputReceiver<TableRow> successfulRowsReceiver,
-        OutputReceiver<KV<String, String>> finalizeOutputReceiver)
+        DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
+        DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        DoFn.OutputReceiver<KV<String, String>> finalizeOutputReceiver)
         throws Exception {
 
       Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
@@ -1330,7 +1360,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return mismatchedRows;
     }
 
-    @Teardown
     public void teardown() {
       destinations = null;
       try {
@@ -1345,11 +1374,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis());
     }
   }
 }

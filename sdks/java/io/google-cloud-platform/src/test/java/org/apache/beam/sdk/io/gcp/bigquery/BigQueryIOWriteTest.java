@@ -2418,7 +2418,7 @@ public class BigQueryIOWriteTest implements Serializable {
     // Make sure that GroupIntoBatches does not buffer data.
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
-    p.getOptions().as(BigQueryOptions.class).setStorageApiInitialMismatchRetryTimeMilliSec(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchLocalRetryTimeMilliSec(0);
 
     BigQueryIO.Write.Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
@@ -2555,7 +2555,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(1);
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(1);
     p.getOptions().as(BigQueryOptions.class).setSchemaUpgradeBufferingShards(2);
-    p.getOptions().as(BigQueryOptions.class).setStorageApiInitialMismatchRetryTimeMilliSec(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchLocalRetryTimeMilliSec(0);
 
     BigQueryIO.Write.Method method =
         useStorageApiApproximate ? Method.STORAGE_API_AT_LEAST_ONCE : Method.STORAGE_WRITE_API;
