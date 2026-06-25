@@ -116,7 +116,7 @@ public class DeltaIO {
           conf.set(entry.getKey(), entry.getValue());
         }
       }
-      Engine engine = DefaultEngine.create(conf);
+      Engine engine = BeamEngine.withBeamFileSystemClient(DefaultEngine.create(conf));
       Table table = Table.forPath(engine, path);
       io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
       StructType deltaSchema = snapshot.getSchema();
