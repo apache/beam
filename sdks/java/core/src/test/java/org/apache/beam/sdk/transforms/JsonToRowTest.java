@@ -27,13 +27,13 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
+import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowFn;
 import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn;
 import org.apache.beam.sdk.transforms.JsonToRow.ParseResult;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer.NullBehavior;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -276,7 +276,7 @@ public class JsonToRowTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, ValidatesRunner.class})
   public void testDownstreamExceptionIsNotReportedAsParseError() {
     PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON.get(0)));
 
@@ -284,13 +284,8 @@ public class JsonToRowTest implements Serializable {
 
     results
         .getResults()
-        .apply(
-            "throwingDownstream",
-            MapElements.into(TypeDescriptors.rows())
-                .via(
-                    (Row row) -> {
-                      throw new RuntimeException("downstream failure");
-                    }));
+        .apply("throwingDownstream", ParDo.of(new ThrowingDownstreamDoFn()))
+        .setRowSchema(PERSON_SCHEMA);
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("downstream failure");
@@ -353,5 +348,12 @@ public class JsonToRowTest implements Serializable {
 
   private static Row row(Schema schema, Object... values) {
     return Row.withSchema(schema).addValues(values).build();
+  }
+
+  private static class ThrowingDownstreamDoFn extends DoFn<Row, Row> {
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      throw new RuntimeException("downstream failure");
+    }
   }
 }
