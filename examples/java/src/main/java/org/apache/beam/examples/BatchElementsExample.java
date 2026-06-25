@@ -29,6 +29,19 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// beam-playground:
+//   name: BatchElements
+//   description: Demonstration of BatchElements transform usage.
+//   multifile: false
+//   default_example: false
+//   context_line: 47
+//   categories:
+//     - Core Transforms
+//   complexity: BASIC
+//   tags:
+//     - transforms
+//     - batch
+
 public class BatchElementsExample {
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.create();

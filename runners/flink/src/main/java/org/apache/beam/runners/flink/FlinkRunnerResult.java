@@ -65,6 +65,12 @@ public class FlinkRunnerResult implements PipelineResult {
   }
 
   @Override
+  public State drain() {
+    // We can only be called here when we are done.
+    return State.DONE;
+  }
+
+  @Override
   public State waitUntilFinish() {
     return State.DONE;
   }

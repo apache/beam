@@ -61,7 +61,7 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -110,13 +110,16 @@ jobs:
             exit 1
           fi
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Install xmllint
-        run: sudo apt-get install -y libxml2-utils
+        run: |
+          sudo apt-get clean
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libxml2-utils
       - name: Update .asf.yaml to protect new release branch from force push
         run: |
           sed -i -e "s/master: {}/master: {}\n    release-${RELEASE}: {}/g" .asf.yaml

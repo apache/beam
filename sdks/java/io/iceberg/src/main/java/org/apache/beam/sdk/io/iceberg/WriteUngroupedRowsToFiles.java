@@ -47,8 +47,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.iceberg.catalog.Catalog;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -193,7 +191,6 @@ class WriteUngroupedRowsToFiles
     private final long maxFileSize;
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
-    private transient @MonotonicNonNull Catalog catalog;
     private transient @Nullable RecordWriterManager recordWriterManager;
     private int spilledShardNumber;
 
@@ -210,17 +207,10 @@ class WriteUngroupedRowsToFiles
       this.maxFileSize = maxFileSize;
     }
 
-    private org.apache.iceberg.catalog.Catalog getCatalog() {
-      if (catalog == null) {
-        this.catalog = catalogConfig.catalog();
-      }
-      return catalog;
-    }
-
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+          new RecordWriterManager(catalogConfig, filename, maxFileSize, maxWritersPerBundle);
       this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 

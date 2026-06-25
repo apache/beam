@@ -313,9 +313,10 @@ class MatchContinuously(beam.PTransform):
         fire_interval=self.interval)
 
     # match file pattern periodically
+    file_pattern = self.file_pattern
     match_files = (
         impulse
-        | 'GetFilePattern' >> beam.Map(lambda x: self.file_pattern)
+        | 'GetFilePattern' >> beam.Map(lambda x: file_pattern)
         | MatchAll(self.empty_match_treatment))
 
     # apply deduplication strategy if required
