@@ -170,6 +170,7 @@ def _bq_uuid(seed=None):
   else:
     return str(hashlib.md5(seed.encode('utf8')).hexdigest())
 
+
 def _bq_uuid_list(list):
   checksum = hashlib.sha256()
   for item in list:
@@ -177,6 +178,7 @@ def _bq_uuid_list(list):
     # separator
     checksum.update(b'\x00')
   return checksum.hexdigest()
+
 
 class _ShardDestinations(beam.DoFn):
   """Adds a shard number to the key of the KV element.
