@@ -15,15 +15,28 @@
 #    limitations under the License.
 #
 
-# Core TFT dependencies with version bounds.
-# Note: To avoid pip ResolutionTooDeep errors, always install using the constraints file:
-# pip install -c constraints.txt -r requirements.txt
-dill>=0.3,<0.5
-tfx_bsl>=1.15,<1.17
-tensorflow-transform>=1.15,<1.17
-tensorflow>=2.15,<2.16
-numpy>=1.22.0,<2.0
-tensorflow-metadata>=1.15,<1.16
-pyarrow>=10,<11
-tensorflow-serving-api>=2.15,<2.16
-tf-keras>=2.15,<2.16
+# Constraints file to pin versions and avoid pip ResolutionTooDeep.
+# This file is used with: pip install -c constraints.txt -r requirements.txt
+
+# Core dependencies
+tfx_bsl==1.15.1
+tensorflow-transform==1.15.0
+
+# TensorFlow ecosystem
+tensorflow==2.15.1
+tensorflow-metadata==1.15.0
+tf-keras==2.15.1
+
+# NumPy and data handling
+numpy==1.26.4
+pyarrow==10.0.1
+
+# Google Cloud (pin to avoid transitive resolution)
+google-cloud-aiplatform==1.60.0
+google-api-core==2.19.1
+
+# Note: google-auth is NOT constrained - let pip resolve it to satisfy
+# apache-beam's google-genai requirement (>=2.48.1)
+
+# Note: tensorflow-serving-api is NOT constrained - let pip resolve it within
+# the range specified in requirements.txt (>=2.15,<2.16)
