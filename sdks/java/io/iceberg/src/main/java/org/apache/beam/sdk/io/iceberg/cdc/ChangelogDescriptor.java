@@ -44,34 +44,34 @@ public abstract class ChangelogDescriptor {
   @SuppressWarnings("nullness")
   public static SchemaCoder<ChangelogDescriptor> coder(Schema overlapSchema) {
     Schema descriptorSchema =
-      Schema.builder()
-        .addStringField("tableIdentifierString")
-        .addInt64Field("snapshotSequenceNumber")
-        .addInt64Field("commitSnapshotId")
-        .addNullableField("overlapLower", Schema.FieldType.row(overlapSchema))
-        .addNullableField("overlapUpper", Schema.FieldType.row(overlapSchema))
-        .build();
+        Schema.builder()
+            .addStringField("tableIdentifierString")
+            .addInt64Field("snapshotSequenceNumber")
+            .addInt64Field("commitSnapshotId")
+            .addNullableField("overlapLower", Schema.FieldType.row(overlapSchema))
+            .addNullableField("overlapUpper", Schema.FieldType.row(overlapSchema))
+            .build();
 
     return SchemaCoder.of(
-      descriptorSchema,
-      TypeDescriptor.of(ChangelogDescriptor.class),
-      descriptor ->
-        Row.withSchema(descriptorSchema)
-          .addValues(
-            descriptor.getTableIdentifierString(),
-            descriptor.getSnapshotSequenceNumber(),
-            descriptor.getCommitSnapshotId(),
-            descriptor.getOverlapLower(),
-            descriptor.getOverlapUpper())
-          .build(),
-      row ->
-        ChangelogDescriptor.builder()
-          .setTableIdentifierString(row.getString("tableIdentifierString"))
-          .setSnapshotSequenceNumber(row.getInt64("snapshotSequenceNumber"))
-          .setCommitSnapshotId(row.getInt64("commitSnapshotId"))
-          .setOverlapLower(row.getRow("overlapLower"))
-          .setOverlapUpper(row.getRow("overlapUpper"))
-          .build());
+        descriptorSchema,
+        TypeDescriptor.of(ChangelogDescriptor.class),
+        descriptor ->
+            Row.withSchema(descriptorSchema)
+                .addValues(
+                    descriptor.getTableIdentifierString(),
+                    descriptor.getSnapshotSequenceNumber(),
+                    descriptor.getCommitSnapshotId(),
+                    descriptor.getOverlapLower(),
+                    descriptor.getOverlapUpper())
+                .build(),
+        row ->
+            ChangelogDescriptor.builder()
+                .setTableIdentifierString(row.getString("tableIdentifierString"))
+                .setSnapshotSequenceNumber(row.getInt64("snapshotSequenceNumber"))
+                .setCommitSnapshotId(row.getInt64("commitSnapshotId"))
+                .setOverlapLower(row.getRow("overlapLower"))
+                .setOverlapUpper(row.getRow("overlapUpper"))
+                .build());
   }
 
   @SchemaFieldNumber("0")

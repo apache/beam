@@ -161,28 +161,28 @@ import org.slf4j.LoggerFactory;
  * delete) pair, so we can directly emit it without resolving its output rows.
  */
 class ChangelogScanner
-  extends DoFn<Long, KV<ChangelogDescriptor, List<SerializableChangelogTask>>> {
+    extends DoFn<Long, KV<ChangelogDescriptor, List<SerializableChangelogTask>>> {
   private static final Logger LOG = LoggerFactory.getLogger(ChangelogScanner.class);
   private static final Counter totalChangelogScanTasks =
-    Metrics.counter(ChangelogScanner.class, "totalChangelogScanTasks");
+      Metrics.counter(ChangelogScanner.class, "totalChangelogScanTasks");
   private static final Counter numAddedRowsScanTasks =
-    Metrics.counter(ChangelogScanner.class, "numAddedRowsScanTasks");
+      Metrics.counter(ChangelogScanner.class, "numAddedRowsScanTasks");
   private static final Counter numDeletedRowsScanTasks =
-    Metrics.counter(ChangelogScanner.class, "numDeletedRowsScanTasks");
+      Metrics.counter(ChangelogScanner.class, "numDeletedRowsScanTasks");
   private static final Counter numDeletedDataFileScanTasks =
-    Metrics.counter(ChangelogScanner.class, "numDeletedDataFileScanTasks");
+      Metrics.counter(ChangelogScanner.class, "numDeletedDataFileScanTasks");
   private static final Counter numUniDirectionalTasks =
-    Metrics.counter(ChangelogScanner.class, "numUniDirectionalTasks");
+      Metrics.counter(ChangelogScanner.class, "numUniDirectionalTasks");
   private static final Counter numLargeBiDirectionalTasks =
-    Metrics.counter(ChangelogScanner.class, "numLargeBiDirectionalTasks");
+      Metrics.counter(ChangelogScanner.class, "numLargeBiDirectionalTasks");
   private static final Counter numSmallBiDirectionalTasks =
-    Metrics.counter(ChangelogScanner.class, "numSmallBiDirectionalTasks");
+      Metrics.counter(ChangelogScanner.class, "numSmallBiDirectionalTasks");
   static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
-    UNIDIRECTIONAL_TASKS = new TupleTag<>();
+      UNIDIRECTIONAL_TASKS = new TupleTag<>();
   static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
-    SMALL_BIDIRECTIONAL_TASKS = new TupleTag<>();
+      SMALL_BIDIRECTIONAL_TASKS = new TupleTag<>();
   static final TupleTag<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>
-    LARGE_BIDIRECTIONAL_TASKS = new TupleTag<>();
+      LARGE_BIDIRECTIONAL_TASKS = new TupleTag<>();
 
   private final IcebergScanConfig scanConfig;
   private @MonotonicNonNull Table table;
@@ -205,15 +205,10 @@ class ChangelogScanner
   }
 
   static KvCoder<ChangelogDescriptor, List<SerializableChangelogTask>> coder(
-    org.apache.beam.sdk.schemas.Schema rowIdBeamSchema) {
+      org.apache.beam.sdk.schemas.Schema rowIdBeamSchema) {
     return KvCoder.of(
-      ChangelogDescriptor.coder(rowIdBeamSchema),
-      ListCoder.of(SerializableChangelogTask.coder()));
-  }
-
-  @Setup
-  public void setup() {
-    TableCache.setup(scanConfig);
+        ChangelogDescriptor.coder(rowIdBeamSchema),
+        ListCoder.of(SerializableChangelogTask.coder()));
   }
 
   @ProcessElement
@@ -221,16 +216,20 @@ class ChangelogScanner
     resetLocalMetrics();
     // not using getRefreshed because upstream Watch should have already refreshed the
     // table to a state where this snapshot exists
-    this.table = SerializableTable.copyOf(TableCache.get(scanConfig.getTableIdentifier()));
+    this.table =
+        SerializableTable.copyOf(
+            TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier()));
     this.snapshot = table.snapshot(snapshotId);
 
     // refresh on miss
     if (this.snapshot == null) {
       this.table =
-        SerializableTable.copyOf(TableCache.getRefreshed(scanConfig.getTableIdentifier()));
+          SerializableTable.copyOf(
+              TableCache.getRefreshed(
+                  scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier()));
       this.snapshot =
-        checkStateNotNull(
-          table.snapshot(snapshotId), "Could not retrieve table snapshot: %s", snapshotId);
+          checkStateNotNull(
+              table.snapshot(snapshotId), "Could not retrieve table snapshot: %s", snapshotId);
     }
 
     @Nullable Long fromSnapshotId = snapshot.parentId();
@@ -239,9 +238,9 @@ class ChangelogScanner
     // TODO(ahmedabu98): replace this with table.newIncrementalChangelogScan() when
     //  https://github.com/apache/iceberg/pull/14264/ gets merged and released.
     IncrementalChangelogScan scan =
-      new BaseIncrementalChangelogScan(table)
-        .toSnapshot(snapshotId)
-        .project(scanConfig.getProjectedSchema());
+        new BaseIncrementalChangelogScan(table)
+            .toSnapshot(snapshotId)
+            .project(scanConfig.getProjectedSchema());
     if (fromSnapshotId != null) {
       scan = scan.fromSnapshotExclusive(fromSnapshotId);
     }
@@ -257,7 +256,7 @@ class ChangelogScanner
   }
 
   private IncrementalChangelogScan maybeIncludeColumnStats(
-    IncrementalChangelogScan scan, Table table) {
+      IncrementalChangelogScan scan, Table table) {
     boolean metricsAvailable = true;
     MetricsConfig metricsConfig = MetricsConfig.forTable(table);
     Collection<String> pkFields = table.schema().identifierFieldNames();
@@ -276,7 +275,7 @@ class ChangelogScanner
 
   @SuppressWarnings("Slf4jFormatShouldBeConst")
   private void createAndOutputReadTasks(
-    IncrementalChangelogScan scan, MultiOutputReceiver multiOutputReceiver) throws IOException {
+      IncrementalChangelogScan scan, MultiOutputReceiver multiOutputReceiver) throws IOException {
     Snapshot snapshot = checkStateNotNull(this.snapshot);
     Table table = checkStateNotNull(this.table);
 
@@ -286,10 +285,10 @@ class ChangelogScanner
     // If records are pinned, we can optimize by only shuffling bi-directional changes
     // *within* a partition, since no cross-partition changes will occur.
     Set<Integer> pinnedSpecs =
-      table.specs().entrySet().stream()
-        .filter(e -> doesSpecPinRecordsToPartition(e.getValue()))
-        .map(Map.Entry::getKey)
-        .collect(Collectors.toSet());
+        table.specs().entrySet().stream()
+            .filter(e -> doesSpecPinRecordsToPartition(e.getValue()))
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toSet());
     boolean tableHasPinnedSpecs = !pinnedSpecs.isEmpty();
 
     // The optimization cannot apply if any file in this snapshot uses an unpinned spec
@@ -302,15 +301,15 @@ class ChangelogScanner
 
     // batcher for uni-directional tasks, which can be directly emitted when splitSize is reached
     uniBatcher =
-      new TaskBatcher(
-        scanConfig.getTableIdentifier(),
-        snapshot.timestampMillis(),
-        splitSize(),
-        multiOutputReceiver.get(UNIDIRECTIONAL_TASKS));
+        new TaskBatcher(
+            scanConfig.getTableIdentifier(),
+            snapshot.timestampMillis(),
+            splitSize(),
+            multiOutputReceiver.get(UNIDIRECTIONAL_TASKS));
 
     // === collect partition metadata and route/buffer tasks ===
     LOG.info(
-      "Planning to scan snapshot {} (seq: {})", snapshot.snapshotId(), snapshot.sequenceNumber());
+        "Planning to scan snapshot {} (seq: {})", snapshot.snapshotId(), snapshot.sequenceNumber());
     try (CloseableIterable<ScanTaskGroup<ChangelogScanTask>> scanTaskGroups = scan.planTasks()) {
       for (ScanTaskGroup<ChangelogScanTask> scanTaskGroup : scanTaskGroups) {
         for (ChangelogScanTask task : scanTaskGroup.tasks()) {
@@ -345,7 +344,7 @@ class ChangelogScanner
     // a snapshot using multiple specs is also not safe for the partition optimization,
     // unless we account for the spec ID in the file-to-file comparison, which complicates things
     canDoPartitionOptimization =
-      tableHasPinnedSpecs && !snapshotHasUnpinnedSpec && specsInSnapshot.size() <= 1;
+        tableHasPinnedSpecs && !snapshotHasUnpinnedSpec && specsInSnapshot.size() <= 1;
 
     // === analyze buffered overwrite tasks using the partition metadata ===
     processOverwriteTasks(overwriteTasks, changeTypesInPartition, multiOutputReceiver);
@@ -357,9 +356,9 @@ class ChangelogScanner
   }
 
   private void processOverwriteTasks(
-    OverwriteTasks overwriteTasks,
-    ChangeTypesInPartition changeTypesInPartition,
-    MultiOutputReceiver multiOutputReceiver) {
+      OverwriteTasks overwriteTasks,
+      ChangeTypesInPartition changeTypesInPartition,
+      MultiOutputReceiver multiOutputReceiver) {
     if (overwriteTasks.isEmpty()) {
       return;
     }
@@ -368,11 +367,11 @@ class ChangelogScanner
 
     TaskBatcher uniBatcher = checkStateNotNull(this.uniBatcher);
     TaskBatcher largeBiBatcher =
-      new TaskBatcher(
-        scanConfig.getTableIdentifier(),
-        snapshot.timestampMillis(),
-        splitSize(),
-        multiOutputReceiver.get(LARGE_BIDIRECTIONAL_TASKS));
+        new TaskBatcher(
+            scanConfig.getTableIdentifier(),
+            snapshot.timestampMillis(),
+            splitSize(),
+            multiOutputReceiver.get(LARGE_BIDIRECTIONAL_TASKS));
 
     if (!canDoPartitionOptimization) {
       // Records are not pinned to partition (or no pinned specs at all).
@@ -380,7 +379,7 @@ class ChangelogScanner
       List<ChangelogScanTask> tasks = overwriteTasks.allTasks();
 
       AnalysisResult result =
-        analyzeFiles(tasks, scanConfig.recordIdSchema(), scanConfig.recordIdComparator());
+          analyzeFiles(tasks, scanConfig.recordIdSchema(), scanConfig.recordIdComparator());
 
       uniBatcher.add(result.unidirectional, snapshot.sequenceNumber(), table);
       numUniDirTasks += result.unidirectional.size();
@@ -390,14 +389,14 @@ class ChangelogScanner
       // Records are pinned to partition.
       // Narrow down by comparing the files within each partition independently.
       for (Map.Entry<Integer, StructLikeMap<List<ChangelogScanTask>>> tasksPerSpec :
-        overwriteTasks.tasks.entrySet()) {
+          overwriteTasks.tasks.entrySet()) {
         int specId = tasksPerSpec.getKey();
         for (Map.Entry<StructLike, List<ChangelogScanTask>> tasksInPartition :
-          tasksPerSpec.getValue().entrySet()) {
+            tasksPerSpec.getValue().entrySet()) {
           StructLike partition = tasksInPartition.getKey();
           @Nullable
           Set<SerializableChangelogTask.Type> partitionChangeTypes =
-            changeTypesInPartition.typesFor(specId, partition);
+              changeTypesInPartition.typesFor(specId, partition);
 
           // If this partition has only uni-directional changes, output to UNIDIRECTIONAL and bypass
           // file analysis
@@ -409,10 +408,10 @@ class ChangelogScanner
 
           // Partition has bi-directional changes — analyze file-level overlaps
           AnalysisResult result =
-            analyzeFiles(
-              tasksInPartition.getValue(),
-              scanConfig.recordIdSchema(),
-              scanConfig.recordIdComparator());
+              analyzeFiles(
+                  tasksInPartition.getValue(),
+                  scanConfig.recordIdSchema(),
+                  scanConfig.recordIdComparator());
 
           uniBatcher.add(result.unidirectional, snapshot.sequenceNumber(), table);
           routeBidirectional(result, largeBiBatcher, multiOutputReceiver);
@@ -436,9 +435,9 @@ class ChangelogScanner
 
     void add(PartitionSpec spec, StructLike partition, ChangelogScanTask task) {
       tasks
-        .computeIfAbsent(spec.specId(), id -> StructLikeMap.create(spec.partitionType()))
-        .computeIfAbsent(partition, p -> new ArrayList<>())
-        .add(task);
+          .computeIfAbsent(spec.specId(), id -> StructLikeMap.create(spec.partitionType()))
+          .computeIfAbsent(partition, p -> new ArrayList<>())
+          .add(task);
     }
 
     boolean isEmpty() {
@@ -447,9 +446,9 @@ class ChangelogScanner
 
     List<ChangelogScanTask> allTasks() {
       return tasks.values().stream()
-        .flatMap(taskMap -> taskMap.values().stream())
-        .flatMap(List::stream)
-        .collect(Collectors.toList());
+          .flatMap(taskMap -> taskMap.values().stream())
+          .flatMap(List::stream)
+          .collect(Collectors.toList());
     }
   }
 
@@ -459,13 +458,13 @@ class ChangelogScanner
    */
   static class ChangeTypesInPartition {
     Map<Integer, StructLikeMap<Set<SerializableChangelogTask.Type>>> changeTypesPerPartition =
-      new HashMap<>();
+        new HashMap<>();
 
     void add(PartitionSpec spec, StructLike partition, SerializableChangelogTask.Type type) {
       changeTypesPerPartition
-        .computeIfAbsent(spec.specId(), id -> StructLikeMap.create(spec.partitionType()))
-        .computeIfAbsent(partition, p -> new HashSet<>())
-        .add(type);
+          .computeIfAbsent(spec.specId(), id -> StructLikeMap.create(spec.partitionType()))
+          .computeIfAbsent(partition, p -> new HashSet<>())
+          .add(type);
     }
 
     @Nullable
@@ -479,7 +478,7 @@ class ChangelogScanner
 
   /** Checks if a set of change types include both inserts and deletes. */
   private static boolean containsBiDirectionalChanges(
-    Set<SerializableChangelogTask.Type> changeTypes) {
+      Set<SerializableChangelogTask.Type> changeTypes) {
     return changeTypes.contains(ADDED_ROWS) && changeTypes.size() > 1;
   }
 
@@ -491,10 +490,10 @@ class ChangelogScanner
     final @Nullable StructLike overlapUpper;
 
     AnalysisResult(
-      List<ChangelogScanTask> unidirectional,
-      List<ChangelogScanTask> bidirectional,
-      @Nullable StructLike overlapLower,
-      @Nullable StructLike overlapUpper) {
+        List<ChangelogScanTask> unidirectional,
+        List<ChangelogScanTask> bidirectional,
+        @Nullable StructLike overlapLower,
+        @Nullable StructLike overlapUpper) {
       this.unidirectional = unidirectional;
       this.bidirectional = bidirectional;
       this.overlapLower = overlapLower;
@@ -504,15 +503,15 @@ class ChangelogScanner
     @Nullable
     Row overlapLowerRow(org.apache.beam.sdk.schemas.Schema idSchema) {
       return this.overlapLower == null
-        ? null
-        : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapLower);
+          ? null
+          : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapLower);
     }
 
     @Nullable
     Row overlapUpperRow(org.apache.beam.sdk.schemas.Schema idSchema) {
       return this.overlapUpper == null
-        ? null
-        : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapUpper);
+          ? null
+          : IcebergUtils.icebergRecordToBeamRow(idSchema, (Record) this.overlapUpper);
     }
   }
 
@@ -523,7 +522,7 @@ class ChangelogScanner
    * task's bounds, it is considered a uni-directional change.
    */
   static AnalysisResult analyzeFiles(
-    List<ChangelogScanTask> tasks, Schema recIdSchema, Comparator<StructLike> idComp) {
+      List<ChangelogScanTask> tasks, Schema recIdSchema, Comparator<StructLike> idComp) {
     List<TaskAndBounds> insertTasks = new ArrayList<>();
     List<TaskAndBounds> deleteTasks = new ArrayList<>();
 
@@ -555,8 +554,8 @@ class ChangelogScanner
       TaskAndBounds lastDelete = deleteTasks.stream().max(upperBoundComp).orElseThrow();
 
       boolean overlapExists =
-        idComp.compare(firstDelete.lowerId, lastInsert.upperId) <= 0
-          && idComp.compare(firstInsert.lowerId, lastDelete.upperId) <= 0;
+          idComp.compare(firstDelete.lowerId, lastInsert.upperId) <= 0
+              && idComp.compare(firstInsert.lowerId, lastDelete.upperId) <= 0;
 
       if (overlapExists) {
         // Iterate through inserts and only check relevant deletes
@@ -564,7 +563,7 @@ class ChangelogScanner
           // First check if the insert task overlaps with the global delete window.
           // If not, we can just skip it.
           if (idComp.compare(insert.upperId, firstDelete.lowerId) < 0
-            || idComp.compare(insert.lowerId, lastDelete.upperId) > 0) {
+              || idComp.compare(insert.lowerId, lastDelete.upperId) > 0) {
             continue;
           }
 
@@ -600,38 +599,38 @@ class ChangelogScanner
     StructLike overlapUpper = null;
     if (!bidirectional.isEmpty()) {
       StructLike globalInsertLower =
-        insertTasks.stream()
-          .filter(t -> t.overlaps)
-          .map(t -> t.lowerId)
-          .min(idComp)
-          .orElseThrow();
+          insertTasks.stream()
+              .filter(t -> t.overlaps)
+              .map(t -> t.lowerId)
+              .min(idComp)
+              .orElseThrow();
       StructLike globalInsertUpper =
-        insertTasks.stream()
-          .filter(t -> t.overlaps)
-          .map(t -> t.upperId)
-          .max(idComp)
-          .orElseThrow();
+          insertTasks.stream()
+              .filter(t -> t.overlaps)
+              .map(t -> t.upperId)
+              .max(idComp)
+              .orElseThrow();
       StructLike globalDeleteLower =
-        deleteTasks.stream()
-          .filter(t -> t.overlaps)
-          .map(t -> t.lowerId)
-          .min(idComp)
-          .orElseThrow();
+          deleteTasks.stream()
+              .filter(t -> t.overlaps)
+              .map(t -> t.lowerId)
+              .min(idComp)
+              .orElseThrow();
       StructLike globalDeleteUpper =
-        deleteTasks.stream()
-          .filter(t -> t.overlaps)
-          .map(t -> t.upperId)
-          .max(idComp)
-          .orElseThrow();
+          deleteTasks.stream()
+              .filter(t -> t.overlaps)
+              .map(t -> t.upperId)
+              .max(idComp)
+              .orElseThrow();
 
       overlapLower =
-        idComp.compare(globalInsertLower, globalDeleteLower) > 0
-          ? globalInsertLower
-          : globalDeleteLower;
+          idComp.compare(globalInsertLower, globalDeleteLower) > 0
+              ? globalInsertLower
+              : globalDeleteLower;
       overlapUpper =
-        idComp.compare(globalInsertUpper, globalDeleteUpper) < 0
-          ? globalInsertUpper
-          : globalDeleteUpper;
+          idComp.compare(globalInsertUpper, globalDeleteUpper) < 0
+              ? globalInsertUpper
+              : globalDeleteUpper;
     }
 
     return new AnalysisResult(unidirectional, bidirectional, overlapLower, overlapUpper);
@@ -651,7 +650,7 @@ class ChangelogScanner
    * <p>Returns the number of tasks routed to LOCAL so the caller can update counters.
    */
   private void routeBidirectional(
-    AnalysisResult result, TaskBatcher largeBiBatcher, MultiOutputReceiver multiOutputReceiver) {
+      AnalysisResult result, TaskBatcher largeBiBatcher, MultiOutputReceiver multiOutputReceiver) {
     Snapshot snapshot = checkStateNotNull(this.snapshot);
 
     if (result.bidirectional.isEmpty()) {
@@ -659,30 +658,30 @@ class ChangelogScanner
     }
 
     long totalBytes =
-      result.bidirectional.stream().mapToLong(SerializableChangelogTask::getLength).sum();
+        result.bidirectional.stream().mapToLong(SerializableChangelogTask::getLength).sum();
 
     @Nullable Row overlapLowerRow = result.overlapLowerRow(scanConfig.rowIdBeamSchema());
     @Nullable Row overlapUpperRow = result.overlapUpperRow(scanConfig.rowIdBeamSchema());
     ChangelogDescriptor descriptor =
-      ChangelogDescriptor.builder()
-        .setTableIdentifierString(scanConfig.getTableIdentifier())
-        .setSnapshotSequenceNumber(snapshot.sequenceNumber())
-        .setCommitSnapshotId(snapshot.snapshotId())
-        .setOverlapLower(overlapLowerRow)
-        .setOverlapUpper(overlapUpperRow)
-        .build();
+        ChangelogDescriptor.builder()
+            .setTableIdentifierString(scanConfig.getTableIdentifier())
+            .setSnapshotSequenceNumber(snapshot.sequenceNumber())
+            .setCommitSnapshotId(snapshot.snapshotId())
+            .setOverlapLower(overlapLowerRow)
+            .setOverlapUpper(overlapUpperRow)
+            .build();
 
     List<SerializableChangelogTask> serializedTasks =
-      result.bidirectional.stream()
-        .map(t -> makeTask(t, checkStateNotNull(table)))
-        .collect(Collectors.toList());
+        result.bidirectional.stream()
+            .map(t -> makeTask(t, checkStateNotNull(table)))
+            .collect(Collectors.toList());
 
     // If the batch is small enough, we can route to LOCAL (in-memory) resolver
     if (totalBytes <= splitSize()) {
       Instant ts = Instant.ofEpochMilli(snapshot.timestampMillis());
       multiOutputReceiver
-        .get(SMALL_BIDIRECTIONAL_TASKS)
-        .outputWithTimestamp(KV.of(descriptor, serializedTasks), ts);
+          .get(SMALL_BIDIRECTIONAL_TASKS)
+          .outputWithTimestamp(KV.of(descriptor, serializedTasks), ts);
       numSmallBiDirTasks += result.bidirectional.size();
       numSmallBiDirSplits++;
       return;
@@ -715,8 +714,8 @@ class ChangelogScanner
     }
 
     static TaskAndBounds of(
-      ChangelogScanTask task, Schema recIdSchema, Comparator<StructLike> idComp)
-      throws NoBoundMetricsException {
+        ChangelogScanTask task, Schema recIdSchema, Comparator<StructLike> idComp)
+        throws NoBoundMetricsException {
       @MonotonicNonNull GenericRecord lowerId = null;
       @MonotonicNonNull GenericRecord upperId = null;
 
@@ -727,9 +726,9 @@ class ChangelogScanner
         @Nullable Map<Integer, ByteBuffer> upperBounds = df.upperBounds();
         if (lowerBounds == null || upperBounds == null) {
           throw new NoBoundMetricsException(
-            format(
-              "Upper and/or lower bounds are missing for %s with DataFile: %s.",
-              task.getClass().getSimpleName(), df.location()));
+              format(
+                  "Upper and/or lower bounds are missing for %s with DataFile: %s.",
+                  task.getClass().getSimpleName(), df.location()));
         }
 
         lowerId = createRecId(recIdSchema, lowerBounds);
@@ -742,12 +741,12 @@ class ChangelogScanner
           @Nullable Map<Integer, ByteBuffer> upperDelBounds = deleteFile.upperBounds();
           if (lowerDelBounds == null || upperDelBounds == null) {
             throw new NoBoundMetricsException(
-              format(
-                "Upper and/or lower bounds are missing for %s with "
-                  + "DataFile '%s' and DeleteFile '%s'",
-                task.getClass().getSimpleName(),
-                getDataFile(task).location(),
-                deleteFile.location()));
+                format(
+                    "Upper and/or lower bounds are missing for %s with "
+                        + "DataFile '%s' and DeleteFile '%s'",
+                    task.getClass().getSimpleName(),
+                    getDataFile(task).location(),
+                    deleteFile.location()));
           }
 
           GenericRecord delFileLower = createRecId(recIdSchema, lowerDelBounds);
@@ -762,14 +761,14 @@ class ChangelogScanner
         }
       } else {
         throw new UnsupportedOperationException(
-          "Unsupported task type: " + task.getClass().getSimpleName());
+            "Unsupported task type: " + task.getClass().getSimpleName());
       }
 
       if (lowerId == null || upperId == null) {
         throw new NoBoundMetricsException(
-          format(
-            "Could not compute min and/or max bounds for %s with DataFile: %s",
-            task.getClass().getSimpleName(), getDataFile(task).location()));
+            format(
+                "Could not compute min and/or max bounds for %s with DataFile: %s",
+                task.getClass().getSimpleName(), getDataFile(task).location()));
       }
       return new TaskAndBounds(task, lowerId, upperId);
     }
@@ -793,7 +792,7 @@ class ChangelogScanner
     }
 
     private static GenericRecord createRecId(Schema recIdSchema, Map<Integer, ByteBuffer> bounds)
-      throws NoBoundMetricsException {
+        throws NoBoundMetricsException {
       GenericRecord recId = GenericRecord.create(recIdSchema);
 
       for (Types.NestedField field : recIdSchema.columns()) {
@@ -857,10 +856,10 @@ class ChangelogScanner
     int totalSplits = 0;
 
     TaskBatcher(
-      String tableIdentifier,
-      Long timestampMillis,
-      long maxSplitSize,
-      OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output) {
+        String tableIdentifier,
+        Long timestampMillis,
+        long maxSplitSize,
+        OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> output) {
       this.tableIdentifier = tableIdentifier;
       this.timestamp = Instant.ofEpochMilli(timestampMillis);
       this.maxSplitSize = maxSplitSize;
@@ -877,13 +876,13 @@ class ChangelogScanner
 
     void add(SerializableChangelogTask task, long snapshotSequenceNumber, long sizeBytes) {
       add(
-        ChangelogDescriptor.builder()
-          .setTableIdentifierString(tableIdentifier)
-          .setSnapshotSequenceNumber(snapshotSequenceNumber)
-          .setCommitSnapshotId(task.getCommitSnapshotId())
-          .build(),
-        task,
-        sizeBytes);
+          ChangelogDescriptor.builder()
+              .setTableIdentifierString(tableIdentifier)
+              .setSnapshotSequenceNumber(snapshotSequenceNumber)
+              .setCommitSnapshotId(task.getCommitSnapshotId())
+              .build(),
+          task,
+          sizeBytes);
     }
 
     void add(ChangelogDescriptor descriptor, SerializableChangelogTask task, long sizeBytes) {
@@ -900,7 +899,7 @@ class ChangelogScanner
       }
 
       for (Map.Entry<ChangelogDescriptor, List<SerializableChangelogTask>> entry :
-        tasks.entrySet()) {
+          tasks.entrySet()) {
         ChangelogDescriptor descriptor = entry.getKey();
         List<SerializableChangelogTask> taskList = entry.getValue();
         output.outputWithTimestamp(KV.of(descriptor, taskList), timestamp);
@@ -919,9 +918,9 @@ class ChangelogScanner
    */
   long splitSize() {
     return PropertyUtil.propertyAsLong(
-      checkStateNotNull(table).properties(),
-      TableProperties.SPLIT_SIZE,
-      TableProperties.SPLIT_SIZE_DEFAULT);
+        checkStateNotNull(table).properties(),
+        TableProperties.SPLIT_SIZE,
+        TableProperties.SPLIT_SIZE_DEFAULT);
   }
 
   static String name(String path) {
@@ -971,30 +970,30 @@ class ChangelogScanner
   private String scanResultMessage(int totalTasks) {
     StringBuilder message = new StringBuilder();
     message.append(
-      format(
-        "Snapshot %s (seq: %s) produced %s changelog tasks.",
-        checkStateNotNull(snapshot).snapshotId(),
-        checkStateNotNull(snapshot).sequenceNumber(),
-        totalTasks));
+        format(
+            "Snapshot %s (seq: %s) produced %s changelog tasks.",
+            checkStateNotNull(snapshot).snapshotId(),
+            checkStateNotNull(snapshot).sequenceNumber(),
+            totalTasks));
     if (totalTasks > 0) {
       message.append("Emitted:");
       if (numUniDirTasks > 0) {
         message.append(
-          format(
-            "%n\t%s splits containing %s uni-directional tasks",
-            numUniDirSplits, numUniDirTasks));
+            format(
+                "%n\t%s splits containing %s uni-directional tasks",
+                numUniDirSplits, numUniDirTasks));
       }
       if (numSmallBiDirTasks > 0) {
         message.append(
-          format(
-            "%n\t%s splits containing %s small bi-directional tasks (for local resolution)",
-            numSmallBiDirSplits, numSmallBiDirTasks));
+            format(
+                "%n\t%s splits containing %s small bi-directional tasks (for local resolution)",
+                numSmallBiDirSplits, numSmallBiDirTasks));
       }
       if (numLargeBiDirTasks > 0) {
         message.append(
-          format(
-            "%n\t%s splits containing %s large bi-directional tasks (to be shuffled)",
-            numLargeBiDirSplits, numLargeBiDirTasks));
+            format(
+                "%n\t%s splits containing %s large bi-directional tasks (to be shuffled)",
+                numLargeBiDirSplits, numLargeBiDirTasks));
       }
     }
     return message.toString();

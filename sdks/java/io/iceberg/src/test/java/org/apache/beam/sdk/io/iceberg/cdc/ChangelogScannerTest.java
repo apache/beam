@@ -71,22 +71,22 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ChangelogScannerTest {
   private static final Schema SINGLE_PK_SCHEMA =
-    new Schema(
-      ImmutableList.of(
-        required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get())),
-      ImmutableSet.of(1));
+      new Schema(
+          ImmutableList.of(
+              required(1, "id", Types.LongType.get()), optional(2, "data", Types.StringType.get())),
+          ImmutableSet.of(1));
   private static final Schema COMPOSITE_PK_SCHEMA =
-    new Schema(
-      ImmutableList.of(
-        required(1, "account", Types.StringType.get()),
-        required(2, "sequence", Types.IntegerType.get()),
-        optional(3, "data", Types.StringType.get())),
-      ImmutableSet.of(1, 2));
+      new Schema(
+          ImmutableList.of(
+              required(1, "account", Types.StringType.get()),
+              required(2, "sequence", Types.IntegerType.get()),
+              optional(3, "data", Types.StringType.get())),
+          ImmutableSet.of(1, 2));
   private static final Schema SINGLE_RECORD_ID_SCHEMA = recordIdSchema(SINGLE_PK_SCHEMA);
   private static final Schema COMPOSITE_RECORD_ID_SCHEMA = recordIdSchema(COMPOSITE_PK_SCHEMA);
   private static final PartitionSpec UNPARTITIONED_SPEC = PartitionSpec.unpartitioned();
   private static final PartitionSpec IDENTITY_ID_SPEC =
-    PartitionSpec.builderFor(SINGLE_PK_SCHEMA).identity("id").build();
+      PartitionSpec.builderFor(SINGLE_PK_SCHEMA).identity("id").build();
 
   @Test
   public void analyzeFilesPrunesNonOverlappingOpposingTasksToUnidirectional() {
@@ -94,10 +94,10 @@ public class ChangelogScannerTest {
     FakeDeletedDataFileTask delete = new FakeDeletedDataFileTask(dataFile("delete", 30L, 40L), 13L);
 
     ChangelogScanner.AnalysisResult result =
-      ChangelogScanner.analyzeFiles(
-        ImmutableList.of(insert, delete),
-        SINGLE_RECORD_ID_SCHEMA,
-        comparator(SINGLE_RECORD_ID_SCHEMA));
+        ChangelogScanner.analyzeFiles(
+            ImmutableList.of(insert, delete),
+            SINGLE_RECORD_ID_SCHEMA,
+            comparator(SINGLE_RECORD_ID_SCHEMA));
 
     assertThat(result.bidirectional, empty());
     assertThat(result.unidirectional, contains(delete, insert));
@@ -108,16 +108,16 @@ public class ChangelogScannerTest {
   @Test
   public void analyzeFilesFindsOverlapDespiteInputOrder() {
     FakeDeletedDataFileTask laterDelete =
-      new FakeDeletedDataFileTask(dataFile("delete-later", 30L, 40L), 13L);
+        new FakeDeletedDataFileTask(dataFile("delete-later", 30L, 40L), 13L);
     FakeDeletedDataFileTask overlappingDelete =
-      new FakeDeletedDataFileTask(dataFile("delete-overlap", 15L, 18L), 17L);
+        new FakeDeletedDataFileTask(dataFile("delete-overlap", 15L, 18L), 17L);
     FakeAddedRowsTask insert = new FakeAddedRowsTask(dataFile("insert", 10L, 20L), 19L);
 
     ChangelogScanner.AnalysisResult result =
-      ChangelogScanner.analyzeFiles(
-        ImmutableList.of(laterDelete, overlappingDelete, insert),
-        SINGLE_RECORD_ID_SCHEMA,
-        comparator(SINGLE_RECORD_ID_SCHEMA));
+        ChangelogScanner.analyzeFiles(
+            ImmutableList.of(laterDelete, overlappingDelete, insert),
+            SINGLE_RECORD_ID_SCHEMA,
+            comparator(SINGLE_RECORD_ID_SCHEMA));
 
     assertThat(result.unidirectional, contains(laterDelete));
     assertThat(result.bidirectional, containsInAnyOrder(overlappingDelete, insert));
@@ -128,38 +128,38 @@ public class ChangelogScannerTest {
   @Test
   public void analyzeFilesUsesLexicographicCompositePrimaryKeyRanges() {
     FakeAddedRowsTask insert =
-      new FakeAddedRowsTask(
-        dataFile(
-          COMPOSITE_PK_SCHEMA,
-          "insert",
-          ImmutableMap.of("account", "acct-a", "sequence", 2),
-          ImmutableMap.of("account", "acct-a", "sequence", 8),
-          11L),
-        11L);
+        new FakeAddedRowsTask(
+            dataFile(
+                COMPOSITE_PK_SCHEMA,
+                "insert",
+                ImmutableMap.of("account", "acct-a", "sequence", 2),
+                ImmutableMap.of("account", "acct-a", "sequence", 8),
+                11L),
+            11L);
     FakeDeletedDataFileTask overlappingDelete =
-      new FakeDeletedDataFileTask(
-        dataFile(
-          COMPOSITE_PK_SCHEMA,
-          "delete-overlap",
-          ImmutableMap.of("account", "acct-a", "sequence", 5),
-          ImmutableMap.of("account", "acct-b", "sequence", 1),
-          13L),
-        13L);
+        new FakeDeletedDataFileTask(
+            dataFile(
+                COMPOSITE_PK_SCHEMA,
+                "delete-overlap",
+                ImmutableMap.of("account", "acct-a", "sequence", 5),
+                ImmutableMap.of("account", "acct-b", "sequence", 1),
+                13L),
+            13L);
     FakeDeletedDataFileTask farDelete =
-      new FakeDeletedDataFileTask(
-        dataFile(
-          COMPOSITE_PK_SCHEMA,
-          "delete-far",
-          ImmutableMap.of("account", "acct-c", "sequence", 1),
-          ImmutableMap.of("account", "acct-c", "sequence", 2),
-          17L),
-        17L);
+        new FakeDeletedDataFileTask(
+            dataFile(
+                COMPOSITE_PK_SCHEMA,
+                "delete-far",
+                ImmutableMap.of("account", "acct-c", "sequence", 1),
+                ImmutableMap.of("account", "acct-c", "sequence", 2),
+                17L),
+            17L);
 
     ChangelogScanner.AnalysisResult result =
-      ChangelogScanner.analyzeFiles(
-        ImmutableList.of(insert, farDelete, overlappingDelete),
-        COMPOSITE_RECORD_ID_SCHEMA,
-        comparator(COMPOSITE_RECORD_ID_SCHEMA));
+        ChangelogScanner.analyzeFiles(
+            ImmutableList.of(insert, farDelete, overlappingDelete),
+            COMPOSITE_RECORD_ID_SCHEMA,
+            comparator(COMPOSITE_RECORD_ID_SCHEMA));
 
     assertThat(result.unidirectional, contains(farDelete));
     assertThat(result.bidirectional, containsInAnyOrder(insert, overlappingDelete));
@@ -173,13 +173,13 @@ public class ChangelogScannerTest {
   public void analyzeFilesConservativelyRoutesAllTasksWhenMetricsAreMissing() {
     FakeAddedRowsTask insert = new FakeAddedRowsTask(dataFile("insert", 10L, 20L), 11L);
     FakeDeletedDataFileTask deleteWithMissingMetrics =
-      new FakeDeletedDataFileTask(dataFileWithoutBounds("delete-missing-metrics"), 13L);
+        new FakeDeletedDataFileTask(dataFileWithoutBounds("delete-missing-metrics"), 13L);
 
     ChangelogScanner.AnalysisResult result =
-      ChangelogScanner.analyzeFiles(
-        ImmutableList.of(insert, deleteWithMissingMetrics),
-        SINGLE_RECORD_ID_SCHEMA,
-        comparator(SINGLE_RECORD_ID_SCHEMA));
+        ChangelogScanner.analyzeFiles(
+            ImmutableList.of(insert, deleteWithMissingMetrics),
+            SINGLE_RECORD_ID_SCHEMA,
+            comparator(SINGLE_RECORD_ID_SCHEMA));
 
     assertThat(result.unidirectional, empty());
     assertThat(result.bidirectional, contains(insert, deleteWithMissingMetrics));
@@ -191,7 +191,7 @@ public class ChangelogScannerTest {
   public void taskBatcherFlushesAtSplitBoundariesWithoutEmptyBatches() {
     CapturingOutputReceiver out = new CapturingOutputReceiver();
     ChangelogScanner.TaskBatcher batcher =
-      new ChangelogScanner.TaskBatcher("default.table", 1234L, 100L, out);
+        new ChangelogScanner.TaskBatcher("default.table", 1234L, 100L, out);
     SerializableChangelogTask first = serializableTask("first", 40L);
     SerializableChangelogTask second = serializableTask("second", 60L);
     SerializableChangelogTask third = serializableTask("third", 1L);
@@ -215,7 +215,7 @@ public class ChangelogScannerTest {
   public void taskBatcherAllowsOversizeSingleTaskWithoutEmittingEmptyBatch() {
     CapturingOutputReceiver out = new CapturingOutputReceiver();
     ChangelogScanner.TaskBatcher batcher =
-      new ChangelogScanner.TaskBatcher("default.table", 1234L, 100L, out);
+        new ChangelogScanner.TaskBatcher("default.table", 1234L, 100L, out);
     SerializableChangelogTask oversize = serializableTask("oversize", 150L);
 
     batcher.add(oversize, 1L, 150L);
@@ -241,7 +241,7 @@ public class ChangelogScannerTest {
   }
 
   private static List<SerializableChangelogTask> tasksInOutput(
-    CapturingOutputReceiver out, int index) {
+      CapturingOutputReceiver out, int index) {
     return out.values.get(index).getValue().getValue();
   }
 
@@ -250,38 +250,38 @@ public class ChangelogScannerTest {
   }
 
   private static DataFile dataFile(
-    PartitionSpec spec, StructLike partition, String name, long lower, long upper) {
+      PartitionSpec spec, StructLike partition, String name, long lower, long upper) {
     return dataFile(
-      SINGLE_PK_SCHEMA,
-      spec,
-      partition,
-      name,
-      ImmutableMap.of("id", lower),
-      ImmutableMap.of("id", upper),
-      100L);
+        SINGLE_PK_SCHEMA,
+        spec,
+        partition,
+        name,
+        ImmutableMap.of("id", lower),
+        ImmutableMap.of("id", upper),
+        100L);
   }
 
   private static DataFile dataFile(
-    Schema schema, String name, Map<String, Object> lower, Map<String, Object> upper, long size) {
+      Schema schema, String name, Map<String, Object> lower, Map<String, Object> upper, long size) {
     return dataFile(schema, UNPARTITIONED_SPEC, null, name, lower, upper, size);
   }
 
   private static DataFile dataFile(
-    Schema schema,
-    PartitionSpec spec,
-    StructLike partition,
-    String name,
-    Map<String, Object> lower,
-    Map<String, Object> upper,
-    long size) {
+      Schema schema,
+      PartitionSpec spec,
+      StructLike partition,
+      String name,
+      Map<String, Object> lower,
+      Map<String, Object> upper,
+      long size) {
     DataFiles.Builder builder =
-      DataFiles.builder(spec)
-        .withFormat(FileFormat.PARQUET)
-        .withPath("gs:://bucket/data/" + name + ".parquet")
-        .withFileSizeInBytes(size)
-        .withMetrics(
-          new Metrics(
-            1L, null, null, null, null, bounds(schema, lower), bounds(schema, upper)));
+        DataFiles.builder(spec)
+            .withFormat(FileFormat.PARQUET)
+            .withPath("gs:://bucket/data/" + name + ".parquet")
+            .withFileSizeInBytes(size)
+            .withMetrics(
+                new Metrics(
+                    1L, null, null, null, null, bounds(schema, lower), bounds(schema, upper)));
     if (partition != null) {
       builder.withPartition(partition);
     }
@@ -290,11 +290,11 @@ public class ChangelogScannerTest {
 
   private static DataFile dataFileWithoutBounds(String name) {
     return DataFiles.builder(UNPARTITIONED_SPEC)
-      .withFormat(FileFormat.PARQUET)
-      .withPath("gs:://bucket/data/" + name + ".parquet")
-      .withFileSizeInBytes(100L)
-      .withMetrics(new Metrics(1L, null, null, null, null, null, null))
-      .build();
+        .withFormat(FileFormat.PARQUET)
+        .withPath("gs:://bucket/data/" + name + ".parquet")
+        .withFileSizeInBytes(100L)
+        .withMetrics(new Metrics(1L, null, null, null, null, null, null))
+        .build();
   }
 
   private static Map<Integer, ByteBuffer> bounds(Schema schema, Map<String, Object> values) {
@@ -302,7 +302,7 @@ public class ChangelogScannerTest {
     for (Types.NestedField field : schema.columns()) {
       if (values.containsKey(field.name())) {
         builder.put(
-          field.fieldId(), Conversions.toByteBuffer(field.type(), values.get(field.name())));
+            field.fieldId(), Conversions.toByteBuffer(field.type(), values.get(field.name())));
       }
     }
     return builder.build();
@@ -319,27 +319,27 @@ public class ChangelogScannerTest {
 
   private static SerializableChangelogTask serializableTask(String name, long length) {
     DataFile file =
-      DataFiles.builder(UNPARTITIONED_SPEC)
-        .withFormat(FileFormat.PARQUET)
-        .withPath("gs:://bucket/data/" + name + ".parquet")
-        .withFileSizeInBytes(length)
-        .withMetrics(new Metrics(1L, null, null, null, null, null, null))
-        .build();
+        DataFiles.builder(UNPARTITIONED_SPEC)
+            .withFormat(FileFormat.PARQUET)
+            .withPath("gs:://bucket/data/" + name + ".parquet")
+            .withFileSizeInBytes(length)
+            .withMetrics(new Metrics(1L, null, null, null, null, null, null))
+            .build();
     return SerializableChangelogTask.builder()
-      .setType(SerializableChangelogTask.Type.ADDED_ROWS)
-      .setDataFile(SerializableDataFile.from(file, "", false))
-      .setSpecId(UNPARTITIONED_SPEC.specId())
-      .setOperation(ChangelogOperation.INSERT)
-      .setOrdinal(0)
-      .setCommitSnapshotId(1L)
-      .setStart(0L)
-      .setLength(length)
-      .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
-      .build();
+        .setType(SerializableChangelogTask.Type.ADDED_ROWS)
+        .setDataFile(SerializableDataFile.from(file, "", false))
+        .setSpecId(UNPARTITIONED_SPEC.specId())
+        .setOperation(ChangelogOperation.INSERT)
+        .setOrdinal(0)
+        .setCommitSnapshotId(1L)
+        .setStart(0L)
+        .setLength(length)
+        .setJsonExpression(ExpressionParser.toJson(Expressions.alwaysTrue()))
+        .build();
   }
 
   private abstract static class FakeContentTask
-    implements ChangelogScanTask, ContentScanTask<DataFile> {
+      implements ChangelogScanTask, ContentScanTask<DataFile> {
     private final DataFile file;
     private final PartitionSpec spec;
     private final StructLike partition;
@@ -414,7 +414,7 @@ public class ChangelogScannerTest {
   }
 
   private static class FakeDeletedDataFileTask extends FakeContentTask
-    implements DeletedDataFileScanTask {
+      implements DeletedDataFileScanTask {
     FakeDeletedDataFileTask(DataFile file, long length) {
       super(file, length);
     }
@@ -431,22 +431,22 @@ public class ChangelogScannerTest {
   }
 
   private static final class CapturingOutputReceiver
-    implements DoFn.OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> {
+      implements DoFn.OutputReceiver<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> {
     private final ImmutableList.Builder<
-      TimestampedValue<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>>
-      builder = ImmutableList.builder();
+            TimestampedValue<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>>
+        builder = ImmutableList.builder();
     private List<TimestampedValue<KV<ChangelogDescriptor, List<SerializableChangelogTask>>>>
-      values = ImmutableList.of();
+        values = ImmutableList.of();
 
     @Override
     public OutputBuilder<KV<ChangelogDescriptor, List<SerializableChangelogTask>>> builder(
-      KV<ChangelogDescriptor, List<SerializableChangelogTask>> value) {
+        KV<ChangelogDescriptor, List<SerializableChangelogTask>> value) {
       throw new UnsupportedOperationException("Use outputWithTimestamp in this test receiver.");
     }
 
     @Override
     public void outputWithTimestamp(
-      KV<ChangelogDescriptor, List<SerializableChangelogTask>> value, Instant timestamp) {
+        KV<ChangelogDescriptor, List<SerializableChangelogTask>> value, Instant timestamp) {
       builder.add(TimestampedValue.of(value, timestamp));
       values = builder.build();
     }
