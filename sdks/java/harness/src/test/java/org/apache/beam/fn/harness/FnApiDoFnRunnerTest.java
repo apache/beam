@@ -123,6 +123,7 @@ import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.graph.ProtoOverrides;
 import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -838,7 +839,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       private Supplier<String> processBundleRequestIdSupplier;
 
       public TestBeamFnDataOutboundAggregator(Supplier<String> bundleIdSupplier) {
-        super(PipelineOptionsFactory.create(), bundleIdSupplier, null, false);
+        super(PipelineOptionsFactory.create(), false);
         this.timers = new HashMap<>();
         this.dataOutput = new HashMap<>();
         this.processBundleRequestIdSupplier = bundleIdSupplier;
@@ -1161,7 +1162,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           Collections.singletonList(GlobalWindow.INSTANCE),
           fireTimestamp,
           holdTimestamp,
-          PaneInfo.NO_FIRING);
+          PaneInfo.NO_FIRING,
+          CausedByDrain.NORMAL);
     }
 
     private <T> WindowedValue<T> valueInWindows(

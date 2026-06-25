@@ -29,6 +29,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+import dataclasses
 import inspect
 import logging
 import sys
@@ -41,6 +42,7 @@ from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.trivial_inference import key_value_types
+from apache_beam.typehints.trivial_inference import resolve_dataclass_field_type
 from apache_beam.typehints.trivial_inference import union
 from apache_beam.typehints.typehints import Any
 from apache_beam.typehints.typehints import Dict
@@ -62,6 +64,11 @@ if sys.version_info >= (3, 11):
   ])
 else:
   _div_binop_args = frozenset()
+
+if sys.version_info >= (3, 14):
+  _NB_SUBSCR_OPCODE = [op[0] for op in opcode._nb_ops].index('NB_SUBSCR')
+else:
+  _NB_SUBSCR_OPCODE = -1
 
 
 def pop_one(state, unused_arg):
@@ -151,6 +158,9 @@ _NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
 
 def symmetric_binary_op(state, arg, is_true_div=None):
   # TODO(robertwb): This may not be entirely correct...
+  # BINARY_SUBSCR was rolled into BINARY_OP in 3.14.
+  if arg == _NB_SUBSCR_OPCODE:
+    return binary_subscr(state, arg)
   b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
     if a is int and b is int and (arg in _div_binop_args or is_true_div):
@@ -206,7 +216,10 @@ def binary_subscr(state, unused_arg):
       out = base._constraint_for_index(index.value)
     except IndexError:
       out = element_type(base)
-  elif index == slice and isinstance(base, typehints.IndexableTypeConstraint):
+  elif (index == slice or getattr(index, 'type', None) == slice) and isinstance(
+      base, typehints.IndexableTypeConstraint):
+    # The slice is treated as a const in 3.14, using this instead of
+    # BINARY_SLICE
     out = base
   else:
     out = element_type(base)
@@ -436,6 +449,12 @@ def _getattr(o, name):
     return Const(BoundMethod(func, o))
   elif isinstance(o, row_type.RowTypeConstraint):
     return o.get_type_for(name)
+  elif inspect.isclass(o) and dataclasses.is_dataclass(o):
+    field = o.__dataclass_fields__.get(name)
+    if field is not None:
+      return resolve_dataclass_field_type(field.type)
+    return Any
+
   else:
     return Any
 
@@ -483,11 +502,18 @@ def load_global(state, arg):
   state.stack.append(state.get_global(arg))
 
 
+def load_small_int(state, arg):
+  state.stack.append(Const(arg))
+
+
 store_map = pop_two
 
 
 def load_fast(state, arg):
   state.stack.append(state.vars[arg])
+
+
+load_fast_borrow = load_fast
 
 
 def load_fast_load_fast(state, arg):
@@ -496,6 +522,8 @@ def load_fast_load_fast(state, arg):
   state.stack.append(state.vars[arg1])
   state.stack.append(state.vars[arg2])
 
+
+load_fast_borrow_load_fast_borrow = load_fast_load_fast
 
 load_fast_check = load_fast
 
@@ -605,6 +633,8 @@ def set_function_attribute(state, arg):
                     for t in state.stack[attr].tuple_types)
   new_func = types.FunctionType(
       func.code, func.globals, name=func.name, closure=closure)
+  if arg & 0x10:
+    new_func.__annotate__ = attr
   state.stack.append(Const(new_func))
 
 

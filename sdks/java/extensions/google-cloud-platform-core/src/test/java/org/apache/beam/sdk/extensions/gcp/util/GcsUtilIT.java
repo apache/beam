@@ -27,8 +27,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
@@ -72,13 +73,14 @@ public class GcsUtilIT {
     String dstFilename =
         gcsOptions.getGcpTempLocation()
             + String.format(
-                "/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testRewriteMultiPart.copy", new Date());
-    gcsUtil.maxBytesRewrittenPerCall = 50L * 1024 * 1024;
-    gcsUtil.numRewriteTokensUsed = new AtomicInteger();
+                "/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testRewriteMultiPart.copy",
+                LocalDateTime.now(ZoneId.of("UTC")));
+    gcsUtil.delegate.maxBytesRewrittenPerCall = 50L * 1024 * 1024;
+    gcsUtil.delegate.numRewriteTokensUsed = new AtomicInteger();
 
     gcsUtil.copy(Lists.newArrayList(srcFilename), Lists.newArrayList(dstFilename));
 
-    assertThat(gcsUtil.numRewriteTokensUsed.get(), equalTo(3));
+    assertThat(gcsUtil.delegate.numRewriteTokensUsed.get(), equalTo(3));
     assertThat(
         gcsUtil.getObject(GcsPath.fromUri(srcFilename)).getMd5Hash(),
         equalTo(gcsUtil.getObject(GcsPath.fromUri(dstFilename)).getMd5Hash()));
@@ -108,7 +110,8 @@ public class GcsUtilIT {
 
     // Write a test file in a bucket with gRPC enabled.
     String tempLocationWithGrpc = options.getTempRoot() + "/temp";
-    String filename = String.format(outputPattern, tempLocationWithGrpc, new Date());
+    String filename =
+        String.format(outputPattern, tempLocationWithGrpc, LocalDateTime.now(ZoneId.of("UTC")));
     writeGcsTextFile(gcsUtil, filename, testContent);
 
     // Read the test file back and verify

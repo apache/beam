@@ -121,20 +121,18 @@ public class KafkaIOReadImplementationCompatibilityTest {
     return p.run();
   }
 
-  private Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>>
-      legacyDecoratorFunction() {
-    return read -> read.withMaxReadTime(Duration.millis(10));
+  private KafkaIO.Read<Integer, Long> legacyDecoratorFunction(KafkaIO.Read<Integer, Long> read) {
+    return read.withMaxReadTime(Duration.millis(10));
   }
 
-  private Function<KafkaIO.Read<Integer, Long>, KafkaIO.Read<Integer, Long>>
-      sdfDecoratorFunction() {
-    return read -> read.withStopReadTime(Instant.ofEpochMilli(10));
+  private KafkaIO.Read<Integer, Long> sdfDecoratorFunction(KafkaIO.Read<Integer, Long> read) {
+    return read.withStopReadTime(Instant.ofEpochMilli(10));
   }
 
   @Test
   public void testReadTransformCreationWithLegacyImplementationBoundProperty() {
     PipelineResult r =
-        testReadTransformCreationWithImplementationBoundProperties(legacyDecoratorFunction());
+        testReadTransformCreationWithImplementationBoundProperties(this::legacyDecoratorFunction);
     String[] expect =
         KafkaIOTest.mkKafkaTopics.stream()
             .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
@@ -156,7 +154,7 @@ public class KafkaIOReadImplementationCompatibilityTest {
   @Test
   public void testReadTransformCreationWithSdfImplementationBoundProperty() {
     PipelineResult r =
-        testReadTransformCreationWithImplementationBoundProperties(sdfDecoratorFunction());
+        testReadTransformCreationWithImplementationBoundProperties(this::sdfDecoratorFunction);
     String[] expect =
         KafkaIOTest.mkKafkaTopics.stream()
             .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
@@ -177,6 +175,6 @@ public class KafkaIOReadImplementationCompatibilityTest {
     thrown.expectMessage("STOP_READ_TIME");
 
     testReadTransformCreationWithImplementationBoundProperties(
-        legacyDecoratorFunction().andThen(sdfDecoratorFunction()));
+        read -> sdfDecoratorFunction(legacyDecoratorFunction(read)));
   }
 }

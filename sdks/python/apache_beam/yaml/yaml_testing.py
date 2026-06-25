@@ -21,11 +21,8 @@ import json
 import random
 import unittest
 import uuid
-from typing import Dict
-from typing import List
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -46,6 +43,7 @@ class YamlTestCase(unittest.TestCase):
     self._test_spec = test_spec
     self._options = options
     self._fix_tests = fix_tests
+    self._fixes = None
 
   def runTest(self):
     self._fixes = run_test(
@@ -411,6 +409,13 @@ def create_test(
         **yaml_transform.SafeLineLoader.strip_metadata(
             pipeline_spec.get('options', {})))
 
+  providers = yaml_provider.merge_providers(
+      yaml_provider.parse_providers('', pipeline_spec.get('providers', [])),
+      {
+          'AssertEqualAndRecord': yaml_provider.as_provider_list(
+              'AssertEqualAndRecord', AssertEqualAndRecord)
+      })
+
   def get_name(transform):
     if 'name' in transform:
       return str(transform['name'])
@@ -428,7 +433,8 @@ def create_test(
   mock_outputs = [{
       'name': get_name(t),
       'elements': [
-          _try_row_as_dict(row) for row in _first_n(t, options, max_num_inputs)
+          _try_row_as_dict(row)
+          for row in _first_n(t, options, max_num_inputs, providers)
       ],
   } for t in input_transforms]
 
@@ -504,15 +510,18 @@ class RecordElements(beam.PTransform):
     return pcoll | beam.Map(record)
 
 
-def _first_n(transform_spec, options, n):
+def _first_n(transform_spec, options, n, providers=None):
   recorder = RecordElements(n)
+  if providers is None:
+    providers = {
+        'AssertEqualAndRecord': yaml_provider.as_provider_list(
+            'AssertEqualAndRecord', AssertEqualAndRecord)
+    }
   try:
     with beam.Pipeline(options=options) as p:
       _ = (
           p
-          | yaml_transform.YamlTransform(
-              transform_spec,
-              providers={'AssertEqualAndRecord': AssertEqualAndRecord})
+          | yaml_transform.YamlTransform(transform_spec, providers=providers)
           | recorder)
   except _DoneException:
     pass
@@ -527,11 +536,11 @@ K1 = TypeVar('K1')
 K2 = TypeVar('K2')
 V = TypeVar('V')
 
-InputsType = Dict[str, Union[str, List[str]]]
+InputsType = dict[str, Union[str, list[str]]]
 
 
 def _composite_key_to_nested(
-    d: Mapping[Tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
+    d: Mapping[tuple[K1, K2], V]) -> Mapping[K1, Mapping[K2, V]]:
   nested = collections.defaultdict(dict)
   for (k1, k2), v in d.items():
     nested[k1][k2] = v

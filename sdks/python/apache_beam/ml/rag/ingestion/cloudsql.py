@@ -17,8 +17,6 @@
 from dataclasses import asdict
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 
 from apache_beam.ml.rag.ingestion import mysql
@@ -61,15 +59,15 @@ class LanguageConnectorConfig:
   password: str
   database_name: str
   instance_name: str
-  ip_types: Optional[List[str]] = None
+  ip_types: Optional[list[str]] = None
   enable_iam_auth: bool = False
   target_principal: Optional[str] = None
-  delegates: Optional[List[str]] = None
+  delegates: Optional[list[str]] = None
   quota_project: Optional[str] = None
-  connection_properties: Optional[Dict[str, str]] = None
-  additional_properties: Optional[Dict[str, Any]] = None
+  connection_properties: Optional[dict[str, str]] = None
+  additional_properties: Optional[dict[str, Any]] = None
 
-  def _base_jdbc_properties(self) -> Dict[str, Any]:
+  def _base_jdbc_properties(self) -> dict[str, Any]:
     properties = {"cloudSqlInstance": self.instance_name}
 
     if self.ip_types:
@@ -109,7 +107,7 @@ class LanguageConnectorConfig:
         connection_properties=self.connection_properties,
         additional_jdbc_args=self.additional_jdbc_args())
 
-  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+  def additional_jdbc_args(self) -> dict[str, list[Any]]:
     return {}
 
 
@@ -125,7 +123,7 @@ class _PostgresConnectorConfig(LanguageConnectorConfig):
         socketFactory="com.google.cloud.sql.postgres.SocketFactory",
         database_type="postgresql")
 
-  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+  def additional_jdbc_args(self) -> dict[str, list[Any]]:
     return {
         'classpath': [
             "org.postgresql:postgresql:42.2.16",
@@ -146,7 +144,7 @@ class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
       *,
       # pylint: disable=dangerous-default-value
       write_config: WriteConfig = WriteConfig(),
-      column_specs: List[postgres_common.ColumnSpec] = postgres_common.
+      column_specs: list[postgres_common.ColumnSpec] = postgres_common.
       ColumnSpecsBuilder.with_defaults().build(),
       conflict_resolution: Optional[
           postgres_common.ConflictResolution] = postgres_common.
@@ -164,7 +162,7 @@ class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
         column_specs:
             Use :class:`~.postgres_common.ColumnSpecsBuilder` to configure how
             embeddings and metadata are written a database
-            schema. If None, uses default Chunk schema.
+            schema. If None, uses default EmbeddableItem schema.
         conflict_resolution: Optional
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by
@@ -229,7 +227,7 @@ class _MySQLConnectorConfig(LanguageConnectorConfig):
         socketFactory="com.google.cloud.sql.mysql.SocketFactory",
         database_type="mysql")
 
-  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+  def additional_jdbc_args(self) -> dict[str, list[Any]]:
     return {
         'classpath': [
             "mysql:mysql-connector-java:8.0.22",
@@ -250,7 +248,7 @@ class CloudSQLMySQLVectorWriterConfig(mysql.MySQLVectorWriterConfig):
       *,
       write_config: WriteConfig = WriteConfig(),
       # pylint: disable=dangerous-default-value
-      column_specs: List[mysql_common.ColumnSpec] = mysql_common.
+      column_specs: list[mysql_common.ColumnSpec] = mysql_common.
       ColumnSpecsBuilder.with_defaults().build(),
       conflict_resolution: Optional[mysql_common.ConflictResolution] = None):
     self.connector_config = _MySQLConnectorConfig.from_base_config(

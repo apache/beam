@@ -63,7 +63,7 @@ final class MutationUtils {
    */
   public static SerializableFunction<Row, Mutation> beamRowToMutationFn(
       Mutation.Op operation, String table) {
-    return (row -> {
+    return row -> {
       switch (operation) {
         case INSERT:
           return MutationUtils.createMutationFromBeamRows(Mutation.newInsertBuilder(table), row);
@@ -80,7 +80,7 @@ final class MutationUtils {
           throw new IllegalArgumentException(
               String.format("Unknown mutation operation type: %s", operation));
       }
-    });
+    };
   }
 
   private static Key createKeyFromBeamRow(Row row) {

@@ -15,9 +15,12 @@
 # limitations under the License.
 #
 
+import datetime
 import io
 import json
 import logging
+import os
+import tempfile
 import unittest
 
 import fastavro
@@ -30,6 +33,7 @@ from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
@@ -178,6 +182,107 @@ class YamlPubSubTest(unittest.TestCase):
                 beam.Row(payload=b'msg1', attrMap={'attr': 'value1'}),
                 beam.Row(payload=b'msg2', attrMap={'attr': 'value2'})
             ]))
+
+  def test_read_with_publish_time_field(self):
+    publish_time_1 = datetime.datetime(
+        2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc)
+    publish_time_2 = datetime.datetime(
+        2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc)
+    publish_time_3 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 39, 3, 456789, tzinfo=datetime.timezone.utc))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2),
+                                    PubsubMessage(b'msg3', {'attr': 'value3'},
+                                                  publish_time=publish_time_3),
+                                    PubsubMessage(b'msg4',
+                                                  {'attr': 'value4'})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              publish_time_field: publish_time
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    payload=b'msg1',
+                    publish_time=Timestamp.from_utc_datetime(publish_time_1)),
+                beam.Row(
+                    payload=b'msg2',
+                    publish_time=Timestamp.from_utc_datetime(publish_time_2)),
+                beam.Row(payload=b'msg3', publish_time=publish_time_3),
+                beam.Row(payload=b'msg4', publish_time=None)
+            ]))
+
+  def test_read_with_attributes_and_publish_time_field(self):
+    publish_time_1 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc))
+    publish_time_2 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2)
+                                    ])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              attributes: [attr]
+              attributes_map: attrMap
+              publish_time_field: publish_time
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    payload=b'msg1',
+                    attr='value1',
+                    attrMap={'attr': 'value1'},
+                    publish_time=publish_time_1),
+                beam.Row(
+                    payload=b'msg2',
+                    attr='value2',
+                    attrMap={'attr': 'value2'},
+                    publish_time=publish_time_2)
+            ]))
+
+  def test_read_with_empty_publish_time_field(self):
+    for publish_time_field in ('', '   '):
+      with self.subTest(publish_time_field=publish_time_field):
+        with self.assertRaisesRegex(
+            ValueError, 'publish_time_field must be a non-empty field name'):
+          with beam.Pipeline(
+              options=beam.options.pipeline_options.PipelineOptions(
+                  pickle_library='cloudpickle')) as p:
+            _ = p | YamlTransform(
+                '''
+                type: ReadFromPubSub
+                config:
+                  topic: my_topic
+                  format: RAW
+                  publish_time_field: "%s"
+                ''' % publish_time_field)
 
   def test_read_with_id_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -541,6 +646,122 @@ class YamlPubSubTest(unittest.TestCase):
                   rank: {type: integer}
             ''')
         assert_that(result, equal_to(data))
+
+
+class YamlMatchAllTest(unittest.TestCase):
+  def test_match_all_simple(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      file2 = os.path.join(temp_dir, 'file2.txt')
+      for f in [file1, file2]:
+        with open(f, 'w') as fout:
+          fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create(
+                [beam.Row(pattern=os.path.join(temp_dir, 'file*.txt'))])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: pattern
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1, file2]))
+
+  def test_match_all_single_field_default(self):
+    with tempfile.TemporaryDirectory() as temp_dir:
+      file1 = os.path.join(temp_dir, 'file1.txt')
+      with open(file1, 'w') as fout:
+        fout.write('data')
+
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(my_sole_pattern=file1)])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        paths = result | beam.Map(lambda row: row.path)
+        assert_that(paths, equal_to([file1]))
+
+  def test_match_all_multiple_fields_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo', other_field='bar')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+
+  def test_match_all_empty_match_disallow_error(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='does_not_exist*.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  empty_match_treatment: DISALLOW
+                '''))
+
+  def test_match_all_invalid_field_error(self):
+    with self.assertRaisesRegex(
+        ValueError, "Field 'invalid_field' not found in input schema fields"):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        _ = (
+            p
+            | beam.Create([beam.Row(pattern='foo')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                config:
+                  file_pattern: invalid_field
+                '''))
+
+  def test_match_all_none_timestamp(self):
+    from apache_beam.io.filesystem import FileMetadata
+
+    class MockMatchAll(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll.pipeline | beam.Create([
+            FileMetadata(
+                path='file.txt',
+                size_in_bytes=100,
+                last_updated_in_seconds=None)
+        ])
+
+    with mock.patch('apache_beam.io.fileio.MatchAll',
+                    return_value=MockMatchAll()):
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([beam.Row(pattern='file.txt')])
+            | YamlTransform(
+                '''
+                type: MatchAll
+                '''))
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    path='file.txt',
+                    size_in_bytes=100,
+                    last_updated_in_seconds=None)
+            ]))
 
 
 if __name__ == '__main__':

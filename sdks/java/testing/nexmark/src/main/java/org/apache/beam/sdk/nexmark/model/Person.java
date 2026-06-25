@@ -193,7 +193,7 @@ public class Person implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Person)) {
       return false;
     }
     Person person = (Person) o;

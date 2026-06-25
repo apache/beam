@@ -953,7 +953,8 @@ public class BigQueryAvroUtilsTest {
       String timestampNanosJson = "{\"type\": \"long\", \"logicalType\": \"timestamp-nanos\"}";
       Schema timestampType = new Schema.Parser().parse(timestampNanosJson);
       Schema avroSchema = avroSchema(f -> f.type(timestampType).noDefault());
-      TableSchema expected = tableSchema(f -> f.setType("TIMESTAMP").setMode("REQUIRED"));
+      TableSchema expected =
+          tableSchema(f -> f.setType("TIMESTAMP").setMode("REQUIRED").setTimestampPrecision(12L));
       TableSchema expectedRaw = tableSchema(f -> f.setType("INTEGER").setMode("REQUIRED"));
 
       assertEquals(expected, BigQueryAvroUtils.fromGenericAvroSchema(avroSchema));

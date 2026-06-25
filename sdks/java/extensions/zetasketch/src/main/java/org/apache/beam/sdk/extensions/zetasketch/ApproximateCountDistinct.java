@@ -130,7 +130,7 @@ public class ApproximateCountDistinct {
       return toBuilder().setMapping(Contextful.<T, Long>fn(fn)).build();
     }
 
-    public <V> Globally<V> withPercision(Integer withPercision) {
+    public <V> Globally<V> withPercision(int withPercision) {
       @SuppressWarnings("unchecked")
       Globally<V> globally = (Globally<V>) toBuilder().setPrecision(withPercision).build();
       return globally;
@@ -176,7 +176,7 @@ public class ApproximateCountDistinct {
   public abstract static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
-    public abstract Integer getPrecision();
+    public abstract int getPrecision();
 
     @Nullable
     public abstract Contextful<Fn<KV<K, V>, KV<K, Long>>> getMapping();
@@ -186,14 +186,14 @@ public class ApproximateCountDistinct {
     @AutoValue.Builder
     public abstract static class Builder<K, V> {
 
-      public abstract Builder<K, V> setPrecision(Integer precision);
+      public abstract Builder<K, V> setPrecision(int precision);
 
       public abstract Builder<K, V> setMapping(Contextful<Fn<KV<K, V>, KV<K, Long>>> value);
 
       public abstract PerKey<K, V> build();
     }
 
-    public <K2, V2> PerKey<K2, V2> withPercision(Integer withPercision) {
+    public <K2, V2> PerKey<K2, V2> withPercision(int withPercision) {
       // Work around for loss of type inference when using API.
       @SuppressWarnings("unchecked")
       PerKey<K2, V2> perKey = (PerKey<K2, V2>) this.toBuilder().setPrecision(withPercision).build();

@@ -57,9 +57,7 @@ import sys
 import tempfile
 from importlib.metadata import distribution
 from typing import Callable
-from typing import List
 from typing import Optional
-from typing import Tuple
 from urllib.parse import urlparse
 
 from packaging import version
@@ -89,6 +87,16 @@ EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 SUBMISSION_ENV_DEPENDENCIES_FILE = 'submission_environment_dependencies.txt'
 # One of the choices for user to use for requirements cache during staging
 SKIP_REQUIREMENTS_CACHE = 'skip'
+
+# Ordered list of manylinux tags from newest (strictest) to oldest (most compatible)
+# paired with the minimum pip version required to support the tag.
+# See https://github.com/pypa/manylinux.
+_MANYLINUX_PLATFORMS = [
+    ('manylinux_2_28_x86_64', '20.3'),
+    ('manylinux2014_x86_64', '19.3'),  # equivalent to manylinux_2_17
+    ('manylinux2010_x86_64',
+     '0.0'),  # equivalent to manylinux_2_12, the fallback if pip is too old
+]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,7 +146,7 @@ class Stager(object):
 
   @staticmethod
   def extract_staging_tuple_iter(
-      artifacts: List[beam_runner_api_pb2.ArtifactInformation]):
+      artifacts: list[beam_runner_api_pb2.ArtifactInformation]):
     for artifact in artifacts:
       if artifact.type_urn == common_urns.artifact_types.FILE.urn:
         file_payload = beam_runner_api_pb2.ArtifactFilePayload()
@@ -162,8 +170,8 @@ class Stager(object):
   def create_job_resources(
       options: PipelineOptions,
       temp_dir: str,
-      build_setup_args: Optional[List[str]] = None,
-      pypi_requirements: Optional[List[str]] = None,
+      build_setup_args: Optional[list[str]] = None,
+      pypi_requirements: Optional[list[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
                                                      None]] = None,
       skip_prestaged_dependencies: Optional[bool] = False,
@@ -200,7 +208,7 @@ class Stager(object):
           while trying to create the resources (e.g., build a setup package).
         """
 
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
 
     setup_options = options.view_as(SetupOptions)
     use_beam_default_container = options.view_as(
@@ -213,13 +221,15 @@ class Stager(object):
     # if we know we are using a dependency pre-installed sdk container image.
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
-          os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
+          os.path.join(tempfile.gettempdir(), 'beam-requirements-cache') if
           (setup_options.requirements_cache
            is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path, exist_ok=True)
 
+      # Track packages to stage for this specific run.
+      packages_to_stage = set()
       # Stage a requirements file if present.
       if setup_options.requirements_file is not None:
         if not os.path.isfile(setup_options.requirements_file):
@@ -245,12 +255,16 @@ class Stager(object):
               'such as --requirements_file. ')
 
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          populate_cache_callable = (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache)(
-                  setup_options.requirements_file,
-                  requirements_cache_path,
-                  setup_options.requirements_cache_only_sources)
+              Stager._populate_requirements_cache)
+
+          downloaded_packages = populate_cache_callable(
+              setup_options.requirements_file,
+              requirements_cache_path,
+              setup_options.requirements_cache_only_sources)
+          if downloaded_packages:
+            packages_to_stage.update(downloaded_packages)
 
       if pypi_requirements:
         tf = tempfile.NamedTemporaryFile(mode='w', delete=False)
@@ -260,18 +274,23 @@ class Stager(object):
         # Populate cache with packages from PyPI requirements and stage
         # the files in the cache.
         if setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE:
-          (
+          populate_cache_callable = (
               populate_requirements_cache if populate_requirements_cache else
-              Stager._populate_requirements_cache)(
-                  tf.name,
-                  requirements_cache_path,
-                  setup_options.requirements_cache_only_sources)
+              Stager._populate_requirements_cache)
+          downloaded_packages = populate_cache_callable(
+              tf.name,
+              requirements_cache_path,
+              setup_options.requirements_cache_only_sources)
+          if downloaded_packages:
+            packages_to_stage.update(downloaded_packages)
 
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE) and (
           setup_options.requirements_file is not None or pypi_requirements):
-        for pkg in glob.glob(os.path.join(requirements_cache_path, '*')):
-          resources.append(
-              Stager._create_file_stage_to_artifact(pkg, os.path.basename(pkg)))
+        for pkg in packages_to_stage:
+          pkg_path = os.path.join(requirements_cache_path, pkg)
+          if os.path.exists(pkg_path):
+            resources.append(
+                Stager._create_file_stage_to_artifact(pkg_path, pkg))
 
       # Handle a setup file if present.
       # We will build the setup package locally and then copy it to the staging
@@ -392,7 +411,7 @@ class Stager(object):
 
   def stage_job_resources(
       self,
-      resources: List[Tuple[str, str, str]],
+      resources: list[tuple[str, str, str]],
       staging_location: Optional[str] = None):
     """For internal use only; no backwards-compatibility guarantees.
 
@@ -426,9 +445,9 @@ class Stager(object):
   def create_and_stage_job_resources(
       self,
       options: PipelineOptions,
-      build_setup_args: Optional[List[str]] = None,
+      build_setup_args: Optional[list[str]] = None,
       temp_dir: Optional[str] = None,
-      pypi_requirements: Optional[List[str]] = None,
+      pypi_requirements: Optional[list[str]] = None,
       populate_requirements_cache: Optional[Callable[[str, str, bool],
                                                      None]] = None,
       staging_location: Optional[str] = None):
@@ -533,7 +552,7 @@ class Stager(object):
 
   @staticmethod
   def _create_jar_packages(
-      jar_packages, temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      jar_packages, temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local jar packages for Java SDK Harness.
 
     :param jar_packages: Ordered list of local paths to jar packages to be
@@ -546,9 +565,9 @@ class Stager(object):
       RuntimeError: If files specified are not found or do not have expected
         name patterns.
     """
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages: List[str] = []
+    local_packages: list[str] = []
     for package in jar_packages:
       if not os.path.basename(package).endswith('.jar'):
         raise RuntimeError(
@@ -584,7 +603,7 @@ class Stager(object):
   @staticmethod
   def _create_extra_packages(
       extra_packages,
-      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a list of local extra packages.
 
       Args:
@@ -603,9 +622,9 @@ class Stager(object):
         RuntimeError: If files specified are not found or do not have expected
           name patterns.
       """
-    resources: List[beam_runner_api_pb2.ArtifactInformation] = []
+    resources: list[beam_runner_api_pb2.ArtifactInformation] = []
     staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
-    local_packages: List[str] = []
+    local_packages: list[str] = []
     for package in extra_packages:
       if not (os.path.basename(package).endswith('.tar') or
               os.path.basename(package).endswith('.tar.gz') or
@@ -709,28 +728,6 @@ class Stager(object):
       return [], requirements_file
 
   @staticmethod
-  def _get_platform_for_default_sdk_container():
-    """
-    Get the platform for apache beam SDK container based on Pip version.
-
-    Note: pip is still expected to download compatible wheel of a package
-    with platform tag manylinux1 if the package on PyPI doesn't
-    have (manylinux2014) or (manylinux2010) wheels.
-    Reference: https://www.python.org/dev/peps/pep-0599/#id21
-    """
-
-    # TODO(anandinguva): When https://github.com/pypa/pip/issues/10760 is
-    # addressed, download wheel based on glibc version in Beam's Python
-    # Base image
-    pip_version = distribution('pip').version
-    if version.parse(pip_version) >= version.parse('19.3'):
-      # pip can only recognize manylinux2014_x86_64 wheels
-      # from version 19.3.
-      return 'manylinux2014_x86_64'
-    else:
-      return 'manylinux2010_x86_64'
-
-  @staticmethod
   @retry.with_exponential_backoff(
       num_retries=4, retry_filter=retry_on_non_zero_exit)
   def _populate_requirements_cache(
@@ -741,51 +738,121 @@ class Stager(object):
     # the requirements file and will download package dependencies.
 
     # The apache-beam dependency  is excluded from requirements cache population
-    # because we  stage the SDK separately.
+    # because we stage the SDK separately.
     with tempfile.TemporaryDirectory() as temp_directory:
       tmp_requirements_filepath = Stager._remove_dependency_from_requirements(
           requirements_file=requirements_file,
           dependency_to_remove='apache-beam',
           temp_directory_path=temp_directory)
 
-      cmd_args = [
-          Stager._get_python_executable(),
-          '-m',
-          'pip',
-          'download',
-          '--dest',
-          cache_dir,
-          '-r',
-          tmp_requirements_filepath,
-          '--exists-action',
-          'i',
-          '--no-deps'
-      ]
+      # Download to a temporary directory first, then copy to cache.
+      # This allows us to track exactly which packages are needed for this
+      # requirements file.
+      download_dir = tempfile.mkdtemp(dir=temp_directory)
 
-      if populate_cache_with_sdists:
-        cmd_args.extend(['--no-binary', ':all:'])
-      else:
-        language_implementation_tag = 'cp'
-        abi_suffix = 'm' if sys.version_info < (3, 8) else ''
-        abi_tag = 'cp%d%d%s' % (
-            sys.version_info[0], sys.version_info[1], abi_suffix)
-        platform_tag = Stager._get_platform_for_default_sdk_container()
-        cmd_args.extend([
-            '--implementation',
-            language_implementation_tag,
-            '--abi',
-            abi_tag,
-            '--platform',
-            platform_tag
-        ])
-      _LOGGER.info('Executing command: %s', cmd_args)
-      processes.check_output(cmd_args, stderr=processes.STDOUT)
+      # Read packages from the requirements file
+      requirements = []
+      with open(tmp_requirements_filepath, 'r') as f:
+        for line in f:
+          line = line.strip()
+          if line and not line.startswith('#'):
+            requirements.append(line)
+
+      for req in requirements:
+        cmd_args = [
+            Stager._get_python_executable(),
+            '-m',
+            'pip',
+            'download',
+            '--find-links',
+            cache_dir,
+            req,
+            '--exists-action',
+            'i',
+            '--no-deps'
+        ]
+
+        if populate_cache_with_sdists:
+          attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
+          cmd_args.extend(
+              ['--dest', attempt_download_dir, '--no-binary', ':all:'])
+          _LOGGER.info('Executing command: %s', cmd_args)
+          processes.check_output(cmd_args, stderr=processes.STDOUT)
+        else:
+          attempt_download_dir = Stager._download_pypi_packages(
+              cmd_args, temp_directory)
+
+        # Move downloaded packages to our common download directory
+        for pkg_file in os.listdir(attempt_download_dir):
+          src_path = os.path.join(attempt_download_dir, pkg_file)
+          dest_path = os.path.join(download_dir, pkg_file)
+          if not os.path.exists(dest_path):
+            shutil.move(src_path, dest_path)
+
+      # Get list of downloaded packages and copy them to the cache
+      downloaded_packages = set()
+      for pkg_file in os.listdir(download_dir):
+        downloaded_packages.add(pkg_file)
+        src_path = os.path.join(download_dir, pkg_file)
+        dest_path = os.path.join(cache_dir, pkg_file)
+        # Only copy if not already in cache
+        if not os.path.exists(dest_path):
+          shutil.copy2(src_path, dest_path)
+
+      return downloaded_packages
+
+  @staticmethod
+  def _download_pypi_packages(cmd_args, temp_directory):
+    language_implementation_tag = 'cp'
+    abi_suffix = 'm' if sys.version_info < (3, 8) else ''
+    abi_tag = 'cp%d%d%s' % (
+        sys.version_info[0], sys.version_info[1], abi_suffix)
+    pip_version = distribution('pip').version
+    platforms = [
+        platform for platform, min_pip_version in _MANYLINUX_PLATFORMS
+        if version.parse(pip_version) >= version.parse(min_pip_version)
+    ]
+
+    last_exception = None
+    for idx, platform in enumerate(platforms):
+      attempt_download_dir = tempfile.mkdtemp(dir=temp_directory)
+      attempt_cmd_args = cmd_args + [
+          '--dest',
+          attempt_download_dir,
+          '--implementation',
+          language_implementation_tag,
+          '--abi',
+          abi_tag,
+          '--platform',
+          platform
+      ]
+      # Force binary wheel only if we have more platform fallbacks to try.
+      # For the last platform, we omit this flag so it can natively fall back
+      # to downloading a source distribution (sdist) if no matching wheel is found.
+      if idx < len(platforms) - 1:
+        attempt_cmd_args.extend(['--only-binary', ':all:'])
+
+      _LOGGER.info('Executing command: %s', attempt_cmd_args)
+      try:
+        processes.check_output(attempt_cmd_args, stderr=processes.STDOUT)
+        last_exception = None
+        return attempt_download_dir
+      except Exception as e:
+        _LOGGER.warning(
+            'Pip download failed with platform %s, trying fallback: %s',
+            platform,
+            e)
+        shutil.rmtree(attempt_download_dir)
+        last_exception = e
+
+    if last_exception:
+      raise last_exception
 
   @staticmethod
   def _build_setup_package(
       setup_file: str,
       temp_dir: str,
-      build_setup_args: Optional[List[str]] = None) -> str:
+      build_setup_args: Optional[list[str]] = None) -> str:
     saved_current_directory = os.getcwd()
 
     try:
@@ -852,7 +919,7 @@ class Stager(object):
   @staticmethod
   def _create_beam_sdk(
       sdk_remote_location,
-      temp_dir) -> List[beam_runner_api_pb2.ArtifactInformation]:
+      temp_dir) -> list[beam_runner_api_pb2.ArtifactInformation]:
     """Creates a Beam SDK file with the appropriate version.
 
       Args:

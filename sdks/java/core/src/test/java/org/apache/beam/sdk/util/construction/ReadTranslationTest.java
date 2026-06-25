@@ -114,7 +114,7 @@ public class ReadTranslationTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(TestBoundedSource.class);
+      return other instanceof TestBoundedSource;
     }
 
     @Override
@@ -148,7 +148,7 @@ public class ReadTranslationTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(TestUnboundedSource.class);
+      return other instanceof TestUnboundedSource;
     }
 
     @Override

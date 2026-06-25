@@ -211,7 +211,7 @@ public abstract class LoadTestBase {
    *
    * @param metrics a map of raw metrics. The results are also appened in the map.
    * @param launchInfo Job info of the job
-   * @param config a {@class MetricsConfiguration}
+   * @param config a {@link MetricsConfiguration}
    */
   private void computeDataflowMetrics(
       Map<String, Double> metrics, LaunchInfo launchInfo, MetricsConfiguration config)
@@ -365,7 +365,7 @@ public abstract class LoadTestBase {
    * Computes throughput metrics of the given pcollection in dataflow job.
    *
    * @param jobInfo dataflow job LaunchInfo
-   * @param config the {@class MetricsConfiguration}
+   * @param config the {@link MetricsConfiguration}
    * @param timeInterval interval for the monitoring query
    * @return throughput metrics of the pcollection
    */

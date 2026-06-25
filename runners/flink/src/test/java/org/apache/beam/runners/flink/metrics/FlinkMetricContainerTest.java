@@ -99,8 +99,8 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testGauge() {
-    FlinkMetricContainer.FlinkGauge flinkGauge =
-        new FlinkMetricContainer.FlinkGauge(GaugeResult.empty());
+    FlinkMetricContainerBase.FlinkGauge flinkGauge =
+        new FlinkMetricContainerBase.FlinkGauge(GaugeResult.empty());
     when(metricGroup.gauge(eq("namespace.name"), any())).thenReturn(flinkGauge);
 
     MetricsContainer step = container.getMetricsContainer("step");
@@ -249,8 +249,8 @@ public class FlinkMetricContainerTest {
 
   @Test
   public void testDistribution() {
-    FlinkMetricContainer.FlinkDistributionGauge flinkGauge =
-        new FlinkMetricContainer.FlinkDistributionGauge(DistributionResult.IDENTITY_ELEMENT);
+    FlinkDistributionGauge flinkGauge =
+        new FlinkDistributionGauge(DistributionResult.IDENTITY_ELEMENT);
     when(metricGroup.gauge(eq("namespace.name"), any())).thenReturn(flinkGauge);
 
     MetricsContainer step = container.getMetricsContainer("step");

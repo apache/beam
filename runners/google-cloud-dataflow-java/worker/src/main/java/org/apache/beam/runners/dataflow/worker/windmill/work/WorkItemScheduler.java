@@ -36,6 +36,7 @@ public interface WorkItemScheduler {
    * @param watermarks processing watermarks for the workItem.
    * @param processingContext for processing the workItem.
    * @param drainMode is job is draining.
+   * @param appliedFinalizeIds Any applied finalize ids that should have their callbacks run.
    * @param getWorkStreamLatencies Latencies per processing stage for the WorkItem for reporting
    *     back to Streaming Engine backend.
    */
@@ -45,5 +46,6 @@ public interface WorkItemScheduler {
       Watermarks watermarks,
       Work.ProcessingContext processingContext,
       boolean drainMode,
+      ImmutableList<Long> appliedFinalizeIds,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

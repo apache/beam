@@ -63,11 +63,6 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Usage example</h3>
  *
- * <p>Support is currently experimental. One of the known issues is that the connector does not
- * preserve the offset on a worker crash or restart, causing it to retrieve all the data from the
- * beginning again. See <a href="https://github.com/apache/beam/issues/28248">Issue #28248</a> for
- * details.
- *
  * <p>Connect to a Debezium - MySQL database and run a Pipeline
  *
  * <pre>
@@ -147,6 +142,12 @@ public class DebeziumIO {
 
     abstract @Nullable Long getMaxTimeToRun();
 
+    abstract @Nullable Long getPollingTimeout();
+
+    abstract @Nullable Map<String, Object> getStartOffset();
+
+    abstract @Nullable OffsetRetainer getOffsetRetainer();
+
     abstract @Nullable Coder<T> getCoder();
 
     abstract Builder<T> toBuilder();
@@ -162,6 +163,12 @@ public class DebeziumIO {
       abstract Builder<T> setMaxNumberOfRecords(Integer maxNumberOfRecords);
 
       abstract Builder<T> setMaxTimeToRun(Long miliseconds);
+
+      abstract Builder<T> setPollingTimeout(Long miliseconds);
+
+      abstract Builder<T> setStartOffset(Map<String, Object> startOffset);
+
+      abstract Builder<T> setOffsetRetainer(OffsetRetainer retainer);
 
       abstract Read<T> build();
     }
@@ -222,12 +229,86 @@ public class DebeziumIO {
       return toBuilder().setMaxTimeToRun(miliseconds).build();
     }
 
+    /**
+     * Sets the timeout in milliseconds for consumer polling request in the {@link
+     * KafkaSourceConsumerFn}. A lower timeout optimizes for latency. Increase the timeout if the
+     * consumer is not fetching any records. The default is 1000 milliseconds.
+     */
+    public Read<T> withPollingTimeout(Long miliseconds) {
+      return toBuilder().setPollingTimeout(miliseconds).build();
+    }
+
+    /**
+     * Sets a starting offset so the connector resumes consuming changes from a previously seen
+     * position rather than from the beginning of the change stream.
+     *
+     * <p>The offset format is connector-specific. You can capture the current offset for each
+     * processed record inside your {@link SourceRecordMapper} via {@link
+     * org.apache.kafka.connect.source.SourceRecord#sourceOffset()} and persist it externally (for
+     * example in Cloud Storage, a database, or a local file). On the next pipeline run, pass the
+     * last saved offset here.
+     *
+     * <p>Example (PostgreSQL):
+     *
+     * <pre>{@code
+     * // Capture the offset inside the SourceRecordMapper:
+     * Map<String, Object> offset = sourceRecord.sourceOffset();
+     * // Persist 'offset' externally, then on restart:
+     * DebeziumIO.read()
+     *     .withConnectorConfiguration(config)
+     *     .withStartOffset(savedOffset)
+     *     .withFormatFunction(myMapper);
+     * }</pre>
+     *
+     * @param startOffset A map representing the resumption point, as returned by {@code
+     *     SourceRecord#sourceOffset()}.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withStartOffset(Map<String, Object> startOffset) {
+      checkArgument(startOffset != null, "startOffset can not be null");
+      return toBuilder().setStartOffset(startOffset).build();
+    }
+
+    /**
+     * Sets an {@link OffsetRetainer} that automatically saves and restores the connector offset,
+     * allowing the pipeline to resume from where it left off after a restart without any manual
+     * offset management.
+     *
+     * <p>When a retainer is configured:
+     *
+     * <ol>
+     *   <li>At pipeline startup, {@link OffsetRetainer#loadOffset()} is called. If a saved offset
+     *       is found, the connector resumes from that position; otherwise it starts from the
+     *       beginning of the change stream.
+     *   <li>After each successful checkpoint ({@code task.commit()}), {@link
+     *       OffsetRetainer#saveOffset(Map)} is called with the latest committed offset.
+     * </ol>
+     *
+     * <p>The built-in {@link FileSystemOffsetRetainer} persists the offset as a JSON file on any
+     * Beam-compatible filesystem (local, GCS, S3, etc.):
+     *
+     * <pre>{@code
+     * DebeziumIO.read()
+     *     .withConnectorConfiguration(config)
+     *     .withOffsetRetainer(
+     *         new FileSystemOffsetRetainer("gs://my-bucket/debezium/orders-offset.json"))
+     *     .withFormatFunction(myMapper);
+     * }</pre>
+     *
+     * <p>When both a retainer and {@link #withStartOffset(Map)} are set, the retainer takes
+     * precedence. Use {@link #withStartOffset(Map)} alone for a one-time manual override.
+     *
+     * @param retainer The {@link OffsetRetainer} to use for loading and saving offsets.
+     * @return PTransform {@link #read}
+     */
+    public Read<T> withOffsetRetainer(OffsetRetainer retainer) {
+      checkArgument(retainer != null, "retainer can not be null");
+      return toBuilder().setOffsetRetainer(retainer).build();
+    }
+
     protected Schema getRecordSchema() {
       KafkaSourceConsumerFn<T> fn =
-          new KafkaSourceConsumerFn<>(
-              getConnectorConfiguration().getConnectorClass().get(),
-              getFormatFunction(),
-              getMaxNumberOfRecords());
+          new KafkaSourceConsumerFn<>(getConnectorConfiguration().getConnectorClass().get(), this);
       fn.register(
           new KafkaSourceConsumerFn.OffsetTracker(
               new KafkaSourceConsumerFn.OffsetHolder(null, null, 0)));
@@ -267,10 +348,7 @@ public class DebeziumIO {
           .apply(
               ParDo.of(
                   new KafkaSourceConsumerFn<>(
-                      getConnectorConfiguration().getConnectorClass().get(),
-                      getFormatFunction(),
-                      getMaxNumberOfRecords(),
-                      getMaxTimeToRun())))
+                      getConnectorConfiguration().getConnectorClass().get(), this)))
           .setCoder(getCoder());
     }
   }

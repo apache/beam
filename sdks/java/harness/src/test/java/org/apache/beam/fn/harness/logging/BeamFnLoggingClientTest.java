@@ -532,6 +532,7 @@ public class BeamFnLoggingClientTest {
 
     ManagedChannel channel = InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
     try {
+      thrown.expectMessage("Logging stream terminated unexpectedly");
       BeamFnLoggingClient client =
           BeamFnLoggingClient.createAndStart(
               PipelineOptionsFactory.fromArgs(
@@ -543,7 +544,6 @@ public class BeamFnLoggingClientTest {
               apiServiceDescriptor,
               (Endpoints.ApiServiceDescriptor descriptor) -> channel);
 
-      thrown.expectMessage("Logging stream terminated unexpectedly");
       client.terminationFuture().get();
     } finally {
       // Verify that after termination, log levels are reset.

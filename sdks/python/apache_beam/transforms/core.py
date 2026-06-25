@@ -824,6 +824,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
       process_type_hints = process_type_hints.strip_iterable()
     except ValueError as e:
       raise ValueError('Return value not iterable: %s: %s' % (self, e))
+    process_type_hints = process_type_hints.extract_tagged_outputs()
 
     # Prefer class decorator type hints for backwards compatibility.
     return get_type_hints(self.__class__).with_defaults(process_type_hints)
@@ -1039,6 +1040,7 @@ class CallableWrapperDoFn(DoFn):
       raise TypeCheckError(
           'Return value not iterable: %s: %s' %
           (self.display_data()['fn'].value, e))
+    type_hints = type_hints.extract_tagged_outputs()
     return type_hints
 
   def infer_output_type(self, input_type):
@@ -1094,7 +1096,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     before executing any of the other methods. The resources can then be
     disposed of in ``CombineFn.teardown``.
 
-    If you are using Dataflow, you need to enable Dataflow Runner V2
+    If you are using Dataflow, you need to enable Dataflow Portable Runner
     before using this feature.
 
     Args:
@@ -1192,7 +1194,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def teardown(self, *args, **kwargs):
     """Called to clean up an instance before it is discarded.
 
-    If you are using Dataflow, you need to enable Dataflow Runner V2
+    If you are using Dataflow, you need to enable Dataflow Portable Runner
     before using this feature.
 
     Args:
@@ -1685,7 +1687,8 @@ class ParDo(PTransformWithSideInputs):
         error_handler,
         on_failure_callback,
         allow_unsafe_userstate_in_process,
-        self.get_resource_hints())
+        self.get_resource_hints(),
+        self.get_type_hints())
 
   def with_error_handler(self, error_handler, **exception_handling_kwargs):
     """An alias for `with_exception_handling(error_handler=error_handler, ...)`
@@ -1834,6 +1837,17 @@ class ParDo(PTransformWithSideInputs):
       raise ValueError(
           'Main output tag %r must be different from side output tags %r.' %
           (main, tags))
+    type_hints = self.get_type_hints()
+    declared_tags = set(type_hints.tagged_output_types().keys())
+    requested_tags = set(tags)
+
+    unknown = requested_tags - declared_tags
+    if unknown and declared_tags:  # Only warn if type hints exist
+      logging.warning(
+          "Tags %s requested in with_outputs() but not declared "
+          "in type hints. Declared tags: %s",
+          unknown,
+          declared_tags)
     return _MultiParDo(self, tags, main, allow_unknown_tags)
 
   def _do_fn_info(self):
@@ -1965,6 +1979,15 @@ class _MultiParDo(PTransform):
         self._tags,
         self._main_tag,
         self._allow_unknown_tags)
+
+  def with_exception_handling(self, main_tag=None, **kwargs):
+    if main_tag is None:
+      main_tag = self._main_tag or 'good'
+    named = self._do_transform.with_exception_handling(
+        main_tag=main_tag, **kwargs)
+    # named is _NamedPTransform wrapping _ExceptionHandlingWrapper
+    named.transform._extra_tags = self._tags
+    return named
 
 
 class DoFnInfo(object):
@@ -2120,8 +2143,14 @@ def Map(fn, *args, **kwargs):  # pylint: disable=invalid-name
             wrapper)
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged = {
+        k: typehints.Iterable[v]
+        for k, v in type_hints.tagged_output_types().items()
+    }
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(
+            output_hint, strip_tagged_output=False)],
+        **tagged)(
             wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
@@ -2189,8 +2218,14 @@ def MapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
+    tagged = {
+        k: typehints.Iterable[v]
+        for k, v in type_hints.tagged_output_types().items()
+    }
     wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
+        typehints.Iterable[_strip_output_annotations(
+            output_hint, strip_tagged_output=False)],
+        **tagged)(
             wrapper)
 
   # Replace the first (args) component.
@@ -2261,7 +2296,10 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
     pass
   output_hint = type_hints.simple_output_type(label)
   if output_hint:
-    wrapper = with_output_types(_strip_output_annotations(output_hint))(wrapper)
+    wrapper = with_output_types(
+        _strip_output_annotations(output_hint, strip_tagged_output=False),
+        **type_hints.tagged_output_types())(
+            wrapper)
 
   # Replace the first (args) component.
   modified_arg_names = ['tuple_element'] + arg_names[-num_defaults:]
@@ -2272,6 +2310,24 @@ def FlatMapTuple(fn, *args, **kwargs):  # pylint: disable=invalid-name
       **kwargs)
   pardo.label = label
   return pardo
+
+
+# Element format emitted on the dead-letter tag by `with_exception_handling()`:
+# (exception_class, repr(exception), formatted_traceback_lines).
+# The first slot is the bare metaclass `type` rather than `Type[BaseException]`
+# because the runtime value is `type(exn)`, a class object whose only
+# universally-correct hint is `type`. Beam has no parametric `Type[...]`
+# constraint that would yield a non-pickle coder anyway, so narrowing here
+# would over-promise without changing the wire format.
+ExceptionInfo = typehints.Tuple[type, str, typehints.List[str]]
+
+
+class DeadLetter:
+  """Type hint for a dead-letter element: (original_element, ExceptionInfo).
+
+  Use as ``DeadLetter[T]`` in ``with_output_types(...)`` etc."""
+  def __class_getitem__(cls, element_type):
+    return typehints.Tuple[element_type, ExceptionInfo]
 
 
 class _ExceptionHandlingWrapper(ptransform.PTransform):
@@ -2292,7 +2348,8 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
       error_handler,
       on_failure_callback,
       allow_unsafe_userstate_in_process,
-      resource_hints):
+      resource_hints,
+      pardo_type_hints=None):
     if partial and use_subprocess:
       raise ValueError('partial and use_subprocess are mutually incompatible.')
     self._fn = fn
@@ -2310,8 +2367,17 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
     self._on_failure_callback = on_failure_callback
     self._allow_unsafe_userstate_in_process = allow_unsafe_userstate_in_process
     self._resource_hints = resource_hints
+    self._pardo_type_hints = pardo_type_hints
+    self._extra_tags = None
 
-  def expand(self, pcoll):
+  def with_outputs(self, *tags, main=None):
+    self._extra_tags = tags
+    if main is not None:
+      self._main_tag = main
+    return self
+
+  def _build_pardo(self, pcoll):
+    """Build the inner ParDo with the exception-handling wrapper DoFn."""
     if self._allow_unsafe_userstate_in_process:
       if self._use_subprocess or self._timeout:
         # TODO(https://github.com/apache/beam/issues/35976): Implement this
@@ -2338,15 +2404,11 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
         *self._args,
         **self._kwargs,
     )
-    # This is the fix: propagate hints.
     pardo.get_resource_hints().update(self._resource_hints)
+    return pardo
 
-    result = pcoll | pardo.with_outputs(
-        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
-    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
-    result[self._main_tag].element_type = self._fn.infer_output_type(
-        pcoll.element_type)
-
+  def _post_process_result(self, pcoll, result):
+    """Apply threshold checking and error handler logic to the result."""
     if self._threshold < 1.0:
 
       class MaybeWindow(ptransform.PTransform):
@@ -2380,9 +2442,45 @@ class _ExceptionHandlingWrapper(ptransform.PTransform):
 
     if self._error_handler:
       self._error_handler.add_error_pcollection(result[self._dead_letter_tag])
+      if self._extra_tags is not None:
+        return result
       return result[self._main_tag]
     else:
       return result
+
+  def expand_2_72_0(self, pcoll):
+    """Pre-2.73.0 behavior: manual element_type override, no with_output_types.
+    """
+    pardo = self._build_pardo(pcoll)
+    result = pcoll | pardo.with_outputs(
+        self._dead_letter_tag, main=self._main_tag, allow_unknown_tags=True)
+    #TODO(BEAM-18957): Fix when type inference supports tagged outputs.
+    result[self._main_tag].element_type = self._fn.infer_output_type(
+        pcoll.element_type)
+
+    return self._post_process_result(pcoll, result)
+
+  def expand(self, pcoll):
+    if pcoll.pipeline.options.is_compat_version_prior_to("2.73.0"):
+      return self.expand_2_72_0(pcoll)
+
+    pardo = self._build_pardo(pcoll)
+
+    if (self._pardo_type_hints and self._pardo_type_hints._has_output_types()):
+      main_output_type = self._pardo_type_hints.simple_output_type(self.label)
+      tagged_type_hints = dict(self._pardo_type_hints.tagged_output_types())
+    else:
+      main_output_type = self._fn.infer_output_type(pcoll.element_type)
+      tagged_type_hints = dict(self._fn.get_type_hints().tagged_output_types())
+
+    tagged_type_hints[self._dead_letter_tag] = DeadLetter[pcoll.element_type]
+    pardo = pardo.with_output_types(main_output_type, **tagged_type_hints)
+
+    all_tags = tuple(set(self._extra_tags or ()) | {self._dead_letter_tag})
+    result = pcoll | pardo.with_outputs(
+        *all_tags, main=self._main_tag, allow_unknown_tags=True)
+
+    return self._post_process_result(pcoll, result)
 
 
 class _ExceptionHandlingWrapperDoFn(DoFn):
@@ -2444,7 +2542,8 @@ class _ExceptionHandlingWrapperDoFn(DoFn):
         try:
           self._on_failure_callback(exn, args[0])
         except Exception as e:
-          logging.warning('on_failure_callback failed with error: %s', e)
+          logging.warning(
+              'on_failure_callback failed with error: %s', e, exc_info=True)
       yield pvalue.TaggedOutput(
           self._dead_letter_tag,
           (
@@ -3242,10 +3341,7 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
     combine_fn = self._combine_fn
     fanout_fn = self._fanout_fn
 
-    if isinstance(pcoll.windowing.windowfn, SlidingWindows):
-      raise ValueError(
-          'CombinePerKey.with_hot_key_fanout does not yet work properly with '
-          'SlidingWindows. See: https://github.com/apache/beam/issues/20528')
+    use_direct_windowing = isinstance(pcoll.windowing.windowfn, SlidingWindows)
 
     class SplitHotCold(DoFn):
       def start_bundle(self):
@@ -3315,21 +3411,38 @@ class _CombinePerKeyWithHotKeyFanout(PTransform):
 
     cold, hot = pcoll | ParDo(SplitHotCold()).with_outputs('hot', main='cold')
     cold.element_type = typehints.Any  # No multi-output type hints.
-    precombined_hot = (
-        hot
-        # Avoid double counting that may happen with stacked accumulating mode.
-        | 'WindowIntoDiscarding' >> WindowInto(
-            pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
-        | CombinePerKey(PreCombineFn())
-        | Map(StripNonce)
-        | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+
+    if use_direct_windowing:
+      # For SlidingWindows, swap windowing strategy metadata directly on the
+      # PCollection without re-assigning windows. This mirrors Java's
+      # setWindowingStrategyInternal(). Using WindowInto would call
+      # windowfn.assign() which re-evaluates window assignments from
+      # timestamps — with SlidingWindows, this causes accumulators to leak
+      # into adjacent overlapping windows.
+      if pcoll.windowing.accumulation_mode == AccumulationMode.ACCUMULATING:
+        discarding_windowing = copy.copy(pcoll.windowing)
+        discarding_windowing.accumulation_mode = AccumulationMode.DISCARDING
+        hot._windowing = discarding_windowing
+      precombined_hot = (hot | CombinePerKey(PreCombineFn()) | Map(StripNonce))
+      precombined_hot._windowing = pcoll.windowing
+    else:
+      precombined_hot = (
+          hot
+          # Avoid double counting that may happen with stacked accumulating
+          # mode.
+          | 'WindowIntoDiscarding' >> WindowInto(
+              pcoll.windowing, accumulation_mode=AccumulationMode.DISCARDING)
+          | CombinePerKey(PreCombineFn())
+          | Map(StripNonce)
+          | 'WindowIntoOriginal' >> WindowInto(pcoll.windowing))
+
     return ((cold, precombined_hot)
             | Flatten()
             | CombinePerKey(PostCombineFn()))
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, typing.Iterable[V]])
 class GroupByKey(PTransform):
   """A group by key transform.
 
@@ -4221,12 +4334,15 @@ class Impulse(PTransform):
     return Impulse()
 
 
-def _strip_output_annotations(type_hint):
+def _strip_output_annotations(type_hint, strip_tagged_output=True):
   # TODO(robertwb): These should be parameterized types that the
   # type inferencer understands.
   # Then we can replace them with the correct element types instead of
   # using Any. Refer to typehints.WindowedValue when doing this.
-  annotations = (TimestampedValue, WindowedValue, pvalue.TaggedOutput)
+  annotations = [TimestampedValue, WindowedValue]
+  if strip_tagged_output:
+    annotations.append(pvalue.TaggedOutput)
+  annotations = tuple(annotations)
 
   contains_annotation = False
 

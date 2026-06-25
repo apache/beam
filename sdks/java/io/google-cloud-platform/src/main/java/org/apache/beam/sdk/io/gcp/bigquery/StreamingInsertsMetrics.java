@@ -132,7 +132,7 @@ public interface StreamingInsertsMetrics {
     /** Record rpc latency histogram metrics. */
     private void recordRpcLatencyMetrics() {
       for (Duration d : rpcLatencies()) {
-        LATENCY_HISTOGRAM.update(d.toMillis());
+        LATENCY_HISTOGRAM.update((double) d.toMillis());
       }
     }
 

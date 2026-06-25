@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getBytes;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
@@ -156,10 +155,10 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public long add(WindowedValue<T> data) throws IOException {
-      checkState(
-          stream.size() == 0,
-          "Expected output stream to be empty but had %s",
-          stream.toByteString());
+      if (!stream.isEmpty()) {
+        throw new IllegalStateException(
+            "Expected output stream to be empty but was of size " + stream.size());
+      }
       ByteString byteString = null;
       try {
         if (formatFn != null) {

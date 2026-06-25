@@ -27,7 +27,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -112,7 +112,7 @@ public final class BigQueryIOST extends IOStressTestBase {
     tableName =
         "io-bq-source-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);

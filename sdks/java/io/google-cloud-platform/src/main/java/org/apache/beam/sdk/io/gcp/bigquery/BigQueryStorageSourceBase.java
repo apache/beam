@@ -30,6 +30,7 @@ import com.google.cloud.bigquery.storage.v1.ReadSession;
 import com.google.cloud.bigquery.storage.v1.ReadStream;
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +74,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
   protected final Coder<T> outputCoder;
   protected final BigQueryServices bqServices;
   private final @Nullable TimestampPrecision picosTimestampPrecision;
+  private boolean emptyOrPruned = false;
 
   BigQueryStorageSourceBase(
       @Nullable DataFormat format,
@@ -156,13 +159,27 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
     }
 
+    String project =
+        bqOptions.getBigQueryProject() == null
+            ? bqOptions.getProject()
+            : bqOptions.getBigQueryProject();
+    if (project == null) {
+      if (targetTable != null
+          && targetTable.getTableReference() != null
+          && targetTable.getTableReference().getProjectId() != null) {
+        project = targetTable.getTableReference().getProjectId();
+      } else {
+        @Nullable String tableReferenceId = getTargetTableId(bqOptions);
+        if (tableReferenceId != null) {
+          TableReference tableReference = BigQueryHelpers.parseTableUrn(tableReferenceId);
+          project = tableReference.getProjectId();
+        }
+      }
+    }
+
     CreateReadSessionRequest createReadSessionRequest =
         CreateReadSessionRequest.newBuilder()
-            .setParent(
-                BigQueryHelpers.toProjectResourceName(
-                    bqOptions.getBigQueryProject() == null
-                        ? bqOptions.getProject()
-                        : bqOptions.getBigQueryProject()))
+            .setParent(BigQueryHelpers.toProjectResourceName(project))
             .setReadSession(readSessionBuilder)
             .setMaxStreamCount(streamCount)
             .build();
@@ -179,8 +196,10 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     if (readSession.getStreamsList().isEmpty()) {
       LOG.info(
           "Returned stream list is empty. The underlying table is empty or all rows have been pruned.");
+      emptyOrPruned = true;
       return ImmutableList.of();
     } else {
+      emptyOrPruned = false;
       LOG.info("Read session returned {} streams", readSession.getStreamsList().size());
     }
 
@@ -203,7 +222,49 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
   @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+    if (emptyOrPruned) {
+      // When split() returns an empty list, UnboundedReadFromBoundedSource falls back to wrapping
+      // the original unsplit source directly (ImmutableList.of(bigQuerySotrageSourceBase)) so we
+      // need to return empty reader.
+      return new EmptyReader<>(this);
+    }
     throw new UnsupportedOperationException("BigQuery storage source must be split before reading");
+  }
+
+  private static class EmptyReader<T> extends BoundedReader<T> {
+    private final BigQueryStorageSourceBase<T> source;
+
+    EmptyReader(BigQueryStorageSourceBase<T> source) {
+      this.source = source;
+    }
+
+    @Override
+    public boolean start() throws IOException {
+      return false;
+    }
+
+    @Override
+    public boolean advance() throws IOException {
+      return false;
+    }
+
+    @Override
+    public T getCurrent() throws NoSuchElementException {
+      throw new NoSuchElementException();
+    }
+
+    @Override
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
+      throw new NoSuchElementException();
+    }
+
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    public BoundedSource<T> getCurrentSource() {
+      return source;
+    }
   }
 
   private void setPicosTimestampPrecision(

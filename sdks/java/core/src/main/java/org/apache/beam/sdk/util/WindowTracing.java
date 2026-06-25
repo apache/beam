@@ -26,11 +26,12 @@ import org.slf4j.LoggerFactory;
 public final class WindowTracing {
   private static final Logger LOG = LoggerFactory.getLogger(WindowTracing.class);
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   public static void debug(final String format, Object... args) {
     LOG.debug(format, args);
   }
 
-  @SuppressWarnings("unused")
+  @SuppressWarnings({"unused", "Slf4jFormatShouldBeConst"})
   public static void trace(final String format, Object... args) {
     LOG.trace(format, args);
   }

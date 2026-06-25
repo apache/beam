@@ -30,9 +30,10 @@ For internal use only; no backwards-compatibility guarantees.
 """
 # pytype: skip-file
 
+# ruff: noqa: UP006
+import dataclasses
 import decimal
 import enum
-import functools
 import itertools
 import json
 import logging
@@ -67,11 +68,6 @@ from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-try:
-  import dataclasses
-except ImportError:
-  dataclasses = None  # type: ignore
 
 try:
   import dill
@@ -376,18 +372,6 @@ def _verify_dill_compat():
     raise RuntimeError(base_error + f". Found dill version '{dill.__version__}")
 
 
-dataclass_uses_kw_only: Callable[[Any], bool]
-if dataclasses:
-  # Cache the result to avoid multiple checks for the same dataclass type.
-  @functools.cache
-  def dataclass_uses_kw_only(cls) -> bool:
-    return any(
-        field.init and field.kw_only for field in dataclasses.fields(cls))
-
-else:
-  dataclass_uses_kw_only = lambda cls: False
-
-
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def __init__(
@@ -510,7 +494,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       stream.write_byte(PROTO_TYPE)
       self.encode_type(type(value), stream)
       stream.write(value.SerializePartialToString(deterministic=True), True)
-    elif dataclasses and dataclasses.is_dataclass(value):
+    elif dataclasses.is_dataclass(value):
       if not type(value).__dataclass_params__.frozen:
         raise TypeError(
             "Unable to deterministically encode non-frozen '%s' of type '%s' "
@@ -518,7 +502,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
             (value, type(value), self.requires_deterministic_step_label))
       init_fields = [field for field in dataclasses.fields(value) if field.init]
       try:
-        if dataclass_uses_kw_only(type(value)):
+        if any(field.kw_only for field in init_fields):
           stream.write_byte(DATACLASS_KW_ONLY_TYPE)
           self.encode_type(type(value), stream)
           stream.write_var_int64(len(init_fields))
@@ -858,13 +842,29 @@ class BigEndianShortCoderImpl(StreamCoderImpl):
     out.write_bigendian_int16(value)
 
   def decode_from_stream(self, in_stream, nested):
-    # type: (create_InputStream, bool) -> float
+    # type: (create_InputStream, bool) -> int
     return in_stream.read_bigendian_int16()
 
   def estimate_size(self, unused_value, nested=False):
     # type: (Any, bool) -> int
     # A short is encoded as 2 bytes, regardless of nesting.
     return 2
+
+
+class ByteCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_byte(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    return in_stream.read_byte()
+
+  def estimate_size(self, unused_value, nested=False):
+    # type: (Any, bool) -> int
+    # A byte is encoded as 1 byte, regardless of nesting.
+    return 1
 
 
 class SinglePrecisionFloatCoderImpl(StreamCoderImpl):

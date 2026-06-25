@@ -201,8 +201,7 @@ public class ImpulseSourceFunctionTest {
 
     @Override
     public boolean matches(WindowedValue<byte[]> o) {
-      return o instanceof WindowedValue
-          && Arrays.equals((byte[]) ((WindowedValue) o).getValue(), new byte[] {});
+      return o != null && Arrays.equals(o.getValue(), new byte[] {});
     }
   }
 }

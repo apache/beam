@@ -26,6 +26,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -234,6 +235,9 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
           TranslationUtils.getTupleTagCoders(outputs);
       all =
           all.mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+              .filter(
+                  Objects
+                      ::nonNull) // skip nulls to save on encoding, nulls are tags that are not read
               .cache()
               .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
 

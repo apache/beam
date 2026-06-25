@@ -159,7 +159,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
       catalogManagerSchema.maybeRegisterProvider(pathOverride, SqlDdlNodes.getString(type));
 
-      CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+      CatalogSchema catalogSchema = catalogManagerSchema.getCatalogSchema(pathOverride);
       beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
     } else if (schema instanceof BeamCalciteSchema) {
       beamCalciteSchema = (BeamCalciteSchema) schema;
@@ -189,7 +189,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     writer.identifier(column.getName(), false);
     writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
 
-    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
+    if (!column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 

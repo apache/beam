@@ -129,11 +129,9 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
               for (Integer p : providedPartitions) {
                 checkState(
                     partitionsForTopic.contains(p),
-                    "Partition "
-                        + p
-                        + " does not exist for topic "
-                        + providedTopic
-                        + ". Please check Kafka configuration.");
+                    "Partition %s does not exist for topic %s. Please check Kafka configuration.",
+                    p,
+                    providedTopic);
               }
             } else {
               for (Integer p : providedPartitions) {

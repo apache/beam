@@ -20,7 +20,8 @@ package org.apache.beam.examples.complete;
 import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.regex.Pattern;
 import org.apache.beam.examples.complete.TfIdf.Options;
 import org.apache.beam.sdk.io.FileSystems;
@@ -62,7 +63,8 @@ public class TfIdfIT {
     options.setOutput(
         FileSystems.matchNewResource(options.getTempRoot(), true)
             .resolve(
-                String.format("TfIdfIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+                String.format(
+                    "TfIdfIT-%tF-%<tH-%<tM-%<tS-%<tL", LocalDateTime.now(ZoneId.of("UTC"))),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)

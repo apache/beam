@@ -72,18 +72,18 @@ public abstract class RecommendationAIImportCatalogItems
 
   abstract Builder toBuilder();
 
-  /** @return ID of Google Cloud project to be used for creating catalog items. */
+  /** Returns ID of Google Cloud project to be used for creating catalog items. */
   public abstract @Nullable String projectId();
 
-  /** @return Name of the catalog where the catalog items will be created. */
+  /** Returns name of the catalog where the catalog items will be created. */
   public abstract @Nullable String catalogName();
 
-  /** @return Size of input elements batch to be sent in one request. */
-  public abstract Integer batchSize();
+  /** Returns size of input elements batch to be sent in one request. */
+  public abstract int batchSize();
 
   /**
-   * @return Time limit (in processing time) on how long an incomplete batch of elements is allowed
-   *     to be buffered.
+   * Returns time limit (in processing time) on how long an incomplete batch of elements is allowed
+   * to be buffered.
    */
   public abstract Duration maxBufferingDuration();
 
@@ -95,7 +95,7 @@ public abstract class RecommendationAIImportCatalogItems
     return this.toBuilder().setCatalogName(catalogName).build();
   }
 
-  public RecommendationAIImportCatalogItems withBatchSize(Integer batchSize) {
+  public RecommendationAIImportCatalogItems withBatchSize(int batchSize) {
     return this.toBuilder().setBatchSize(batchSize).build();
   }
 
@@ -122,19 +122,32 @@ public abstract class RecommendationAIImportCatalogItems
 
   @AutoValue.Builder
   abstract static class Builder {
-    /** @param projectId ID of Google Cloud project to be used for creating catalog items. */
+    /**
+     * Sets ID of Google Cloud project to be used for creating catalog items.
+     *
+     * @param projectId ID of Google Cloud project to be used for creating catalog items.
+     */
     public abstract Builder setProjectId(@Nullable String projectId);
 
-    /** @param catalogName Name of the catalog where the catalog items will be created. */
+    /**
+     * Sets name of the catalog where the catalog items will be created.
+     *
+     * @param catalogName Name of the catalog where the catalog items will be created.
+     */
     public abstract Builder setCatalogName(@Nullable String catalogName);
 
     /**
+     * Sets amount of input elements to be sent to Recommendation AI service in one request.
+     *
      * @param batchSize Amount of input elements to be sent to Recommendation AI service in one
      *     request.
      */
-    public abstract Builder setBatchSize(Integer batchSize);
+    public abstract Builder setBatchSize(int batchSize);
 
     /**
+     * Sets time limit (in processing time) on how long an incomplete batch of elements is allowed
+     * to be buffered.
+     *
      * @param maxBufferingDuration Time limit (in processing time) on how long an incomplete batch
      *     of elements is allowed to be buffered.
      */

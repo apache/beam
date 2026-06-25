@@ -420,9 +420,10 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   }
 
   /**
+   * Returns an iterable of {@link PerStepNamespaceMetrics} representing the changes to all
+   * PerWorkerMetrics that have changed since the last time this function was invoked.
+   *
    * @param metricsContainerRegistry Metrics will be extracted for all containers in this registry.
-   * @return An iterable of {@link PerStepNamespaceMetrics} representing the changes to all
-   *     PerWorkerMetrics that have changed since the last time this function was invoked.
    */
   public static Iterable<PerStepNamespaceMetrics> extractPerWorkerMetricUpdates(
       MetricsContainerRegistry<StreamingStepMetricsContainer> metricsContainerRegistry) {

@@ -145,7 +145,7 @@ public interface KafkaMetrics {
         // Update all the latencies
         for (Duration d : topicLatencies.getValue()) {
           Preconditions.checkArgumentNotNull(topicHistogram);
-          topicHistogram.update(d.toMillis());
+          topicHistogram.update((double) d.toMillis());
         }
       }
     }

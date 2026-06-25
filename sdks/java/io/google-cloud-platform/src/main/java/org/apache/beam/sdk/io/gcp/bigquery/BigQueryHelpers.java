@@ -296,7 +296,7 @@ public class BigQueryHelpers {
               ? String.format(" due to: %s", jobErrors.get(jobErrors.size() - 1).getMessage())
               : "";
 
-      LOG.error(String.format("BigQuery Error : %s %s", finalError, causativeError));
+      LOG.error("BigQuery Error : {} {}", finalError, causativeError);
     }
   }
 

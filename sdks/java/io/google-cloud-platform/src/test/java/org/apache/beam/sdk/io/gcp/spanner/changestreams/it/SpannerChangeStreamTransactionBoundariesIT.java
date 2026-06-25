@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.state.BagState;
@@ -88,12 +89,13 @@ public class SpannerChangeStreamTransactionBoundariesIT {
 
   @Test
   public void testTransactionBoundaries() {
-    LOG.info("Test pipeline: " + pipeline.toString());
+    LOG.info("Test pipeline: {}", pipeline);
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
@@ -291,7 +293,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SpannerChangeStreamTransactionBoundariesIT.SortKey)) {
         return false;
       }
       SpannerChangeStreamTransactionBoundariesIT.SortKey sortKey =
@@ -323,14 +325,14 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     mutations.add(insertRecordMutation(1, "FirstName1", "LastName2"));
     mutations.add(insertRecordMutation(2, "FirstName2", "LastName2"));
     Timestamp t1 = databaseClient.write(mutations);
-    LOG.debug("The first transaction committed with timestamp: " + t1.toString());
+    LOG.debug("The first transaction committed with timestamp: {}", t1);
     mutations.clear();
 
     // 2. Commmit a transaction to insert Singer 3 and remove Singer 1 from the table.
     mutations.add(insertRecordMutation(3, "FirstName3", "LastName3"));
     mutations.add(deleteRecordMutation(1));
     Timestamp t2 = databaseClient.write(mutations);
-    LOG.debug("The second transaction committed with timestamp: " + t2.toString());
+    LOG.debug("The second transaction committed with timestamp: {}", t2);
     mutations.clear();
 
     // 3. Commit a transaction to insert Singer 4 and Singer 5 and Singer 6 into the table.
@@ -338,21 +340,21 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     mutations.add(insertRecordMutation(5, "FirstName5", "LastName5"));
     mutations.add(insertRecordMutation(6, "FirstName6", "LastName6"));
     Timestamp t3 = databaseClient.write(mutations);
-    LOG.debug("The third transaction committed with timestamp: " + t3.toString());
+    LOG.debug("The third transaction committed with timestamp: {}", t3);
     mutations.clear();
 
     // 4. Commit a transaction to insert Singer 7 and update Singer 6 in the table.
     mutations.add(insertRecordMutation(7, "FirstName7", "LastName7"));
     mutations.add(updateRecordMutation(6, "FirstName5", "LastName5"));
     Timestamp t4 = databaseClient.write(mutations);
-    LOG.debug("The fourth transaction committed with timestamp: " + t4.toString());
+    LOG.debug("The fourth transaction committed with timestamp: {}", t4);
     mutations.clear();
 
     // 5. Commit a transaction to update Singer 4 and Singer 5 in the table.
     mutations.add(updateRecordMutation(4, "FirstName9", "LastName9"));
     mutations.add(updateRecordMutation(5, "FirstName9", "LastName9"));
     Timestamp t5 = databaseClient.write(mutations);
-    LOG.debug("The fifth transaction committed with timestamp: " + t5.toString());
+    LOG.debug("The fifth transaction committed with timestamp: {}", t5);
     mutations.clear();
 
     // 6. Commit a transaction to delete Singers 3, 4, 5.
@@ -361,7 +363,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     mutations.add(deleteRecordMutation(5));
     Timestamp t6 = databaseClient.write(mutations);
     mutations.clear();
-    LOG.debug("The sixth transaction committed with timestamp: " + t6.toString());
+    LOG.debug("The sixth transaction committed with timestamp: {}", t6);
 
     // 7. Commit a transaction to delete Singers 0, 2, 6, 7.
     mutations.add(deleteRecordMutation(0));
@@ -369,7 +371,7 @@ public class SpannerChangeStreamTransactionBoundariesIT {
     mutations.add(deleteRecordMutation(6));
     mutations.add(deleteRecordMutation(7));
     Timestamp t7 = databaseClient.write(mutations);
-    LOG.debug("The seventh transaction committed with timestamp: " + t7.toString());
+    LOG.debug("The seventh transaction committed with timestamp: {}", t7);
 
     return t7;
   }

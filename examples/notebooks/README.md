@@ -29,8 +29,11 @@ community.
 3. Select the *Repository* as `your-username/beam` and the *Branch* you're working on, not master!
 4. Set the file path to somewhere inside `examples/notebooks/`, e.g. `examples/notebooks/get-started/try-apache-beam-py.ipynb`.
     > You can leave the commit message as the default value, we'll squash all the commits into a single one at the end anyways.
-5. Make sure the *Include a link to Colaboratory* is checked.
-6. Pull the latest changes from the remote branch.
+5. Make sure the *Include a link to Colab* is checked.
+6. Note: If the Colab saving process errors out, this could be due to an OAuth issue. Verify Colab has write permissions.
+   If Colab does have permissions, one trick to force Colab to re-verify your Github OAuth is to toggle the
+   *Include a link to Colab* check box.
+7. Pull the latest changes from the remote branch.
     ```sh
     git pull
     ```
@@ -39,12 +42,12 @@ community.
     git checkout -- file1 file2 .. fileN
     git pull
     ```
-7. Repeat for all the notebooks you want to add.
-8. From the project root directory, patch the Notebooks to point to the `master` branch instead of the local branch.
+8. Repeat for all the notebooks you want to add.
+9. From the project root directory, patch the Notebooks to point to the `master` branch instead of the local branch.
     ```sh
     python examples/notebooks/patch.py
     ```
-9. Squash all the commits into a single commit.
+10. Squash all the commits into a single commit.
     ```sh
     git commit --all --amend
     ```

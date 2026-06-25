@@ -27,9 +27,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,9 +138,10 @@ public class DatabaseTestHelper {
   }
 
   public static String getTestTableName(String testIdentifier) {
-    SimpleDateFormat formatter = new SimpleDateFormat();
-    formatter.applyPattern("yyyy_MM_dd_HH_mm_ss_S");
-    return String.format("BEAMTEST_%s_%s", testIdentifier, formatter.format(new Date()));
+    java.time.format.DateTimeFormatter formatter =
+        java.time.format.DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss_SSS");
+    return String.format(
+        "BEAMTEST_%s_%s", testIdentifier, LocalDateTime.now(ZoneOffset.UTC).format(formatter));
   }
 
   public static String getPostgresDBUrl(PostgresIOTestPipelineOptions options) {

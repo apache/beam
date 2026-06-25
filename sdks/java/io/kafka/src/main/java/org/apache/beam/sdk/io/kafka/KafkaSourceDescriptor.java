@@ -46,7 +46,7 @@ public abstract class KafkaSourceDescriptor implements Serializable {
   @SchemaFieldName("partition")
   @SchemaFieldNumber("1")
   @Pure
-  abstract Integer getPartition();
+  abstract int getPartition();
 
   @SchemaFieldName("start_read_offset")
   @SchemaFieldNumber("2")
@@ -120,7 +120,7 @@ public abstract class KafkaSourceDescriptor implements Serializable {
   // TODO(BEAM-10677): Remove this function after AutoValueSchema is fixed.
   static KafkaSourceDescriptor create(
       String topic,
-      Integer partition,
+      int partition,
       Long start_read_offset,
       Instant start_read_time,
       Long stop_read_offset,

@@ -26,8 +26,9 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
-import java.util.Date;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -133,8 +134,12 @@ public class GcsMatchIT {
       assertEquals(1, countFirst);
       // file "second" is expected to appear more than once
       assertEquals(true, countSecond > 1);
-      // file "second" is expected to appear in growing sizes each time by one byte
-      assertEquals((maxSecondSize * 2L - countSecond + 1) * countSecond / 2, sumSecondSize);
+      // Continuous matching sometimes skips a middle size on Dataflow; sum should still fit
+      // between "all sizes seen" and "every size from 1..maxSecondSize".
+      long minPossibleSum = (countSecond - 1) * countSecond / 2L + maxSecondSize;
+      long maxPossibleContiguousSum = (maxSecondSize * 2L - countSecond + 1) * countSecond / 2L;
+      assertEquals(true, sumSecondSize <= maxPossibleContiguousSum);
+      assertEquals(true, sumSecondSize >= minPossibleSum);
 
       return null;
     }
@@ -149,7 +154,9 @@ public class GcsMatchIT {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     String dstFolderName =
         gcsOptions.getGcpTempLocation()
-            + String.format("/testGcsMatchContinuously.%tF-%<tH-%<tM-%<tS-%<tL/", new Date());
+            + String.format(
+                "/testGcsMatchContinuously.%tF-%<tH-%<tM-%<tS-%<tL/",
+                LocalDateTime.now(ZoneId.of("UTC")));
     watchPath = GcsPath.fromUri(dstFolderName);
   }
 
@@ -186,7 +193,7 @@ public class GcsMatchIT {
     MatchResult matchResult = FileSystems.match(watchPath.resolve("*").toString());
     ImmutableList<ResourceId> resourceIdList =
         FluentIterable.from(matchResult.metadata())
-            .transform(metadata -> (metadata.resourceId()))
+            .transform(metadata -> metadata.resourceId())
             .toList();
     // delete temporary files
     FileSystems.delete(resourceIdList);

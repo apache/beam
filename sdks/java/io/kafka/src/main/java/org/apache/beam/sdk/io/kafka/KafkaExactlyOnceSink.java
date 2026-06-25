@@ -51,9 +51,12 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterFirst;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
@@ -84,6 +87,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +163,8 @@ class KafkaExactlyOnceSink<K, V>
   @Override
   public PCollection<Void> expand(PCollection<ProducerRecord<K, V>> input) {
     String topic = Preconditions.checkStateNotNull(spec.getTopic());
-
+    int numElements = spec.getEosTriggerNumElements();
+    Duration timeout = spec.getEosTriggerTimeout();
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
       try (Consumer<?, ?> consumer = openConsumer(spec)) {
@@ -172,17 +177,34 @@ class KafkaExactlyOnceSink<K, V>
       }
     }
     checkState(numShards > 0, "Could not set number of shards");
-
+    Trigger.OnceTrigger trigger = null;
+    if (timeout != null) {
+      trigger =
+          AfterFirst.of(
+              AfterPane.elementCountAtLeast(numElements),
+              AfterProcessingTime.pastFirstElementInPane().plusDelayOf(timeout));
+    } else {
+      // fallback to default
+      trigger = AfterPane.elementCountAtLeast(numElements);
+    }
     return input
         .apply(
             Window.<ProducerRecord<K, V>>into(new GlobalWindows()) // Everything into global window.
-                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .triggering(Repeatedly.forever(trigger))
                 .discardingFiredPanes())
         .apply(
             String.format("Shuffle across %d shards", numShards),
             ParDo.of(new Reshard<>(numShards)))
         .apply("Persist sharding", GroupByKey.create())
         .apply("Assign sequential ids", ParDo.of(new Sequencer<>()))
+        // Reapply the windowing configuration as the continuation trigger doesn't maintain the
+        // desired batching.
+        .apply(
+            "Windowing",
+            Window.<KV<Integer, KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>into(
+                    new GlobalWindows()) // Everything into global window.
+                .triggering(Repeatedly.forever(trigger))
+                .discardingFiredPanes())
         .apply("Persist ids", GroupByKey.create())
         .apply(
             String.format("Write to Kafka topic '%s'", spec.getTopic()),

@@ -185,7 +185,8 @@ public class ProjectionPushdownOptimizerTest {
 
                     @ProcessElement
                     public void processElement(
-                        @FieldAccess("row") Row row, OutputReceiver<Row> outputReceiver)
+                        @SuppressWarnings("unused") @FieldAccess("row") Row row,
+                        @SuppressWarnings("unused") OutputReceiver<Row> outputReceiver)
                         throws Exception {
                       // Do nothing; we don't need to execute this DoFn.
                     }
@@ -217,7 +218,7 @@ public class ProjectionPushdownOptimizerTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SchemaSourceTransform)) {
         return false;
       }
       SchemaSourceTransform<?> that = (SchemaSourceTransform<?>) o;
@@ -293,7 +294,7 @@ public class ProjectionPushdownOptimizerTest {
 
   private static class NoOpDoFn<T> extends DoFn<T, Row> {
     @ProcessElement
-    public void processElement(ProcessContext c) {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
   }
 
   private static class MultipleOutputSourceWithPushdown extends PTransform<PBegin, PCollectionTuple>
@@ -345,7 +346,7 @@ public class ProjectionPushdownOptimizerTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MultipleOutputSourceWithPushdown)) {
         return false;
       }
       MultipleOutputSourceWithPushdown that = (MultipleOutputSourceWithPushdown) o;

@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -48,7 +49,8 @@ public class KeyedWorkItemCoderTest {
                 StateNamespaces.global(),
                 new Instant(500L),
                 new Instant(500L),
-                TimeDomain.EVENT_TIME));
+                TimeDomain.EVENT_TIME,
+                CausedByDrain.NORMAL));
     Iterable<WindowedValue<Integer>> elements =
         ImmutableList.of(
             WindowedValues.valueInGlobalWindow(1),

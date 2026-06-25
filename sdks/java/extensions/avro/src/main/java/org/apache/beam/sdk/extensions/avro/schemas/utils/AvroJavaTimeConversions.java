@@ -193,8 +193,8 @@ public class AvroJavaTimeConversions {
 
     @Override
     public Instant fromLong(Long microsFromEpoch, Schema schema, LogicalType type) {
-      long epochSeconds = microsFromEpoch / (1_000_000L);
-      long nanoAdjustment = (microsFromEpoch % (1_000_000L)) * 1_000L;
+      long epochSeconds = microsFromEpoch / 1_000_000L;
+      long nanoAdjustment = (microsFromEpoch % 1_000_000L) * 1_000L;
 
       return Instant.ofEpochSecond(epochSeconds, nanoAdjustment);
     }

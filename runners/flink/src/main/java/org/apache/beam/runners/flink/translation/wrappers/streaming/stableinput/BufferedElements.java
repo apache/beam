@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -104,7 +105,14 @@ class BufferedElements {
     @Override
     public void processWith(DoFnRunner doFnRunner) {
       doFnRunner.onTimer(
-          timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
+          timerId,
+          timerFamilyId,
+          key,
+          window,
+          timestamp,
+          outputTimestamp,
+          timeDomain,
+          CausedByDrain.NORMAL);
     }
 
     @Override

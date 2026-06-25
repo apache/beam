@@ -99,7 +99,7 @@ class SqsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SqsCheckpointMark)) {
       return false;
     }
     SqsCheckpointMark that = (SqsCheckpointMark) o;

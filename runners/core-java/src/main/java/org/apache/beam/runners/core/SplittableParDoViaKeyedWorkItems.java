@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.construction.SplittableParDo.SPLITTABLE_P
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDo.ProcessKeyedElements;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -280,6 +282,7 @@ public class SplittableParDoViaKeyedWorkItems {
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
+    private transient @Nullable Consumer<Double> backlogBytesCallback;
 
     public ProcessFn(
         DoFn<InputT, OutputT> fn,
@@ -320,6 +323,10 @@ public class SplittableParDoViaKeyedWorkItems {
                 InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
             invoker) {
       this.processElementInvoker = invoker;
+    }
+
+    public void setBacklogBytesCallback(Consumer<Double> backlogBytesCallback) {
+      this.backlogBytesCallback = backlogBytesCallback;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -461,7 +468,21 @@ public class SplittableParDoViaKeyedWorkItems {
         elementState.readLater();
         restrictionState.readLater();
         watermarkEstimatorState.readLater();
-        elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
+        WindowedValue<InputT> read = elementState.read();
+        if (timer.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN) {
+          read =
+              WindowedValues.of(
+                  read.getValue(),
+                  read.getTimestamp(),
+                  read.getWindows(),
+                  read.getPaneInfo(),
+                  read.getRecordId(),
+                  read.getRecordOffset(),
+                  CausedByDrain.CAUSED_BY_DRAIN,
+                  read.getOpenTelemetryContext(),
+                  read.getValueKind());
+        }
+        elementAndRestriction = KV.of(read, restrictionState.read());
         watermarkEstimatorStateT = watermarkEstimatorState.read();
       }
 
@@ -573,7 +594,7 @@ public class SplittableParDoViaKeyedWorkItems {
           result =
               processElementInvoker.invokeProcessElement(
                   invoker,
-                  elementAndRestriction.getKey(),
+                  elementAndRestriction.getKey(), // windowed value
                   tracker,
                   watermarkEstimator,
                   sideInputMapping);
@@ -597,10 +618,21 @@ public class SplittableParDoViaKeyedWorkItems {
       Instant wakeupTime =
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
-      // Set a timer to continue processing this element.
-      timerInternals.setTimer(
-          TimerInternals.TimerData.of(
-              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
+      // Set a timer to continue processing this element, but only when no drain
+      if (timer == null || timer.causedByDrain() == CausedByDrain.NORMAL) {
+        timerInternals.setTimer(
+            TimerInternals.TimerData.of(
+                stateNamespace,
+                wakeupTime,
+                wakeupTime,
+                TimeDomain.PROCESSING_TIME,
+                CausedByDrain.NORMAL));
+      } else {
+        holdState.clear();
+      }
+      if (backlogBytesCallback != null && result.getBacklogBytes() >= 0) {
+        backlogBytesCallback.accept(result.getBacklogBytes());
+      }
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

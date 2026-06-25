@@ -278,6 +278,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
                   computationWork.getDrainMode(),
                   workItem,
                   workItem.getSerializedSize(),
+                  ImmutableList.of(),
                   ImmutableList.of(
                       LatencyAttribution.newBuilder()
                           .setState(State.GET_WORK_IN_TRANSIT_TO_USER_WORKER)

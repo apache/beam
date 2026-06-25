@@ -169,6 +169,7 @@ public class ReadSourcePortableTest implements Serializable {
         PipelineOptions options, @Nullable Checkpoint checkpointMark) {
 
       return new UnboundedReader<Long>() {
+        @SuppressWarnings("unused")
         int pos = -1;
 
         @Override
@@ -230,6 +231,7 @@ public class ReadSourcePortableTest implements Serializable {
     }
 
     private static class Checkpoint implements CheckpointMark, Serializable {
+      @SuppressWarnings("unused")
       final int pos;
 
       Checkpoint(int pos) {

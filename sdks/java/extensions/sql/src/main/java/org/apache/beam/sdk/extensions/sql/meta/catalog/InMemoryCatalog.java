@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -34,7 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalog implements Catalog {
   private final String name;
-  private final Map<String, String> properties;
+  protected final Map<String, String> properties;
   protected final Map<String, TableProvider> tableProviders = new HashMap<>();
   private final Map<String, MetaStore> metaStores = new HashMap<>();
   private final HashSet<String> databases = new HashSet<>(Collections.singleton(DEFAULT));
@@ -78,6 +77,12 @@ public class InMemoryCatalog implements Catalog {
   }
 
   @Override
+  public void updateProperties(Map<String, String> setProps, Collection<String> resetProps) {
+    properties.putAll(setProps);
+    resetProps.forEach(properties::remove);
+  }
+
+  @Override
   public boolean createDatabase(String database) {
     return databases.add(database);
   }
@@ -105,13 +110,20 @@ public class InMemoryCatalog implements Catalog {
 
   @Override
   public boolean dropDatabase(String database, boolean cascade) {
-    checkState(!cascade, "%s does not support CASCADE.", getClass().getSimpleName());
+    MetaStore metaStore = metaStores.get(database);
+    if (!cascade && metaStore != null && !metaStore.getTables().isEmpty()) {
+      throw new IllegalStateException("Database '" + database + "' is not empty.");
+    }
 
     boolean removed = databases.remove(database);
+    if (!removed) {
+      return false;
+    }
     if (database.equals(currentDatabase)) {
       currentDatabase = null;
     }
-    return removed;
+    metaStores.remove(database);
+    return true;
   }
 
   @Override

@@ -781,8 +781,7 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
-                    LOG.warn(
-                        String.format("Error while converting table schema %s to JSON!", input), e);
+                    LOG.warn("Error while converting table schema {} to JSON!", input, e);
                     return null;
                   }
                 })
@@ -1003,7 +1002,8 @@ public class BigQueryIO {
 
       private long getDesiredChunkSize(
           PipelineOptions options, BigQueryStorageTableSource<T> output) throws Exception {
-        return Math.max(1 << 20, (long) (1000 * Math.sqrt(output.getEstimatedSizeBytes(options))));
+        return Math.max(
+            1 << 20, (long) (1000 * Math.sqrt((double) output.getEstimatedSizeBytes(options))));
       }
     }
 
@@ -1194,6 +1194,10 @@ public class BigQueryIO {
 
     abstract Builder<T> toBuilder();
 
+    public static <T> Builder<T> builder() {
+      return new AutoValue_BigQueryIO_TypedRead.Builder<>();
+    }
+
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
@@ -1206,7 +1210,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
 
-      abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
+      abstract Builder<T> setWithTemplateCompatibility(boolean useTemplateCompatibility);
 
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
 
@@ -1243,7 +1247,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setFromBeamRowFn(FromBeamRowFunction<T> fromRowFn);
 
-      abstract Builder<T> setUseAvroLogicalTypes(Boolean useAvroLogicalTypes);
+      abstract Builder<T> setUseAvroLogicalTypes(boolean useAvroLogicalTypes);
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1265,7 +1269,7 @@ public class BigQueryIO {
 
     abstract @Nullable Boolean getUseLegacySql();
 
-    abstract Boolean getWithTemplateCompatibility();
+    abstract boolean getWithTemplateCompatibility();
 
     abstract BigQueryServices getBigQueryServices();
 
@@ -1300,7 +1304,7 @@ public class BigQueryIO {
 
     abstract @Nullable FromBeamRowFunction<T> getFromBeamRowFn();
 
-    abstract Boolean getUseAvroLogicalTypes();
+    abstract boolean getUseAvroLogicalTypes();
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
@@ -1389,10 +1393,6 @@ public class BigQueryIO {
           getDirectReadPicosTimestampPrecision());
     }
 
-    private static final String QUERY_VALIDATION_FAILURE_ERROR =
-        "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
-            + " pipeline, This validation can be disabled using #withoutValidation.";
-
     @Override
     public void validate(PipelineOptions options) {
       // Even if existence validation is disabled, we need to make sure that the BigQueryIO
@@ -1452,7 +1452,11 @@ public class BigQueryIO {
                   getQueryLocation());
             } catch (Exception e) {
               throw new IllegalArgumentException(
-                  String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+                  String.format(
+                      "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
+                          + " pipeline, This validation can be disabled using #withoutValidation.",
+                      getQuery().get()),
+                  e);
             }
 
             // If the user provided a temp dataset, check if the dataset exists before launching the
@@ -1755,7 +1759,8 @@ public class BigQueryIO {
               desiredChunkSize = 64 << 20; // 64mb
             } else {
               // 1mb --> 1 shard; 1gb --> 32 shards; 1tb --> 1000 shards, 1pb --> 32k shards
-              desiredChunkSize = Math.max(1 << 20, (long) (1000 * Math.sqrt(estimatedSize)));
+              desiredChunkSize =
+                  Math.max(1 << 20, (long) (1000 * Math.sqrt((double) estimatedSize)));
             }
             sources = source.split(desiredChunkSize, bqOptions);
           } catch (Exception e) {
@@ -2748,11 +2753,11 @@ public class BigQueryIO {
 
     abstract boolean getExtendedErrorInfo();
 
-    abstract Boolean getSkipInvalidRows();
+    abstract boolean getSkipInvalidRows();
 
-    abstract Boolean getIgnoreUnknownValues();
+    abstract boolean getIgnoreUnknownValues();
 
-    abstract Boolean getIgnoreInsertIds();
+    abstract boolean getIgnoreInsertIds();
 
     abstract int getMaxRetryJobs();
 
@@ -2762,19 +2767,19 @@ public class BigQueryIO {
 
     abstract AppendRowsRequest.MissingValueInterpretation getDefaultMissingValueInterpretation();
 
-    abstract Boolean getOptimizeWrites();
+    abstract boolean getOptimizeWrites();
 
-    abstract Boolean getUseBeamSchema();
+    abstract boolean getUseBeamSchema();
 
-    abstract Boolean getAutoSharding();
+    abstract boolean getAutoSharding();
 
-    abstract Boolean getPropagateSuccessful();
+    abstract boolean getPropagateSuccessful();
 
-    abstract Boolean getAutoSchemaUpdate();
+    abstract boolean getAutoSchemaUpdate();
 
     abstract @Nullable Class<T> getWriteProtosClass();
 
-    abstract Boolean getDirectWriteProtos();
+    abstract boolean getDirectWriteProtos();
 
     abstract @Nullable SerializableFunction<T, String> getDeterministicRecordIdFn();
 
@@ -2788,6 +2793,10 @@ public class BigQueryIO {
     abstract BadRecordRouter getBadRecordRouter();
 
     abstract Builder<T> toBuilder();
+
+    public static <T> Builder<T> builder() {
+      return new AutoValue_BigQueryIO_Write.Builder<>();
+    }
 
     @AutoValue.Builder
     abstract static class Builder<T> {
@@ -2863,11 +2872,11 @@ public class BigQueryIO {
 
       abstract Builder<T> setExtendedErrorInfo(boolean extendedErrorInfo);
 
-      abstract Builder<T> setSkipInvalidRows(Boolean skipInvalidRows);
+      abstract Builder<T> setSkipInvalidRows(boolean skipInvalidRows);
 
-      abstract Builder<T> setIgnoreUnknownValues(Boolean ignoreUnknownValues);
+      abstract Builder<T> setIgnoreUnknownValues(boolean ignoreUnknownValues);
 
-      abstract Builder<T> setIgnoreInsertIds(Boolean ignoreInsertIds);
+      abstract Builder<T> setIgnoreInsertIds(boolean ignoreInsertIds);
 
       abstract Builder<T> setKmsKey(@Nullable String kmsKey);
 
@@ -2876,21 +2885,21 @@ public class BigQueryIO {
       abstract Builder<T> setDefaultMissingValueInterpretation(
           AppendRowsRequest.MissingValueInterpretation missingValueInterpretation);
 
-      abstract Builder<T> setOptimizeWrites(Boolean optimizeWrites);
+      abstract Builder<T> setOptimizeWrites(boolean optimizeWrites);
 
-      abstract Builder<T> setUseBeamSchema(Boolean useBeamSchema);
+      abstract Builder<T> setUseBeamSchema(boolean useBeamSchema);
 
-      abstract Builder<T> setAutoSharding(Boolean autoSharding);
+      abstract Builder<T> setAutoSharding(boolean autoSharding);
 
       abstract Builder<T> setMaxRetryJobs(int maxRetryJobs);
 
-      abstract Builder<T> setPropagateSuccessful(Boolean propagateSuccessful);
+      abstract Builder<T> setPropagateSuccessful(boolean propagateSuccessful);
 
-      abstract Builder<T> setAutoSchemaUpdate(Boolean autoSchemaUpdate);
+      abstract Builder<T> setAutoSchemaUpdate(boolean autoSchemaUpdate);
 
       abstract Builder<T> setWriteProtosClass(@Nullable Class<T> clazz);
 
-      abstract Builder<T> setDirectWriteProtos(Boolean direct);
+      abstract Builder<T> setDirectWriteProtos(boolean direct);
 
       abstract Builder<T> setDeterministicRecordIdFn(
           SerializableFunction<T, String> toUniqueIdFunction);
@@ -3245,8 +3254,12 @@ public class BigQueryIO {
     /**
      * Allows the schema of the destination table to be updated as a side effect of the write.
      *
-     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS} as
+     * <p>This configuration applies only when writing to BigQuery with {@link Method#FILE_LOADS},
+     * {@link Method#STORAGE_WRITE_API", or {@link Method#STORAGE_API_AT_LEAST_ONCE} as
      * method.
+     * <p>If using with storage-write API, new fields (except for nested messages) will always be created with type
+     * STRING.
+     * TODO: Followon PR will add support for a user-supplied type mapping.
      */
     public Write<T> withSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions) {
       checkArgument(schemaUpdateOptions != null, "schemaUpdateOptions can not be null");
@@ -4201,9 +4214,18 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
+        boolean useSchemaUpdate =
+            getSchemaUpdateOptions() != null && !getSchemaUpdateOptions().isEmpty();
+        if (useSchemaUpdate) {
+          checkArgument(
+              !getAutoSchemaUpdate() && !getIgnoreUnknownValues(),
+              "Schema update options are not supported when using auto schema update or ignore unknown values");
+        }
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
         StorageApiDynamicDestinations<T, DestinationT> storageApiDynamicDestinations;
         if (getUseBeamSchema()) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when using Beam schemas");
           // This ensures that the Beam rows are directly translated into protos for Storage API
           // writes, with no
           // need to round trip through JSON TableRow objects.
@@ -4215,6 +4237,9 @@ public class BigQueryIO {
                   getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing protos");
+
           // We could support both of these by falling back to
           // StorageApiDynamicDestinationsTableRow. This
           // would defeat the optimization (we would be forced to create a new dynamic proto message
@@ -4232,6 +4257,7 @@ public class BigQueryIO {
               !getIgnoreUnknownValues(),
               "ignoreUnknownValues not supported when using writeProtos."
                   + " Try setting withDirectWriteProtos(false)");
+
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
@@ -4239,6 +4265,9 @@ public class BigQueryIO {
                       getWriteProtosClass(),
                       getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
+          checkArgument(
+              !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing avros");
+
           // we can configure the avro to storage write api proto converter for this
           // assuming the format function returns an Avro GenericRecord
           // and there is a schema defined
@@ -4247,7 +4276,6 @@ public class BigQueryIO {
                   || getDynamicDestinations() != null
                   || getSchemaFromView() != null,
               "A schema must be provided for avro rows to be used with StorageWrite API.");
-
           RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>
               recordWriterFactory =
                   (RowWriterFactory.AvroRowWriterFactory<T, GenericRecord, DestinationT>)
@@ -4274,7 +4302,10 @@ public class BigQueryIO {
                   getRowMutationInformationFn() != null,
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
-                  getAutoSchemaUpdate());
+                  getAutoSchemaUpdate(),
+                  getSchemaUpdateOptions() == null
+                      ? Collections.emptySet()
+                      : getSchemaUpdateOptions());
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
@@ -4286,6 +4317,7 @@ public class BigQueryIO {
         StorageApiLoads<DestinationT, T> storageApiLoads =
             new StorageApiLoads<>(
                 destinationCoder,
+                elementCoder,
                 storageApiDynamicDestinations,
                 getRowMutationInformationFn(),
                 getCreateDisposition(),
@@ -4303,7 +4335,8 @@ public class BigQueryIO {
                 getDefaultMissingValueInterpretation(),
                 getBigLakeConfiguration(),
                 getBadRecordRouter(),
-                getBadRecordErrorHandler());
+                getBadRecordErrorHandler(),
+                !getSchemaUpdateOptions().isEmpty());
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);

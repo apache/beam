@@ -21,6 +21,7 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.util.ArrayList;
@@ -32,8 +33,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.common.IOITHelper;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
@@ -63,7 +64,8 @@ public class IntegrationTestEnv extends ExternalResource {
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
-  private boolean isPlacementTableBasedChangeStream;
+  private boolean isMutableChangeStream;
+  private boolean isPlacementTable;
   public boolean useSeparateMetadataDb;
 
   @Override
@@ -71,13 +73,21 @@ public class IntegrationTestEnv extends ExternalResource {
     final ChangeStreamTestPipelineOptions options =
         IOITHelper.readIOTestPipelineOptions(ChangeStreamTestPipelineOptions.class);
 
-    projectId =
-        Optional.ofNullable(options.getProjectId())
-            .orElseGet(() -> options.as(GcpOptions.class).getProject());
-    instanceId = options.getInstanceId();
+    projectId = SpannerTestHelper.getProject(options, options.getProjectId());
+    instanceId = SpannerTestHelper.getInstanceId(options.getInstanceId());
     generateDatabaseIds(options);
-    spanner =
-        SpannerOptions.newBuilder().setProjectId(projectId).setHost(host).build().getService();
+
+    SpannerOptions.Builder spannerBuilder =
+        SpannerOptions.newBuilder()
+            .setProjectId(projectId)
+            .setHost(host)
+            .disableGrpcGcpExtension()
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build());
+    spannerBuilder = SpannerTestHelper.setUpSpannerOptions(spannerBuilder);
+    spanner = spannerBuilder.build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 
@@ -90,13 +100,18 @@ public class IntegrationTestEnv extends ExternalResource {
 
   IntegrationTestEnv() {
     this.isPostgres = false;
-    this.isPlacementTableBasedChangeStream = false;
+    this.isMutableChangeStream = false;
+    this.isPlacementTable = false;
   }
 
   IntegrationTestEnv(
-      boolean isPostgres, boolean isPlacementTableBasedChangeStream, Optional<String> host) {
+      boolean isPostgres,
+      boolean isMutableChangeStream,
+      boolean isPlacementTable,
+      Optional<String> host) {
     this.isPostgres = isPostgres;
-    this.isPlacementTableBasedChangeStream = isPlacementTableBasedChangeStream;
+    this.isMutableChangeStream = isMutableChangeStream;
+    this.isPlacementTable = isPlacementTable;
     if (host.isPresent()) {
       this.host = host.get();
     }
@@ -124,7 +139,7 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        LOG.error("Failed to drop change stream " + changeStream + ". Skipping...", e);
+        LOG.error("Failed to drop change stream {}. Skipping...", changeStream, e);
       }
     }
 
@@ -145,14 +160,19 @@ public class IntegrationTestEnv extends ExternalResource {
               .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
         }
       } catch (Exception e) {
-        LOG.error("Failed to drop table " + table + ". Skipping...", e);
+        if (isPlacementTable) {
+          // Drop placement table requires all rows deleted and garbage collected.
+          LOG.info("Failed to drop table {}. Skipping...", table, e);
+        } else {
+          LOG.error("Failed to drop table {}. Skipping...", table, e);
+        }
       }
     }
 
     try {
       databaseAdminClient.dropDatabase(instanceId, databaseId);
     } catch (Exception e) {
-      LOG.error("Failed to drop database " + databaseId + ". Skipping...", e);
+      LOG.error("Failed to drop database {}. Skipping...", databaseId, e);
     }
     if (useSeparateMetadataDb) {
       databaseAdminClient.dropDatabase(instanceId, metadataDatabaseId);
@@ -167,7 +187,7 @@ public class IntegrationTestEnv extends ExternalResource {
 
   String createSingersTable() throws InterruptedException, ExecutionException, TimeoutException {
     final String tableName = generateTableName(SINGERS_TABLE_NAME_PREFIX);
-    LOG.info("Creating table " + tableName);
+    LOG.info("Creating table {}", tableName);
     if (this.isPostgres) {
       databaseAdminClient
           .updateDatabaseDdl(
@@ -199,7 +219,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   String createGSQLTableDDL(String tableName) {
-    if (this.isPlacementTableBasedChangeStream) {
+    if (this.isPlacementTable) {
       // create a placement table.
       return "CREATE TABLE "
           + tableName
@@ -224,14 +244,13 @@ public class IntegrationTestEnv extends ExternalResource {
   String createChangeStreamFor(String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
     final String changeStreamName = generateChangeStreamName();
-    LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
+    LOG.info("CREATE CHANGE STREAM \"{}\" FOR \"{}\"", changeStreamName, tableName);
     if (this.isPostgres) {
       databaseAdminClient
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\""),
+              Collections.singletonList(createPostgresChangeStreamDDL(changeStreamName, tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } else {
@@ -248,7 +267,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   String createGSQLChangeStreamDDL(String changeStreamName, String tableName) {
-    if (this.isPlacementTableBasedChangeStream) {
+    if (this.isMutableChangeStream) {
       // Create a MUTABLE_KEY_RANGE change stream.
       String statement =
           "CREATE CHANGE STREAM "
@@ -259,6 +278,21 @@ public class IntegrationTestEnv extends ExternalResource {
       return statement;
     }
     return "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName;
+  }
+
+  String createPostgresChangeStreamDDL(String changeStreamName, String tableName) {
+    if (this.isMutableChangeStream) {
+      // Create a MUTABLE_KEY_RANGE change stream.
+      String statement =
+          "CREATE CHANGE STREAM \""
+              + changeStreamName
+              + "\" FOR \""
+              + tableName
+              + "\""
+              + " WITH (partition_mode = 'MUTABLE_KEY_RANGE')";
+      return statement;
+    }
+    return "CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"";
   }
 
   void createRoleAndGrantPrivileges(String table, String changeStream)
@@ -319,7 +353,7 @@ public class IntegrationTestEnv extends ExternalResource {
       throws ExecutionException, InterruptedException, TimeoutException {
     // Drops the database if it already exists
     databaseAdminClient.dropDatabase(instanceId, databaseId);
-    LOG.info("Creating database " + databaseId + ", isPostgres=" + isPostgres);
+    LOG.info("Creating database {}, isPostgres={}", databaseId, isPostgres);
     if (isPostgres) {
       databaseAdminClient
           .createDatabase(
@@ -342,7 +376,7 @@ public class IntegrationTestEnv extends ExternalResource {
 
   private String generateTableName(String prefix) {
     int maxTableNameLength = MAX_POSTGRES_TABLE_NAME_LENGTH;
-    LOG.info("Max table length: " + maxTableNameLength);
+    LOG.info("Max table length: {}", maxTableNameLength);
     return prefix
         + "_"
         + RandomStringUtils.randomAlphanumeric(maxTableNameLength - 1 - prefix.length());

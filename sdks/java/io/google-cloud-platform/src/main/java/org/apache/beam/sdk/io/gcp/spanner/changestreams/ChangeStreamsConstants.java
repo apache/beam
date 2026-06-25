@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -49,11 +50,32 @@ public class ChangeStreamsConstants {
    */
   public static final Timestamp DEFAULT_INCLUSIVE_END_AT = MAX_INCLUSIVE_END_AT;
 
+  public static final Duration DEFAULT_REAL_TIME_CHECKPOINT_INTERVAL = Duration.standardMinutes(2);
+
+  public static final int DEFAULT_HEARTBEAT_MILLIS = 2000;
+
+  public static final int LOW_LATENCY_DEFAULT_HEARTBEAT_MILLIS = 100;
+
+  public static final Duration LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL =
+      Duration.standardSeconds(1);
+
   /** The default priority for a change stream query is {@link RpcPriority#HIGH}. */
   public static final RpcPriority DEFAULT_RPC_PRIORITY = RpcPriority.HIGH;
 
   /** The sliding window size in seconds for throughput reporting. */
   public static final int THROUGHPUT_WINDOW_SECONDS = 10;
+
+  /**
+   * The delimiter used to separate the partition token and the tvf name. Note this string does not
+   * exist in the partition token itself.
+   */
+  public static final String PARTITION_TOKEN_TVF_NAME_DELIMITER = "#";
+
+  /** The default tvf name for a change stream query is the empty {@link String}. */
+  public static final String DEFAULT_TVF_NAME = "";
+
+  /** The default tvf name list to query and union is empty {@link Collections.emptyList()}. */
+  public static final List<String> DEFAULT_TVF_NAME_LIST = Collections.emptyList();
 
   /**
    * We use the following partition token to provide an estimate size of a partition token. A usual
@@ -76,6 +98,7 @@ public class ChangeStreamsConstants {
           .setState(State.CREATED)
           .setWatermark(Timestamp.now())
           .setCreatedAt(Timestamp.now())
+          .setTvfName(DEFAULT_TVF_NAME)
           .build();
 
   /**

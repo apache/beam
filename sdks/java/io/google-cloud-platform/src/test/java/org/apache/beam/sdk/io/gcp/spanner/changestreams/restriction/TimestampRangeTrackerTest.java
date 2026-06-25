@@ -236,8 +236,9 @@ public class TimestampRangeTrackerTest {
     tracker.tryClaim(position);
     final Progress progress = tracker.getProgress();
 
-    assertEquals(position.getSeconds(), progress.getWorkCompleted(), DELTA);
-    assertEquals(to.getSeconds() - position.getSeconds(), progress.getWorkRemaining(), DELTA);
+    assertEquals((double) position.getSeconds(), progress.getWorkCompleted(), DELTA);
+    assertEquals(
+        (double) (to.getSeconds() - position.getSeconds()), progress.getWorkRemaining(), DELTA);
   }
 
   @Test
@@ -249,7 +250,7 @@ public class TimestampRangeTrackerTest {
 
     final Progress progress = tracker.getProgress();
     assertEquals(0D, progress.getWorkCompleted(), DELTA);
-    assertEquals(to.getSeconds(), progress.getWorkRemaining(), DELTA);
+    assertEquals((double) to.getSeconds(), progress.getWorkRemaining(), DELTA);
   }
 
   @Test

@@ -57,10 +57,10 @@ public abstract class RowMutationInformation {
   public abstract String getChangeSequenceNumber();
 
   /**
-   * Instantiate {@link RowMutationInformation} with {@link MutationType} and the {@param
+   * Instantiate {@link RowMutationInformation} with {@link MutationType} and the {@code
    * sequenceNumber}. @deprecated - instantiates {@link RowMutationInformation} via {@link
-   * #of(MutationType, String)} forwarding the {@param sequenceNumber} value using {@link
-   * Long#toHexString(long)}. {@param sequenceNumber} values {@code < 0} will throw an error.
+   * #of(MutationType, String)} forwarding the {@code sequenceNumber} value using {@link
+   * Long#toHexString(long)}. {@code sequenceNumber} values {@code < 0} will throw an error.
    */
   @Deprecated
   public static RowMutationInformation of(MutationType mutationType, long sequenceNumber) {
@@ -70,11 +70,11 @@ public abstract class RowMutationInformation {
   }
 
   /**
-   * Instantiate {@link RowMutationInformation} with {@link MutationType} and the {@param
+   * Instantiate {@link RowMutationInformation} with {@link MutationType} and the {@code
    * changeSequenceNumber}, which sets the BigQuery API {@code _CHANGE_SEQUENCE_NUMBER} pseudo
    * column, enabling custom user-supplied ordering of {@link RowMutation}s.
    *
-   * <p>Requirements for the {@param changeSequenceNumber}:
+   * <p>Requirements for the {@code changeSequenceNumber}:
    *
    * <ul>
    *   <li>fixed format {@code String} in hexadecimal format
@@ -87,12 +87,12 @@ public abstract class RowMutationInformation {
    *       FFFFFFFFFFFFFFFF/FFFFFFFFFFFFFFFF/FFFFFFFFFFFFFFFF/FFFFFFFFFFFFFFFF}
    * </ul>
    *
-   * <p>Below are some {@param changeSequenceNumber} scenarios:
+   * <p>Below are some {@code changeSequenceNumber} scenarios:
    *
    * <table>
    *     <tr>
-   *         <th>Record #1: {@param changeSequenceNumber}</th>
-   *         <th>Record #2: {@param changeSequenceNumber}</th>
+   *         <th>Record #1: {@code changeSequenceNumber}</th>
+   *         <th>Record #2: {@code changeSequenceNumber}</th>
    *         <th>BigQuery API compares as</th>
    *     </tr>
    *     <tr>

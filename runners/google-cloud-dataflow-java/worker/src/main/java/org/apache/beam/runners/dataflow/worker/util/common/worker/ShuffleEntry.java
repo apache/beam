@@ -96,10 +96,10 @@ public class ShuffleEntry {
     }
     if (o instanceof ShuffleEntry) {
       ShuffleEntry that = (ShuffleEntry) o;
-      return (Objects.equals(this.position, that.position))
-          && (Objects.equals(this.key, that.key))
-          && (Objects.equals(this.secondaryKey, that.secondaryKey))
-          && (Objects.equals(this.value, that.value));
+      return Objects.equals(this.position, that.position)
+          && Objects.equals(this.key, that.key)
+          && Objects.equals(this.secondaryKey, that.secondaryKey)
+          && Objects.equals(this.value, that.value);
     }
     return false;
   }

@@ -19,8 +19,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 
 from pymilvus import MilvusClient
@@ -31,7 +29,7 @@ from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
-from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.ml.rag.utils import DEFAULT_WRITE_BATCH_SIZE
 from apache_beam.ml.rag.utils import MilvusConnectionParameters
 from apache_beam.ml.rag.utils import MilvusHelpers
@@ -65,7 +63,7 @@ class MilvusWriteConfig:
   partition_name: str = ""
   timeout: Optional[float] = None
   write_config: WriteConfig = field(default_factory=WriteConfig)
-  kwargs: Dict[str, Any] = field(default_factory=dict)
+  kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.collection_name:
@@ -87,11 +85,11 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
 
   This class extends VectorDatabaseWriteConfig to provide Milvus-specific
   configuration for ingesting vector embeddings and associated metadata.
-  It defines how Apache Beam chunks are converted to Milvus records and
+  It defines how EmbeddableItem objects are converted to Milvus records and
   handles the write operation parameters.
 
   The configuration includes connection parameters, write settings, and
-  column specifications that determine how chunk data is mapped to Milvus
+  column specifications that determine how data is mapped to Milvus
   fields.
 
   Args:
@@ -99,7 +97,8 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
       including URI, credentials, and connection options.
     write_config: Configuration for write operations including collection name,
       partition, batch size, and timeouts.
-    column_specs: List of column specifications defining how chunk fields are
+    column_specs: List of column specifications defining how
+      EmbeddableItem fields are
       mapped to Milvus collection fields. Defaults to standard RAG fields
       (id, embedding, sparse_embedding, content, metadata).
 
@@ -112,17 +111,18 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
   """
   connection_params: MilvusConnectionParameters
   write_config: MilvusWriteConfig
-  column_specs: List[ColumnSpec] = field(
+  column_specs: list[ColumnSpec] = field(
       default_factory=lambda: MilvusVectorWriterConfig.default_column_specs())
 
-  def create_converter(self) -> Callable[[Chunk], Dict[str, Any]]:
-    """Creates a function to convert Apache Beam Chunks to Milvus records.
+  def create_converter(self) -> Callable[[EmbeddableItem], dict[str, Any]]:
+    """Creates a function to convert EmbeddableItem objects to Milvus records.
 
     Returns:
-      A function that takes a Chunk and returns a dictionary representing
+      A function that takes an EmbeddableItem and returns a
+      dictionary representing
       a Milvus record with fields mapped according to column_specs.
     """
-    def convert(chunk: Chunk) -> Dict[str, Any]:
+    def convert(chunk: EmbeddableItem) -> dict[str, Any]:
       result = {}
       for col in self.column_specs:
         result[col.column_name] = col.value_fn(chunk)
@@ -134,18 +134,19 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
     """Creates the Apache Beam transform for writing to Milvus.
 
     Returns:
-      A PTransform that can be applied to a PCollection of Chunks to write
+      A PTransform that can be applied to a PCollection of
+      EmbeddableItem objects to write
       them to the configured Milvus collection.
     """
     return _WriteToMilvusVectorDatabase(self)
 
   @staticmethod
-  def default_column_specs() -> List[ColumnSpec]:
+  def default_column_specs() -> list[ColumnSpec]:
     """Returns default column specifications for RAG use cases.
 
     Creates column mappings for standard RAG fields: id, dense embedding,
     sparse embedding, content text, and metadata. These specifications
-    define how Chunk fields are converted to Milvus-compatible formats.
+    define how EmbeddableItem fields are converted to Milvus-compatible formats.
 
     Returns:
       List of ColumnSpec objects defining the default field mappings.
@@ -163,7 +164,8 @@ class MilvusVectorWriterConfig(VectorDatabaseWriteConfig):
 class _WriteToMilvusVectorDatabase(beam.PTransform):
   """Apache Beam PTransform for writing vector data to Milvus.
 
-  This transform handles the conversion of Apache Beam Chunks to Milvus records
+  This transform handles the conversion of EmbeddableItem objects
+  to Milvus records
   and coordinates the write operations. It applies the configured converter
   function and uses a DoFn for batched writes to optimize performance.
 
@@ -174,11 +176,11 @@ class _WriteToMilvusVectorDatabase(beam.PTransform):
   def __init__(self, config: MilvusVectorWriterConfig):
     self.config = config
 
-  def expand(self, pcoll: beam.PCollection[Chunk]):
-    """Expands the PTransform to convert chunks and write to Milvus.
+  def expand(self, pcoll: beam.PCollection[EmbeddableItem]):
+    """Expands the PTransform to convert and write to Milvus.
 
     Args:
-      pcoll: PCollection of Chunk objects to write to Milvus.
+      pcoll: PCollection of EmbeddableItem objects to write to Milvus.
 
     Returns:
       PCollection of dictionaries representing the records written to Milvus.

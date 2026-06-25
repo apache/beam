@@ -189,7 +189,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("array", Schema.FieldType.array(Schema.FieldType.INT32)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -199,7 +199,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("iter", Schema.FieldType.iterable(Schema.FieldType.INT32)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -209,7 +209,7 @@ public class RowTest {
         Stream.of(Schema.Field.nullable("array", Schema.FieldType.array(Schema.FieldType.INT32)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
 
     Row otherNonNull = Row.withSchema(type).addValue(ImmutableList.of(1, 2, 3)).build();
     Row otherNull = Row.withSchema(type).addValue(null).build();
@@ -224,7 +224,7 @@ public class RowTest {
         Stream.of(Schema.Field.nullable("iter", Schema.FieldType.iterable(Schema.FieldType.INT32)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getArray("iter"));
+    assertEquals(data, (List) row.getArray("iter"));
 
     Row otherNonNull = Row.withSchema(type).addValue(ImmutableList.of(1, 2, 3)).build();
     Row otherNull = Row.withSchema(type).addValue(null).build();
@@ -241,7 +241,7 @@ public class RowTest {
                     "array", Schema.FieldType.array(Schema.FieldType.INT32.withNullable(true))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -253,7 +253,7 @@ public class RowTest {
                     "iter", Schema.FieldType.iterable(Schema.FieldType.INT32.withNullable(true))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -269,7 +269,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("array", FieldType.array(FieldType.row(nestedType))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -285,7 +285,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("iter", FieldType.iterable(FieldType.row(nestedType))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -295,7 +295,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("array", FieldType.array(FieldType.array(FieldType.INT32))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -305,7 +305,7 @@ public class RowTest {
         Stream.of(Schema.Field.of("iter", FieldType.iterable(FieldType.array(FieldType.INT32))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -321,7 +321,7 @@ public class RowTest {
                         .withNullable(true)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -338,7 +338,7 @@ public class RowTest {
                         .withNullable(true)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -354,7 +354,7 @@ public class RowTest {
                     "array", FieldType.array(FieldType.map(FieldType.INT32, FieldType.STRING))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
-    assertEquals(data, row.getArray("array"));
+    assertEquals(data, (List) row.getArray("array"));
   }
 
   @Test
@@ -370,7 +370,7 @@ public class RowTest {
                     "iter", FieldType.iterable(FieldType.map(FieldType.INT32, FieldType.STRING))))
             .collect(toSchema());
     Row row = Row.withSchema(type).addIterable(data).build();
-    assertEquals(data, row.getIterable("iter"));
+    assertEquals(data, Lists.newArrayList(row.getIterable("iter")));
   }
 
   @Test
@@ -396,7 +396,7 @@ public class RowTest {
         Stream.of(Schema.Field.nullable("map", FieldType.map(FieldType.INT32, FieldType.STRING)))
             .collect(toSchema());
     Row row = Row.withSchema(type).addValue(data).build();
-    assertEquals(data, row.getArray("map"));
+    assertEquals(data, (List) row.getArray("map"));
 
     Row otherNonNull = Row.withSchema(type).addValue(ImmutableMap.of(1, "value1")).build();
     Row otherNull = Row.withSchema(type).addValue(null).build();

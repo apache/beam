@@ -37,7 +37,9 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -92,6 +95,11 @@ import org.joda.time.Instant;
 }) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
+  // Experiments guarding optimizations in development. No backward compatibility guarantees.
+  public static final String UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION =
+      "unstable_not_update_compatible_new_window_optimization";
+  public static final String UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION =
+      "unstable_disable_watermark_known_empty_optimization";
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
    *
@@ -106,6 +114,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *   <li>It uses discarding or accumulation mode according to the {@link WindowingStrategy}.
    * </ul>
    */
+  static final StateTag<CombiningState<CombinedMetadata, CombinedMetadata, CombinedMetadata>>
+      METADATA_TAG =
+          StateTags.makeSystemTagInternal(
+              StateTags.combiningValue(
+                  "combinedMetadata", CombinedMetadata.Coder.of(), CombinedMetadataCombiner.of()));
+
   private final WindowingStrategy<Object, W> windowingStrategy;
 
   private final WindowedValueReceiver<KV<K, OutputT>> outputter;
@@ -210,6 +224,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final NonEmptyPanes<K, W> nonEmptyPanes;
 
+  private final boolean useNewWindowOptimization;
+  private final boolean disableWatermarkKnownEmptyOptimization;
+
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
@@ -236,6 +253,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     this.nonEmptyPanes = NonEmptyPanes.create(this.windowingStrategy, this.reduceFn);
 
+    this.useNewWindowOptimization =
+        windowingStrategy.getWindowFn().isNonMerging()
+            && ExperimentalOptions.hasExperiment(
+                options, UNSTABLE_NOT_UPDATE_COMPATIBLE_NEW_WINDOW_OPTIMIZATION);
+
+    this.disableWatermarkKnownEmptyOptimization =
+        ExperimentalOptions.hasExperiment(
+            options, UNSTABLE_DISABLE_WATERMARK_KNOWN_EMPTY_OPTIMIZATION);
+
     // Note this may incur I/O to load persisted window set data.
     this.activeWindows = createActiveWindowSet();
 
@@ -255,7 +281,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         new TriggerStateMachineRunner<>(
             triggerStateMachine,
             new TriggerStateMachineContextFactory<>(
-                windowingStrategy.getWindowFn(), stateInternals, activeWindows));
+                windowingStrategy.getWindowFn(), stateInternals, activeWindows),
+            this.useNewWindowOptimization);
   }
 
   private ActiveWindowSet<W> createActiveWindowSet() {
@@ -272,6 +299,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   @VisibleForTesting
   boolean hasNoActiveWindows() {
     return activeWindows.getActiveAndNewWindows().isEmpty();
+  }
+
+  @VisibleForTesting
+  TriggerStateMachineRunner<W> getTriggerRunner() {
+    return triggerRunner;
+  }
+
+  @VisibleForTesting
+  ReduceFnContextFactory<K, InputT, OutputT, W> getContextFactory() {
+    return contextFactory;
   }
 
   private Set<W> windowsThatAreOpen(Collection<W> windows) {
@@ -374,7 +411,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windowsToFire) {
       emit(
           contextFactory.base(window, StateStyle.DIRECT),
-          contextFactory.base(window, StateStyle.RENAMED));
+          contextFactory.base(window, StateStyle.RENAMED),
+          CombinedMetadata.createDefault());
     }
 
     // We're all done with merging and emitting elements so can compress the activeWindow state.
@@ -583,7 +621,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     for (W window : windows) {
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext directContext =
           contextFactory.forValue(
-              window, value.getValue(), value.getTimestamp(), StateStyle.DIRECT);
+              window,
+              value.getValue(),
+              value.getTimestamp(),
+              StateStyle.DIRECT,
+              value.causedByDrain());
+
       if (triggerRunner.isClosed(directContext.state())) {
         // This window has already been closed.
         droppedDueToClosedWindow.inc();
@@ -598,10 +641,33 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
+      CombinedMetadata metadata = CombinedMetadata.create(value.causedByDrain());
+      if (!metadata.equals(CombinedMetadata.createDefault())) {
+        directContext.state().access(METADATA_TAG).add(metadata);
+      }
+
       activeWindows.ensureWindowIsActive(window);
       ReduceFn<K, InputT, OutputT, W>.ProcessValueContext renamedContext =
           contextFactory.forValue(
-              window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
+              window,
+              value.getValue(),
+              value.getTimestamp(),
+              StateStyle.RENAMED,
+              value.causedByDrain());
+
+      // TODO: Make sure the NewWindowOptimization does not create unbounded trigger state
+      // in GlobalWindow
+      if (useNewWindowOptimization && triggerRunner.isNew(directContext.state())) {
+        // Blindly clear state to ensure Windmill doesn't do unnecessary reads.
+        // TODO: Instead of the clears here, we could mark these states as empty locally
+        //  in the state cache and/or explicitly tell that the entries are non-existent via api
+        reduceFn.clearState(renamedContext);
+        paneInfoTracker.clear(directContext.state());
+        if (!disableWatermarkKnownEmptyOptimization) {
+          watermarkHold.setKnownEmpty(renamedContext);
+        }
+        nonEmptyPanes.clearPane(renamedContext.state());
+      }
 
       nonEmptyPanes.recordContent(renamedContext.state());
       scheduleGarbageCollectionTimer(directContext);
@@ -639,12 +705,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // garbage collect the window.  We'll consider any timer at or after the
     // end-of-window time to be a signal to garbage collect.
     public final boolean isGarbageCollection;
+    public final CombinedMetadata combinedMetadata;
 
     WindowActivation(
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
-        ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
+        ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
+        CombinedMetadata combinedMetadata) {
       this.directContext = directContext;
       this.renamedContext = renamedContext;
+      this.combinedMetadata = combinedMetadata;
       W window = directContext.window();
 
       // The output watermark is before the end of the window if it is either unknown
@@ -701,12 +770,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       WindowTracing.debug(
           "ReduceFnRunner: Received timer key:{}; window:{}; data:{} with "
-              + "inputWatermark:{}; outputWatermark:{}",
+              + "inputWatermark:{}; outputWatermark:{}; draining:{}",
           key,
           window,
           timer,
           timerInternals.currentInputWatermarkTime(),
-          timerInternals.currentOutputWatermarkTime());
+          timerInternals.currentOutputWatermarkTime(),
+          timer.causedByDrain());
 
       // Processing time timers for an expired window are ignored, just like elements
       // that show up too late. Window GC is management by an event time timer
@@ -722,16 +792,19 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         continue;
       }
 
+      // pass draining bit
       ReduceFn<K, InputT, OutputT, W>.Context directContext =
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      WindowActivation windowActivation = new WindowActivation(directContext, renamedContext);
+      WindowActivation windowActivation =
+          new WindowActivation(
+              directContext, renamedContext, CombinedMetadata.create(timer.causedByDrain()));
       windowActivations.put(window, windowActivation);
 
       // Perform prefetching of state to determine if the trigger should fire.
       if (windowActivation.isGarbageCollection) {
-        triggerRunner.prefetchIsClosed(directContext.state());
+        triggerRunner.prefetchFinishedSet(directContext.state());
       } else {
         triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
       }
@@ -757,11 +830,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
       if (windowActivation.isGarbageCollection) {
         WindowTracing.debug(
-            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}",
+            "ReduceFnRunner: Cleaning up for key:{}; window:{} with inputWatermark:{}; outputWatermark:{}; draining:{}",
             key,
             directContext.window(),
             timerInternals.currentInputWatermarkTime(),
-            timerInternals.currentOutputWatermarkTime());
+            timerInternals.currentOutputWatermarkTime(),
+            windowActivation.combinedMetadata.causedByDrain());
 
         boolean windowIsActiveAndOpen = windowActivation.windowIsActiveAndOpen();
         if (windowIsActiveAndOpen) {
@@ -774,7 +848,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                   directContext,
                   renamedContext,
                   true /* isFinished */,
-                  windowActivation.isEndOfWindow);
+                  windowActivation.isEndOfWindow,
+                  windowActivation.combinedMetadata);
           checkState(newHold == null, "Hold placed at %s despite isFinished being true.", newHold);
         }
 
@@ -792,7 +867,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         if (windowActivation.windowIsActiveAndOpen()
             && triggerRunner.shouldFire(
                 directContext.window(), directContext.timers(), directContext.state())) {
-          emit(directContext, renamedContext);
+          emit(directContext, renamedContext, windowActivation.combinedMetadata);
         }
 
         if (windowActivation.isEndOfWindow) {
@@ -856,6 +931,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       triggerRunner.clearState(
           directContext.window(), directContext.timers(), directContext.state());
       paneInfoTracker.clear(directContext.state());
+      directContext.state().access(METADATA_TAG).clear();
     } else {
       // If !windowIsActiveAndOpen then !activeWindows.isActive (1) or triggerRunner.isClosed (2).
       // For (1), if !activeWindows.isActive then the window must be merging and has been
@@ -908,15 +984,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
-    triggerRunner.prefetchIsClosed(directContext.state());
+    triggerRunner.prefetchFinishedSet(directContext.state());
     prefetchOnTrigger(directContext, renamedContext);
   }
 
   /** Emit if a trigger is ready to fire or timers require it, and cleanup state. */
   private void emit(
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext)
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
+      CombinedMetadata metadata)
       throws Exception {
+
     checkState(
         triggerRunner.shouldFire(
             directContext.window(), directContext.timers(), directContext.state()));
@@ -931,13 +1009,14 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     // Run onTrigger to produce the actual pane contents.
     // As a side effect it will clear all element holds, but not necessarily any
     // end-of-window or garbage collection holds.
-    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/);
+    onTrigger(directContext, renamedContext, isFinished, false /*isEndOfWindow*/, metadata);
 
     // Now that we've triggered, the pane is empty.
     nonEmptyPanes.clearPane(renamedContext.state());
 
     // Cleanup buffered data if appropriate
     if (shouldDiscard) {
+      directContext.state().access(METADATA_TAG).clear();
       // Cleanup flavor C: The user does not want any buffered data to persist between panes.
       reduceFn.clearState(renamedContext);
     }
@@ -977,20 +1056,34 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     paneInfoTracker.prefetchPaneInfo(directContext);
     watermarkHold.prefetchExtract(renamedContext);
     nonEmptyPanes.isEmpty(renamedContext.state()).readLater();
-    reduceFn.prefetchOnTrigger(directContext.state());
+    directContext.state().access(METADATA_TAG).readLater();
+    reduceFn.prefetchOnTrigger(renamedContext.state());
   }
 
   /**
    * Run the {@link ReduceFn#onTrigger} method and produce any necessary output.
    *
+   * @param metadata from timer or default
    * @return output watermark hold added, or {@literal null} if none.
    */
   private @Nullable Instant onTrigger(
       final ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext,
       final boolean isFinished,
-      boolean isEndOfWindow)
+      boolean isEndOfWindow,
+      CombinedMetadata metadata)
       throws Exception {
+    CombiningState<CombinedMetadata, CombinedMetadata, CombinedMetadata> metadataState =
+        directContext.state().access(METADATA_TAG);
+    CombinedMetadata aggregatedMetadata = metadataState.read();
+    CombinedMetadata fullyAggregatedMetadata =
+        CombinedMetadataCombiner.of().addInput(aggregatedMetadata, metadata);
+    final CausedByDrain aggregatedCausedByDrain = fullyAggregatedMetadata.causedByDrain();
+    if (isFinished) {
+      metadataState.clear();
+    } else if (!metadata.equals(CombinedMetadata.createDefault())) {
+      metadataState.add(metadata);
+    }
     // Extract the window hold, and as a side effect clear it.
     final WatermarkHold.OldAndNewHolds pair =
         watermarkHold.extractAndRelease(renamedContext, isFinished).read();
@@ -1061,10 +1154,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                     .setValue(KV.of(key, toOutput))
                     .setTimestamp(outputTimestamp)
                     .setWindows(windows)
+                    .setCausedByDrain(aggregatedCausedByDrain)
                     .setPaneInfo(paneInfo)
                     .setReceiver(outputter)
                     .output();
-              });
+              },
+              aggregatedCausedByDrain);
 
       reduceFn.onTrigger(renamedTriggerContext);
     }

@@ -56,5 +56,10 @@ public final class Never {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
+
+    @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return visitor.visit(this);
+    }
   }
 }

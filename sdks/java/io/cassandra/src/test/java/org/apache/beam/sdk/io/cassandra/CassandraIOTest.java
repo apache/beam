@@ -808,7 +808,7 @@ public class CassandraIOTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Scientist)) {
         return false;
       }
       Scientist scientist = (Scientist) o;
@@ -1125,7 +1125,7 @@ public class CassandraIOTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ReservedKeywordEntity)) {
         return false;
       }
       ReservedKeywordEntity that = (ReservedKeywordEntity) o;
@@ -1166,7 +1166,7 @@ public class CassandraIOTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CustomQueryEntity)) {
         return false;
       }
       CustomQueryEntity that = (CustomQueryEntity) o;
@@ -1203,7 +1203,7 @@ public class CassandraIOTest implements Serializable {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof MultiPartitionEntity)) {
         return false;
       }
       MultiPartitionEntity that = (MultiPartitionEntity) o;

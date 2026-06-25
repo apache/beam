@@ -138,7 +138,7 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
                            'name': 'source', 'type': 'STRING'
                        }]
         },
-        chunk_to_dict_fn=lambda chunk: {
+        embeddable_to_dict_fn=lambda chunk: {
             'id': chunk.id, 'embedding': chunk.embedding.dense_embedding,
             'source': chunk.metadata.get('source')
         })

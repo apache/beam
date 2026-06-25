@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -107,19 +106,29 @@ public class BeamFnDataWriteRunnerTest {
     MockitoAnnotations.initMocks(this);
   }
 
-  private BeamFnDataOutboundAggregator createRecordingAggregator(
-      Map<String, List<WindowedValue<String>>> output, Supplier<String> bundleId) {
+  @Test
+  public void testReuseForMultipleBundles() throws Exception {
+    AtomicReference<String> bundleId = new AtomicReference<>("0");
+    String localInputId = "inputPC";
+    RunnerApi.PTransform pTransform =
+        RemoteGrpcPortWrite.writeToPort(localInputId, PORT_SPEC).toPTransform();
+
+    List<WindowedValue<String>> output0 = new ArrayList<>();
+    List<WindowedValue<String>> output1 = new ArrayList<>();
+    Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> aggregators = new HashMap<>();
+
     PipelineOptions options = PipelineOptionsFactory.create();
     options.as(ExperimentalOptions.class).setExperiments(Arrays.asList("data_buffer_size_limit=0"));
-    return new BeamFnDataOutboundAggregator(
-        options,
-        bundleId,
+    BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
+
+    Map<String, List<WindowedValue<String>>> outputs = ImmutableMap.of("0", output0, "1", output1);
+    StreamObserver<Elements> observer =
         new StreamObserver<Elements>() {
           @Override
           public void onNext(Elements elements) {
             for (Data data : elements.getDataList()) {
               try {
-                output.get(bundleId.get()).add(WIRE_CODER.decode(data.getData().newInput()));
+                outputs.get(bundleId.get()).add(WIRE_CODER.decode(data.getData().newInput()));
               } catch (IOException e) {
                 throw new RuntimeException("Failed to decode output.");
               }
@@ -131,22 +140,9 @@ public class BeamFnDataWriteRunnerTest {
 
           @Override
           public void onCompleted() {}
-        },
-        false);
-  }
+        };
 
-  @Test
-  public void testReuseForMultipleBundles() throws Exception {
-    AtomicReference<String> bundleId = new AtomicReference<>("0");
-    String localInputId = "inputPC";
-    RunnerApi.PTransform pTransform =
-        RemoteGrpcPortWrite.writeToPort(localInputId, PORT_SPEC).toPTransform();
-
-    List<WindowedValue<String>> output0 = new ArrayList<>();
-    List<WindowedValue<String>> output1 = new ArrayList<>();
-    Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> aggregators = new HashMap<>();
-    BeamFnDataOutboundAggregator aggregator =
-        createRecordingAggregator(ImmutableMap.of("0", output0, "1", output1), bundleId::get);
+    aggregator.prepareForInstruction(bundleId.get(), observer);
     aggregators.put(PORT_SPEC.getApiServiceDescriptor(), aggregator);
 
     PTransformRunnerFactoryTestContext context =
@@ -172,18 +168,20 @@ public class BeamFnDataWriteRunnerTest {
     FnDataReceiver<Object> pCollectionConsumer = context.getPCollectionConsumer(localInputId);
     pCollectionConsumer.accept(valueInGlobalWindow("ABC"));
     pCollectionConsumer.accept(valueInGlobalWindow("DEF"));
-
     assertThat(output0, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
+    aggregator.finishInstruction();
 
     output0.clear();
 
     // Process for bundle id 1
     bundleId.set("1");
+    aggregator.prepareForInstruction(bundleId.get(), observer);
 
     pCollectionConsumer.accept(valueInGlobalWindow("GHI"));
     pCollectionConsumer.accept(valueInGlobalWindow("JKL"));
 
     assertThat(output1, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
+    aggregator.finishInstruction();
     verifyNoMoreInteractions(mockBeamFnDataClient);
   }
 

@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.io.solace.read;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
-import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
-  private transient List<BytesXMLMessage> safeToAck;
+  private transient Queue<BytesXMLMessage> safeToAck;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
   private SolaceCheckpointMark() {}
@@ -48,13 +49,14 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
    *
    * @param safeToAck - a queue of {@link BytesXMLMessage} to be acknowledged.
    */
-  SolaceCheckpointMark(List<BytesXMLMessage> safeToAck) {
+  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck) {
     this.safeToAck = safeToAck;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    for (BytesXMLMessage msg : safeToAck) {
+    BytesXMLMessage msg;
+    while ((msg = safeToAck.poll()) != null) {
       try {
         msg.ackMessage();
       } catch (IllegalStateException e) {
@@ -79,7 +81,10 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       return false;
     }
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
-    return Objects.equals(safeToAck, that.safeToAck);
+    return safeToAck == that.safeToAck
+        || (safeToAck != null
+            && that.safeToAck != null
+            && Iterables.elementsEqual(safeToAck, that.safeToAck));
   }
 
   @Override

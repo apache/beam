@@ -31,6 +31,8 @@ dependencies {
   implementation project(":sdks:java:core")
   implementation project(":sdks:java:managed")
   implementation project(":sdks:java:io:iceberg")
+  implementation library.java.jackson_databind
+  implementation library.java.jackson_core
   runtimeOnly project(":sdks:java:io:iceberg:bqms")
   runtimeOnly project(":sdks:java:io:iceberg:hive")
   // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
@@ -46,6 +48,7 @@ dependencies {
   testImplementation library.java.google_api_services_bigquery
   testImplementation "org.apache.iceberg:iceberg-api:1.9.2"
   testImplementation "org.apache.iceberg:iceberg-core:1.9.2"
+  testRuntimeOnly library.java.bigdataoss_util_hadoop
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
 }

@@ -73,6 +73,11 @@ public class TriggerTest {
     public boolean mayFinish() {
       return false;
     }
+
+    @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return null;
+    }
   }
 
   private static class Trigger2 extends Trigger {
@@ -94,6 +99,11 @@ public class TriggerTest {
     @Override
     public boolean mayFinish() {
       return false;
+    }
+
+    @Override
+    public <OutputT> OutputT accept(TriggerVisitor<OutputT> visitor) {
+      return null;
     }
   }
 }

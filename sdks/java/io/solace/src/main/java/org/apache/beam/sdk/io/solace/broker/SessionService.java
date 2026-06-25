@@ -225,10 +225,9 @@ public abstract class SessionService implements Serializable {
         }
         if ((ackWindowSize != null && ackWindowSize != BATCHED_PUB_ACK_WINDOW)) {
           LOG.warn(
-              String.format(
-                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                      + " HIGHER_THROUGHPUT mode was selected",
-                  BATCHED_PUB_ACK_WINDOW));
+              "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to {} since"
+                  + " HIGHER_THROUGHPUT mode was selected",
+              BATCHED_PUB_ACK_WINDOW);
         }
 
         // Override the properties
@@ -250,10 +249,9 @@ public abstract class SessionService implements Serializable {
 
         if ((ackWindowSize != null && ackWindowSize != STREAMING_PUB_ACK_WINDOW)) {
           LOG.warn(
-              String.format(
-                  "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to %d since"
-                      + " LOWER_LATENCY mode was selected",
-                  STREAMING_PUB_ACK_WINDOW));
+              "SolaceIO.Write: Overriding PUB_ACK_WINDOW_SIZE to {} since"
+                  + " LOWER_LATENCY mode was selected",
+              STREAMING_PUB_ACK_WINDOW);
         }
 
         // Override the properties

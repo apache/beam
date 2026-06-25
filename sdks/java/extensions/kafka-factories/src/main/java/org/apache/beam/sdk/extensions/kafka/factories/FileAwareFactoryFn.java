@@ -221,9 +221,11 @@ public abstract class FileAwareFactoryFn<T>
   }
 
   /**
-   * @throws IOException A hook for subclasses to download and process specific files before the
-   *     main configuration is handled. For example, the kerberos factory can use this to download a
-   *     krb5.conf and set a system property.
+   * A hook for subclasses to download and process specific files before the main configuration is
+   * handled. For example, the kerberos factory can use this to download a krb5.conf and set a
+   * system property.
+   *
+   * @throws IOException If downloading or processing the file fails.
    */
   protected void downloadAndProcessExtraFiles() throws IOException {
     // Default implementation should do nothing.

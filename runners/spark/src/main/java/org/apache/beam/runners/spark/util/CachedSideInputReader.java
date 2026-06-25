@@ -19,8 +19,6 @@ package org.apache.beam.runners.spark.util;
 
 import java.util.concurrent.ExecutionException;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.spark.util.SideInputStorage.Key;
-import org.apache.beam.runners.spark.util.SideInputStorage.Value;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -57,13 +55,13 @@ public class CachedSideInputReader implements SideInputReader {
   @Override
   public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
-    final Cache<Key<T>, Value<T>> materializedCasted =
+    final Cache<SideInputStorage.Key<T>, SideInputStorage.Value<T>> materializedCasted =
         (Cache) SideInputStorage.getMaterializedSideInputs();
 
-    Key<T> sideInputKey = new Key<>(view, window);
+    SideInputStorage.Key<T> sideInputKey = new SideInputStorage.Key<>(view, window);
 
     try {
-      Value<T> cachedResult =
+      SideInputStorage.Value<T> cachedResult =
           materializedCasted.get(
               sideInputKey,
               () -> {
@@ -73,7 +71,7 @@ public class CachedSideInputReader implements SideInputReader {
                     sideInputKey,
                     SizeEstimator.estimate(result));
 
-                return new Value<>(result);
+                return new SideInputStorage.Value<>(result);
               });
       return cachedResult.getValue();
     } catch (ExecutionException e) {

@@ -285,7 +285,7 @@ final class FirestoreV1WriteFn {
                             .setMessage(message)
                             .build()),
                     window)),
-            () -> LOG.info(message));
+            () -> LOG.info("{}", message));
       } else {
         writes.offer(new WriteElement(queueNextEntryPriority++, write, window));
         flushBatch(/* finishingBundle */ false, contextAdapter);

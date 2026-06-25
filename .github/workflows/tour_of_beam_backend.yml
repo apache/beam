@@ -41,7 +41,7 @@ jobs:
       run:
         working-directory: ./learning/tour-of-beam/backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
           # pin to the biggest Go version supported by Cloud Functions runtime
@@ -58,7 +58,7 @@ jobs:
         run: go test -v ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v3
         with:
           version: v1.49.0
           working-directory: learning/tour-of-beam/backend

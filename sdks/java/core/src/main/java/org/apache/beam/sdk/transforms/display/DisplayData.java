@@ -781,6 +781,8 @@ public class DisplayData implements Serializable {
       } catch (PopulateDisplayDataException e) {
         // Don't re-wrap exceptions recursively.
         throw e;
+      } catch (OutOfMemoryError oom) {
+        throw oom;
       } catch (Throwable e) {
         String msg =
             String.format(

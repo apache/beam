@@ -91,12 +91,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -139,6 +141,10 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
+              Parameter.CurrentRecordIdParameter.class,
+              Parameter.CurrentRecordOffsetParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
@@ -155,6 +161,10 @@ public class DoFnSignatures {
               Parameter.RestrictionTrackerParameter.class,
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
+              Parameter.CurrentRecordIdParameter.class,
+              Parameter.CurrentRecordOffsetParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
@@ -185,7 +195,10 @@ public class DoFnSignatures {
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
-          Parameter.KeyParameter.class);
+          Parameter.FireTimestampParameter.class,
+          Parameter.CausedByDrainParameter.class,
+          Parameter.KeyParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -201,7 +214,10 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.FireTimestampParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -212,7 +228,9 @@ public class DoFnSignatures {
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class,
+              Parameter.OnWindowExpirationContextParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
@@ -291,12 +309,12 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.SideInputParameter.class);
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
   }
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }
@@ -1343,6 +1361,19 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasAnnotation(DoFn.CurrentRecordId.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(String.class), "@CurrentRecordId argument must have type String.");
+      return Parameter.currentRecordIdParameter();
+    } else if (hasAnnotation(DoFn.CurrentRecordOffset.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Long.class), "@CurrentRecordOffset argument must have type Long.");
+      return Parameter.currentRecordOffsetParameter();
+    } else if (hasAnnotation(DoFn.FireTimestamp.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Instant.class),
+          "@FireTimestamp argument must have type org.joda.time.Instant.");
+      return Parameter.fireTimestampParameter();
     } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
       methodErrors.checkArgument(
           KV.class.equals(inputT.getRawType()),
@@ -1357,6 +1388,16 @@ public class DoFnSignatures {
       return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (CausedByDrain.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(CausedByDrain.class),
+          "CausedByDrain argument must have type org.apache.beam.sdk.values.CausedByDrain.");
+      return Parameter.causedByDrainParameter();
+    } else if (ValueKind.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(ValueKind.class),
+          "ValueKind argument must have type org.apache.beam.sdk.values.ValueKind.");
+      return Parameter.valueKindParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(

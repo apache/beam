@@ -25,9 +25,10 @@ import static org.junit.Assert.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
@@ -132,7 +133,7 @@ public class TestPipelineTest implements Serializable {
 
       @Override
       public void describeTo(Description description) {
-        description.appendText(String.format("%tL", new Date()));
+        description.appendText(String.format("%tL", LocalDateTime.now(ZoneId.of("UTC"))));
       }
 
       @Override
@@ -281,13 +282,13 @@ public class TestPipelineTest implements Serializable {
         pipeline.apply(Create.of("")).apply(new ValidateTempLocation<>());
         PipelineResult.State result =
             pipeline.runWithAdditionalOptionArgs(pipelineArgs).waitUntilFinish();
-        assert (result == PipelineResult.State.DONE);
+        assertEquals(PipelineResult.State.DONE, result);
       }
 
       static class ValidateTempLocation<T> extends PTransform<PCollection<T>, PCollection<T>> {
         @Override
         public void validate(PipelineOptions pipelineOptions) {
-          assert (!Strings.isNullOrEmpty(pipelineOptions.getTempLocation()));
+          assert !Strings.isNullOrEmpty(pipelineOptions.getTempLocation());
         }
 
         @Override

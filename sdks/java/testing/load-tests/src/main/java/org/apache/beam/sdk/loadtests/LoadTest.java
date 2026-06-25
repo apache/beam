@@ -174,7 +174,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
             testId,
             timestamp.toString(),
             buildMetric("total_bytes_count"),
-            reader.getCounterMetric("totalBytes.count"));
+            (double) reader.getCounterMetric("totalBytes.count"));
 
     return Arrays.asList(runtime, totalBytes);
   }

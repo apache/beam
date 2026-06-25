@@ -650,7 +650,6 @@ public class NFA implements Serializable {
     private final CEPOperation
         condition; // condition to evaluate when taking the "begin" action and "proceed" action
     private State nextState = null;
-    public final boolean isStart;
     public final boolean isFinal;
     private final boolean
         isKleenePlusSecondary; // whether is the second state for a Kleene Plus pattern variable
@@ -659,13 +658,11 @@ public class NFA implements Serializable {
         String patternVar,
         Quantifier quant,
         CEPOperation condition,
-        boolean isStart,
         boolean isFinal,
         boolean isKleenePlusSecondary) {
       this.patternVar = patternVar;
       this.quant = quant;
       this.condition = condition;
-      this.isStart = isStart;
       this.isFinal = isFinal;
       this.isKleenePlusSecondary = isKleenePlusSecondary;
     }
@@ -764,16 +761,9 @@ public class NFA implements Serializable {
 
   // constructs states for the NFA and returns the start state
   private State loadStates(List<CEPPattern> patterns) {
-    boolean startState;
     ArrayList<State> states = new ArrayList<>();
 
     for (int i = 0; i < patterns.size(); ++i) {
-      if (i == 0) {
-        startState = true;
-      } else {
-        startState = false;
-      }
-
       CEPPattern currentPattern = patterns.get(i);
       CEPOperation condition = currentPattern.getPatternCondition();
       Quantifier quantifier = currentPattern.getQuantifier();
@@ -782,35 +772,22 @@ public class NFA implements Serializable {
         // for Kleene plus, we need a pair of states
 
         State primaryState =
-            new State(
-                currentPattern.getPatternVar(),
-                Quantifier.PLUS,
-                condition,
-                startState,
-                false,
-                false);
+            new State(currentPattern.getPatternVar(), Quantifier.PLUS, condition, false, false);
 
         State secondaryState =
-            new State(
-                currentPattern.getPatternVar(),
-                Quantifier.PLUS,
-                condition,
-                startState,
-                false,
-                true);
+            new State(currentPattern.getPatternVar(), Quantifier.PLUS, condition, false, true);
 
         primaryState.setNextState(secondaryState);
         states.add(primaryState);
       } else {
         // for non-Kleene-Plus pattern var, construct a single state
         State newState =
-            new State(
-                currentPattern.getPatternVar(), quantifier, condition, startState, false, false);
+            new State(currentPattern.getPatternVar(), quantifier, condition, false, false);
         states.add(newState);
       }
     }
     // add final state
-    State theFinalState = new State("", Quantifier.NONE, null, false, true, false);
+    State theFinalState = new State("", Quantifier.NONE, null, true, false);
     states.add(theFinalState);
     State beginState = setNextStatesAndAssignIndices(states);
     return beginState;

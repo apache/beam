@@ -162,6 +162,7 @@ public class InfluxDbIOTest {
     return queryResult;
   }
 
+  @SuppressWarnings("JavaUtilDate")
   private QueryResult mockResult(String metricName, int numberOfRecords) {
     QueryResult queryResult = new QueryResult();
     QueryResult.Series series = new Series();

@@ -172,9 +172,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           urn = translator.getUrn();
           if (urn == null) {
             LOG.debug(
-                "Could not load the TransformPayloadTranslator "
-                    + translator
-                    + " to the Expansion Service since it did not produce a unique URN.");
+                "Could not load the TransformPayloadTranslator {} to the Expansion Service since it did not produce a unique URN.",
+                translator);
             continue;
           } else if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))
               && translator instanceof SchemaTransformPayloadTranslator) {
@@ -182,9 +181,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           }
         } catch (Exception e) {
           LOG.info(
-              "Could not load the TransformPayloadTranslator "
-                  + translator
-                  + " to the Expansion Service.",
+              "Could not load the TransformPayloadTranslator {} to the Expansion Service.",
+              translator,
               e);
           continue;
         }
@@ -440,7 +438,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
    *
    * <p>If no Schema is registered, {@link ConfigT} must have a zero-argument constructor and
    * setters corresponding to each field in the row encoded by {@code payload}. Note {@link ConfigT}
-   * may have additional setters not represented in the {@ocde payload} schema.
+   * may have additional setters not represented in the {@code payload} schema.
    *
    * <p>Exposed for testing only. No backwards compatibility guarantees.
    */
@@ -892,7 +890,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
   }
 
   private static class NotRunnableRunner extends PipelineRunner<PipelineResult> {
-    public static NotRunnableRunner fromOptions(PipelineOptions opts) {
+    public static NotRunnableRunner fromOptions(@SuppressWarnings("unused") PipelineOptions opts) {
       return new NotRunnableRunner();
     }
 

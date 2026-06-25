@@ -81,6 +81,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -507,7 +508,8 @@ public class DoFnOperatorTest {
                   BoundedWindow window,
                   Instant timestamp,
                   Instant outputTimestamp,
-                  TimeDomain timeDomain) {
+                  TimeDomain timeDomain,
+                  CausedByDrain causedByDrain) {
 
                 if ("cleanup".equals(timerId)) {
                   holdState.clear();
@@ -520,6 +522,9 @@ public class DoFnOperatorTest {
               public void finishBundle() {
                 wrappedRunner.finishBundle();
               }
+
+              @Override
+              public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
               @Override
               public <KeyT> void onWindowExpiration(

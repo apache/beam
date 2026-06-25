@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import datetime
 import os
 import unittest
 import uuid
@@ -33,13 +34,13 @@ from apache_beam.testing.util import equal_to
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
-  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
+  WAREHOUSE = "gs://temp-storage-for-end-to-end-tests"
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.args.extend([
-        '--experiments=enable_managed_transforms',
+        # '--experiments=enable_managed_transforms',
     ])
 
   def _create_row(self, num: int):
@@ -49,16 +50,24 @@ class ManagedIcebergIT(unittest.TestCase):
         bytes_=bytes(num),
         bool_=(num % 2 == 0),
         float_=(num + float(num) / 100),
-        arr_=[num, num, num])
+        arr_=[num, num, num],
+        date_=datetime.date.today() - datetime.timedelta(days=num))
 
   def test_write_read_pipeline(self):
+    biglake_catalog_props = {
+        'type': 'rest',
+        'uri': 'https://biglake.googleapis.com/iceberg/v1/restcatalog',
+        'warehouse': self.WAREHOUSE,
+        'header.x-goog-user-project': 'apache-beam-testing',
+        'rest.auth.type': 'google',
+        'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
+        'header.X-Iceberg-Access-Delegation': 'vended-credentials',
+        'rest-metrics-reporting-enabled': 'false'
+    }
     iceberg_config = {
         "table": "test_iceberg_write_read.test_" + uuid.uuid4().hex,
         "catalog_name": "default",
-        "catalog_properties": {
-            "type": "hadoop",
-            "warehouse": self.WAREHOUSE,
-        }
+        "catalog_properties": biglake_catalog_props
     }
 
     rows = [self._create_row(i) for i in range(100)]

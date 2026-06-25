@@ -137,7 +137,7 @@ class BigtableConfigTranslator {
             .stubSettings()
             .setCredentialsProvider(
                 FixedCredentialsProvider.create(
-                    (pipelineOptions.as(GcpOptions.class)).getGcpCredential()));
+                    pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
 
       if (config.getCredentialFactory() != null) {

@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.StreamingComputationConfig;
 import com.google.api.services.dataflow.model.StreamingConfigTask;
 import com.google.api.services.dataflow.model.WorkItem;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -61,6 +62,7 @@ import org.slf4j.LoggerFactory;
 @Internal
 @ThreadSafe
 public final class StreamingEngineComputationConfigFetcher implements ComputationConfig.Fetcher {
+
   private static final Logger LOG =
       LoggerFactory.getLogger(StreamingEngineComputationConfigFetcher.class);
   private static final String CONFIG_REFRESHER_THREAD_NAME = "GlobalPipelineConfigRefresher";
@@ -169,7 +171,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       ImmutableSet<HostAndPort> endpoints =
           StreamSupport.stream(
                   Splitter.on(',').split(config.getWindmillServiceEndpoint()).spliterator(),
-                  /* isParallel= */ false)
+                  /* parallel= */ false)
               .map(endpoint -> HostAndPort.fromString(endpoint).withDefaultPort(windmillPort))
               .collect(toImmutableSet());
 
@@ -179,7 +181,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
     if (config.getMaxWorkItemCommitBytes() != null
         && config.getMaxWorkItemCommitBytes() > 0
         && config.getMaxWorkItemCommitBytes() <= Integer.MAX_VALUE) {
-      operationalLimits.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes().intValue());
+      operationalLimits.setMaxWorkItemCommitBytes(config.getMaxWorkItemCommitBytes());
     }
 
     if (config.getOperationalLimits() != null) {
@@ -207,6 +209,14 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
         LOG.error("Parsing UserWorkerRunnerV1Settings failed", e);
       }
       pipelineConfig.setUserWorkerJobSettings(settings);
+    }
+
+    Integer tagEncodingVersion = config.getStreamingEngineStateTagEncodingVersion();
+    if (tagEncodingVersion != null) {
+      Preconditions.checkState(tagEncodingVersion <= 2);
+    }
+    if (Objects.equals(2, tagEncodingVersion)) {
+      pipelineConfig.setEnableStateTagEncodingV2(true);
     }
 
     return pipelineConfig.build();

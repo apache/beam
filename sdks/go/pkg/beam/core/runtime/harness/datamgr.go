@@ -433,7 +433,7 @@ func (c *DataChannel) read(ctx context.Context) {
 			// for all transforms in an instruction before the instruction even begun. However, we can't
 			// know this until we received the Control instruction which knows how many transforms for which
 			// we need to receive data. So we check the cache directly every so often and evict closed
-			// readers. We will never recieve data for these instructions again.
+			// readers. We will never receive data for these instructions again.
 			for instID, r := range cache {
 				if r.Closed() {
 					delete(cache, instID)

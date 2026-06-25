@@ -69,6 +69,12 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link BigQueryUtils}. */
 @RunWith(JUnit4.class)
 public class BigQueryUtilsTest {
+  private static final TableFieldSchema TIMESTAMP_NANOS =
+      new TableFieldSchema()
+          .setName("timestamp_nanos")
+          .setType(StandardSQLTypeName.TIMESTAMP.toString())
+          .setTimestampPrecision(12L);
+
   private static final Schema FLAT_TYPE =
       Schema.builder()
           .addNullableField("id", Schema.FieldType.INT64)
@@ -98,6 +104,7 @@ public class BigQueryUtilsTest {
           .addNullableField("boolean", Schema.FieldType.BOOLEAN)
           .addNullableField("long", Schema.FieldType.INT64)
           .addNullableField("double", Schema.FieldType.DOUBLE)
+          .addNullableField("timestamp_nanos", Schema.FieldType.logicalType(Timestamp.NANOS))
           .build();
 
   private static final Schema ENUM_TYPE =
@@ -280,7 +287,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableFieldSchema ROWS =
       new TableFieldSchema()
@@ -315,7 +323,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableFieldSchema MAP =
       new TableFieldSchema()
@@ -368,7 +377,8 @@ public class BigQueryUtilsTest {
               new BigDecimal("123.456").setScale(3, RoundingMode.HALF_UP),
               true,
               123L,
-              123.456d)
+              123.456d,
+              java.time.Instant.parse("2024-08-10T16:52:07.123456789Z"))
           .build();
 
   private static final TableRow BQ_FLAT_ROW =
@@ -404,13 +414,14 @@ public class BigQueryUtilsTest {
           .set("numeric", "123.456")
           .set("boolean", true)
           .set("long", 123L)
-          .set("double", 123.456d);
+          .set("double", 123.456d)
+          .set("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC");
 
   private static final Row NULL_FLAT_ROW =
       Row.withSchema(FLAT_TYPE)
           .addValues(
               null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-              null, null, null, null, null, null, null, null, null, null, null, null, null)
+              null, null, null, null, null, null, null, null, null, null, null, null, null, null)
           .build();
 
   private static final TableRow BQ_NULL_FLAT_ROW =
@@ -441,7 +452,8 @@ public class BigQueryUtilsTest {
           .set("numeric", null)
           .set("boolean", null)
           .set("long", null)
-          .set("double", null);
+          .set("double", null)
+          .set("timestamp_nanos", null);
 
   private static final Row ENUM_ROW =
       Row.withSchema(ENUM_TYPE).addValues(new EnumerationType.Value(1)).build();
@@ -533,7 +545,8 @@ public class BigQueryUtilsTest {
                   NUMERIC,
                   BOOLEAN,
                   LONG,
-                  DOUBLE));
+                  DOUBLE,
+                  TIMESTAMP_NANOS));
 
   private static final TableSchema BQ_ENUM_TYPE = new TableSchema().setFields(Arrays.asList(COLOR));
 
@@ -593,7 +606,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -648,7 +662,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -689,7 +704,8 @@ public class BigQueryUtilsTest {
             NUMERIC,
             BOOLEAN,
             LONG,
-            DOUBLE));
+            DOUBLE,
+            TIMESTAMP_NANOS));
   }
 
   @Test
@@ -720,7 +736,7 @@ public class BigQueryUtilsTest {
   public void testToTableRow_flat() {
     TableRow row = toTableRow().apply(FLAT_ROW);
 
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -748,6 +764,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
@@ -783,7 +800,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = (TableRow) row.get("row");
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -811,6 +828,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
@@ -819,7 +837,7 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     row = ((List<TableRow>) row.get("rows")).get(0);
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", "123"));
     assertThat(row, hasEntry("value", "123.456"));
     assertThat(row, hasEntry("timestamp_variant1", "2019-08-16 13:52:07.000 UTC"));
@@ -847,13 +865,14 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", "true"));
     assertThat(row, hasEntry("long", "123"));
     assertThat(row, hasEntry("double", "123.456"));
+    assertThat(row, hasEntry("timestamp_nanos", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
   public void testToTableRow_null_row() {
     TableRow row = toTableRow().apply(NULL_FLAT_ROW);
 
-    assertThat(row.size(), equalTo(27));
+    assertThat(row.size(), equalTo(28));
     assertThat(row, hasEntry("id", null));
     assertThat(row, hasEntry("value", null));
     assertThat(row, hasEntry("name", null));
@@ -881,6 +900,7 @@ public class BigQueryUtilsTest {
     assertThat(row, hasEntry("boolean", null));
     assertThat(row, hasEntry("long", null));
     assertThat(row, hasEntry("double", null));
+    assertThat(row, hasEntry("timestamp_nanos", null));
   }
 
   private static final BigQueryUtils.ConversionOptions TRUNCATE_OPTIONS =
@@ -1463,5 +1483,99 @@ public class BigQueryUtilsTest {
         BigQueryUtils.toBeamRow(
             schema, new TableRow().set("ts", "2024-08-10 16:52:07.123456789 UTC"));
     assertEquals(123456789, ((java.time.Instant) row9.getValue("ts")).getNano());
+  }
+
+  /** Computes expected epoch seconds from an ISO-8601 timestamp. */
+  private static long expectedSeconds(String isoTimestamp) {
+    return java.time.Instant.parse(isoTimestamp).getEpochSecond();
+  }
+
+  @Test
+  public void testParseTimestampPicosFromString() {
+    // Format: {input, isoEquivalentForSeconds, expectedPicoseconds, description}
+    Object[][] testCases = {
+      // UTC format tests (space separator, "UTC" suffix)
+      {"2024-01-15 10:30:45 UTC", "2024-01-15T10:30:45Z", 0L, "UTC no fractional"},
+      {"2024-01-15 10:30:45.123 UTC", "2024-01-15T10:30:45Z", 123_000_000_000L, "UTC 3 digits"},
+      {"2024-01-15 10:30:45.123456 UTC", "2024-01-15T10:30:45Z", 123_456_000_000L, "UTC 6 digits"},
+      {
+        "2024-01-15 10:30:45.123456789 UTC",
+        "2024-01-15T10:30:45Z",
+        123_456_789_000L,
+        "UTC 9 digits"
+      },
+
+      // ISO format tests (T separator, "Z" suffix)
+      {"2024-01-15T10:30:45Z", "2024-01-15T10:30:45Z", 0L, "ISO no fractional"},
+      {"2024-01-15T10:30:45.123Z", "2024-01-15T10:30:45Z", 123_000_000_000L, "ISO 3 digits"},
+      {"2024-01-15T10:30:45.123456Z", "2024-01-15T10:30:45Z", 123_456_000_000L, "ISO 6 digits"},
+      {"2024-01-15T10:30:45.123456789Z", "2024-01-15T10:30:45Z", 123_456_789_000L, "ISO 9 digits"},
+      {
+        "2024-01-15T10:30:45.123456789012Z",
+        "2024-01-15T10:30:45Z",
+        123_456_789_012L,
+        "ISO 12 digits (picos)"
+      },
+
+      // Boundary: earliest date (0001-01-01)
+      {"0001-01-01 00:00:00.000000 UTC", "0001-01-01T00:00:00Z", 0L, "Earliest UTC"},
+      {"0001-01-01T00:00:00Z", "0001-01-01T00:00:00Z", 0L, "Earliest ISO"},
+      {"0001-01-01T00:00:00.000000000001Z", "0001-01-01T00:00:00Z", 1L, "Earliest ISO 1 pico"},
+
+      // Boundary: latest date (9999-12-31)
+      {"9999-12-31 23:59:59.999999 UTC", "9999-12-31T23:59:59Z", 999_999_000_000L, "Latest UTC"},
+      {
+        "9999-12-31T23:59:59.999999999Z",
+        "9999-12-31T23:59:59Z",
+        999_999_999_000L,
+        "Latest ISO 9 digits"
+      },
+      {
+        "9999-12-31T23:59:59.999999999999Z",
+        "9999-12-31T23:59:59Z",
+        999_999_999_999L,
+        "Latest ISO max picos"
+      },
+
+      // Unix epoch (1970-01-01)
+      {"1970-01-01 00:00:00 UTC", "1970-01-01T00:00:00Z", 0L, "Epoch UTC"},
+      {"1970-01-01T00:00:00Z", "1970-01-01T00:00:00Z", 0L, "Epoch ISO"},
+      {"1970-01-01T00:00:00.000000000001Z", "1970-01-01T00:00:00Z", 1L, "Epoch + 1 pico"},
+
+      // Fractional boundaries
+      {"2024-01-15T10:30:45.000000000000Z", "2024-01-15T10:30:45Z", 0L, "All zeros picos"},
+      {
+        "2024-01-15T10:30:45.999999999999Z",
+        "2024-01-15T10:30:45Z",
+        999_999_999_999L,
+        "All nines picos"
+      },
+      {
+        "2024-01-15T10:30:45.1Z",
+        "2024-01-15T10:30:45Z",
+        100_000_000_000L,
+        "Single digit fractional"
+      },
+    };
+
+    for (Object[] testCase : testCases) {
+      String input = (String) testCase[0];
+      String isoEquivalent = (String) testCase[1];
+      long expectedPicos = (Long) testCase[2];
+      String description = (String) testCase[3];
+
+      long expectedSecs = expectedSeconds(isoEquivalent);
+
+      BigQueryUtils.TimestampPicos result = BigQueryUtils.TimestampPicos.fromString(input);
+
+      assertEquals(
+          String.format("Seconds mismatch for '%s' (%s)", input, description),
+          expectedSecs,
+          result.seconds);
+      assertEquals(
+          String.format("Picoseconds mismatch for '%s' (%s)", input, description),
+          expectedPicos,
+          result.picoseconds);
+    }
   }
 }

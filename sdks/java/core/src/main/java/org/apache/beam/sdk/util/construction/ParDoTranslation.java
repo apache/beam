@@ -487,7 +487,7 @@ public class ParDoTranslation {
 
   public static Map<TupleTag<?>, Coder<?>> getOutputCoders(AppliedPTransform<?, ?, ?> application) {
     return application.getOutputs().entrySet().stream()
-        .filter(e -> e.getValue() instanceof PCollection)
+        .filter(e -> e.getValue() != null)
         .collect(Collectors.toMap(e -> e.getKey(), e -> ((PCollection) e.getValue()).getCoder()));
   }
 

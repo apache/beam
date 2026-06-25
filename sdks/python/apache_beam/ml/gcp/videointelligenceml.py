@@ -18,7 +18,6 @@
 """A connector for sending API requests to the GCP Video Intelligence API."""
 
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from cachetools.func import ttl_cache
@@ -203,7 +202,7 @@ class AnnotateVideoWithContext(AnnotateVideo):
 
 
 @typehints.with_input_types(
-    Tuple[Union[str, bytes], Optional[videointelligence.VideoContext]])
+    tuple[Union[str, bytes], Optional[videointelligence.VideoContext]])
 class _VideoAnnotateFnWithContext(_VideoAnnotateFn):
   """A DoFn that unpacks each input tuple to element, video_context variables
   and sends these to the GCP Video Intelligence API service and outputs

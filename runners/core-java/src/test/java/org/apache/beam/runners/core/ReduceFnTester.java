@@ -59,6 +59,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -125,6 +126,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         SystemReduceFn.buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
+        NullSideInputReader.empty());
+  }
+
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowingStrategy<?, W> windowingStrategy, PipelineOptions options) throws Exception {
+    return new ReduceFnTester<>(
+        windowingStrategy,
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(windowingStrategy.getTrigger())),
+        SystemReduceFn.buffering(VarIntCoder.of()),
+        IterableCoder.of(VarIntCoder.of()),
+        options,
         NullSideInputReader.empty());
   }
 
@@ -317,7 +331,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG, ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs
@@ -330,7 +344,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
                 objectStrategy.getTimestampCombiner()),
-            WatermarkHold.EXTRA_HOLD_TAG));
+            WatermarkHold.EXTRA_HOLD_TAG,
+            ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs
@@ -574,7 +589,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     ArrayList<TimerData> timers = new ArrayList<>(1);
     timers.add(
         TimerData.of(
-            StateNamespaces.window(windowFn.windowCoder(), window), timestamp, timestamp, domain));
+            StateNamespaces.window(windowFn.windowCoder(), window),
+            timestamp,
+            timestamp,
+            domain,
+            CausedByDrain.NORMAL));
     runner.onTimers(timers);
     runner.persist();
   }
@@ -588,7 +607,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               StateNamespaces.window(windowFn.windowCoder(), window),
               timer.getTimestamp(),
               timer.getTimestamp(),
-              timer.getValue()));
+              timer.getValue(),
+              CausedByDrain.NORMAL));
     }
     runner.onTimers(timerData);
     runner.persist();

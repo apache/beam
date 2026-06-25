@@ -90,8 +90,32 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRestriction(@Element Void element) {
+    public OffsetRange getInitialRestriction(@SuppressWarnings("unused") @Element Void element) {
       throw new UnsupportedOperationException("Should not be called in this test");
+    }
+  }
+
+  private static class GetSizeFn extends DoFn<Void, String> {
+    @ProcessElement
+    public ProcessContinuation process(
+        ProcessContext c, RestrictionTracker<OffsetRange, Long> tracker) {
+      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+        c.output(String.valueOf(i));
+        if (i == 2) {
+          return resume();
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction() {
+      return new OffsetRange(0, 10);
+    }
+
+    @GetSize
+    public double getSize(@Restriction OffsetRange range) {
+      return range.getTo() - range.getFrom();
     }
   }
 
@@ -103,11 +127,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
       throws Exception {
     SomeFn fn = new SomeFn(sleepBeforeFirstClaim, numOutputsPerProcessCall, sleepBeforeEachOutput);
     OffsetRange initialRestriction = new OffsetRange(0, totalNumOutputs);
-    return runTest(fn, initialRestriction);
+    return runTest(fn, initialRestriction, Duration.standardSeconds(3));
   }
 
   private SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result runTest(
-      DoFn<Void, String> fn, OffsetRange initialRestriction) throws Exception {
+      DoFn<Void, String> fn, OffsetRange initialRestriction, Duration checkpointDuration)
+      throws Exception {
     SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void> invoker =
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             fn,
@@ -122,7 +147,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
             NullSideInputReader.empty(),
             Executors.newSingleThreadScheduledExecutor(),
             1000,
-            Duration.standardSeconds(3),
+            checkpointDuration,
             () -> {
               throw new UnsupportedOperationException("BundleFinalizer not configured for test.");
             });
@@ -209,12 +234,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
           }
 
           @GetInitialRestriction
-          public OffsetRange getInitialRestriction(@Element Void element) {
+          public OffsetRange getInitialRestriction(
+              @SuppressWarnings("unused") @Element Void element) {
             throw new UnsupportedOperationException("Should not be called in this test");
           }
         };
     e.expectMessage("Output is not allowed before tryClaim()");
-    runTest(brokenFn, new OffsetRange(0, 5));
+    runTest(brokenFn, new OffsetRange(0, 5), Duration.standardSeconds(3));
   }
 
   @Test
@@ -228,11 +254,24 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
           }
 
           @GetInitialRestriction
-          public OffsetRange getInitialRestriction(@Element Void element) {
+          public OffsetRange getInitialRestriction(
+              @SuppressWarnings("unused") @Element Void element) {
             throw new UnsupportedOperationException("Should not be called in this test");
           }
         };
     e.expectMessage("Output is not allowed after a failed tryClaim()");
-    runTest(brokenFn, new OffsetRange(0, 5));
+    runTest(brokenFn, new OffsetRange(0, 5), Duration.standardSeconds(3));
+  }
+
+  @Test
+  public void testBacklogBytes() throws Exception {
+    GetSizeFn fn = new GetSizeFn();
+    OffsetRange initialRestriction = new OffsetRange(0, 10);
+    // Set a high checkpoint duration to prevent flakiness caused by early checkpointing.
+    SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result res =
+        runTest(fn, initialRestriction, Duration.standardMinutes(3));
+    // GetSizeFn claims 3 elements and then takes a checkpoint.
+    assertEquals(7.0, res.getBacklogBytes(), 0.001);
+    assertEquals(new OffsetRange(3, 10), res.getResidualRestriction());
   }
 }

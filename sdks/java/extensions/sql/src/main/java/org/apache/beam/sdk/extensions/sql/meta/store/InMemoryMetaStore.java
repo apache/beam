@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.AlterTableOps;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -149,5 +150,15 @@ public class InMemoryMetaStore implements MetaStore {
     }
 
     throw new IllegalStateException("No TableProvider registered for table type: " + type);
+  }
+
+  @Override
+  public AlterTableOps alterTable(String name) {
+    if (!tables.containsKey(name)) {
+      throw new IllegalArgumentException("No such table: " + name);
+    }
+
+    Table table = tables.get(name);
+    return getProvider(table.getType()).alterTable(name);
   }
 }

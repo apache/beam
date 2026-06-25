@@ -387,8 +387,11 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 		em.pendingElements.Wait()
 		slog.Debug("no more pending elements: terminating pipeline")
 		cancelFn(fmt.Errorf("elementManager out of elements, cleaning up"))
-		// Ensure the watermark evaluation goroutine exits.
+		// Ensure the watermark evaluation goroutine exits by locking the mutex
+		// before broadcasting, preventing a lost wake-up signal.
+		em.refreshCond.L.Lock()
 		em.refreshCond.Broadcast()
+		em.refreshCond.L.Unlock()
 	}()
 	// Watermark evaluation goroutine.
 	go func() {
@@ -1707,7 +1710,9 @@ func (ss *stageState) GetSideData(tID, inputID string, watermark mtime.Time) map
 	d := ss.sideInputs[LinkID{Transform: tID, Local: inputID}]
 	ret := map[typex.Window][][]byte{}
 	for win, ds := range d {
-		if win.MaxTimestamp() <= watermark {
+		if _, ok := win.(window.GlobalWindow); ok {
+			ret[win] = ds
+		} else if win.MaxTimestamp() <= watermark {
 			ret[win] = ds
 		}
 	}
@@ -2494,7 +2499,9 @@ func (em *ElementManager) wakeUpAt(t mtime.Time) {
 		// only create this goroutine if we have real-time clock enabled (also implying the pipeline does not have TestStream).
 		go func(fireAt time.Time) {
 			time.AfterFunc(time.Until(fireAt), func() {
+				em.refreshCond.L.Lock()
 				em.refreshCond.Broadcast()
+				em.refreshCond.L.Unlock()
 			})
 		}(t.ToTime())
 	}

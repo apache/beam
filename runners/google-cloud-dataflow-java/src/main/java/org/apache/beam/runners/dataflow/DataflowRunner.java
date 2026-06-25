@@ -48,6 +48,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -96,12 +97,12 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
-import org.apache.beam.sdk.io.gcp.pubsublite.internal.SubscribeTransform;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -664,8 +665,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // Do nothing. io-kafka is an optional dependency of runners-google-cloud-dataflow-java
         // and only needed when KafkaIO is used in the pipeline.
       }
-
-      overridesBuilder.add(SubscribeTransform.V1_READ_OVERRIDE);
 
       if (!hasExperiment(options, "enable_file_dynamic_sharding")) {
         overridesBuilder.add(
@@ -1241,15 +1240,16 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static final Random RANDOM = new Random();
 
+  @SuppressWarnings("Slf4jFormatShouldBeConst")
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
-    // to Runner v2.
+    // to Dataflow Portable Runner.
     if (DataflowRunner.isMultiLanguagePipeline(pipeline) || includesTransformUpgrades(pipeline)) {
-      List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
-      if (!experiments.contains("use_runner_v2")) {
+      if (!useUnifiedWorker(options)) {
+        List<String> experiments = firstNonNull(options.getExperiments(), Collections.emptyList());
         LOG.info(
-            "Automatically enabling Dataflow Runner v2 since the pipeline used cross-language"
+            "Automatically enabling Dataflow Portable Runner since the pipeline used cross-language"
                 + " transforms or pipeline needed a transform upgrade.");
         options.setExperiments(
             ImmutableList.<String>builder().addAll(experiments).add("use_runner_v2").build());
@@ -1258,9 +1258,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (useUnifiedWorker(options)) {
       if (hasExperiment(options, "disable_runner_v2")
           || hasExperiment(options, "disable_runner_v2_until_2023")
-          || hasExperiment(options, "disable_prime_runner_v2")) {
+          || hasExperiment(options, "disable_prime_runner_v2")
+          || hasExperiment(options, "disable_portable_runner")
+          || hasExperiment(options, "enable_streaming_java_runner")) {
         throw new IllegalArgumentException(
-            "Runner V2 both disabled and enabled: at least one of ['beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
+            "Dataflow Portable Runner both disabled and enabled: at least one of ['enable_portable_runner', 'beam_fn_api', 'use_unified_worker', 'use_runner_v2', 'use_portable_job_submission'] is set and also one of ['enable_streaming_java_runner', 'disable_portable_runner', 'disable_runner_v2', 'disable_runner_v2_until_2023', 'disable_prime_runner_v2'] is set.");
       }
       List<String> experiments =
           new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
@@ -1302,21 +1304,44 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (shouldActAsStreaming(pipeline)) {
       options.setStreaming(true);
 
+      {
+        List<String> experiments =
+            options.getExperiments() == null
+                ? new ArrayList<>()
+                : new ArrayList<>(options.getExperiments());
+        // Experiment marking that the harness supports tag encoding v2
+        // Backend will enable tag encoding v2 only if the harness supports it.
+        experiments.add("streaming_engine_state_tag_encoding_v2_supported");
+        // Experiment requesting tag encoding v2 on new jobs starting with 2.75.0. During job
+        // updates old job's tag encoding version is carried over by the backend.
+        if (!StreamingOptions.updateCompatibilityVersionLessThan(options, "2.75.0")) {
+          experiments.add("enable_streaming_engine_state_tag_encoding_v2");
+        }
+        options.setExperiments(ImmutableList.copyOf(experiments));
+      }
+
       if (useUnifiedWorker(options)) {
         options.setEnableStreamingEngine(true);
-        List<String> experiments =
-            new ArrayList<>(options.getExperiments()); // non-null if useUnifiedWorker is true
-        if (!experiments.contains("enable_streaming_engine")) {
-          experiments.add("enable_streaming_engine");
-        }
-        if (!experiments.contains("enable_windmill_service")) {
-          experiments.add("enable_windmill_service");
-        }
       }
     }
 
     if (!ExperimentalOptions.hasExperiment(options, "disable_projection_pushdown")) {
       ProjectionPushdownOptimizer.optimize(pipeline);
+    }
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    if (ExperimentalOptions.hasExperiment(options, "enable_otel_defaults")) {
+      Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+      if (openTelemetryProperties == null) {
+        openTelemetryProperties = new HashMap<>();
+        openTelemetryProperties.put("google.cloud.project", options.getProject());
+        openTelemetryProperties.put(
+            "otel.exporter.otlp.endpoint", "https://telemetry.googleapis.com");
+        openTelemetryProperties.put("otel.traces.exporter", "otlp");
+        openTelemetryProperties.put("otel.java.global-autoconfigure.enabled", "true");
+        openTelemetryProperties.put("otel.traces.sampler.arg", "0.01");
+        openTelemetryProperties.put("otel.service.name", options.getAppName());
+        sdkHarnessOptions.setOpenTelemetryProperties(openTelemetryProperties);
+      }
     }
 
     LOG.info(
@@ -1367,11 +1392,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
     dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
 
+    String pipelineProtoHash = Hashing.sha256().hashBytes(serializedProtoPipeline).toString();
+    options.as(SdkHarnessOptions.class).setPipelineProtoHash(pipelineProtoHash);
+
     if (useUnifiedWorker(options)) {
-      LOG.info("Skipping v1 transform replacements since job will run on v2.");
+      LOG.info(
+          "Skipping Dataflow Streaming Java Runner transform replacements since job will run on Dataflow Portable Runner.");
     } else {
-      // Now rewrite things to be as needed for v1 (mutates the pipeline)
-      // This way the job submitted is valid for v1 and v2, simultaneously
+      // Now rewrite things to be as needed for Dataflow Streaming Java Runner (mutates the
+      // pipeline)
+      // This way the job submitted is valid for Dataflow Streaming Java Runner and Dataflow
+      // Portable Runner, simultaneously
       replaceV1Transforms(pipeline);
     }
     // Capture the SdkComponents for look up during step translations
@@ -1382,7 +1413,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .addAllDependencies(getDefaultArtifacts())
             .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
-    // No need to perform transform upgrading for the Runner v1 proto.
+    // No need to perform transform upgrading for the Dataflow Streaming Java Runner proto.
     RunnerApi.Pipeline dataflowV1PipelineProto =
         PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
 
@@ -1538,7 +1569,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       options.setExperiments(experiments);
       LOG.warn(
           "The upload_graph experiment was specified, but it does not apply "
-              + "to runner v2 jobs. Option has been automatically removed.");
+              + "to Dataflow Portable Runner jobs. Option has been automatically removed.");
     }
 
     // Upload the job to GCS and remove the graph object from the API call.  The graph
@@ -1890,9 +1921,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         });
     for (String unconsumed : unconsumedDLQ.values()) {
       LOG.warn(
-          "No transform processes the failed-inserts output from BigQuery sink: "
-              + unconsumed
-              + "! Not processing failed inserts means that those rows will be lost.");
+          "No transform processes the failed-inserts output from BigQuery sink: {}"
+              + "! Not processing failed inserts means that those rows will be lost.",
+          unconsumed);
     }
   }
 
@@ -2725,7 +2756,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return hasExperiment(options, "beam_fn_api")
         || hasExperiment(options, "use_runner_v2")
         || hasExperiment(options, "use_unified_worker")
-        || hasExperiment(options, "use_portable_job_submission");
+        || hasExperiment(options, "use_portable_job_submission")
+        || hasExperiment(options, "enable_portable_runner");
   }
 
   static void verifyDoFnSupported(
@@ -2737,11 +2769,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               DataflowRunner.class.getSimpleName()));
     }
     boolean isUnifiedWorker = useUnifiedWorker(options);
-    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker) {
+    if (DoFnSignatures.usesBundleFinalizer(fn) && !isUnifiedWorker && !streaming) {
       throw new UnsupportedOperationException(
           String.format(
-              "%s does not currently support %s when not using unified worker because it uses "
-                  + "BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
+              "%s does not currently support %s in batch mode when not using unified worker because it "
+                  + "uses BundleFinalizers in its implementation. Set the `--experiments=use_runner_v2` "
                   + "option to use this DoFn.",
               DataflowRunner.class.getSimpleName(), fn.getClass().getSimpleName()));
     }

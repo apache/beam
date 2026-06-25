@@ -37,23 +37,27 @@ import org.junit.runners.JUnit4;
 public class Neo4jResourceManagerIT {
 
   private Neo4jResourceManager neo4jResourceManager;
+  private static final String STATIC_DATABASE_NAME = "neo4j";
 
   @Before
   public void setUp() {
     neo4jResourceManager =
         Neo4jResourceManager.builder("placeholder")
-            .setDatabaseName("neo4j", DatabaseWaitOptions.waitDatabase())
+            .setDatabaseName(STATIC_DATABASE_NAME, DatabaseWaitOptions.waitDatabase())
             .setAdminPassword("password")
             .build();
   }
 
   @Test
   public void testResourceManagerE2E() {
+
     neo4jResourceManager.run(
-        "CREATE (:Hello {whom: $whom})", Collections.singletonMap("whom", "world"));
+        "CREATE (:Hello {whom: $whom})",
+        STATIC_DATABASE_NAME,
+        Collections.singletonMap("whom", "world"));
 
     List<Map<String, Object>> results =
-        neo4jResourceManager.run("MATCH (h:Hello) RETURN h.whom AS whom");
+        neo4jResourceManager.run("MATCH (h:Hello) RETURN h.whom AS whom", STATIC_DATABASE_NAME);
 
     assertThat(results).hasSize(1);
     assertThat(results)

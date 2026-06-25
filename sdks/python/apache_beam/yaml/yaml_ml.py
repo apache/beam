@@ -168,6 +168,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       experiment: Optional[str] = None,
       network: Optional[str] = None,
       private: bool = False,
+      invoke_route: Optional[str] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None):
@@ -236,6 +237,13 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       private: If the deployed Vertex AI endpoint is
         private, set to true. Requires a network to be provided
         as well.
+      invoke_route: The custom route path to use when invoking
+        endpoints with arbitrary prediction routes. When specified, uses
+        `Endpoint.invoke()` instead of `Endpoint.predict()`. The route
+        should start with a forward slash, e.g., "/predict/v1".
+        See
+        https://cloud.google.com/vertex-ai/docs/predictions/use-arbitrary-custom-routes
+        for more information.
       min_batch_size: The minimum batch size to use when batching
         inputs.
       max_batch_size: The maximum batch size to use when batching
@@ -258,6 +266,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
         experiment=experiment,
         network=network,
         private=private,
+        invoke_route=invoke_route,
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
         max_batch_duration_secs=max_batch_duration_secs)
@@ -271,6 +280,98 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
   def inference_output_type(self):
     return RowTypeConstraint.from_fields([('example', Any), ('inference', Any),
                                           ('model_id', Optional[str])])
+
+
+@ModelHandlerProvider.register_handler_type('HuggingFacePipelineModelHandler')
+class HuggingFacePipelineModelHandlerProvider(ModelHandlerProvider):
+  def __init__(
+      self,
+      task: Optional[str] = None,
+      model: Optional[str] = None,
+      preprocess: Optional[dict[str, str]] = None,
+      postprocess: Optional[dict[str, str]] = None,
+      device: Optional[Any] = None,
+      inference_fn: Optional[dict[str, str]] = None,
+      load_pipeline_args: Optional[dict[str, Any]] = None,
+      **kwargs):
+    """
+    ModelHandler for Hugging Face Pipelines.
+
+    This Model Handler can be used with RunInference to load a model using
+    Hugging Face pipelines. Hugging Face pipelines provide a simple way to
+    perform inference on various tasks (e.g. text classification, token
+    classification, text generation).
+
+    This Model Handler requires either a `task` or `model` to be specified.
+    Preprocessing and Postprocessing are described in more detail in the
+    RunInference docs:
+    https://beam.apache.org/releases/yamldoc/current/#runinference
+
+    For example: ::
+
+        - type: RunInference
+          config:
+            model_handler:
+              type: HuggingFacePipelineModelHandler
+              config:
+                task: text-classification
+                model: distilbert-base-uncased-finetuned-sst-2-english
+                preprocess:
+                  callable: 'lambda x: x.text'
+
+    Args:
+      task: The task for the pipeline. See Hugging Face documentation for
+        a list of supported tasks.
+      model: The model name on Hugging Face hub or a path to a local directory.
+        If the model already defines the task, no need to specify the task.
+      preprocess: A python callable, defined either inline, or using a file,
+        that is invoked on the input row before sending to the model to be
+        loaded by this ModelHandler.
+      postprocess: A python callable, defined either inline, or using a file,
+        that is invoked on the PredictionResult output by the ModelHandler
+        before parsing into the output Beam Row.
+      device: The device to run the pipeline on (e.g., 'cpu', 'cuda', 'cuda:0').
+        Defaults to CPU.
+      inference_fn: The custom inference function to use.
+      load_pipeline_args: Extra arguments to pass to the Hugging Face pipeline
+        loader (e.g. `transformers.pipeline`).
+      **kwargs: Extra arguments to pass to the model handler.
+    """
+    try:
+      from apache_beam.ml.inference.huggingface_inference import HuggingFacePipelineModelHandler
+    except ImportError:
+      raise ValueError(
+          'Unable to import HuggingFacePipelineModelHandler. Please '
+          'install transformers dependencies.')
+
+    kwargs = {k: v for k, v in kwargs.items() if not k.startswith('_')}
+
+    inference_fn_obj = self.parse_processing_transform(
+        inference_fn, 'inference_fn') if inference_fn else None
+
+    handler_kwargs = {}
+    if inference_fn_obj:
+      handler_kwargs['inference_fn'] = inference_fn_obj
+
+    _handler = HuggingFacePipelineModelHandler(
+        task=task,
+        model=model,
+        device=device,
+        load_pipeline_args=load_pipeline_args,
+        **handler_kwargs,
+        **kwargs)
+
+    super().__init__(_handler, preprocess, postprocess)
+
+  @staticmethod
+  def validate(config):
+    if not config or (not config.get('task') and not config.get('model')):
+      raise ValueError(
+          "HuggingFacePipelineModelHandler requires either 'task' or "
+          "'model' to be specified.")
+
+  def inference_output_type(self):
+    return Any
 
 
 @beam.ptransform.ptransform_fn
@@ -430,10 +531,11 @@ def run_inference(
 
   Args:
     model_handler: Specifies the parameters for the respective
-          enrichment_handler in a YAML/JSON format. To see the full set of
+          model_handler in a YAML/JSON format. To see the full set of
           handler_config parameters, see their corresponding doc pages:
 
             - [VertexAIModelHandlerJSON](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.VertexAIModelHandlerJSONProvider) # pylint: disable=line-too-long
+            - [HuggingFacePipelineModelHandler](https://beam.apache.org/releases/pydoc/current/apache_beam.yaml.yaml_ml.HuggingFacePipelineModelHandlerProvider) # pylint: disable=line-too-long
     inference_tag: The tag to use for the returned inference. Default is
       'inference'.
     inference_args: Extra arguments for models whose inference call requires
@@ -478,9 +580,10 @@ def run_inference(
               model_handler_provider._postprocess_fn_internal()),
           inference_args=inference_args)
       | beam.Map(
-          lambda row: beam.Row(**{
-              inference_tag: row[1], **row[0]._asdict()
-          })).with_output_types(schema))
+          lambda row: beam.Row(
+              **{
+                  **row[0]._asdict(), str(inference_tag): row[1]
+              })).with_output_types(schema))
 
 
 def _config_to_obj(spec):

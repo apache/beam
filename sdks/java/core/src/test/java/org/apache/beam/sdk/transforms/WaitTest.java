@@ -462,7 +462,7 @@ public class WaitTest implements Serializable {
         ParDo.of(
             new DoFn<Long, Long>() {
               @ProcessElement
-              public void process(ProcessContext c, BoundedWindow w) {
+              public void process(ProcessContext c, @SuppressWarnings("unused") BoundedWindow w) {
                 while (true) {
                   Instant maxMainTimestamp = TEST_WAIT_MAX_MAIN_TIMESTAMP.get();
                   Instant newMaxTimestamp =

@@ -19,12 +19,20 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -36,12 +44,16 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindmillReaderIteratorBaseTest {
   private static class TestWindmillReaderIterator extends WindmillReaderIteratorBase<Long> {
-    protected TestWindmillReaderIterator(Windmill.WorkItem work) {
-      super(work);
+    protected TestWindmillReaderIterator(
+        StreamingModeExecutionContext context, ValueProvider<Boolean> skipUndecodableElements) {
+      super(context, skipUndecodableElements);
     }
 
     @Override
-    protected WindowedValue<Long> decodeMessage(Windmill.Message message) {
+    protected WindowedValue<Long> decodeMessage(Windmill.Message message) throws CoderException {
+      if (message.getTimestamp() < 0) {
+        throw new CoderException("Injected decoding error to test skipping.");
+      }
       return WindowedValues.valueInGlobalWindow(message.getTimestamp());
     }
   }
@@ -60,7 +72,71 @@ public class WindmillReaderIteratorBaseTest {
     testForMessageBundleCounts(0, 0, 1, 3, 0, 1, 0, 0, 0, 0);
   }
 
+  @Test
+  public void testSkipErrors() throws IOException {
+    testForMessageBundleCounts(true);
+    testForMessageBundleCounts(true, 0);
+    testForMessageBundleCounts(true, 0, 0);
+    testForMessageBundleCounts(true, 1);
+    testForMessageBundleCounts(true, 2);
+    testForMessageBundleCounts(true, 1, 1);
+    testForMessageBundleCounts(true, 0, 1);
+    testForMessageBundleCounts(true, 1, 0);
+    testForMessageBundleCounts(true, 0, 0, 1, 3, 0, 1, 0, 0, 0, 1);
+    testForMessageBundleCounts(true, 0, 0, 1, 3, 0, 1, 0, 0, 0, 0);
+  }
+
+  @Test
+  public void testWorkItemCancelledException() throws IOException {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(true);
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(0L).build();
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      iter.start();
+      fail("Expected WorkItemCancelledException");
+    } catch (WorkItemCancelledException e) {
+      // Expected
+    }
+  }
+
+  @Test
+  public void testFinishKeyCalled() throws Exception {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(false);
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setWorkToken(0L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(0)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      assertTrue(iter.start());
+      assertFalse(iter.advance()); // This should trigger finishKey
+      verify(mockContext).finishKey();
+    }
+  }
+
   private void testForMessageBundleCounts(int... messageBundleCounts) throws IOException {
+    testForMessageBundleCounts(false, messageBundleCounts);
+  }
+
+  private void testForMessageBundleCounts(boolean skipErrors, int... messageBundleCounts)
+      throws IOException {
     List<Windmill.InputMessageBundle> bundles = new ArrayList<>();
     long numTotalMessages = 0;
     for (int count : messageBundleCounts) {
@@ -73,6 +149,10 @@ public class WindmillReaderIteratorBaseTest {
                 .setData(ByteString.EMPTY)
                 .build());
       }
+      if (skipErrors && ThreadLocalRandom.current().nextBoolean()) {
+        bundle.addMessages(
+            Windmill.Message.newBuilder().setTimestamp(-10).setData(ByteString.EMPTY).build());
+      }
       bundles.add(bundle.build());
     }
     Windmill.WorkItem workItem =
@@ -81,7 +161,13 @@ public class WindmillReaderIteratorBaseTest {
             .setWorkToken(0L)
             .addAllMessageBundles(bundles)
             .build();
-    try (TestWindmillReaderIterator iter = new TestWindmillReaderIterator(workItem)) {
+
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(
+            mockContext, ValueProvider.StaticValueProvider.of(skipErrors))) {
       List<Long> actual =
           ReaderTestUtils.windowedValuesToValues(
               ReaderUtils.readRemainingFromIterator(iter, false));
@@ -90,7 +176,7 @@ public class WindmillReaderIteratorBaseTest {
       for (int i = 0; i < numTotalMessages; ++i) {
         expected.add((long) i);
       }
-      assertEquals(Arrays.toString(messageBundleCounts), expected, actual);
+      assertEquals(Arrays.toString(messageBundleCounts) + skipErrors, expected, actual);
     }
   }
 }
