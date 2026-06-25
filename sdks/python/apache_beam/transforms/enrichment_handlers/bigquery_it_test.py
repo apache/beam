@@ -22,7 +22,6 @@ import unittest
 from unittest.mock import MagicMock
 
 import pytest
-from google.cloud import bigquery as gcp_bigquery
 
 import apache_beam as beam
 from apache_beam.coders import coders
@@ -34,6 +33,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
   from testcontainers.redis import RedisContainer
 
   from apache_beam.transforms.enrichment import Enrichment
