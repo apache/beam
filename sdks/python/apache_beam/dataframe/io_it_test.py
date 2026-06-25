@@ -25,7 +25,10 @@ import unittest
 
 import pytest
 
-import apache_beam.io.gcp.bigquery
+try:
+  import apache_beam.io.gcp.bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
