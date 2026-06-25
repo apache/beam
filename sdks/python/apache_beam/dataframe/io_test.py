@@ -32,7 +32,10 @@ import pandas as pd
 import pandas.testing
 import pyarrow
 import pytest
-from google.cloud import bigquery as gcp_bigquery
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  gcp_bigquery = None
 from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
@@ -490,19 +493,18 @@ X     , c1, c2
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
-    try:
-      bigquery.TableFieldSchema
-    except AttributeError:
-      raise ValueError('Please install GCP Dependencies.')
+    if gcp_bigquery is None:
+      raise unittest.SkipTest('GCP dependencies are not installed')
     fields = [
-        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='DOUBLE', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        gcp_bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
+    table = mock.Mock()
+    table.schema = fields
     get_table.return_value = table
 
     with self.assertRaisesRegex(ValueError,
