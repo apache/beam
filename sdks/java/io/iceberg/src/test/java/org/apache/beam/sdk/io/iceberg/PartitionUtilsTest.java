@@ -23,17 +23,25 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.transforms.Days;
 import org.apache.iceberg.transforms.Hours;
 import org.apache.iceberg.transforms.Months;
 import org.apache.iceberg.transforms.Transform;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
@@ -164,6 +172,66 @@ public class PartitionUtilsTest {
             .build();
 
     assertEquals(expectedSpec, spec);
+  }
+
+  @Test
+  public void testConstantsMapIncludesCdcMetadataAndIdentityConstants() throws Exception {
+    org.apache.iceberg.Schema icebergSchema =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.optional(2, "category", Types.StringType.get()));
+    PartitionSpec spec = PartitionSpec.builderFor(icebergSchema).identity("category").build();
+    DataFile file =
+        DataFiles.builder(spec)
+            .withFormat(FileFormat.PARQUET)
+            .withPath("file:///tmp/table/category=A/data.parquet")
+            .withPartitionPath("category=A")
+            .withFileSizeInBytes(100L)
+            .withRecordCount(2L)
+            .withFirstRowId(99L)
+            .build();
+    setFileSequenceNumber(file, 42L);
+
+    Map<Integer, ?> constants = PartitionUtils.constantsMap(spec, file, null);
+
+    assertEquals(99L, constants.get(MetadataColumns.ROW_ID.fieldId()));
+    assertEquals(42L, constants.get(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId()));
+    assertEquals(file.location(), constants.get(MetadataColumns.FILE_PATH.fieldId()));
+    assertEquals(file.specId(), constants.get(MetadataColumns.SPEC_ID.fieldId()));
+    assertEquals("A", constants.get(2));
+  }
+
+  @Test
+  public void testConstantsMapUsesExplicitSequenceNumberWhenFileSequenceIsUnavailable() {
+    org.apache.iceberg.Schema icebergSchema =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.optional(2, "category", Types.StringType.get()));
+    PartitionSpec spec = PartitionSpec.builderFor(icebergSchema).identity("category").build();
+    DataFile file =
+        DataFiles.builder(spec)
+            .withFormat(FileFormat.PARQUET)
+            .withPath("file:///tmp/table/category=B/data.parquet")
+            .withPartitionPath("category=B")
+            .withFileSizeInBytes(100L)
+            .withRecordCount(2L)
+            .build();
+
+    Map<Integer, ?> constants = PartitionUtils.constantsMap(spec, file, 123L);
+
+    assertEquals(123L, constants.get(MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId()));
+    assertEquals("B", constants.get(2));
+  }
+
+  private static void setFileSequenceNumber(DataFile dataFile, long fileSequenceNumber)
+      throws Exception {
+    Method method = dataFile.getClass().getMethod("setFileSequenceNumber", Long.class);
+    method.setAccessible(true);
+    try {
+      method.invoke(dataFile, fileSequenceNumber);
+    } catch (InvocationTargetException e) {
+      throw (Exception) e.getCause();
+    }
   }
 
   static class TestCase {

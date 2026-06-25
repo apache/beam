@@ -318,7 +318,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
 
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
-      beamSchemaToIcebergSchema(BEAM_SCHEMA);
+      new org.apache.iceberg.Schema(
+          beamSchemaToIcebergSchema(BEAM_SCHEMA).columns(), Collections.singleton(1));
   protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
@@ -450,7 +451,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Row> expectedRows = populateTable(table);
 
-    List<String> fieldsToKeep = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    List<String> fieldsToKeep = Arrays.asList("row", "modulo_5", "nullable_long");
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(fieldsToKeep);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
