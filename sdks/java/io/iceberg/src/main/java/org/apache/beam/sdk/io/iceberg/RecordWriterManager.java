@@ -21,11 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +31,6 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -44,7 +38,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
-import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
@@ -57,7 +50,6 @@ import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,7 +96,6 @@ class RecordWriterManager implements AutoCloseable {
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
-    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
     private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
@@ -115,9 +106,6 @@ class RecordWriterManager implements AutoCloseable {
       this.routingPartitionKey = new PartitionKey(spec, schema);
       this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
-      for (PartitionField partitionField : spec.fields()) {
-        partitionFieldMap.put(partitionField.name(), partitionField);
-      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -127,7 +115,6 @@ class RecordWriterManager implements AutoCloseable {
               .expireAfterAccess(1, TimeUnit.MINUTES)
               .removalListener(
                   (RemovalNotification<PartitionKey, RecordWriter> removal) -> {
-                    final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
                     final RecordWriter recordWriter =
                         Preconditions.checkStateNotNull(removal.getValue());
                     try {
@@ -144,9 +131,7 @@ class RecordWriterManager implements AutoCloseable {
                       throw rethrow;
                     }
                     openWriters--;
-                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
-                    dataFiles.add(
-                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
+                    dataFiles.add(SerializableDataFile.from(recordWriter.getDataFile(), spec));
                   })
               .build();
     }
