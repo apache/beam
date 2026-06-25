@@ -355,10 +355,10 @@ final class ExecutorServiceParallelExecutor
             new IllegalStateException(
                 "Error"
                     + (errors.size() == 1 ? "" : "s")
-                    + " occurred during pipeline execution:\\n"
+                    + " occurred during executor shutdown:\n"
                     + errors.stream()
                         .map(e -> e.getMessage() == null ? e.getClass().getName() : e.getMessage())
-                        .collect(Collectors.joining("\\n- ", "- ", "")));
+                        .collect(Collectors.joining("\n- ", "- ", "")));
         visibleUpdates.failed(exception);
       }
     } finally {
