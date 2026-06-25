@@ -35,6 +35,7 @@ from apache_beam.io.gcp.bigquery_change_history import _QueryRange
 from apache_beam.io.gcp.bigquery_change_history import _QueryResult
 from apache_beam.io.gcp.bigquery_change_history import _ReadStorageStreamsSDF
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+
 try:
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:

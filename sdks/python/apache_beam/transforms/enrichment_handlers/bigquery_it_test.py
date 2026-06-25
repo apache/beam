@@ -22,9 +22,9 @@ import unittest
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud import bigquery as gcp_bigquery
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
 from apache_beam.coders import coders
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.testing.test_pipeline import TestPipeline

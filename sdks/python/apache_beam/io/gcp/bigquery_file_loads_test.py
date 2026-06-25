@@ -949,7 +949,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               max_files_per_partition=3,
               write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
-    from google.cloud.bigquery import TableReference, DatasetReference
+    from google.cloud.bigquery import DatasetReference
+    from google.cloud.bigquery import TableReference
     mock_insert_copy_job.assert_has_calls(
         [
             call(

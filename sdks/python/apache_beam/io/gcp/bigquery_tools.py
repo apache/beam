@@ -103,11 +103,10 @@ class BeamJobReference(object):
 # Protect against environments where bigquery library is not available.
 try:
   import regex
-
+  from google.api_core import exceptions as google_api_core_exceptions
   from google.api_core.client_info import ClientInfo
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import GoogleAPICallError
-  from google.api_core import exceptions as google_api_core_exceptions
   from google.cloud import bigquery as gcp_bigquery
 except Exception:
   gcp_bigquery = None

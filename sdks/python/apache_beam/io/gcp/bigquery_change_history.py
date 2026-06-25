@@ -55,6 +55,7 @@ from typing import Iterable
 from typing import Optional
 
 import apache_beam as beam
+
 try:
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
