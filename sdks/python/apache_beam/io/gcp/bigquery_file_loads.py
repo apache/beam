@@ -398,7 +398,8 @@ class UpdateDestinationSchema(beam.DoFn):
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.project is None:
-      from google.cloud.bigquery import TableReference, DatasetReference
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
       table_reference = TableReference(DatasetReference(new_project, table_reference.dataset_id), table_reference.table_id)
 
@@ -539,7 +540,8 @@ class TriggerCopyJobs(beam.DoFn):
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.project is None:
-      from google.cloud.bigquery import TableReference, DatasetReference
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
       copy_to_reference = TableReference(DatasetReference(new_project, copy_to_reference.dataset_id), copy_to_reference.table_id)
 
@@ -548,7 +550,8 @@ class TriggerCopyJobs(beam.DoFn):
     new_project = copy_from_reference.project
     if new_project is None:
       new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
-    from google.cloud.bigquery import TableReference, DatasetReference
+    from google.cloud.bigquery import DatasetReference
+    from google.cloud.bigquery import TableReference
     copy_from_reference = TableReference(DatasetReference(new_project, copy_from_reference.dataset_id), new_table_id)
 
     _LOGGER.info(
@@ -723,7 +726,8 @@ class TriggerLoadJobs(beam.DoFn):
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.project is None:
-      from google.cloud.bigquery import TableReference, DatasetReference
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value('project', str, '') or self.project
       table_reference = TableReference(DatasetReference(new_project, table_reference.dataset_id), table_reference.table_id)
     # Load jobs for a single destination are always triggered from the same
@@ -767,7 +771,8 @@ class TriggerLoadJobs(beam.DoFn):
       # temporary tables, so we replace the create_disposition.
       create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
-      from google.cloud.bigquery import TableReference, DatasetReference
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
       table_reference = TableReference(DatasetReference(table_reference.project, table_reference.dataset_id), job_name)
       yield pvalue.TaggedOutput(
           TriggerLoadJobs.TEMP_TABLES,

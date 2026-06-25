@@ -33,6 +33,7 @@ from functools import wraps
 import pytest
 
 import apache_beam as beam
+
 try:
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:

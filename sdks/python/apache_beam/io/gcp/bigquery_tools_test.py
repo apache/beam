@@ -58,10 +58,10 @@ from apache_beam.utils.timestamp import Timestamp
 try:
   from apitools.base.py.exceptions import GoogleAPICallError
   from apitools.base.py.exceptions import HttpForbiddenError
+  from google.api_core import exceptions as google_api_core_exceptions
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import DeadlineExceeded
   from google.api_core.exceptions import InternalServerError
-  from google.api_core import exceptions as google_api_core_exceptions
   from google.cloud import bigquery
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')

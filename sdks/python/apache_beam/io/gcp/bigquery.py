@@ -420,11 +420,12 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 try:
-  from google.cloud.bigquery import DatasetReference
-  from google.cloud.bigquery import TableReference
-  import google.cloud.bigquery as gcp_bigquery
   # google-cloud-bigquery does not have JobReference, so we use typing.Any
   from typing import Any
+
+  import google.cloud.bigquery as gcp_bigquery
+  from google.cloud.bigquery import DatasetReference
+  from google.cloud.bigquery import TableReference
   JobReference = Any
 except ImportError:
   DatasetReference = None

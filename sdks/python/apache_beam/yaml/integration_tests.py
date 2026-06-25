@@ -79,6 +79,7 @@ import pytds
 import sqlalchemy
 import yaml
 from apitools.base.py.exceptions import HttpError
+from google.cloud import bigquery as gcp_bigquery
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
@@ -92,7 +93,6 @@ from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
 
 import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
