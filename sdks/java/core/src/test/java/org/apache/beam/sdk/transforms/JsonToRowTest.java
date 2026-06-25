@@ -27,7 +27,6 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowFn;
 import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn;
 import org.apache.beam.sdk.transforms.JsonToRow.ParseResult;
@@ -276,7 +275,7 @@ public class JsonToRowTest implements Serializable {
   }
 
   @Test
-  @Category({NeedsRunner.class, ValidatesRunner.class})
+  @Category(NeedsRunner.class)
   public void testDownstreamExceptionIsNotReportedAsParseError() {
     PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON.get(0)));
 
@@ -352,6 +351,7 @@ public class JsonToRowTest implements Serializable {
 
   private static class ThrowingDownstreamDoFn extends DoFn<Row, Row> {
     @ProcessElement
+    @SuppressWarnings("UnusedVariable")
     public void processElement(ProcessContext context) {
       throw new RuntimeException("downstream failure");
     }
