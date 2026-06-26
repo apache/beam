@@ -17,8 +17,8 @@
 
 import logging
 import tempfile
-from typing import Any
 import unittest
+from typing import Any
 from unittest import mock
 
 import apache_beam as beam

@@ -16,10 +16,10 @@
 #
 
 import datetime
-from decimal import Decimal
 import logging
 import typing
 import unittest
+from decimal import Decimal
 from unittest import mock
 
 import numpy as np
