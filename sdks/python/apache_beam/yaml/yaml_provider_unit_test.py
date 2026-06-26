@@ -400,17 +400,6 @@ class YamlProvidersFlattenTest(unittest.TestCase):
       res = p | yaml_provider.YamlProviders.Flatten()
       assert_that(res, equal_to([]))
 
-  def test_flatten_single_pcoll(self):
-    with beam.Pipeline() as p:
-      pcoll = p | beam.Create([beam.Row(a=1)])
-      res = pcoll | yaml_provider.YamlProviders.Flatten()
-      assert_that(res, equal_to([beam.Row(a=1)]))
-
-  def test_flatten_empty(self):
-    with beam.Pipeline() as p:
-      res = p | yaml_provider.YamlProviders.Flatten()
-      assert_that(res, equal_to([]))
-
 
 class YamlProviderBaseAndHelpersTest(unittest.TestCase):
   def test_not_available_with_reason(self):
