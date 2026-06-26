@@ -26,7 +26,7 @@ changed rows as an unbounded PCollection.
 Usage::
 
     import apache_beam as beam
-from google.cloud import bigquery as gcp_bigquery
+    from google.cloud import bigquery as gcp_bigquery
     from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
 
     with beam.Pipeline(options=pipeline_options) as p:
@@ -1228,7 +1228,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     self._max_split_rounds = max_split_rounds
     self._reshuffle_decompress = reshuffle_decompress
 
-  def expand(self, pbegin: beam.pvalue.PBegin) -> beam.PCollection:
+  def expand(self, pbegin: "beam.pvalue.PBegin") -> beam.PCollection:
     project = self._project
     if project is None:
       project = pbegin.pipeline.options.view_as(

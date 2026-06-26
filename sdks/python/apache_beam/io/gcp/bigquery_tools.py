@@ -1575,8 +1575,7 @@ def beam_row_from_dict(row: dict, schema):
   Args:
     row (dict):
       The row to convert.
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The table schema. Will be used to help convert the row.
 
   Returns:
@@ -1619,19 +1618,16 @@ sequence of SchemaField):
 
 def get_table_schema_from_string(schema):
   """Transform the string table schema into a
-  :class:`~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField` instance.
+  Sequence[``google.cloud.bigquery.schema.SchemaField``] instance.
 
   Args:
     schema (str): The string schema to be used if the BigQuery table to write
       has to be created.
 
   Returns:
-    ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField:
+    Sequence[``google.cloud.bigquery.schema.SchemaField``]:
     The schema to be used if the BigQuery table to write has to be created
-    but in the :class:`~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField` format.
+    but in the Sequence[``google.cloud.bigquery.schema.SchemaField``] format.
   """
   table_schema = []
   schema_list = [s.strip() for s in schema.split(',')]
@@ -1671,8 +1667,7 @@ def get_dict_table_schema(schema):
   """Transform the table schema into a dictionary instance.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The schema to be used if the BigQuery table to write has to be created.
       This can either be a dict or string or in the TableSchema format.
 
@@ -1698,14 +1693,12 @@ def get_bq_tableschema(schema):
   """Convert the table schema to a TableSchema object.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The schema to be used if the BigQuery table to write has to be created.
       This can either be a dict or string or in the TableSchema format.
 
   Returns:
-    ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField: The schema as a TableSchema object.
+    Sequence[``google.cloud.bigquery.schema.SchemaField``]: The schema as a TableSchema object.
   """
   if (isinstance(schema, (tuple, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
@@ -1723,8 +1716,7 @@ def get_avro_schema_from_table_schema(schema):
   """Transform the table schema into an Avro schema.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The TableSchema to convert to Avro schema. This can either be a dict or
       string or in the TableSchema format.
 
@@ -1740,8 +1732,7 @@ def get_beam_typehints_from_tableschema(schema, type_overrides=None):
   """Extracts Beam Python type hints from the schema.
 
   Args:
-    schema (~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField):
+    schema (Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The TableSchema to extract type hints from.
     type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
       to Python types. These override the default mappings in
@@ -1812,13 +1803,11 @@ def check_schema_equal(
   field ordering (optionally).
 
   Args:
-    left (~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField, ~apache_beam.io.gcp.internal.clients.\
-gcp_bigquery.bigquery_v2_messages.TableFieldSchema):
+    left (Sequence[``google.cloud.bigquery.schema.SchemaField``], \
+``google.cloud.bigquery.schema.SchemaField``):
       One schema to compare.
-    right (~apache_beam.io.gcp.internal.clients.gcp_bigquery.\
-sequence of SchemaField, ~apache_beam.io.gcp.internal.clients.\
-gcp_bigquery.bigquery_v2_messages.TableFieldSchema):
+    right (Sequence[``google.cloud.bigquery.schema.SchemaField``], \
+``google.cloud.bigquery.schema.SchemaField``):
       The other schema to compare.
     ignore_descriptions (bool): (optional) Whether or not to ignore field
       descriptions when comparing. Defaults to False.
