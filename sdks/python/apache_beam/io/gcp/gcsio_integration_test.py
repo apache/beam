@@ -33,6 +33,7 @@ import time
 import unittest
 import uuid
 import zlib
+from hashlib import blake2b
 
 import mock
 import pytest
@@ -206,9 +207,6 @@ class GcsIOIntegrationTest(unittest.TestCase):
     # overwrite kms option here, because get_or_create_default_gcs_bucket()
     # requires this option unset.
     google_cloud_options.dataflow_kms_key = None
-
-    from hashlib import blake2b
-    import uuid
 
     # Add a unique uuid and the parameterized test options to the bucket name
     # to avoid collisions when multiple parameterized instances run in parallel
