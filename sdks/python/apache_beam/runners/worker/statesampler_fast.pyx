@@ -153,7 +153,8 @@ cdef class StateSampler(object):
     self.sampling_thread.join()
 
   def reset(self):
-    pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
+    with nogil:
+      pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     try:
       for state in self.scoped_states_by_index:
         (<ScopedState>state)._nsecs = 0
