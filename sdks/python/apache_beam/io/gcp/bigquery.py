@@ -435,8 +435,8 @@ except ImportError:
   class SchemaField(object):
     pass
 
-JobReference = bigquery_tools.BeamJobReference
 
+JobReference = bigquery_tools.BeamJobReference
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -2236,10 +2236,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     if (isinstance(self.table_reference, TableReference) and
         self.table_reference.project == bigquery_tools.FALLBACK_PROJECT):
       self.table_reference = TableReference(
-          DatasetReference(
-              (pcoll.pipeline.options.view_as(GoogleCloudOptions).project or
-               bigquery_tools.FALLBACK_PROJECT),
-              self.table_reference.dataset_id),
+          DatasetReference((
+              pcoll.pipeline.options.view_as(GoogleCloudOptions).project or
+              bigquery_tools.FALLBACK_PROJECT),
+                           self.table_reference.dataset_id),
           self.table_reference.table_id)
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
