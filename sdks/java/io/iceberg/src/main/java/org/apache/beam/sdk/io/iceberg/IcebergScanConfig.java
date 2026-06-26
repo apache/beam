@@ -227,6 +227,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable List<String> getDropFields();
 
   @Pure
+  public abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
+
+  @Pure
   public abstract List<String> getMetadataColumns();
 
   @Pure
@@ -314,6 +317,8 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setKeepFields(@Nullable List<String> fields);
 
     public abstract Builder setDropFields(@Nullable List<String> fields);
+
+    public abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
     public abstract Builder setMetadataColumns(List<String> metadataColumns);
 
