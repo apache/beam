@@ -174,11 +174,10 @@ class TestTableReferenceParser(unittest.TestCase):
 class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
-    client.delete_dataset.side_effect = google_api_core_exceptions.NotFound(
-        "Not found")
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    wrapper._delete_dataset('', '')
-    self.assertTrue(client.delete_dataset.called)
+    wrapper._delete_dataset('project1', 'dataset1')
+    client.delete_dataset.assert_called_with(
+        'project1.dataset1', delete_contents=True, not_found_ok=True)
 
   @mock.patch('time.sleep', return_value=None)
   def test_delete_dataset_retries_fail(self, patched_time_sleep):
@@ -194,11 +193,10 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   def test_delete_non_existing_table(self):
     client = mock.Mock()
-    client.delete_table.side_effect = google_api_core_exceptions.NotFound(
-        "Not found")
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
-    wrapper._delete_table('', '', '')
-    self.assertTrue(client.delete_table.called)
+    wrapper._delete_table('project1', 'dataset1', 'table1')
+    client.delete_table.assert_called_with(
+        'project1.dataset1.table1', not_found_ok=True)
 
   @mock.patch('time.sleep', return_value=None)
   def test_delete_table_retries_fail(self, patched_time_sleep):
