@@ -122,6 +122,14 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from google.cloud import bigquery as gcp_bigquery
+  TableReference = gcp_bigquery.TableReference
+except ImportError:
+
+  class TableReference(object):
+    pass
+
 
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
