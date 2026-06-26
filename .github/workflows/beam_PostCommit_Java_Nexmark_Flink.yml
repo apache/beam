@@ -87,7 +87,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Flink Runner Nexmark Tests'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -109,6 +109,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:nexmark:run
+          # TODO: Fix query 6,9 for Flink 2
           arguments: |
-            -Pnexmark.runner=:runners:flink:2.2 \
+            -Pnexmark.runner=:runners:flink:1.20 \
             "${{ env.GRADLE_COMMAND_ARGUMENTS }}--streaming=${{ matrix.streaming }}"
