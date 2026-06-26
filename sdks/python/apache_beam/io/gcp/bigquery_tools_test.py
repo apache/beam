@@ -56,8 +56,6 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import GoogleAPICallError
-  from apitools.base.py.exceptions import HttpForbiddenError
   from google.api_core import exceptions as google_api_core_exceptions
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import DeadlineExceeded
@@ -155,7 +153,7 @@ class TestTableReferenceParser(unittest.TestCase):
     parsed_ref = parse_table_reference(partially_qualified_table)
     self.assertEqual(parsed_ref.dataset_id, datasetId)
     self.assertEqual(parsed_ref.table_id, tableId)
-    self.assertEqual(parsed_ref.project, 'apache-beam-testing')
+    self.assertEqual(parsed_ref.project, 'beam_fallback_project')
 
   def test_calling_with_insufficient_table_ref(self):
     table = 'test_table'
@@ -581,7 +579,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         priority=beam.io.BigQueryQueryPriority.BATCH)
 
     self.assertEqual(
-        client.query.call_args[0][0].job.configuration.query.priority, 'BATCH')
+        client.query.call_args[1]['job_config'].priority, 'BATCH')
 
     wrapper._start_query_job(
         "my_project",
@@ -592,7 +590,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         priority=beam.io.BigQueryQueryPriority.INTERACTIVE)
 
     self.assertEqual(
-        client.query.call_args[0][0].job.configuration.query.priority,
+        client.query.call_args[1]['job_config'].priority,
         'INTERACTIVE')
 
   def test_get_temp_table_project_with_temp_table_ref(self):

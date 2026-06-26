@@ -413,7 +413,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       class DummySchema:
         fields = []
 
-      numBytes = 5
+      num_bytes = 5
       schema = DummySchema()
 
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
@@ -528,7 +528,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       class DummySchema:
         fields = []
 
-      numBytes = 5
+      num_bytes = 5
       schema = DummySchema()
 
     with mock.patch('time.sleep'), \
@@ -683,7 +683,7 @@ class TestBigQuerySink(unittest.TestCase):
     sink = beam.io.BigQuerySink('dataset.table')
     dd = DisplayData.create_from(sink)
     expected_items = [
-        DisplayDataItemMatcher('table', 'apache-beam-testing:dataset.table'),
+        DisplayDataItemMatcher('table', 'dataset.table'),
         DisplayDataItemMatcher('validation', False)
     ]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))

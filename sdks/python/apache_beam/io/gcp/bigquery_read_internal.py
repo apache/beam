@@ -55,12 +55,16 @@ try:
   from google.cloud import bigquery as gcp_bigquery
   DatasetReference = gcp_bigquery.DatasetReference
   TableReference = gcp_bigquery.TableReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
 
   class DatasetReference(object):
     pass
 
   class TableReference(object):
+    pass
+
+  class SchemaField(object):
     pass
 
 
