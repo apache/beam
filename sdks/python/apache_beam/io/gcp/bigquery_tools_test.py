@@ -578,8 +578,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         job_id="my_job_id",
         priority=beam.io.BigQueryQueryPriority.BATCH)
 
-    self.assertEqual(
-        client.query.call_args[1]['job_config'].priority, 'BATCH')
+    self.assertEqual(client.query.call_args[1]['job_config'].priority, 'BATCH')
 
     wrapper._start_query_job(
         "my_project",
@@ -590,8 +589,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         priority=beam.io.BigQueryQueryPriority.INTERACTIVE)
 
     self.assertEqual(
-        client.query.call_args[1]['job_config'].priority,
-        'INTERACTIVE')
+        client.query.call_args[1]['job_config'].priority, 'INTERACTIVE')
 
   def test_get_temp_table_project_with_temp_table_ref(self):
     """Test _get_temp_table_project returns project from temp_table_ref."""
