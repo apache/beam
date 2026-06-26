@@ -59,14 +59,19 @@ sudo -u yarn gcloud auth configure-docker --quiet
 readonly FLINK_INSTALL_DIR='/usr/lib/flink'
 readonly MASTER_HOSTNAME="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-cat <<EOF >>${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+config_file="${FLINK_INSTALL_DIR}/conf/flink-conf.yaml"
+if [[ -f "${FLINK_INSTALL_DIR}/conf/config.yaml" ]]; then
+  config_file="${FLINK_INSTALL_DIR}/conf/config.yaml"
+fi
+
+cat <<EOF >>"${config_file}"
 taskmanager.memory.network.fraction: 0.2
 taskmanager.memory.network.min: 64mb
 taskmanager.memory.network.max: 1gb
 EOF
 sed -i \
     "s/^taskmanager.network.numberOfBuffers: 2048/taskmanager.network.numberOfBuffers: 8192/" \
-    ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+    "${config_file}"
 
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
   . /usr/bin/flink-yarn-daemon

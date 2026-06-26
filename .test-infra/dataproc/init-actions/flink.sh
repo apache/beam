@@ -149,11 +149,16 @@ function configure_flink() {
   # create working directory
   mkdir -p "${FLINK_WORKING_DIR}"
 
+  local config_file="${FLINK_INSTALL_DIR}/conf/flink-conf.yaml"
+  if [[ -f "${FLINK_INSTALL_DIR}/conf/config.yaml" ]]; then
+    config_file="${FLINK_INSTALL_DIR}/conf/config.yaml"
+  fi
+
   # Apply Flink settings by appending them to the default config.
-  cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+  cat << EOF >> "${config_file}"
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${master_hostname}
-jobmanager.heap.mb: ${flink_jobmanager_memory}
+jobmanager.memory.process.size: "${flink_jobmanager_memory} mb"
 taskmanager.memory.process.size: "${flink_taskmanager_memory} mb"
 taskmanager.memory.jvm-metaspace.size: 512 mb
 taskmanager.memory.task.off-heap.size: 256 mb
@@ -161,7 +166,8 @@ taskmanager.memory.managed.fraction: 0.5
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
-state.backend: filesystem
+state.backend.type: hashmap
+state.checkpoint-storage: filesystem
 state.checkpoints.dir: ${checkpoints_dir}
 EOF
 

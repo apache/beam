@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
@@ -211,6 +210,8 @@ public class FlinkSubmissionTest {
             flinkCluster.getRestPort());
 
     Files.write(file.toPath(), config.getBytes(StandardCharsets.UTF_8));
+    File configYaml = new File(file.getParent(), "config.yaml");
+    Files.write(configYaml.toPath(), config.getBytes(StandardCharsets.UTF_8));
 
     // Create a new environment with the location of the Flink config for CliFrontend
     ImmutableMap<String, String> newEnv =
@@ -232,19 +233,24 @@ public class FlinkSubmissionTest {
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
    */
   private static void modifyEnv(Map<String, String> env) throws Exception {
-    Class processEnv = Class.forName("java.lang.ProcessEnvironment");
-    Field envField = processEnv.getDeclaredField("theUnmodifiableEnvironment");
+    Class<?> processEnvClass = Class.forName("java.lang.ProcessEnvironment");
+    Field theEnvironmentField = processEnvClass.getDeclaredField("theEnvironment");
+    theEnvironmentField.setAccessible(true);
+    Map<String, String> envMap = (Map<String, String>) theEnvironmentField.get(null);
+    envMap.clear();
+    envMap.putAll(env);
 
-    Field modifiersField = Field.class.getDeclaredField("modifiers");
-    modifiersField.setAccessible(true);
-    modifiersField.setInt(envField, envField.getModifiers() & ~Modifier.FINAL);
-
-    envField.setAccessible(true);
-    envField.set(null, env);
-    envField.setAccessible(false);
-
-    modifiersField.setInt(envField, envField.getModifiers() & Modifier.FINAL);
-    modifiersField.setAccessible(false);
+    try {
+      Field theCaseInsensitiveEnvironmentField =
+          processEnvClass.getDeclaredField("theCaseInsensitiveEnvironment");
+      theCaseInsensitiveEnvironmentField.setAccessible(true);
+      Map<String, String> cienvMap =
+          (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+      cienvMap.clear();
+      cienvMap.putAll(env);
+    } catch (NoSuchFieldException e) {
+      // Ignore if not on Windows
+    }
   }
 
   /** Prevents the CliFrontend from calling System.exit. */

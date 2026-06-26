@@ -394,6 +394,9 @@ public class FlinkExecutionEnvironmentsTest {
     InputStream inputStream = getClass().getResourceAsStream("/flink-conf.yaml");
     File root = temporaryFolder.getRoot();
     Files.copy(inputStream, new File(root, "flink-conf.yaml").toPath());
+    try (InputStream inputStream2 = getClass().getResourceAsStream("/flink-conf.yaml")) {
+      Files.copy(inputStream2, new File(root, "config.yaml").toPath());
+    }
     return root.getAbsolutePath();
   }
 
