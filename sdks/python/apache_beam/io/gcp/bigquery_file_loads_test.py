@@ -104,6 +104,7 @@ try:
 
   from apache_beam.io.gcp import bigquery
   from apache_beam.io.gcp import bigquery_file_loads as bqfl
+  from apache_beam.io.gcp import bigquery_tools
   from apache_beam.io.gcp.bigquery import BigQueryDisposition
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
