@@ -50,7 +50,7 @@ env:
   GCLOUD_ZONE: us-central1-a
   CLUSTER_NAME: beam-loadtests-go-combine-flink-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
-  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-2.0.1/flink-2.0.1-bin-scala_2.12.tgz
+  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-2.0.2/flink-2.0.2-bin-scala_2.12.tgz
   HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
   FLINK_TASKMANAGER_SLOTS: 5
   DETACHED_MODE: true

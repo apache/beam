@@ -36,7 +36,7 @@
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
 #    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-2.0.1/flink-2.0.1-bin-scala_2.12.tgz \
-#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar \
+#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
@@ -139,7 +139,7 @@ function create_cluster() {
     gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
     --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
     --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  \
-    --properties="${HIGH_MEM_FLINK_PROPS}"
+    --properties="${HIGH_MEM_FLINK_PROPS}" --quiet
   else
     # Docker init action restarts yarn so we need to start yarn session after this restart happens.
     # This is why flink init action is invoked last.
