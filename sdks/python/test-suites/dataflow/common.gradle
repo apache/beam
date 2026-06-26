@@ -573,9 +573,12 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      // Use constraints file to pin versions while allowing pip to
-      // resolve compatible versions within the specified ranges in requirements.txt
-      args '-c', ". ${envdir}/bin/activate && pip install -c constraints.txt -r requirements.txt"
+      // Use constraints to pin versions. Install tfx_bsl and tensorflow-transform
+      // with --no-deps to avoid re-resolving apache-beam[gcp] (ResolutionTooDeep).
+      args '-c', ". ${envdir}/bin/activate && " +
+          "grep -Ev '^(tensorflow-transform|tfx_bsl)' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install -c constraints.txt -r /tmp/cloudml_tft_base_requirements.txt && " +
+          "pip install --no-deps tfx_bsl==1.21.0 tensorflow-transform==1.21.0"
     }
   }
 }
@@ -598,7 +601,9 @@ task tftTests {
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs "
+      args '-c', ". ${envdir}/bin/activate && " +
+          "export TEMPORARILY_DISABLE_PROTOBUF_VERSION_CHECK=true && " +
+          "${runScriptsDir}/run_integration_test.sh $cmdArgs "
     }
   }
 }
