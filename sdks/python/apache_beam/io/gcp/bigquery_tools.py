@@ -765,12 +765,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
-    try:
-      return self.client.get_table(f"{project_id}.{dataset_id}.{table_id}")
-    except GoogleAPICallError as e:
-      if e.code == 404:
-        raise
-      raise
+    return self.client.get_table(f"{project_id}.{dataset_id}.{table_id}")
 
   def _create_table(
       self,
@@ -853,26 +848,17 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_table(self, project_id, dataset_id, table_id):
-    try:
-      self.client.delete_table(
-          f"{project_id}.{dataset_id}.{table_id}", not_found_ok=True)
-    except GoogleAPICallError as exn:
-      _LOGGER.warning(
-          'Table %s:%s.%s does not exist', project_id, dataset_id, table_id)
-      return
+    self.client.delete_table(
+        f"{project_id}.{dataset_id}.{table_id}", not_found_ok=True)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
-    try:
-      self.client.delete_dataset(
-          f"{project_id}.{dataset_id}",
-          delete_contents=delete_contents,
-          not_found_ok=True)
-    except GoogleAPICallError as exn:
-      _LOGGER.warning('Dataset %s:%s does not exist', project_id, dataset_id)
-      return
+    self.client.delete_dataset(
+        f"{project_id}.{dataset_id}",
+        delete_contents=delete_contents,
+        not_found_ok=True)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -962,8 +948,6 @@ class BigQueryWrapper(object):
               project_id,
               dataset_id)
           return
-        except Exception:
-          raise
     else:
       try:
         self._delete_table(project_id, dataset_id, table_id)
@@ -983,13 +967,10 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_job(self, project, job_id, location=None):
-    try:
-      job = self.client.get_job(job_id, project=project, location=location)
-      # Reload to get status
-      job.reload()
-      return job
-    except GoogleAPICallError as e:
-      raise
+    job = self.client.get_job(job_id, project=project, location=location)
+    # Reload to get status
+    job.reload()
+    return job
 
   def perform_load_job(
       self,
