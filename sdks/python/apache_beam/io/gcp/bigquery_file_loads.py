@@ -822,8 +822,6 @@ class TriggerLoadJobs(beam.DoFn):
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
         load_job_project_id=self.load_job_project_id)
 
-    print("YIELDING JOB REFERENCE:", type(job_reference), job_reference)
-
     yield pvalue.TaggedOutput(
         TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
     self.pending_jobs.append(

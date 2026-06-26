@@ -140,11 +140,6 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                       'date': '2000-01-01',
                       'time': '00:00:00'
                   }]
-    # the API Tools bigquery client expects byte values to be base-64 encoded
-    # TODO https://github.com/apache/beam/issues/19073: upgrade to
-    # the new BigQuery client and check this behavior.
-    for r in table_data:
-      r['bytes'] = base64.b64encode(r['bytes'])
 
     passed, errors = self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
