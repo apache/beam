@@ -518,15 +518,27 @@ public class RemoteInferenceTest {
     pipeline.run().waitUntilFinish();
   }
 
+  private static class GenerateInputsFn
+      extends org.apache.beam.sdk.transforms.DoFn<Integer, TestInput> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(new TestInput("input1"));
+      c.output(new TestInput("input2"));
+    }
+  }
+
   @Test
   public void testBatchingProducesCombinedBatches() {
-    List<TestInput> inputs = Arrays.asList(new TestInput("input1"), new TestInput("input2"));
-
     TestParameters params = TestParameters.builder().setConfig("test-config").build();
 
+    // Use a single element to trigger generation of inputs within the same bundle,
+    // ensuring DirectRunner doesn't split them before BatchElements processes them.
     PCollection<TestInput> inputCollection =
-        pipeline.apply(
-            "CreateInputs", Create.of(inputs).withCoder(SerializableCoder.of(TestInput.class)));
+        pipeline
+            .apply("CreateTrigger", Create.of(1))
+            .apply(
+                "GenerateInputs", org.apache.beam.sdk.transforms.ParDo.of(new GenerateInputsFn()))
+            .setCoder(SerializableCoder.of(TestInput.class));
 
     // Configure BatchElements to force a batch of exactly 2
     org.apache.beam.sdk.transforms.BatchElements.BatchConfig batchConfig =
