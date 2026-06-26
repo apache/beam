@@ -635,7 +635,8 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=2,
           max_batch_size=2)
 
-      pcoll = pipeline | 'start' >> beam.Create(KEYED_TORCH_EXAMPLES, reshuffle=False)
+      pcoll = pipeline | 'start' >> beam.Create(
+          KEYED_TORCH_EXAMPLES, reshuffle=False)
       inference_args_side_input = (
           pipeline | 'create side' >> beam.Create(inference_args))
       predictions = pcoll | RunInference(
