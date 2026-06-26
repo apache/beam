@@ -604,7 +604,7 @@ public class FhirIO {
           String resourceId = context.element();
           String resource = null;
           try {
-            resource = fetchResource(this.client, resourceId);
+            resource = java.util.Objects.requireNonNull(fetchResource(this.client, resourceId));
           } catch (Exception e) {
             READ_RESOURCE_ERRORS.inc();
             LOG.warn(

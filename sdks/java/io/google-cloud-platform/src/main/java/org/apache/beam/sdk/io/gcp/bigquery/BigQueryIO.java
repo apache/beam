@@ -2106,9 +2106,11 @@ public class BigQueryIO {
       BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
 
       T current = null;
+      boolean hasCurrent = false;
       try {
         if (reader.start()) {
           current = reader.getCurrent();
+          hasCurrent = true;
         } else {
           return;
         }
@@ -2121,15 +2123,17 @@ public class BigQueryIO {
             (Exception) e.getCause(),
             "Unable to parse record reading from BigQuery");
       }
-      if (current != null) {
+      if (hasCurrent) {
         outputReceiver.get(rowTag).output(current);
       }
 
       while (true) {
         current = null;
+        hasCurrent = false;
         try {
           if (reader.advance()) {
             current = reader.getCurrent();
+            hasCurrent = true;
           } else {
             return;
           }
@@ -2142,7 +2146,7 @@ public class BigQueryIO {
               (Exception) e.getCause(),
               "Unable to parse record reading from BigQuery");
         }
-        if (current != null) {
+        if (hasCurrent) {
           outputReceiver.get(rowTag).output(current);
         }
       }

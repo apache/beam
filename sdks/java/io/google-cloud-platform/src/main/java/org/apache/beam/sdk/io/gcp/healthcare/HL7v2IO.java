@@ -367,7 +367,7 @@ public class HL7v2IO {
           String msgId = context.element();
           HL7v2Message message = null;
           try {
-            message = client.fetchMessage(msgId);
+            message = java.util.Objects.requireNonNull(client.fetchMessage(msgId));
           } catch (Exception e) {
             context.output(HL7v2IO.Read.DEAD_LETTER, HealthcareIOError.of(msgId, e));
           }
@@ -494,7 +494,9 @@ public class HL7v2IO {
           HL7v2ReadResponse response = null;
           try {
             response =
-                HL7v2ReadResponse.of(context.element().getMetadata(), client.fetchMessage(msgId));
+                java.util.Objects.requireNonNull(
+                    HL7v2ReadResponse.of(
+                        context.element().getMetadata(), client.fetchMessage(msgId)));
           } catch (Exception e) {
             HealthcareIOError<HL7v2ReadParameter> error =
                 HealthcareIOError.of(context.element(), e);
