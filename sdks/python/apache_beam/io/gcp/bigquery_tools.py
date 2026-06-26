@@ -125,9 +125,17 @@ except ImportError:
 try:
   from google.cloud import bigquery as gcp_bigquery
   TableReference = gcp_bigquery.TableReference
+  DatasetReference = gcp_bigquery.DatasetReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
 
   class TableReference(object):
+    pass
+
+  class DatasetReference(object):
+    pass
+
+  class SchemaField(object):
     pass
 
 
@@ -216,8 +224,7 @@ V = TypeVar('V')
 
 
 def to_hashable_table_ref(
-    table_ref_elem_kv: tuple[Union[str, gcp_bigquery.TableReference], V]
-) -> tuple[str, V]:
+    table_ref_elem_kv: tuple[Union[str, TableReference], V]) -> tuple[str, V]:
   """Turns the key of the input tuple to its string representation. The key
   should be either a string or a TableReference.
 
@@ -243,7 +250,7 @@ def parse_table_schema_from_json(schema_string):
     mode = field.get('mode', 'NULLABLE')
     description = field.get('description')
     fields = tuple([_parse_schema_field(x) for x in field.get('fields', [])])
-    return gcp_bigquery.SchemaField(
+    return SchemaField(
         field['name'],
         field['type'],
         mode=mode,
@@ -281,10 +288,9 @@ def parse_table_reference(table, dataset=None, project=None):
       format.
   """
 
-  if isinstance(table, gcp_bigquery.TableReference):
-    return gcp_bigquery.TableReference(
-        gcp_bigquery.DatasetReference(table.project, table.dataset_id),
-        table.table_id)
+  if isinstance(table, TableReference):
+    return TableReference(
+        DatasetReference(table.project, table.dataset_id), table.table_id)
   elif callable(table):
     return table
   elif isinstance(table, value_provider.ValueProvider):
@@ -307,8 +313,7 @@ def parse_table_reference(table, dataset=None, project=None):
     # A dummy project is used. It's often overridden by the pipeline options
     project = FALLBACK_PROJECT
 
-  return gcp_bigquery.TableReference(
-      gcp_bigquery.DatasetReference(project, dataset), table)
+  return TableReference(DatasetReference(project, dataset), table)
 
 
 # -----------------------------------------------------------------------------
@@ -784,8 +789,8 @@ class BigQueryWrapper(object):
 
     additional_parameters = additional_parameters or {}
     table = gcp_bigquery.Table(
-        table_ref=gcp_bigquery.TableReference(
-            gcp_bigquery.DatasetReference(project_id, dataset_id), table_id),
+        table_ref=TableReference(
+            DatasetReference(project_id, dataset_id), table_id),
         schema=schema,
         **additional_parameters)
     response = self.client.create_table(table)
@@ -1327,7 +1332,7 @@ class BigQueryWrapper(object):
       if isinstance(schema, (tuple, list)):
         cell = row.f[index]
         value = from_json_value(cell.v) if cell.v is not None else None
-      elif isinstance(schema, gcp_bigquery.SchemaField):
+      elif isinstance(schema, SchemaField):
         cell = row['f'][index]
         value = cell['v'] if 'v' in cell else None
       if field.mode == 'REPEATED':
@@ -1577,11 +1582,11 @@ sequence of SchemaField):
   Returns:
     ~apache_beam.pvalue.Row: The converted row.
   """
-  if not isinstance(schema, (tuple, list, gcp_bigquery.SchemaField)):
+  if not isinstance(schema, (tuple, list, SchemaField)):
     schema = get_bq_tableschema(schema)
   beam_row = {}
   fields_to_iterate = schema.fields if isinstance(
-      schema, gcp_bigquery.SchemaField) else schema
+      schema, SchemaField) else schema
   for field in fields_to_iterate:
     name = field.name
     mode = field.mode.upper()
@@ -1632,7 +1637,7 @@ sequence of SchemaField` format.
   schema_list = [s.strip() for s in schema.split(',')]
   for field_and_type in schema_list:
     field_name, field_type = field_and_type.split(':')
-    field_schema = gcp_bigquery.SchemaField(
+    field_schema = SchemaField(
         name=field_name, field_type=field_type, mode='NULLABLE')
     table_schema.append(field_schema)
   return table_schema
@@ -1748,11 +1753,11 @@ sequence of SchemaField):
     Nested and repeated fields are supported.
   """
   effective_types = {**BIGQUERY_TYPE_TO_PYTHON_TYPE, **(type_overrides or {})}
-  if not isinstance(schema, (tuple, list, gcp_bigquery.SchemaField)):
+  if not isinstance(schema, (tuple, list, SchemaField)):
     schema = get_bq_tableschema(schema)
   typehints = []
   fields_to_iterate = schema.fields if isinstance(
-      schema, gcp_bigquery.SchemaField) else schema
+      schema, SchemaField) else schema
   for field in fields_to_iterate:
     name, field_type, mode = field.name, field.field_type.upper(), field.mode.upper()
 
@@ -1823,11 +1828,10 @@ gcp_bigquery.bigquery_v2_messages.TableFieldSchema):
   Returns:
     bool: True if the schemas are equivalent, False otherwise.
   """
-  if type(left) != type(right) or not isinstance(
-      left, (tuple, gcp_bigquery.SchemaField)):
+  if type(left) != type(right) or not isinstance(left, (tuple, SchemaField)):
     return False
 
-  if isinstance(left, gcp_bigquery.SchemaField):
+  if isinstance(left, SchemaField):
     if left.name != right.name:
       return False
 

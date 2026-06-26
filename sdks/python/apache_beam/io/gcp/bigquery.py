@@ -423,7 +423,7 @@ try:
   from google.cloud import bigquery as gcp_bigquery
   DatasetReference = gcp_bigquery.DatasetReference
   TableReference = gcp_bigquery.TableReference
-  JobReference = gcp_bigquery.JobReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
 
   class DatasetReference(object):
@@ -432,8 +432,10 @@ except ImportError:
   class TableReference(object):
     pass
 
-  class JobReference(object):
+  class SchemaField(object):
     pass
+
+JobReference = bigquery_tools.BeamJobReference
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -2235,7 +2237,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         self.table_reference.project == bigquery_tools.FALLBACK_PROJECT):
       self.table_reference = TableReference(
           DatasetReference(
-              pcoll.pipeline.options.view_as(GoogleCloudOptions).project,
+              (pcoll.pipeline.options.view_as(GoogleCloudOptions).project or
+               bigquery_tools.FALLBACK_PROJECT),
               self.table_reference.dataset_id),
           self.table_reference.table_id)
 
@@ -2766,7 +2769,7 @@ class StorageWriteToBigQuery(PTransform):
       self._value = schema
 
     def __enter__(self):
-      if not isinstance(self._value, (gcp_bigquery.SchemaField, )):
+      if not isinstance(self._value, (SchemaField, )):
         return bigquery_tools.get_bq_tableschema(self._value)
 
       return self._value
@@ -3047,8 +3050,8 @@ class ReadFromBigQuery(PTransform):
     project_id = None
     temp_table_ref = None
     if 'temp_dataset' in self._kwargs:
-      temp_table_ref = gcp_bigquery.TableReference(
-          gcp_bigquery.DatasetReference(
+      temp_table_ref = TableReference(
+          DatasetReference(
               self._kwargs['temp_dataset'].project,
               self._kwargs['temp_dataset'].dataset_id),
           'beam_temp_table_' + uuid.uuid4().hex)
