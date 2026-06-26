@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
@@ -68,7 +68,7 @@ public class FlinkSubmissionTest {
   private static transient RemoteMiniCluster flinkCluster;
 
   /** Each test has a timeout of 60 seconds (for safety). */
-  @Rule public Timeout timeout = new Timeout(60, TimeUnit.SECONDS);
+  @Rule public Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
 
   /** Counter which keeps track of the number of jobs submitted. */
   private static int expectedNumberOfJobs;
@@ -148,7 +148,9 @@ public class FlinkSubmissionTest {
       // Run end-to-end test
       CliFrontend.main(args.toArray(new String[0]));
     } catch (SystemExitException e) {
-      // The CliFrontend exited and we can move on to check if the job has finished
+      if (e.getStatus() != 0) {
+        throw new AssertionError("CliFrontend exited with status " + e.getStatus());
+      }
     } finally {
       restoreDefaultSystemExitBehavior();
     }
@@ -173,13 +175,22 @@ public class FlinkSubmissionTest {
 
   /** The Flink program which is executed by the CliFrontend. */
   public static void main(String[] args) {
-    FlinkPipelineOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(FlinkPipelineOptions.class);
-    options.setRunner(FlinkRunner.class);
-    options.setParallelism(1);
-    Pipeline p = Pipeline.create(options);
-    p.apply(GenerateSequence.from(0).to(1));
-    p.run();
+    System.out.println("!!! FlinkSubmissionTest.main started !!!");
+    try {
+      FlinkPipelineOptions options =
+          PipelineOptionsFactory.fromArgs(args).withValidation().as(FlinkPipelineOptions.class);
+      options.setRunner(FlinkRunner.class);
+      options.setParallelism(1);
+      Pipeline p = Pipeline.create(options);
+      p.apply(GenerateSequence.from(0).to(1));
+      System.out.println("!!! Running pipeline !!!");
+      p.run();
+      System.out.println("!!! Pipeline run completed !!!");
+    } catch (Throwable t) {
+      System.err.println("!!! Exception in main: " + t);
+      t.printStackTrace();
+      throw t;
+    }
   }
 
   private static void prepareEnvironment() throws Exception {
@@ -187,10 +198,14 @@ public class FlinkSubmissionTest {
     File file = TEMP_FOLDER.newFile("config.yaml");
     String config =
         String.format(
-            "rest:\n  port: '%d'\njobmanager:\n  rpc:\n    address: %s\n    port: '%d'",
+            "rest.port: %d\njobmanager.rpc.address: %s\njobmanager.rpc.port: %d\n",
             flinkCluster.getRestPort(), "localhost", flinkCluster.getClusterPort());
 
     Files.write(file.toPath(), config.getBytes(StandardCharsets.UTF_8));
+    System.out.println("!!! config.yaml path: " + file.getAbsolutePath());
+    System.out.println(
+        "!!! config.yaml content:\n"
+            + new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8));
 
     // Create a new environment with the location of the Flink config for CliFrontend
     ImmutableMap<String, String> newEnv =
@@ -199,7 +214,26 @@ public class FlinkSubmissionTest {
             .put(ConfigConstants.ENV_FLINK_CONF_DIR, file.getParent())
             .build();
 
+    Class<?> processEnvClass = Class.forName("java.lang.ProcessEnvironment");
+    System.out.println("!!! Inspecting ProcessEnvironment fields:");
+    for (Field f : processEnvClass.getDeclaredFields()) {
+      try {
+        f.setAccessible(true);
+        Object val = f.get(null);
+        System.out.println(
+            "!!!   Field name: "
+                + f.getName()
+                + ", type: "
+                + f.getType()
+                + ", value type: "
+                + (val == null ? "null" : val.getClass().getName()));
+      } catch (Exception e) {
+        System.out.println(
+            "!!!   Field name: " + f.getName() + " (error reading value: " + e + ")");
+      }
+    }
     modifyEnv(newEnv);
+    System.out.println("!!! System.getenv(\"FLINK_CONF_DIR\"): " + System.getenv("FLINK_CONF_DIR"));
   }
 
   private static void restoreEnvironment() throws Exception {
@@ -212,19 +246,55 @@ public class FlinkSubmissionTest {
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
    */
   private static void modifyEnv(Map<String, String> env) throws Exception {
-    Class processEnv = Class.forName("java.lang.ProcessEnvironment");
-    Field envField = processEnv.getDeclaredField("theUnmodifiableEnvironment");
+    Class<?> processEnvClass = Class.forName("java.lang.ProcessEnvironment");
+    Field theEnvironmentField = processEnvClass.getDeclaredField("theEnvironment");
+    theEnvironmentField.setAccessible(true);
+    Map<Object, Object> envMap = (Map<Object, Object>) theEnvironmentField.get(null);
+    envMap.clear();
 
-    Field modifiersField = Field.class.getDeclaredField("modifiers");
-    modifiersField.setAccessible(true);
-    modifiersField.setInt(envField, envField.getModifiers() & ~Modifier.FINAL);
+    Class<?> variableClass = null;
+    Method variableValueOf = null;
+    Class<?> valueClass = null;
+    Method valueValueOf = null;
+    try {
+      variableClass = Class.forName("java.lang.ProcessEnvironment$Variable");
+      variableValueOf = variableClass.getDeclaredMethod("valueOf", String.class);
+      variableValueOf.setAccessible(true);
 
-    envField.setAccessible(true);
-    envField.set(null, env);
-    envField.setAccessible(false);
+      valueClass = Class.forName("java.lang.ProcessEnvironment$Value");
+      valueValueOf = valueClass.getDeclaredMethod("valueOf", String.class);
+      valueValueOf.setAccessible(true);
+    } catch (ClassNotFoundException e) {
+      // String keys/values (e.g. on Windows)
+    }
 
-    modifiersField.setInt(envField, envField.getModifiers() & Modifier.FINAL);
-    modifiersField.setAccessible(false);
+    for (Map.Entry<String, String> entry : env.entrySet()) {
+      Object key =
+          (variableValueOf != null) ? variableValueOf.invoke(null, entry.getKey()) : entry.getKey();
+      Object val =
+          (valueValueOf != null) ? valueValueOf.invoke(null, entry.getValue()) : entry.getValue();
+      envMap.put(key, val);
+    }
+
+    try {
+      Field theCaseInsensitiveEnvironmentField =
+          processEnvClass.getDeclaredField("theCaseInsensitiveEnvironment");
+      theCaseInsensitiveEnvironmentField.setAccessible(true);
+      Map<Object, Object> cienvMap =
+          (Map<Object, Object>) theCaseInsensitiveEnvironmentField.get(null);
+      cienvMap.clear();
+      for (Map.Entry<String, String> entry : env.entrySet()) {
+        Object key =
+            (variableValueOf != null)
+                ? variableValueOf.invoke(null, entry.getKey())
+                : entry.getKey();
+        Object val =
+            (valueValueOf != null) ? valueValueOf.invoke(null, entry.getValue()) : entry.getValue();
+        cienvMap.put(key, val);
+      }
+    } catch (NoSuchFieldException e) {
+      // Ignore if not on Windows
+    }
   }
 
   /** Prevents the CliFrontend from calling System.exit. */
@@ -232,9 +302,14 @@ public class FlinkSubmissionTest {
     System.setSecurityManager(
         new SecurityManager() {
           @Override
+          public void checkExit(int status) {
+            throw new SystemExitException(status);
+          }
+
+          @Override
           public void checkPermission(Permission permission) {
             if (permission.getName().startsWith("exitVM")) {
-              throw new SystemExitException();
+              throw new SystemExitException(0);
             }
             if (SECURITY_MANAGER != null) {
               SECURITY_MANAGER.checkPermission(permission);
@@ -247,5 +322,15 @@ public class FlinkSubmissionTest {
     System.setSecurityManager(SECURITY_MANAGER);
   }
 
-  private static class SystemExitException extends SecurityException {}
+  private static class SystemExitException extends SecurityException {
+    private final int status;
+
+    public SystemExitException(int status) {
+      this.status = status;
+    }
+
+    public int getStatus() {
+      return status;
+    }
+  }
 }

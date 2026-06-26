@@ -176,7 +176,11 @@ class FlinkPipelineExecutionEnvironment {
     return new FlinkDetachedRunnerResult(jobClient, options.getJobCheckIntervalInSecs());
   }
 
-  private FlinkRunnerResult createAttachedPipelineResult(JobExecutionResult result) {
+  private PipelineResult createAttachedPipelineResult(JobExecutionResult result) {
+    if (result instanceof org.apache.flink.core.execution.DetachedJobExecutionResult) {
+      LOG.info("Pipeline submitted in detached mode");
+      return new FlinkRunnerResult(java.util.Collections.emptyMap(), -1L);
+    }
     LOG.info("Execution finished in {} msecs", result.getNetRuntime());
     Map<String, Object> accumulators = result.getAllAccumulatorResults();
     if (accumulators != null && !accumulators.isEmpty()) {

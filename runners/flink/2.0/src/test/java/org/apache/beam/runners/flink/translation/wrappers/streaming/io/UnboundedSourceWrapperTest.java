@@ -684,9 +684,16 @@ public class UnboundedSourceWrapperTest {
           // The expected state is for finalizeSource to sleep instead of exiting
           while (true) {
             StackTraceElement[] callStack = thread.getStackTrace();
-            if (callStack.length >= 2
-                && "sleep".equals(callStack[0].getMethodName())
-                && "finalizeSource".equals(callStack[1].getMethodName())) {
+            boolean isSleepingInFinalizeSource = false;
+            for (int i = 0; i < callStack.length - 1; i++) {
+              if ("finalizeSource".equals(callStack[i + 1].getMethodName())
+                  && ("sleep".equals(callStack[i].getMethodName())
+                      || "sleep0".equals(callStack[i].getMethodName()))) {
+                isSleepingInFinalizeSource = true;
+                break;
+              }
+            }
+            if (isSleepingInFinalizeSource) {
               break;
             }
             Thread.sleep(10);
