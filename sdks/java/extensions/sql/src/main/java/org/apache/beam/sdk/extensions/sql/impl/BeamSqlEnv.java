@@ -47,8 +47,11 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -58,6 +61,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public class BeamSqlEnv {
+
   JdbcConnection connection;
   QueryPlanner planner;
 
@@ -114,6 +118,42 @@ public class BeamSqlEnv {
   public BeamRelNode parseQuery(String query, QueryParameters queryParameters)
       throws ParseException {
     return planner.convertToBeamRel(query, queryParameters);
+  }
+
+  public QueryPlanner getPlanner() {
+    return planner;
+  }
+
+  public RelBuilder getRelBuilder() {
+    return planner.getRelBuilder();
+  }
+
+  public BeamRelNode convertToBeamRel(RelNode relNode) throws SqlConversionException {
+    return convertToBeamRel(relNode, QueryParameters.ofNone());
+  }
+
+  public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters)
+      throws SqlConversionException {
+    return planner.convertToBeamRel(relNode, queryParameters);
+  }
+
+  public RelNode parseLogicalPlan(String query) throws ParseException, SqlConversionException {
+    return parseLogicalPlan(query, QueryParameters.ofNone());
+  }
+
+  public RelNode parseLogicalPlan(String query, QueryParameters queryParameters)
+      throws ParseException, SqlConversionException {
+    return planner.parseToRel(query, queryParameters);
+  }
+
+  public void registerSchemaFunction(String name, Function function) {
+    java.util.Objects.requireNonNull(name, "name cannot be null");
+    java.util.Objects.requireNonNull(function, "function cannot be null");
+    connection.getCurrentSchemaPlus().add(name, function);
+  }
+
+  public SqlOperatorTable getOperatorTable() {
+    return planner.getOperatorTable();
   }
 
   public boolean isDdl(String sqlStatement) throws ParseException {
