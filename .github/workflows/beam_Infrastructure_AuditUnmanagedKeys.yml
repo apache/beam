@@ -22,13 +22,6 @@ name: Unmanaged Service Accounts Keys Audit
 
 on:
     workflow_dispatch:
-    pull_request:
-    push:
-      branches:
-        - main
-      paths:
-        - 'infra/enforcement/account_keys.py'
-        - 'infra/enforcement/sending.py'
     schedule:
       # Every day at 00:00 UTC
       - cron: '0 0 * * *'
@@ -69,14 +62,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-      run: |
-        if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "Running in PR mode: Printing to console to avoid 403 Forbidden..."
-          python account_keys.py --action print
-        else
-          echo "Running in cron/dispatch mode: Creating GitHub issues..."
-          python account_keys.py --action announce
-        fi
+      run: python account_keys.py --action announce
+
 
 
 
