@@ -26,7 +26,7 @@ from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteConfig
 from apache_beam.ml.rag.types import EmbeddableItem
 from apache_beam.typehints.row_type import RowTypeConstraint
 
-EmbeddableToDictFn = Callable[[EmbeddableItem], dict[str, any]]
+EmbeddableToDictFn = Callable[[EmbeddableItem], dict[str, Any]]
 # Backward compatibility alias.
 ChunkToDictFn = EmbeddableToDictFn
 

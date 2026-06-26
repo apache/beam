@@ -2005,8 +2005,7 @@ class WriteToBigQuery(PTransform):
         argument.
       schema (str,dict,ValueProvider,callable): The schema to be used if the
         BigQuery table to write has to be created. This can be either specified
-        as a :class:`~google.cloud.bigquery.\
-bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
+        as a ``google.cloud.bigquery.TableSchema``, or a `ValueProvider` that has a JSON string,
         or a python dictionary, or the string or dictionary itself,
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
@@ -2517,8 +2516,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations that were successfully
       loaded to using the batch load API, along with the load job IDs.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS],
                   'DESTINATION_JOBID_PAIRS')
 
@@ -2531,8 +2532,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations along with the
       temp files used as sources to load from.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS], 'DESTINATION_FILE_PAIRS')
 
     return self._destination_file_pairs
@@ -2545,8 +2548,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations that were successfully
       copied to, along with the copy job ID.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS],
                   'DESTINATION_COPY_JOBID_PAIRS')
 
@@ -2558,8 +2563,10 @@ class WriteResult:
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``.
+    """
     self.validate([
         WriteToBigQuery.Method.STREAMING_INSERTS,
         WriteToBigQuery.Method.STORAGE_WRITE_API
@@ -2578,7 +2585,8 @@ class WriteResult:
 
     Raises:
       AttributeError: if accessed with a write method
-      besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+        besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``.
+    """
     self.validate([
         WriteToBigQuery.Method.STREAMING_INSERTS,
         WriteToBigQuery.Method.STORAGE_WRITE_API
@@ -3095,7 +3103,7 @@ class ReadFromBigQueryRequest:
       self,
       query: str = None,
       use_standard_sql: bool = True,
-      table: Union[str, TableReference] = None,
+      table: Union[str, "TableReference"] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
@@ -3168,7 +3176,7 @@ class ReadAllFromBigQuery(PTransform):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       kms_key: str = None,
-      temp_dataset: Union[str, DatasetReference] = None,
+      temp_dataset: Union[str, "DatasetReference"] = None,
       bigquery_job_labels: dict[str, str] = None,
       query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:
