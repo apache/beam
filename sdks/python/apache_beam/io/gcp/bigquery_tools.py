@@ -1046,15 +1046,7 @@ class BigQueryWrapper(object):
     except google_api_core_exceptions.Conflict as exn:
       _LOGGER.info("BigQuery job %s already exists", job_id)
       job_location = self._parse_location_from_exc(exn.message, job_id)
-
-      class MockJob:
-        pass
-
-      job = MockJob()
-      job.job_id = job_id
-      job.project = job_project
-      job.location = job_location
-      return job
+      return self.get_job(job_project, job_id, job_location)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
