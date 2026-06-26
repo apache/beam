@@ -75,6 +75,8 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.util import GcpHsmGeneratedSecret
 from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import Secret
+from apache_beam.transforms.util import _BatchSizeEstimator
+from apache_beam.transforms.util import _GlobalWindowsBatchingDoFn
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
@@ -1261,8 +1263,6 @@ class BatchElementsTest(unittest.TestCase):
   def test_global_batching_dofn_single_vs_multiple_bundles(self):
     # This test directly verifies how bundling affects the batch sizes produced by
     # the internal _GlobalWindowsBatchingDoFn of BatchElements.
-    from apache_beam.transforms.util import _GlobalWindowsBatchingDoFn
-    from apache_beam.transforms.util import _BatchSizeEstimator
 
     # 1. Single Bundle Scenario:
     # Four elements processed within the same start_bundle / finish_bundle lifecycle.
