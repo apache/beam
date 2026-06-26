@@ -52,11 +52,17 @@ if TYPE_CHECKING:
   from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest
 
 try:
-  from google.cloud.bigquery import DatasetReference
-  from google.cloud.bigquery import TableReference
+  from google.cloud import bigquery as gcp_bigquery
+  DatasetReference = gcp_bigquery.DatasetReference
+  TableReference = gcp_bigquery.TableReference
 except ImportError:
-  DatasetReference = None
-  TableReference = None
+
+  class DatasetReference(object):
+    pass
+
+  class TableReference(object):
+    pass
+
 
 _LOGGER = logging.getLogger(__name__)
 
