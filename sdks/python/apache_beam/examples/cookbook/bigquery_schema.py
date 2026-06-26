@@ -44,7 +44,7 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-      # pylint: disable=wrong-import-order, wrong-import-position
+    # pylint: disable=wrong-import-order, wrong-import-position
 
     table_schema = {
         'fields': [{
@@ -55,15 +55,24 @@ def run(argv=None):
             'name': 'age', 'type': 'INTEGER', 'mode': 'NULLABLE'
         }, {
             'name': 'gender', 'type': 'STRING', 'mode': 'NULLABLE'
-        }, {
-            'name': 'phoneNumber', 'type': 'RECORD', 'mode': 'NULLABLE', 'fields': [{
-                'name': 'areaCode', 'type': 'INTEGER', 'mode': 'NULLABLE'
-            }, {
-                'name': 'number', 'type': 'INTEGER', 'mode': 'NULLABLE'
-            }]
-        }, {
-            'name': 'children', 'type': 'STRING', 'mode': 'REPEATED'
-        }]
+        },
+                   {
+                       'name': 'phoneNumber',
+                       'type': 'RECORD',
+                       'mode': 'NULLABLE',
+                       'fields': [{
+                           'name': 'areaCode',
+                           'type': 'INTEGER',
+                           'mode': 'NULLABLE'
+                       },
+                                  {
+                                      'name': 'number',
+                                      'type': 'INTEGER',
+                                      'mode': 'NULLABLE'
+                                  }]
+                   }, {
+                       'name': 'children', 'type': 'STRING', 'mode': 'REPEATED'
+                   }]
     }
 
     def create_random_record(record_id):

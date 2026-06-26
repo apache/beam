@@ -44,12 +44,7 @@ from apache_beam.internal import pickler
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
-from apache_beam.io.gcp.bigquery import ReadFromBigQuery
-from apache_beam.io.gcp.bigquery import WriteToBigQuery
-from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
@@ -85,6 +80,12 @@ try:
   from google.api_core import exceptions
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
+
+  from apache_beam.io.gcp import bigquery as beam_bq
+  from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
+  from apache_beam.io.gcp.bigquery import ReadFromBigQuery
+  from apache_beam.io.gcp.bigquery import WriteToBigQuery
+  from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports

@@ -22,12 +22,13 @@ import mock
 import numpy as np
 
 import apache_beam as beam
-import apache_beam.io.gcp.bigquery
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 
 try:
-  from google.cloud import bigquery
+  from google.cloud import bigquery as gcp_bigquery
+
+  import apache_beam.io.gcp.bigquery
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.options import value_provider
@@ -43,10 +44,11 @@ class DummyTableSchema:
 class TestBigQueryToSchema(unittest.TestCase):
   def test_check_schema_conversions(self):
     fields = [
-        bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='STRING', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -63,10 +65,11 @@ class TestBigQueryToSchema(unittest.TestCase):
 
   def test_check_conversion_with_selected_fields(self):
     fields = [
-        bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='STRING', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -88,10 +91,11 @@ class TestBigQueryToSchema(unittest.TestCase):
 
   def test_check_schema_conversions_with_timestamp(self):
     fields = [
-        bigquery.SchemaField(name='stn', field_type='STRING', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='STRING', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='times', field_type='TIMESTAMP', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -108,11 +112,11 @@ class TestBigQueryToSchema(unittest.TestCase):
 
   def test_unsupported_type(self):
     fields = [
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='number', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -123,11 +127,11 @@ class TestBigQueryToSchema(unittest.TestCase):
 
   def test_unsupported_mode(self):
     fields = [
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='number', field_type='INTEGER', mode="NESTED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -139,10 +143,11 @@ class TestBigQueryToSchema(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_export(self, get_table):
     fields = [
-        bigquery.SchemaField(name='stn', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='DOUBLE', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -161,10 +166,11 @@ class TestBigQueryToSchema(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
     fields = [
-        bigquery.SchemaField(name='stn', field_type='DOUBLE', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='DOUBLE', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
             name='temp', field_type='FLOAT64', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='count', field_type='INTEGER', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -228,11 +234,11 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_geography_type_support(self):
     """Test that GEOGRAPHY type is properly supported in schema conversion."""
     fields = [
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='location', field_type='GEOGRAPHY', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='locations', field_type='GEOGRAPHY', mode="REPEATED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='required_location', field_type='GEOGRAPHY', mode="REQUIRED")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -283,11 +289,11 @@ class TestBigQueryToSchema(unittest.TestCase):
     """Test convert_to_usertype function with GEOGRAPHY fields."""
     schema = DummyTableSchema(
         fields=[
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='id', field_type='INTEGER', mode="REQUIRED"),
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='location', field_type='GEOGRAPHY', mode="NULLABLE"),
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='name', field_type='STRING', mode="REQUIRED")
         ])
 
@@ -305,8 +311,9 @@ class TestBigQueryToSchema(unittest.TestCase):
 
     # Create a user type with GEOGRAPHY field
     fields = [
-        bigquery.SchemaField(name='id', field_type='INTEGER', mode="REQUIRED"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
+            name='id', field_type='INTEGER', mode="REQUIRED"),
+        gcp_bigquery.SchemaField(
             name='location', field_type='GEOGRAPHY', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -328,13 +335,13 @@ class TestBigQueryToSchema(unittest.TestCase):
   def test_geography_with_complex_wkt(self):
     """Test GEOGRAPHY type with complex Well-Known Text geometries."""
     fields = [
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='simple_point', field_type='GEOGRAPHY', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='linestring', field_type='GEOGRAPHY', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='polygon', field_type='GEOGRAPHY', mode="NULLABLE"),
-        bigquery.SchemaField(
+        gcp_bigquery.SchemaField(
             name='multigeometry', field_type='GEOGRAPHY', mode="NULLABLE")
     ]
     schema = DummyTableSchema(fields=fields)
@@ -352,7 +359,7 @@ class TestBigQueryToSchema(unittest.TestCase):
     self.assertEqual(usertype.__annotations__, expected_annotations)
 
 
-@unittest.skipIf(bigquery is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class TestTypeOverridesSchemaTools(unittest.TestCase):
   """Tests for type_overrides parameter in bigquery_schema_tools."""
   def test_bq_field_to_type_with_overrides(self):
@@ -391,9 +398,9 @@ class TestTypeOverridesSchemaTools(unittest.TestCase):
 
     schema = DummyTableSchema(
         fields=[
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='id', field_type='INTEGER', mode="REQUIRED"),
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='event_date', field_type='DATE', mode="NULLABLE")
         ])
 
@@ -414,9 +421,9 @@ class TestTypeOverridesSchemaTools(unittest.TestCase):
     """Test that type_overrides can map DATE to str."""
     schema = DummyTableSchema(
         fields=[
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='id', field_type='INTEGER', mode="REQUIRED"),
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='event_date', field_type='DATE', mode="NULLABLE")
         ])
 
@@ -434,9 +441,9 @@ class TestTypeOverridesSchemaTools(unittest.TestCase):
 
     schema = DummyTableSchema(
         fields=[
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='id', field_type='INTEGER', mode="REQUIRED"),
-            bigquery.SchemaField(
+            gcp_bigquery.SchemaField(
                 name='event_date', field_type='DATE', mode="NULLABLE")
         ])
 
