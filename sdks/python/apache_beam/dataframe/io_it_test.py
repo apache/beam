@@ -32,8 +32,9 @@ from apache_beam.testing.util import equal_to
 _LOGGER = logging.getLogger(__name__)
 
 try:
-  import apache_beam.io.gcp.bigquery
   from google.api_core.exceptions import GoogleAPICallError
+
+  import apache_beam.io.gcp.bigquery
 except ImportError:
   GoogleAPICallError = None
   bigquery = None

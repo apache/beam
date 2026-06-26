@@ -36,7 +36,6 @@ from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
 import apache_beam as beam
-import apache_beam.io.gcp.bigquery
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import fileio
@@ -48,6 +47,8 @@ from apache_beam.testing.util import equal_to
 try:
   from google.api_core.exceptions import GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
+
+  import apache_beam.io.gcp.bigquery
 except ImportError:
   GoogleAPICallError = None
   gcp_bigquery = None
