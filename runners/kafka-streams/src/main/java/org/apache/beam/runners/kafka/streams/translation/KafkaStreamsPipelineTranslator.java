@@ -51,6 +51,7 @@ public class KafkaStreamsPipelineTranslator {
         ImmutableMap.<String, PTransformTranslator>builder()
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
             .put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, new RedistributeTranslator())
+            .put(PTransformTranslation.GROUP_BY_KEY_URN, new GroupByKeyTranslator())
             .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());
   }
@@ -134,7 +135,9 @@ public class KafkaStreamsPipelineTranslator {
   @AutoService(NativeTransforms.IsNativeTransform.class)
   public static class IsKafkaStreamsNativeTransform implements NativeTransforms.IsNativeTransform {
     private static final Set<String> URNS =
-        ImmutableSet.of(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN);
+        ImmutableSet.of(
+            PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN,
+            PTransformTranslation.GROUP_BY_KEY_URN);
 
     @Override
     public boolean test(RunnerApi.PTransform pTransform) {
