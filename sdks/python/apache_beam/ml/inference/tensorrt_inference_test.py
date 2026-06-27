@@ -362,7 +362,8 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           max_batch_size=4,
           engine_path=
           'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
-      pcoll = pipeline | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(
+          SINGLE_FEATURE_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(
           predictions,
@@ -423,7 +424,8 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           'gs://apache-beam-ml/models/single_tensor_features_engine.trt',
           inference_fn=fake_inference_fn,
           large_model=True)
-      pcoll = pipeline | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(
+          SINGLE_FEATURE_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(
           predictions,
@@ -443,7 +445,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
       self.assertFalse('FOO' in os.environ)
       _ = (
           pipeline
-          | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES)
+          | 'start' >> beam.Create(SINGLE_FEATURE_EXAMPLES, reshuffle=False)
           | RunInference(engine_handler))
       pipeline.run()
       self.assertTrue('FOO' in os.environ)
@@ -457,7 +459,8 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           max_batch_size=4,
           engine_path=
           'gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
-      pcoll = pipeline | 'start' >> beam.Create(TWO_FEATURES_EXAMPLES)
+      pcoll = pipeline | 'start' >> beam.Create(
+          TWO_FEATURES_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)
       assert_that(
           predictions,
