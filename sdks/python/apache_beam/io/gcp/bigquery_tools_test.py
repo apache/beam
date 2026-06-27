@@ -174,6 +174,14 @@ class TestTableReferenceParser(unittest.TestCase):
 class TestBigQueryWrapper(unittest.TestCase):
   def test_delete_non_existing_dataset(self):
     client = mock.Mock()
+
+    def mock_delete_dataset(dataset, delete_contents=False, not_found_ok=False):
+      if not not_found_ok:
+        from google.api_core import exceptions
+        raise exceptions.NotFound("Not found")
+
+    client.delete_dataset.side_effect = mock_delete_dataset
+
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_dataset('project1', 'dataset1')
     client.delete_dataset.assert_called_with(
@@ -193,6 +201,14 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   def test_delete_non_existing_table(self):
     client = mock.Mock()
+
+    def mock_delete_table(table, not_found_ok=False):
+      if not not_found_ok:
+        from google.api_core import exceptions
+        raise exceptions.NotFound("Not found")
+
+    client.delete_table.side_effect = mock_delete_table
+
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper._delete_table('project1', 'dataset1', 'table1')
     client.delete_table.assert_called_with(
