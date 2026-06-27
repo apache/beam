@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPayloadProtos.KafkaStreamsPayload;
+import org.apache.beam.runners.kafka.streams.v1.KafkaStreamsPayloadProtos.KafkaStreamsPayload;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;

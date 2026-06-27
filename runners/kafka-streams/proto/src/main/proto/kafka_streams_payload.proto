@@ -18,9 +18,9 @@
 
 syntax = "proto3";
 
-package org.apache.beam.runners.kafka.streams.translation;
+package org.apache.beam.runners.kafka.streams.v1;
 
-option java_package = "org.apache.beam.runners.kafka.streams.translation";
+option java_package = "org.apache.beam.runners.kafka.streams.v1";
 option java_outer_classname = "KafkaStreamsPayloadProtos";
 
 // On-wire form of the in-JVM KStreamsPayload envelope, used when the payload must cross a Kafka

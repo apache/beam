@@ -22,15 +22,7 @@ def kafka_version = '3.9.0'
 
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.kafka.streams',
-    // protoc-generated message classes are not nullness-clean; exclude them from the checker.
-    generatedClassPatterns: [
-      /^org\.apache\.beam\.runners\.kafka\.streams\.translation\.KafkaStreamsPayloadProtos.*/
-    ],
 )
-// Adds protoc to compile the runner-internal control-message protos (e.g. KafkaStreamsPayload).
-// applyGrpcNature is purely additive on top of applyJavaNature — it only wires the protobuf
-// plugin; the gRPC codegen plugin is a no-op since these protos define no services.
-applyGrpcNature()
 
 description = "Apache Beam :: Runners :: Kafka Streams"
 
@@ -51,6 +43,7 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:build-tools")
 
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:kafka-streams:proto", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":runners:core-java")
@@ -61,7 +54,6 @@ dependencies {
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.args4j
   implementation library.java.joda_time
-  implementation library.java.protobuf_java
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_69_0
   implementation library.java.vendored_guava_32_1_2_jre
