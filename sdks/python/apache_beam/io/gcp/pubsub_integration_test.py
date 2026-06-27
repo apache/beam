@@ -373,6 +373,8 @@ class PubSubIntegrationTest(unittest.TestCase):
             })
         for msg in response.received_messages:
           ack_ids.append(msg.ack_id)
+          # Pub/Sub guarantees at-least-once delivery, so we must deduplicate
+          # messages by message_id to handle potential duplicate deliveries.
           if msg.message.message_id not in received_message_ids:
             received_message_ids.add(msg.message.message_id)
             received_messages.append(msg)
