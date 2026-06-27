@@ -1,0 +1,52 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.runners.kafka.streams.v1;
+
+option java_package = "org.apache.beam.runners.kafka.streams.v1";
+option java_outer_classname = "KafkaStreamsPayloadProtos";
+
+// On-wire form of the in-JVM KStreamsPayload envelope, used when the payload must cross a Kafka
+// topic boundary (e.g. the GroupByKey repartition topic and the watermark fan-out). Protobuf is
+// used for compatible schema evolution and compact varint encoding.
+message KafkaStreamsPayload {
+  // A watermark report: the watermark plus the in-band coordination fields the downstream
+  // WatermarkManager needs.
+  message WatermarkPayload {
+    // Event-time watermark in milliseconds. Signed (sint64, zigzag-encoded) because Beam event
+    // times can be negative, e.g. BoundedWindow.TIMESTAMP_MIN_VALUE.
+    sint64 millis = 1;
+    // The source partition this report is for.
+    uint32 source_partition = 2;
+    // The total number of source partitions feeding the downstream stage.
+    uint32 total_partitions = 3;
+  }
+
+  // A data element: the Beam WindowedValue encoded with the PCollection's windowed-value coder.
+  message DataPayload {
+    bytes value = 1;
+  }
+
+  // Exactly one variant is set; the oneof case discriminates data vs watermark.
+  oneof payload {
+    WatermarkPayload watermark = 1;
+    DataPayload data = 2;
+  }
+}
