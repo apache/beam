@@ -140,8 +140,18 @@ class PrismRunnerLogFilter(logging.Filter):
           record.pathname = json_record["source"]["file"]
           record.filename = os.path.basename(record.pathname)
           record.lineno = json_record["source"]["line"]
-        record.created = datetime.datetime.fromisoformat(
-            json_record["time"]).timestamp()
+        time_str = json_record["time"]
+        match = re.match(r"^(.*?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$", time_str)
+        if match:
+          base, frac, tz = match.groups()
+          if frac:
+            frac = (frac + "000000")[:7]
+          else:
+            frac = ""
+          if tz == 'Z':
+            tz = '+00:00'
+          time_str = base + frac + (tz or "")
+        record.created = datetime.datetime.fromisoformat(time_str).timestamp()
         extras = {
             k: v
             for k, v in json_record.items()
