@@ -147,10 +147,7 @@ def get_or_create_default_gcs_bucket(options):
     try:
       return gcs.create_bucket(bucket_name, project, location=region)
     except Conflict:
-      try:
-        bucket = gcs.get_bucket(bucket_name)
-      except Exception:
-        raise
+      bucket = gcs.get_bucket(bucket_name)
       if bucket:
         _validate_bucket_project(
             bucket,
