@@ -44,7 +44,7 @@ class GroupByKeyProcessor
 
   private final String stateStoreName;
   private final String transformId;
-  private final Coder<List<WindowedValue<KV<Object, Object>>>> listCoder;
+  private final Coder<WindowedValue<KV<Object, Object>>> inputCoder;
 
   private ProcessorContext<byte[], KStreamsPayload<KV<Object, Iterable<Object>>>> context;
   private KeyValueStore<byte[], byte[]> stateStore;
@@ -55,7 +55,7 @@ class GroupByKeyProcessor
       Coder<WindowedValue<KV<Object, Object>>> inputCoder) {
     this.stateStoreName = stateStoreName;
     this.transformId = transformId;
-    this.listCoder = ListCoder.of(inputCoder);
+    this.inputCoder = inputCoder;
   }
 
   @Override
