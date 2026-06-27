@@ -316,6 +316,12 @@ def parse_table_reference(table, dataset=None, project=None):
   return TableReference(DatasetReference(project, dataset), table)
 
 
+def _camel_to_snake(name):
+  import re
+  s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+  return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
 # -----------------------------------------------------------------------------
 # BigQueryWrapper.
 
@@ -558,7 +564,7 @@ class BigQueryWrapper(object):
 
     additional_load_parameters = additional_load_parameters or {}
     for k, v in additional_load_parameters.items():
-      setattr(job_config, k, v)
+      setattr(job_config, _camel_to_snake(k), v)
 
     try:
       if source_stream:
@@ -783,11 +789,15 @@ class BigQueryWrapper(object):
           table_id)
 
     additional_parameters = additional_parameters or {}
+    snake_case_parameters = {
+        _camel_to_snake(k): v
+        for k, v in additional_parameters.items()
+    }
     table = gcp_bigquery.Table(
         table_ref=TableReference(
             DatasetReference(project_id, dataset_id), table_id),
         schema=schema,
-        **additional_parameters)
+        **snake_case_parameters)
     response = self.client.create_table(table)
     _LOGGER.debug("Created the table with id %s", table_id)
     # The response is a gcp_bigquery.Table instance.
