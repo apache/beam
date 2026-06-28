@@ -25,7 +25,6 @@ import json
 import logging
 import os
 import random
-import requests
 import secrets
 import shutil
 import sqlite3
@@ -39,7 +38,7 @@ from datetime import datetime
 from datetime import timezone
 
 import mock
-
+import requests
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
 from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
@@ -72,10 +71,20 @@ Coder.register_urn(
     'beam:coders:javasdk:0.1',
     None, lambda payload, components, context: BigEndianIntegerCoder())
 
+import apache_beam as beam
 import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from apache_beam.io import filesystems
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import python_callable
+from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_transform
+from apache_beam.yaml.conftest import yaml_test_files_dir
 from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
@@ -88,17 +97,6 @@ from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
-
-import apache_beam as beam
-from apache_beam.io import filesystems
-from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils import python_callable
-from apache_beam.yaml import yaml_provider
-from apache_beam.yaml import yaml_transform
-from apache_beam.yaml.conftest import yaml_test_files_dir
 
 _LOGGER = logging.getLogger(__name__)
 
