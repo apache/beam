@@ -1526,7 +1526,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // enable upload_graph when the graph is too large
     byte[] jobGraphBytes = DataflowPipelineTranslator.jobToString(newJob).getBytes(UTF_8);
     int jobGraphByteSize = jobGraphBytes.length;
-    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES && !useUnifiedWorker(options)) {
+    if (jobGraphByteSize >= CREATE_JOB_REQUEST_LIMIT_BYTES && !useUnifiedWorker(options)
+        && !hasExperiment(options, "upload_graph")) {
       ExperimentalOptions.addExperiment(options, "upload_graph");
       LOG.info(
           "The job graph size ({} in bytes) is larger than {}. Automatically add "
