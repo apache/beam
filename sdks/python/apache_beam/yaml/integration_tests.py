@@ -590,10 +590,10 @@ def temp_iceberg_table_with_pk(table_data):
     # Poll the REST API until it is ready
     for _ in range(30):
       try:
-        response = requests.get(f"{api_url}/v1/config")
+        response = requests.get(f"{api_url}/v1/config", timeout=5)
         if response.status_code == 200:
           break
-      except requests.exceptions.ConnectionError:
+      except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
         pass
       time.sleep(1)
     else:
@@ -603,13 +603,15 @@ def temp_iceberg_table_with_pk(table_data):
     requests.post(
         f"{api_url}/v1/namespaces",
         json={"namespace": ["db"]},
-        headers={"Content-Type": "application/json"})
+        headers={"Content-Type": "application/json"},
+        timeout=10)
 
     # Create table with primary key
     response = requests.post(
         f"{api_url}/v1/namespaces/db/tables",
         json=table_data,
-        headers={"Content-Type": "application/json"})
+        headers={"Content-Type": "application/json"},
+        timeout=10)
     if response.status_code != 200:
       raise RuntimeError(f"Failed to create Iceberg table: {response.text}")
 
