@@ -76,7 +76,6 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
-
 from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
