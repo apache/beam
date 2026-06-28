@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java BigQueryEarlyRollout PostCommit'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -84,7 +84,7 @@ jobs:
           date=$(date -u +"%Y-%m-%d")
           echo "date=$date" >> $GITHUB_ENV
 #      - name: Send email
-#        uses: dawidd6/action-send-mail@v3
+#        uses: dawidd6/action-send-mail@4226df7daafa6fc901a43789c49bf7ab309066e7 # v3
 #        if: failure()
 #        with:
 #          server_address: smtp.gmail.com
@@ -98,13 +98,13 @@ jobs:
 #          body: |
 #            PostCommit Java BigQueryEarlyRollout failed on ${{ env.date }}. This test monitors BigQuery rollouts impacting Beam and should be escalated immediately if a real issue is encountered to pause further rollouts. For further details refer to the following links:\n * Failing job: https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml \n * Job configuration: https://github.com/apache/beam/blob/master/.github/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
       - name: Publish JUnit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
         if: always()
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'

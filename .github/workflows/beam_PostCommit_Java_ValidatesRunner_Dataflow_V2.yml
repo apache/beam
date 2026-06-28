@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java Dataflow V2 ValidatesRunner'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -82,13 +82,13 @@ jobs:
           gradle-command: :runners:google-cloud-dataflow-java:validatesRunnerV2
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
       - name: Publish JUnit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
         if: always()
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'

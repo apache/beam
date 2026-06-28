@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Jpms_Spark_Java11"]
         job_phrase: ["Run Jpms Spark Java 11 PostCommit"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -80,13 +80,13 @@ jobs:
           gradle-command: :sdks:java:testing:jpms-tests:sparkRunnerIntegrationTest
           arguments: -Dorg.gradle.java.home=$JAVA_HOME_11_X64
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
           path: "**/build/reports/tests/"
       - name: Publish JUnit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2
         if: always()
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
