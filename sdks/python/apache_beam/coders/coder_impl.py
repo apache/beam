@@ -95,10 +95,12 @@ def _as_signed_int64(value):
   # type: (int) -> int
 
   """Folds a uint64 to the signed int64 with the same bits (and VarInt
-  encoding), which the Cython int64_t stream params accept. Larger values pass
-  through and still overflow downstream."""
+  encoding), which the Cython int64_t stream params accept. Values outside the
+  64-bit range raise here so the pure-Python path matches Cython's overflow."""
   if (1 << 63) <= value < (1 << 64):
     return int(value) - (1 << 64)
+  if not fits_in_64_bits(value):
+    raise OverflowError("%d is out of range for a 64-bit integer." % value)
   return value
 
 

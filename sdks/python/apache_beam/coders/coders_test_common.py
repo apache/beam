@@ -37,7 +37,6 @@ import pytest
 from parameterized import param
 from parameterized import parameterized
 
-from apache_beam.coders import coder_impl
 from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import typecoders
@@ -451,11 +450,10 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(impl.estimate_size(v), len(encoded))
       self.assertEqual(coder.decode(encoded), signed_twin)
 
-    # Values past 64 bits stay out of range (only the Cython stream enforces it).
-    if coder_impl.is_compiled:
-      for v in [1 << 64, (1 << 70)]:
-        with self.assertRaises(OverflowError):
-          coder.encode(v)
+    # Values outside the 64-bit range stay out of range on both paths.
+    for v in [1 << 64, (1 << 70), -(1 << 63) - 1]:
+      with self.assertRaises(OverflowError):
+        coder.encode(v)
 
   def test_varint32_coder(self):
     # Small ints.
