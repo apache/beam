@@ -51,6 +51,7 @@ public class KafkaStreamsPipelineTranslator {
         ImmutableMap.<String, PTransformTranslator>builder()
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
             .put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, new RedistributeTranslator())
+            .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
             .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());
   }
