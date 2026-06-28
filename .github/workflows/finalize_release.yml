@@ -98,7 +98,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -141,7 +141,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
       with:
         token: ${{ github.event.inputs.REPO_TOKEN }}
         repository: apache/beam
@@ -185,7 +185,7 @@ jobs:
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: master

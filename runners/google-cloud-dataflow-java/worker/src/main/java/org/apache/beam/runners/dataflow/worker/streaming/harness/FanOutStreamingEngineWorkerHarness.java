@@ -303,10 +303,13 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     }
 
     LOG.info(
-        "Consuming new endpoints: {}. previous metadata version: {}, current metadata version: {}, previous endpoint type: {}, current endpoint type: {}",
-        newWindmillEndpoints,
+        "Consuming new endpoints. previous metadata version: {}, current metadata version: {}, "
+            + "windmill endpoint count: {}, global data endpoint count: {}, "
+            + "previous endpoint type: {}, current endpoint type: {}",
         activeMetadataVersion,
         newWindmillEndpoints.version(),
+        newWindmillEndpoints.windmillEndpoints().size(),
+        newWindmillEndpoints.globalDataEndpoints().size(),
         activeMetadataType,
         newWindmillEndpoints.type());
     closeStreamsNotIn(newWindmillEndpoints).join();

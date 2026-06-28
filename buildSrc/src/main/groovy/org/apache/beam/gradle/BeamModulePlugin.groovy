@@ -851,6 +851,7 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
         mockito_core                                : "org.mockito:mockito-core:4.11.0",
         mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
+        mockito_junit_jupiter                       : "org.mockito:mockito-junit-jupiter:4.11.0",
         mongo_java_driver                           : "org.mongodb:mongodb-driver-sync:5.5.0",
         mongo_bson                                  : "org.mongodb:bson:5.5.0",
         mongodb_driver_core                         : "org.mongodb:mongodb-driver-core:5.5.0",
@@ -953,6 +954,18 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
+    // Resolves a capability conflict for a given configuration by selecting the preferred capability provider.
+    project.ext.resolveCapabilitiesConflict = { Configuration configuration, String capability, String preferred ->
+      configuration.resolutionStrategy.capabilitiesResolution.withCapability(capability) {
+        def candidate = candidates.find { it.id.toString().contains(preferred) }
+        if (candidate != null) {
+          select(candidate)
+        } else {
+          selectHighestVersion()
+        }
+      }
+    }
+
     // Returns a string representing the relocated path to be used with the shadow plugin when
     // given a suffix such as "com.google.common".
     project.ext.getJavaRelocatedPath = { String suffix ->
@@ -977,6 +990,9 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // set compiler options for java version overrides to compile with a different java version
     project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
+      if (!project.findProperty("java${ver}Home")) {
+        return
+      }
       if (ver == '8') {
         def java8Home = project.findProperty("java8Home")
         options.fork = true
@@ -1160,16 +1176,16 @@ class BeamModulePlugin implements Plugin<Project> {
         // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
         // The order is intended here
         if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
-        project.hasProperty('java11Home')) {
+        project.findProperty('java11Home')) {
           forkJavaVersion = '11'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
-        project.hasProperty('java17Home')) {
+        project.findProperty('java17Home')) {
           forkJavaVersion = '17'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
-        project.hasProperty('java21Home')) {
+        project.findProperty('java21Home')) {
           forkJavaVersion = '21'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
-        project.hasProperty('java25Home')) {
+        project.findProperty('java25Home')) {
           forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
@@ -1627,7 +1643,7 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       // if specified test java version, modify the compile and runtime versions accordingly
       if (['11', '17', '21', '25'].contains(testJavaVersion)) {
-        def testJavaHome = project.getProperty("java${testJavaVersion}Home")
+        def testJavaHome = project.findProperty("java${testJavaVersion}Home")
 
         // redirect java compiler to specified version for compileTestJava only
         project.tasks.compileTestJava {
@@ -1644,6 +1660,12 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.withType(Test).configureEach {
           useJUnit()
           executable = "${testJavaHome}/bin/java"
+        }
+        // redirect java exec tasks (expansion service, run, shadowJar execs) to specified JDK
+        if (testJavaHome) {
+          project.tasks.withType(JavaExec).configureEach {
+            executable = "${testJavaHome}/bin/java"
+          }
         }
       }
 
@@ -2703,7 +2725,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def pythonDir = project.project(":sdks:python").projectDir
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
-      def javaContainerSuffix = getSupportedJavaVersion()
+      String ver = project.findProperty('testJavaVersion')
+      def javaContainerSuffix = ver ? getSupportedJavaVersion(ver) : getSupportedJavaVersion()
 
       // Sets up, collects, and runs Python pipeline tests
       project.tasks.register(config.name+"PythonUsingJava") {
@@ -2783,7 +2806,8 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix = getSupportedJavaVersion()
+      String ver = project.findProperty('testJavaVersion')
+      def javaContainerSuffix = ver ? getSupportedJavaVersion(ver) : getSupportedJavaVersion()
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
@@ -2972,10 +2996,11 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(transformServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix = getSupportedJavaVersion()
+      String ver = project.findProperty('testJavaVersion')
+      def javaContainerSuffix = ver ? getSupportedJavaVersion(ver) : getSupportedJavaVersion()
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
-      def transformServiceJavaContainerSuffix = 'java11'
+      def transformServiceJavaContainerSuffix = 'java17'
       def transformServicePythonContainerSuffix = pythonContainerSuffix
 
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
