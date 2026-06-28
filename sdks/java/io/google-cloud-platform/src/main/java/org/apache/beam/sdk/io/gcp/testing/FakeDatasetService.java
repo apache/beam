@@ -238,6 +238,13 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
   Function<TableRow, Boolean> shouldFailRow =
       (Function<TableRow, Boolean> & Serializable) tr -> false;
+
+  private volatile Throwable appendRowsError = null;
+
+  public void setAppendRowsError(Throwable t) {
+    this.appendRowsError = t;
+  }
+
   Map<String, List<String>> insertErrors = Maps.newHashMap();
 
   // The counter for the number of insertions performed.
@@ -801,6 +808,9 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
+        if (appendRowsError != null) {
+          return ApiFutures.immediateFailedFuture(appendRowsError);
+        }
         // The BigQuery client returns stream-open errors when the first append is called, so we
         // duplicate that here.
         Exceptions.StorageException storageException = tryInitialize();
