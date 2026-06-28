@@ -1073,9 +1073,11 @@ class VarIntCoderImpl(StreamCoderImpl):
     return in_stream.read_var_int64()
 
   def encode(self, value):
-    ivalue = value  # type cast
-    if 0 <= ivalue < len(small_ints):
-      return small_ints[ivalue]
+    # Compare as a Python object: a uint64 value overflows the int64_t cast
+    # the compiled fast path used to do here. Non-small values (including
+    # uint64) fall through to encode_to_stream, which folds them.
+    if 0 <= value < len(small_ints):
+      return small_ints[value]
     return StreamCoderImpl.encode(self, value)
 
   def decode(self, encoded):
