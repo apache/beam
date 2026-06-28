@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -57,9 +58,7 @@ public interface ExperimentalOptions extends PipelineOptions {
   /** Adds experiment to options if not already present. */
   static void addExperiment(ExperimentalOptions options, String experiment) {
     List<String> experiments = options.getExperiments();
-    if (experiments == null) {
-      experiments = Lists.newArrayList();
-    }
+    experiments = (experiments == null) ? Lists.newArrayList() : new ArrayList<>(experiments);
     if (!experiments.contains(experiment)) {
       experiments.add(experiment);
     }
