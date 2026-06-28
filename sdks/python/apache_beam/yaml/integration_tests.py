@@ -566,7 +566,9 @@ def temp_iceberg_table_with_pk(table_data):
 
   # Create a temp dir that will be shared between host and container.
   # We use the exact same path on both to avoid path mapping issues.
-  temp_dir = tempfile.mkdtemp()
+  # We create it in the current working directory (workspace) because
+  # Docker in GitHub Actions often cannot mount directories from /tmp.
+  temp_dir = tempfile.mkdtemp(dir=os.getcwd())
   os.chmod(temp_dir, 0o777)
 
   # Start the Iceberg REST catalog container
