@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_PerformanceTests_SpannerIO_Read_2GB_Python"]
         job_phrase: ["Run SpannerIO Read 2GB Performance Test Python"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

@@ -61,7 +61,7 @@ jobs:
       )
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -75,7 +75,7 @@ jobs:
           INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
           INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
       - name: Archive Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: Metrics Report
           path: "${{ github.workspace }}/.test-infra/jenkins/metrics_report/beam-metrics_report.html"
@@ -84,7 +84,7 @@ jobs:
           date=$(date -u +"%Y-%m-%d")
           echo "date=$date" >> $GITHUB_ENV
 #      - name: Send mail
-#        uses: dawidd6/action-send-mail@v6
+#        uses: dawidd6/action-send-mail@6d98ae34d733f9a723a9e04e94f2f24ba05e1402 # v6
 #        with:
 #          server_address: smtp.gmail.com
 #          server_port: 465

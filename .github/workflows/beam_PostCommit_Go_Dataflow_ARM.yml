@@ -65,7 +65,7 @@ jobs:
         job_name: ["beam_PostCommit_Go_Dataflow_ARM"]
         job_phrase: ["Run Go PostCommit Dataflow ARM"]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

@@ -65,7 +65,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Javadoc PostCommit'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -82,12 +82,12 @@ jobs:
           gradle-command: :sdks:java:javadoc:aggregateJavadoc
           arguments: -PdisableSpotlessCheck=true
       - name: Add canonical link into javadocs
-        uses: cicirello/javadoc-cleanup@v1
+        uses: cicirello/javadoc-cleanup@eb6cbe89ca0d73aa57f8b1c381a82706311144ad # v1
         with:
           path-to-root: sdks/java/javadoc/build/docs/javadoc
           base-url-path: https://beam.apache.org/releases/javadoc/current/
       - name: Upload Javadoc Results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: Javadoc Results
           path: '**/sdks/java/javadoc/build/docs/javadoc/**'
