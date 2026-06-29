@@ -3019,12 +3019,9 @@ class ReadFromBigQuery(PTransform):
     if self.output_type == 'PYTHON_DICT' or self.output_type is None:
       return output_pcollection
     elif self.output_type == 'BEAM_ROW':
-      # When a query is used, schema cannot be derived from an existing table.
-      # Use the user-supplied query_output_schema directly instead.
       if self._kwargs.get('query', None) is not None:
         return output_pcollection | bigquery_schema_tools.convert_to_usertype(
             self.query_output_schema, self._kwargs.get('selected_fields', None))
-      # Existing table-based path — unchanged below
       table_details = bigquery_tools.parse_table_reference(
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),

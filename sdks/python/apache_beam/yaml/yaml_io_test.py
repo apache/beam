@@ -771,17 +771,14 @@ class ReadFromBigQueryTest(unittest.TestCase):
       read_from_bigquery(query='SELECT id FROM dataset.table')
 
   def test_table_without_schema_ok(self):
-    # Table-based reads don't need schema — should not raise at construction
     import unittest.mock as mock
 
     from apache_beam.yaml.yaml_io import read_from_bigquery
     with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery') as mock_rfbq:
       mock_rfbq.return_value = mock.MagicMock()
-      # Should not raise
       read_from_bigquery(table='project:dataset.table')
       mock_rfbq.assert_called_once()
       call_kwargs = mock_rfbq.call_args[1]
-      # schema should not be passed for table reads
       self.assertIsNone(call_kwargs.get('query_output_schema'))
 
   def test_query_with_schema_passes_through(self):

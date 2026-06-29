@@ -778,13 +778,11 @@ class TestReadFromBigQuery(unittest.TestCase):
         ]))
 
   def test_query_with_beam_row_requires_schema(self):
-    # Should raise when query + BEAM_ROW given but no query_output_schema
     with self.assertRaisesRegex(ValueError, 'query_output_schema'):
       ReadFromBigQuery(
           query='SELECT id, name FROM dataset.table', output_type='BEAM_ROW')
 
   def test_query_with_beam_row_and_schema_accepted(self):
-    # Should NOT raise when query_output_schema is provided
     schema = {
         'fields': [
             {
@@ -795,7 +793,6 @@ class TestReadFromBigQuery(unittest.TestCase):
             },
         ]
     }
-    # Constructor should succeed — no error at init time
     transform = ReadFromBigQuery(
         query='SELECT id, name FROM dataset.table',
         output_type='BEAM_ROW',
