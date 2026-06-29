@@ -101,7 +101,8 @@ def read_from_bigquery(
     table: Optional[str] = None,
     query: Optional[str] = None,
     row_restriction: Optional[str] = None,
-    fields: Optional[Iterable[str]] = None):
+    fields: Optional[Iterable[str]] = None,
+    schema: Optional[Any] = None):
   """Reads data from BigQuery.
 
   Exactly one of table or query must be set.
@@ -119,18 +120,27 @@ def read_from_bigquery(
       specified field is a nested field, all the sub-fields in the field will be
       selected. The output field order is unrelated to the order of fields
       given here.
+    schema (dict): Required when query is set. A BigQuery schema describing
+      the query result columns, e.g.
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``.
+      Not applicable when reading from a table (schema is auto-derived).
   """
   if query is None:
     assert table is not None
   else:
     assert table is None and row_restriction is None and fields is None
+    if schema is None:
+      raise ValueError(
+          "When using 'query' in ReadFromBigQuery YAML transform, "
+          "'schema' is required to define the output row structure.")
   return ReadFromBigQuery(
       query=query,
       table=table,
       row_restriction=row_restriction,
       selected_fields=fields,
       method='DIRECT_READ',
-      output_type='BEAM_ROW')
+      output_type='BEAM_ROW',
+      query_output_schema=schema)
 
 
 def write_to_bigquery(
