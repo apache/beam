@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -64,27 +65,32 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
     RowCoder destinationCoder = RowCoder.of(AssignDestinationsAndPartitions.OUTPUT_SCHEMA);
     RowCoder dataCoder = RowCoder.of(dynamicDestinations.getDataSchema());
 
-    GroupIntoBatches<Row, Row> groupIntoPartitions =
-        GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
-    if (IcebergUtils.isUnbounded(input) && triggeringFrequency != null) {
-      groupIntoPartitions = groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
-    }
+    if (IcebergUtils.isUnbounded(input)) {
+      GroupIntoBatches<Row, Row> groupIntoPartitions =
+          GroupIntoBatches.ofByteSize(DEFAULT_BYTES_PER_FILE);
+      if (triggeringFrequency != null) {
+        groupIntoPartitions = groupIntoPartitions.withMaxBufferingDuration(triggeringFrequency);
+      }
 
-    if (autoSharding) {
+      if (autoSharding) {
+        return input
+            .apply(groupIntoPartitions.withShardedKey())
+            .setCoder(
+                KvCoder.of(
+                    org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
+                    IterableCoder.of(dataCoder)))
+            .apply(
+                "DropShardId",
+                MapElements.into(kvs(rows(), iterables(rows())))
+                    .via(kv -> KV.of(kv.getKey().getKey(), kv.getValue())))
+            .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
+      }
       return input
-          .apply(groupIntoPartitions.withShardedKey())
-          .setCoder(
-              KvCoder.of(
-                  org.apache.beam.sdk.util.ShardedKey.Coder.of(destinationCoder),
-                  IterableCoder.of(dataCoder)))
-          .apply(
-              "DropShardId",
-              MapElements.into(kvs(rows(), iterables(rows())))
-                  .via(kv -> KV.of(kv.getKey().getKey(), kv.getValue())))
+          .apply(groupIntoPartitions)
           .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
     } else {
       return input
-          .apply(groupIntoPartitions)
+          .apply(GroupByKey.create())
           .setCoder(KvCoder.of(destinationCoder, IterableCoder.of(dataCoder)));
     }
   }
