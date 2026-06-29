@@ -152,14 +152,37 @@ class AppendFilesToTables
           KV.of(element.getKey(), SnapshotInfo.fromSnapshot(snapshot)), window.maxTimestamp());
     }
 
-    // This works only when all files are using the same partition spec.
-    private void appendDataFiles(Table table, Iterable<FileWriteResult> fileWriteResults) {
-      AppendFiles update = table.newAppend();
+    private void appendDataFiles(Table table, Iterable<FileWriteResult> fileWriteResults)
+        throws IOException {
+      Map<Integer, PartitionSpec> specs = table.specs();
+      FileIO io = table.io();
+      String uuid = UUID.randomUUID().toString();
+
+      Map<String, List<DataFile>> byPartition = new HashMap<>();
       for (FileWriteResult result : fileWriteResults) {
-        DataFile dataFile = result.getDataFile(table.specs());
-        update.appendFile(dataFile);
+        DataFile dataFile = result.getDataFile(specs);
+        String partitionPath = result.getSerializableDataFile().getPartitionPath();
+        byPartition.computeIfAbsent(partitionPath, k -> new ArrayList<>()).add(dataFile);
         committedDataFileByteSize.update(dataFile.fileSizeInBytes());
         committedDataFileRecordCount.update(dataFile.recordCount());
+      }
+
+      AppendFiles update = table.newAppend();
+      int manifestIdx = 0;
+      for (Map.Entry<String, List<DataFile>> entry : byPartition.entrySet()) {
+        List<DataFile> files = entry.getValue();
+        PartitionSpec spec =
+            files.get(0).specId() >= 0
+                ? Preconditions.checkStateNotNull(specs.get(files.get(0).specId()))
+                : table.spec();
+        ManifestWriter<DataFile> writer =
+            createManifestWriter(
+                table.location(), uuid + "-" + manifestIdx++, spec, io);
+        for (DataFile file : files) {
+          writer.add(file);
+        }
+        writer.close();
+        update.appendManifest(writer.toManifestFile());
       }
       update.commit();
     }
