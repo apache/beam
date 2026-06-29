@@ -18,12 +18,10 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.AssignDestinationsAndPartitions.DESTINATION;
-import static org.apache.beam.sdk.io.iceberg.AssignDestinationsAndPartitions.PARTITION;
-import static org.apache.beam.sdk.io.iceberg.RecordWriterManager.getPartitionDataPath;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -31,24 +29,24 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.apache.iceberg.DataFiles;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.apache.iceberg.util.PropertyUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,9 +85,6 @@ class WritePartitionedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final Schema dataSchema;
-    private transient @MonotonicNonNull Map<TableIdentifier, Integer> specIds;
-    private transient @MonotonicNonNull Map<TableIdentifier, Map<String, PartitionField>>
-        partitionFieldMaps;
 
     WriteDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -102,67 +97,48 @@ class WritePartitionedRowsToFiles
       this.dataSchema = dataSchema;
     }
 
-    @Setup
-    public void setup() {
-      partitionFieldMaps = Maps.newHashMap();
-      specIds = Maps.newHashMap();
-    }
-
     @ProcessElement
     public void processElement(
-        @Element KV<Row, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
+        @Element KV<Row, Iterable<Row>> element,
+        BoundedWindow window,
+        PaneInfo paneInfo,
+        OutputReceiver<FileWriteResult> out)
         throws Exception {
       String tableIdentifier = checkStateNotNull(element.getKey().getString(DESTINATION));
-      String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       Table table = getOrCreateTable(destination, dataSchema);
-      partitionPath =
-          getPartitionDataPath(
-              partitionPath, getPartitionFieldMap(destination.getTableIdentifier(), table));
 
-      StructLike partitionData =
-          table.spec().isPartitioned()
-              ? DataFiles.data(table.spec(), partitionPath)
-              : new PartitionKey(table.spec(), table.schema());
-
-      String fileName =
-          destination
-              .getFileFormat()
-              .addExtension(String.format("%s-%s", filePrefix, UUID.randomUUID()));
-
-      RecordWriter writer =
-          new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
+      long maxFileSize =
+          PropertyUtil.propertyAsLong(
+              table.properties(),
+              TableProperties.WRITE_TARGET_FILE_SIZE_BYTES,
+              TableProperties.WRITE_TARGET_FILE_SIZE_BYTES_DEFAULT);
+      WindowedValue<IcebergDestination> windowedDestination =
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
+      RecordWriterManager writer =
+          new RecordWriterManager(catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE);
       try {
         for (Row row : element.getValue()) {
-          Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
-          writer.write(record);
+          writer.write(windowedDestination, row);
         }
       } finally {
         writer.close();
       }
 
-      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), partitionPath);
-      out.output(
-          FileWriteResult.builder()
-              .setTableIdentifier(destination.getTableIdentifier())
-              .setSerializableDataFile(sdf)
-              .build());
-    }
-
-    private Map<String, PartitionField> getPartitionFieldMap(
-        TableIdentifier identifier, Table table) {
-      @Nullable Integer specId = checkStateNotNull(specIds).get(identifier);
-      if (specId != null && specId == table.spec().specId()) {
-        return checkStateNotNull(checkStateNotNull(partitionFieldMaps).get(identifier));
+      @Nullable
+      List<SerializableDataFile> serializableDataFiles =
+          writer.getSerializableDataFiles().get(windowedDestination);
+      if (serializableDataFiles == null) {
+        return;
       }
-      Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
-      for (PartitionField partitionField : table.spec().fields()) {
-        partitionFieldMap.put(partitionField.name(), partitionField);
+      for (SerializableDataFile dataFile : serializableDataFiles) {
+        out.output(
+            FileWriteResult.builder()
+                .setTableIdentifier(destination.getTableIdentifier())
+                .setSerializableDataFile(dataFile)
+                .build());
       }
-      checkStateNotNull(specIds).put(identifier, table.spec().specId());
-      checkStateNotNull(partitionFieldMaps).put(identifier, partitionFieldMap);
-      return partitionFieldMap;
     }
 
     Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
