@@ -35,6 +35,7 @@ import com.google.api.services.bigquery.model.TimePartitioning;
 import io.grpc.StatusRuntimeException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,6 +49,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -69,12 +71,23 @@ public class CreateTableHelpers {
   static void createTableWrapper(Callable<Void> action, Callable<Boolean> tryCreateTable)
       throws Exception {
     BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
-    RuntimeException lastException = null;
+    Exception lastException = null;
     do {
       try {
         action.call();
         return;
-      } catch (ApiException | StatusRuntimeException e) {
+      } catch (Exception e) {
+        // The Storage Write library can wrap errors in UncheckedExecutionException
+        Optional<Throwable> handledCause =
+            Throwables.getCausalChain(e).stream()
+                .filter(
+                    cause ->
+                        (cause instanceof ApiException || cause instanceof StatusRuntimeException))
+                .findAny();
+        if (!handledCause.isPresent()) {
+          throw e;
+        }
+
         lastException = e;
         // TODO: Once BigQuery reliably returns a consistent error on table not found, we should
         // only try creating
