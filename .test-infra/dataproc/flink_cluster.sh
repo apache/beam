@@ -68,9 +68,22 @@ FLINK_LOCAL_PORT=8081
 # By default each taskmanager has one slot - use that value to avoid sharing SDK Harness by multiple tasks.
 FLINK_TASKMANAGER_SLOTS="${FLINK_TASKMANAGER_SLOTS:=1}"
 
-# Crucial config for Fn API gRPC buffer stability and memory allocation
+# Config for Fn API gRPC buffer stability and memory allocation.
+#
+# Flink 2 has elevated memory pressure. If the Task Heap is too small,
+# Flink's default 40% managed memory allocation can starve the heap.
+# During large load tests, this causes the TaskManager to hang and time out:
+#   "TimeoutException: The heartbeat of TaskManager with id ... timed out"
+#
+# These options are tuned for the default CI machine (n1-standard-2) and
+# are only applied if a custom machine type is not specified.
 FLINK_PROPS="flink:taskmanager.memory.task.off-heap.size=256m"
-FLINK_PROPS+=",flink:taskmanager.memory.process.size=1728m"
+if [[ -z "${HIGH_MEM_MACHINE:=}" ]]; then
+  # Increase process size to 2GB and reduce managed memory to 10%
+  # to expand the usable Task Heap to ~750MB.
+  FLINK_PROPS+=",flink:taskmanager.memory.process.size=2048m"
+  FLINK_PROPS+=",flink:taskmanager.memory.managed.fraction=0.1"
+fi
 FLINK_PROPS+=",flink:jobmanager.memory.process.size=1600m"
 FLINK_PROPS+=",flink:taskmanager.numberOfTaskSlots=${FLINK_TASKMANAGER_SLOTS}"
 
@@ -170,6 +183,16 @@ function create() {
   start_tunnel
 }
 
+# Resizes an active Flink cluster.
+function resize() {
+  if [[ -z "$FLINK_NUM_WORKERS" ]]; then
+    echo "Error: FLINK_NUM_WORKERS environment variable is not set."
+    exit 1
+  fi
+  echo "Rescaling Dataproc cluster $CLUSTER_NAME to $FLINK_NUM_WORKERS workers..."
+  gcloud dataproc clusters update $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --quiet
+}
+
 # Recreates a Flink cluster.
 function restart() {
   delete
@@ -178,9 +201,7 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  # DO NOT MERGE: debug only change
-  # gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
-  echo "skipped"
+  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
 }
 
 "$@"

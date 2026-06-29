@@ -124,11 +124,11 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Flink_Batch_test_arguments_5 }} --job_name=load-tests-python-flink-batch-gbk-6-${{env.NOW_UTC}}' \
-      - name: Restart Flink with parallelism 16
+      - name: Resize Flink to 10 workers
         env:
-          FLINK_NUM_WORKERS: 16
+          FLINK_NUM_WORKERS: 10
         run: |
-          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh resize
       - name: run fanout 4 times with 2GB 10-byte records total test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

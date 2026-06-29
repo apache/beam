@@ -107,11 +107,11 @@ jobs:
             -PloadTest.mainClass=combine \
             -Prunner=FlinkRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Go_Combine_Flink_Batch_test_arguments_1 }}' \
-      - name: Restart Flink with parallelism 16
+      - name: Resize Flink to 10 workers
         env:
-          FLINK_NUM_WORKERS: 16
+          FLINK_NUM_WORKERS: 10
         run: |
-          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh resize
       - name: run Combine Flink Batch Go Load Test 2 (fanout 4)
         timeout-minutes: 240
         uses: ./.github/actions/gradle-command-self-hosted-action
