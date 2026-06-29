@@ -75,6 +75,8 @@ from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.util import GcpHsmGeneratedSecret
 from apache_beam.transforms.util import GcpSecret
 from apache_beam.transforms.util import Secret
+from apache_beam.transforms.util import _BatchSizeEstimator
+from apache_beam.transforms.util import _GlobalWindowsBatchingDoFn
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
@@ -1257,6 +1259,53 @@ class BatchElementsTest(unittest.TestCase):
 
       checks = batches | beam.Map(check_batch_homogeneity)
       assert_that(checks, is_not_empty())
+
+  def test_global_batching_dofn_single_vs_multiple_bundles(self):
+    # This test directly verifies how bundling affects the batch sizes produced by
+    # the internal _GlobalWindowsBatchingDoFn of BatchElements.
+
+    # 1. Single Bundle Scenario:
+    # Four elements processed within the same start_bundle / finish_bundle lifecycle.
+    # min_batch_size = 2, max_batch_size = 2.
+    estimator = _BatchSizeEstimator(min_batch_size=2, max_batch_size=2)
+    dofn = _GlobalWindowsBatchingDoFn(estimator, element_size_fn=lambda x: 1)
+
+    dofn.start_bundle()
+    outputs = []
+    for elem in [1, 2, 3, 4]:
+      outputs.extend(dofn.process(elem))
+    outputs.extend(dofn.finish_bundle() or [])
+
+    # We should get exactly two batches of size 2.
+    batch_sizes = [len(wv.value) for wv in outputs]
+    self.assertEqual(batch_sizes, [2, 2])
+
+    # 2. Multiple Bundles Scenario (simulating elements split due to Reshuffle/GroupByKey):
+    # The runner splits elements into multiple bundles:
+    # Bundle 1 gets elements 1, 2, 3.
+    # Bundle 2 gets element 4.
+    estimator = _BatchSizeEstimator(min_batch_size=2, max_batch_size=2)
+    dofn = _GlobalWindowsBatchingDoFn(estimator, element_size_fn=lambda x: 1)
+
+    outputs = []
+    # Bundle 1
+    dofn.start_bundle()
+    for elem in [1, 2, 3]:
+      outputs.extend(dofn.process(elem))
+    outputs.extend(dofn.finish_bundle() or [])
+
+    # Bundle 2
+    dofn.start_bundle()
+    for elem in [4]:
+      outputs.extend(dofn.process(elem))
+    outputs.extend(dofn.finish_bundle() or [])
+
+    # The batch sizes will be [2, 1, 1] instead of [2, 2] because of bundle flushes.
+    # Specifically:
+    # - Bundle 1 emits a batch of 2, and then the remaining 1 element is flushed at finish_bundle (batch size 1).
+    # - Bundle 2 emits its 1 element at finish_bundle (batch size 1).
+    batch_sizes = [len(wv.value) for wv in outputs]
+    self.assertEqual(batch_sizes, [2, 1, 1])
 
 
 class SortAndBatchElementsTest(unittest.TestCase):

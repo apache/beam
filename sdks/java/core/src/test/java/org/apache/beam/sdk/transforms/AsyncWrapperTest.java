@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -179,7 +180,7 @@ public class AsyncWrapperTest implements Serializable {
 
   // 4. Used for testing Timer mock implementations.
   private static class FakeTimer implements Timer {
-    private Instant time = Instant.EPOCH;
+    private volatile Instant time = Instant.EPOCH;
 
     @Override
     public void set(Instant absoluteTime) {
@@ -873,5 +874,68 @@ public class AsyncWrapperTest implements Serializable {
 
     // Verify calling resetState() while background tasks are running finishes cleanly
     AsyncWrapper.resetState();
+  }
+
+  // Test 15: testTransientRpcFailureRetry
+  // Verify DoFn exceptions wipe local active state so bundle retries reschedule work.
+  @Test
+  public void testTransientRpcFailureRetry() {
+    FlakyDoFn dofn = new FlakyDoFn();
+    AsyncWrapper<String, String, String> asyncWrapper =
+        new AsyncWrapper<>(
+            dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
+    asyncWrapper.setup(null);
+
+    FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
+    FakeTimer fakeTimer = new FakeTimer();
+    KV<String, String> msg = KV.of("key1", "1");
+
+    asyncWrapper.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    waitForEmpty(asyncWrapper);
+
+    // Attempt 1 should throw RuntimeException wrapping ExecutionException
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            asyncWrapper.commitFinishedItemsDirect(
+                fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer));
+
+    // Verify the failed Future was removed from local active elements
+    assertEquals(0, asyncWrapper.getItemsInBufferCount());
+
+    // Simulate runner bundle retry: commitFinishedItemsDirect runs again with msg still in state.
+    // Because the dead future was removed, it will reschedule msg and succeed on Attempt 2.
+    waitForEmpty(asyncWrapper);
+    List<String> result =
+        asyncWrapper.commitFinishedItemsDirect(
+            fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    if (result.isEmpty()) {
+      waitForEmpty(asyncWrapper);
+      result =
+          asyncWrapper.commitFinishedItemsDirect(
+              fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    }
+
+    checkOutput(result, Collections.singletonList("1"));
+    assertEquals(0, fakeBagState.items.size());
+  }
+
+  private static class FlakyDoFn extends DoFn<String, String> {
+    private int attempts = 0;
+    private final ReentrantLock lock = new ReentrantLock();
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      lock.lock();
+      try {
+        attempts++;
+        if (attempts == 1) {
+          throw new RuntimeException("Transient RPC Error");
+        }
+      } finally {
+        lock.unlock();
+      }
+      receiver.output(element);
+    }
   }
 }

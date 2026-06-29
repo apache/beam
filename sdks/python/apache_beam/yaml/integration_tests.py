@@ -26,15 +26,20 @@ import logging
 import os
 import random
 import secrets
+import shutil
 import sqlite3
 import string
 import struct
+import tempfile
+import time
 import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
 
 import mock
+import requests
+from testcontainers.core.container import DockerContainer
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
@@ -556,6 +561,75 @@ def temp_oracle_database():
       connection.commit()
     port = oracle.get_exposed_port(1521)
     yield f"jdbc:oracle:thin:system/oracle@localhost:{port}/XEPDB1"
+
+
+@contextlib.contextmanager
+def temp_iceberg_table_with_pk(table_data):
+
+  # Create a temp dir that will be shared between host and container.
+  # We use the exact same path on both to avoid path mapping issues.
+  # We create it in the current working directory (workspace) because
+  # Docker in GitHub Actions often cannot mount directories from /tmp.
+  temp_dir = tempfile.mkdtemp(dir=os.getcwd())
+  os.chmod(temp_dir, 0o777)
+
+  # Start the Iceberg REST catalog container
+  container = DockerContainer("tabulario/iceberg-rest:0.6.0")
+  container.with_exposed_ports(8181)
+  container.with_volume_mapping(temp_dir, temp_dir, mode='rw')
+  container.with_env("HADOOP_USER_NAME", "iceberg")
+  container.with_env("CATALOG_WAREHOUSE", temp_dir)
+  container.with_env(
+      "CATALOG_IO__IMPL", "org.apache.iceberg.hadoop.HadoopFileIO")
+
+  try:
+    container.start()
+
+    ip = container.get_container_host_ip()
+    port = container.get_exposed_port(8181)
+    api_url = f"http://{ip}:{port}"
+
+    # Poll the REST API until it is ready
+    for _ in range(30):
+      try:
+        response = requests.get(f"{api_url}/v1/config", timeout=5)
+        if response.status_code == 200:
+          break
+      except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+      time.sleep(1)
+    else:
+      raise RuntimeError("Iceberg REST catalog failed to start in time.")
+
+    # Create namespace 'db'
+    requests.post(
+        f"{api_url}/v1/namespaces",
+        json={"namespace": ["db"]},
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+
+    # Create table with primary key
+    response = requests.post(
+        f"{api_url}/v1/namespaces/db/tables",
+        json=table_data,
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+    if response.status_code != 200:
+      raise RuntimeError(f"Failed to create Iceberg table: {response.text}")
+
+    # Change permissions of the created directories inside the container
+    # so the host user can write to them.
+    container.get_wrapped_container().exec_run(f"chmod -R 777 {temp_dir}")
+
+    yield {
+        "api_url": api_url,
+        "temp_dir": temp_dir,
+        "table": f"db.{table_data['name']}"
+    }
+
+  finally:
+    container.stop()
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @contextlib.contextmanager
