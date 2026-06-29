@@ -107,7 +107,6 @@ public class WindowedValues {
     private @Nullable String recordId;
     private @Nullable Long recordOffset;
     private CausedByDrain causedByDrain = CausedByDrain.NORMAL;
-    private @Nullable Context openTelemetryContext;
     private ValueKind valueKind = ValueKind.INSERT;
 
     @Override
@@ -160,8 +159,7 @@ public class WindowedValues {
     }
 
     @Override
-    public Builder<T> setOpenTelemetryContext(@Nullable Context openTelemetryContext) {
-      this.openTelemetryContext = openTelemetryContext;
+    public Builder<T> setOpenTelemetryContext(@Nullable Context ignored) {
       return this;
     }
 
@@ -200,7 +198,9 @@ public class WindowedValues {
 
     @Override
     public @Nullable Context getOpenTelemetryContext() {
-      return openTelemetryContext;
+      // builder may have different context set at the beginning of parDo
+      // when building WindowedValue we should take current context from storage.
+      return Context.current();
     }
 
     @Override
