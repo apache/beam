@@ -139,7 +139,7 @@ public class GroupByKeyTest {
             driver.createInputTopic(
                 repartitionTopic, new ByteArraySerializer(), new ByteArraySerializer());
         for (TestRecord<byte[], byte[]> record : repartitionOut.readRecordsToList()) {
-          repartitionIn.pipeInput(record.key(), record.value());
+          repartitionIn.pipeInput(record);
         }
       }
 

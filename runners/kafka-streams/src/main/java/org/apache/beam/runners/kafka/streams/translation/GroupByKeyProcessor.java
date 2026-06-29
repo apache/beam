@@ -23,6 +23,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -124,8 +125,14 @@ class GroupByKeyProcessor
         org.apache.kafka.streams.KeyValue<byte[], byte[]> entry = it.next();
         Object key = decodeKey(entry.key);
         List<@Nullable Object> values = decodeBuffer(entry.value);
+        // The pane fires at the end of the global window, so the grouped element carries the
+        // window's max timestamp (END_OF_GLOBAL_WINDOW). Emitting at TIMESTAMP_MIN_VALUE (the
+        // default of valueInGlobalWindow) would make the output appear arbitrarily late and be
+        // dropped downstream once the watermark has advanced.
         WindowedValue<KV<Object, Iterable<@Nullable Object>>> output =
-            WindowedValues.valueInGlobalWindow(KV.of(key, (Iterable<@Nullable Object>) values));
+            WindowedValues.timestampedValueInGlobalWindow(
+                KV.of(key, (Iterable<@Nullable Object>) values),
+                GlobalWindow.INSTANCE.maxTimestamp());
         ctx.forward(
             new Record<byte[], KStreamsPayload<?>>(
                 entry.key, KStreamsPayload.data(output), trigger.timestamp()));
