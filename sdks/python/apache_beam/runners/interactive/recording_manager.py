@@ -86,6 +86,7 @@ class AsyncComputationResult:
             bar_style='info',
         ) if IS_IPYTHON else None)
     self._cancel_requested = False
+    self._completed_event = threading.Event()
 
     if IS_IPYTHON:
       self._cancel_button.on_click(self._cancel_clicked)
@@ -151,27 +152,32 @@ class AsyncComputationResult:
     except TimeoutError:
       return None
 
+  def wait_for_completion(self):
+    self._completed_event.wait()
+
   def _on_done(self, future: Future):
-    self._env.unmark_pcollection_computing(self._pcolls)
-    self._recording_manager._async_computations.pop(self._display_id, None)
+    try:
+      if future.cancelled():
+        self.update_display('Computation Cancelled.', 1.0)
+        return
 
-    if future.cancelled():
-      self.update_display('Computation Cancelled.', 1.0)
-      return
-
-    exc = future.exception()
-    if exc:
-      self.update_display(f'Error: {exc}', 1.0)
-      _LOGGER.error('Asynchronous computation failed: %s', exc, exc_info=exc)
-    else:
-      self.update_display('Computation Finished Successfully.', 1.0)
-      res = future.result()
-      if res and res.state == PipelineState.DONE:
-        self._env.mark_pcollection_computed(self._pcolls)
+      exc = future.exception()
+      if exc:
+        self.update_display(f'Error: {exc}', 1.0)
+        _LOGGER.error('Asynchronous computation failed: %s', exc, exc_info=exc)
       else:
-        _LOGGER.warning(
-            'Async computation finished but state is not DONE: %s',
-            res.state if res else 'Unknown')
+        self.update_display('Computation Finished Successfully.', 1.0)
+        res = future.result()
+        if res and res.state == PipelineState.DONE:
+          self._env.mark_pcollection_computed(self._pcolls)
+        else:
+          _LOGGER.warning(
+              'Async computation finished but state is not DONE: %s',
+              res.state if res else 'Unknown')
+    finally:
+      self._env.unmark_pcollection_computing(self._pcolls)
+      self._recording_manager._async_computations.pop(self._display_id, None)
+      self._completed_event.set()
 
   def cancel(self):
     if self._future.done():
@@ -438,7 +444,6 @@ class RecordingManager:
     self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
-    self._pipeline_graph = None
 
   def _execute_pipeline_fragment(
       self,
@@ -710,19 +715,13 @@ class RecordingManager:
       return async_result
 
   def _get_pipeline_graph(self):
-    """Lazily initializes and returns the PipelineGraph."""
-    if self._pipeline_graph is None:
-      try:
-        # Try to create the graph.
-        self._pipeline_graph = PipelineGraph(self.user_pipeline)
-      except (ImportError, NameError, AttributeError):
-        # If pydot is missing, PipelineGraph() might crash.
-        _LOGGER.warning(
-            "Could not create PipelineGraph (pydot missing?). " \
-            "Async features disabled."
-        )
-        self._pipeline_graph = None
-    return self._pipeline_graph
+    """Initializes and returns the PipelineGraph."""
+    try:
+      # Try to create the graph.
+      return PipelineGraph(self.user_pipeline)
+    except (ImportError, NameError, AttributeError):
+      # If pydot is missing, PipelineGraph() might crash.
+      return None
 
   def _get_pcoll_id_map(self):
     """Creates a map from PCollection object to its ID in the proto."""
@@ -800,10 +799,15 @@ class RecordingManager:
     """Waits for any dependencies of the given
     PCollections that are currently being computed."""
     dependencies = self._get_all_dependencies(pcolls)
+    if async_result is None:
+      pcolls_to_check = dependencies.union(pcolls)
+    else:
+      pcolls_to_check = dependencies
     computing_deps: dict[beam.pvalue.PCollection, AsyncComputationResult] = {}
 
-    for dep in dependencies:
-      if self._env.is_pcollection_computing(dep):
+    for dep in pcolls_to_check:
+      is_computing = self._env.is_pcollection_computing(dep)
+      if is_computing:
         for comp in self._async_computations.values():
           if dep in comp._pcolls:
             computing_deps[dep] = comp
@@ -820,17 +824,16 @@ class RecordingManager:
         len(computing_deps),
         computing_deps.keys())
 
-    futures_to_wait = list(
-        set(comp._future for comp in computing_deps.values()))
+    results_to_wait = list(set(comp for comp in computing_deps.values()))
 
     try:
-      for i, future in enumerate(futures_to_wait):
+      for i, comp in enumerate(results_to_wait):
         if async_result:
           async_result.update_display(
-              f'Waiting for dependency {i + 1}/{len(futures_to_wait)}...',
-              progress=0.05 + 0.05 * (i / len(futures_to_wait)),
+              f'Waiting for dependency {i + 1}/{len(results_to_wait)}...',
+              progress=0.05 + 0.05 * (i / len(results_to_wait)),
           )
-        future.result()
+        comp.wait_for_completion()
       if async_result:
         async_result.update_display('Dependencies finished.', progress=0.1)
       _LOGGER.info('Dependencies finished successfully.')
@@ -891,23 +894,32 @@ class RecordingManager:
             'Cannot record because a dependency failed to compute'
             ' asynchronously.')
 
-      self._clear()
+      # Recalculate uncomputed PCollections because some may have finished computing during the wait
+      computed_pcolls = set(
+          pcoll for pcoll in pcolls
+          if pcoll in ie.current_env().computed_pcollections)
+      uncomputed_pcolls = set(pcolls).difference(computed_pcolls)
 
-      merged_options = pipeline_options.PipelineOptions(
-          **{
-              **self.user_pipeline.options.get_all_options(
-                  drop_default=True, retain_unknown_options=True),
-              **options.get_all_options(
-                  drop_default=True, retain_unknown_options=True)
-          }) if options else self.user_pipeline.options
+      if uncomputed_pcolls:
+        self._clear()
 
-      cache_path = ie.current_env().options.cache_root
-      is_remote_run = cache_path and ie.current_env(
-      ).options.cache_root.startswith('gs://')
-      pf.PipelineFragment(
-          list(uncomputed_pcolls), merged_options,
-          runner=runner).run(blocking=is_remote_run)
-      result = ie.current_env().pipeline_result(self.user_pipeline)
+        merged_options = pipeline_options.PipelineOptions(
+            **{
+                **self.user_pipeline.options.get_all_options(
+                    drop_default=True, retain_unknown_options=True),
+                **options.get_all_options(
+                    drop_default=True, retain_unknown_options=True)
+            }) if options else self.user_pipeline.options
+
+        cache_path = ie.current_env().options.cache_root
+        is_remote_run = cache_path and ie.current_env(
+        ).options.cache_root.startswith('gs://')
+        pf.PipelineFragment(
+            list(uncomputed_pcolls), merged_options,
+            runner=runner).run(blocking=is_remote_run)
+        result = ie.current_env().pipeline_result(self.user_pipeline)
+      else:
+        result = ie.current_env().pipeline_result(self.user_pipeline)
     else:
       result = None
 
