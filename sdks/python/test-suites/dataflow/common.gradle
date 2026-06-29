@@ -664,13 +664,9 @@ project.tasks.register("inferencePostCommitIT") {
   ]
 }
 
-// py312 PostCommit runs vllmDynamoTests only; native vllmTests excluded until the
-// opt-125m completion IT hang in apache-beam-testing is fixed (apache/beam#38701;
-// hung jobs 2026-06-04_15_32_20-13766057237933605706,
-// 2026-06-09_10_43_24-6678862009962393891).
 project.tasks.register("inferencePostCommitITPy312") {
   dependsOn = [
-  'vllmDynamoTests',
+  'vllmTests',
   ]
 }
 
