@@ -764,6 +764,49 @@ class YamlMatchAllTest(unittest.TestCase):
             ]))
 
 
+class ReadFromBigQueryTest(unittest.TestCase):
+  def test_query_without_schema_raises(self):
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with self.assertRaisesRegex(ValueError, 'schema'):
+      read_from_bigquery(query='SELECT id FROM dataset.table')
+
+  def test_table_without_schema_ok(self):
+    import unittest.mock as mock
+
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery') as mock_rfbq:
+      mock_rfbq.return_value = mock.MagicMock()
+      read_from_bigquery(table='project:dataset.table')
+      mock_rfbq.assert_called_once()
+      call_kwargs = mock_rfbq.call_args[1]
+      self.assertIsNone(call_kwargs.get('query_output_schema'))
+
+  def test_query_with_schema_passes_through(self):
+    import unittest.mock as mock
+
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery') as mock_rfbq:
+      mock_rfbq.return_value = mock.MagicMock()
+      read_from_bigquery(query='SELECT id FROM dataset.table', schema=schema)
+      call_kwargs = mock_rfbq.call_args[1]
+      self.assertEqual(call_kwargs['query_output_schema'], schema)
+
+  def test_query_and_table_both_raises(self):
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with self.assertRaises(AssertionError):
+      read_from_bigquery(
+          table='project:dataset.table',
+          query='SELECT id FROM dataset.table',
+          schema={'fields': []})
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
