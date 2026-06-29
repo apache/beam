@@ -35,6 +35,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Snapshot;
@@ -51,6 +52,9 @@ import org.yaml.snakeyaml.Yaml;
 public class IcebergCdcReadSchemaTransformProviderTest {
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+  private static final org.apache.iceberg.Schema CDC_SCHEMA =
+      new org.apache.iceberg.Schema(TestFixtures.SCHEMA.columns(), ImmutableSet.of(1));
 
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
@@ -83,8 +87,8 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, CDC_SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema());
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -122,8 +126,8 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
     TableIdentifier tableId = TableIdentifier.parse(identifier);
 
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, CDC_SCHEMA);
+    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema());
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable).subList(3, 9);
     List<Snapshot> snapshots = Lists.newArrayList(simpleTable.snapshots());

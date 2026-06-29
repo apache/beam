@@ -141,7 +141,7 @@ class DataflowCostBenchmark(LoadTest):
     return system_metrics
 
   def _get_worker_time_interval(
-      self, job_id: str) -> tuple[Optional[str], Optional[str]]:
+      self, job_id: str) -> tuple[Optional[datetime], Optional[datetime]]:
     """Extracts worker start and stop times from job messages."""
     start_time, end_time = None, None
     page_token = None
@@ -155,7 +155,7 @@ class DataflowCostBenchmark(LoadTest):
         page_token=page_token,
         minimum_importance='JOB_MESSAGE_DEBUG')
       for message in messages:
-        text = message.messageText
+        text = message.message_text
         if getattr(message, 'time', None):
           last_message_time = message.time
         if text:
@@ -186,8 +186,8 @@ class DataflowCostBenchmark(LoadTest):
       self,
       project: str,
       job_id: str,
-      start_time: str,
-      end_time: str,
+      start_time: datetime,
+      end_time: datetime,
       pcollection_name: Optional[str] = None,
   ) -> dict[str, float]:
     """Query Cloud Monitoring for per-PCollection throughput."""
@@ -256,7 +256,8 @@ class DataflowCostBenchmark(LoadTest):
     return metrics
 
   def _get_streaming_throughput_metrics(
-      self, project: str, start_time: str, end_time: str) -> dict[str, float]:
+      self, project: str, start_time: datetime,
+      end_time: datetime) -> dict[str, float]:
     if not self.subscription:
       return {'AvgThroughputBytes': 0.0, 'AvgThroughputElements': 0.0}
 
@@ -297,17 +298,14 @@ class DataflowCostBenchmark(LoadTest):
       metrics[f"AvgThroughput{key}"] = avg_rate
     return metrics
 
-  def _get_job_runtime(self, start_time: str, end_time: str) -> float:
+  def _get_job_runtime(self, start_time: datetime, end_time: datetime) -> float:
     """Calculates the job runtime duration in seconds."""
-    start_dt = datetime.fromisoformat(start_time[:-1])
-    end_dt = datetime.fromisoformat(end_time[:-1])
-    return (end_dt - start_dt).total_seconds()
+    return (end_time - start_time).total_seconds()
 
   def _get_additional_metrics(self,
                               result: DataflowPipelineResult) -> dict[str, Any]:
     job_id = result.job_id()
-    job = self.dataflow_client.get_job(job_id)
-    project = job.projectId
+    project = self.project_id
     start_time, end_time = self._get_worker_time_interval(job_id)
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')

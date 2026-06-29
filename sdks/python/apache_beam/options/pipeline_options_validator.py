@@ -30,6 +30,7 @@ from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PortableOptions
+from apache_beam.options.pipeline_options import ProfilingOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -55,6 +56,7 @@ class PipelineOptionsValidator(object):
       DebugOptions,
       GoogleCloudOptions,
       PortableOptions,
+      ProfilingOptions,
       SetupOptions,
       StandardOptions,
       TestOptions,

@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -1201,6 +1202,87 @@ public class GrpcCommitWorkStreamTest {
 
     // 6. Verify callback completed successfully with CommitStatus.OK
     assertThat(commitStatusFuture.get()).isEqualTo(Windmill.CommitStatus.OK);
+  }
+
+  @Test
+  public void testCommitWorkItem_stopsRetriesAfterDuration() throws Exception {
+    int numCommits = 1;
+    CountDownLatch commitProcessed = new CountDownLatch(numCommits);
+    AtomicReference<Windmill.CommitStatus> commitStatus = new AtomicReference<>();
+    GrpcCommitWorkStream commitWorkStream =
+        (GrpcCommitWorkStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(Duration.ofMinutes(1))
+                .setCommitWorkStreamRetryTimeout(Duration.ofNanos(1))
+                .build()
+                .createCommitWorkStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
+    commitWorkStream.start();
+
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(
+              COMPUTATION_ID,
+              workItemCommitRequest(0),
+              status -> {
+                commitStatus.set(status);
+                commitProcessed.countDown();
+              }));
+    }
+
+    // The next request should have some chunks.
+    assertThat(streamInfo.requests.take().getCommitChunkList()).isNotEmpty();
+
+    // We won't get responses so we will have some pending requests.
+    assertThat(commitProcessed.getCount()).isGreaterThan(0);
+    streamInfo.responseObserver.onError(new IOException("test error"));
+    commitProcessed.await();
+    assertThat(commitStatus.get()).isEqualTo(Windmill.CommitStatus.ABORTED);
+  }
+
+  @Test
+  public void testCommitWorkItem_retriesWithLongerCommitRetryTimeout() throws Exception {
+    int numCommits = 1;
+    CountDownLatch commitProcessed = new CountDownLatch(numCommits);
+    AtomicReference<Windmill.CommitStatus> commitStatus = new AtomicReference<>();
+    GrpcCommitWorkStream commitWorkStream =
+        (GrpcCommitWorkStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(Duration.ofMinutes(1))
+                // Verifies that if this is set but is not exceeded that a retry occurs.
+                .setCommitWorkStreamRetryTimeout(Duration.ofMinutes(10))
+                .build()
+                .createCommitWorkStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
+    commitWorkStream.start();
+
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(
+              COMPUTATION_ID,
+              workItemCommitRequest(0),
+              status -> {
+                commitStatus.set(status);
+                commitProcessed.countDown();
+              }));
+    }
+
+    // The next request should have some chunks.
+    assertThat(streamInfo.requests.take().getCommitChunkList()).isNotEmpty();
+
+    // We won't get responses so we will have some pending requests.
+    assertThat(commitProcessed.getCount()).isGreaterThan(0);
+    streamInfo.responseObserver.onError(new IOException("test error"));
+
+    // The stream should reconnect and retry the requests.
+    FakeWindmillGrpcService.CommitStreamInfo reconnectStreamInfo =
+        waitForConnectionAndConsumeHeader();
+    Windmill.StreamingCommitWorkRequest reconnectRequest = reconnectStreamInfo.requests.take();
+    assertEquals(1, reconnectRequest.getCommitChunkCount());
+    reconnectStreamInfo.responseObserver.onNext(
+        Windmill.StreamingCommitResponse.newBuilder().addRequestId(1).build());
+    commitProcessed.await();
+    assertThat(commitStatus.get()).isEqualTo(Windmill.CommitStatus.OK);
   }
 
   private FakeWindmillGrpcService.CommitStreamInfo waitForConnectionAndConsumeHeader() {

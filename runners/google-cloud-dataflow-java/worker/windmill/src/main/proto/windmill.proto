@@ -453,6 +453,8 @@ message WorkItem {
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
 
+  optional Uint128Proto key_group = 18;
+
   reserved 12, 13, 14, 15, 16;
 }
 

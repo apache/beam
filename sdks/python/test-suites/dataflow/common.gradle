@@ -245,6 +245,7 @@ task validatesRunnerBatchTests {
   doLast {
     def argMap = [
         "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+        "additional_opts": ['--no_use_public_ips'],
         "sdk_location": project.ext.sdkLocation,
         "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
         "collect": "it_validatesrunner and not no_sickbay_batch"
@@ -266,6 +267,7 @@ task validatesRunnerStreamingTests {
   doFirst {
     def argMap = [
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
+                "additional_opts": ['--no_use_public_ips'],
                 "streaming": "true",
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
@@ -571,7 +573,9 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+      // Use constraints file to pin versions while allowing pip to
+      // resolve compatible versions within the specified ranges in requirements.txt
+      args '-c', ". ${envdir}/bin/activate && pip install -c constraints.txt -r requirements.txt"
     }
   }
 }

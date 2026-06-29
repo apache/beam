@@ -31,6 +31,19 @@ repositories {
     }
 }
 
+// Flink 2.1+ uses at.yawk.lz4:lz4-java while Spark uses org.lz4:lz4-java
+// Resolve capability conflict by preferring Flink's version when both are present
+configurations.all {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
+    if (candidate != null) {
+      select(candidate)
+    } else {
+      selectHighestVersion()
+    }
+  }
+}
+
 dependencies {
     implementation 'com.offbytwo.jenkins:jenkins-client:0.3.8'
     implementation library.java.jackson_databind

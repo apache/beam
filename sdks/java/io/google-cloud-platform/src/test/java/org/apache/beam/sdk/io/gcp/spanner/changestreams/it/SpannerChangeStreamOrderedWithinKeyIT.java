@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecordMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.testing.PAssert;
@@ -88,10 +89,11 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
   public void testOrderedWithinKey() {
     LOG.info("Test pipeline: {}", pipeline);
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
 
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();

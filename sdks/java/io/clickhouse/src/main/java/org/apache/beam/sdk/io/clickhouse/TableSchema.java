@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -38,6 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public abstract class TableSchema implements Serializable {
+
+  private static final Schema.FieldType NANOS_INSTANT_TYPE =
+      Schema.FieldType.logicalType(new NanosInstant());
 
   public abstract List<Column> columns();
 
@@ -75,6 +80,22 @@ public abstract class TableSchema implements Serializable {
       case DATE:
       case DATETIME:
         return Schema.FieldType.DATETIME;
+
+      case DATETIME64:
+        // Pick the narrowest Beam logical type that still round-trips the requested precision:
+        //   ≤ 3 (milliseconds)         → Joda DATETIME, keeping existing pipelines unchanged.
+        //   4–6 (down to microseconds) → SqlTypes.TIMESTAMP (MicrosInstant) — interoperable
+        //                                with BigQueryIO, Avro and Beam SQL.
+        //   ≥ 7 (sub-microsecond)      → NanosInstant, the only built-in type that preserves
+        //                                full nanosecond precision through Row construction.
+        int p = columnType.precision();
+        if (p <= 3) {
+          return Schema.FieldType.DATETIME;
+        } else if (p <= 6) {
+          return Schema.FieldType.logicalType(SqlTypes.TIMESTAMP);
+        } else {
+          return NANOS_INSTANT_TYPE;
+        }
 
       case STRING:
         return Schema.FieldType.STRING;
@@ -163,6 +184,7 @@ public abstract class TableSchema implements Serializable {
     // Primitive types
     DATE,
     DATETIME,
+    DATETIME64,
     ENUM8,
     ENUM16,
     FIXEDSTRING,
@@ -238,6 +260,9 @@ public abstract class TableSchema implements Serializable {
 
     public abstract @Nullable Map<String, ColumnType> tupleTypes();
 
+    /** Sub-second precision (0–9) of {@code DateTime64}. {@code null} for other types. */
+    public abstract @Nullable Integer precision();
+
     public ColumnType withNullable(boolean nullable) {
       return toBuilder().nullable(nullable).build();
     }
@@ -255,6 +280,26 @@ public abstract class TableSchema implements Serializable {
           .typeName(TypeName.FIXEDSTRING)
           .nullable(false)
           .fixedStringSize(size)
+          .build();
+    }
+
+    /** Default {@code DateTime64} precision in ClickHouse. */
+    public static final int DEFAULT_DATETIME64_PRECISION = 3;
+
+    /** Returns a {@code DateTime64} type with ClickHouse's default precision of 3. */
+    public static ColumnType dateTime64() {
+      return dateTime64(DEFAULT_DATETIME64_PRECISION);
+    }
+
+    public static ColumnType dateTime64(int precision) {
+      if (precision < 0 || precision > 9) {
+        throw new IllegalArgumentException(
+            "DateTime64 precision must be in [0, 9], got " + precision);
+      }
+      return ColumnType.builder()
+          .typeName(TypeName.DATETIME64)
+          .nullable(false)
+          .precision(precision)
           .build();
     }
 
@@ -296,13 +341,17 @@ public abstract class TableSchema implements Serializable {
      *
      * @param str string representation of ClickHouse type
      * @return type of ClickHouse column
+     * @throws IllegalArgumentException if {@code str} is not a valid ClickHouse column type
      */
     public static ColumnType parse(String str) {
       try {
         return new org.apache.beam.sdk.io.clickhouse.impl.parser.ColumnTypeParser(
                 new StringReader(str))
             .parse();
-      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException e) {
+      } catch (org.apache.beam.sdk.io.clickhouse.impl.parser.ParseException
+          | org.apache.beam.sdk.io.clickhouse.impl.parser.TokenMgrError
+          | IllegalArgumentException e) {
+        // Funnel lexical, syntactic and validation failures into one error surface.
         throw new IllegalArgumentException("failed to parse", e);
       }
     }
@@ -366,6 +415,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder fixedStringSize(Integer size);
 
       public abstract Builder tupleTypes(Map<String, ColumnType> tupleElements);
+
+      public abstract Builder precision(@Nullable Integer precision);
 
       public abstract ColumnType build();
     }

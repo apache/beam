@@ -406,6 +406,8 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
     // TODO(https://github.com/apache/beam/issues/32021)
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+    // Spark does not support side inputs in timers (added in #38363)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSideInputNotReadyTimer'
   }
 }
 

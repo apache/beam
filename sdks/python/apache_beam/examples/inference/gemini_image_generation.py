@@ -17,8 +17,8 @@
 
 """ A sample pipeline using the RunInference API to classify text using an LLM.
 This pipeline creates a set of prompts and sends it to a Gemini service then
-returns the predictions from the classifier model. This example uses the
-gemini-2.0-flash-001 model.
+returns generated images from the model. This example uses the
+gemini-2.5-flash-image model.
 """
 
 import argparse

@@ -198,4 +198,67 @@ public class CalciteUtilsTest {
     assertEquals(1, relDataType.getFieldCount());
     assertEquals("nested_f1", relDataType.getFieldList().get(0).getName());
   }
+
+  @Test
+  public void testSqlTypeWithAutoCast() {
+    RelDataType type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, String.class);
+    assertEquals(SqlTypeName.VARCHAR, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Integer.class);
+    assertEquals(SqlTypeName.INTEGER, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, int.class);
+    assertEquals(SqlTypeName.INTEGER, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Long.class);
+    assertEquals(SqlTypeName.BIGINT, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, long.class);
+    assertEquals(SqlTypeName.BIGINT, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Double.class);
+    assertEquals(SqlTypeName.DOUBLE, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, double.class);
+    assertEquals(SqlTypeName.DOUBLE, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Float.class);
+    assertEquals(SqlTypeName.FLOAT, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, float.class);
+    assertEquals(SqlTypeName.FLOAT, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Short.class);
+    assertEquals(SqlTypeName.SMALLINT, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, short.class);
+    assertEquals(SqlTypeName.SMALLINT, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Byte.class);
+    assertEquals(SqlTypeName.TINYINT, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, byte.class);
+    assertEquals(SqlTypeName.TINYINT, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, Boolean.class);
+    assertEquals(SqlTypeName.BOOLEAN, type.getSqlTypeName());
+    assertTrue(type.isNullable());
+
+    type = CalciteUtils.sqlTypeWithAutoCast(dataTypeFactory, boolean.class);
+    assertEquals(SqlTypeName.BOOLEAN, type.getSqlTypeName());
+    assertFalse(type.isNullable());
+  }
 }
