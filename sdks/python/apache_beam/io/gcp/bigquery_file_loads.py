@@ -397,7 +397,7 @@ class UpdateDestinationSchema(beam.DoFn):
       return
 
     table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.project is None:
+    if table_reference.project is None or table_reference.project == bigquery_tools.FALLBACK_PROJECT:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value(
@@ -542,7 +542,7 @@ class TriggerCopyJobs(beam.DoFn):
     destination, job_reference = element
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
-    if copy_to_reference.project is None:
+    if copy_to_reference.project is None or copy_to_reference.project == bigquery_tools.FALLBACK_PROJECT:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value(
@@ -554,7 +554,7 @@ class TriggerCopyJobs(beam.DoFn):
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
     new_table_id = job_reference.jobId
     new_project = copy_from_reference.project
-    if new_project is None:
+    if new_project is None or new_project == bigquery_tools.FALLBACK_PROJECT:
       new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
     from google.cloud.bigquery import DatasetReference
@@ -734,7 +734,7 @@ class TriggerLoadJobs(beam.DoFn):
       additional_parameters = self.additional_bq_parameters
 
     table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.project is None:
+    if table_reference.project is None or table_reference.project == bigquery_tools.FALLBACK_PROJECT:
       from google.cloud.bigquery import DatasetReference
       from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value(
