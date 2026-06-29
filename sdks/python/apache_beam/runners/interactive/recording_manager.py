@@ -176,7 +176,8 @@ class AsyncComputationResult:
               res.state if res else 'Unknown')
     finally:
       self._env.unmark_pcollection_computing(self._pcolls)
-      self._recording_manager._async_computations.pop(self._display_id, None)
+      with self._recording_manager._lock:
+        self._recording_manager._async_computations.pop(self._display_id, None)
       self._completed_event.set()
 
   def cancel(self):
@@ -444,6 +445,7 @@ class RecordingManager:
     self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
+    self._lock = threading.Lock()
 
   def _execute_pipeline_fragment(
       self,
@@ -699,7 +701,8 @@ class RecordingManager:
       future = Future()
       async_result = AsyncComputationResult(
           future, pcolls_to_compute, self.user_pipeline, self)
-      self._async_computations[async_result._display_id] = async_result
+      with self._lock:
+        self._async_computations[async_result._display_id] = async_result
       self._env.mark_pcollection_computing(pcolls_to_compute)
 
       def task():
@@ -805,10 +808,13 @@ class RecordingManager:
       pcolls_to_check = dependencies
     computing_deps: dict[beam.pvalue.PCollection, AsyncComputationResult] = {}
 
+    with self._lock:
+      async_computations_copy = list(self._async_computations.values())
+
     for dep in pcolls_to_check:
       is_computing = self._env.is_pcollection_computing(dep)
       if is_computing:
-        for comp in self._async_computations.values():
+        for comp in async_computations_copy:
           if dep in comp._pcolls:
             computing_deps[dep] = comp
             break

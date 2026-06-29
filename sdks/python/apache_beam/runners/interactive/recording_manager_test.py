@@ -1133,7 +1133,11 @@ class RecordingManagerTest(unittest.TestCase):
     self.assertIsNot(graph1, graph2)
 
     # Verify that the new graph contains the newly added transform
-    self.assertIn('Map1', graph2._pipeline_proto.components.transforms)
+    transform_names = [
+        t.unique_name
+        for t in graph2._pipeline_proto.components.transforms.values()
+    ]
+    self.assertIn('Map1', transform_names)
 
 
 if __name__ == '__main__':
