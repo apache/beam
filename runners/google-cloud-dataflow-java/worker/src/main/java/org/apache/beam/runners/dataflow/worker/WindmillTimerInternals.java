@@ -64,6 +64,19 @@ class WindmillTimerInternals implements TimerInternals {
   private final Consumer<TimerData> onTimerModified;
   private final WindmillTagEncoding windmillTagEncoding;
 
+  private boolean poisoned = false;
+
+  public void poison() {
+    this.poisoned = true;
+  }
+
+  private void checkNotPoisoned() {
+    if (poisoned) {
+      throw new IllegalStateException(
+          "WindmillTimerInternals is poisoned and cannot be used after flushState().");
+    }
+  }
+
   public WindmillTimerInternals(
       String stateFamily, // unique identifies a step
       WindmillTimerType type,
@@ -80,12 +93,14 @@ class WindmillTimerInternals implements TimerInternals {
   }
 
   public WindmillTimerInternals withType(WindmillTimerType type) {
+    checkNotPoisoned();
     return new WindmillTimerInternals(
         stateFamily, type, processingTime, watermarks, windmillTagEncoding, onTimerModified);
   }
 
   @Override
   public void setTimer(TimerData timerKey) {
+    checkNotPoisoned();
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
     timerMap.put(
         new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
@@ -101,6 +116,7 @@ class WindmillTimerInternals implements TimerInternals {
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
+    checkNotPoisoned();
     TimerData timer =
         TimerData.of(
             timerId,
@@ -124,6 +140,7 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(TimerData timerKey) {
+    checkNotPoisoned();
     String timerDataKey = getTimerDataKey(timerKey.getTimerId(), timerKey.getTimerFamilyId());
     timerMap.put(
         new SimpleEntry<>(timerDataKey, timerKey.getNamespace()),
@@ -139,6 +156,7 @@ class WindmillTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+    checkNotPoisoned();
     deleteTimer(
         TimerData.of(
             timerId,
@@ -152,12 +170,14 @@ class WindmillTimerInternals implements TimerInternals {
 
   @Override
   public Instant currentProcessingTime() {
+    checkNotPoisoned();
     Instant now = Instant.now();
     return processingTime.isAfter(now) ? processingTime : now;
   }
 
   @Override
   public @Nullable Instant currentSynchronizedProcessingTime() {
+    checkNotPoisoned();
     return watermarks.synchronizedProcessingTime();
   }
 
@@ -172,6 +192,7 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public Instant currentInputWatermarkTime() {
+    checkNotPoisoned();
     return watermarks.inputDataWatermark();
   }
 
@@ -186,10 +207,12 @@ class WindmillTimerInternals implements TimerInternals {
    */
   @Override
   public @Nullable Instant currentOutputWatermarkTime() {
+    checkNotPoisoned();
     return watermarks.outputDataWatermark();
   }
 
   public void persistTo(Windmill.WorkItemCommitRequest.Builder outputBuilder) {
+    checkNotPoisoned();
     for (Entry<TimerData, Boolean> value : timerMap.values()) {
       // Regardless of whether it is set or not, it must have some TimerData stored so we
       // can know its time domain
