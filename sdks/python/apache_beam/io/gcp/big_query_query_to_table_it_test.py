@@ -141,6 +141,10 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                       'time': '00:00:00'
                   }]
 
+    import base64
+    for row in table_data:
+      row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
+
     passed, errors = self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
