@@ -644,15 +644,17 @@ public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, Output
 
         if (activeElements.containsKey(elementId)) {
           InFlightElement<OutputT> inFlight = activeElements.get(elementId);
+          // Future is either completed, cancelled, or throws an exception
           if (inFlight.future.isDone()) {
+            // Remove from local active map before checking the result
+            activeElements.remove(elementId);
             try {
               if (!inFlight.future.isCancelled()) {
                 toReturn.add(inFlight.future.get());
+                // Only mark as finished if future was not cancelled
+                finishedElementIds.add(elementId);
+                itemsFinished++;
               }
-
-              finishedElementIds.add(elementId);
-              activeElements.remove(elementId);
-              itemsFinished++;
             } catch (Exception e) {
               LOG.error("Error executing async task for element {}", element, e);
               throw new RuntimeException("Error executing async task for element " + element, e);
