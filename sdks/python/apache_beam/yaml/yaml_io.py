@@ -750,10 +750,7 @@ def read_from_mongodb(
     collection: str,
     schema: Union[str, dict[str, Any]],
     uri: Optional[str] = None,
-    filter: Optional[dict[str, Any]] = None,
-    projection: Optional[Union[list[str], dict[str, Any]]] = None,
-    extra_client_params: Optional[dict[str, Any]] = None,
-    bucket_auto: bool = False):
+    filter: Optional[dict[str, Any]] = None):
   """Reads data from MongoDB.
 
   The resulting PCollection consists of rows with fields matching the provided
@@ -765,18 +762,11 @@ def read_from_mongodb(
     schema: JSON schema specifying the fields to select and their types.
     uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     filter: A JSON/bson mapping specifying elements which must be present.
-    projection: A list of field names that should be returned or a dict
-      specifying the fields to include/exclude.
-    extra_client_params: Optional MongoClient parameters.
-    bucket_auto: If True, use MongoDB $bucketAuto aggregation to split
-      collection into bundles instead of splitVector command.
   """
   if isinstance(schema, str):
     schema = json.loads(schema)
   if isinstance(filter, str):
     filter = json.loads(filter)
-  if isinstance(projection, str):
-    projection = json.loads(projection)
 
   beam_schema = json_utils.json_schema_to_beam_schema(schema)
   beam_type = schema_pb2.FieldType(
@@ -786,13 +776,7 @@ def read_from_mongodb(
   output = (
       root
       | mongodbio.ReadFromMongoDB(
-          uri=uri,
-          db=database,
-          coll=collection,
-          filter=filter,
-          projection=projection,
-          extra_client_params=extra_client_params,
-          bucket_auto=bucket_auto)
+          uri=uri, db=database, coll=collection, filter=filter)
       | beam.Map(to_row_fn))
   output.element_type = schemas.named_tuple_from_schema(beam_schema)
   return output
@@ -806,8 +790,7 @@ def write_to_mongodb(
     database: str,
     collection: str,
     uri: Optional[str] = None,
-    batch_size: int = 1024,
-    extra_client_params: Optional[Mapping[str, Any]] = None):
+    batch_size: int = 1024):
   """Writes data to MongoDB.
 
   Args:
@@ -816,7 +799,6 @@ def write_to_mongodb(
     collection: The MongoDB collection name.
     uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     batch_size: Number of documents per bulk_write to MongoDB.
-    extra_client_params: Optional MongoClient parameters.
   """
   def row_to_dict(value):
     if value is None:
@@ -836,11 +818,7 @@ def write_to_mongodb(
       pcoll
       | beam.Map(row_to_dict)
       | mongodbio.WriteToMongoDB(
-          uri=uri,
-          db=database,
-          coll=collection,
-          batch_size=batch_size,
-          extra_client_params=extra_client_params))
+          uri=uri, db=database, coll=collection, batch_size=batch_size))
 
 
 @beam.ptransform_fn
