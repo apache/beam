@@ -853,12 +853,12 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       spy_wait.assert_called_with({pcoll2}, async_res2)
 
       # Let pcoll1 finish
-      async_res1.result(timeout=60)
+      async_res1.wait_for_completion()
       self.assertTrue(pcoll1 in self.env.computed_pcollections)
       self.assertFalse(self.env.is_pcollection_computing(pcoll1))
 
       # pcoll2 should now run and complete
-      async_res2.result(timeout=60)
+      async_res2.wait_for_completion()
       self.assertTrue(pcoll2 in self.env.computed_pcollections)
 
   @patch.object(ie.InteractiveEnvironment, 'is_pcollection_computing')

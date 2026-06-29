@@ -1062,7 +1062,7 @@ class RecordingManagerTest(unittest.TestCase):
     ie.current_env().mark_pcollection_computing({p1})
 
     self.assertTrue(rm._wait_for_dependencies({p2}))
-    mock_future.result.assert_called_once()
+    mock_async_res.wait_for_completion.assert_called_once()
     ie.current_env().unmark_pcollection_computing({p1})
 
   def test_wait_for_dependencies_async_result(self):
@@ -1122,7 +1122,7 @@ class RecordingManagerTest(unittest.TestCase):
     # First call: graph is created
     graph1 = rm._get_pipeline_graph()
     self.assertIsNotNone(graph1)
-    self.assertEqual(graph1.user_pipeline, p)
+    self.assertEqual(graph1._pipeline_instrument.user_pipeline, p)
 
     # Add a new transform to the pipeline
     pcoll2 = pcoll1 | 'Map1' >> beam.Map(lambda x: x + 1)
