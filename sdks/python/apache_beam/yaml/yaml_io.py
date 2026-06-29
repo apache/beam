@@ -749,7 +749,7 @@ def read_from_mongodb(
     database: str,
     collection: str,
     schema: Union[str, dict[str, Any]],
-    connection_uri: Optional[str] = None,
+    uri: Optional[str] = None,
     filter: Optional[dict[str, Any]] = None,
     projection: Optional[Union[list[str], dict[str, Any]]] = None,
     extra_client_params: Optional[dict[str, Any]] = None,
@@ -763,7 +763,7 @@ def read_from_mongodb(
     database: The MongoDB database name.
     collection: The MongoDB collection name.
     schema: JSON schema specifying the fields to select and their types.
-    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     filter: A JSON/bson mapping specifying elements which must be present.
     projection: A list of field names that should be returned or a dict
       specifying the fields to include/exclude.
@@ -786,7 +786,7 @@ def read_from_mongodb(
   output = (
       root
       | mongodbio.ReadFromMongoDB(
-          uri=connection_uri,
+          uri=uri,
           db=database,
           coll=collection,
           filter=filter,
@@ -805,7 +805,7 @@ def write_to_mongodb(
     *,
     database: str,
     collection: str,
-    connection_uri: Optional[str] = None,
+    uri: Optional[str] = None,
     batch_size: int = 1024,
     extra_client_params: Optional[Mapping[str, Any]] = None):
   """Writes data to MongoDB.
@@ -814,7 +814,7 @@ def write_to_mongodb(
     pcoll: The input PCollection of Beam Rows.
     database: The MongoDB database name.
     collection: The MongoDB collection name.
-    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     batch_size: Number of documents per bulk_write to MongoDB.
     extra_client_params: Optional MongoClient parameters.
   """
@@ -836,7 +836,7 @@ def write_to_mongodb(
       pcoll
       | beam.Map(row_to_dict)
       | mongodbio.WriteToMongoDB(
-          uri=connection_uri,
+          uri=uri,
           db=database,
           coll=collection,
           batch_size=batch_size,

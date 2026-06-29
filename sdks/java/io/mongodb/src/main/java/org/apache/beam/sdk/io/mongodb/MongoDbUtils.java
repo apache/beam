@@ -193,7 +193,10 @@ public class MongoDbUtils {
         if (value instanceof Map) {
           return toRow((Map<?, ?>) value, rowSchema);
         } else {
-          throw new IllegalArgumentException("Cannot convert value to Row: " + value);
+          throw new IllegalArgumentException(
+              "Cannot convert value of type "
+                  + (value != null ? value.getClass().getName() : "null")
+                  + " to Row");
         }
       default:
         throw new IllegalArgumentException("Unsupported field type: " + fieldType);

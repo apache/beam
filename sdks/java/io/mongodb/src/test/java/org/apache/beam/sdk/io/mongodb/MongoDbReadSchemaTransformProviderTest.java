@@ -200,8 +200,10 @@ public class MongoDbReadSchemaTransformProviderTest {
 
     PCollection<Row> errorRows =
         outputTuple.get(MongoDbReadSchemaTransformProvider.ERROR_TAG).setRowSchema(errorSchema);
-    outputTuple.get(MongoDbReadSchemaTransformProvider.OUTPUT_TAG).setRowSchema(beamSchema);
+    PCollection<Row> outputRows =
+        outputTuple.get(MongoDbReadSchemaTransformProvider.OUTPUT_TAG).setRowSchema(beamSchema);
 
+    PAssert.that(outputRows).empty();
     PAssert.that(errorRows)
         .satisfies(
             rows -> {

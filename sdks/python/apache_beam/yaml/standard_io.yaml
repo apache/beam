@@ -460,14 +460,14 @@
   config:
     mappings:
       'ReadFromMongoDB':
-        connection_uri: "uri"
+        uri: "uri"
         database: "database"
         collection: "collection"
         schema: "schema"
         filter: "filter"
         error_handling: "error_handling"
       'WriteToMongoDB':
-        connection_uri: "uri"
+        uri: "uri"
         database: "database"
         collection: "collection"
         batch_size: "batch_size"

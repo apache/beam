@@ -31,7 +31,7 @@ pipelines:
           name: WriteData
           input: CreateData
           config:
-            connection_uri: '{mongo_vars[URI]}'
+            uri: '{mongo_vars[URI]}'
             database: '{mongo_vars[DATABASE]}'
             collection: '{mongo_vars[COLLECTION]}'
             error_handling:
@@ -46,7 +46,7 @@ pipelines:
        - type: ReadFromMongoDB
          name: ReadData
          config:
-           connection_uri: '{mongo_vars[URI]}'
+           uri: '{mongo_vars[URI]}'
            database: '{mongo_vars[DATABASE]}'
            collection: '{mongo_vars[COLLECTION]}'
            schema: |
