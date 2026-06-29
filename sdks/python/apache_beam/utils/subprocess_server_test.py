@@ -522,7 +522,8 @@ class CacheTest(unittest.TestCase):
       return (dummy_process, "localhost:12345")
 
     dummy_process = DummyProcess()
-    cache = subprocess_server._SharedCache(custom_constructor, custom_destructor)
+    cache = subprocess_server._SharedCache(
+        custom_constructor, custom_destructor)
 
     # 1. Register an independent, unrelated owner in the cache first.
     other_owner = cache.register()
