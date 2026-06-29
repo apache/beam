@@ -200,7 +200,10 @@ public class WindowedValues {
 
     @Override
     public @Nullable Context getOpenTelemetryContext() {
-      return openTelemetryContext;
+      // builder may have different context set at the beginning of parDo
+      // when building WindowedValue we should take current context from storage.
+      // this method, when used for building output, is invoked in the proper thread.
+      return openTelemetryContext != Context.current() ? Context.current() : openTelemetryContext;
     }
 
     @Override

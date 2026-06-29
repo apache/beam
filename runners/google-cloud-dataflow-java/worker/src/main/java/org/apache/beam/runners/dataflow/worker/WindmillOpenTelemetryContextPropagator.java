@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values;
+package org.apache.beam.runners.dataflow.worker;
 
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
-public class OpenTelemetryContextPropagator {
+public class WindmillOpenTelemetryContextPropagator {
 
   private static final TextMapSetter<BeamFnApi.Elements.ElementMetadata.Builder> SETTER =
       (carrier, key, value) -> {
