@@ -483,25 +483,18 @@ def vllmTests = tasks.create("vllmTests") {
     executable 'sh'
     args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
   }
- }
-}
-
-def vllmDynamoTests = tasks.create("vllmDynamoTests") {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
- doLast {
   // Embedded NVIDIA Dynamo path. Reuses the same sdk_container_image
   // (vllm.dockerfile.old now installs etcd and ai-dynamo[vllm]) and the
-  // same nvidia-tesla-t4 accelerator as native vLLM ITs.
+  // same nvidia-tesla-t4 accelerator as the native vLLM ITs above.
   // Validated end-to-end on Dataflow with Qwen/Qwen3-0.6B on T4.
-  def argMap = vllmBaseArgMap + [
+  def dynamoArgMap = vllmBaseArgMap + [
     "model": "Qwen/Qwen3-0.6B",
     "output": "gs://apache-beam-ml/outputs/vllm_dynamo_predictions.txt",
   ]
-  def cmdArgs = mapToArgString(argMap)
+  def dynamoCmdArgs = mapToArgString(dynamoArgMap)
   exec {
     executable 'sh'
-    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --use_dynamo --max_tokens 8 --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $dynamoCmdArgs --use_dynamo --max_tokens 8 --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
   }
  }
 }
