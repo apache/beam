@@ -169,7 +169,9 @@ function restart() {
 
 # Deletes a Flink cluster.
 function delete() {
-  gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
+  # DO NOT MERGE: debug only change
+  # gcloud dataproc clusters delete $CLUSTER_NAME --region=$GCLOUD_REGION --quiet
+  echo "skipped"
 }
 
 "$@"
