@@ -514,9 +514,15 @@ class CacheTest(unittest.TestCase):
       def poll(self):
         return 1  # Simulate that process exited/failed
 
+    constructor_calls = 0
+
+    def custom_constructor(*args):
+      nonlocal constructor_calls
+      constructor_calls += 1
+      return (dummy_process, "localhost:12345")
+
     dummy_process = DummyProcess()
-    cache = subprocess_server._SharedCache(
-        lambda *args: (dummy_process, "localhost:12345"), custom_destructor)
+    cache = subprocess_server._SharedCache(custom_constructor, custom_destructor)
 
     # 1. Register an independent, unrelated owner in the cache first.
     other_owner = cache.register()
@@ -536,11 +542,14 @@ class CacheTest(unittest.TestCase):
     self.assertEqual(cache._cache[cache_key].owners, {other_owner})
 
     # 2. Verify starting the server (which registers its own owner and retrieves from cache) raises RuntimeError
-    with self.assertRaises(RuntimeError):
-      server.start()
+    with patch('time.sleep'):
+      with self.assertRaises(RuntimeError):
+        server.start()
+    self.assertEqual(constructor_calls, 3)
 
-    # 3. Verify that the destructor was called on the process, meaning no leak (even though other_owner was still registered!)
-    self.assertEqual(destructor_calls, [(dummy_process, "localhost:12345")])
+    # 3. Verify that the destructor was called on the process for each retry attempt (3 total),
+    # meaning there is no leak (even though other_owner was still registered).
+    self.assertEqual(destructor_calls, [(dummy_process, "localhost:12345")] * 3)
 
     # 4. Verify that the server has cleaned up its owner_id
     self.assertIsNone(server._owner_id)
