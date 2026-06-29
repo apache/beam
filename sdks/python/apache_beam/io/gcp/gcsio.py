@@ -35,20 +35,40 @@ import time
 from typing import Optional
 from typing import Union
 
-from google.api_core.exceptions import RetryError
-from google.cloud import storage
-from google.cloud.exceptions import NotFound
-from google.cloud.exceptions import from_http_response
-from google.cloud.storage.fileio import BlobReader
-from google.cloud.storage.fileio import BlobWriter
-from google.cloud.storage.retry import DEFAULT_RETRY
-
 from apache_beam import version as beam_version
 from apache_beam.internal.gcp import auth
-from apache_beam.io.gcp import gcsio_retry
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+
+try:
+  # pylint: disable=wrong-import-order, wrong-import-position
+  # pylint: disable=ungrouped-imports
+  from google.api_core.exceptions import RetryError
+  from google.cloud import storage
+  from google.cloud.exceptions import NotFound
+  from google.cloud.exceptions import from_http_response
+  from google.cloud.storage.fileio import BlobReader
+  from google.cloud.storage.fileio import BlobWriter
+  from google.cloud.storage.retry import DEFAULT_RETRY
+  from apache_beam.io.gcp import gcsio_retry
+  GOOGLE_CLOUD_STORAGE_INSTALLED = True
+except ImportError:
+  # The gcp extra (google-cloud-storage and friends) may not be installed. The
+  # module must still import so GcsIO can be looked up; the dependency error is
+  # deferred until a GcsIO is actually created (mirroring s3io's BOTO3_INSTALLED
+  # behavior). See https://github.com/apache/beam/issues/37445.
+  RetryError = None
+  storage = None
+  NotFound = None
+  from_http_response = None
+  # BlobReader/BlobWriter are used as base classes below, so they need a
+  # concrete fallback to keep the class definitions importable.
+  BlobReader = object
+  BlobWriter = object
+  DEFAULT_RETRY = None
+  gcsio_retry = None
+  GOOGLE_CLOUD_STORAGE_INSTALLED = False
 
 __all__ = ['GcsIO', 'create_storage_client']
 
@@ -191,13 +211,18 @@ class GcsIO(object):
   """Google Cloud Storage I/O client."""
   def __init__(
       self,
-      storage_client: Optional[storage.Client] = None,
+      storage_client: 'Optional[storage.Client]' = None,
       pipeline_options: Optional[Union[dict, PipelineOptions]] = None) -> None:
     if pipeline_options is None:
       pipeline_options = PipelineOptions()
     elif isinstance(pipeline_options, dict):
       pipeline_options = PipelineOptions.from_dictionary(pipeline_options)
     if storage_client is None:
+      if not GOOGLE_CLOUD_STORAGE_INSTALLED:
+        raise RuntimeError(
+            'Google Cloud Storage dependencies are not installed, and no '
+            'alternative client was provided to GcsIO. Please install the gcp '
+            'dependencies with: pip install apache-beam[gcp]')
       storage_client = create_storage_client(pipeline_options)
 
     google_cloud_options = pipeline_options.view_as(GoogleCloudOptions)

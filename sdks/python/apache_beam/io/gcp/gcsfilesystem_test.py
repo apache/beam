@@ -21,6 +21,9 @@
 # pytype: skip-file
 
 import logging
+import subprocess
+import sys
+import textwrap
 import unittest
 
 import mock
@@ -36,6 +39,52 @@ try:
 except ImportError:
   gcsfilesystem = None  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position
+
+
+@unittest.skipIf(gcsfilesystem is None, 'GCSFileSystem could not be imported')
+class GCSFileSystemLazyImportTest(unittest.TestCase):
+  def test_get_filesystem_without_gcp_extra(self):
+    # Regression test for https://github.com/apache/beam/issues/37445.
+    #
+    # Without the gcp extra installed, GCSFileSystem must still import and
+    # register so FileSystems.get_filesystem('gs://...') returns it (like
+    # S3FileSystem), deferring the dependency error to usage. The deferred
+    # behavior now lives in gcsio (see gcsio_test); here we only assert that the
+    # filesystem still registers and that using it raises a clear error.
+    #
+    # This runs in a subprocess because the behavior is decided at import time
+    # and this test environment has the gcp extra installed; we simulate its
+    # absence by blocking the google.cloud import in a fresh interpreter.
+    script = textwrap.dedent(
+        """
+        import sys
+        # Simulate the gcp extra not being installed.
+        sys.modules['google.cloud'] = None
+
+        from apache_beam.io.filesystems import FileSystems
+        fs = FileSystems.get_filesystem('gs://bucket/object')
+        assert type(fs).__name__ == 'GCSFileSystem', type(fs).__name__
+        assert fs.scheme() == 'gs'
+
+        # Using the filesystem raises a clear error (deferred validation).
+        try:
+          fs._gcsIO()
+        except RuntimeError:
+          pass
+        else:
+          raise AssertionError('expected RuntimeError using GCS without gcp')
+        print('OK')
+        """)
+    result = subprocess.run([sys.executable, '-c', script],
+                            capture_output=True,
+                            text=True,
+                            check=False)
+    self.assertEqual(
+        result.returncode,
+        0,
+        msg='subprocess failed:\nstdout=%s\nstderr=%s' %
+        (result.stdout, result.stderr))
+    self.assertIn('OK', result.stdout)
 
 
 @unittest.skipIf(gcsfilesystem is None, 'GCP dependencies are not installed')
