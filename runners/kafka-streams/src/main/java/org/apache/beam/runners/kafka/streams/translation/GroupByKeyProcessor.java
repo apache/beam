@@ -60,7 +60,10 @@ class GroupByKeyProcessor
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   // The global window fires exactly once, when the watermark first reaches its end. Later watermark
   // reports (e.g. the same terminal watermark broadcast across repartition partitions) must not
-  // re-fire.
+  // re-fire. This flag is in-memory only; restart correctness comes from the state store plus
+  // exactly-once-v2: the buffered values and consumer offsets are committed atomically, and the
+  // store is empty once a key has fired, so a restart cannot double-emit. Persisting watermark
+  // holds is part of the separate WatermarkManager persistence work, not this initial GroupByKey.
   private boolean fired = false;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
@@ -117,6 +120,10 @@ class GroupByKeyProcessor
   }
 
   private void fireAll(Record<byte[], KStreamsPayload<?>> trigger) {
+    // NOTE: this emits every buffered key in a single watermark turn. For a very large key space
+    // that risks memory pressure and exceeding the poll / transaction timeout. Acceptable for this
+    // initial GlobalWindow GroupByKey (fire once at end of input); incremental, timer-driven output
+    // via runner-core GroupAlsoByWindow lands with the windowing/timers work.
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     KeyValueStore<byte[], byte[]> kvStore = checkInitialized(store);
     List<byte[]> firedKeys = new ArrayList<>();
