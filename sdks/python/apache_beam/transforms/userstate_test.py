@@ -772,7 +772,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           '--max_cache_memory_usage_mb=100',
           '--environment_type=LOOPBACK',
       ])
-      with TestPipeline(runner='PrismRunner', options=options) as p:
+      with TestPipeline(options=options) as p:
         test_stream = (
             TestStream(
                 coder=beam.coders.TupleCoder((
