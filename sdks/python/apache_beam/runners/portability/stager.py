@@ -91,8 +91,11 @@ SKIP_REQUIREMENTS_CACHE = 'skip'
 # Ordered list of manylinux tags from newest (strictest) to oldest (most compatible)
 # paired with the minimum pip version required to support the tag.
 # See https://github.com/pypa/manylinux.
+# manylinux_2_27 is listed between 2_28 and 2_17 because some packages (e.g.
+# tensorflow 2.21+) publish 2_27 wheels but not 2_28-tagged wheels.
 _MANYLINUX_PLATFORMS = [
     ('manylinux_2_28_x86_64', '20.3'),
+    ('manylinux_2_27_x86_64', '20.3'),
     ('manylinux2014_x86_64', '19.3'),  # equivalent to manylinux_2_17
     ('manylinux2010_x86_64',
      '0.0'),  # equivalent to manylinux_2_12, the fallback if pip is too old

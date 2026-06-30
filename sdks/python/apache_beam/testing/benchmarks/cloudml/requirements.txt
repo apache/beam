@@ -16,14 +16,16 @@
 #
 
 # Core TFT dependencies with version bounds.
-# Note: To avoid pip ResolutionTooDeep errors, always install using the constraints file:
+# Dataflow workers require manylinux_2_28 wheels; TFT 1.21 / TF 2.21 is the
+# earliest stack with those wheels on PyPI. To avoid pip ResolutionTooDeep,
+# always install using the constraints file:
 # pip install -c constraints.txt -r requirements.txt
 dill>=0.3,<0.5
-tfx_bsl>=1.15,<1.17
-tensorflow-transform>=1.15,<1.17
-tensorflow>=2.15,<2.16
-numpy>=1.22.0,<2.0
-tensorflow-metadata>=1.15,<1.16
-pyarrow>=10,<11
-tensorflow-serving-api>=2.15,<2.16
-tf-keras>=2.15,<2.16
+tfx_bsl>=1.21,<1.22
+tensorflow-transform>=1.21,<1.22
+tensorflow>=2.21,<2.22
+numpy>=2.0,<3
+tensorflow-metadata>=1.21,<1.22
+pyarrow>=17,<25
+tensorflow-serving-api>=2.19,<2.20
+tf-keras>=2.21,<2.22

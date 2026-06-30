@@ -17,26 +17,28 @@
 
 # Constraints file to pin versions and avoid pip ResolutionTooDeep.
 # This file is used with: pip install -c constraints.txt -r requirements.txt
+#
+# Versions aligned with the TFT 1.21 compatibility matrix and chosen so
+# manylinux_2_28 wheels exist for Dataflow worker staging.
 
 # Core dependencies
-tfx_bsl==1.15.1
-tensorflow-transform==1.15.0
+tfx_bsl==1.21.0
+tensorflow-transform==1.21.0
 
 # TensorFlow ecosystem
-tensorflow==2.15.1
-tensorflow-metadata==1.15.0
-tf-keras==2.15.1
+tensorflow==2.21.0
+tensorflow-metadata==1.21.0
+tf-keras==2.21.0
+tensorflow-serving-api==2.19.0
 
-# NumPy and data handling
-numpy==1.26.4
-pyarrow==10.0.1
+# NumPy and data handling (pyarrow 17+ required for NumPy 2 ABI).
+numpy==2.2.6
+pyarrow==23.0.1
 
-# Google Cloud (pin to avoid transitive resolution)
-google-cloud-aiplatform==1.133.0
-google-api-core==2.19.1
+# Note: google-cloud-aiplatform pins from the TFT 1.15 constraints are omitted
+# here. They cause ResolutionImpossible when combined with TFT 1.21 / numpy 2 /
+# pyarrow 23 because pip re-resolves apache-beam[gcp] via tfx_bsl.
 
-# Note: google-auth is NOT constrained - let pip resolve it to satisfy
-# apache-beam's google-genai requirement (>=2.48.1)
-
-# Note: tensorflow-serving-api is NOT constrained - let pip resolve it within
-# the range specified in requirements.txt (>=2.15,<2.16)
+# Note: protobuf is NOT constrained. TFT 1.21 wheels ship protos generated
+# with a 5.29.0-rc2 suffix while TensorFlow 2.21 requires protobuf 6.x.
+# TEMPORARILY_DISABLE_PROTOBUF_VERSION_CHECK is set in installTFTRequirements.
