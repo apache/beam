@@ -641,6 +641,8 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._value_coder = value_coder
     self._cleared = False
     self._added_elements: set[Any] = set()
+    # Track outstanding async state requests to await them at commit time.
+    self._futures = []
 
   def _compact_data(self, rewrite=True):
     accumulator = set(
@@ -650,9 +652,12 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
             self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.clear(self._state_key)
-      self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), accumulator)
+      # Compaction writes are asynchronous; queue them so they are not lost.
+      self._futures.append(
+          self._state_handler.clear(self._state_key))
+      self._futures.append(
+          self._state_handler.extend(
+              self._state_key, self._value_coder.get_impl(), accumulator))
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -666,7 +671,8 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def add(self, value: Any) -> None:
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.clear(self._state_key)
+      self._futures.append(
+          self._state_handler.clear(self._state_key))
       self._cleared = False
 
     self._added_elements.add(value)
@@ -678,15 +684,24 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._added_elements = set()
 
   def commit(self) -> None:
-    to_await = None
+    to_await = []
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key)
+      to_await.append(self._state_handler.clear(self._state_key))
+      self._cleared = False
     if self._added_elements:
-      to_await = self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), self._added_elements)
-    if to_await:
-      # To commit, we need to wait on the last state request future to complete.
-      to_await.get()
+      to_await.append(
+          self._state_handler.extend(
+              self._state_key, self._value_coder.get_impl(),
+              self._added_elements))
+      self._added_elements = set()
+
+    # Block on all outstanding async state requests to ensure data is committed.
+    all_futures = self._futures + to_await
+    self._futures = []
+
+    for f in all_futures:
+      if f:
+        f.get()
 
 
 class RangeSet:
