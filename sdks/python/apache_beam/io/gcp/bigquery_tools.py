@@ -788,16 +788,20 @@ class BigQueryWrapper(object):
           'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
           table_id)
 
-    additional_parameters = additional_parameters or {}
-    snake_case_parameters = {
-        _camel_to_snake(k): v
-        for k, v in additional_parameters.items()
+    api_repr = {
+        "tableReference": {
+            "projectId": project_id,
+            "datasetId": dataset_id,
+            "tableId": table_id
+        }
     }
-    table = gcp_bigquery.Table(
-        table_ref=TableReference(
-            DatasetReference(project_id, dataset_id), table_id),
-        schema=schema,
-        **snake_case_parameters)
+    if additional_parameters:
+      api_repr.update(additional_parameters)
+
+    table = gcp_bigquery.Table.from_api_repr(api_repr)
+    if schema:
+      table.schema = schema
+
     response = self.client.create_table(table)
     _LOGGER.debug("Created the table with id %s", table_id)
     # The response is a gcp_bigquery.Table instance.
