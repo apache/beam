@@ -698,6 +698,7 @@ public class WorkerCustomSourcesTest {
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
+      context.flushState();
       state = context.getOutputBuilder().getSourceStateUpdates().getState();
       // CountingSource's watermark is the last record + 1.  i is now one past the last record,
       // so the expected watermark is i millis.

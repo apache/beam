@@ -215,6 +215,7 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
+    executionContext.flushState();
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
@@ -468,6 +469,7 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
+    executionContext.flushState();
 
     assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
   }
@@ -518,6 +520,7 @@ public class StreamingModeExecutionContextTest {
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
+    executionContext.flushState();
 
     // Verify timerInternals is poisoned
     try {

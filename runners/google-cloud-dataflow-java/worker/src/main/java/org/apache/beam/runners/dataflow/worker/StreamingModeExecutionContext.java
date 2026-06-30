@@ -411,6 +411,10 @@ public class StreamingModeExecutionContext
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void flushState() {
+    checkState(finishKeyCalled, "finishKey must be called before flushState");
     flushStateInternal();
   }
 
@@ -758,7 +762,10 @@ public class StreamingModeExecutionContext
 
   // Returns the current Work being processed.
   public Work getWork() {
-    return checkStateNotNull(work);
+    return checkStateNotNull(
+        work,
+        "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
+            + " work for execution.");
   }
 
   // Returns the serialized windmill key for the current Work
@@ -778,11 +785,7 @@ public class StreamingModeExecutionContext
 
   // Returns the windmill WorkItem proto for the current Work
   public Windmill.WorkItem getWorkItem() {
-    return checkStateNotNull(
-            work,
-            "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
-                + " work for execution.")
-        .getWorkItem();
+    return getWork().getWorkItem();
   }
 
   @Nullable

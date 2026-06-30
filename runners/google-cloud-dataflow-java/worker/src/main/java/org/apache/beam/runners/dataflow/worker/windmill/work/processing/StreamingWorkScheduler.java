@@ -389,6 +389,7 @@ public class StreamingWorkScheduler {
         if (context.workIsFailed()) {
           throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
         }
+        context.flushState();
 
         // Retrieve executed works, work item commits, and accumulated callbacks from execution
         // context
