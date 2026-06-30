@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadRecordRouter;
@@ -379,12 +381,19 @@ public class StorageApiLoads<DestinationT, ElementT>
     PCollection<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRows =
         convertMessagesResult.get(successfulConvertedRowsTag);
 
-    if (numShards > 0) {
+    boolean streaming = input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming();
+    if (numShards > 0 && streaming) {
       successfulConvertedRows =
           successfulConvertedRows.apply(
               "ResdistibuteNumShards",
               Redistribute.<KV<DestinationT, StorageApiWritePayload>>arbitrarily()
                   .withNumBuckets(numShards));
+    } else if (numShards > 0 && !streaming) {
+      successfulConvertedRows =
+          successfulConvertedRows
+              .apply("AddKeyWithSideInputs", ParDo.of(new AddShardKeyFn<>(numShards)))
+              .apply("RedistributeNumShards", Redistribute.byKey())
+              .apply("Remove shard", Values.create());
     }
 
     PCollectionTuple writeRecordsResult =
@@ -454,6 +463,56 @@ public class StorageApiLoads<DestinationT, ElementT>
                                   "Failed to Write Message to Storage API"))))
               .apply("flattenBadRecords", Flatten.pCollections());
       badRecordErrorHandler.addErrorCollection(badRecords);
+    }
+  }
+
+  /**
+   * A {@link DoFn} that applies a composite sharding key to incoming records to optimize BigQuery
+   * Storage API throughput.
+   *
+   * <p>This transform manages the balance between connection count (resource overhead) and
+   * processing parallelism by distributing data across {@code numShards} buckets:
+   *
+   * <ul>
+   *   <li><b>Data Affinity:</b> By using a composite key {@code KV<DestT, Integer>}, this transform
+   *       (along with GBK downstream) ensures that records for a specific sharded destination
+   *       (table, shard) are grouped together. This allows downstream transforms to maintain stable
+   *       {@code StreamConnection} sessions for each destination.
+   *   <li><b>Parallel Throughput:</b> By appending a pseudo-random integer shard index, this
+   *       transform allows the runner to distribute the records for a single destination across up
+   *       to {@code numShards} parallel streams, parallelizing the write throughput of "hot"
+   *       (high-volume) destinations.
+   *   <li><b>Concurrency control:</b> The {@code numShards} parameter acts as the parallelism
+   *       multiplier per destination. The total potential concurrency across the pipeline is {@code
+   *       numShards * total_destinations}.
+   * </ul>
+   *
+   * <p>The output structure is {@code KV<KV<DestT, Integer>, KV<DestT, Payload>>}. Downstream,
+   * {@link Redistribute#byKey()} uses this composite key to partition the data, ensuring the runner
+   * effectively balances load while respecting the per-destination parallelism limits configured
+   * here.
+   */
+  private static class AddShardKeyFn<DestT, ElemT>
+      extends DoFn<
+          KV<DestT, StorageApiWritePayload>,
+          KV<KV<DestT, Integer>, KV<DestT, StorageApiWritePayload>>> {
+    private final int numShards;
+    private int shardNumber = 0;
+
+    public AddShardKeyFn(int numShards) {
+      this.numShards = Math.max(1, numShards);
+    }
+
+    @Setup
+    public void setup() {
+      shardNumber = ThreadLocalRandom.current().nextInt(numShards);
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<DestT, StorageApiWritePayload> element,
+        OutputReceiver<KV<KV<DestT, Integer>, KV<DestT, StorageApiWritePayload>>> outputReceiver) {
+      outputReceiver.output(KV.of(KV.of(element.getKey(), ++shardNumber % numShards), element));
     }
   }
 
