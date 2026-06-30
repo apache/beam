@@ -291,12 +291,12 @@ public class FileIOTest implements Serializable {
 
     @Override
     public Integer onSeenNewOutput(org.joda.time.Instant now, Integer state) {
-      return state + 1;
+      return (state == null ? 0 : state) + 1;
     }
 
     @Override
     public boolean canStopPolling(org.joda.time.Instant now, Integer state) {
-      return state >= numOutputs;
+      return (state == null ? 0 : state) >= numOutputs;
     }
 
     @Override
