@@ -87,6 +87,22 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+      - name: Fetch base branch for Spotless ratchet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            BASE_REF=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json baseRefName --jq .baseRefName)
+          else
+            BASE_REF="master"
+          fi
+          echo "Base ref is $BASE_REF"
+          if [ -n "$BASE_REF" ]; then
+            git fetch --no-tags --prune --depth=1 origin ${BASE_REF}:refs/remotes/origin/${BASE_REF}
+          fi
+        shell: bash
       - name: run Spotless PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
