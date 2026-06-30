@@ -75,29 +75,15 @@ try:
 except ImportError:
   ADK_AVAILABLE = False
 
-if ADK_AVAILABLE:
-  try:
-    from google.adk.models.base_llm import BaseLlm
-  except ImportError:
-    try:
-      from google.adk.models import BaseLlm
-    except ImportError:
-      BaseLlm = object
-      
-  class BeamPlaceholderModel(BaseLlm):
-    """Placeholder model to be used when the model will be injected by ADKAgentModelHandler."""
-    def __init__(self):
-      pass
-    async def generate_content_async(self, *args, **kwargs):
-      raise NotImplementedError("Placeholder model cannot be used for inference.")
-else:
-  class BeamPlaceholderModel(str):
-    """Placeholder model to be used when the model will be injected by ADKAgentModelHandler.
-    
-    Fallback when ADK is not available.
-    """
-    def __new__(cls):
-      return super().__new__(cls, "beam-placeholder-model")
+class BeamPlaceholderModel(str):
+  """Placeholder model to be used when the model will be injected by ADKAgentModelHandler."""
+  def __new__(cls):
+    return super().__new__(cls, "beam-placeholder-model")
+
+def _is_beam_placeholder_model(model: Any) -> bool:
+  return model == "beam-placeholder-model" or isinstance(model, BeamPlaceholderModel)
+
+if not ADK_AVAILABLE:
   class Agent:
     pass
   class Runner:
@@ -233,7 +219,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         else:
           agent = self._agent_or_factory()
           if local_model is not None:
-            if not isinstance(agent.model, BeamPlaceholderModel) and agent.model is not None:
+            if not _is_beam_placeholder_model(agent.model) and agent.model is not None:
               raise ValueError(
                   f"Agent model must be BeamPlaceholderModel or None when using local model. "
                   f"Found: {agent.model}")
@@ -243,7 +229,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     else:
       agent = self._agent_or_factory
       if local_model is not None:
-        if not isinstance(agent.model, BeamPlaceholderModel) and agent.model is not None:
+        if not _is_beam_placeholder_model(agent.model) and agent.model is not None:
           raise ValueError(
               f"Agent model must be BeamPlaceholderModel or None when using local model. "
               f"Found: {agent.model}")
@@ -251,7 +237,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
 
     # Validation when local model is NOT used
     if local_model is None:
-      if isinstance(agent.model, BeamPlaceholderModel):
+      if _is_beam_placeholder_model(agent.model):
         raise ValueError("Agent model cannot be BeamPlaceholderModel when no local model is configured.")
 
     if self._session_service_factory is not None:
@@ -277,10 +263,10 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
 
   def _set_agent_model(self, agent: "Agent", model: Any, is_root: bool = False):
     if is_root:
-      if isinstance(agent.model, BeamPlaceholderModel) or agent.model is None:
+      if _is_beam_placeholder_model(agent.model) or agent.model is None:
         agent.model = model
     else:
-      if isinstance(agent.model, BeamPlaceholderModel):
+      if _is_beam_placeholder_model(agent.model):
         agent.model = model
 
     # Speculative propagation to subagents/tools
