@@ -48,12 +48,8 @@ def fill_in_missing(feature, default_value):
   Returns:
     A rank 1 Tensor with missing entries filled in.
   """
-  feature = tf.sparse.to_dense(
-      tf.SparseTensor(
-          feature.indices,
-          feature.values,
-          tf.stack([feature.dense_shape[0], 1])),
-      default_value=default_value)
+  feature = tft.sparse_tensor_to_dense_with_shape(
+      feature, [None, 1], default_value=default_value)
   return tf.squeeze(feature, axis=1)
 
 
