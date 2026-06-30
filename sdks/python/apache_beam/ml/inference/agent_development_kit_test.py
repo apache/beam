@@ -387,7 +387,7 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.mock_handler.get_port.return_value = 12345
 
   def test_placeholder_validation_fails_no_local_model(self):
-    agent = Agent(model=BeamPlaceholderModel(), name="test_agent")
+    agent = Agent(model=BeamPlaceholderModel.SENTINEL, name="test_agent")
     handler = ADKAgentModelHandler(agent=agent)
     with self.assertRaises(ValueError) as ctx:
       handler.load_model()
@@ -401,14 +401,14 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertIn("Agent model must be BeamPlaceholderModel or None", str(ctx.exception))
 
   def test_local_model_injection_and_propagation(self):
-    subagent = Agent(model=BeamPlaceholderModel(), name="subagent")
+    subagent = Agent(model=BeamPlaceholderModel.SENTINEL, name="subagent")
     
     def mock_tool():
       pass
     mock_tool.agent = subagent
     
     root_agent = Agent(
-        model=BeamPlaceholderModel(),
+        model=BeamPlaceholderModel.SENTINEL,
         name="root_agent",
         tools=[mock_tool]
     )
@@ -425,13 +425,13 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
 
   def test_port_update_propagation(self):
-    subagent = Agent(model=BeamPlaceholderModel(), name="subagent")
+    subagent = Agent(model=BeamPlaceholderModel.SENTINEL, name="subagent")
     
     def mock_tool():
       pass
     mock_tool.agent = subagent
     
-    root_agent = Agent(model=BeamPlaceholderModel(), name="root_agent", tools=[mock_tool])
+    root_agent = Agent(model=BeamPlaceholderModel.SENTINEL, name="root_agent", tools=[mock_tool])
     
     handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
     runner = handler.load_model()
@@ -450,7 +450,7 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertEqual(handler._current_port, 54321)
 
   def test_recovery_on_failure(self):
-    root_agent = Agent(model=BeamPlaceholderModel(), name="root_agent")
+    root_agent = Agent(model=BeamPlaceholderModel.SENTINEL, name="root_agent")
     handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
     runner = handler.load_model()
     
@@ -462,7 +462,7 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.mock_handler.check_connectivity.assert_called_once_with(self.mock_model)
 
   def test_recovery_fails_does_not_mask_original_error(self):
-    root_agent = Agent(model=BeamPlaceholderModel(), name="root_agent")
+    root_agent = Agent(model=BeamPlaceholderModel.SENTINEL, name="root_agent")
     handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
     runner = handler.load_model()
     
@@ -477,7 +477,7 @@ class TestLocalModelIntegration(unittest.TestCase):
 
   def test_local_model_injection_with_none_tools(self):
     root_agent = Agent(
-        model=BeamPlaceholderModel(),
+        model=BeamPlaceholderModel.SENTINEL,
         name="root_agent"
     )
     object.__setattr__(root_agent, 'tools', None)
@@ -489,7 +489,7 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertIsInstance(runner.agent.model, LiteLlm)
 
   def test_port_update_propagation_with_none_tools(self):
-    root_agent = Agent(model=BeamPlaceholderModel(), name="root_agent")
+    root_agent = Agent(model=BeamPlaceholderModel.SENTINEL, name="root_agent")
     object.__setattr__(root_agent, 'tools', None)
     
     handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)

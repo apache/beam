@@ -52,6 +52,7 @@ capture unpicklable objects), pass a zero-arg factory callable instead::
 import asyncio
 import logging
 import uuid
+from enum import Enum
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
@@ -75,13 +76,12 @@ try:
 except ImportError:
   ADK_AVAILABLE = False
 
-class BeamPlaceholderModel(str):
+class BeamPlaceholderModel(str, Enum):
   """Placeholder model to be used when the model will be injected by ADKAgentModelHandler."""
-  def __new__(cls):
-    return super().__new__(cls, "beam-placeholder-model")
+  SENTINEL = "beam-placeholder-model"
 
 def _is_beam_placeholder_model(model: Any) -> bool:
-  return model == "beam-placeholder-model" or isinstance(model, BeamPlaceholderModel)
+  return model == BeamPlaceholderModel.SENTINEL
 
 if not ADK_AVAILABLE:
   class Agent:
