@@ -51,7 +51,7 @@ RUN  \
 
     rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade pip setuptools wheel && \
+    pip install --upgrade "pip>=26.1" setuptools wheel && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
@@ -104,7 +104,8 @@ RUN  \
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
         pip uninstall upgrade_ensurepip -y; \
     fi; \
-    python3 -m ensurepip;
+    python3 -m ensurepip && \
+    python3 -c "import ensurepip; assert list(map(int, ensurepip._PIP_VERSION.split('.'))) >= [26, 1], f'Bundled pip version {ensurepip._PIP_VERSION} is older than 26.1';"
 
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
