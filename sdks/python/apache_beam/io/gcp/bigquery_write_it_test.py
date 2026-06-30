@@ -96,6 +96,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     ]
     table = gcp_bigquery.Table(
         f'{self.project}.{self.dataset_id}.{table_name}', schema=schema)
+    self.bigquery_client.client.delete_table(table, not_found_ok=True)
     self.bigquery_client.client.create_table(table)
 
   @pytest.mark.it_postcommit

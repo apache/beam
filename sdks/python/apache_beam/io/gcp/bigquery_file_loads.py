@@ -424,7 +424,7 @@ class UpdateDestinationSchema(beam.DoFn):
         project=temp_table_load_job_reference.projectId,
         job_id=temp_table_load_job_reference.jobId,
         location=temp_table_load_job_reference.location)
-    temp_table_schema = temp_table_load_job.configuration.load.schema
+    temp_table_schema = temp_table_load_job.schema
 
     if bigquery_tools.check_schema_equal(temp_table_schema,
                                          destination_table.schema,

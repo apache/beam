@@ -440,7 +440,7 @@ class BigQueryWrapper(object):
 
   def _get_temp_dataset(self):
     if self.temp_table_ref:
-      return self.temp_table_ref.datasetId
+      return self.temp_table_ref.dataset_id
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
