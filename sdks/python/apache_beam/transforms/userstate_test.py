@@ -18,6 +18,9 @@
 """Unit tests for the Beam State and Timer API interfaces."""
 # pytype: skip-file
 
+import queue
+import threading
+import time
 import unittest
 from typing import Any
 
@@ -34,6 +37,8 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.common import DoFnSignature
+from apache_beam.runners.worker.sdk_worker import GrpcStateHandler
+from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
@@ -723,12 +728,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
   @mock.patch(
       'apache_beam.runners.worker.bundle_processor.random.random', lambda: 1.0)
   def test_stateful_set_state_compaction_race_portably(self):
-    from apache_beam.runners.worker.sdk_worker import GrpcStateHandler
-    from apache_beam.runners.worker.sdk_worker import _Future
-    import time
-    import threading
-    import queue
-
     old_request = GrpcStateHandler._request
     request_queue = queue.Queue()
 
