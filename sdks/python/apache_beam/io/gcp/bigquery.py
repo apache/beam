@@ -2937,6 +2937,13 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    query_output_schema: Required when output_type is 'BEAM_ROW' and a query
+      is specified. A BigQuery schema describing the query result columns,
+      since the schema cannot be auto-derived from an existing table when
+      using a query. Accepts the same formats as WriteToBigQuery's schema
+      parameter: a dict like
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``,
+      a JSON string, or a TableSchema object.
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2951,11 +2958,13 @@ class ReadFromBigQuery(PTransform):
       use_native_datetime=False,
       output_type=None,
       timeout=None,
+      query_output_schema=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
     self.output_type = output_type
+    self.query_output_schema = query_output_schema
     self._args = args
     self._kwargs = kwargs
     if timeout is not None:
@@ -2979,9 +2988,15 @@ class ReadFromBigQuery(PTransform):
 
     if self.output_type == 'BEAM_ROW' and self._kwargs.get('query',
                                                            None) is not None:
-      raise ValueError(
-          "Both a query and an output type of 'BEAM_ROW' were specified. "
-          "'BEAM_ROW' is not currently supported with queries.")
+      if self.query_output_schema is None:
+        raise ValueError(
+            "Both a query and an output type of 'BEAM_ROW' were specified "
+            "without a query_output_schema. When using a query, you must "
+            "provide query_output_schema so the output schema can be "
+            "determined without reading an existing table. The schema should "
+            "be a BigQuery schema dict, e.g. "
+            "{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}"
+            ", ...]}, or a TableSchema object.")
 
     self.gcs_location = gcs_location
     self.bigquery_dataset_labels = {
@@ -3004,6 +3019,9 @@ class ReadFromBigQuery(PTransform):
     if self.output_type == 'PYTHON_DICT' or self.output_type is None:
       return output_pcollection
     elif self.output_type == 'BEAM_ROW':
+      if self._kwargs.get('query', None) is not None:
+        return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+            self.query_output_schema, self._kwargs.get('selected_fields', None))
       table_details = bigquery_tools.parse_table_reference(
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),
