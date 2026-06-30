@@ -503,29 +503,21 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testInternalsPoisonedAfterFlushState() throws Exception {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
     StreamingModeExecutionContext.StepContext stepContext =
         executionContext.getStepContext(operationContext);
 
-    executionContext.start(
-        "key",
+    start(
         createMockWork(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
-        stateReader,
-        sideInputStateFetcher,
-        outputBuilder,
-        workExecutor);
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
 
     TimerInternals timerInternals = stepContext.timerInternals();
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
-    executionContext.flushState();
 
     // Verify timerInternals is poisoned
     try {
