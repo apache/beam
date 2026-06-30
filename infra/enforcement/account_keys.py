@@ -19,6 +19,7 @@ import sys
 import yaml
 import argparse
 import os
+from datetime import datetime, timezone
 from typing import List, Dict, TypedDict, Optional
 from google.cloud import secretmanager
 from google.cloud import iam_admin_v1
@@ -431,7 +432,7 @@ class AccountKeysPolicyComplianceCheck:
 
         if unmanaged_keys_issues:
             self.logger.info("Printing security dashboard update for unmanaged keys...")
-            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
             print("\n" + "="*60)
             print("SIMULATING GITHUB SECURITY ISSUE CREATION/UPDATE")
             print("="*60)

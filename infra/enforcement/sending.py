@@ -18,6 +18,7 @@ import logging
 import smtplib, ssl
 from typing import List, Optional
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 @dataclass
 class GitHubIssue:
@@ -183,7 +184,7 @@ class SendingClient:
 
         issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
         #markdown body
-        timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         new_report = f"### Unmanaged Keys Audit Report ({timestamp})\n"
         new_report += f"The following unauthorized or unmanaged keys were detected in `{project_id}`:\n\n"
 
@@ -202,9 +203,12 @@ class SendingClient:
 
             if history_marker in old_body:
                 # If history already exists, append the new report to it
-                headed = old_body.split(history_marker)
+                headed = old_body.split(history_marker, 1)
                 last_report = headed[0].strip()
                 old_history = headed[1].replace("</details>", "").strip()
+
+                if old_history.endswith("</details>"):
+                    old_history = old_history[:-10].rstrip()
 
                 combined_history = f"{last_report}\n\n---\n\n{old_history}"
             else:
@@ -249,7 +253,7 @@ class SendingClient:
         open_issues = self._get_open_issues(title)
         open_issues.sort(key=lambda x: x.updated_at, reverse=True)
 
-        timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         new_report = f"### Compliance Audit Report ({timestamp})\n{body}"
 
         if open_issues:
@@ -262,9 +266,13 @@ class SendingClient:
 
             if history_marker in old_body:
                 # If history already exists, append the new report to it
-                headed = old_body.split(history_marker)
+                headed = old_body.split(history_marker, 1)
                 last_report = headed[0].strip()
-                old_history = headed[1].replace("</details>", "").strip()
+                old_history = headed[1].rstrip()
+
+                if old_history.endswith("</details>"):
+                    old_history = old_history[:-10].rstrip()
+
                 combined_history = f"{last_report}\n\n---\n\n{old_history}"
             else:
                 # First time updating, turn the entire old body into history
@@ -291,7 +299,7 @@ class SendingClient:
         print(f"Recipient: {recipient}")
         print(f"Announcement: {announcement}")
 
-        timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
         print("\n" + "="*60)
         print("SIMULATING GITHUB GENERAL ISSUE CREATION/UPDATE")
