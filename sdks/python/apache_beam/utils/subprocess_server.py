@@ -248,6 +248,9 @@ class SubprocessServer(object):
         if attempt == max_retries - 1:
           raise
         time.sleep(1)
+      except:  # pylint: disable=bare-except
+        self.stop_force()
+        raise
 
   def start_process(self):
     if self._owner_id is not None:
