@@ -440,6 +440,8 @@ class SubProcessModelServer:
 
   def start_server(self, retries=3):
     with self._server_process_lock:
+      if self._process and self._process.poll() is not None:
+        self._server_started = False
       if not self._server_started:
         if self._process:
           logging.info("Terminating existing generic subprocess model server before restart")

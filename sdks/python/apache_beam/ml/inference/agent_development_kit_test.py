@@ -475,6 +475,37 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertEqual(str(ctx.exception), "Original error")
     self.mock_handler.check_connectivity.assert_called_once_with(self.mock_model)
 
+  def test_local_model_injection_with_none_tools(self):
+    root_agent = Agent(
+        model=BeamPlaceholderModel(),
+        name="root_agent"
+    )
+    object.__setattr__(root_agent, 'tools', None)
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    from google.adk.models.lite_llm import LiteLlm
+    self.assertIsInstance(runner.agent.model, LiteLlm)
+
+  def test_port_update_propagation_with_none_tools(self):
+    root_agent = Agent(model=BeamPlaceholderModel(), name="root_agent")
+    object.__setattr__(root_agent, 'tools', None)
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    
+    self.mock_handler.get_port.return_value = 54321
+    handler._run_inference_internal = mock.MagicMock(return_value=[])
+    
+    handler.run_inference(batch=["test"], model=runner)
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+    self.assertEqual(handler._current_port, 54321)
+
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -2491,6 +2491,34 @@ class SubProcessModelTest(unittest.TestCase):
     del model
     del wrapper
 
+  def test_subprocess_server_recovery(self):
+    handler = StringFakeModelHandler()
+    wrapper = base.SubProcessModel(handler, model_name="string_fake_model")
+    
+    model = wrapper.load_model()
+    self.assertIsInstance(model, base.SubProcessModelServer)
+    
+    # Verify it works
+    results = wrapper.run_inference(["hello"], model)
+    results = list(results)
+    self.assertEqual(results[0].inference, "hello_processed")
+    
+    # Forcefully kill the process
+    model._process.kill()
+    model._process.wait()
+    
+    # Trigger connectivity check which should restart the server
+    model.check_connectivity()
+    
+    # Verify it recovered and works again
+    results = wrapper.run_inference(["world"], model)
+    results = list(results)
+    self.assertEqual(results[0].inference, "world_processed")
+    
+    del model
+    del wrapper
+
+
 
 if __name__ == '__main__':
   unittest.main()

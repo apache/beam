@@ -284,7 +284,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         agent.model = model
 
     # Speculative propagation to subagents/tools
-    if hasattr(agent, 'tools'):
+    if getattr(agent, 'tools', None) is not None:
       for tool in agent.tools:
         if hasattr(tool, 'agent'):
           self._set_agent_model(tool.agent, model, is_root=False)
@@ -397,7 +397,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
             model=agent.model.model,
             api_base=f"http://localhost:{port}/v1"
         )
-    if hasattr(agent, 'tools'):
+    if getattr(agent, 'tools', None) is not None:
       for tool in agent.tools:
         if hasattr(tool, 'agent'):
           self._update_agent_port(tool.agent, port)
