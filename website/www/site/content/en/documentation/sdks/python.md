@@ -72,6 +72,10 @@ Some common errors can occur during worker start-up and prevent jobs from starti
   <th>Supported Beam Versions</th>
 </tr>
 <tr>
+  <td>3.14</td>
+  <td>&ge; 2.73.0</td>
+</tr>
+<tr>
   <td>3.13</td>
   <td>&ge; 2.69.0</td>
 </tr>
@@ -89,7 +93,7 @@ Some common errors can occur during worker start-up and prevent jobs from starti
 </tr>
 <tr>
   <td>3.9</td>
-  <td>&ge; 2.37.0</td>
+  <td>2.37.0 - 2.69.0</td>
 </tr>
 <tr>
   <td>3.8</td>

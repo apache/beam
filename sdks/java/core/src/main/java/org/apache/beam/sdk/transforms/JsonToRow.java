@@ -309,12 +309,10 @@ public class JsonToRow {
 
       @ProcessElement
       public void processElement(@Element String element, MultiOutputReceiver output) {
+        final Row parsedRow;
         try {
-
-          output.get(PARSED_LINE).output(jsonToRow(objectMapper(), element));
-
+          parsedRow = jsonToRow(objectMapper(), element);
         } catch (Exception ex) {
-
           if (getJsonToRowWithErrFn().getExtendedErrorInfo()) {
             output
                 .get(PARSE_ERROR)
@@ -328,7 +326,9 @@ public class JsonToRow {
                 .get(PARSE_ERROR)
                 .output(Row.withSchema(ERROR_ROW_SCHEMA).addValue(element).build());
           }
+          return;
         }
+        output.get(PARSED_LINE).output(parsedRow);
       }
 
       private ObjectMapper objectMapper() {

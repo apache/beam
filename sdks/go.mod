@@ -26,17 +26,17 @@ toolchain go1.26.2
 
 require (
 	cloud.google.com/go/bigquery v1.77.0
-	cloud.google.com/go/bigtable v1.49.0
+	cloud.google.com/go/bigtable v1.50.0
 	cloud.google.com/go/datastore v1.24.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.50.2
-	cloud.google.com/go/spanner v1.91.0
+	cloud.google.com/go/spanner v1.92.0
 	cloud.google.com/go/storage v1.62.3
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.27
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.103.3
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.28
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/aws/smithy-go v1.27.2
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/dustin/go-humanize v1.0.1
@@ -60,7 +60,7 @@ require (
 	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.46.0
 	golang.org/x/text v0.38.0
-	google.golang.org/api v0.284.0
+	google.golang.org/api v0.286.0
 	google.golang.org/genproto v0.0.0-20260523011958-0a33c5d7ca68
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
@@ -71,9 +71,9 @@ require (
 require (
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/fsouza/fake-gcs-server v1.52.3
-	github.com/golang-cz/devslog v0.0.16
-	github.com/moby/moby/api v1.54.2
-	github.com/moby/moby/client v0.4.1
+	github.com/golang-cz/devslog v0.0.17
+	github.com/moby/moby/api v1.55.0
+	github.com/moby/moby/client v0.5.0
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 )
 
@@ -204,5 +204,5 @@ require (
 	golang.org/x/tools v0.45.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad // indirect
 )

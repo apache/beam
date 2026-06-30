@@ -276,7 +276,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public Set<String> listTables(String namespace) {
     return catalog().listTables(Namespace.of(namespace)).stream()
-        .map(TableIdentifier::name)
+        .map(TableIdentifier::toString)
         .collect(Collectors.toSet());
   }
 

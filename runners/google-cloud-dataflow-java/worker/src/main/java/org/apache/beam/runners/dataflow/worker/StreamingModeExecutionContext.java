@@ -1120,6 +1120,26 @@ public class StreamingModeExecutionContext
         checkStateNotNull(systemTimerInternals).persistTo(builder);
         checkStateNotNull(userTimerInternals).persistTo(builder);
       }
+      poisonStateAndTimerInternals();
+    }
+
+    /**
+     * Poisons the state and timer internals to prevent any subsequent (stale) usage.
+     *
+     * <p>This ensures that if these key-specific internals are incorrectly cached and used after
+     * the key's execution context has finished, it will fail fast with a clear error rather than
+     * silently corrupting state.
+     */
+    private void poisonStateAndTimerInternals() {
+      if (stateInternals != null) {
+        stateInternals.poison();
+      }
+      if (systemTimerInternals != null) {
+        systemTimerInternals.poison();
+      }
+      if (userTimerInternals != null) {
+        userTimerInternals.poison();
+      }
     }
 
     @Override
