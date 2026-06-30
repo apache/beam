@@ -163,7 +163,10 @@ class RecordWriterManager implements AutoCloseable {
 
       @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
       if (writer == null && openWriters >= maxNumWriters) {
-        return false;
+        writers.cleanUp();
+        if (openWriters >= maxNumWriters) {
+          return false;
+        }
       }
       writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
