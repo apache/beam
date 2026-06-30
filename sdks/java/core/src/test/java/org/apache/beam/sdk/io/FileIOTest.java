@@ -271,9 +271,46 @@ public class FileIOTest implements Serializable {
     private final String watchPathStr;
   }
 
+  private static class AfterNumberOfNewOutputs
+      implements Watch.Growth.TerminationCondition<String, Integer> {
+    private final int numOutputs;
+
+    public AfterNumberOfNewOutputs(int numOutputs) {
+      this.numOutputs = numOutputs;
+    }
+
+    @Override
+    public org.apache.beam.sdk.coders.Coder<Integer> getStateCoder() {
+      return VarIntCoder.of();
+    }
+
+    @Override
+    public Integer forNewInput(org.joda.time.Instant now, String input) {
+      return 0;
+    }
+
+    @Override
+    public Integer onSeenNewOutput(org.joda.time.Instant now, Integer state) {
+      return state + 1;
+    }
+
+    @Override
+    public boolean canStopPolling(org.joda.time.Instant now, Integer state) {
+      return state >= numOutputs;
+    }
+
+    @Override
+    public String toString(Integer state) {
+      return "AfterNumberOfNewOutputs(" + state + "/" + numOutputs + ")";
+    }
+  }
+
   @Test
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
+    final int numFiles = 3;
+    final int numUpdatedFiles = 6; // first x3, second x2, third x1
+
     // Write some files to a "source" directory.
     final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");
     sourcePath.toFile().mkdir();
@@ -291,7 +328,9 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                    Watch.Growth.eitherOf(
+                        new AfterNumberOfNewOutputs(numFiles),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10)))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
             .apply(
@@ -299,7 +338,9 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                        Watch.Growth.eitherOf(
+                            new AfterNumberOfNewOutputs(numFiles),
+                            Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10)))));
     PCollection<MatchResult.Metadata> matchUpdatedMetadata =
         p.apply(
             "match updated",
@@ -307,7 +348,9 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("first").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                    Watch.Growth.eitherOf(
+                        new AfterNumberOfNewOutputs(numFiles),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10))),
                     true));
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
         p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
@@ -316,7 +359,9 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                        Watch.Growth.eitherOf(
+                            new AfterNumberOfNewOutputs(numUpdatedFiles),
+                            Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10))),
                         true));
 
     // write one file at the beginning. This will trigger the first output for matchAll
