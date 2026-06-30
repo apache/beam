@@ -576,8 +576,10 @@ task installTFTRequirements {
       // Use constraints to pin versions. Install tfx_bsl and tensorflow-transform
       // with --no-deps to avoid re-resolving apache-beam[gcp] (ResolutionTooDeep).
       args '-c', ". ${envdir}/bin/activate && " +
-          "grep -Ev '^(tensorflow-transform|tfx_bsl)' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
-          "pip install -c constraints.txt -r /tmp/cloudml_tft_base_requirements.txt && " +
+          'TMP_REQ=$(mktemp) && ' +
+          'trap \'rm -f "$TMP_REQ"\' EXIT && ' +
+          "grep -Ev '^(tensorflow-transform|tfx_bsl)' requirements.txt > \"\$TMP_REQ\" && " +
+          "pip install -c constraints.txt -r \"\$TMP_REQ\" && " +
           "pip install --no-deps tfx_bsl==1.21.0 tensorflow-transform==1.21.0"
     }
   }
