@@ -589,9 +589,7 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      // Use constraints file to pin versions while allowing pip to
-      // resolve compatible versions within the specified ranges in requirements.txt
-      args '-c', ". ${envdir}/bin/activate && pip install -c constraints.txt -r requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
     }
   }
 }
