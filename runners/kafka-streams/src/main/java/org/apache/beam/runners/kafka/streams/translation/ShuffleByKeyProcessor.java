@@ -27,20 +27,22 @@ import org.apache.kafka.streams.processor.api.Record;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Re-keys a {@code GroupByKey} input so Kafka Streams can shuffle by the Beam key.
+ * Re-keys a {@code KV}-valued stream by the Beam key so Kafka Streams shuffles by it.
  *
- * <p>For a data record it sets the Kafka record key to the encoded Beam key (taken from the {@code
- * KV}), so the downstream repartition sink co-locates every value of a key on one partition.
- * Watermark reports are forwarded unchanged — the {@link GroupByKeyBroadcastPartitioner} fans them
- * out to all partitions so every downstream task can fire.
+ * <p>This is not GroupByKey-specific: any transform that needs the values of a key co-located on
+ * one partition uses it — GroupByKey today, and stateful ParDo later. For a data record it sets the
+ * Kafka record key to the encoded Beam key (taken from the {@code KV}), so the downstream
+ * repartition sink co-locates every value of a key. Watermark reports are forwarded unchanged — the
+ * {@link GroupByKeyBroadcastPartitioner} fans them out to all partitions so every downstream task
+ * can fire.
  */
-class GroupByKeyRekeyProcessor
+class ShuffleByKeyProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
 
   private final Coder<Object> keyCoder;
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
 
-  GroupByKeyRekeyProcessor(Coder<Object> keyCoder) {
+  ShuffleByKeyProcessor(Coder<Object> keyCoder) {
     this.keyCoder = keyCoder;
   }
 
@@ -56,17 +58,17 @@ class GroupByKeyRekeyProcessor
     if (payload.isData()) {
       Object element = payload.getData().getValue();
       if (element == null) {
-        throw new IllegalStateException("GroupByKey data element is null");
+        throw new IllegalStateException("shuffle data element must not be null");
       }
       Object key = ((KV<?, ?>) element).getKey();
       if (key == null) {
-        throw new IllegalStateException("GroupByKey key must not be null");
+        throw new IllegalStateException("shuffle key must not be null");
       }
       byte[] encodedKey;
       try {
         encodedKey = CoderUtils.encodeToByteArray(keyCoder, key);
       } catch (CoderException e) {
-        throw new RuntimeException("Failed to encode GroupByKey key", e);
+        throw new RuntimeException("Failed to encode shuffle key", e);
       }
       ctx.forward(record.withKey(encodedKey));
     } else {
@@ -77,7 +79,7 @@ class GroupByKeyRekeyProcessor
 
   private static <T> T checkInitialized(@Nullable T value) {
     if (value == null) {
-      throw new IllegalStateException("GroupByKeyRekeyProcessor used before init()");
+      throw new IllegalStateException("ShuffleByKeyProcessor used before init()");
     }
     return value;
   }

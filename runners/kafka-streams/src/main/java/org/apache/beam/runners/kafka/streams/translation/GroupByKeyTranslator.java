@@ -42,9 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Topology added (the Beam key becomes the Kafka record key so Kafka Streams shuffles by it):
  *
  * <ul>
- *   <li>a re-key {@link GroupByKeyRekeyProcessor} wired to the input's producer, which sets the
- *       Kafka record key to the encoded Beam key for data records and passes watermark reports
- *       through;
+ *   <li>a {@link ShuffleByKeyProcessor} wired to the input's producer, which sets the Kafka record
+ *       key to the encoded Beam key for data records and passes watermark reports through;
  *   <li>a {@link Topology#addSink sink} to an internal repartition topic, with the payload encoded
  *       via {@link KStreamsPayloadSerde} and a {@link GroupByKeyBroadcastPartitioner} that hashes
  *       data by key and fans watermark reports out to every partition;
@@ -58,7 +57,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 class GroupByKeyTranslator implements PTransformTranslator {
 
-  static final String REKEY_SUFFIX = "-rekey";
+  static final String SHUFFLE_SUFFIX = "-shuffle-by-key";
   static final String SINK_SUFFIX = "-repartition-sink";
   static final String SOURCE_SUFFIX = "-repartition-source";
   static final String STATE_STORE_SUFFIX = "-state";
@@ -84,7 +83,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
 
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
-    String rekeyName = transformId + REKEY_SUFFIX;
+    String shuffleName = transformId + SHUFFLE_SUFFIX;
     String sinkName = transformId + SINK_SUFFIX;
     String sourceName = transformId + SOURCE_SUFFIX;
     String stateStoreName = transformId + STATE_STORE_SUFFIX;
@@ -95,7 +94,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
     Topology topology = context.getTopology();
 
     // Re-key data records by the encoded Beam key; pass watermark reports through.
-    topology.addProcessor(rekeyName, () -> new GroupByKeyRekeyProcessor(keyCoder), parentProcessor);
+    topology.addProcessor(shuffleName, () -> new ShuffleByKeyProcessor(keyCoder), parentProcessor);
 
     // Shuffle through the repartition topic: data partitioned by key, watermark broadcast.
     topology.addSink(
@@ -104,7 +103,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
         Serdes.ByteArray().serializer(),
         payloadSerde.serializer(),
         new GroupByKeyBroadcastPartitioner<>(),
-        rekeyName);
+        shuffleName);
     topology.addSource(
         sourceName,
         Serdes.ByteArray().deserializer(),
