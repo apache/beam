@@ -249,16 +249,25 @@ public class FileIOTest implements Serializable {
       context.output(Objects.requireNonNull(context.element()).getValue());
 
       CopyOption[] cpOptions = {StandardCopyOption.COPY_ATTRIBUTES};
-      CopyOption[] updOptions = {StandardCopyOption.REPLACE_EXISTING};
+      CopyOption[] updOptions = {
+        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES
+      };
       final Path sourcePath = Paths.get(sourcePathStr);
       final Path watchPath = Paths.get(watchPathStr);
 
       if (0 == current) {
         Thread.sleep(100);
+        // Ensure overwrite updates get a distinct mtime even when COPY_ATTRIBUTES is enabled.
+        Files.setLastModifiedTime(
+            sourcePath.resolve("first"), FileTime.fromMillis(System.currentTimeMillis() + 2000));
         Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
         Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), cpOptions);
       } else if (1 == current) {
         Thread.sleep(100);
+        Files.setLastModifiedTime(
+            sourcePath.resolve("first"), FileTime.fromMillis(System.currentTimeMillis() + 4000));
+        Files.setLastModifiedTime(
+            sourcePath.resolve("second"), FileTime.fromMillis(System.currentTimeMillis() + 4000));
         Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
         Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), updOptions);
         Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), cpOptions);
