@@ -563,8 +563,10 @@ class BigQueryWrapper(object):
         job_config.schema = schema
 
     additional_load_parameters = additional_load_parameters or {}
-    for k, v in additional_load_parameters.items():
-      setattr(job_config, _camel_to_snake(k), v)
+    if additional_load_parameters:
+      job_config_dict = job_config.to_api_repr()
+      job_config_dict.setdefault("load", {}).update(additional_load_parameters)
+      job_config = gcp_bigquery.LoadJobConfig.from_api_repr(job_config_dict)
 
     try:
       if source_stream:
