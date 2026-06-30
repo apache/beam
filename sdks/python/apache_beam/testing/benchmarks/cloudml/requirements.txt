@@ -18,9 +18,9 @@
 dill==0.4.1
 tfx_bsl==1.21.0
 tensorflow-transform==1.21.0
-tensorflow>=2.16,<2.17
-numpy
 tensorflow-metadata==1.21.0
+tensorflow
+numpy
 pyarrow
-tensorflow-serving-api>=2.16.1,<2.20
-tf-keras>=2.16.0,<2.17
+tensorflow-serving-api
+tf-keras
