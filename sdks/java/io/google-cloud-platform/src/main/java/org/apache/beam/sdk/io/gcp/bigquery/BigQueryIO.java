@@ -100,6 +100,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.StorageClient;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySourceBase.ExtractResult;
+import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantCloneSourceDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantSchemaDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.ConstantTimePartitioningClusteringDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinationsHelpers.SchemaFromViewDestinations;
@@ -2705,6 +2706,8 @@ public class BigQueryIO {
 
     abstract @Nullable ValueProvider<String> getJsonSchema();
 
+    abstract @Nullable ValueProvider<String> getJsonCloneSourceTableRef();
+
     abstract @Nullable ValueProvider<String> getJsonTimePartitioning();
 
     abstract @Nullable ValueProvider<String> getJsonClustering();
@@ -2823,6 +2826,8 @@ public class BigQueryIO {
       abstract Builder<T> setSchemaFromView(PCollectionView<Map<String, String>> view);
 
       abstract Builder<T> setJsonSchema(ValueProvider<String> jsonSchema);
+
+      abstract Builder<T> setJsonCloneSourceTableRef(ValueProvider<String> jsonCloneSourceTableRef);
 
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
 
@@ -3160,6 +3165,39 @@ public class BigQueryIO {
     public Write<T> withJsonSchema(ValueProvider<String> jsonSchema) {
       checkArgument(jsonSchema != null, "jsonSchema can not be null");
       return toBuilder().setJsonSchema(jsonSchema).build();
+    }
+
+    /**
+     * Creates missing destination tables as clones of the specified base table.
+     *
+     * <p>The clone source is used only if writing to a table that does not already exist and {@link
+     * CreateDisposition} is set to {@link CreateDisposition#CREATE_IF_NEEDED}. This option is
+     * mutually exclusive with {@link #withSchema(TableSchema)}, {@link #withJsonSchema(String)},
+     * and {@link #withSchemaFromView(PCollectionView)}.
+     */
+    public Write<T> withCloneFrom(String tableSpec) {
+      checkArgument(tableSpec != null, "tableSpec can not be null");
+      return withCloneFrom(StaticValueProvider.of(tableSpec));
+    }
+
+    /** Same as {@link #withCloneFrom(String)} but using a {@link TableReference}. */
+    public Write<T> withCloneFrom(TableReference table) {
+      checkArgument(table != null, "table can not be null");
+      return withJsonCloneSourceTableRef(
+          StaticValueProvider.of(BigQueryHelpers.toJsonString(table)));
+    }
+
+    /** Same as {@link #withCloneFrom(String)} but using a deferred {@link ValueProvider}. */
+    public Write<T> withCloneFrom(ValueProvider<String> tableSpec) {
+      checkArgument(tableSpec != null, "tableSpec can not be null");
+      return withJsonCloneSourceTableRef(
+          NestedValueProvider.of(
+              NestedValueProvider.of(tableSpec, new TableSpecToTableRef()), new TableRefToJson()));
+    }
+
+    private Write<T> withJsonCloneSourceTableRef(ValueProvider<String> jsonCloneSourceTableRef) {
+      checkArgument(jsonCloneSourceTableRef != null, "jsonCloneSourceTableRef can not be null");
+      return toBuilder().setJsonCloneSourceTableRef(jsonCloneSourceTableRef).build();
     }
 
     /**
@@ -3771,6 +3809,15 @@ public class BigQueryIO {
                       .collect(Collectors.toList())),
           "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may be set");
 
+      long activeCreationMetadataCount =
+          java.util.stream.Stream.of(
+                  getJsonSchema(), getSchemaFromView(), getJsonCloneSourceTableRef())
+              .filter(arg -> arg != null)
+              .count();
+      checkArgument(
+          activeCreationMetadataCount <= 1,
+          "No more than one of jsonSchema, schemaFromView, or cloneSource may be set");
+
       // Perform some argument checks
       BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
       Write.Method method = resolveMethod(input);
@@ -3940,6 +3987,11 @@ public class BigQueryIO {
                           new TableConstraints.PrimaryKey().setColumns(getPrimaryKey())));
         }
       }
+      if (getJsonCloneSourceTableRef() != null) {
+        dynamicDestinations =
+            new ConstantCloneSourceDestinations<>(
+                (DynamicDestinations<T, Object>) dynamicDestinations, getJsonCloneSourceTableRef());
+      }
       return expandTyped(input, dynamicDestinations);
     }
 
@@ -3955,6 +4007,7 @@ public class BigQueryIO {
           getJsonSchema() != null
               || getDynamicDestinations() != null
               || getSchemaFromView() != null;
+      boolean hasTableCreationMetadata = hasSchema || getJsonCloneSourceTableRef() != null;
 
       Class<T> writeProtoClass = getWriteProtosClass();
       if (getUseBeamSchema()) {
@@ -3983,7 +4036,7 @@ public class BigQueryIO {
                 dynamicDestinations,
                 StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
       } else if (writeProtoClass != null) {
-        if (!hasSchema) {
+        if (!hasTableCreationMetadata) {
           try {
             @SuppressWarnings({"unchecked", "nullness"})
             Descriptors.Descriptor descriptor =
@@ -4005,8 +4058,9 @@ public class BigQueryIO {
       } else {
         // Require a schema if creating one or more tables.
         checkArgument(
-            getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED || hasSchema,
-            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
+            getCreateDisposition() != CreateDisposition.CREATE_IF_NEEDED
+                || hasTableCreationMetadata,
+            "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided and no clone source was provided.");
       }
 
       Coder<DestinationT> destinationCoder;
