@@ -45,18 +45,18 @@ public class KafkaStreamsPipelineTranslatorTest {
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context = newContext();
 
+    // A URN the runner does not register a translator for.
+    String unsupportedUrn = "beam:transform:kafka_streams_unsupported_test:v1";
     RunnerApi.Pipeline pipeline =
         RunnerApi.Pipeline.newBuilder()
-            .addRootTransformIds("gbk")
+            .addRootTransformIds("unsupported")
             .setComponents(
                 RunnerApi.Components.newBuilder()
                     .putTransforms(
-                        "gbk",
+                        "unsupported",
                         RunnerApi.PTransform.newBuilder()
-                            .setUniqueName("GroupByKey")
-                            .setSpec(
-                                RunnerApi.FunctionSpec.newBuilder()
-                                    .setUrn(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN))
+                            .setUniqueName("Unsupported")
+                            .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(unsupportedUrn))
                             .build()))
             .build();
 
@@ -67,8 +67,8 @@ public class KafkaStreamsPipelineTranslatorTest {
             UnsupportedOperationException.class, () -> translator.translate(context, pipeline));
 
     assertThat(ex.getMessage(), containsString("No translator registered for URN"));
-    assertThat(ex.getMessage(), containsString(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN));
-    assertThat(ex.getMessage(), containsString("gbk"));
+    assertThat(ex.getMessage(), containsString(unsupportedUrn));
+    assertThat(ex.getMessage(), containsString("unsupported"));
     assertThat(ex.getMessage(), containsString(JOB_ID));
   }
 
