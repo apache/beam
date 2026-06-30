@@ -26,7 +26,7 @@ import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -79,6 +79,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -159,9 +160,8 @@ public class StreamingModeExecutionContext
 
   /**
    * Current reader used for processing {@link Work}. Set by calling {@link
-   * #setActiveReader(UnboundedReader)}, reset to null and cached when state is persisted {@link
-   * #flushState()}, or set to null and closed when {@link StreamingModeExecutionContext} is
-   * invalidated.
+   * #setActiveReader(UnboundedReader)}, reset to null and cached when state is persisted or set to
+   * null and closed when {@link StreamingModeExecutionContext} is invalidated.
    */
   private @Nullable UnboundedReader<?> activeReader;
 
@@ -187,11 +187,11 @@ public class StreamingModeExecutionContext
   @SuppressWarnings("UnusedVariable")
   private @Nullable KeyTransitionListener keyTransitionListener;
 
-  private List<Work> executedWorks = new ArrayList<>();
-  private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = new ArrayList<>();
+  private List<Work> executedWorks = Collections.emptyList();
+  private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
-  private Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks = new HashMap<>();
+  private Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = Collections.emptyMap();
   private AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
@@ -293,9 +293,11 @@ public class StreamingModeExecutionContext
 
   /** Reset context before using it on a new bundle */
   public void reset() {
-    this.executedWorks = new ArrayList<>();
-    this.outputBuilders = new ArrayList<>();
-    this.accumulatedCallbacks = new HashMap<>();
+    // these lists and maps are returned to callers after processing
+    // don't clear and reuse, instead reset the reference.
+    this.executedWorks = Collections.emptyList();
+    this.outputBuilders = Collections.emptyList();
+    this.finalizationCallbacks = Collections.emptyMap();
     // Work from prior bundles might have a reference to the old workBatchFailed.
     // If the work gets retried it'll get the new workBatchFailed to notify failure.
     this.workBatchFailed = new AtomicBoolean(false);
@@ -323,8 +325,12 @@ public class StreamingModeExecutionContext
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
-      KeyTransitionListener keyTransitionListener) {
+      KeyTransitionListener keyTransitionListener)
+      throws CoderException {
     reset();
+    this.executedWorks = new ArrayList<>();
+    this.outputBuilders = new ArrayList<>();
+    this.finalizationCallbacks = new HashMap<>();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
@@ -338,7 +344,7 @@ public class StreamingModeExecutionContext
     startForNewKey(work, stateReader);
   }
 
-  private @Nullable Object decodeKey(Work work) {
+  private @Nullable Object decodeKey(Work work) throws CoderException {
     // If the read output KVs, then we can decode Windmill's byte key into userland
     // key object and provide it to the execution context for use with per-key state.
     // Otherwise, we pass null.
@@ -348,6 +354,8 @@ public class StreamingModeExecutionContext
     if (keyCoder != null) {
       try {
         return keyCoder.decode(work.getWorkItem().getKey().newInput(), Coder.Context.OUTER);
+      } catch (CoderException e) {
+        throw e;
       } catch (IOException e) {
         throw new RuntimeException("Failed to decode key during processing", e);
       }
@@ -380,30 +388,29 @@ public class StreamingModeExecutionContext
       Instant processingTime,
       WindmillStateCache.ForKey cacheForKey,
       Watermarks watermarks) {
-    Collection<? extends StepContext> stepContexts = getAllStepContexts();
-    for (StepContext stepContext : stepContexts) {
+    for (StepContext stepContext : getAllStepContexts()) {
       stepContext.start(stateReader, processingTime, cacheForKey, watermarks);
     }
   }
 
   public void finishKey() {
+    WorkExecutor localExecutor =
+        checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     if (finishKeyCalled) {
       return;
     }
+    this.finishKeyCalled = true;
     if (activeStateReader != null) {
       this.stateBytesRead += activeStateReader.getBytesRead();
     }
     if (sideInputStateFetcher != null) {
       this.stateBytesRead += sideInputStateFetcher.getBytesRead();
     }
-    checkStateNotNull(workExecutor, "workExecutor must be set before calling finishKey()");
     try {
-      workExecutor.finishKey(key);
+      localExecutor.finishKey(key);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-    this.finishKeyCalled = true;
-
     flushStateInternal();
   }
 
@@ -516,26 +523,6 @@ public class StreamingModeExecutionContext
 
   private List<Timer> getFiredTimers() {
     return getWorkItem().getTimers().getTimersList();
-  }
-
-  public @Nullable ByteString getSerializedKey() {
-    return work == null ? null : work.getWorkItem().getKey();
-  }
-
-  public WindmillComputationKey getComputationKey() {
-    return checkStateNotNull(computationKey);
-  }
-
-  public long getWorkToken() {
-    return getWorkItem().getWorkToken();
-  }
-
-  public Windmill.WorkItem getWorkItem() {
-    return checkStateNotNull(
-            work,
-            "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
-                + " work for execution.")
-        .getWorkItem();
   }
 
   public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
@@ -674,7 +661,7 @@ public class StreamingModeExecutionContext
       getOutputBuilder().setSourceBacklogBytes(backlogBytes);
     }
 
-    this.accumulatedCallbacks.putAll(callbacks);
+    this.finalizationCallbacks.putAll(callbacks);
 
     getOutputBuilder()
         .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
@@ -695,15 +682,12 @@ public class StreamingModeExecutionContext
         .orElse(0L);
   }
 
-  public Map<Long, Pair<Instant, Runnable>> flushState() {
-    return accumulatedCallbacks;
-  }
-
   public boolean advance() {
+    // TODO: get more work from workQueueExecutor and merge into the bundle here
     return false;
   }
 
-  private void startForNewKey(Work newWork, WindmillStateReader reader) {
+  private void startForNewKey(Work newWork, WindmillStateReader reader) throws CoderException {
     newWork.setState(Work.State.PROCESSING);
     if (keyTransitionListener != null && this.work != null && this.work != newWork) {
       keyTransitionListener.onKeyTransition(this.work, newWork);
@@ -730,7 +714,9 @@ public class StreamingModeExecutionContext
     // Re-initialize state cache and state/timer internals across all step contexts
     Instant processingTime =
         computeProcessingTime(newWork.getWorkItem().getTimers().getTimersList());
-    if (!getAllStepContexts().isEmpty()) {
+    if (getAllStepContexts().isEmpty()) {
+      checkState(this.activeStateReader == null);
+    } else {
       // This must be only created once for a workItem as token validation will fail if the same
       // work token is reused.
       WindmillStateCache.ForKey cacheForKey =
@@ -738,19 +724,15 @@ public class StreamingModeExecutionContext
               getComputationKey(), newWork.getWorkItem().getCacheToken(), getWorkToken());
       this.activeStateReader = reader;
       startStepContexts(reader, processingTime, cacheForKey, newWork.watermarks());
-    } else {
-      this.activeStateReader = null;
     }
   }
 
-  public List<Work> getExecutedWorks() {
-    return executedWorks;
-  }
-
+  // Returns state bytes read during the bundle execution
   public long getStateBytesRead() {
     return stateBytesRead;
   }
 
+  // Returns list of commit requests from the bundle
   public List<Windmill.WorkItemCommitRequest> getWorkItemCommits() {
     List<Windmill.WorkItemCommitRequest> commits = new ArrayList<>(outputBuilders.size());
     for (Windmill.WorkItemCommitRequest.Builder builder : outputBuilders) {
@@ -759,16 +741,48 @@ public class StreamingModeExecutionContext
     return commits;
   }
 
-  public Map<Long, Pair<Instant, Runnable>> getAccumulatedCallbacks() {
-    return accumulatedCallbacks;
+  // Returns list of Work that was executed in the bundle
+  public List<Work> getExecutedWorks() {
+    return executedWorks;
   }
 
+  // Returns finalization callbacks recorded during the bundle execution
+  public Map<Long, Pair<Instant, Runnable>> getFinalizationCallbacks() {
+    return finalizationCallbacks;
+  }
+
+  // Returns the current key being processed or null if an unkeyed stage.
   public @Nullable Object getKey() {
     return key;
   }
 
+  // Returns the current Work being processed.
   public Work getWork() {
     return checkStateNotNull(work);
+  }
+
+  // Returns the serialized windmill key for the current Work
+  public @Nullable ByteString getSerializedKey() {
+    return work == null ? null : work.getWorkItem().getKey();
+  }
+
+  // Returns the serialized windmill key for the current Work
+  public WindmillComputationKey getComputationKey() {
+    return checkStateNotNull(computationKey);
+  }
+
+  // Returns the windmill work token for the current Work
+  public long getWorkToken() {
+    return getWorkItem().getWorkToken();
+  }
+
+  // Returns the windmill WorkItem proto for the current Work
+  public Windmill.WorkItem getWorkItem() {
+    return checkStateNotNull(
+            work,
+            "work is null. A call to StreamingModeExecutionContext.start(...) is required to set"
+                + " work for execution.")
+        .getWorkItem();
   }
 
   @Nullable

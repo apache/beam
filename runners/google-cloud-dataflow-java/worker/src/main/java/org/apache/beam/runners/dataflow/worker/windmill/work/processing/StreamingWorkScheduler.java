@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
 import java.util.List;
@@ -60,7 +62,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -267,7 +268,7 @@ public class StreamingWorkScheduler {
       workBatch = executeWorkResult.workBatch();
       List<Windmill.WorkItemCommitRequest> workItemCommits = executeWorkResult.workItemCommits();
 
-      commitFinalizer.cacheCommitFinalizers(executeWorkResult.accumulatedCallbacks());
+      commitFinalizer.cacheCommitFinalizers(executeWorkResult.finalizationCallbacks());
 
       commitWorkBatch(computationState, workBatch, workItemCommits);
 
@@ -290,19 +291,16 @@ public class StreamingWorkScheduler {
         throw ExceptionUtils.safeWrapThrowableAsException(t2);
       }
     } finally {
+      List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
-      recordProcessingTime(stageInfo, workBatch, work, processingStartTimeNanos);
+      recordProcessingTime(stageInfo, processedWorkBatch, processingStartTimeNanos);
 
       setLoggingContextWorkId(null);
       setLoggingContextComputation(null);
       sampler.resetForWorkId(work.getLatencyTrackingId());
-      if (workBatch != null) {
-        for (Work w : workBatch) {
-          w.setProcessingThreadName("");
-        }
-      } else {
-        work.setProcessingThreadName("");
+      for (Work w : processedWorkBatch) {
+        w.setProcessingThreadName("");
       }
     }
   }
@@ -340,7 +338,7 @@ public class StreamingWorkScheduler {
       long totalStateBytesRead) {
     long totalStateBytesWritten = 0;
     long totalShuffleBytesRead = 0;
-    Preconditions.checkState(workBatch.size() == workItemCommits.size());
+    checkState(workBatch.size() == workItemCommits.size());
     for (int i = 0; i < workBatch.size(); i++) {
       Windmill.WorkItem workItem = workBatch.get(i).getWorkItem();
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
@@ -381,7 +379,7 @@ public class StreamingWorkScheduler {
 
       List<Work> workBatch;
       List<Windmill.WorkItemCommitRequest> workItemCommits;
-      Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks;
+      Map<Long, Pair<Instant, Runnable>> finalizationCallbacks;
       long stateBytesRead;
       {
         // Blocks while executing work.
@@ -396,7 +394,7 @@ public class StreamingWorkScheduler {
         // context
         workBatch = context.getExecutedWorks();
         workItemCommits = context.getWorkItemCommits();
-        accumulatedCallbacks = context.getAccumulatedCallbacks();
+        finalizationCallbacks = context.getFinalizationCallbacks();
         stateBytesRead = context.getStateBytesRead();
 
         context.reset(); // Don't use context after this.
@@ -406,7 +404,7 @@ public class StreamingWorkScheduler {
       computationWorkExecutor = null;
 
       return ExecuteWorkResult.create(
-          workBatch, workItemCommits, accumulatedCallbacks, stateBytesRead);
+          workBatch, workItemCommits, finalizationCallbacks, stateBytesRead);
     } catch (Throwable t) {
       if (computationWorkExecutor != null) {
         // If processing failed due to a thrown exception, close the executionState. Do not
@@ -442,8 +440,8 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> workBatch,
       List<Windmill.WorkItemCommitRequest> workItemCommits) {
-    Preconditions.checkState(
-        workBatch.size() == 1, "Expected single-key work batch, got: " + workBatch.size());
+    checkState(workBatch.size() == 1, "Expected single-key work batch, got: " + workBatch.size());
+    checkState(workBatch.size() == workItemCommits.size());
     commitSingleKeyWork(computationState, workBatch.get(0), workItemCommits.get(0));
   }
 
@@ -463,14 +461,11 @@ public class StreamingWorkScheduler {
   }
 
   private void recordProcessingTime(
-      StageInfo stageInfo,
-      @Nullable List<Work> worksToCleanup,
-      Work work,
-      long processingStartTimeNanos) {
+      StageInfo stageInfo, List<Work> worksToCleanup, long processingStartTimeNanos) {
     long processingTimeMsecs =
         TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - processingStartTimeNanos);
     stageInfo.totalProcessingMsecs().addValue(processingTimeMsecs);
-    if (anyWorkHasTimers(worksToCleanup, work)) {
+    if (anyWorkHasTimers(worksToCleanup)) {
       // Attribute all the processing to timers if the work item contains any timers.
       // Tests show that work items rarely contain both timers and message bundles. It should
       // be a fairly close approximation.
@@ -480,11 +475,8 @@ public class StreamingWorkScheduler {
     }
   }
 
-  private static boolean anyWorkHasTimers(@Nullable List<Work> works, Work primaryWork) {
-    if (works != null && !works.isEmpty()) {
-      return works.stream().anyMatch(w -> w.getWorkItem().hasTimers());
-    }
-    return primaryWork.getWorkItem().hasTimers();
+  private static boolean anyWorkHasTimers(List<Work> works) {
+    return works.stream().anyMatch(w -> w.getWorkItem().hasTimers());
   }
 
   private KeyTransitionListener createKeyTransitionListener() {
@@ -500,10 +492,10 @@ public class StreamingWorkScheduler {
     static ExecuteWorkResult create(
         List<Work> workBatch,
         List<Windmill.WorkItemCommitRequest> workItemCommits,
-        Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks,
+        Map<Long, Pair<Instant, Runnable>> finalizationCallbacks,
         long stateBytesRead) {
       return new AutoValue_StreamingWorkScheduler_ExecuteWorkResult(
-          workBatch, workItemCommits, accumulatedCallbacks, stateBytesRead);
+          workBatch, workItemCommits, finalizationCallbacks, stateBytesRead);
     }
 
     abstract List<Work> workBatch();
@@ -511,7 +503,7 @@ public class StreamingWorkScheduler {
     abstract List<Windmill.WorkItemCommitRequest> workItemCommits();
 
     // Map<finalizerId, Pair<callbackExpiration, callback>>
-    abstract Map<Long, Pair<Instant, Runnable>> accumulatedCallbacks();
+    abstract Map<Long, Pair<Instant, Runnable>> finalizationCallbacks();
 
     abstract long stateBytesRead();
   }

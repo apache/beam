@@ -73,6 +73,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -176,14 +177,18 @@ public class StreamingModeExecutionContextTest {
   }
 
   private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
-    context.start(
-        work,
-        stateReader,
-        workExecutor,
-        /* workQueueExecutor= */ null,
-        /* budgetHandle= */ null,
-        keyCoder,
-        /* keyTransitionListener= */ (k, c) -> {});
+    try {
+      context.start(
+          work,
+          stateReader,
+          workExecutor,
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          keyCoder,
+          /* keyTransitionListener= */ (k, c) -> {});
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
@@ -209,7 +214,6 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
-    executionContext.flushState();
 
     Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
@@ -463,7 +467,6 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
-    executionContext.flushState();
 
     assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
   }
