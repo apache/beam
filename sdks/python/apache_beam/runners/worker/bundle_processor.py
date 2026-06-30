@@ -682,12 +682,11 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._added_elements = set()
 
   def commit(self) -> None:
-    to_await = []
     if self._cleared:
-      to_await.append(self._state_handler.clear(self._state_key))
+      self._futures.append(self._state_handler.clear(self._state_key))
       self._cleared = False
     if self._added_elements:
-      to_await.append(
+      self._futures.append(
           self._state_handler.extend(
               self._state_key,
               self._value_coder.get_impl(),
@@ -695,7 +694,9 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
       self._added_elements = set()
 
     # Block on all outstanding async state requests to ensure data is committed.
-    all_futures = self._futures + to_await
+    # We must swap and clear self._futures before awaiting them. Awaiting a future
+    # yields control, during which new futures could be appended to self._futures.
+    all_futures = self._futures
     self._futures = []
 
     for f in all_futures:

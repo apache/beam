@@ -727,24 +727,29 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     from apache_beam.runners.worker.sdk_worker import _Future
     import time
     import threading
+    import queue
 
     old_request = GrpcStateHandler._request
+    request_queue = queue.Queue()
+
+    def worker():
+      while True:
+        handler, request, future, instruction_id = request_queue.get()
+        time.sleep(0.1)  # Simulate latency for each request sequentially.
+        handler._context.process_instruction_id = instruction_id
+        underlying_future = old_request(handler, request)
+        underlying_future.wait()
+        future.set(underlying_future.get())
+        request_queue.task_done()
+
+    t = threading.Thread(target=worker, daemon=True)
+    t.start()
 
     def delayed_request(self, request):
-      # Delay append and clear requests to simulate slow state updates.
       if request.HasField('append') or request.HasField('clear'):
         future = _Future()
         instruction_id = getattr(self._context, 'process_instruction_id', None)
-
-        def run():
-          time.sleep(0.5)
-          self._context.process_instruction_id = instruction_id
-          underlying_future = old_request(self, request)
-          underlying_future.wait()
-          future.set(underlying_future.get())
-
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
+        request_queue.put((self, request, future, instruction_id))
         return future
       else:
         return old_request(self, request)
