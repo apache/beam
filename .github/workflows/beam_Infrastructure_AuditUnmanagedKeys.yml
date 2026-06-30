@@ -42,6 +42,8 @@ jobs:
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
 
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
