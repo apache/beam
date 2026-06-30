@@ -720,7 +720,8 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       assert_that(actual_values, equal_to([1, 3, 6, 10, 10]))
 
   # Mock random to always return 1.0 to force compaction on every add.
-  @mock.patch('apache_beam.runners.worker.bundle_processor.random.random', lambda: 1.0)
+  @mock.patch(
+      'apache_beam.runners.worker.bundle_processor.random.random', lambda: 1.0)
   def test_stateful_set_state_compaction_race_portably(self):
     from apache_beam.runners.worker.sdk_worker import GrpcStateHandler
     from apache_beam.runners.worker.sdk_worker import _Future
@@ -734,12 +735,14 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       if request.HasField('append') or request.HasField('clear'):
         future = _Future()
         instruction_id = getattr(self._context, 'process_instruction_id', None)
+
         def run():
           time.sleep(0.5)
           self._context.process_instruction_id = instruction_id
           underlying_future = old_request(self, request)
           underlying_future.wait()
           future.set(underlying_future.get())
+
         t = threading.Thread(target=run, daemon=True)
         t.start()
         return future
@@ -747,7 +750,6 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
         return old_request(self, request)
 
     GrpcStateHandler._request = delayed_request
-
 
     class SetStatefulDoFn(beam.DoFn):
 
@@ -768,16 +770,16 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
       ])
       with TestPipeline(runner='PrismRunner', options=options) as p:
         test_stream = (
-            TestStream(coder=beam.coders.TupleCoder((beam.coders.StrUtf8Coder(), beam.coders.VarIntCoder())))
-            .advance_watermark_to(10)
-            .add_elements([('key', 1)])
-            .advance_watermark_to(20)
-            .add_elements([('key', 2)])
-            .advance_watermark_to(30)
-        )
+            TestStream(
+                coder=beam.coders.TupleCoder((
+                    beam.coders.StrUtf8Coder(), beam.coders.VarIntCoder()
+                ))).advance_watermark_to(10).add_elements([
+                    ('key', 1)
+                ]).advance_watermark_to(20).add_elements([
+                    ('key', 2)
+                ]).advance_watermark_to(30))
         actual_values = (p | test_stream | beam.ParDo(SetStatefulDoFn()))
         assert_that(actual_values, equal_to([1, 3]))
-
 
     finally:
       GrpcStateHandler._request = old_request

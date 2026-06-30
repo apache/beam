@@ -653,8 +653,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
 
     if rewrite and accumulator:
       # Compaction writes are asynchronous; queue them so they are not lost.
-      self._futures.append(
-          self._state_handler.clear(self._state_key))
+      self._futures.append(self._state_handler.clear(self._state_key))
       self._futures.append(
           self._state_handler.extend(
               self._state_key, self._value_coder.get_impl(), accumulator))
@@ -671,8 +670,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def add(self, value: Any) -> None:
     if self._cleared:
       # This is a good time explicitly clear.
-      self._futures.append(
-          self._state_handler.clear(self._state_key))
+      self._futures.append(self._state_handler.clear(self._state_key))
       self._cleared = False
 
     self._added_elements.add(value)
@@ -691,7 +689,8 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     if self._added_elements:
       to_await.append(
           self._state_handler.extend(
-              self._state_key, self._value_coder.get_impl(),
+              self._state_key,
+              self._value_coder.get_impl(),
               self._added_elements))
       self._added_elements = set()
 
