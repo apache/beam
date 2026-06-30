@@ -106,6 +106,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -210,13 +211,18 @@ public class WorkerCustomSourcesTest {
   }
 
   private void startContext(StreamingModeExecutionContext context, Work work) {
-    context.start(
-        work,
-        mock(WorkExecutor.class),
-        /* workQueueExecutor= */ null,
-        /* budgetHandle= */ null,
-        /* keyCoder= */ null,
-        /* keyTransitionListener= */ mock(KeyTransitionListener.class));
+    try {
+      context.start(
+          work,
+          mock(WindmillStateReader.class),
+          mock(WorkExecutor.class),
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          /* keyCoder= */ null,
+          /* keyTransitionListener= */ mock(KeyTransitionListener.class));
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {

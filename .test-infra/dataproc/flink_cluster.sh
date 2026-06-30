@@ -16,8 +16,8 @@
 #
 #    Provide the following environment to run this script:
 #
-#    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
-#    DATAPROC_VERSION: Dataproc version. Optional. Default: 2.2
+#    GCLOUD_REGION: Google cloud region. Optional. Default: "us-central1" (uses Auto Zone)
+#    DATAPROC_VERSION: Dataproc version. Optional. Default: 3.0-debian
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
 #    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
@@ -35,7 +35,7 @@
 #    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
-#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.17.0/flink-1.17.0-bin-scala_2.12.tgz \
+#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-2.0.1/flink-2.0.1-bin-scala_2.12.tgz \
 #    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
@@ -45,23 +45,47 @@
 set -Eeuxo pipefail
 
 # GCloud properties
-GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=2.2-debian}"
-GCLOUD_REGION=`echo $GCLOUD_ZONE | sed -E "s/(-[a-z])?$//"`
+GCLOUD_REGION="${GCLOUD_REGION:=us-central1}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=3.0-debian}"
+GCLOUD_ZONE=""
+
+function ensure_zone() {
+  if [[ -z "${GCLOUD_ZONE}" ]]; then
+    GCLOUD_ZONE=$(gcloud dataproc clusters describe $CLUSTER_NAME --region=$GCLOUD_REGION --format="value(config.gceClusterConfig.zoneUri)" | awk -F/ '{print $NF}')
+    echo "Detected zone: $GCLOUD_ZONE"
+  fi
+}
 
 MASTER_NAME="$CLUSTER_NAME-m"
 
 # GCS properties
 INIT_ACTIONS_FOLDER_NAME="init-actions"
-FLINK_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/flink.sh"
 BEAM_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/beam.sh"
-DOCKER_INIT="$GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME/docker.sh"
 
 # Flink properties
 FLINK_LOCAL_PORT=8081
 
 # By default each taskmanager has one slot - use that value to avoid sharing SDK Harness by multiple tasks.
 FLINK_TASKMANAGER_SLOTS="${FLINK_TASKMANAGER_SLOTS:=1}"
+
+# Config for Fn API gRPC buffer stability and memory allocation.
+#
+# Flink 2 has elevated memory pressure. If the Task Heap is too small,
+# Flink's default 40% managed memory allocation can starve the heap.
+# During large load tests, this causes the TaskManager to hang and time out:
+#   "TimeoutException: The heartbeat of TaskManager with id ... timed out"
+#
+# These options are tuned for the default CI machine (n1-standard-2) and
+# are only applied if a custom machine type is not specified.
+FLINK_PROPS="flink:taskmanager.memory.task.off-heap.size=256m"
+if [[ -z "${HIGH_MEM_MACHINE:=}" ]]; then
+  # Increase process size to 2GB and reduce managed memory to 10%
+  # to expand the usable Task Heap to ~750MB.
+  FLINK_PROPS+=",flink:taskmanager.memory.process.size=2048m"
+  FLINK_PROPS+=",flink:taskmanager.memory.managed.fraction=0.1"
+fi
+FLINK_PROPS+=",flink:jobmanager.memory.process.size=1600m"
+FLINK_PROPS+=",flink:taskmanager.numberOfTaskSlots=${FLINK_TASKMANAGER_SLOTS}"
 
 YARN_APPLICATION_MASTER=""
 
@@ -71,6 +95,7 @@ function upload_init_actions() {
 }
 
 function get_leader() {
+  ensure_zone
   local i=0
   local application_ids
   local application_masters
@@ -99,10 +124,12 @@ function get_leader() {
 }
 
 function start_job_server() {
-  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 --volume ~/.config/gcloud:/root/.config/gcloud ${JOB_SERVER_IMAGE} --flink-master=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
+  ensure_zone
+  gcloud compute ssh --zone=$GCLOUD_ZONE --quiet yarn@${MASTER_NAME} --command="sudo --user yarn docker run --detach --publish 8099:8099 --publish 8098:8098 --publish 8097:8097 ${JOB_SERVER_IMAGE} --flink-master=${YARN_APPLICATION_MASTER} --artifacts-dir=${ARTIFACTS_DIR}"
 }
 
 function start_tunnel() {
+  ensure_zone
   local job_server_config=`gcloud compute ssh --quiet --zone=$GCLOUD_ZONE yarn@$MASTER_NAME --command="curl -s \"http://$YARN_APPLICATION_MASTER/jobmanager/config\""`
   local key="jobmanager.rpc.port"
   local yarn_application_master_host=`echo $YARN_APPLICATION_MASTER | cut -d ":" -f1`
@@ -118,10 +145,8 @@ function start_tunnel() {
 }
 
 function create_cluster() {
-  local metadata="flink-snapshot-url=${FLINK_DOWNLOAD_URL},"
-  metadata+="flink-start-yarn-session=true,"
-  metadata+="flink-taskmanager-slots=${FLINK_TASKMANAGER_SLOTS},"
-  metadata+="hadoop-jar-url=${HADOOP_DOWNLOAD_URL}"
+  # Use the official flink-start-yarn-session flag so Dataproc's native component starts the session
+  local metadata="flink-start-yarn-session=true"
 
   [[ -n "${HARNESS_IMAGES_TO_PULL:=}" ]] && metadata+=",beam-sdk-harness-images-to-pull=${HARNESS_IMAGES_TO_PULL}"
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && metadata+=",beam-job-server-image=${JOB_SERVER_IMAGE}"
@@ -135,20 +160,17 @@ function create_cluster() {
   if [[ -n "${HIGH_MEM_MACHINE:=}" ]]; then
       worker_machine_type="${HIGH_MEM_MACHINE}"
       master_machine_type="${HIGH_MEM_MACHINE}"
-
-    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
-    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
-    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  \
-    --properties="${HIGH_MEM_FLINK_PROPS}"
-  else
-    # Docker init action restarts yarn so we need to start yarn session after this restart happens.
-    # This is why flink init action is invoked last.
-    # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
-    # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
-    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
-    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
-    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  --quiet
   fi
+
+  # Docker init action restarts yarn so we need to start yarn session after this restart happens.
+  # This is why flink init action is invoked last.
+  # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
+  # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
+  gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+  --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+  --image-version=$image_version --optional-components=FLINK,DOCKER \
+  --initialization-actions="${BEAM_INIT}" \
+  --properties="${FLINK_PROPS}" --quiet
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster
@@ -159,6 +181,16 @@ function create() {
   get_leader
   [[ -n "${JOB_SERVER_IMAGE:=}" ]] && start_job_server
   start_tunnel
+}
+
+# Resizes an active Flink cluster.
+function resize() {
+  if [[ -z "$FLINK_NUM_WORKERS" ]]; then
+    echo "Error: FLINK_NUM_WORKERS environment variable is not set."
+    exit 1
+  fi
+  echo "Rescaling Dataproc cluster $CLUSTER_NAME to $FLINK_NUM_WORKERS workers..."
+  gcloud dataproc clusters update $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --quiet
 }
 
 # Recreates a Flink cluster.

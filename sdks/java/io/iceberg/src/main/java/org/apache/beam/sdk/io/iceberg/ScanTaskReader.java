@@ -36,7 +36,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.data.GenericDeleteFilter;
-import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
 import org.apache.iceberg.data.orc.GenericOrcReader;
@@ -121,8 +120,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
-          ReadUtils.constantsMap(
-              fileTask, IdentityPartitionConverters::convertConstant, requiredSchema);
+          PartitionUtils.constantsMap(fileTask.spec(), fileTask.file(), null);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {

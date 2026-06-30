@@ -469,10 +469,14 @@ class ExternalPythonProvider(ExternalProvider):
 
 @ExternalProvider.register_provider_type('yaml')
 class YamlProvider(Provider):
-  def __init__(self, transforms: Mapping[str, Mapping[str, Any]]):
+  def __init__(
+      self,
+      transforms: Mapping[str, Mapping[str, Any]],
+      provider_base_path: Optional[str] = None):
     if not isinstance(transforms, dict):
       raise ValueError('Transform mapping must be a dict.')
     self._transforms = transforms
+    self._provider_base_path = provider_base_path
 
   def available(self):
     return True
@@ -524,7 +528,10 @@ class YamlProvider(Provider):
     else:
       body_str = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
     # Now re-parse resolved templatization.
-    body = yaml.load(expand_jinja(body_str, args), Loader=SafeLineLoader)
+    search_paths = [FileSystems.split(self._provider_base_path)[0]
+                    ] if self._provider_base_path else []
+    body = yaml.load(
+        expand_jinja(body_str, args, search_paths), Loader=SafeLineLoader)
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'

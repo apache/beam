@@ -64,7 +64,7 @@ jobs:
         job_phrase: ["Run XVR_Spark3 PostCommit"]
         python_version: ['3.10','3.14']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,6 +74,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: |
+            17
+            11
           python-version: ${{ matrix.python_version }}
       - name: run PostCommit XVR Spark3 script
         env:
@@ -82,6 +85,7 @@ jobs:
         with:
           gradle-command: :runners:spark:3:job-server:validatesCrossLanguageRunner
           arguments: |
+            -Pjava17Home=$JAVA_HOME_17_X64 \
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
       - name: Archive JUnit Test Results

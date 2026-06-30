@@ -25,6 +25,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public abstract class ComputationWorkExecutor {
 
   public abstract DataflowWorkExecutor workExecutor();
 
-  public abstract StreamingModeExecutionContext context();
+  abstract StreamingModeExecutionContext context();
 
   public abstract Optional<Coder<?>> keyCoder();
 
@@ -61,8 +62,9 @@ public abstract class ComputationWorkExecutor {
   /**
    * Executes DoFns for the Work. Blocks the calling thread until DoFn(s) have completed execution.
    */
-  public final void executeWork(
+  public final StreamingModeExecutionContext executeWork(
       Work work,
+      WindmillStateReader stateReader,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       KeyTransitionListener keyTransitionListener)
@@ -70,12 +72,14 @@ public abstract class ComputationWorkExecutor {
     context()
         .start(
             work,
+            stateReader,
             workExecutor(),
             workQueueExecutor,
             budgetHandle,
             keyCoder().orElse(null),
             keyTransitionListener);
     workExecutor().execute();
+    return context();
   }
 
   /**
@@ -84,7 +88,7 @@ public abstract class ComputationWorkExecutor {
    */
   public final void invalidate() {
     context().invalidateCache();
-    context().clear();
+    context().reset();
     try {
       workExecutor().close();
     } catch (Exception e) {

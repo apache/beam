@@ -61,6 +61,7 @@ enum ConfigurableOption {
    *   <li>{@code metrics} - Enables authentication for metric exports.
    *   <li>{@code traces} - Enables authentication for trace exports.
    *   <li>{@code all} - Enables authentication for all exports.
+   *   <li>{@code none} - Disables authentication for all exports.
    * </ul>
    *
    * <p>The values are case-sensitive. Whitespace around commas and values is ignored. Can be

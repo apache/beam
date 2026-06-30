@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -76,6 +77,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -105,6 +107,7 @@ public class StreamingModeExecutionContextTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
+  @Mock private WindmillStateReader stateReader;
   @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
@@ -184,13 +187,18 @@ public class StreamingModeExecutionContextTest {
   }
 
   private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
-    context.start(
-        work,
-        workExecutor,
-        /* workQueueExecutor= */ null,
-        /* budgetHandle= */ null,
-        keyCoder,
-        /* keyTransitionListener= */ (k, c) -> {});
+    try {
+      context.start(
+          work,
+          stateReader,
+          workExecutor,
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          keyCoder,
+          /* keyTransitionListener= */ (k, c) -> {});
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
@@ -770,5 +778,57 @@ public class StreamingModeExecutionContextTest {
         createExecutionContext(optionsInvalid, globalConfigHandle);
 
     org.junit.Assert.assertNotNull(context);
+  }
+
+  @Test
+  public void testInternalsPoisonedAfterFlushState() throws Exception {
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    start(
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
+
+    TimerInternals timerInternals = stepContext.timerInternals();
+    StateInternals stateInternals = stepContext.stateInternals();
+
+    executionContext.finishKey();
+    executionContext.flushState();
+
+    // Verify timerInternals is poisoned
+    try {
+      timerInternals.currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stateInternals is poisoned
+    try {
+      stateInternals.getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.stateInternals() returns poisoned instance
+    try {
+      stepContext.stateInternals().getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.timerInternals() returns poisoned instance
+    try {
+      stepContext.timerInternals().currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
   }
 }

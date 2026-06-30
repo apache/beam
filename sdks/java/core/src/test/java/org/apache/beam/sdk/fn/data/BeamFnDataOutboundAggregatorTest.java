@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.data;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
@@ -75,13 +76,12 @@ public class BeamFnDataOutboundAggregatorTest {
     final List<Elements> values = new ArrayList<>();
     final AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
     BeamFnDataOutboundAggregator aggregator =
-        new BeamFnDataOutboundAggregator(
-            PipelineOptionsFactory.create(),
-            endpoint::getInstructionId,
-            TestStreams.<Elements>withOnNext(values::add)
-                .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build(),
-            false);
+        new BeamFnDataOutboundAggregator(PipelineOptionsFactory.create(), false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.<Elements>withOnNext(values::add)
+            .withOnCompleted(() -> onCompletedWasCalled.set(true))
+            .build());
 
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
@@ -124,14 +124,12 @@ public class BeamFnDataOutboundAggregatorTest {
     options
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
-    BeamFnDataOutboundAggregator aggregator =
-        new BeamFnDataOutboundAggregator(
-            options,
-            endpoint::getInstructionId,
-            TestStreams.<Elements>withOnNext(values::add)
-                .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build(),
-            false);
+    BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.<Elements>withOnNext(values::add)
+            .withOnCompleted(() -> onCompletedWasCalled.set(true))
+            .build());
     // Test that nothing is emitted till the default buffer size is surpassed.
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     aggregator.start();
@@ -187,18 +185,16 @@ public class BeamFnDataOutboundAggregatorTest {
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
     final CountDownLatch waitForFlush = new CountDownLatch(1);
-    BeamFnDataOutboundAggregator aggregator =
-        new BeamFnDataOutboundAggregator(
-            options,
-            endpoint::getInstructionId,
-            TestStreams.withOnNext(
-                    (Consumer<Elements>)
-                        e -> {
-                          values.add(e);
-                          waitForFlush.countDown();
-                        })
-                .build(),
-            false);
+    BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.withOnNext(
+                (Consumer<Elements>)
+                    e -> {
+                      values.add(e);
+                      waitForFlush.countDown();
+                    })
+            .build());
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
@@ -214,17 +210,15 @@ public class BeamFnDataOutboundAggregatorTest {
     options
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
-    BeamFnDataOutboundAggregator aggregator =
-        new BeamFnDataOutboundAggregator(
-            options,
-            endpoint::getInstructionId,
-            TestStreams.withOnNext(
-                    (Consumer<Elements>)
-                        e -> {
-                          throw new RuntimeException("");
-                        })
-                .build(),
-            false);
+    BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.withOnNext(
+                (Consumer<Elements>)
+                    e -> {
+                      throw new RuntimeException("");
+                    })
+            .build());
 
     // Test that it emits when time passed the time limit
     FnDataReceiver<byte[]> dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
@@ -243,17 +237,15 @@ public class BeamFnDataOutboundAggregatorTest {
       // expected
     }
 
-    aggregator =
-        new BeamFnDataOutboundAggregator(
-            options,
-            endpoint::getInstructionId,
-            TestStreams.withOnNext(
-                    (Consumer<Elements>)
-                        e -> {
-                          throw new RuntimeException("");
-                        })
-                .build(),
-            false);
+    aggregator = new BeamFnDataOutboundAggregator(options, false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.withOnNext(
+                (Consumer<Elements>)
+                    e -> {
+                      throw new RuntimeException("");
+                    })
+            .build());
     dataReceiver = registerOutputLocation(aggregator, endpoint, CODER);
     aggregator.start();
     dataReceiver.accept(new byte[1]);
@@ -279,14 +271,12 @@ public class BeamFnDataOutboundAggregatorTest {
     options
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_size_limit=100"));
-    BeamFnDataOutboundAggregator aggregator =
-        new BeamFnDataOutboundAggregator(
-            options,
-            endpoint::getInstructionId,
-            TestStreams.<Elements>withOnNext(values::add)
-                .withOnCompleted(() -> onCompletedWasCalled.set(true))
-                .build(),
-            false);
+    BeamFnDataOutboundAggregator aggregator = new BeamFnDataOutboundAggregator(options, false);
+    aggregator.prepareForInstruction(
+        endpoint.getInstructionId(),
+        TestStreams.<Elements>withOnNext(values::add)
+            .withOnCompleted(() -> onCompletedWasCalled.set(true))
+            .build());
     // Test that nothing is emitted till the default buffer size is surpassed.
     LogicalEndpoint additionalEndpoint =
         LogicalEndpoint.data(
@@ -332,6 +322,37 @@ public class BeamFnDataOutboundAggregatorTest {
             .setTransformId(additionalEndpoint.getTransformId())
             .setIsLast(true));
     checkEqualInAnyOrder(builder.build(), values.get(1));
+  }
+
+  @Test
+  public void testInstructionLifecycle() {
+    BeamFnDataOutboundAggregator aggregator =
+        new BeamFnDataOutboundAggregator(PipelineOptionsFactory.create(), false);
+    assertThrows(
+        NullPointerException.class, () -> aggregator.sendElements(Elements.getDefaultInstance()));
+    aggregator.prepareForInstruction(
+        "testInstruction",
+        TestStreams.withOnNext(
+                (Consumer<Elements>)
+                    e -> {
+                      throw new RuntimeException("");
+                    })
+            .build());
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            aggregator.prepareForInstruction(
+                "testInstruction",
+                TestStreams.withOnNext(
+                        (Consumer<Elements>)
+                            e -> {
+                              throw new RuntimeException("");
+                            })
+                    .build()));
+    aggregator.finishInstruction();
+    assertThrows(
+        NullPointerException.class, () -> aggregator.sendElements(Elements.getDefaultInstance()));
+    assertThrows(IllegalStateException.class, aggregator::finishInstruction);
   }
 
   private void checkEqualInAnyOrder(Elements first, Elements second) {

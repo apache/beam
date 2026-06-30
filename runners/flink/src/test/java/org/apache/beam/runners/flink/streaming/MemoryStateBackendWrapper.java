@@ -27,8 +27,10 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -50,17 +52,18 @@ class MemoryStateBackendWrapper {
 
     MemoryStateBackend backend = new MemoryStateBackend();
     return backend.createKeyedStateBackend(
-        env,
-        jobID,
-        operatorIdentifier,
-        keySerializer,
-        numberOfKeyGroups,
-        keyGroupRange,
-        kvStateRegistry,
-        ttlTimeProvider,
-        metricGroup,
-        stateHandles,
-        cancelStreamRegistry);
+        new KeyedStateBackendParametersImpl<>(
+            env,
+            jobID,
+            operatorIdentifier,
+            keySerializer,
+            numberOfKeyGroups,
+            keyGroupRange,
+            kvStateRegistry,
+            ttlTimeProvider,
+            metricGroup,
+            stateHandles,
+            cancelStreamRegistry));
   }
 
   static OperatorStateBackend createOperatorStateBackend(
@@ -71,6 +74,7 @@ class MemoryStateBackendWrapper {
       throws Exception {
     MemoryStateBackend backend = new MemoryStateBackend();
     return backend.createOperatorStateBackend(
-        env, operatorIdentifier, stateHandles, cancelStreamRegistry);
+        new OperatorStateBackendParametersImpl(
+            env, operatorIdentifier, stateHandles, cancelStreamRegistry));
   }
 }

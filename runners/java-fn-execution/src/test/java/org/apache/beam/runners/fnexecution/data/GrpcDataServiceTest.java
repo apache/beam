@@ -102,7 +102,7 @@ public class GrpcDataServiceTest {
       for (int i = 0; i < 3; ++i) {
         final String instructionId = Integer.toString(i);
         BeamFnDataOutboundAggregator aggregator =
-            service.createOutboundAggregator(() -> instructionId, false);
+            service.createOutboundAggregator(instructionId, false);
         aggregator.start();
         FnDataReceiver<WindowedValue<String>> consumer =
             aggregator.registerOutputDataLocation(TRANSFORM_ID, CODER);
