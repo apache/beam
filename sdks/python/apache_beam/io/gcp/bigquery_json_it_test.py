@@ -244,34 +244,51 @@ class BigQueryJsonIT(unittest.TestCase):
 
   # Schema for writing to BigQuery
   def generate_schema(self):
-    from google.cloud.bigquery import SchemaField
-    from google.cloud.bigquery import TableSchema
-    json_fields = [
-        SchemaField(name='country_code', type='STRING', mode='NULLABLE'),
-        SchemaField(name='country', type='JSON', mode='NULLABLE'),
-        SchemaField(
-            name='stats',
-            type='STRUCT',
-            mode='NULLABLE',
-            fields=[
-                SchemaField(
-                    name="gdp_per_capita", type='JSON', mode='NULLABLE'),
-                SchemaField(name="co2_emissions", type='JSON', mode='NULLABLE'),
-            ]),
-        SchemaField(
-            name='cities',
-            type='STRUCT',
-            mode='REPEATED',
-            fields=[
-                SchemaField(name="city_name", type='STRING', mode='NULLABLE'),
-                SchemaField(name="city", type='JSON', mode='NULLABLE'),
-            ]),
-        SchemaField(name='landmarks', type='JSON', mode='REPEATED'),
-    ]
-
-    schema = TableSchema(fields=json_fields)
-
-    return schema
+    return {
+        "fields": [
+            {
+                "name": "country_code", "type": "STRING", "mode": "NULLABLE"
+            },
+            {
+                "name": "country", "type": "JSON", "mode": "NULLABLE"
+            },
+            {
+                "name": "stats",
+                "type": "STRUCT",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "gdp_per_capita",
+                        "type": "JSON",
+                        "mode": "NULLABLE"
+                    },
+                    {
+                        "name": "co2_emissions",
+                        "type": "JSON",
+                        "mode": "NULLABLE"
+                    },
+                ]
+            },
+            {
+                "name": "cities",
+                "type": "STRUCT",
+                "mode": "REPEATED",
+                "fields": [
+                    {
+                        "name": "city_name",
+                        "type": "STRING",
+                        "mode": "NULLABLE"
+                    },
+                    {
+                        "name": "city", "type": "JSON", "mode": "NULLABLE"
+                    },
+                ]
+            },
+            {
+                "name": "landmarks", "type": "JSON", "mode": "REPEATED"
+            },
+        ]
+    }
 
   # Expected data for query test
   def generate_query_data(self):

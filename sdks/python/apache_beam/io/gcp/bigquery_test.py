@@ -2414,13 +2414,13 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
     pipeline_verifiers = [
         BigQueryTableMatcher(
             project=self.project,
-            dataset=table_ref.datasetId,
-            table=table_ref.tableId,
+            dataset=table_ref.dataset_id,
+            table=table_ref.table_id,
             expected_properties=additional_bq_parameters),
         BigQueryTableMatcher(
             project=self.project,
-            dataset=table_ref2.datasetId,
-            table=table_ref2.tableId,
+            dataset=table_ref2.dataset_id,
+            table=table_ref2.table_id,
             expected_properties=additional_bq_parameters),
         BigqueryFullResultMatcher(
             project=self.project,
