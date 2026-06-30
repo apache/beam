@@ -52,7 +52,7 @@ capture unpicklable objects), pass a zero-arg factory callable instead::
 import asyncio
 import logging
 import uuid
-from enum import Enum
+
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
@@ -76,12 +76,10 @@ try:
 except ImportError:
   ADK_AVAILABLE = False
 
-class BeamPlaceholderModel(str, Enum):
-  """Placeholder model to be used when the model will be injected by ADKAgentModelHandler."""
-  SENTINEL = "beam-placeholder-model"
+BEAM_PLACEHOLDER_MODEL = "beam-placeholder-model"
 
 def _is_beam_placeholder_model(model: Any) -> bool:
-  return model == BeamPlaceholderModel.SENTINEL
+  return model == BEAM_PLACEHOLDER_MODEL
 
 if not ADK_AVAILABLE:
   class Agent:
@@ -221,7 +219,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
           if local_model is not None:
             if not _is_beam_placeholder_model(agent.model) and agent.model is not None:
               raise ValueError(
-                  f"Agent model must be BeamPlaceholderModel or None when using local model. "
+                  f"Agent model must be BEAM_PLACEHOLDER_MODEL or None when using local model. "
                   f"Found: {agent.model}")
             self._set_agent_model(agent, local_model, is_root=True)
       else:
@@ -231,14 +229,14 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       if local_model is not None:
         if not _is_beam_placeholder_model(agent.model) and agent.model is not None:
           raise ValueError(
-              f"Agent model must be BeamPlaceholderModel or None when using local model. "
+              f"Agent model must be BEAM_PLACEHOLDER_MODEL or None when using local model. "
               f"Found: {agent.model}")
         self._set_agent_model(agent, local_model, is_root=True)
 
     # Validation when local model is NOT used
     if local_model is None:
       if _is_beam_placeholder_model(agent.model):
-        raise ValueError("Agent model cannot be BeamPlaceholderModel when no local model is configured.")
+        raise ValueError("Agent model cannot be BEAM_PLACEHOLDER_MODEL when no local model is configured.")
 
     if self._session_service_factory is not None:
       session_service = self._session_service_factory()
