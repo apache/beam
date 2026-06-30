@@ -62,6 +62,11 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
+        SMTP_SERVER: smtp.gmail.com
+        SMTP_PORT: 465
+        EMAIL_ADDRESS: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_ADDRESS }}
+        EMAIL_PASSWORD: ${{ secrets.ISSUE_REPORT_SENDER_EMAIL_PASSWORD }}
+        EMAIL_RECIPIENT: "dev@beam.apache.org"
       run: python account_keys.py --action announce
 
 
