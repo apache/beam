@@ -573,9 +573,7 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && " +
-          "grep -v '^tensorflow-transform' requirements.txt > /tmp/cloudml_tft_base_requirements.txt && " +
-          "pip install -r /tmp/cloudml_tft_base_requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
     }
   }
 }
