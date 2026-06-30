@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
@@ -120,9 +121,8 @@ public class StreamingSideInputDoFnRunnerTest {
 
     ListOutputManager outputManager = new ListOutputManager();
     List<PCollectionView<String>> views = Arrays.asList(view);
-    StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
-        createRunner(outputManager, views, sideInputFetcher);
+        createRunner(outputManager, views, () -> createFetcher(views));
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
@@ -146,7 +146,7 @@ public class StreamingSideInputDoFnRunnerTest {
     List<PCollectionView<String>> views = Arrays.asList(view);
     StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
-        createRunner(outputManager, views, sideInputFetcher);
+        createRunner(outputManager, views, () -> sideInputFetcher);
 
     runner.startBundle();
     runner.processElement(createDatum("e", 0));
@@ -203,7 +203,7 @@ public class StreamingSideInputDoFnRunnerTest {
             SlidingWindows.of(Duration.millis(10)).every(Duration.millis(10)),
             outputManager,
             views,
-            sideInputFetcher);
+            () -> sideInputFetcher);
 
     IntervalWindow window1 = new IntervalWindow(new Instant(0), new Instant(10));
     IntervalWindow window2 = new IntervalWindow(new Instant(-5), new Instant(5));
@@ -301,7 +301,7 @@ public class StreamingSideInputDoFnRunnerTest {
     List<PCollectionView<String>> views = Arrays.asList(view);
     StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
-        createRunner(outputManager, views, sideInputFetcher);
+        createRunner(outputManager, views, () -> sideInputFetcher);
     sideInputFetcher.watermarkHold(createWindow(0)).add(new Instant(0));
     sideInputFetcher.elementBag(createWindow(0)).add(createDatum("e", 0));
 
@@ -370,7 +370,7 @@ public class StreamingSideInputDoFnRunnerTest {
     List<PCollectionView<String>> views = Arrays.asList(view1, view2);
     StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher = createFetcher(views);
     StreamingSideInputDoFnRunner<String, String, IntervalWindow> runner =
-        createRunner(outputManager, views, sideInputFetcher);
+        createRunner(outputManager, views, () -> sideInputFetcher);
     sideInputFetcher.watermarkHold(createWindow(0)).add(new Instant(0));
     sideInputFetcher.elementBag(createWindow(0)).add(createDatum("e1", 0));
 
@@ -391,16 +391,16 @@ public class StreamingSideInputDoFnRunnerTest {
   private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
-      StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
+      Supplier<StreamingSideInputFetcher<String, IntervalWindow>> sideInputFetcherSupplier)
       throws Exception {
-    return createRunner(WINDOW_FN, outputManager, views, sideInputFetcher);
+    return createRunner(WINDOW_FN, outputManager, views, sideInputFetcherSupplier);
   }
 
   private StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowFn<?, ?> windowFn,
       WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
-      StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
+      Supplier<StreamingSideInputFetcher<String, IntervalWindow>> sideInputFetcherSupplier)
       throws Exception {
     DoFnRunner<String, String> simpleDoFnRunner =
         DoFnRunners.simpleRunner(
@@ -416,11 +416,11 @@ public class StreamingSideInputDoFnRunnerTest {
             WindowingStrategy.of(windowFn),
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
-    return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcher);
+    return new StreamingSideInputDoFnRunner<>(simpleDoFnRunner, sideInputFetcherSupplier);
   }
 
   private StreamingSideInputFetcher<String, IntervalWindow> createFetcher(
-      List<PCollectionView<String>> views) throws Exception {
+      List<PCollectionView<String>> views) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     Iterable<PCollectionView<?>> typedViews = (Iterable) views;
 

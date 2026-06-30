@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
@@ -69,7 +70,7 @@ import org.slf4j.LoggerFactory;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
+class SimpleParDoFnHelpers<K, InputT, OutputT, W extends BoundedWindow> {
   private static final Logger LOG = LoggerFactory.getLogger(SimpleParDoFnHelpers.class);
 
   // TODO: Remove once Distributions has shipped.
@@ -103,6 +104,8 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   // This may additionally be null if it is not a real DoFn but an OldDoFn or
   // GroupAlsoByWindowViaWindowSetDoFn
   protected @Nullable DoFnSignature fnSignature;
+  boolean activeKey = false;
+  private final Consumer<K> onStartKey;
 
   SimpleParDoFnHelpers(
       PipelineOptions options,
@@ -114,7 +117,8 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       DataflowOperationContext operationContext,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
-      DoFnRunnerFactory runnerFactory) {
+      DoFnRunnerFactory runnerFactory,
+      Consumer<K> onStartKey) {
     this.options = options;
     this.doFnInstanceManager = doFnInstanceManager;
 
@@ -145,6 +149,11 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
     this.outputsPerElementTracker = createOutputsPerElementTracker();
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
+    this.onStartKey =
+        k -> {
+          onStartKey.accept(k);
+          this.activeKey = true;
+        };
   }
 
   boolean hasState() {
@@ -157,6 +166,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
         "unexpected number of receivers for DoFn");
 
     this.receivers = receivers;
+    this.activeKey = false;
   }
 
   void reallyStartBundle() throws Exception {
@@ -233,24 +243,54 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
     fnRunner.startBundle();
   }
 
+  void finishKey(@Nullable K key, StreamingSideInputProcessor<?, ?> sideInputProcessor) {
+    if (!activeKey) {
+      // This means that there were no elements for this key. Try to unblock any queued elements.
+      onStartKey.accept(key);
+    }
+    if (sideInputProcessor != null) {
+      sideInputProcessor.handleFinishKeyOrBundle();
+    }
+    this.activeKey = false;
+  }
+
   void finishBundle(StreamingSideInputProcessor<?, ?> sideInputProcessor) throws Exception {
     if (fnRunner != null) {
       fnRunner.finishBundle();
       if (sideInputProcessor != null) {
-        sideInputProcessor.handleFinishBundle();
+        sideInputProcessor.handleFinishKeyOrBundle();
       }
       doFnInstanceManager.complete(fnInfo);
       fnRunner = null;
       fnInfo = null;
       fnSignature = null;
-      sideInputProcessor = null;
     }
+    this.activeKey = false;
   }
 
   void abort() throws Exception {
     doFnInstanceManager.abort(fnInfo);
     fnRunner = null;
     fnInfo = null;
+  }
+
+  void processElement(
+      @Nullable K key, WindowedValue<InputT> element, Consumer<WindowedValue<InputT>> consumer)
+      throws Exception {
+    if (fnRunner == null) {
+      // If we need to run reallyStartBundle in here, we need to make sure to switch the state
+      // sampler into the start state.
+      try (Closeable start = operationContext.enterStart()) {
+        reallyStartBundle();
+      }
+    }
+
+    if (!activeKey) {
+      onStartKey.accept(key);
+    }
+    outputsPerElementTracker.onProcessElement();
+    consumer.accept(element);
+    outputsPerElementTracker.onProcessElementSuccess();
   }
 
   @VisibleForTesting static final String CLEANUP_TIMER_ID = "cleanup-timer";
@@ -261,8 +301,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
-          throws Exception {
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor) {
         doFn.processUserTimer(timer, sideInputProcessor.get());
       }
     },
@@ -271,8 +310,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
-          throws Exception {
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor) {
         throw new UnsupportedOperationException(
             "Attempt to deliver a timer to a DoFn, but timers are not supported here.");
       }
@@ -282,8 +320,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
       public void processTimer(
           SimpleParDoFnHelpers doFn,
           TimerInternals.TimerData timer,
-          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
-          throws Exception {
+          Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor) {
         doFn.processSystemTimer(timer, sideInputProcessor.get());
       }
     };
@@ -293,23 +330,26 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
         TimerInternals.TimerData timer,
         Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
         throws Exception;
-  };
+  }
 
   void processTimers(
       TimerType mode,
       DataflowExecutionContext.DataflowStepContext context,
       Coder<BoundedWindow> windowCoder,
-      Runnable startKey,
       Supplier<StreamingSideInputProcessor<?, ?>> sideInputProcessor)
       throws Exception {
     TimerInternals.TimerData timer = context.getNextFiredTimer(windowCoder);
-
-    if (timer != null && fnRunner == null) {
+    if (timer != null) {
       // If we need to run reallyStartBundle in here, we need to make sure to switch the state
       // sampler into the start state.
-      try (Closeable start = operationContext.enterStart()) {
-        reallyStartBundle();
-        startKey.run();
+      if (fnRunner == null) {
+        try (Closeable start = operationContext.enterStart()) {
+          reallyStartBundle();
+        }
+      }
+
+      if (!activeKey) {
+        this.onStartKey.accept((K) context.stateInternals().getKey());
       }
     }
 
@@ -340,8 +380,7 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
   }
 
   private void processSystemTimer(
-      TimerInternals.TimerData timer, StreamingSideInputProcessor<InputT, W> sideInputProcessor)
-      throws Exception {
+      TimerInternals.TimerData timer, StreamingSideInputProcessor<InputT, W> sideInputProcessor) {
     // Timer owned by this class, for cleaning up state in expired windows
     if (timer.getTimerId().equals(CLEANUP_TIMER_ID)) {
       checkState(

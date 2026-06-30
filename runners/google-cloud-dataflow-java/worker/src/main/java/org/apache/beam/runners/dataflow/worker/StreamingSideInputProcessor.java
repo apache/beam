@@ -85,7 +85,7 @@ class StreamingSideInputProcessor<InputT, W extends BoundedWindow> {
     sideInputFetcher.releaseBlockedWindows(readyWindows);
   }
 
-  void handleFinishBundle() {
+  void handleFinishKeyOrBundle() {
     sideInputFetcher.persist();
   }
 
