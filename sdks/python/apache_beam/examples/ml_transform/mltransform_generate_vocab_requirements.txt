@@ -18,9 +18,7 @@
 # MLTransform TFT operations need a consistent TensorFlow Transform stack;
 # otherwise workers can crash-loop with pandas/numpy ABI mismatches.
 google-cloud-monitoring>=2.27.0
-tensorflow_transform>=1.14.0,<1.15.0
-tensorflow-metadata>=1.14.0,<1.15.0
-tfx-bsl>=1.14.0,<1.15.0
-numpy<2
-pandas<2
+tensorflow_transform>=1.21.0,<1.22.0
+tensorflow-metadata>=1.21.0,<1.22.0
+tfx-bsl>=1.21.0,<1.22.0
 dill
