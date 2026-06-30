@@ -141,7 +141,7 @@ class DataflowCostBenchmark(LoadTest):
     return system_metrics
 
   def _get_worker_time_interval(
-      self, job_id: str) -> tuple[Optional[str], Optional[str]]:
+      self, job_id: str) -> tuple[Optional[datetime], Optional[datetime]]:
     """Extracts worker start and stop times from job messages."""
     start_time, end_time = None, None
     page_token = None
@@ -155,7 +155,7 @@ class DataflowCostBenchmark(LoadTest):
         page_token=page_token,
         minimum_importance='JOB_MESSAGE_DEBUG')
       for message in messages:
-        text = message.messageText
+        text = message.message_text
         if getattr(message, 'time', None):
           last_message_time = message.time
         if text:
@@ -186,13 +186,39 @@ class DataflowCostBenchmark(LoadTest):
       self,
       project: str,
       job_id: str,
-      start_time: str,
-      end_time: str,
+      start_time: datetime,
+      end_time: datetime,
       pcollection_name: Optional[str] = None,
   ) -> dict[str, float]:
     """Query Cloud Monitoring for per-PCollection throughput."""
     name = (
         pcollection_name if pcollection_name is not None else self.pcollection)
+
+    def _point_numeric_value(point) -> float:
+      value = point.value
+      # point.value is proto-plus; use the underlying protobuf oneof if present.
+      msg = getattr(value, '_pb', value)
+      if msg is not None:
+        try:
+          active_field = msg.WhichOneof('value')
+        except AttributeError:
+          active_field = None
+        if active_field == 'double_value':
+          return float(value.double_value)
+        if active_field == 'int64_value':
+          return float(value.int64_value)
+        if active_field == 'distribution_value':
+          # Use aligned mean for distribution-valued points.
+          distribution = value.distribution_value
+          if distribution.count > 0:
+            return float(distribution.mean)
+          return 0.0
+        if active_field == 'money_value':
+          money = value.money_value
+          nanos = getattr(money, 'nanos', 0)
+          return float(money.units) + (float(nanos) / 1_000_000_000.0)
+      return 0.0
+
     interval = monitoring_v3.TimeInterval(
         start_time=start_time, end_time=end_time)
     aggregation = monitoring_v3.Aggregation(
@@ -221,7 +247,7 @@ class DataflowCostBenchmark(LoadTest):
     for key, req in requests.items():
       time_series = self.monitoring_client.list_time_series(request=req)
       values = [
-          point.value.double_value for series in time_series
+          _point_numeric_value(point) for series in time_series
           for point in series.points
       ]
       metrics[f"AvgThroughput{key}"] = sum(values) / len(
@@ -230,7 +256,8 @@ class DataflowCostBenchmark(LoadTest):
     return metrics
 
   def _get_streaming_throughput_metrics(
-      self, project: str, start_time: str, end_time: str) -> dict[str, float]:
+      self, project: str, start_time: datetime,
+      end_time: datetime) -> dict[str, float]:
     if not self.subscription:
       return {'AvgThroughputBytes': 0.0, 'AvgThroughputElements': 0.0}
 
@@ -271,17 +298,14 @@ class DataflowCostBenchmark(LoadTest):
       metrics[f"AvgThroughput{key}"] = avg_rate
     return metrics
 
-  def _get_job_runtime(self, start_time: str, end_time: str) -> float:
+  def _get_job_runtime(self, start_time: datetime, end_time: datetime) -> float:
     """Calculates the job runtime duration in seconds."""
-    start_dt = datetime.fromisoformat(start_time[:-1])
-    end_dt = datetime.fromisoformat(end_time[:-1])
-    return (end_dt - start_dt).total_seconds()
+    return (end_time - start_time).total_seconds()
 
   def _get_additional_metrics(self,
                               result: DataflowPipelineResult) -> dict[str, Any]:
     job_id = result.job_id()
-    job = self.dataflow_client.get_job(job_id)
-    project = job.projectId
+    project = self.project_id
     start_time, end_time = self._get_worker_time_interval(job_id)
     if not start_time or not end_time:
       logging.warning('Could not find valid worker start/end times.')

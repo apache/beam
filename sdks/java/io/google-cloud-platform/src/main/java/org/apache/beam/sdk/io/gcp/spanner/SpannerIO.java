@@ -37,6 +37,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
@@ -146,6 +147,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
@@ -311,10 +313,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note that the <a
  * href="https://cloud.google.com/spanner/quotas#limits_for_creating_reading_updating_and_deleting_data">maximum
- * size of a single transaction</a> is 20,000 mutated cells - including cells in indexes. If you
- * have a large number of indexes and are getting exceptions with message: <tt>INVALID_ARGUMENT: The
- * transaction contains too many mutations</tt> you will need to specify a smaller number of {@code
- * MaxNumMutations}.
+ * number of mutations in a single transaction</a> is 80,000 mutations - including mutations in
+ * indexes. If you have a large number of indexes and are getting exceptions with message:
+ * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt> you will need to specify a
+ * smaller number of {@code MaxNumMutations}.
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
  * Bundle provided by Beam to form several batches. This group of {@link Mutation Mutations} is then
@@ -657,6 +659,35 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadAll withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadAll withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -915,6 +946,35 @@ public class SpannerIO {
      */
     public Read withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Read withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Read withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1244,6 +1304,36 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public CreateTransaction withClientCert(
+        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public CreateTransaction withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1410,6 +1500,35 @@ public class SpannerIO {
      */
     public Write withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Write withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Write withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {
@@ -1770,6 +1889,10 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+    abstract @Nullable ValueProvider<String> getClientCertPath();
+
+    abstract @Nullable ValueProvider<String> getClientCertKeyPath();
+
     abstract Duration getRealTimeCheckpointInterval();
 
     abstract int getHeartbeatMillis();
@@ -1806,6 +1929,10 @@ public class SpannerIO {
       abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+      abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+      abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
       /**
        * When caught up to real-time, checkpoint processing of change stream this often. This sets a
@@ -1944,6 +2071,36 @@ public class SpannerIO {
      */
     public ReadChangeStream withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadChangeStream withClientCert(
+        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadChangeStream withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /**
@@ -2177,9 +2334,17 @@ public class SpannerIO {
   static SpannerConfig buildSpannerConfigWithCredential(
       SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
     if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
-      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-      if (credentials != null) {
-        spannerConfig = spannerConfig.withCredentials(credentials);
+      boolean isExperimentalHostEmpty =
+          spannerConfig.getExperimentalHost() == null
+              || (spannerConfig.getExperimentalHost().isAccessible()
+                  && Strings.isNullOrEmpty(spannerConfig.getExperimentalHost().get()));
+      if (isExperimentalHostEmpty) {
+        final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+        if (credentials != null) {
+          spannerConfig = spannerConfig.withCredentials(credentials);
+        }
+      } else {
+        spannerConfig = spannerConfig.withCredentials(NoCredentials.getInstance());
       }
     }
     return spannerConfig;

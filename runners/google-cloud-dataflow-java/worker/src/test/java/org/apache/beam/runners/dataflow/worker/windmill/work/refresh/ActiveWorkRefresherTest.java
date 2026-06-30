@@ -80,7 +80,8 @@ public class ActiveWorkRefresherTest {
         1,
         10000000,
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        /*useFairMonitor=*/ false);
+        /*useFairMonitor=*/ false,
+        /*useKeyGroupWorkQueue=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {
@@ -137,7 +138,9 @@ public class ActiveWorkRefresherTest {
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
             false,
             ActiveWorkRefresherTest::aLongTimeAgo),
-        processWork);
+        (work, handle) -> {
+          processWork.accept(work);
+        });
   }
 
   @Test

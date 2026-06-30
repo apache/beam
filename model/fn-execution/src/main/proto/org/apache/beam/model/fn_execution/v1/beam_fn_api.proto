@@ -120,6 +120,9 @@ message RemoteGrpcPort {
 service BeamFnControl {
   // Instructions sent by the runner to the SDK requesting different types
   // of work.
+  //
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": the id of the sdk
   rpc Control(
       // A stream of responses to instructions the SDK was asked to be
       // performed.
@@ -130,6 +133,9 @@ service BeamFnControl {
 
   // Used to get the full process bundle descriptors for bundles one
   // is asked to process.
+  //
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": the id of the sdk
   rpc GetProcessBundleDescriptor(GetProcessBundleDescriptorRequest) returns (
       ProcessBundleDescriptor) {}
 }
@@ -416,14 +422,22 @@ message ProcessBundleRequest {
   // at https://s.apache.org/beam-fn-api-control-data-embedding.
   Elements elements = 3;
 
-  // indicates that the runner has no stare for the keys in this bundle
+  // Indicates that the runner has no state for the keys in this bundle
   // so SDk can safely begin stateful processing with a locally-generated
-  // initial empty state
+  // initial empty state.
   bool has_no_state = 4;
 
-  // indicates that the runner will never process another bundle for the keys
+  // Indicates that the runner will never process another bundle for the keys
   // in this bundle so state need not be included in the bundle commit.
   bool only_bundle_for_keys = 5;
+
+  // (Optional) If non-empty, the ID of the data stream to use for all data
+  // requests related to this bundle. See comments at BeamFnData.Data for
+  // more details.
+  //
+  // The runner should only populate this field if the sdk advertises the
+  // beam:protocol:named_data_streams:v1 capability.
+  string data_stream_id = 6;
 }
 
 message ProcessBundleResponse {
@@ -834,7 +848,15 @@ message Elements {
 
 // Stable
 service BeamFnData {
-  // Used to send data between harnesses.
+  // Used to send data between harnesses. Sdks default to using an unnamed data stream
+  // (without "data_stream_id" header value) for bundles unless the runner requests another named stream to be
+  // used for a bundle. SDKs can advertise that they support named data streams with the capability
+  // `beam:protocol:named_data_streams:v1`.
+  //
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": value is the id of the sdk
+  // - "data_stream_id": value is the id of the data stream, distinguishing it from other data streams from the same
+  //   sdk. This field should only be populated if requested in a received ProcessBundleRequest from the runner.
   rpc Data(
       // A stream of data representing input.
       stream Elements)
@@ -900,6 +922,9 @@ message StateResponse {
 
 service BeamFnState {
   // Used to get/append/clear state stored by the runner on behalf of the SDK.
+  //
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": the id of the sdk
   rpc State(
       // A stream of state instructions requested of the runner.
       stream StateRequest)
@@ -1295,6 +1320,9 @@ message LogControl {}
 service BeamFnLogging {
   // Allows for the SDK to emit log entries which the runner can
   // associate with the active job.
+  //
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": the id of the sdk
   rpc Logging(
       // A stream of log entries batched into lists emitted by the SDK harness.
       stream LogEntry.List)
@@ -1356,6 +1384,8 @@ message WorkerStatusResponse {
 
 // API for SDKs to report debug-related statuses to runner during pipeline execution.
 service BeamFnWorkerStatus {
+  // Header metadata has the specified keys pairs:
+  // - "worker_id": the id of the sdk
   rpc WorkerStatus (stream WorkerStatusResponse)
     returns (stream WorkerStatusRequest) {}
 }

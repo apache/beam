@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20260513'
-ext.dataflowFnapiContainerVersion = 'beam-master-20260513'
+ext.dataflowLegacyContainerVersion = 'beam-master-20260624'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260624'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -113,6 +113,9 @@ dependencies {
   implementation library.java.google_cloud_logging
   permitUnusedDeclared library.java.google_cloud_logging // BEAM-11761
   implementation library.java.opentelemetry_context
+  runtimeOnly library.java.opentelemetry_exporter_otlp
+  runtimeOnly library.java.opentelemetry_extension_autoconfigure
+  runtimeOnly project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -167,6 +170,7 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -184,6 +188,7 @@ def runnerV2CommonPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -431,7 +436,7 @@ task printRunnerV2PipelineOptions {
   dependsOn buildAndPushDockerJavaContainer
 
   doLast {
-    println "To run a Dataflow job with runner V2, add the following pipeline options to your command-line:"
+    println "To run a Dataflow job with Dataflow Portable Runner, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptions.join(' ')
     println "Please delete your image upon completion with the following command:"
     println "docker rmi ${dockerJavaImageName}; gcloud container images delete --force-delete-tags ${dockerJavaImageName}"
@@ -471,7 +476,7 @@ def validatesRunnerStreamingConfig = [
   excludedTests: [
     // TODO(https://github.com/apache/beam/issues/21472)
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-    // GroupIntoBatches.withShardedKey not supported on streaming runner v1
+    // GroupIntoBatches.withShardedKey not supported on Streaming Java Runner
     // https://github.com/apache/beam/issues/22592
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
@@ -484,6 +489,9 @@ def validatesRunnerStreamingConfig = [
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+    // Bundle finalizer tests are flaky https://github.com/apache/beam/issues/38710
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnBoundedSplittableDoFn',
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
   ]
 ]
 
@@ -570,7 +578,7 @@ createCrossLanguageValidatesRunnerTask(
 
 task validatesRunnerV2 {
   group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2"
+  description = "Runs the ValidatesRunner tests on Dataflow Portable Runner"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2Test',
     pipelineOptions: runnerV2PipelineOptions,
@@ -610,7 +618,7 @@ task validatesRunnerV2 {
 
 task validatesRunnerV2Streaming {
   group = "Verification"
-  description = "Runs the ValidatesRunner tests on Dataflow Runner V2 forcing streaming mode"
+  description = "Runs the ValidatesRunner tests on Dataflow Portable Runner forcing streaming mode"
   dependsOn(createRunnerV2ValidatesRunnerTest(
     name: 'validatesRunnerV2TestStreaming',
     pipelineOptions: runnerV2PipelineOptions + ['--streaming', '--experiments=enable_streaming_engine'],
@@ -880,7 +888,7 @@ task postCommit {
 
 task postCommitRunnerV2 {
   group = "Verification"
-  description = "Various integration tests using the Dataflow runner V2."
+  description = "Various integration tests using the Dataflow Portable Runner."
   dependsOn googleCloudPlatformRunnerV2IntegrationTest
   dependsOn coreSDKJavaRunnerV2IntegrationTest
 }

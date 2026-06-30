@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
@@ -47,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounte
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -214,11 +216,13 @@ public class StreamingWorkScheduler {
       Work.ProcessingContext processingContext,
       boolean drainMode,
       ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
+    // Before any processing starts, call any pending OnCommit callbacks
+    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
     computationState.activateWork(
         ExecutableWork.create(
             Work.create(
                 workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock),
-            work -> processWork(computationState, work, getWorkStreamLatencies)));
+            (work, handle) -> processWork(computationState, work, getWorkStreamLatencies, handle)));
   }
 
   /** Adds any applied finalize ids to the commit finalizer to have their callbacks executed. */
@@ -232,16 +236,19 @@ public class StreamingWorkScheduler {
    * internally if processing fails due to uncaught {@link Exception}(s).
    *
    * @implNote This will block the calling thread during execution of user DoFns.
+   * @param handle handled to pass to BoundedQueueExecutor.pollWork, currently unused
    */
   private void processWork(
       ComputationState computationState,
       Work work,
-      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies,
+      BoundedQueueExecutorWorkHandle handle) {
     work.recordGetWorkStreamLatencies(getWorkStreamLatencies);
-    processWork(computationState, work);
+    processWork(computationState, work, handle);
   }
 
-  private void processWork(ComputationState computationState, Work work) {
+  private void processWork(
+      ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle unusedHandle) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     ByteString key = workItem.getKey();
@@ -250,9 +257,6 @@ public class StreamingWorkScheduler {
     setUpWorkLoggingContext(work.getLatencyTrackingId(), computationId);
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
 
-    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
-    // cleanup should be done before this, since we might exit early here.
-    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
     if (workItem.getSourceState().getOnlyFinalize()) {
       Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
       outputBuilder.setSourceStateUpdates(Windmill.SourceState.newBuilder().setOnlyFinalize(true));
@@ -289,7 +293,7 @@ public class StreamingWorkScheduler {
       try {
         workFailureProcessor.logAndProcessFailure(
             computationId,
-            ExecutableWork.create(work, retry -> processWork(computationState, retry)),
+            ExecutableWork.create(work, (retry, h) -> processWork(computationState, retry, h)),
             t,
             invalidWork ->
                 computationState.completeWorkAndScheduleNextWorkForKey(
@@ -297,7 +301,8 @@ public class StreamingWorkScheduler {
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t2) {
-        throw new RuntimeException(t2);
+        LOG.warn("Failed to process work failure safely for work {}", work.id(), t2);
+        throw ExceptionUtils.safeWrapThrowableAsException(t2);
       }
     } finally {
       // Update total processing time counters. Updating in finally clause ensures that

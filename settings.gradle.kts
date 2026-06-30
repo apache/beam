@@ -39,7 +39,7 @@ pluginManagement {
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.6.0"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.7.0"
 }
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
@@ -192,6 +192,7 @@ include(":sdks:java:extensions:avro")
 include(":sdks:java:extensions:euphoria")
 include(":sdks:java:extensions:kryo")
 include(":sdks:java:extensions:google-cloud-platform-core")
+include(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:kafka-factories")
@@ -235,6 +236,7 @@ include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-9")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
 include(":sdks:java:io:expansion-service")
+include(":sdks:java:io:messaging-expansion-service")
 include(":sdks:java:io:file-based-io-tests")
 include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")

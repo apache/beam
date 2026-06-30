@@ -64,7 +64,8 @@ public class WorkFailureProcessorTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
   }
@@ -98,7 +99,9 @@ public class WorkFailureProcessorTest {
                 mock(HeartbeatSender.class)),
             false,
             clock),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private static ExecutableWork createWork(Consumer<Work> processWorkFn) {

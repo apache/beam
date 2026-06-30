@@ -51,6 +51,11 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.Me
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.ReflectiveRelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexShuttle;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable;
@@ -180,8 +185,8 @@ public class CalciteQueryPlanner implements QueryPlanner {
   public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
     Preconditions.checkArgument(
-        queryParameters.getKind() == Kind.NONE,
-        "Beam SQL Calcite dialect does not yet support query parameters.");
+        queryParameters.getKind() == Kind.NONE || queryParameters.getKind() == Kind.POSITIONAL,
+        "Beam SQL Calcite dialect only supports positional query parameters.");
     BeamRelNode beamRelNode;
     try {
       SqlNode parsed = planner.parse(sqlStatement);
@@ -191,28 +196,35 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
       // root of original logical plan
       RelRoot root = planner.rel(validated);
+      RelNode relNode = root.rel;
+      if (queryParameters.getKind() == Kind.POSITIONAL) {
+        relNode =
+            bindParameters(
+                relNode,
+                new ParameterBinder(root.rel.getCluster().getRexBuilder(), queryParameters));
+      }
       LOG.info("SQLPlan>\n{}", BeamSqlRelUtils.explainLazily(root.rel));
       RelTraitSet desiredTraits =
-          root.rel
+          relNode
               .getTraitSet()
               .replace(BeamLogicalConvention.INSTANCE)
               .replace(root.collation)
               .simplify();
       // beam physical plan
-      root.rel
+      relNode
           .getCluster()
           .setMetadataProvider(
               ChainedRelMetadataProvider.of(
                   ImmutableList.of(
                       NonCumulativeCostImpl.SOURCE,
                       RelMdNodeStats.SOURCE,
-                      root.rel.getCluster().getMetadataProvider())));
+                      relNode.getCluster().getMetadataProvider())));
 
-      root.rel.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
+      relNode.getCluster().setMetadataQuerySupplier(BeamRelMetadataQuery::instance);
       RelMetadataQuery.THREAD_PROVIDERS.set(
-          JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
-      root.rel.getCluster().invalidateMetadataQuery();
-      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, root.rel);
+          JaninoRelMetadataProvider.of(relNode.getCluster().getMetadataProvider()));
+      relNode.getCluster().invalidateMetadataQuery();
+      beamRelNode = (BeamRelNode) planner.transform(0, desiredTraits, relNode);
       LOG.info("BEAMPlan>\n{}", BeamSqlRelUtils.explainLazily(beamRelNode));
     } catch (RelConversionException | CannotPlanException e) {
       throw new SqlConversionException(
@@ -223,6 +235,15 @@ public class CalciteQueryPlanner implements QueryPlanner {
       planner.close();
     }
     return beamRelNode;
+  }
+
+  private static RelNode bindParameters(RelNode rel, RexShuttle binder) {
+    RelNode newRel = rel.accept(binder);
+    java.util.List<RelNode> newInputs = new java.util.ArrayList<>();
+    for (RelNode input : newRel.getInputs()) {
+      newInputs.add(bindParameters(input, binder));
+    }
+    return newRel.copy(newRel.getTraitSet(), newInputs);
   }
 
   // It needs to be public so that the generated code in Calcite can access it.
@@ -263,6 +284,60 @@ public class CalciteQueryPlanner implements QueryPlanner {
       costKeys.forEach(cell -> bmq.map.remove(cell.getRowKey(), cell.getColumnKey()));
 
       return ((BeamRelNode) rel).beamComputeSelfCost(rel.getCluster().getPlanner(), bmq);
+    }
+  }
+
+  private static class ParameterBinder extends RexShuttle {
+    private final RexBuilder rexBuilder;
+    private final List<?> positionalParams;
+
+    ParameterBinder(RexBuilder rexBuilder, QueryParameters params) {
+      this.rexBuilder = rexBuilder;
+      this.positionalParams = params.getKind() == Kind.POSITIONAL ? params.positional() : null;
+    }
+
+    @Override
+    public RexNode visitDynamicParam(RexDynamicParam dynamicParam) {
+      if (positionalParams != null) {
+        int index = dynamicParam.getIndex();
+        if (index < 0 || index >= positionalParams.size()) {
+          throw new IllegalArgumentException(
+              "Index out of bounds for positional parameter: " + index);
+        }
+        Object val = positionalParams.get(index);
+        return makeLiteral(cleanValue(val), dynamicParam.getType());
+      }
+      return super.visitDynamicParam(dynamicParam);
+    }
+
+    private RexNode makeLiteral(Object val, RelDataType type) {
+      if (val == null) {
+        return rexBuilder.makeNullLiteral(type);
+      }
+      return rexBuilder.makeLiteral(val, type, true);
+    }
+
+    @SuppressWarnings("JavaUtilDate") // explicit java.util.Date support
+    private Object cleanValue(Object value) {
+      if (value instanceof org.joda.time.ReadableInstant) {
+        return ((org.joda.time.ReadableInstant) value).getMillis();
+      }
+      if (value instanceof java.time.LocalDate) {
+        return (int) ((java.time.LocalDate) value).toEpochDay();
+      }
+      if (value instanceof java.time.LocalTime) {
+        return (int) (((java.time.LocalTime) value).toNanoOfDay() / 1_000_000L);
+      }
+      if (value instanceof java.time.LocalDateTime) {
+        return ((java.time.LocalDateTime) value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
+      }
+      if (value instanceof java.sql.Timestamp) {
+        return ((java.sql.Timestamp) value).getTime();
+      }
+      if (value instanceof java.util.Date) {
+        return ((java.util.Date) value).getTime();
+      }
+      return value;
     }
   }
 }

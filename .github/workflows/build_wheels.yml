@@ -55,7 +55,7 @@ jobs:
       py-versions-full: ${{ steps.set-py-versions.outputs.py-versions-full }}
       py-versions-test: ${{ steps.set-py-versions.outputs.py-versions-test }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -88,7 +88,7 @@ jobs:
       rc_num: ${{ steps.get_rc_version.outputs.RC_NUM }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install python
         uses: actions/setup-python@v5
         with:
@@ -245,7 +245,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a
+    - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
@@ -365,7 +365,7 @@ jobs:
     if: github.repository_owner == 'apache' && github.event_name == 'schedule'
     steps:
       - name: Checkout code on master branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive

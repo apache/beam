@@ -245,6 +245,7 @@ task validatesRunnerBatchTests {
   doLast {
     def argMap = [
         "test_opts"   : basicPytestOpts + ["--numprocesses=8"],
+        "additional_opts": ['--no_use_public_ips'],
         "sdk_location": project.ext.sdkLocation,
         "suite"       : "validatesRunnerBatchTests-df${pythonVersionSuffix}",
         "collect": "it_validatesrunner and not no_sickbay_batch"
@@ -266,6 +267,7 @@ task validatesRunnerStreamingTests {
   doFirst {
     def argMap = [
                 "test_opts": basicPytestOpts + ["--numprocesses=8"],
+                "additional_opts": ['--no_use_public_ips'],
                 "streaming": "true",
                 "sdk_location": project.ext.sdkLocation,
                 "suite": "validatesRunnerStreamingTests-df${pythonVersionSuffix}-xdist",
@@ -448,25 +450,28 @@ def tensorRTTests = tasks.create("tensorRTtests") {
  }
 }
 
+def vllmBaseArgMap = [
+  "runner": "DataflowRunner",
+  "machine_type":"n1-standard-4",
+  // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
+  // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
+  // declaration for this project.
+  // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile.old
+  "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
+  "sdk_location": files(configurations.distTarBall.files).singleFile,
+  "project": "apache-beam-testing",
+  "region": "us-central1",
+  "disk_size_gb": 75
+]
+
 def vllmTests = tasks.create("vllmTests") {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'
  doLast {
   def testOpts = basicPytestOpts
-  def argMap = [
-    "runner": "DataflowRunner",
-    "machine_type":"n1-standard-4",
-    // TODO(https://github.com/apache/beam/issues/22651): Build docker image for VLLM tests during Run time.
-    // This would also enable to use wheel "--sdk_location" as other tasks, and eliminate distTarBall dependency
-    // declaration for this project.
-    // Right now, this is built from https://github.com/apache/beam/blob/master/sdks/python/apache_beam/ml/inference/test_resources/vllm.dockerfile.old
-    "sdk_container_image": "us.gcr.io/apache-beam-testing/python-postcommit-it/vllm:latest",
-    "sdk_location": files(configurations.distTarBall.files).singleFile,
-    "project": "apache-beam-testing",
-    "region": "us-central1",
+  def argMap = vllmBaseArgMap + [
     "model": "facebook/opt-125m",
     "output": "gs://apache-beam-ml/outputs/vllm_predictions.txt",
-    "disk_size_gb": 75
   ]
   def cmdArgs = mapToArgString(argMap)
   // Exec one version with and one version without the chat option
@@ -477,6 +482,19 @@ def vllmTests = tasks.create("vllmTests") {
   exec {
     executable 'sh'
     args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $cmdArgs --chat true --chat_template 'gs://apache-beam-ml/additional_files/sample_chat_template.jinja' --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
+  }
+  // Embedded NVIDIA Dynamo path. Reuses the same sdk_container_image
+  // (vllm.dockerfile.old now installs etcd and ai-dynamo[vllm]) and the
+  // same nvidia-tesla-t4 accelerator as the native vLLM ITs above.
+  // Validated end-to-end on Dataflow with Qwen/Qwen3-0.6B on T4.
+  def dynamoArgMap = vllmBaseArgMap + [
+    "model": "Qwen/Qwen3-0.6B",
+    "output": "gs://apache-beam-ml/outputs/vllm_dynamo_predictions.txt",
+  ]
+  def dynamoCmdArgs = mapToArgString(dynamoArgMap)
+  exec {
+    executable 'sh'
+    args '-c', ". ${envdir}/bin/activate && pip install openai && python -m apache_beam.examples.inference.vllm_text_completion $dynamoCmdArgs --use_dynamo --max_tokens 8 --experiment='worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx'"
   }
  }
 }
@@ -571,7 +589,9 @@ task installTFTRequirements {
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+      // Use constraints file to pin versions while allowing pip to
+      // resolve compatible versions within the specified ranges in requirements.txt
+      args '-c', ". ${envdir}/bin/activate && pip install -c constraints.txt -r requirements.txt"
     }
   }
 }

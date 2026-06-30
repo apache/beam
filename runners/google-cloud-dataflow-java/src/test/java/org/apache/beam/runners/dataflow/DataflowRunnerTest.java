@@ -1855,7 +1855,10 @@ public class DataflowRunnerTest implements Serializable {
         ExperimentalOptions.addExperiment(options, disabledExperiment);
         Pipeline p = Pipeline.create(options);
         p.apply(Create.of("A"));
-        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+        assertThrows(
+            "Dataflow Portable Runner both disabled and enabled",
+            IllegalArgumentException.class,
+            p::run);
       }
     }
   }
@@ -2919,5 +2922,49 @@ public class DataflowRunnerTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("value:UPDATE_BEFORE");
     pipeline.run();
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PreCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.74.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertFalse(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PostCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2NoCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
   }
 }

@@ -18,20 +18,22 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.MetadataUtils;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,17 +46,42 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
 
-  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer>
-      multiplexerCache;
+  private static class MultiplexerKey {
+    private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
+    private final String dataStreamId;
+
+    private MultiplexerKey(
+        Endpoints.ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
+      this.apiServiceDescriptor = apiServiceDescriptor;
+      this.dataStreamId = dataStreamId;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof MultiplexerKey)) {
+        return false;
+      }
+      MultiplexerKey that = (MultiplexerKey) o;
+      return Objects.equals(dataStreamId, that.dataStreamId)
+          && Objects.equals(apiServiceDescriptor, that.apiServiceDescriptor);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(apiServiceDescriptor, dataStreamId);
+    }
+  }
+
+  private final ConcurrentMap<MultiplexerKey, BeamFnDataGrpcMultiplexer> multiplexerCache;
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
-  private final PipelineOptions options;
 
   public BeamFnDataGrpcClient(
-      PipelineOptions options,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
       OutboundObserverFactory outboundObserverFactory) {
-    this.options = options;
     this.channelFactory = channelFactory;
     this.outboundObserverFactory = outboundObserverFactory;
     this.multiplexerCache = new ConcurrentHashMap<>();
@@ -63,21 +90,22 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   @Override
   public void registerReceiver(
       String instructionId,
+      String dataStreamId,
       List<ApiServiceDescriptor> apiServiceDescriptors,
       CloseableFnDataReceiver<Elements> receiver) {
     LOG.debug("Registering consumer for {}", instructionId);
     for (int i = 0, size = apiServiceDescriptors.size(); i < size; i++) {
-      BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptors.get(i));
+      BeamFnDataGrpcMultiplexer client = getMultiplexer(apiServiceDescriptors.get(i), dataStreamId);
       client.registerConsumer(instructionId, receiver);
     }
   }
 
   @Override
   public void unregisterReceiver(
-      String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors) {
+      String instructionId, String dataStreamId, List<ApiServiceDescriptor> apiServiceDescriptors) {
     LOG.debug("Unregistering consumer for {}", instructionId);
     for (int i = 0, size = apiServiceDescriptors.size(); i < size; i++) {
-      BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptors.get(i));
+      BeamFnDataGrpcMultiplexer client = getMultiplexer(apiServiceDescriptors.get(i), dataStreamId);
       client.unregisterConsumer(instructionId);
     }
   }
@@ -91,25 +119,32 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   @Override
-  public BeamFnDataOutboundAggregator createOutboundAggregator(
-      ApiServiceDescriptor apiServiceDescriptor,
-      Supplier<String> processBundleRequestIdSupplier,
-      boolean collectElementsIfNoFlushes) {
-    return new BeamFnDataOutboundAggregator(
-        options,
-        processBundleRequestIdSupplier,
-        getClientFor(apiServiceDescriptor).getOutboundObserver(),
-        collectElementsIfNoFlushes);
+  public StreamObserver<Elements> getOutboundObserver(
+      ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
+    return getMultiplexer(apiServiceDescriptor, dataStreamId).getOutboundObserver();
   }
 
-  private BeamFnDataGrpcMultiplexer getClientFor(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
+  private BeamFnDataGrpcMultiplexer getMultiplexer(
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
+    MultiplexerKey key = new MultiplexerKey(apiServiceDescriptor, dataStreamId);
     return multiplexerCache.computeIfAbsent(
-        apiServiceDescriptor,
-        (Endpoints.ApiServiceDescriptor descriptor) ->
-            new BeamFnDataGrpcMultiplexer(
-                descriptor,
-                outboundObserverFactory,
-                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data));
+        key,
+        k -> {
+          OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory =
+              inboundObserver -> {
+                BeamFnDataGrpc.BeamFnDataStub stub =
+                    BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
+                if (dataStreamId != null && !dataStreamId.isEmpty()) {
+                  Metadata headers = new Metadata();
+                  headers.put(
+                      Metadata.Key.of("data_stream_id", Metadata.ASCII_STRING_MARSHALLER),
+                      dataStreamId);
+                  stub = stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
+                }
+                return stub.data(inboundObserver);
+              };
+          return new BeamFnDataGrpcMultiplexer(
+              apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory);
+        });
   }
 }

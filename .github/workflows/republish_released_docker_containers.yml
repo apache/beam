@@ -32,8 +32,8 @@ on:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.73.0' }}"
-  rc: "${{ github.event.inputs.RC || '5' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.74.0' }}"
+  rc: "${{ github.event.inputs.RC || '3' }}"
 
 jobs:
 
@@ -57,7 +57,7 @@ jobs:
         ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam

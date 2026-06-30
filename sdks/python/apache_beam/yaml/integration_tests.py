@@ -21,18 +21,57 @@ import contextlib
 import copy
 import glob
 import itertools
+import json
 import logging
 import os
 import random
 import secrets
+import shutil
 import sqlite3
 import string
+import struct
+import tempfile
+import time
 import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
 
 import mock
+import requests
+from testcontainers.core.container import DockerContainer
+
+from apache_beam.coders import Coder
+from apache_beam.coders.coder_impl import CoderImpl
+from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
+
+
+class BigEndianIntegerCoderImpl(CoderImpl):
+  """Coder implementation for big-endian integers used in cross-language tests.
+  
+  This is needed because Java's BigEndianIntegerCoder falls back to the generic
+  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
+  Python's FnApiRunner needs to know how to decode it.
+  """
+  def encode_to_stream(self, value, stream, nested):
+    stream.write(struct.pack('>i', value))
+
+  def decode_from_stream(self, stream, nested):
+    return struct.unpack('>i', stream.read(4))[0]
+
+
+class BigEndianIntegerCoder(Coder):
+  def get_impl(self):
+    return BigEndianIntegerCoderImpl()
+
+
+# Register the coder with the fallback URN used by the Java SDK for this coder.
+# This allows the Python FnApiRunner to handle data sharded by Java transforms
+# using BigEndianIntegerCoder in integration tests.
+Coder.register_urn(
+    'beam:coders:javasdk:0.1',
+    None, lambda payload, components, context: BigEndianIntegerCoder())
+
 import psycopg2
 import pytds
 import sqlalchemy
@@ -45,6 +84,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
 from testcontainers.kafka import KafkaContainer
+from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -61,6 +101,8 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
 
 _LOGGER = logging.getLogger(__name__)
+
+_MONGO_CONTAINER_IMAGE = 'mongo:7.0.7'
 
 
 @contextlib.contextmanager
@@ -198,6 +240,53 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     instanceT.delete()
   except HttpError:
     _LOGGER.warning("Failed to clean up instance")
+
+
+@contextlib.contextmanager
+def temp_mongodb_table():
+  """
+  provides a temporary MongoDB instance.
+
+  starts a MongoDB container, creates a unique database
+  and collection name for test isolation, and yields them as a dictionary.
+
+  This allows YAML test files to get connection details without hardcoding them.
+  Example usage in a YAML test file's fixture section:
+
+  fixtures:
+    - name: mongo_vars
+      type: path.to.this.file.mongodb_fixture
+
+  Then, in the pipeline definition, you can use placeholders like:
+  - uri: ${mongo_vars.URI}
+  - database: ${mongo_vars.DATABASE}
+  - collection: ${mongo_vars.COLLECTION}
+  """
+  _LOGGER.info("Setting up MongoDB fixture...")
+  mongo_container = MongoDbContainer(_MONGO_CONTAINER_IMAGE)
+  try:
+    mongo_container.start()
+    mongo_uri = mongo_container.get_connection_url()
+
+    db_name = f'db_{uuid.uuid4().hex}'
+    collection_name = f'collection_{uuid.uuid4().hex}'
+
+    _LOGGER.info(
+        "MongoDB container started. URI: [%s], DB: [%s], Collection: [%s]",
+        mongo_uri,
+        db_name,
+        collection_name)
+
+    yield {
+        'URI': mongo_uri,
+        'DATABASE': db_name,
+        'COLLECTION': collection_name,
+    }
+
+  finally:
+    _LOGGER.info("Tearing down MongoDB fixture...")
+    mongo_container.stop()
+    _LOGGER.info("MongoDB container stopped.")
 
 
 @contextlib.contextmanager
@@ -473,6 +562,75 @@ def temp_oracle_database():
 
 
 @contextlib.contextmanager
+def temp_iceberg_table_with_pk(table_data):
+
+  # Create a temp dir that will be shared between host and container.
+  # We use the exact same path on both to avoid path mapping issues.
+  # We create it in the current working directory (workspace) because
+  # Docker in GitHub Actions often cannot mount directories from /tmp.
+  temp_dir = tempfile.mkdtemp(dir=os.getcwd())
+  os.chmod(temp_dir, 0o777)
+
+  # Start the Iceberg REST catalog container
+  container = DockerContainer("tabulario/iceberg-rest:0.6.0")
+  container.with_exposed_ports(8181)
+  container.with_volume_mapping(temp_dir, temp_dir, mode='rw')
+  container.with_env("HADOOP_USER_NAME", "iceberg")
+  container.with_env("CATALOG_WAREHOUSE", temp_dir)
+  container.with_env(
+      "CATALOG_IO__IMPL", "org.apache.iceberg.hadoop.HadoopFileIO")
+
+  try:
+    container.start()
+
+    ip = container.get_container_host_ip()
+    port = container.get_exposed_port(8181)
+    api_url = f"http://{ip}:{port}"
+
+    # Poll the REST API until it is ready
+    for _ in range(30):
+      try:
+        response = requests.get(f"{api_url}/v1/config", timeout=5)
+        if response.status_code == 200:
+          break
+      except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+      time.sleep(1)
+    else:
+      raise RuntimeError("Iceberg REST catalog failed to start in time.")
+
+    # Create namespace 'db'
+    requests.post(
+        f"{api_url}/v1/namespaces",
+        json={"namespace": ["db"]},
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+
+    # Create table with primary key
+    response = requests.post(
+        f"{api_url}/v1/namespaces/db/tables",
+        json=table_data,
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+    if response.status_code != 200:
+      raise RuntimeError(f"Failed to create Iceberg table: {response.text}")
+
+    # Change permissions of the created directories inside the container
+    # so the host user can write to them.
+    container.get_wrapped_container().exec_run(f"chmod -R 777 {temp_dir}")
+
+    yield {
+        "api_url": api_url,
+        "temp_dir": temp_dir,
+        "table": f"db.{table_data['name']}"
+    }
+
+  finally:
+    container.stop()
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@contextlib.contextmanager
 def temp_kafka_server():
   """Context manager to provide a temporary Kafka server for testing.
 
@@ -740,6 +898,11 @@ def create_test_methods(spec):
     yield f'test_{suffix}', test
 
 
+_SICKBAY_TESTS = {
+    'ml_transform.yaml': 'Requires broken TFT dependency types (e.g. ScaleTo01)',
+}
+
+
 def parse_test_files(filepattern):
   """Parses YAML test files and dynamically creates test cases.
 
@@ -760,13 +923,18 @@ def parse_test_files(filepattern):
   """
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+      filename = os.path.basename(path)
+      suite_name = os.path.splitext(filename)[0].title().replace(
           '-', '') + 'Test'
       print(path, suite_name)
       methods = dict(
           create_test_methods(
               yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+      suite_class = type(suite_name, (unittest.TestCase, ), methods)
+      if filename in _SICKBAY_TESTS:
+        suite_class = unittest.skip(f"Sickbayed: {_SICKBAY_TESTS[filename]}")(
+            suite_class)
+      globals()[suite_name] = suite_class
 
 
 # Logging setups

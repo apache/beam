@@ -47,10 +47,10 @@ jobs:
       FLUTTER_VERSION: '3.10.4'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: 'Cache Flutter Dependencies'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /opt/hostedtoolcache/flutter
           key: ${{ runner.OS }}-flutter-install-cache-${{ env.FLUTTER_VERSION }}
@@ -67,7 +67,7 @@ jobs:
           cd playground/frontend/playground_components_dev && flutter pub get && cd -
           cd learning/tour-of-beam/frontend && flutter pub get && cd -
 
-      - uses: nanasess/setup-chromedriver@v2
+      - uses: nanasess/setup-chromedriver@v3
 
       - name: 'Integration tests'
         run: |

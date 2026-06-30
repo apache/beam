@@ -115,7 +115,8 @@
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
-
+    'ReadFromMongoDB': 'apache_beam.yaml.yaml_io.read_from_mongodb'
+    'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
 
 # General File Formats
 # Declared as a renaming transform to avoid exposing all
@@ -417,10 +418,11 @@
         catalog_properties: 'catalog_properties'
         config_properties: 'config_properties'
         triggering_frequency_seconds: 'triggering_frequency_seconds'
-        append_batch_size: 'append_batch_size'
+        manifest_file_size: 'manifest_file_size'
         location_prefix: 'location_prefix'
         partition_fields: 'partition_fields'
         table_properties: 'table_properties'
+        sort_fields: 'sort_fields'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
@@ -429,3 +431,51 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+#Datadog
+- type: renaming
+  transforms:
+    'WriteToDatadog': 'WriteToDatadog'
+  config:
+    mappings:
+      'WriteToDatadog':
+        'url': 'url'
+        'api_key': 'api_key'
+        'min_batch_count': 'min_batch_count'
+        'batch_count': 'batch_count'
+        'max_buffer_size': 'max_buffer_size'
+        'parallelism': 'parallelism'
+        'error_handling': 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToDatadog': 'beam:schematransform:org.apache.beam:datadog_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#MongoDB
+- type: renaming
+  transforms:
+    'ReadFromMongoDB': 'ReadFromMongoDB'
+    'WriteToMongoDB': 'WriteToMongoDB'
+  config:
+    mappings:
+      'ReadFromMongoDB':
+        uri: "uri"
+        database: "database"
+        collection: "collection"
+        schema: "schema"
+        filter: "filter"
+        error_handling: "error_handling"
+      'WriteToMongoDB':
+        uri: "uri"
+        database: "database"
+        collection: "collection"
+        batch_size: "batch_size"
+        error_handling: "error_handling"
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromMongoDB': 'beam:schematransform:org.apache.beam:mongodb_read:v1'
+        'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

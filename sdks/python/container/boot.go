@@ -32,6 +32,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -133,7 +134,17 @@ type PipelineOptionsData struct {
 }
 
 type OptionsData struct {
-	Experiments []string `json:"experiments"`
+	Experiments                   []string `json:"experiments"`
+	ProfilerAgent                 string   `json:"profiler_agent"`
+	ProfilerExtraArgs             []string `json:"profiler_extra_args"`
+	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
+	ProfileLocation               string   `json:"profile_location"`
+	ProfileTempLocation           string   `json:"profile_temp_location"`
+	ProfileUploadIntervalSec      int      `json:"profile_upload_interval_sec"`
+	ProfilerStopAfterSec          int      `json:"profiler_stop_after_sec"`
+	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
+	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
+	JobId                         string   `json:"jobId,omitempty"`
 }
 
 func getExperiments(options string) []string {
@@ -190,13 +201,21 @@ func launchSDKProcess() error {
 	experiments := getExperiments(options)
 	logger.Printf(ctx, "Experiments=%v", experiments)
 
-	pipNoBuildIsolation = false
-	if slices.Contains(experiments, "pip_no_build_isolation") {
-		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
-	} else {
+	pipNoBuildIsolation = true
+	if slices.Contains(experiments, "pip_use_build_isolation") {
+		pipNoBuildIsolation = false
 		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
 	}
+
+	var opts PipelineOptionsData
+	if err := json.Unmarshal([]byte(options), &opts); err != nil {
+		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
+	}
+
+	ctx = setupProfilerConfig(ctx, logger, &opts)
+	startProfilerBackgroundTasks(ctx, logger)
 
 	// (2) Retrieve and install the staged packages.
 	//
@@ -314,11 +333,6 @@ func launchSDKProcess() error {
 		childPids.mu.Unlock()
 	}()
 
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
@@ -333,12 +347,68 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
+
+				currentProg := "python"
+				currentArgs := []string{"-m", sdkHarnessEntrypoint}
+				currentEnv := map[string]string{"WORKER_ID": workerId}
+
+				profilingActive := false
+				currentProg, currentArgs, currentEnv, profilingActive = maybeWithProfiler(
+					ctx, logger, workerId, currentProg, currentArgs, currentEnv,
+				)
+
+				var envStr string
+				if len(currentEnv) > 0 {
+					var envStrings []string
+					for k, v := range currentEnv {
+						envStrings = append(envStrings, k+"="+v)
+					}
+					slices.Sort(envStrings)
+					envStr = strings.Join(envStrings, ", ")
+				}
+
+				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
+				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
-				if err := cmd.Wait(); err != nil {
+				var timer *time.Timer
+				var profilingTimedOut atomic.Bool
+
+				pcfg := getProfilerConfig(ctx)
+				if profilingActive && pcfg.StopAfterSec > 0 {
+					duration := time.Duration(pcfg.StopAfterSec) * time.Second
+					timer = time.AfterFunc(duration, func() {
+						childPids.mu.Lock()
+						defer childPids.mu.Unlock()
+						if cmd.Process != nil {
+							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
+								pcfg.StopAfterSec, workerId)
+							profilingTimedOut.Store(true)
+							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+						}
+					})
+				}
+
+				err := cmd.Wait()
+				if timer != nil {
+					timer.Stop()
+				}
+
+				if err != nil {
+					if profilingTimedOut.Load() {
+						stopProfiling(ctx)
+						bufLogger.FlushAtDebug(ctx)
+						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
+						// Error is not counted toward error budget.
+						continue
+					}
+
+					if profilingActive && pcfg.StopAfterCrash {
+						stopProfiling(ctx)
+						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
+					}
+
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
@@ -532,3 +602,5 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
 }
+
+

@@ -467,6 +467,7 @@ class TestPubSubSink(unittest.TestCase):
         DisplayDataItemMatcher('id_label', 'id'),
         DisplayDataItemMatcher('with_attributes', True),
         DisplayDataItemMatcher('timestamp_attribute', 'time'),
+        DisplayDataItemMatcher('publish_with_ordering_key', False),
     ]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -501,6 +502,70 @@ transform_evaluator.TransformEvaluatorRegistry._test_evaluators_overrides = {
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 @mock.patch('google.cloud.pubsub.SubscriberClient')
 class TestReadFromPubSub(unittest.TestCase):
+  def setUp(self):
+    _PubSubReadEvaluator._subscription_cache.clear()
+    _PubSubReadEvaluator._subscriber_client_cache.clear()
+
+  def test_subscriber_client_is_reused_for_transform(self, mock_pubsub):
+    class Transform(object):
+      pass
+
+    transform = Transform()
+    first_client = _PubSubReadEvaluator._get_subscriber_client(transform)
+    second_client = _PubSubReadEvaluator._get_subscriber_client(transform)
+
+    self.assertIs(first_client, second_client)
+    mock_pubsub.assert_called_once_with()
+    first_client.close.assert_not_called()
+
+  def test_subscription_creation_does_not_hold_global_cache_lock(
+      self, mock_pubsub):
+    class Transform(object):
+      pass
+
+    def subscription_path(project, subscription):
+      return 'projects/%s/subscriptions/%s' % (project, subscription)
+
+    transform = Transform()
+    client = mock_pubsub.return_value
+    client.subscription_path.side_effect = subscription_path
+    client.topic_path.return_value = 'projects/topic_project/topics/topic'
+    global_lock_available = []
+
+    def create_subscription(name, topic):
+      self.assertTrue(name.startswith('projects/sub_project/subscriptions/'))
+      self.assertEqual('projects/topic_project/topics/topic', topic)
+      acquired = _PubSubReadEvaluator._subscriber_client_cache_lock.acquire(
+          blocking=False)
+      global_lock_available.append(acquired)
+      if acquired:
+        _PubSubReadEvaluator._subscriber_client_cache_lock.release()
+
+    client.create_subscription.side_effect = create_subscription
+
+    sub_name = _PubSubReadEvaluator.get_subscription(
+        transform, 'topic_project', 'topic', 'sub_project', None)
+
+    self.assertTrue(global_lock_available)
+    self.assertTrue(global_lock_available[0])
+    self.assertTrue(sub_name.startswith('projects/sub_project/subscriptions/'))
+
+  def test_subscriber_client_cleanup_is_idempotent(self, unused_mock_pubsub):
+    client = mock.Mock()
+    subscriber_client = transform_evaluator._PubSubSubscriberClient(client)
+    subscriber_client.set_temporary_subscription('subscription')
+
+    subscriber_client.close()
+    subscriber_client.close()
+
+    client.assert_has_calls([
+        mock.call.delete_subscription(subscription='subscription'),
+        mock.call.close()
+    ])
+    client.delete_subscription.assert_called_once_with(
+        subscription='subscription')
+    client.close.assert_called_once_with()
+
   def test_read_messages_success(self, mock_pubsub):
     data = b'data'
     publish_time_secs = 1520861821
@@ -532,7 +597,8 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.assert_called_once_with()
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_strings_success(self, mock_pubsub):
     data = '🤷 ¯\\_(ツ)_/¯'
@@ -554,7 +620,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_data_success(self, mock_pubsub):
     data_encoded = '🤷 ¯\\_(ツ)_/¯'.encode('utf-8')
@@ -574,7 +640,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_messages_timestamp_attribute_milli_success(self, mock_pubsub):
     data = b'data'
@@ -609,7 +675,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_messages_timestamp_attribute_rfc3339_success(self, mock_pubsub):
     data = b'data'
@@ -644,7 +710,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_messages_timestamp_attribute_missing(self, mock_pubsub):
     data = b'data'
@@ -680,7 +746,7 @@ class TestReadFromPubSub(unittest.TestCase):
     mock_pubsub.return_value.acknowledge.assert_has_calls(
         [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_messages_timestamp_attribute_fail_parse(self, mock_pubsub):
     data = b'data'
@@ -709,7 +775,7 @@ class TestReadFromPubSub(unittest.TestCase):
       p.run()
     mock_pubsub.return_value.acknowledge.assert_not_called()
 
-    mock_pubsub.return_value.close.assert_has_calls([mock.call()])
+    mock_pubsub.return_value.close.assert_not_called()
 
   def test_read_message_id_label_unsupported(self, unused_mock_pubsub):
     # id_label is unsupported in DirectRunner.
@@ -1097,6 +1163,77 @@ class TestWriteToPubSub(unittest.TestCase):
     self.assertSetEqual(
         Lineage.query(p.result.metrics(), Lineage.SINK),
         set(["pubsub:topic:fakeprj.a_topic"]))
+
+  def test_write_messages_with_ordering_key(self, mock_pubsub):
+    """Test WriteToPubSub with ordering_key in messages."""
+    data = b'data'
+    ordering_key = 'order-123'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes, ordering_key=ordering_key)]
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic',
+              with_attributes=True,
+              publish_with_ordering_key=True))
+
+    # Verify that publish was called with ordering_key
+    mock_pubsub.return_value.publish.assert_called()
+    call_args = mock_pubsub.return_value.publish.call_args
+
+    # Check that ordering_key was passed as a keyword argument
+    self.assertIn('ordering_key', call_args.kwargs)
+    self.assertEqual(call_args.kwargs['ordering_key'], ordering_key)
+
+  def test_write_messages_with_ordering_key_no_attributes(self, mock_pubsub):
+    """Test WriteToPubSub with ordering_key but no attributes."""
+    data = b'data'
+    ordering_key = 'order-456'
+    payloads = [PubsubMessage(data, None, ordering_key=ordering_key)]
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic',
+              with_attributes=True,
+              publish_with_ordering_key=True))
+
+    # Verify that publish was called with ordering_key
+    mock_pubsub.return_value.publish.assert_called()
+    call_args = mock_pubsub.return_value.publish.call_args
+
+    # Check that ordering_key was passed
+    self.assertIn('ordering_key', call_args.kwargs)
+    self.assertEqual(call_args.kwargs['ordering_key'], ordering_key)
+
+  def test_write_messages_without_ordering_key(self, mock_pubsub):
+    """Test WriteToPubSub without ordering_key (backward compatibility)."""
+    data = b'data'
+    attributes = {'key': 'value'}
+    payloads = [PubsubMessage(data, attributes)]  # No ordering_key
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      _ = (
+          p
+          | Create(payloads)
+          | WriteToPubSub(
+              'projects/fakeprj/topics/a_topic', with_attributes=True))
+
+    # Verify that publish was called
+    mock_pubsub.return_value.publish.assert_called()
+    call_args = mock_pubsub.return_value.publish.call_args
+    self.assertNotIn('ordering_key', call_args.kwargs)
 
 
 if __name__ == '__main__':
