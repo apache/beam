@@ -325,7 +325,7 @@ final class GrpcCommitWorkStream
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
-        .setComputationId(pendingRequest.getComputationId())
+        .setComputationId(pendingRequest.computationId())
         .setRequestId(id)
         .setShardingKey(pendingRequest.shardingKey())
         .setCommitType(pendingRequest.commitType())
@@ -351,9 +351,9 @@ final class GrpcCommitWorkStream
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
       PendingRequest request = entry.getValue();
       StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
-      if (lastComputation == null || !lastComputation.equals(request.getComputationId())) {
-        chunkBuilder.setComputationId(request.getComputationId());
-        lastComputation = request.getComputationId();
+      if (lastComputation == null || !lastComputation.equals(request.computationId())) {
+        chunkBuilder.setComputationId(request.computationId());
+        lastComputation = request.computationId();
       }
       chunkBuilder
           .setRequestId(entry.getKey())
@@ -379,7 +379,7 @@ final class GrpcCommitWorkStream
 
   private void issueMultiChunkRequest(long id, PendingRequest pendingRequest)
       throws WindmillStreamShutdownException {
-    checkNotNull(pendingRequest.getComputationId(), "Cannot commit WorkItem w/o a computationId.");
+    checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
     ByteString serializedCommit = pendingRequest.serializedCommit();
     synchronized (this) {
       if (isShutdown) {
