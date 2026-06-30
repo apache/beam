@@ -1106,6 +1106,9 @@ message StandardCoders {
     //     encoded with it's corresponding coder.
     // Components: single coder for the value
     NULLABLE = 17 [(beam_urn) = "beam:coder:nullable:v1"];
+
+    // Coder for Void type. Uses zero bytes per Void.
+    VOID = 19 [(beam_urn) = "beam:coder:void:v1"];
   }
 }
 
