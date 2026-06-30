@@ -309,6 +309,7 @@ public class FileIOTest implements Serializable {
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
     final int numFiles = 3;
+    final int numFirstFiles = 3;
     final int numUpdatedFiles = 6; // first x3, second x2, third x1
 
     // Write some files to a "source" directory.
@@ -349,7 +350,7 @@ public class FileIOTest implements Serializable {
                 .continuously(
                     Duration.millis(100),
                     Watch.Growth.eitherOf(
-                        new AfterNumberOfNewOutputs(numFiles),
+                        new AfterNumberOfNewOutputs(numFirstFiles),
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10))),
                     true));
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
