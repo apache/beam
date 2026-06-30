@@ -60,7 +60,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Ob
   private final Coder<DestinationT> destinationCoder;
   private final boolean autoUpdateSchema;
   private final @Nullable Duration autoUpdateSchemaStrictTimeout;
-  private final @Nullable TupleTag<KV<DestinationT, MismatchedRow>> mismatchedRowsTag;
+  private final @Nullable TupleTag<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRowsTag;
   private final boolean ignoreUnknownValues;
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
@@ -161,8 +161,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Ob
 
     @Nullable PCollectionTuple mismatchedResult = null;
     if (mismatchedRowsTag != null) {
-      PCollection<KV<DestinationT, MismatchedRow>> mismatchedRows = result.get(mismatchedRowsTag);
-      mismatchedRows.setCoder(KvCoder.of(destinationCoder, MismatchedRow.Coder.of()));
+      PCollection<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+          result.get(mismatchedRowsTag);
+      mismatchedRows.setCoder(KvCoder.of(destinationCoder, StoragePayloadWithDeadline.Coder.of()));
       mismatchedResult =
           mismatchedRows.apply(
               "bufferMismatched",

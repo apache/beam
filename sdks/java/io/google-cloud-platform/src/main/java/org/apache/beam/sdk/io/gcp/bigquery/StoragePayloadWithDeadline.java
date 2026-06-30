@@ -33,19 +33,20 @@ import org.joda.time.Instant;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class MismatchedRow {
-  abstract StorageApiWritePayload getPayload();
+abstract class StoragePayloadWithDeadline {
+  abstract StorageApiWritePayload getStoragePayload();
 
   abstract org.joda.time.Instant getDeadline();
 
-  static MismatchedRow of(StorageApiWritePayload payload, org.joda.time.Instant deadline) {
-    return new AutoValue_MismatchedRow(payload, deadline);
+  static StoragePayloadWithDeadline of(
+      StorageApiWritePayload payload, org.joda.time.Instant deadline) {
+    return new AutoValue_StoragePayloadWithDeadline(payload, deadline);
   }
 
   // Schemas give us a coder, however there are still some limitations to storing schema objects
   // inside of state
   // variables (mostly involving the Dataflow runner and update). Therefore we use a custom coder.
-  static class Coder extends CustomCoder<MismatchedRow> {
+  static class Coder extends CustomCoder<StoragePayloadWithDeadline> {
     static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
     static final InstantCoder INSTANT_CODER = InstantCoder.of();
     static final NullableCoder<byte[]> NULLABLE_BYTE_ARRAY_CODER =
@@ -53,23 +54,26 @@ abstract class MismatchedRow {
     static final NullableCoder<Instant> NULLABLE_INSTANT_CODER =
         NullableCoder.of(InstantCoder.of());
 
-    static MismatchedRow.Coder of() {
+    static StoragePayloadWithDeadline.Coder of() {
       return new Coder();
     }
 
     @Override
-    public void encode(MismatchedRow value, OutputStream outStream)
+    public void encode(StoragePayloadWithDeadline value, OutputStream outStream)
         throws CoderException, IOException {
-      BYTE_ARRAY_CODER.encode(value.getPayload().getPayload(), outStream);
-      NULLABLE_BYTE_ARRAY_CODER.encode(value.getPayload().getUnknownFieldsPayload(), outStream);
-      NULLABLE_INSTANT_CODER.encode(value.getPayload().getTimestamp(), outStream);
-      NULLABLE_BYTE_ARRAY_CODER.encode(value.getPayload().getFailsafeTableRowPayload(), outStream);
-      NULLABLE_BYTE_ARRAY_CODER.encode(value.getPayload().getSchemaHash(), outStream);
+      BYTE_ARRAY_CODER.encode(value.getStoragePayload().getPayload(), outStream);
+      NULLABLE_BYTE_ARRAY_CODER.encode(
+          value.getStoragePayload().getUnknownFieldsPayload(), outStream);
+      NULLABLE_INSTANT_CODER.encode(value.getStoragePayload().getTimestamp(), outStream);
+      NULLABLE_BYTE_ARRAY_CODER.encode(
+          value.getStoragePayload().getFailsafeTableRowPayload(), outStream);
+      NULLABLE_BYTE_ARRAY_CODER.encode(value.getStoragePayload().getSchemaHash(), outStream);
       INSTANT_CODER.encode(value.getDeadline(), outStream);
     }
 
     @Override
-    public MismatchedRow decode(InputStream inStream) throws CoderException, IOException {
+    public StoragePayloadWithDeadline decode(InputStream inStream)
+        throws CoderException, IOException {
       byte[] innerPayload = BYTE_ARRAY_CODER.decode(inStream);
       byte @Nullable [] unknownFieldsPayload = NULLABLE_BYTE_ARRAY_CODER.decode(inStream);
       @Nullable Instant timestamp = NULLABLE_INSTANT_CODER.decode(inStream);
@@ -80,7 +84,7 @@ abstract class MismatchedRow {
       StorageApiWritePayload payload =
           StorageApiWritePayload.of(
               innerPayload, timestamp, unknownFieldsPayload, failsafeTableRowPayload, schemaHash);
-      return new AutoValue_MismatchedRow(payload, deadline);
+      return new AutoValue_StoragePayloadWithDeadline(payload, deadline);
     }
   }
 }

@@ -50,12 +50,13 @@ public class SplittingIterableTest {
 
   @Test
   public void testBatchingBySplitSize() throws Exception {
-    List<StorageApiWritePayload> payloads = new ArrayList<>();
+    List<StoragePayloadWithDeadline> payloads = new ArrayList<>();
     // Payload of 10 bytes each
     for (int i = 0; i < 5; i++) {
-      payloads.add(
+      StorageApiWritePayload payload =
           StorageApiWritePayload.of(new byte[10], null, null)
-              .withTimestamp(Instant.ofEpochMilli(i)));
+              .withTimestamp(Instant.ofEpochMilli(i));
+      payloads.add(StoragePayloadWithDeadline.of(payload, null));
     }
 
     List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = new ArrayList<>();
@@ -97,11 +98,14 @@ public class SplittingIterableTest {
 
   @Test
   public void testLargeElementExceedingSplitSize() throws Exception {
-    List<StorageApiWritePayload> payloads = new ArrayList<>();
+    List<StoragePayloadWithDeadline> payloads = new ArrayList<>();
     // Payload of 10 bytes, 100 bytes, 10 bytes
-    payloads.add(StorageApiWritePayload.of(new byte[10], null, null));
-    payloads.add(StorageApiWritePayload.of(new byte[100], null, null));
-    payloads.add(StorageApiWritePayload.of(new byte[10], null, null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(StorageApiWritePayload.of(new byte[10], null, null), null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(StorageApiWritePayload.of(new byte[100], null, null), null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(StorageApiWritePayload.of(new byte[10], null, null), null));
 
     List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = new ArrayList<>();
     SchemaChangeDetectorHelper schemaChangeDetectorHelper =
@@ -140,16 +144,22 @@ public class SplittingIterableTest {
 
   @Test
   public void testSchemaMismatchedAndMatchedRows() throws Exception {
-    List<StorageApiWritePayload> payloads = new ArrayList<>();
+    List<StoragePayloadWithDeadline> payloads = new ArrayList<>();
     byte[] hash1 = "currentHash".getBytes(StandardCharsets.UTF_8);
     byte[] hash2 = "oldHash".getBytes(StandardCharsets.UTF_8);
 
     TableRow unknownFieldsRow = new TableRow().set("foo", "bar");
 
-    payloads.add(StorageApiWritePayload.of(new byte[0], null, null).withSchemaHash(hash1));
     payloads.add(
-        StorageApiWritePayload.of(new byte[0], unknownFieldsRow, null).withSchemaHash(hash2));
-    payloads.add(StorageApiWritePayload.of(new byte[0], null, null).withSchemaHash(hash1));
+        StoragePayloadWithDeadline.of(
+            StorageApiWritePayload.of(new byte[0], null, null).withSchemaHash(hash1), null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(
+            StorageApiWritePayload.of(new byte[0], unknownFieldsRow, null).withSchemaHash(hash2),
+            null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(
+            StorageApiWritePayload.of(new byte[0], null, null).withSchemaHash(hash1), null));
 
     List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = new ArrayList<>();
     SchemaChangeDetectorHelper schemaChangeDetectorHelper =
@@ -193,7 +203,10 @@ public class SplittingIterableTest {
 
     // Reconstruct stream
     List<StorageApiWritePayload> reconstructed =
-        batch.toPayloadStream().collect(Collectors.toList());
+        batch
+            .toPayloadStream()
+            .map(StoragePayloadWithDeadline::getStoragePayload)
+            .collect(Collectors.toList());
     assertEquals(3, reconstructed.size());
     assertArrayEquals(new byte[0], reconstructed.get(0).getPayload());
     assertArrayEquals(new byte[0], reconstructed.get(1).getPayload());
@@ -202,11 +215,14 @@ public class SplittingIterableTest {
 
   @Test
   public void testFailedRows() throws Exception {
-    List<StorageApiWritePayload> payloads = new ArrayList<>();
-    payloads.add(StorageApiWritePayload.of(new byte[0], null, null));
+    List<StoragePayloadWithDeadline> payloads = new ArrayList<>();
+    payloads.add(
+        StoragePayloadWithDeadline.of(StorageApiWritePayload.of(new byte[0], null, null), null));
     // Provide unknown fields, so auto update schema tries to merge and fails
     TableRow unknownFieldsRow = new TableRow().set("foo", "bar");
-    payloads.add(StorageApiWritePayload.of(new byte[0], unknownFieldsRow, null));
+    payloads.add(
+        StoragePayloadWithDeadline.of(
+            StorageApiWritePayload.of(new byte[0], unknownFieldsRow, null), null));
 
     List<TimestampedValue<BigQueryStorageApiInsertError>> failedRows = new ArrayList<>();
     SchemaChangeDetectorHelper schemaChangeDetectorHelper =

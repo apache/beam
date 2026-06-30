@@ -282,15 +282,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                               window);
                         }
                       });
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
+      Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
           writeRecordsDoFnImpl.finishBundle(
-              failedRowsReceiver, successfulRowsReceiver, finalizeOutputRecever);
+              failedRowsReceiver,
+              successfulRowsReceiver,
+              finalizeOutputRecever,
+              org.joda.time.Instant.now());
       if (!Iterables.isEmpty(mismatchedRows)) {
         mismatchedRows.forEach(
             m -> {
               org.joda.time.Instant ts =
                   MoreObjects.firstNonNull(
-                      m.getValue().getPayload().getTimestamp(),
+                      m.getValue().getStoragePayload().getTimestamp(),
                       GlobalWindow.INSTANCE.maxTimestamp());
               context.output(
                   Preconditions.checkStateNotNull(writeRecordsDoFnImpl.mismatchedRowsTag),
@@ -334,15 +337,28 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         MultiOutputReceiver o)
         throws Exception {
       writeRecordsDoFnImpl.dynamicDestinations.setSideInputAccessorFromProcessContext(c);
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
-          writeRecordsDoFnImpl.processElement(pipelineOptions, element, elementTs, o);
+      org.joda.time.Instant startTimeForLocalRetry = org.joda.time.Instant.now();
+      org.joda.time.Instant targetDeadline =
+          (writeRecordsDoFnImpl.autoUpdateSchemaStrictTimeout != null)
+              ? startTimeForLocalRetry.plus(writeRecordsDoFnImpl.autoUpdateSchemaStrictTimeout)
+              : BoundedWindow.TIMESTAMP_MAX_VALUE;
+
+      Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+          writeRecordsDoFnImpl.processElement(
+              pipelineOptions,
+              KV.of(
+                  element.getKey(),
+                  StoragePayloadWithDeadline.of(element.getValue(), targetDeadline)),
+              startTimeForLocalRetry,
+              o);
       if (!Iterables.isEmpty(mismatchedRows)) {
-        final OutputReceiver<KV<DestinationT, MismatchedRow>> mismatchedReceiver =
+        final OutputReceiver<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedReceiver =
             o.get(Preconditions.checkStateNotNull(writeRecordsDoFnImpl.mismatchedRowsTag));
         mismatchedRows.forEach(
             m -> {
               org.joda.time.Instant ts =
-                  MoreObjects.firstNonNull(m.getValue().getPayload().getTimestamp(), elementTs);
+                  MoreObjects.firstNonNull(
+                      m.getValue().getStoragePayload().getTimestamp(), elementTs);
               mismatchedReceiver.outputWithTimestamp(m, ts);
             });
       }
@@ -369,7 +385,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final Predicate<String> successfulRowsPredicate;
     private final boolean autoUpdateSchema;
     private final @Nullable Duration autoUpdateSchemaStrictTimeout;
-    private final @Nullable TupleTag<KV<DestinationT, MismatchedRow>> mismatchedRowsTag;
+    private final @Nullable TupleTag<KV<DestinationT, StoragePayloadWithDeadline>>
+        mismatchedRowsTag;
     private final boolean ignoreUnknownValues;
     private final BigQueryIO.Write.CreateDisposition createDisposition;
     private final @Nullable String kmsKey;
@@ -405,7 +422,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       private String streamName = "";
       private @Nullable AppendClientInfo appendClientInfo = null;
       private long currentOffset = 0;
-      private List<StorageApiWritePayload> pendingMessages;
+      private List<StoragePayloadWithDeadline> pendingMessages;
       private transient @Nullable WriteStreamService maybeWriteStreamService;
       private final Counter recordsAppended =
           Metrics.counter(WriteRecordsDoFn.class, "recordsAppended");
@@ -633,16 +650,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
       }
 
-      void addMessage(StorageApiWritePayload payload) throws Exception {
+      void addMessage(StoragePayloadWithDeadline payload) throws Exception {
         maybeTickleCache();
         pendingMessages.add(payload);
       }
 
       long flush(
           RetryManager<AppendRowsResponse, AppendRowsContext> retryManager,
+          org.joda.time.@Nullable Instant startTimeForLocalRetry,
           DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
           DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
-          BiConsumer<DestinationT, MismatchedRow> bufferMismatchedRow)
+          BiConsumer<DestinationT, StoragePayloadWithDeadline> bufferMismatchedRow)
           throws Exception {
         if (pendingMessages.isEmpty()) {
           return 0;
@@ -659,12 +677,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         BigQuerySinkMetrics.RpcMethod.OPEN_WRITE_STREAM))
                 .backoff();
 
-        org.joda.time.Instant startMismatchTime = org.joda.time.Instant.now();
         final Duration initialMismatchRetryTime =
             Duration.millis(WriteRecordsDoFnImpl.this.initialMismatchRetryTimeMilliSec);
 
         AppendRowsPacket rowsToProcess;
-        Iterable<StorageApiWritePayload> payloadsToIterate = pendingMessages;
+        Iterable<StoragePayloadWithDeadline> payloadsToIterate = pendingMessages;
         do {
           final AppendRowsPacket processingRows =
               buildInserts(payloadsToIterate, failedRowsReceiver);
@@ -673,23 +690,20 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           schemaMismatchSeen = !processingRows.getSchemaMismatchedRows().isEmpty();
           if (schemaMismatchSeen) {
             if (autoUpdateSchemaStrictTimeout != null) {
-              if (startMismatchTime
-                  .plus(initialMismatchRetryTime)
-                  .isBefore(org.joda.time.Instant.now())) {
+              if (startTimeForLocalRetry == null
+                  || startTimeForLocalRetry
+                      .plus(initialMismatchRetryTime)
+                      .isBefore(org.joda.time.Instant.now())) {
                 // Local retry time has expired! Pull out the mismatched rows so that we can buffer
                 // them for later retrying.
-                org.joda.time.Instant targetExpirationTime =
-                    startMismatchTime.plus(autoUpdateSchemaStrictTimeout);
-
                 // Buffer those rows.
                 processingRows
                     .getSchemaMismatchedRowsOnly()
                     .toPayloadStream()
-                    .map(payload -> MismatchedRow.of(payload, targetExpirationTime))
                     .forEach(row -> bufferMismatchedRow.accept(destination, row));
 
                 // Process the good rows!
-                Iterable<StorageApiWritePayload> goodRows =
+                Iterable<StoragePayloadWithDeadline> goodRows =
                     () -> processingRows.getSchemaMatchedRowsOnly().toPayloadStream().iterator();
 
                 rowsToProcess = buildInserts(goodRows, failedRowsReceiver);
@@ -1023,7 +1037,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       private AppendRowsPacket buildInserts(
-          Iterable<StorageApiWritePayload> payloads,
+          Iterable<StoragePayloadWithDeadline> payloads,
           DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver) {
         Supplier<AppendClientInfo> appendClientInfoSupplier =
             () -> {
@@ -1039,7 +1053,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               failedRowsReceiver.outputWithTimestamp(tv.getValue(), tv.getTimestamp());
             };
 
-        PeekingIterator<StorageApiWritePayload> peekingIterator =
+        PeekingIterator<StoragePayloadWithDeadline> peekingIterator =
             Iterators.peekingIterator(payloads.iterator());
         return AppendRowsPacket.fromStorageApiWritePayload(
             peekingIterator,
@@ -1124,7 +1138,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         Predicate<String> successfulRowsPredicate,
         boolean autoUpdateSchema,
         @Nullable Duration autoUpdateSchemaStrictTimeout,
-        @Nullable TupleTag<KV<DestinationT, MismatchedRow>> mismatchedRowsTag,
+        @Nullable TupleTag<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRowsTag,
         boolean ignoreUnknownValues,
         BigQueryIO.Write.CreateDisposition createDisposition,
         @Nullable String kmsKey,
@@ -1163,9 +1177,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               && numPendingRecords > 0);
     }
 
-    Iterable<KV<DestinationT, MismatchedRow>> flushIfNecessary(
+    Iterable<KV<DestinationT, StoragePayloadWithDeadline>> flushIfNecessary(
         DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
         DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry,
         int recordBytes)
         throws Exception {
       if (shouldFlush(recordBytes)) {
@@ -1173,16 +1188,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         // Too much memory being used. Flush the state and wait for it to drain out.
         // TODO(reuvenlax): Consider waiting for memory usage to drop instead of waiting for all the
         // appends to finish.
-        return flushAll(failedRowsReceiver, successfulRowsReceiver);
+        return flushAll(failedRowsReceiver, successfulRowsReceiver, startTimeForLocalRetry);
       }
       return Collections.emptyList();
     }
 
-    Iterable<KV<DestinationT, MismatchedRow>> flushAll(
+    Iterable<KV<DestinationT, StoragePayloadWithDeadline>> flushAll(
         DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
-        DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver)
+        DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry)
         throws Exception {
-      List<KV<DestinationT, MismatchedRow>> mismatchedRows = Lists.newArrayList();
+      List<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows = Lists.newArrayList();
       List<RetryManager<AppendRowsResponse, AppendRowsContext>> retryManagers =
           Lists.newArrayListWithCapacity(Preconditions.checkStateNotNull(destinations).size());
       long numRowsWritten = 0;
@@ -1199,6 +1215,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         numRowsWritten +=
             destinationState.flush(
                 retryManager,
+                startTimeForLocalRetry,
                 failedRowsReceiver,
                 successfulRowsReceiver,
                 (d, m) -> mismatchedRows.add(KV.of(d, m)));
@@ -1297,10 +1314,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
     }
 
-    Iterable<KV<DestinationT, MismatchedRow>> processElement(
+    Iterable<KV<DestinationT, StoragePayloadWithDeadline>> processElement(
         PipelineOptions pipelineOptions,
-        KV<DestinationT, StorageApiWritePayload> element,
-        org.joda.time.Instant elementTs,
+        KV<DestinationT, StoragePayloadWithDeadline> element,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry,
         DoFn.MultiOutputReceiver o)
         throws Exception {
       DatasetService initializedDatasetService = getDatasetService(pipelineOptions);
@@ -1328,9 +1345,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
 
-      int recordBytes = element.getValue().getPayload().length;
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
-          flushIfNecessary(failedRowsReceiver, successfulRowsReceiver, recordBytes);
+      int recordBytes = element.getValue().getStoragePayload().getPayload().length;
+      Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+          flushIfNecessary(
+              failedRowsReceiver, successfulRowsReceiver, startTimeForLocalRetry, recordBytes);
       state.addMessage(element.getValue());
       ++numPendingRecords;
       numPendingRecordBytes += recordBytes;
@@ -1338,14 +1356,15 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       return mismatchedRows;
     }
 
-    public Iterable<KV<DestinationT, MismatchedRow>> finishBundle(
+    public Iterable<KV<DestinationT, StoragePayloadWithDeadline>> finishBundle(
         DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver,
         DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver,
-        DoFn.OutputReceiver<KV<String, String>> finalizeOutputReceiver)
+        DoFn.OutputReceiver<KV<String, String>> finalizeOutputReceiver,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry)
         throws Exception {
 
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
-          flushAll(failedRowsReceiver, successfulRowsReceiver);
+      Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+          flushAll(failedRowsReceiver, successfulRowsReceiver, startTimeForLocalRetry);
 
       final Map<DestinationT, DestinationState> destinations =
           Preconditions.checkStateNotNull(this.destinations);

@@ -382,6 +382,10 @@ public class StorageApiSinkSchemaUpdateIT {
           "Skipping in favor of more relevant test case and to avoid timing issues",
           consistentAutoUpdate || (!changeTableSchema && useInputSchema && useAutoSchemaUpdate));
     }
+    if (consistentAutoUpdate) {
+      assumeTrue(changeTableSchema);
+      assumeFalse(useAutoSchemaUpdate);
+    }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
 
@@ -490,7 +494,8 @@ public class StorageApiSinkSchemaUpdateIT {
     boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API) ? true : false;
     checkRowCompleteness(tableSpec, expectedCount, checkNoDuplication);
     if (useIgnoreUnknownValues) {
-      checkRowsWithUpdatedSchema(tableSpec, extraField, useAutoSchemaUpdate);
+      checkRowsWithUpdatedSchema(
+          tableSpec, extraField, useAutoSchemaUpdate || consistentAutoUpdate);
     }
   }
 

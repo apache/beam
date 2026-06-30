@@ -51,10 +51,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
-    extends PTransform<PCollection<KV<DestinationT, MismatchedRow>>, PCollectionTuple> {
+    extends PTransform<
+        PCollection<KV<DestinationT, StoragePayloadWithDeadline>>, PCollectionTuple> {
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final Coder<TableRow> successfulRowsCoder;
   private final Coder<DestinationT> destinationCoder;
@@ -86,7 +86,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
   }
 
   @Override
-  public PCollectionTuple expand(PCollection<KV<DestinationT, MismatchedRow>> input) {
+  public PCollectionTuple expand(PCollection<KV<DestinationT, StoragePayloadWithDeadline>> input) {
     // Append records to the Storage API streams.
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
     if (successfulRowsTag != null) {
@@ -99,8 +99,8 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
                 "addShard",
                 ParDo.of(
                     new DoFn<
-                        KV<DestinationT, MismatchedRow>,
-                        KV<ShardedKey<DestinationT>, MismatchedRow>>() {
+                        KV<DestinationT, StoragePayloadWithDeadline>,
+                        KV<ShardedKey<DestinationT>, StoragePayloadWithDeadline>>() {
                       int shardNumber;
 
                       @Setup
@@ -110,8 +110,9 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
 
                       @ProcessElement
                       public void process(
-                          @Element KV<DestinationT, MismatchedRow> element,
-                          OutputReceiver<KV<ShardedKey<DestinationT>, MismatchedRow>> o) {
+                          @Element KV<DestinationT, StoragePayloadWithDeadline> element,
+                          OutputReceiver<KV<ShardedKey<DestinationT>, StoragePayloadWithDeadline>>
+                              o) {
                         ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
                         buffer.putInt(++shardNumber % NUM_DEFAULT_SHARDS);
                         o.output(
@@ -120,7 +121,9 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
                                 element.getValue()));
                       }
                     }))
-            .setCoder(KvCoder.of(ShardedKey.Coder.of(destinationCoder), MismatchedRow.Coder.of()))
+            .setCoder(
+                KvCoder.of(
+                    ShardedKey.Coder.of(destinationCoder), StoragePayloadWithDeadline.Coder.of()))
             .apply(
                 "bufferMismatchedRows",
                 ParDo.of(new BufferingDoFn(writeDoFn))
@@ -135,13 +138,13 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
   }
 
   class BufferingDoFn
-      extends DoFn<KV<ShardedKey<DestinationT>, MismatchedRow>, KV<String, String>> {
+      extends DoFn<KV<ShardedKey<DestinationT>, StoragePayloadWithDeadline>, KV<String, String>> {
     private final StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT>
         writeDoFn;
 
     @StateId("mismatchedRows")
-    private final StateSpec<BagState<MismatchedRow>> mismatchedRowsSpec =
-        StateSpecs.bag(MismatchedRow.Coder.of());
+    private final StateSpec<BagState<StoragePayloadWithDeadline>> mismatchedRowsSpec =
+        StateSpecs.bag(StoragePayloadWithDeadline.Coder.of());
 
     @TimerId("retryMismatchedRowsTimer")
     private final TimerSpec mismatchedRowsTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
@@ -170,8 +173,8 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
     public void process(
         PipelineOptions pipelineOptions,
         ProcessContext processContext,
-        @Element KV<ShardedKey<DestinationT>, MismatchedRow> element,
-        @StateId("mismatchedRows") BagState<MismatchedRow> mismatchedRowsBag,
+        @Element KV<ShardedKey<DestinationT>, StoragePayloadWithDeadline> element,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
         @TimerId("retryMismatchedRowsTimer") Timer retryTimer,
         @StateId("currentMismatchedRowTimerValue") ValueState<Long> currentTimerValue,
         @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp,
@@ -205,8 +208,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
     public void onTimer(
         OnTimerContext context,
         @Key ShardedKey<DestinationT> shardedDestination,
-        @Timestamp Instant timestamp,
-        @StateId("mismatchedRows") BagState<MismatchedRow> mismatchedRowsBag,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
         @StateId("currentMismatchedRowTimerValue") ValueState<Long> currentTimerValue,
         @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp,
         @TimerId("retryMismatchedRowsTimer") Timer retryTimer,
@@ -219,24 +221,24 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
       currentTimerValue.readLater();
       minPendingTimestamp.readLater();
 
-      List<Iterable<KV<DestinationT, MismatchedRow>>> mismatchedRowsList = Lists.newArrayList();
-      for (MismatchedRow row : mismatchedRowsBag.read()) {
-        Iterable<KV<DestinationT, MismatchedRow>> mismatchedRows =
+      List<Iterable<KV<DestinationT, StoragePayloadWithDeadline>>> mismatchedRowsList =
+          Lists.newArrayList();
+      for (StoragePayloadWithDeadline row : mismatchedRowsBag.read()) {
+        // TODO: This will reset the target expiration time!
+        Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
             writeDoFn.processElement(
-                pipelineOptions,
-                KV.of(shardedDestination.getKey(), row.getPayload()),
-                timestamp,
-                o);
+                pipelineOptions, KV.of(shardedDestination.getKey(), row), null, o);
         if (!Iterables.isEmpty(mismatchedRows)) {
           mismatchedRowsList.add(mismatchedRows);
         }
       }
       // Once we're done, delegate to finishBundle to finish things.
-      Iterable<KV<DestinationT, MismatchedRow>> mismatchedDestRows =
+      Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedDestRows =
           writeDoFn.finishBundle(
               o.get(failedRowsTag),
               successfulRowsTag != null ? o.get(successfulRowsTag) : null,
-              o.get(finalizeTag));
+              o.get(finalizeTag),
+              null);
       if (!Iterables.isEmpty(mismatchedDestRows)) {
         mismatchedRowsList.add(mismatchedDestRows);
       }
@@ -262,7 +264,7 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
                 messageConverter.getDescriptor(writeDoFn.usesCdc),
                 AutoCloseable::close);
 
-        Iterable<MismatchedRow> mismatchedRows =
+        Iterable<StoragePayloadWithDeadline> mismatchedRows =
             () ->
                 StreamSupport.stream(Iterables.concat(mismatchedRowsList).spliterator(), false)
                     .map(KV::getValue)

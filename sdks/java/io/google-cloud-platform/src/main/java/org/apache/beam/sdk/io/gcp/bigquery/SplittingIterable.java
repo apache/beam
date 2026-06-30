@@ -36,7 +36,7 @@ import org.joda.time.Instant;
  * the next one.
  */
 class SplittingIterable implements Iterable<AppendRowsPacket> {
-  private final Iterable<StorageApiWritePayload> underlying;
+  private final Iterable<StoragePayloadWithDeadline> underlying;
   private final long splitSize;
 
   private final Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer;
@@ -47,7 +47,7 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
   private final SchemaChangeDetectorHelper schemaChangeDetectorHelper;
 
   public SplittingIterable(
-      Iterable<StorageApiWritePayload> underlying,
+      Iterable<StoragePayloadWithDeadline> underlying,
       long splitSize,
       Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer,
       ThrowingSupplier<byte[]> getCurrentTableSchemaHash,
@@ -68,7 +68,7 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
   @Override
   public Iterator<AppendRowsPacket> iterator() {
     return new Iterator<AppendRowsPacket>() {
-      final PeekingIterator<StorageApiWritePayload> underlyingIterator =
+      final PeekingIterator<StoragePayloadWithDeadline> underlyingIterator =
           Iterators.peekingIterator(underlying.iterator());
       @Nullable AppendRowsPacket cachedNext = null;
 

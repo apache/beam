@@ -160,8 +160,8 @@ class SchemaChangeDetectorHelper {
   }
 
   static void bufferMismatchedRows(
-      Iterable<MismatchedRow> rows,
-      BagState<MismatchedRow> bufferedBag,
+      Iterable<StoragePayloadWithDeadline> rows,
+      BagState<StoragePayloadWithDeadline> bufferedBag,
       Timer retryRowsTimers,
       ValueState<Long> currentTimerValue,
       ValueState<Long> minPendingTimestamp,
@@ -176,25 +176,25 @@ class SchemaChangeDetectorHelper {
             MoreObjects.firstNonNull(
                 minPendingTimestamp.read(), BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
-    for (MismatchedRow row : rows) {
+    for (StoragePayloadWithDeadline row : rows) {
       if (appendClientInfo == null
           || row.getDeadline().isAfter(retryRowsTimers.getCurrentRelativeTime())) {
         bufferedBag.add(row);
-        org.joda.time.@Nullable Instant timestamp = row.getPayload().getTimestamp();
+        org.joda.time.@Nullable Instant timestamp = row.getStoragePayload().getTimestamp();
         if (timestamp != null && timestamp.isBefore(minTimestamp)) {
           minTimestamp = timestamp;
         }
       } else {
-        @Nullable TableRow failedRow = row.getPayload().getFailsafeTableRow();
+        @Nullable TableRow failedRow = row.getStoragePayload().getFailsafeTableRow();
         if (failedRow == null) {
-          ByteString rowBytes = ByteString.copyFrom(row.getPayload().getPayload());
+          ByteString rowBytes = ByteString.copyFrom(row.getStoragePayload().getPayload());
           failedRow = appendClientInfo.toTableRow(rowBytes, Predicates.alwaysTrue());
         }
         BigQueryStorageApiInsertError error =
             new BigQueryStorageApiInsertError(
                 failedRow, "Mismatched schema", tableDestination.getTableReference());
         failedRowsReceiver.outputWithTimestamp(
-            error, Preconditions.checkStateNotNull(row.getPayload().getTimestamp()));
+            error, Preconditions.checkStateNotNull(row.getStoragePayload().getTimestamp()));
         rowsSentToFailedRowsCollection.inc();
         BigQuerySinkMetrics.appendRowsRowStatusCounter(
                 BigQuerySinkMetrics.RowStatus.FAILED,

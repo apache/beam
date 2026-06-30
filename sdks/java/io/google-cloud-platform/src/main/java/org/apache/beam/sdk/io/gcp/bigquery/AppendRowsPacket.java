@@ -55,10 +55,13 @@ abstract class AppendRowsPacket {
 
   abstract Map<Integer, byte[]> getOriginalPayloads();
 
+  // Retry deadlines for handling schema updates
+  abstract List<Instant> getDeadlines();
+
   private static final BitSet EMPTY_BIT_SET = new BitSet(0);
 
   static AppendRowsPacket fromStorageApiWritePayload(
-      PeekingIterator<StorageApiWritePayload> underlyingIterator,
+      PeekingIterator<StoragePayloadWithDeadline> underlyingIterator,
       long maxByteSize,
       SchemaChangeDetectorHelper schemaChangeDetectorHelper,
       Instant elementTimestamp,
@@ -71,6 +74,7 @@ abstract class AppendRowsPacket {
     Map<Integer, byte[]> schemaHashes = Maps.newHashMap();
     Map<Integer, TableRow> unknownFields = Maps.newHashMap();
     Map<Integer, byte[]> originalPayloads = Maps.newHashMap();
+    List<Instant> deadlines = Lists.newArrayList();
     ProtoRows.Builder inserts = ProtoRows.newBuilder();
     long bytesSize = 0;
     BitSet mismatchedRows = new BitSet();
@@ -79,15 +83,17 @@ abstract class AppendRowsPacket {
         // Make sure that we don't exceed the maxByteSize over multiple elements. A single
         // element can exceed
         // the split threshold, but in that case it should be the only element returned.
-        if ((bytesSize + underlyingIterator.peek().getPayload().length > maxByteSize)
+        if ((bytesSize + underlyingIterator.peek().getStoragePayload().getPayload().length
+                > maxByteSize)
             && inserts.getSerializedRowsCount() > 0) {
           break;
         }
-        StorageApiWritePayload payload = underlyingIterator.next();
+        StoragePayloadWithDeadline payload = underlyingIterator.next();
+        StorageApiWritePayload storagePayload = payload.getStoragePayload();
 
         @Nullable TableRow failsafeTableRow = null;
         try {
-          failsafeTableRow = payload.getFailsafeTableRow();
+          failsafeTableRow = storagePayload.getFailsafeTableRow();
         } catch (IOException e) {
           // Do nothing, table row will be generated later from row bytes
         }
@@ -95,7 +101,7 @@ abstract class AppendRowsPacket {
         // If autoUpdateSchema is set, we try to automatically merge in unknown fields.
         SchemaChangeDetectorHelper.MergePayloadResult mergeResult =
             schemaChangeDetectorHelper.getMergedPayload(
-                payload, elementTimestamp, failsafeTableRow, appendClientInfoSupplier.get());
+                storagePayload, elementTimestamp, failsafeTableRow, appendClientInfoSupplier.get());
         if (mergeResult.getKind() == SchemaChangeDetectorHelper.MergePayloadResult.Kind.FAILED) {
           failedRowsConsumer.accept(mergeResult.getFailed());
           continue;
@@ -103,7 +109,7 @@ abstract class AppendRowsPacket {
         ByteString byteString = mergeResult.getMerged();
 
         if (schemaChangeDetectorHelper.isPayloadSchemaOutOfDate(
-            payload,
+            storagePayload,
             byteString.toByteArray(),
             getCurrentTableSchemaHash,
             getCurrentTableSchemaDescriptor)) {
@@ -112,20 +118,22 @@ abstract class AppendRowsPacket {
 
         int currentIndex = inserts.getSerializedRowsCount();
         inserts.addSerializedRows(byteString);
-        Instant timestamp = payload.getTimestamp();
+        Instant timestamp = storagePayload.getTimestamp();
         if (timestamp == null) {
           timestamp = elementTimestamp;
         }
         timestamps.add(timestamp);
         failsafeRows.add(failsafeTableRow);
-        if (payload.getSchemaHash() != null) {
-          schemaHashes.put(currentIndex, Preconditions.checkStateNotNull(payload.getSchemaHash()));
+        if (storagePayload.getSchemaHash() != null) {
+          schemaHashes.put(
+              currentIndex, Preconditions.checkStateNotNull(storagePayload.getSchemaHash()));
         }
-        if (payload.getUnknownFields() != null) {
+        if (storagePayload.getUnknownFields() != null) {
           unknownFields.put(
-              currentIndex, Preconditions.checkStateNotNull(payload.getUnknownFields()));
-          originalPayloads.put(currentIndex, payload.getPayload());
+              currentIndex, Preconditions.checkStateNotNull(storagePayload.getUnknownFields()));
+          originalPayloads.put(currentIndex, storagePayload.getPayload());
         }
+        deadlines.add(payload.getDeadline());
         bytesSize += byteString.size();
       }
     } catch (Exception e) {
@@ -139,7 +147,8 @@ abstract class AppendRowsPacket {
         mismatchedRows,
         schemaHashes,
         unknownFields,
-        originalPayloads);
+        originalPayloads,
+        deadlines);
   }
 
   AppendRowsPacket getSchemaMismatchedRowsOnly() {
@@ -149,6 +158,7 @@ abstract class AppendRowsPacket {
     Map<Integer, byte[]> schemaHashes = Maps.newHashMap();
     Map<Integer, TableRow> unknownFields = Maps.newHashMap();
     Map<Integer, byte[]> originalPayloads = Maps.newHashMap();
+    List<Instant> deadlines = Lists.newArrayList();
     if (!getSchemaMismatchedRows().isEmpty()) {
       int newIndex = 0;
       for (int i = 0; i < getProtoRows().getSerializedRowsCount(); i++) {
@@ -163,6 +173,7 @@ abstract class AppendRowsPacket {
             originalPayloads.put(
                 newIndex, Preconditions.checkStateNotNull(getOriginalPayloads().get(i)));
           }
+          deadlines.add(getDeadlines().get(i));
           if (getSchemaHashes().containsKey(i)) {
             schemaHashes.put(newIndex, Preconditions.checkStateNotNull(getSchemaHashes().get(i)));
           }
@@ -179,7 +190,8 @@ abstract class AppendRowsPacket {
         allBits,
         schemaHashes,
         unknownFields,
-        originalPayloads);
+        originalPayloads,
+        deadlines);
   }
 
   AppendRowsPacket getSchemaMatchedRowsOnly() {
@@ -192,6 +204,7 @@ abstract class AppendRowsPacket {
     Map<Integer, byte[]> schemaHashes = Maps.newHashMap();
     Map<Integer, TableRow> unknownFields = Maps.newHashMap();
     Map<Integer, byte[]> originalPayloads = Maps.newHashMap();
+    List<Instant> deadlines = Lists.newArrayList();
     List<@Nullable TableRow> failsafeTableRows = Lists.newArrayList();
     int newIndex = 0;
     for (int i = 0; i < getProtoRows().getSerializedRowsCount(); i++) {
@@ -209,6 +222,7 @@ abstract class AppendRowsPacket {
           originalPayloads.put(
               newIndex, Preconditions.checkStateNotNull(getOriginalPayloads().get(i)));
         }
+        deadlines.add(getDeadlines().get(i));
         newIndex++;
       }
     }
@@ -219,10 +233,11 @@ abstract class AppendRowsPacket {
         EMPTY_BIT_SET,
         schemaHashes,
         unknownFields,
-        originalPayloads);
+        originalPayloads,
+        deadlines);
   }
 
-  Stream<StorageApiWritePayload> toPayloadStream() {
+  Stream<StoragePayloadWithDeadline> toPayloadStream() {
     return IntStream.range(0, getProtoRows().getSerializedRowsCount())
         .mapToObj(
             i -> {
@@ -240,7 +255,7 @@ abstract class AppendRowsPacket {
                 if (hash != null) {
                   payload = payload.withSchemaHash(hash);
                 }
-                return payload;
+                return StoragePayloadWithDeadline.of(payload, getDeadlines().get(i));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

@@ -49,7 +49,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -356,8 +355,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         StateSpecs.value(ProtoCoder.of(TableSchema.class));
 
     @StateId("mismatchedRows")
-    private final StateSpec<BagState<MismatchedRow>> mismatchedRowsSpec =
-        StateSpecs.bag(MismatchedRow.Coder.of());
+    private final StateSpec<BagState<StoragePayloadWithDeadline>> mismatchedRowsSpec =
+        StateSpecs.bag(StoragePayloadWithDeadline.Coder.of());
 
     @TimerId("retryMismatchedRowsTimer")
     private final TimerSpec mismatchedRowsTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
@@ -792,7 +791,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         @AlwaysFetched @StateId("streamOffset") ValueState<Long> streamOffset,
         @StateId("updatedSchema") ValueState<TableSchema> updatedSchema,
         @TimerId("idleTimer") Timer idleTimer,
-        @StateId("mismatchedRows") BagState<MismatchedRow> mismatchedRowsBag,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
         @TimerId("retryMismatchedRowsTimer") Timer mismatchedRowsRetryTimer,
         @StateId("currentMismatchedRowTimerValue") ValueState<Long> mismatchedRowsRetryTimerValue,
         @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp,
@@ -821,7 +820,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
               getDatasetService(pipelineOptions),
               getWriteStreamService(pipelineOptions));
 
-      ThrowingConsumer<Exception, Iterable<MismatchedRow>> processMismatchedRows =
+      ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows =
           mismatchedRows -> {
             if (!Iterables.isEmpty(mismatchedRows)) {
               AppendClientInfo info =
@@ -848,12 +847,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   timerRetryDuration);
             }
           };
+
+      org.joda.time.Instant now = org.joda.time.Instant.now();
+      org.joda.time.Instant targetDeadline =
+          (autoUpdateSchemaStrictTimeout != null)
+              ? now.plus(autoUpdateSchemaStrictTimeout)
+              : BoundedWindow.TIMESTAMP_MAX_VALUE;
+
+      Iterable<StoragePayloadWithDeadline> withDeadlines =
+          () ->
+              StreamSupport.stream(element.getValue().spliterator(), false)
+                  .map(p -> StoragePayloadWithDeadline.of(p, targetDeadline))
+                  .iterator();
       processPayloads(
           pipelineOptions,
           element.getKey(),
           tableDestination,
           messageConverter,
-          element.getValue(),
+          withDeadlines,
+          now,
           elementTs,
           streamName,
           streamOffset,
@@ -868,14 +880,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         ShardedKey<DestinationT> shardedDestination,
         TableDestination tableDestination,
         StorageApiDynamicDestinations.MessageConverter<?> messageConverter,
-        Iterable<StorageApiWritePayload> element,
+        Iterable<StoragePayloadWithDeadline> element,
+        org.joda.time.@Nullable Instant startTimeForLocalRetry,
         org.joda.time.Instant elementTs,
         final ValueState<String> streamName,
         final ValueState<Long> streamOffset,
         final ValueState<TableSchema> updatedSchema,
         Timer idleTimer,
         final MultiOutputReceiver o,
-        ThrowingConsumer<Exception, Iterable<MismatchedRow>> processMismatchedRows)
+        ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows)
         throws Exception {
       BigQueryOptions bigQueryOptions = pipelineOptions.as(BigQueryOptions.class);
 
@@ -988,7 +1001,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // cache could in
       // theory evict the object during execution and we want a pin held throughout the execution of
       // this function.
-      Iterable<MismatchedRow> mismatchedRows = Collections.emptyList();
+      Iterable<StoragePayloadWithDeadline> mismatchedRows = Collections.emptyList();
       try (AppendClientHolder appendClientHolder =
           new AppendClientHolder(shardedDestination, getAppendClientInfo)) {
         String currentStream = getOrCreateStream.get();
@@ -1077,11 +1090,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 .backoff();
 
         CreateRetryManagerResult<DestinationT> createRetryManagerResult;
-        org.joda.time.Instant startMismatchTime = org.joda.time.Instant.now();
         final Duration initialMismatchRetryTime =
             Duration.millis(
                 bigQueryOptions.getStorageApiMismatchLocalRetryTimeMilliSec()); // Retry locally
-        Iterable<StorageApiWritePayload> payloadsToIterate = element;
+        Iterable<StoragePayloadWithDeadline> payloadsToIterate = element;
         do {
           // Each ProtoRows object contains at most 1MB of rows.
           // TODO: Push messageFromTableRow up to top level. That we we cans skip TableRow entirely
@@ -1124,22 +1136,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
           if (createRetryManagerResult.getSchemaMismatchSeen()) {
             if (autoUpdateSchemaStrictTimeout != null) {
-              if (startMismatchTime
-                  .plus(initialMismatchRetryTime)
-                  .isBefore(org.joda.time.Instant.now())) {
+              if (startTimeForLocalRetry == null
+                  || startTimeForLocalRetry
+                      .plus(initialMismatchRetryTime)
+                      .isBefore(org.joda.time.Instant.now())) {
                 // Local retry time has expired! Pull out the mismatched rows so that we can buffer
                 // them for later
                 // retrying.
-                org.joda.time.Instant targetExpirationTime =
-                    startMismatchTime.plus(autoUpdateSchemaStrictTimeout);
 
                 mismatchedRows =
                     () ->
                         StreamSupport.stream(messages.spliterator(), false)
                             .map(AppendRowsPacket::getSchemaMismatchedRowsOnly)
                             .flatMap(AppendRowsPacket::toPayloadStream)
-                            .map(payload -> MismatchedRow.of(payload, targetExpirationTime))
-                            .map(MismatchedRow.class::cast)
                             .iterator();
 
                 // Continue processing only the messages that matched the schema.
@@ -1257,7 +1266,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         @TimerId("idleTimer") Timer idleTimer,
         MultiOutputReceiver o,
         @TimerId("retryMismatchedRowsTimer") Timer retryRowsTimer,
-        @StateId("mismatchedRows") BagState<MismatchedRow> mismatchedRowsBag,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
         @StateId("currentMismatchedRowTimerValue") ValueState<Long> currentTimerValue,
         @StateId("minPendingTimestamp") ValueState<Long> minPendingTimestamp)
         throws Exception {
@@ -1281,10 +1290,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 return tableDestination1;
               });
 
-      Iterable<StorageApiWritePayload> payloads =
-          StreamSupport.stream(mismatchedRowsBag.read().spliterator(), false)
-              .map(MismatchedRow::getPayload)
-              .collect(Collectors.toList());
+      Iterable<StoragePayloadWithDeadline> payloads = mismatchedRowsBag.read();
 
       StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
           messageConverters.get(
@@ -1305,7 +1311,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       APPEND_CLIENTS.invalidate(messageConverters.getAppendClientKey(shardedDestination));
 
       // Try to reprocess all of these rows.
-      ThrowingConsumer<Exception, Iterable<MismatchedRow>> processMismatchedRows =
+      ThrowingConsumer<Exception, Iterable<StoragePayloadWithDeadline>> processMismatchedRows =
           mismatchedRows -> {
             // Rebuffer the ones that are still not succeeding.
             mismatchedRowsBag.clear();
@@ -1343,6 +1349,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           tableDestination,
           messageConverter,
           payloads,
+          null,
           elementTs,
           streamName,
           streamOffset,
