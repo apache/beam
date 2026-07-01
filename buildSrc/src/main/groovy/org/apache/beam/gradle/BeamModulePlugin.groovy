@@ -1236,20 +1236,26 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
+      // NOTE: Use the character class "[.]" instead of an escaped "\\." to match a literal dot in
+      // these Checker Framework -AskipDefs/-AskipUses regexes. When a module is compiled on an older
+      // host JDK and forked to a newer JDK via javaXXHome (e.g. iceberg's requireJavaVersion 17 on a
+      // Java 11 CI host), Gradle passes the javac arguments through an @argfile. Backslash escapes do
+      // not survive that round-trip intact, so "\\." becomes a literal-backslash regex that matches
+      // nothing and the suppression is silently dropped. "[.]" is backslash-free and survives.
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
       skipDefRegexes << "AutoBuilder_.*"
       skipDefRegexes << "AutoOneOf_.*"
-      skipDefRegexes << ".*\\.jmh_generated\\..*"
+      skipDefRegexes << ".*[.]jmh_generated[.].*"
       skipDefRegexes += configuration.generatedClassPatterns
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       List<String> skipUsesRegexes = []
       // zstd-jni is not annotated, handles Zstd(De)CompressCtx.loadDict(null) just fine
-      skipUsesRegexes << "^com\\.github\\.luben\\.zstd\\..*"
+      skipUsesRegexes << "^com[.]github[.]luben[.]zstd[.].*"
       // SLF4J logger handles null log message parameters
-      skipUsesRegexes << "^org\\.slf4j\\.Logger.*"
+      skipUsesRegexes << "^org[.]slf4j[.]Logger.*"
       String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
@@ -2727,6 +2733,11 @@ class BeamModulePlugin implements Plugin<Project> {
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
       String ver = project.findProperty('testJavaVersion')
       def javaContainerSuffix = ver ? getSupportedJavaVersion(ver) : getSupportedJavaVersion()
+      // When a specific test JDK is requested (-PtestJavaVersion), launch the Python-started
+      // expansion service on it as well (see the exec block below). Some bundled IOs (e.g.
+      // IcebergIO) are compiled for Java 17, so the expansion service must run on a JDK that can
+      // load them. Mirrors the JAVA_HOME handling in the other cross-language task factories.
+      String testJavaHome = ver ? project.findProperty("java${ver}Home") : null
 
       // Sets up, collects, and runs Python pipeline tests
       project.tasks.register(config.name+"PythonUsingJava") {
@@ -2756,6 +2767,9 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             // environment variable to indicate that jars have been built
             environment "EXPANSION_JARS", config.expansionProjectPaths
+            if (testJavaHome) {
+              environment "JAVA_HOME", testJavaHome
+            }
             String additionalDependencyCmd = ""
             if (config.additionalDeps != null && !config.additionalDeps.isEmpty()){
               additionalDependencyCmd = "&& pip install ${config.additionalDeps.join(' ')} "
