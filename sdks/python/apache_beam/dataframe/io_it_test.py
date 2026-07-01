@@ -25,7 +25,6 @@ import unittest
 
 import pytest
 
-import apache_beam.io.gcp.bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -34,8 +33,11 @@ _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.api_core.exceptions import GoogleAPICallError
+
+  import apache_beam.io.gcp.bigquery
 except ImportError:
   GoogleAPICallError = None
+  bigquery = None
 
 
 @unittest.skipIf(

@@ -52,11 +52,21 @@ if TYPE_CHECKING:
   from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest
 
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+  from google.cloud import bigquery as gcp_bigquery
+  DatasetReference = gcp_bigquery.DatasetReference
+  TableReference = gcp_bigquery.TableReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
-  DatasetReference = None
-  TableReference = None
+
+  class DatasetReference(object):
+    pass
+
+  class TableReference(object):
+    pass
+
+  class SchemaField(object):
+    pass
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -160,9 +170,9 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']
           bq._clean_up_beam_labelled_temporary_datasets(
-              project_id=temp_table_ref.projectId,
-              dataset_id=temp_table_ref.datasetId,
-              table_id=temp_table_ref.tableId)
+              project_id=temp_table_ref.project,
+              dataset_id=temp_table_ref.dataset_id,
+              table_id=temp_table_ref.table_id)
         elif 'project_id' in pipeline_details.keys():
           bq._clean_up_beam_labelled_temporary_datasets(
               project_id=pipeline_details['project_id'],
@@ -231,7 +241,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     if self.temp_dataset is None:
       return None
     elif isinstance(self.temp_dataset, DatasetReference):
-      return self.temp_dataset.datasetId
+      return self.temp_dataset.dataset_id
     elif isinstance(self.temp_dataset, str):
       return self.temp_dataset
     else:
@@ -244,7 +254,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     Otherwise, returns the pipeline project for billing.
     """
     if isinstance(self.temp_dataset, DatasetReference):
-      return self.temp_dataset.projectId
+      return self.temp_dataset.project
     else:
       return self._get_project()
 
@@ -264,8 +274,12 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       table_reference = bigquery_tools.parse_table_reference(
           element.table, project=self._get_project())
 
-    if not table_reference.projectId:
-      table_reference.projectId = self._get_project()
+    if table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      fallback_project = self._get_project() or self.bq.client.project
+      table_reference = TableReference(
+          DatasetReference(fallback_project, table_reference.dataset_id),
+          table_reference.table_id)
+
 
     schema, metadata_list = self._export_files(
         self.bq, element, table_reference)
@@ -275,15 +289,15 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
     Lineage.sources().add(
         'bigquery',
-        table_reference.projectId,
-        table_reference.datasetId,
-        table_reference.tableId)
+        table_reference.project,
+        table_reference.dataset_id,
+        table_reference.table_id)
 
     if element.query is not None:
       self.bq._delete_table(
-          table_reference.projectId,
-          table_reference.datasetId,
-          table_reference.tableId)
+          table_reference.project,
+          table_reference.dataset_id,
+          table_reference.table_id)
 
   def finish_bundle(self):
     if self.bq.created_temp_dataset:
@@ -339,8 +353,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
-    job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref, max_retries=0)
+    bq.wait_for_bq_job(job, max_retries=0)
     return bq._get_temp_table(self._get_project())
 
   def _export_files(
@@ -401,8 +414,14 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
           element.table, project=self._get_project())
     else:
       table_ref = table_reference
+
+    if table_ref.project == bigquery_tools.FALLBACK_PROJECT:
+      fallback_project = self._get_project() or bq.client.project
+      table_ref = TableReference(
+          DatasetReference(fallback_project, table_ref.dataset_id),
+          table_ref.table_id)
     table = bq.get_table(
-        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+        table_ref.project, table_ref.dataset_id, table_ref.table_id)
 
     return table.schema, metadata_list
 
@@ -423,7 +442,13 @@ FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
   def __init__(self, table_schema):
-    self.fields = self._convert_to_tuple(table_schema.fields)
+    if hasattr(table_schema, 'fields'):
+      fields = table_schema.fields
+    elif isinstance(table_schema, dict) and 'fields' in table_schema:
+      fields = table_schema['fields']
+    else:
+      fields = table_schema
+    self.fields = self._convert_to_tuple(fields)
     self._converters = {
         'INTEGER': int,
         'INT64': int,
@@ -444,15 +469,19 @@ class _JsonToDictCoder(coders.Coder):
 
   @classmethod
   def _convert_to_tuple(cls, table_field_schemas):
-    """Recursively converts the list of TableFieldSchema instances to the
+    """Recursively converts the list of SchemaField instances to the
     list of tuples to prevent errors when pickling and unpickling
-    TableFieldSchema instances.
+    SchemaField instances.
     """
     if not table_field_schemas:
       return []
 
     return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        FieldSchema(
+            cls._convert_to_tuple(x.fields),
+            x.mode,
+            x.name,
+            getattr(x, "field_type", getattr(x, "type", None)))
         for x in table_field_schemas
     ]
 

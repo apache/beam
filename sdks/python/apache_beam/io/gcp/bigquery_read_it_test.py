@@ -33,11 +33,16 @@ from functools import wraps
 import pytest
 
 import apache_beam as beam
-import apache_beam.io.gcp.bigquery
+
+try:
+  from google.cloud import bigquery as gcp_bigquery
+
+  import apache_beam.io.gcp.bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.io.gcp import bigquery_schema_tools
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.runners.interactive import interactive_beam
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
@@ -49,9 +54,9 @@ from apache_beam.utils.timestamp import Timestamp
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions
 except ImportError:
-  HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -106,13 +111,15 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, deleteContents=True)
+
     try:
       _LOGGER.debug(
           "Deleting dataset %s in project %s", cls.dataset_id, cls.project)
-      cls.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
+      cls.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+          delete_contents=True,
+          not_found_ok=True)
+    except exceptions.GoogleAPICallError:
       _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
           cls.dataset_id,
@@ -141,23 +148,17 @@ class ReadTests(BigQueryReadIntegrationTests):
 
   @classmethod
   def create_table(cls, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'number'
-    table_field.type = 'INTEGER'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'str'
-    table_field.type = 'STRING'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+    table_schema = []
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='number', field_type='INTEGER'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='str', field_type='STRING'))
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     # Call get_table so that we wait until the table is visible.
     _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
@@ -350,53 +351,34 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
 
   @classmethod
   def _create_table(cls, table_name):
-    table_schema = bigquery.TableSchema()
+    table_schema = []
 
-    number = bigquery.TableFieldSchema()
-    number.name = 'number'
-    number.type = 'INTEGER'
-    table_schema.fields.append(number)
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='number', field_type='INTEGER'))
 
-    string = bigquery.TableFieldSchema()
-    string.name = 'string'
-    string.type = 'STRING'
-    table_schema.fields.append(string)
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='string', field_type='STRING'))
 
-    time = bigquery.TableFieldSchema()
-    time.name = 'time'
-    time.type = 'TIME'
-    table_schema.fields.append(time)
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='time', field_type='TIME'))
 
-    datetime = bigquery.TableFieldSchema()
-    datetime.name = 'datetime'
-    datetime.type = 'DATETIME'
-    table_schema.fields.append(datetime)
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='datetime', field_type='DATETIME'))
 
-    rec = bigquery.TableFieldSchema()
-    rec.name = 'rec'
-    rec.type = 'RECORD'
-    rec_datetime = bigquery.TableFieldSchema()
-    rec_datetime.name = 'rec_datetime'
-    rec_datetime.type = 'DATETIME'
-    rec.fields.append(rec_datetime)
-    rec_rec = bigquery.TableFieldSchema()
-    rec_rec.name = 'rec_rec'
-    rec_rec.type = 'RECORD'
-    rec_rec_datetime = bigquery.TableFieldSchema()
-    rec_rec_datetime.name = 'rec_rec_datetime'
-    rec_rec_datetime.type = 'DATETIME'
-    rec_rec.fields.append(rec_rec_datetime)
-    rec.fields.append(rec_rec)
-    table_schema.fields.append(rec)
+    rec_rec_datetime = gcp_bigquery.SchemaField('rec_rec_datetime', 'DATETIME')
+    rec_rec = gcp_bigquery.SchemaField(
+        'rec_rec', 'RECORD', fields=(rec_rec_datetime, ))
+    rec_datetime = gcp_bigquery.SchemaField('rec_datetime', 'DATETIME')
+    rec = gcp_bigquery.SchemaField(
+        'rec', 'RECORD', fields=(rec_datetime, rec_rec))
+    table_schema.append(rec)
 
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     # Call get_table so that we wait until the table is visible.
     _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
@@ -422,7 +404,7 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
         flatten_results=False,
         job_id=query_job_name,
         priority=beam.io.BigQueryQueryPriority.BATCH)
-    job_ref = job.jobReference
+    job_ref = getattr(job, 'jobReference', job)
     cls.bigquery_client.wait_for_bq_job(job_ref, max_retries=0)
     return cls.bigquery_client._get_temp_table(project)
 
@@ -548,9 +530,9 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
       result = (
           p | 'Read with BigQuery Storage API' >> beam.io.ReadFromBigQuery(
               method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
-              project=self.temp_table_reference.projectId,
-              dataset=self.temp_table_reference.datasetId,
-              table=self.temp_table_reference.tableId,
+              project=self.temp_table_reference.project,
+              dataset=self.temp_table_reference.dataset_id,
+              table=self.temp_table_reference.table_id,
               row_restriction='number > 4',
               selected_fields=['string']))
       assert_that(result, equal_to([]))
@@ -619,47 +601,29 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
 
   @classmethod
   def create_table(cls, table_name):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'float'
-    table_field.type = 'FLOAT'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'numeric'
-    table_field.type = 'NUMERIC'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'bytes'
-    table_field.type = 'BYTES'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'date'
-    table_field.type = 'DATE'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'time'
-    table_field.type = 'TIME'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'datetime'
-    table_field.type = 'DATETIME'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'timestamp'
-    table_field.type = 'TIMESTAMP'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'geo'
-    table_field.type = 'GEOGRAPHY'
-    table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+    table_schema = []
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='float', field_type='FLOAT'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='numeric', field_type='NUMERIC'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='bytes', field_type='BYTES'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='date', field_type='DATE'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='time', field_type='TIME'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='datetime', field_type='DATETIME'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='timestamp', field_type='TIMESTAMP'))
+    table_schema.append(
+        gcp_bigquery.SchemaField(name='geo', field_type='GEOGRAPHY'))
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     # Call get_table so that we wait until the table is visible.
     _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     row_data = {
@@ -779,14 +743,12 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
 
   @classmethod
   def create_table(cls, table_name, data, table_schema):
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     # Call get_table so that we wait until the table is visible.
     _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
@@ -796,23 +758,14 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
 
   @classmethod
   def create_bq_schema(cls, with_extra=False):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'number'
-    table_field.type = 'INTEGER'
-    table_field.mode = 'NULLABLE'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'str'
-    table_field.type = 'STRING'
-    table_field.mode = 'NULLABLE'
-    table_schema.fields.append(table_field)
+    table_schema = []
+    table_schema.append(
+        gcp_bigquery.SchemaField('number', 'INTEGER', mode='NULLABLE'))
+    table_schema.append(
+        gcp_bigquery.SchemaField('str', 'STRING', mode='NULLABLE'))
     if with_extra:
-      table_field = bigquery.TableFieldSchema()
-      table_field.name = 'extra'
-      table_field.type = 'INTEGER'
-      table_field.mode = 'NULLABLE'
-      table_schema.fields.append(table_field)
+      table_schema.append(
+          gcp_bigquery.SchemaField('extra', 'INTEGER', mode='NULLABLE'))
     return table_schema
 
   @skip(['PortableRunner', 'FlinkRunner'])

@@ -26,7 +26,6 @@ import pytest
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -34,6 +33,7 @@ from apache_beam.testing.util import equal_to
 # pylint: disable=ungrouped-imports
 try:
   from apitools.base.py.exceptions import HttpError
+  from google.cloud import bigquery as gcp_bigquery
   from testcontainers.redis import RedisContainer
 
   from apache_beam.transforms.enrichment import Enrichment
@@ -69,12 +69,14 @@ class BigQueryEnrichmentIT(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, deleteContents=True)
+
     try:
       _LOGGER.debug(
           "Deleting dataset %s in project %s", cls.dataset_id, cls.project)
-      cls.bigquery_client.client.datasets.Delete(request)
+      cls.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+          delete_contents=True,
+          not_found_ok=True)
     except HttpError:
       _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
@@ -115,20 +117,16 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
   def create_table(cls, table_name):
     fields = [('id', 'INTEGER'), ('name', 'STRING'), ('quantity', 'INTEGER'),
               ('distribution_center_id', 'INTEGER')]
-    table_schema = bigquery.TableSchema()
+    table_schema = []
     for name, field_type in fields:
-      table_field = bigquery.TableFieldSchema()
-      table_field.name = name
-      table_field.type = field_type
-      table_schema.fields.append(table_field)
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.dataset_id,
-            tableId=table_name),
+      table_schema.append(
+          gcp_bigquery.SchemaField(name=name, field_type=field_type))
+    table = gcp_bigquery.Table(
+        gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
+            table_name),
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.dataset_id, table=table)
-    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.client.create_table(table)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.table_data)
     cls.table_name = f"{cls.project}.{cls.dataset_id}.{table_name}"

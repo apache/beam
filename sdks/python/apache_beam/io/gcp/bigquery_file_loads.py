@@ -51,7 +51,7 @@ from apache_beam.transforms.window import GlobalWindows
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
   pass
 
@@ -397,17 +397,22 @@ class UpdateDestinationSchema(beam.DoFn):
       return
 
     table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.projectId is None:
-      table_reference.projectId = vp.RuntimeValueProvider.get_value(
+    if table_reference.project is None or table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
+      new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
+      table_reference = TableReference(
+          DatasetReference(new_project, table_reference.dataset_id),
+          table_reference.table_id)
 
     try:
       # Check if destination table exists
       destination_table = self.bq_wrapper.get_table(
-          project_id=table_reference.projectId,
-          dataset_id=table_reference.datasetId,
-          table_id=table_reference.tableId)
-    except HttpError as exn:
+          project_id=table_reference.project,
+          dataset_id=table_reference.dataset_id,
+          table_id=table_reference.table_id)
+    except Exception as exn:
       if exn.status_code == 404:
         # Destination table does not exist, so no need to modify its schema
         # ahead of the copy jobs.
@@ -419,7 +424,7 @@ class UpdateDestinationSchema(beam.DoFn):
         project=temp_table_load_job_reference.projectId,
         job_id=temp_table_load_job_reference.jobId,
         location=temp_table_load_job_reference.location)
-    temp_table_schema = temp_table_load_job.configuration.load.schema
+    temp_table_schema = temp_table_load_job.schema
 
     if bigquery_tools.check_schema_equal(temp_table_schema,
                                          destination_table.schema,
@@ -431,9 +436,9 @@ class UpdateDestinationSchema(beam.DoFn):
 
     destination_hash = _bq_uuid(
         '%s:%s.%s' % (
-            table_reference.projectId,
-            table_reference.datasetId,
-            table_reference.tableId))
+            table_reference.project,
+            table_reference.dataset_id,
+            table_reference.table_id))
     uid = _bq_uuid()
     job_name = '%s_%s_%s' % (schema_mod_job_name_prefix, destination_hash, uid)
 
@@ -537,15 +542,26 @@ class TriggerCopyJobs(beam.DoFn):
     destination, job_reference = element
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
-    if copy_to_reference.projectId is None:
-      copy_to_reference.projectId = vp.RuntimeValueProvider.get_value(
+    if copy_to_reference.project is None or copy_to_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
+      new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
+      copy_to_reference = TableReference(
+          DatasetReference(new_project, copy_to_reference.dataset_id),
+          copy_to_reference.table_id)
 
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
-    copy_from_reference.tableId = job_reference.jobId
-    if copy_from_reference.projectId is None:
-      copy_from_reference.projectId = vp.RuntimeValueProvider.get_value(
+    new_table_id = job_reference.jobId
+    new_project = copy_from_reference.project
+    if new_project is None or new_project == bigquery_tools.FALLBACK_PROJECT:
+      new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
+    from google.cloud.bigquery import DatasetReference
+    from google.cloud.bigquery import TableReference
+    copy_from_reference = TableReference(
+        DatasetReference(new_project, copy_from_reference.dataset_id),
+        new_table_id)
 
     _LOGGER.info(
         "Triggering copy job from %s to %s",
@@ -559,15 +575,15 @@ class TriggerCopyJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
     project_id = (
-        copy_to_reference.projectId
+        copy_to_reference.project
         if self.load_job_project_id is None else self.load_job_project_id)
     copy_job_name = '%s_%s' % (
         job_name_prefix,
         _bq_uuid(
             '%s:%s.%s' % (
-                copy_from_reference.projectId,
-                copy_from_reference.datasetId,
-                copy_from_reference.tableId)))
+                copy_from_reference.project,
+                copy_from_reference.dataset_id,
+                copy_from_reference.table_id)))
     job_reference = self.bq_wrapper._insert_copy_job(
         project_id,
         copy_job_name,
@@ -602,18 +618,18 @@ class TriggerCopyJobs(beam.DoFn):
         complete and the write disposition to use for the job.
     """
     full_table_ref = '%s:%s.%s' % (
-        copy_to_reference.projectId,
-        copy_to_reference.datasetId,
-        copy_to_reference.tableId)
+        copy_to_reference.project,
+        copy_to_reference.dataset_id,
+        copy_to_reference.table_id)
     if full_table_ref not in self._observed_tables:
       write_disposition = self.write_disposition
       wait_for_job = write_disposition != 'WRITE_APPEND'
       self._observed_tables.add(full_table_ref)
       Lineage.sinks().add(
           'bigquery',
-          copy_to_reference.projectId,
-          copy_to_reference.datasetId,
-          copy_to_reference.tableId)
+          copy_to_reference.project,
+          copy_to_reference.dataset_id,
+          copy_to_reference.table_id)
     else:
       wait_for_job = False
       write_disposition = 'WRITE_APPEND'
@@ -718,17 +734,22 @@ class TriggerLoadJobs(beam.DoFn):
       additional_parameters = self.additional_bq_parameters
 
     table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.projectId is None:
-      table_reference.projectId = vp.RuntimeValueProvider.get_value(
+    if table_reference.project is None or table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
+      new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
+      table_reference = TableReference(
+          DatasetReference(new_project, table_reference.dataset_id),
+          table_reference.table_id)
     # Load jobs for a single destination are always triggered from the same
     # worker. This means that we can generate a deterministic numbered job id,
     # and not need to worry.
     destination_hash = _bq_uuid(
         '%s:%s.%s' % (
-            table_reference.projectId,
-            table_reference.datasetId,
-            table_reference.tableId))
+            table_reference.project,
+            table_reference.dataset_id,
+            table_reference.table_id))
     job_name = '%s_%s_pane%s_partition%s' % (
         load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
@@ -745,9 +766,9 @@ class TriggerLoadJobs(beam.DoFn):
           try:
             schema = bigquery_tools.table_schema_to_dict(
                 bigquery_tools.BigQueryWrapper().get_table(
-                    project_id=table_reference.projectId,
-                    dataset_id=table_reference.datasetId,
-                    table_id=table_reference.tableId).schema)
+                    project_id=table_reference.project,
+                    dataset_id=table_reference.dataset_id,
+                    table_id=table_reference.table_id).schema)
             self.schema_cache[hashed_dest] = schema
           except Exception as e:
             _LOGGER.warning(
@@ -762,16 +783,20 @@ class TriggerLoadJobs(beam.DoFn):
       # temporary tables, so we replace the create_disposition.
       create_disposition = 'CREATE_IF_NEEDED'
       # For temporary tables, we create a new table with the name with JobId.
-      table_reference.tableId = job_name
+      from google.cloud.bigquery import DatasetReference
+      from google.cloud.bigquery import TableReference
+      table_reference = TableReference(
+          DatasetReference(table_reference.project, table_reference.dataset_id),
+          job_name)
       yield pvalue.TaggedOutput(
           TriggerLoadJobs.TEMP_TABLES,
           bigquery_tools.get_hashable_destination(table_reference))
     else:
       Lineage.sinks().add(
           'bigquery',
-          table_reference.projectId,
-          table_reference.datasetId,
-          table_reference.tableId)
+          table_reference.project,
+          table_reference.dataset_id,
+          table_reference.table_id)
 
     _LOGGER.info(
         'Triggering job %s to load data to BigQuery table %s.'
@@ -796,6 +821,7 @@ class TriggerLoadJobs(beam.DoFn):
         source_format=self.source_format,
         job_labels=self.bq_io_metadata.add_additional_bq_job_labels(),
         load_job_project_id=self.load_job_project_id)
+
     yield pvalue.TaggedOutput(
         TriggerLoadJobs.ONGOING_JOBS, (destination, job_reference))
     self.pending_jobs.append(
@@ -883,9 +909,9 @@ class DeleteTablesFn(beam.DoFn):
     _LOGGER.info("Deleting table %s", table_reference)
     table_reference = bigquery_tools.parse_table_reference(table_reference)
     self.bq_wrapper._delete_table(
-        table_reference.projectId,
-        table_reference.datasetId,
-        table_reference.tableId)
+        table_reference.project,
+        table_reference.dataset_id,
+        table_reference.table_id)
 
 
 class BigQueryBatchFileLoads(beam.PTransform):
@@ -1183,7 +1209,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       finished_temp_tables_load_job_ids_list_pc = (
           finished_temp_tables_load_job_ids_pc | beam.MapTuple(
               lambda destination, job_reference: (
-                  bigquery_tools.parse_table_reference(destination).tableId,
+                  bigquery_tools.parse_table_reference(destination).table_id,
                   (destination, job_reference)))
           | beam.GroupByKey()
           | beam.MapTuple(lambda tableId, batch: list(batch)))

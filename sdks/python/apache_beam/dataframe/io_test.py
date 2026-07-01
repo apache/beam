@@ -36,20 +36,22 @@ from pandas.testing import assert_frame_equal
 from parameterized import parameterized
 
 import apache_beam as beam
-import apache_beam.io.gcp.bigquery
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import io
 from apache_beam.io import fileio
 from apache_beam.io import restriction_trackers
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
   from google.api_core.exceptions import GoogleAPICallError
+  from google.cloud import bigquery as gcp_bigquery
+
+  import apache_beam.io.gcp.bigquery
 except ImportError:
   GoogleAPICallError = None
+  gcp_bigquery = None
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
@@ -490,19 +492,18 @@ X     , c1, c2
 class ReadGbqTransformTests(unittest.TestCase):
   @mock.patch.object(BigQueryWrapper, 'get_table')
   def test_bad_schema_public_api_direct_read(self, get_table):
-    try:
-      bigquery.TableFieldSchema
-    except AttributeError:
-      raise ValueError('Please install GCP Dependencies.')
+    if gcp_bigquery is None:
+      raise unittest.SkipTest('GCP dependencies are not installed')
     fields = [
-        bigquery.TableFieldSchema(name='stn', type='DOUBLE', mode="NULLABLE"),
-        bigquery.TableFieldSchema(name='temp', type='FLOAT64', mode="REPEATED"),
-        bigquery.TableFieldSchema(name='count', type='INTEGER', mode=None)
+        gcp_bigquery.SchemaField(
+            name='stn', field_type='DOUBLE', mode="NULLABLE"),
+        gcp_bigquery.SchemaField(
+            name='temp', field_type='FLOAT64', mode="REPEATED"),
+        gcp_bigquery.SchemaField(
+            name='count', field_type='INTEGER', mode="NULLABLE")
     ]
-    schema = bigquery.TableSchema(fields=fields)
-    table = apache_beam.io.gcp.internal.clients.bigquery. \
-        bigquery_v2_messages.Table(
-        schema=schema)
+    table = mock.Mock()
+    table.schema = fields
     get_table.return_value = table
 
     with self.assertRaisesRegex(ValueError,

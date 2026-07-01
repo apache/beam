@@ -18,7 +18,7 @@
 """BigQuery sources and sinks.
 
 This module implements reading from and writing to BigQuery tables. It relies
-on several classes exposed by the BigQuery API: TableSchema, TableFieldSchema,
+on several classes exposed by the BigQuery API: TableSchema, SchemaField,
 TableRow, and TableCell. The default mode is to return table rows read from a
 BigQuery source as dictionaries. Similarly a Write transform to a BigQuerySink
 accepts PCollections of dictionaries. This is done for more convenient
@@ -319,12 +319,12 @@ respectively. See the examples above for how to do this.
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
 A table has a schema (TableSchema), which in turn describes the schema of each
-cell (TableFieldSchema). The terms field and cell are used interchangeably.
+cell (SchemaField). The terms field and cell are used interchangeably.
 
 TableSchema: Describes the schema (types and order) for values in each row.
-  Has one attribute, 'field', which is list of TableFieldSchema objects.
+  Has one attribute, 'field', which is list of SchemaField objects.
 
-TableFieldSchema: Describes the schema (type, name) for one field.
+SchemaField: Describes the schema (type, name) for one field.
   Has several attributes, including 'name' and 'type'. Common values for
   the type attribute are: 'STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'NUMERIC',
   'GEOGRAPHY'.
@@ -390,7 +390,6 @@ from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanupTempDatasets
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SDFBoundedSourceReader
@@ -421,13 +420,23 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import JobReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+  from google.cloud import bigquery as gcp_bigquery
+  DatasetReference = gcp_bigquery.DatasetReference
+  TableReference = gcp_bigquery.TableReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
-  DatasetReference = None
-  TableReference = None
-  JobReference = None
+
+  class DatasetReference(object):
+    pass
+
+  class TableReference(object):
+    pass
+
+  class SchemaField(object):
+    pass
+
+
+JobReference = bigquery_tools.BeamJobReference
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -440,7 +449,6 @@ except ImportError:
       'used with `method=DIRECT_READ`.')
 
 __all__ = [
-    'TableRowJsonCoder',
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
@@ -508,46 +516,6 @@ def RowAsDictJsonCoder(*args, **kwargs):
 @deprecated(since='2.11.0', current="bigquery_tools.BigQueryWrapper")
 def BigQueryWrapper(*args, **kwargs):
   return bigquery_tools.BigQueryWrapper(*args, **kwargs)
-
-
-class TableRowJsonCoder(coders.Coder):
-  """A coder for a TableRow instance to/from a JSON string.
-
-  Note that the encoding operation (used when writing to sinks) requires the
-  table schema in order to obtain the ordered list of field names. Reading from
-  sources on the other hand does not need the table schema.
-  """
-  def __init__(self, table_schema=None):
-    # The table schema is needed for encoding TableRows as JSON (writing to
-    # sinks) because the ordered list of field names is used in the JSON
-    # representation.
-    self.table_schema = table_schema
-    # Precompute field names since we need them for row encoding.
-    if self.table_schema:
-      self.field_names = tuple(fs.name for fs in self.table_schema.fields)
-      self.field_types = tuple(fs.type for fs in self.table_schema.fields)
-
-  def encode(self, table_row):
-    if self.table_schema is None:
-      raise AttributeError(
-          'The TableRowJsonCoder requires a table schema for '
-          'encoding operations. Please specify a table_schema argument.')
-    try:
-      return json.dumps(
-          collections.OrderedDict(
-              zip(
-                  self.field_names,
-                  [from_json_value(f.v) for f in table_row.f])),
-          allow_nan=False,
-          default=bigquery_tools.default_encoder)
-    except ValueError as e:
-      raise ValueError('%s. %s' % (e, bigquery_tools.JSON_COMPLIANCE_ERROR))
-
-  def decode(self, encoded_table_row):
-    od = json.loads(
-        encoded_table_row, object_pairs_hook=collections.OrderedDict)
-    return bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e)) for e in od.values()])
 
 
 class BigQueryDisposition(object):
@@ -728,11 +696,11 @@ class _CustomBigQuerySource(BoundedSource):
         # Size estimation is best effort. We return None as we have
         # no access to the table that we're querying.
         return None
-      if not table_ref.projectId:
-        table_ref.projectId = self._get_project()
+      if not table_ref.project:
+        table_ref.project = self._get_project()
       table = bq.get_table(
-          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
-      return int(table.numBytes)
+          table_ref.project, table_ref.dataset_id, table_ref.table_id)
+      return int(table.num_bytes)
     elif self.query is not None and self.query.is_accessible():
       project = self._get_project()
       query_job_name = bigquery_tools.generate_bq_job_name(
@@ -774,7 +742,7 @@ class _CustomBigQuerySource(BoundedSource):
     if isinstance(project, vp.ValueProvider):
       project = project.get()
     if self.temp_dataset:
-      return self.temp_dataset.projectId
+      return self.temp_dataset.project
     if not project:
       project = self.project
     return project
@@ -795,7 +763,7 @@ class _CustomBigQuerySource(BoundedSource):
     if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None),
+              self.temp_dataset.dataset_id if self.temp_dataset else None),
           client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
       if self.query is not None:
@@ -805,13 +773,16 @@ class _CustomBigQuerySource(BoundedSource):
       if isinstance(self.table_reference, vp.ValueProvider):
         self.table_reference = bigquery_tools.parse_table_reference(
             self.table_reference.get(), project=self._get_project())
-      elif not self.table_reference.projectId:
-        self.table_reference.projectId = self._get_project()
+      elif self.table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+        self.table_reference = TableReference(
+            DatasetReference(
+                self._get_project(), self.table_reference.dataset_id),
+            self.table_reference.table_id)
       Lineage.sources().add(
           'bigquery',
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          self.table_reference.project,
+          self.table_reference.dataset_id,
+          self.table_reference.table_id)
 
       schema, metadata_list = self._export_files(bq)
       self.export_result = _BigQueryExportResult(
@@ -867,15 +838,14 @@ class _CustomBigQuerySource(BoundedSource):
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
-    job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref, max_retries=0)
+    bq.wait_for_bq_job(job, max_retries=0)
     return bq._get_temp_table(self._get_project())
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.
 
     Returns:
-      bigquery.TableSchema instance, a list of FileMetadata instances
+      google.cloud.bigquery.SchemaField list instance, a list of FileMetadata instances
     """
     job_labels = self._get_bq_metadata().add_additional_bq_job_labels(
         self.bigquery_job_labels)
@@ -924,7 +894,7 @@ class _CustomBigQuerySource(BoundedSource):
     else:
       table_ref = self.table_reference
     table = bq.get_table(
-        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+        table_ref.project, table_ref.dataset_id, table_ref.table_id)
 
     return table.schema, metadata_list
 
@@ -1039,7 +1009,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
   def _get_parent_project(self):
     """Returns the project that will be billed."""
     if self.temp_table:
-      return self.temp_table.projectId
+      return self.temp_table.project
 
     project = self.pipeline_options.view_as(GoogleCloudOptions).project
     if isinstance(project, vp.ValueProvider):
@@ -1050,11 +1020,11 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def _get_table_size(self, bq, table_reference):
     project = (
-        table_reference.projectId
-        if table_reference.projectId else self._get_parent_project())
+        self._get_parent_project() if table_reference.project
+        == bigquery_tools.FALLBACK_PROJECT else table_reference.project)
     table = bq.get_table(
-        project, table_reference.datasetId, table_reference.tableId)
-    return table.numBytes
+        project, table_reference.dataset_id, table_reference.table_id)
+    return table.num_bytes
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -1092,8 +1062,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
         kms_key=self.kms_key,
         job_labels=self._get_bq_metadata().add_additional_bq_job_labels(
             self.bigquery_job_labels))
-    job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref, max_retries=0)
+    bq.wait_for_bq_job(job, max_retries=0)
     table_reference = bq._get_temp_table(self._get_parent_project())
     return table_reference
 
@@ -1171,19 +1140,22 @@ class _CustomBigQueryStorageSource(BoundedSource):
         self._setup_temporary_dataset(bq)
         self.table_reference = self._execute_query(bq)
 
-      if not self.table_reference.projectId:
-        self.table_reference.projectId = self._get_project()
+      if self.table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+        self.table_reference = TableReference(
+            DatasetReference(
+                self._get_project(), self.table_reference.dataset_id),
+            self.table_reference.table_id)
 
       requested_session = bq_storage.types.ReadSession()
       requested_session.table = 'projects/{}/datasets/{}/tables/{}'.format(
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          self.table_reference.project,
+          self.table_reference.dataset_id,
+          self.table_reference.table_id)
       Lineage.sources().add(
           'bigquery',
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          self.table_reference.project,
+          self.table_reference.dataset_id,
+          self.table_reference.table_id)
 
       if self.use_native_datetime:
         requested_session.data_format = bq_storage.types.DataFormat.ARROW
@@ -1208,7 +1180,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       stream_count = max(
           stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
 
-      parent = 'projects/{}'.format(self.table_reference.projectId)
+      parent = 'projects/{}'.format(self.table_reference.project)
       read_session = storage_client.create_read_session(
           parent=parent,
           read_session=requested_session,
@@ -1432,7 +1404,7 @@ class BigQueryWriteFn(DoFn):
     Args:
       batch_size: Number of rows to be written to BQ per streaming API insert.
       schema: The schema to be used if the BigQuery table to write has to be
-        created. This can be either specified as a 'bigquery.TableSchema' object
+        created. This can be either specified as a dict or a list of google.cloud.bigquery.SchemaField object
         or a single string  of the form 'field1:type1,field2:type2,field3:type3'
         that defines a comma separated list of fields. Here 'type' should
         specify the BigQuery type of the field. Single string based schemas do
@@ -1536,7 +1508,7 @@ class BigQueryWriteFn(DoFn):
 
   @staticmethod
   def get_table_schema(schema):
-    """Transform the table schema into a bigquery.TableSchema instance.
+    """Transform the table schema into a google.cloud.bigquery.SchemaField list instance.
 
     Args:
       schema: The schema to be used if the BigQuery table to write has to be
@@ -1544,7 +1516,7 @@ class BigQueryWriteFn(DoFn):
         transform.
     Returns:
       table_schema: The schema to be used if the BigQuery table to write has
-         to be created but in the bigquery.TableSchema format.
+         to be created but in the google.cloud.bigquery.SchemaField list format.
     """
     if schema is None:
       return schema
@@ -1575,9 +1547,9 @@ class BigQueryWriteFn(DoFn):
 
   def _create_table_if_needed(self, table_reference, schema=None):
     str_table_reference = '%s:%s.%s' % (
-        table_reference.projectId,
-        table_reference.datasetId,
-        table_reference.tableId)
+        table_reference.project,
+        table_reference.dataset_id,
+        table_reference.table_id)
     if str_table_reference in _KNOWN_TABLES:
       return
 
@@ -1591,13 +1563,16 @@ class BigQueryWriteFn(DoFn):
 
     table_schema = self.get_table_schema(schema)
 
-    if table_reference.projectId is None:
-      table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+    if table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      table_reference = TableReference(
+          DatasetReference(
+              vp.RuntimeValueProvider.get_value('project', str, ''),
+              table_reference.dataset_id),
+          table_reference.table_id)
     self.bigquery_wrapper.get_or_create_table(
-        table_reference.projectId,
-        table_reference.datasetId,
-        table_reference.tableId,
+        table_reference.project,
+        table_reference.dataset_id,
+        table_reference.table_id,
         table_schema,
         self.create_disposition,
         self.write_disposition,
@@ -1734,9 +1709,12 @@ class BigQueryWriteFn(DoFn):
     # Flush the current batch of rows to BigQuery.
     rows_and_insert_ids_with_windows = self._rows_buffer[destination]
     table_reference = bigquery_tools.parse_table_reference(destination)
-    if table_reference.projectId is None:
-      table_reference.projectId = vp.RuntimeValueProvider.get_value(
-          'project', str, '')
+    if table_reference.project == bigquery_tools.FALLBACK_PROJECT:
+      table_reference = TableReference(
+          DatasetReference(
+              vp.RuntimeValueProvider.get_value('project', str, ''),
+              table_reference.dataset_id),
+          table_reference.table_id)
 
     _LOGGER.debug(
         'Flushing data to %s. Total %s rows.',
@@ -1754,9 +1732,9 @@ class BigQueryWriteFn(DoFn):
     while True:
       start = time.time()
       passed, errors = self.bigquery_wrapper.insert_rows(
-          project_id=table_reference.projectId,
-          dataset_id=table_reference.datasetId,
-          table_id=table_reference.tableId,
+          project_id=table_reference.project,
+          dataset_id=table_reference.dataset_id,
+          table_id=table_reference.table_id,
           rows=rows,
           insert_ids=insert_ids,
           skip_invalid_rows=True,
@@ -2027,8 +2005,7 @@ class WriteToBigQuery(PTransform):
         argument.
       schema (str,dict,ValueProvider,callable): The schema to be used if the
         BigQuery table to write has to be created. This can be either specified
-        as a :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
+        as a ``google.cloud.bigquery.TableSchema``, or a `ValueProvider` that has a JSON string,
         or a python dictionary, or the string or dictionary itself,
         object or a single string  of the form
         ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
@@ -2256,9 +2233,13 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     p = pcoll.pipeline
 
     if (isinstance(self.table_reference, TableReference) and
-        self.table_reference.projectId is None):
-      self.table_reference.projectId = pcoll.pipeline.options.view_as(
-          GoogleCloudOptions).project
+        self.table_reference.project == bigquery_tools.FALLBACK_PROJECT):
+      self.table_reference = TableReference(
+          DatasetReference((
+              pcoll.pipeline.options.view_as(GoogleCloudOptions).project or
+              bigquery_tools.FALLBACK_PROJECT),
+                           self.table_reference.dataset_id),
+          self.table_reference.table_id)
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
     is_streaming_pipeline = p.options.view_as(StandardOptions).streaming
@@ -2408,9 +2389,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     if self.table_reference is not None and isinstance(self.table_reference,
                                                        TableReference):
       tableSpec = '{}.{}'.format(
-          self.table_reference.datasetId, self.table_reference.tableId)
-      if self.table_reference.projectId is not None:
-        tableSpec = '{}:{}'.format(self.table_reference.projectId, tableSpec)
+          self.table_reference.dataset_id, self.table_reference.table_id)
+      if self.table_reference.project != bigquery_tools.FALLBACK_PROJECT:
+        tableSpec = '{}:{}'.format(self.table_reference.project, tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
 
     res['validation'] = DisplayDataItem(
@@ -2535,8 +2516,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations that were successfully
       loaded to using the batch load API, along with the load job IDs.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS],
                   'DESTINATION_JOBID_PAIRS')
 
@@ -2549,8 +2532,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations along with the
       temp files used as sources to load from.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS], 'DESTINATION_FILE_PAIRS')
 
     return self._destination_file_pairs
@@ -2563,8 +2548,10 @@ class WriteResult:
     Returns: A PCollection of the table destinations that were successfully
       copied to, along with the copy job ID.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``FILE_LOADS``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``FILE_LOADS``.
+    """
     self.validate([WriteToBigQuery.Method.FILE_LOADS],
                   'DESTINATION_COPY_JOBID_PAIRS')
 
@@ -2576,8 +2563,10 @@ class WriteResult:
 
     Returns: A PCollection of rows that failed when inserting to BigQuery.
 
-    Raises: AttributeError: if accessed with a write method
-    besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+    Raises:
+      AttributeError: if accessed with a write method
+        besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``.
+    """
     self.validate([
         WriteToBigQuery.Method.STREAMING_INSERTS,
         WriteToBigQuery.Method.STORAGE_WRITE_API
@@ -2596,7 +2585,8 @@ class WriteResult:
 
     Raises:
       AttributeError: if accessed with a write method
-      besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``."""
+        besides ``[STREAMING_INSERTS, STORAGE_WRITE_API]``.
+    """
     self.validate([
         WriteToBigQuery.Method.STREAMING_INSERTS,
         WriteToBigQuery.Method.STORAGE_WRITE_API
@@ -2787,8 +2777,7 @@ class StorageWriteToBigQuery(PTransform):
       self._value = schema
 
     def __enter__(self):
-      if not isinstance(self._value,
-                        (bigquery.TableSchema, bigquery.TableFieldSchema)):
+      if not isinstance(self._value, (SchemaField, )):
         return bigquery_tools.get_bq_tableschema(self._value)
 
       return self._value
@@ -2918,7 +2907,7 @@ class ReadFromBigQuery(PTransform):
       see: https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions
-    temp_dataset (``apache_beam.io.gcp.internal.clients.bigquery.DatasetReference``):
+    temp_dataset (``google.cloud.bigquery.DatasetReference``):
         Temporary dataset reference to use when reading from BigQuery using a
         query. When reading using a query, BigQuery source will create a
         temporary dataset and a temporary table to store the results of the
@@ -3018,9 +3007,9 @@ class ReadFromBigQuery(PTransform):
             '; got a callable instead' % self.__class__.__name__)
       return output_pcollection | bigquery_schema_tools.convert_to_usertype(
           bigquery_tools.BigQueryWrapper().get_table(
-              project_id=table_details.projectId,
-              dataset_id=table_details.datasetId,
-              table_id=table_details.tableId).schema,
+              project_id=table_details.project,
+              dataset_id=table_details.dataset_id,
+              table_id=table_details.table_id).schema,
           self._kwargs.get('selected_fields', None))
     else:
       raise ValueError(
@@ -3069,10 +3058,11 @@ class ReadFromBigQuery(PTransform):
     project_id = None
     temp_table_ref = None
     if 'temp_dataset' in self._kwargs:
-      temp_table_ref = bigquery.TableReference(
-          projectId=self._kwargs['temp_dataset'].projectId,
-          datasetId=self._kwargs['temp_dataset'].datasetId,
-          tableId='beam_temp_table_' + uuid.uuid4().hex)
+      temp_table_ref = TableReference(
+          DatasetReference(
+              self._kwargs['temp_dataset'].project,
+              self._kwargs['temp_dataset'].dataset_id),
+          'beam_temp_table_' + uuid.uuid4().hex)
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 
@@ -3113,7 +3103,7 @@ class ReadFromBigQueryRequest:
       self,
       query: str = None,
       use_standard_sql: bool = True,
-      table: Union[str, TableReference] = None,
+      table: Union[str, "TableReference"] = None,
       flatten_results: bool = False):
     """
     Only one of query or table should be specified.
@@ -3186,7 +3176,7 @@ class ReadAllFromBigQuery(PTransform):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       kms_key: str = None,
-      temp_dataset: Union[str, DatasetReference] = None,
+      temp_dataset: Union[str, "DatasetReference"] = None,
       bigquery_job_labels: dict[str, str] = None,
       query_priority: str = BigQueryQueryPriority.BATCH):
     if gcs_location:

@@ -50,14 +50,14 @@ import apache_beam
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.http_client import get_new_http
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp import resource_identifiers
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
+
+FALLBACK_PROJECT = 'beam_fallback_project'
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
@@ -66,12 +66,43 @@ from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
 
+
+class BeamJobStatistics(object):
+  def __init__(self, totalBytesProcessed=None):
+    self.totalBytesProcessed = totalBytesProcessed
+
+
+class BeamJobReference(object):
+  def __init__(
+      self,
+      projectId=None,
+      jobId=None,
+      location=None,
+      totalBytesProcessed=None):
+    self.projectId = projectId
+    self.jobId = jobId
+    self.location = location
+    self.statistics = BeamJobStatistics(totalBytesProcessed)
+
+  def __eq__(self, other):
+    return (
+        getattr(self, 'projectId', None) == getattr(
+            other, 'projectId', getattr(other, 'project', None)) and
+        getattr(self, 'jobId', None) == getattr(
+            other, 'jobId', getattr(other, 'job_id', None)) and
+        getattr(self, 'location', None) == getattr(other, 'location', None))
+
+  def __hash__(self):
+    return hash((self.projectId, self.jobId, self.location))
+
+  def __repr__(self):
+    return f"BeamJobReference(projectId={self.projectId}, jobId={self.jobId}, location={self.location})"
+
+
 # Protect against environments where bigquery library is not available.
 try:
   import regex
-  from apitools.base.py.exceptions import HttpError
-  from apitools.base.py.exceptions import HttpForbiddenError
-  from apitools.base.py.transfer import Upload
+  from google.api_core import exceptions as google_api_core_exceptions
   from google.api_core.client_info import ClientInfo
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import GoogleAPICallError
@@ -91,9 +122,22 @@ except ImportError:
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+  from google.cloud import bigquery as gcp_bigquery
+  TableReference = gcp_bigquery.TableReference
+  DatasetReference = gcp_bigquery.DatasetReference
+  SchemaField = gcp_bigquery.SchemaField
 except ImportError:
-  TableReference = None
+
+  class TableReference(object):
+    pass
+
+  class DatasetReference(object):
+    pass
+
+  class SchemaField(object):
+    pass
+
+
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
@@ -168,9 +212,9 @@ def get_hashable_destination(destination):
     A string representing the destination containing
     'PROJECT:DATASET.TABLE'.
   """
-  if isinstance(destination, TableReference):
+  if isinstance(destination, gcp_bigquery.TableReference):
     return '%s:%s.%s' % (
-        destination.projectId, destination.datasetId, destination.tableId)
+        destination.project, destination.dataset_id, destination.table_id)
   else:
     return destination
 
@@ -195,14 +239,6 @@ def to_hashable_table_ref(
 
 
 def parse_table_schema_from_json(schema_string):
-  """Parse the Table Schema provided as string.
-
-  Args:
-    schema_string: String serialized table schema, should be a valid JSON.
-
-  Returns:
-    A TableSchema of the BigQuery export from either the Query or the Table.
-  """
   try:
     json_schema = json.loads(schema_string)
   except JSONDecodeError as e:
@@ -210,29 +246,17 @@ def parse_table_schema_from_json(schema_string):
         'Unable to parse JSON schema: %s - %r' % (schema_string, e))
 
   def _parse_schema_field(field):
-    """Parse a single schema field from dictionary.
+    mode = field.get('mode', 'NULLABLE')
+    description = field.get('description')
+    fields = tuple([_parse_schema_field(x) for x in field.get('fields', [])])
+    return SchemaField(
+        field['name'],
+        field['type'],
+        mode=mode,
+        description=description,
+        fields=fields)
 
-    Args:
-      field: Dictionary object containing serialized schema.
-
-    Returns:
-      A TableFieldSchema for a single column in BigQuery.
-    """
-    schema = bigquery.TableFieldSchema()
-    schema.name = field['name']
-    schema.type = field['type']
-    if 'mode' in field:
-      schema.mode = field['mode']
-    else:
-      schema.mode = 'NULLABLE'
-    if 'description' in field:
-      schema.description = field['description']
-    if 'fields' in field:
-      schema.fields = [_parse_schema_field(x) for x in field['fields']]
-    return schema
-
-  fields = [_parse_schema_field(f) for f in json_schema['fields']]
-  return bigquery.TableSchema(fields=fields)
+  return tuple([_parse_schema_field(f) for f in json_schema['fields']])
 
 
 def parse_table_reference(table, dataset=None, project=None):
@@ -265,18 +289,12 @@ def parse_table_reference(table, dataset=None, project=None):
 
   if isinstance(table, TableReference):
     return TableReference(
-        projectId=table.projectId,
-        datasetId=table.datasetId,
-        tableId=table.tableId)
+        DatasetReference(table.project, table.dataset_id), table.table_id)
   elif callable(table):
     return table
   elif isinstance(table, value_provider.ValueProvider):
     return table
 
-  table_reference = TableReference()
-  # If dataset argument is not specified, the expectation is that the
-  # table argument will contain a full table reference instead of just a
-  # table name.
   if dataset is None:
     pattern = (
         f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
@@ -286,46 +304,29 @@ def parse_table_reference(table, dataset=None, project=None):
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
           'DATASET.TABLE) instead of %s.' % table)
-    table_reference.projectId = match.group('project')
-    table_reference.datasetId = match.group('dataset')
-    table_reference.tableId = match.group('table')
-  else:
-    table_reference.projectId = project
-    table_reference.datasetId = dataset
-    table_reference.tableId = table
-  return table_reference
+    project = match.group('project')
+    dataset = match.group('dataset')
+    table = match.group('table')
+
+  if project is None:
+    # A dummy project is used. It's often overridden by the pipeline options
+    project = FALLBACK_PROJECT
+
+  return TableReference(DatasetReference(project, dataset), table)
+
+
+def _camel_to_snake(name):
+  s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+  return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 # -----------------------------------------------------------------------------
 # BigQueryWrapper.
 
 
-def _build_job_labels(input_labels):
-  """Builds job label protobuf structure."""
-  input_labels = input_labels or {}
-  result = bigquery.JobConfiguration.LabelsValue()
-
-  for k, v in input_labels.items():
-    result.additionalProperties.append(
-        bigquery.JobConfiguration.LabelsValue.AdditionalProperty(
-            key=k,
-            value=v,
-        ))
-  return result
-
-
 def _build_dataset_labels(input_labels):
-  """Builds dataset label protobuf structure."""
-  input_labels = input_labels or {}
-  result = bigquery.Dataset.LabelsValue()
-
-  for k, v in input_labels.items():
-    result.additionalProperties.append(
-        bigquery.Dataset.LabelsValue.AdditionalProperty(
-            key=k,
-            value=v,
-        ))
-  return result
+  """Builds dataset label structure."""
+  return input_labels or {}
 
 
 def _build_filter_from_labels(labels):
@@ -336,7 +337,7 @@ def _build_filter_from_labels(labels):
 
 
 def _build_dataset_encryption_config(kms_key):
-  return bigquery.EncryptionConfiguration(kmsKeyName=kms_key)
+  return gcp_bigquery.EncryptionConfiguration(kms_key_name=kms_key)
 
 
 class BigQueryWrapper(object):
@@ -352,7 +353,7 @@ class BigQueryWrapper(object):
   """
 
   # If updating following names, also update the corresponding pydocs in
-  # bigquery.py.
+  # gcp_bigquery.py.
   TEMP_TABLE = 'beam_temp_table_'
   TEMP_DATASET = 'beam_temp_dataset_'
 
@@ -386,7 +387,10 @@ class BigQueryWrapper(object):
 
     if temp_table_ref is not None:
       self.temp_table_ref = temp_table_ref
-      self.temp_dataset_id = temp_table_ref.datasetId
+      self.temp_dataset_id = getattr(
+          temp_table_ref,
+          'datasetId',
+          getattr(temp_table_ref, 'dataset_id', None))
     else:
       self.temp_table_ref = None
       self._temporary_table_suffix = uuid.uuid4().hex
@@ -425,13 +429,16 @@ class BigQueryWrapper(object):
     Otherwise, returns the fallback_project_id.
     """
     if self.temp_table_ref:
-      return self.temp_table_ref.projectId
+      return getattr(
+          self.temp_table_ref,
+          'projectId',
+          getattr(self.temp_table_ref, 'project', None))
     else:
       return fallback_project_id
 
   def _get_temp_dataset(self):
     if self.temp_table_ref:
-      return self.temp_table_ref.datasetId
+      return self.temp_table_ref.dataset_id
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
@@ -446,49 +453,37 @@ class BigQueryWrapper(object):
     provide error handling for queries that reference tables in multiple
     locations.
     """
-    reference = bigquery.JobReference(
-        jobId=uuid.uuid4().hex, projectId=project_id)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                dryRun=True,
-                query=bigquery.JobConfigurationQuery(
-                    query=query,
-                    useLegacySql=use_legacy_sql,
-                )),
-            jobReference=reference))
+    job_config = gcp_bigquery.QueryJobConfig(
+        dry_run=True,
+        use_legacy_sql=use_legacy_sql,
+    )
 
-    response = self.client.jobs.Insert(request)
+    response = self.client.query(
+        query, job_config=job_config, project=project_id)
 
-    if response.statistics is None:
-      # This behavior is only expected in tests
-      _LOGGER.warning(
-          "Unable to get location, missing response.statistics. Query: %s",
+    if not getattr(response, 'referenced_tables', None):
+      _LOGGER.debug(
+          "Query %s does not reference any tables or "
+          "you don't have permission to inspect them.",
           query)
       return None
 
-    referenced_tables = response.statistics.query.referencedTables
-    if referenced_tables:  # Guards against both non-empty and non-None
-      for table in referenced_tables:
-        try:
-          location = self.get_table_location(
-              table.projectId, table.datasetId, table.tableId)
-        except HttpForbiddenError:
-          # Permission access for table (i.e. from authorized_view),
-          # try next one
-          continue
-        _LOGGER.info(
-            "Using location %r from table %r referenced by query %s",
-            location,
-            table,
-            query)
-        return location
+    for table in response.referenced_tables:
+      try:
+        location = self.get_table_location(
+            table.project, table.dataset_id, table.table_id)
+      except google_api_core_exceptions.Forbidden:
+        # Permission access for table (i.e. from authorized_view),
+        # try next one
+        continue
 
-    _LOGGER.debug(
-        "Query %s does not reference any tables or "
-        "you don't have permission to inspect them.",
-        query)
+      _LOGGER.info(
+          "Using location %r from table %r referenced by query %s",
+          location,
+          table,
+          query)
+      return location
+
     return None
 
   @retry.with_exponential_backoff(
@@ -498,30 +493,35 @@ class BigQueryWrapper(object):
       self,
       project_id,
       job_id,
-      from_table_reference,
-      to_table_reference,
-      create_disposition=None,
-      write_disposition=None,
+      source,
+      destination,
+      create_disposition,
+      write_disposition,
+      kms_key=None,
       job_labels=None):
-    reference = bigquery.JobReference()
-    reference.jobId = job_id
-    reference.projectId = project_id
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                copy=bigquery.JobConfigurationTableCopy(
-                    destinationTable=to_table_reference,
-                    sourceTable=from_table_reference,
-                    createDisposition=create_disposition,
-                    writeDisposition=write_disposition,
-                ),
-                labels=_build_job_labels(job_labels),
-            ),
-            jobReference=reference,
-        ))
+    job_config = gcp_bigquery.CopyJobConfig(
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        labels=job_labels or {},
+    )
+    if kms_key:
+      job_config.destination_encryption_configuration = gcp_bigquery.EncryptionConfiguration(
+          kms_key_name=kms_key)
 
-    return self._start_job(request).jobReference
+    try:
+      job = self.client.copy_table(
+          sources=source,
+          destination=destination,
+          job_id=job_id,
+          project=project_id,
+          job_config=job_config)
+      return BeamJobReference(
+          projectId=job.project, jobId=job.job_id, location=job.location)
+    except google_api_core_exceptions.Conflict as exn:
+      _LOGGER.info("BigQuery job %s already exists", job_id)
+      job_location = self._parse_location_from_exc(exn.message, job_id)
+      return BeamJobReference(
+          projectId=project_id, jobId=job_id, location=job_location)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -539,42 +539,55 @@ class BigQueryWrapper(object):
       additional_load_parameters=None,
       source_format=None,
       job_labels=None):
-
-    if not source_uris and not source_stream:
-      _LOGGER.warning(
-          'Both source URIs and source stream are not provided. BigQuery load '
-          'job will not load any data.')
-
     if source_uris and source_stream:
       raise ValueError(
-          'Only one of source_uris and source_stream may be specified. '
-          'Got both.')
-
+          'Only one of source_uris and source_stream may be specified.')
     if source_uris is None:
       source_uris = []
 
+    job_config = gcp_bigquery.LoadJobConfig(
+        write_disposition=write_disposition,
+        create_disposition=create_disposition,
+        source_format=source_format,
+        use_avro_logical_types=True,
+        labels=job_labels or {},
+    )
+    if schema == 'SCHEMA_AUTODETECT':
+      job_config.autodetect = True
+    elif schema:
+      if isinstance(schema, dict):
+        job_config.schema = parse_table_schema_from_json(json.dumps(schema))
+      else:
+        job_config.schema = schema
+
     additional_load_parameters = additional_load_parameters or {}
-    job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
-    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                load=bigquery.JobConfigurationLoad(
-                    sourceUris=source_uris,
-                    destinationTable=table_reference,
-                    schema=job_schema,
-                    writeDisposition=write_disposition,
-                    createDisposition=create_disposition,
-                    sourceFormat=source_format,
-                    useAvroLogicalTypes=True,
-                    autodetect=schema == 'SCHEMA_AUTODETECT',
-                    **additional_load_parameters),
-                labels=_build_job_labels(job_labels),
-            ),
-            jobReference=reference,
-        ))
-    return self._start_job(request, stream=source_stream).jobReference
+    if additional_load_parameters:
+      job_config_dict = job_config.to_api_repr()
+      job_config_dict.setdefault("load", {}).update(additional_load_parameters)
+      job_config = gcp_bigquery.LoadJobConfig.from_api_repr(job_config_dict)
+
+    try:
+      if source_stream:
+        job = self.client.load_table_from_file(
+            source_stream,
+            destination=table_reference,
+            job_id=job_id,
+            project=project_id,
+            job_config=job_config)
+      else:
+        job = self.client.load_table_from_uri(
+            source_uris,
+            destination=table_reference,
+            job_id=job_id,
+            project=project_id,
+            job_config=job_config)
+      return BeamJobReference(
+          projectId=job.project, jobId=job.job_id, location=job.location)
+    except google_api_core_exceptions.Conflict as exn:
+      _LOGGER.info("BigQuery job %s already exists", job_id)
+      job_location = self._parse_location_from_exc(exn.message, job_id)
+      return BeamJobReference(
+          projectId=project_id, jobId=job_id, location=job_location)
 
   @staticmethod
   def _parse_location_from_exc(content, job_id):
@@ -588,49 +601,6 @@ class BigQueryWrapper(object):
           "Not able to parse BigQuery load job location for %s", job_id)
       return None
     return m.group(1)
-
-  def _start_job(
-      self,
-      request: 'bigquery.BigqueryJobsInsertRequest',
-      stream=None,
-  ):
-    """Inserts a BigQuery job.
-
-    If the job exists already, it returns it.
-
-    Args:
-      request (bigquery.BigqueryJobsInsertRequest): An insert job request.
-      stream (IO[bytes]): A bytes IO object open for reading.
-    """
-    try:
-      upload = None
-      if stream:
-        upload = Upload.FromStream(stream, mime_type=UNKNOWN_MIME_TYPE)
-      response = self.client.jobs.Insert(request, upload=upload)
-      _LOGGER.info(
-          "Started BigQuery job: %s\n "
-          "bq show -j --format=prettyjson --project_id=%s %s",
-          response.jobReference,
-          response.jobReference.projectId,
-          response.jobReference.jobId)
-      return response
-    except HttpError as exn:
-      if exn.status_code == 409:
-        jobId = request.job.jobReference.jobId
-        _LOGGER.info(
-            "BigQuery job %s already exists, will not retry inserting it: %s",
-            request.job.jobReference,
-            exn)
-        job_location = self._parse_location_from_exc(exn.content, jobId)
-        response = request.job
-        if not response.jobReference.location and job_location:
-          # Request not constructed with location
-          response.jobReference.location = job_location
-        return response
-      else:
-        _LOGGER.info(
-            "Failed to insert job %s: %s", request.job.jobReference, exn)
-        raise
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -646,53 +616,62 @@ class BigQueryWrapper(object):
       dry_run=False,
       kms_key=None,
       job_labels=None):
-    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=project_id,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                dryRun=dry_run,
-                query=bigquery.JobConfigurationQuery(
-                    query=query,
-                    useLegacySql=use_legacy_sql,
-                    allowLargeResults=not dry_run,
-                    destinationTable=self._get_temp_table(
-                        self._get_temp_table_project(project_id))
-                    if not dry_run else None,
-                    flattenResults=flatten_results,
-                    priority=priority,
-                    destinationEncryptionConfiguration=bigquery.
-                    EncryptionConfiguration(kmsKeyName=kms_key)),
-                labels=_build_job_labels(job_labels),
-            ),
-            jobReference=reference))
+    job_config = gcp_bigquery.QueryJobConfig(
+        use_legacy_sql=use_legacy_sql,
+        flatten_results=flatten_results,
+        priority=priority,
+        dry_run=dry_run,
+        labels=job_labels or {},
+        allow_large_results=not dry_run,
+    )
+    if kms_key:
+      job_config.destination_encryption_configuration = gcp_bigquery.EncryptionConfiguration(
+          kms_key_name=kms_key)
+    if not dry_run:
+      job_config.destination = self._get_temp_table(
+          self._get_temp_table_project(project_id))
 
-    return self._start_job(request)
+    try:
+      job = self.client.query(
+          query, job_config=job_config, job_id=job_id, project=project_id)
+      return BeamJobReference(
+          projectId=job.project,
+          jobId=job.job_id,
+          location=job.location,
+          totalBytesProcessed=getattr(job, 'total_bytes_processed', None))
+    except google_api_core_exceptions.Conflict as exn:
+      _LOGGER.info("BigQuery job %s already exists", job_id)
+      job_location = self._parse_location_from_exc(exn.message, job_id)
+      return BeamJobReference(
+          projectId=project_id, jobId=job_id, location=job_location)
 
   def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
-    """Poll job until it is DONE.
-
-    Args:
-      job_reference: bigquery.JobReference instance.
-      sleep_duration_sec: Specifies the delay in seconds between retries.
-      max_retries: The total number of times to retry. If equals to 0,
-        the function waits forever.
-
-    Raises:
-      `RuntimeError`: If the job is FAILED or the number of retries has been
-        reached.
-    """
     retry = 0
+    project_id = getattr(
+        job_reference, 'project', getattr(job_reference, 'projectId', None))
+    job_id = getattr(
+        job_reference, 'job_id', getattr(job_reference, 'jobId', None))
+    location = getattr(job_reference, 'location', None)
     while True:
       retry += 1
-      job = self.get_job(
-          job_reference.projectId, job_reference.jobId, job_reference.location)
-      _LOGGER.info('Job %s status: %s', job.id, job.status.state)
-      if job.status.state == 'DONE' and job.status.errorResult:
+      job = self.get_job(project_id, job_id, location)
+
+      if hasattr(job, 'status') and hasattr(job.status, 'state'):
+        state = job.status.state
+        error_result = job.status.errorResult
+        job_id = getattr(job, 'id', getattr(job_reference, 'jobId', ''))
+      else:
+        state = job.state
+        error_result = job.error_result
+        job_id = job.job_id if hasattr(job, 'job_id') else getattr(
+            job_reference, 'jobId', '')
+
+      _LOGGER.info('Job %s status: %s', job_id, state)
+      if state == 'DONE' and error_result:
         raise RuntimeError(
             'BigQuery job {} failed. Error Result: {}'.format(
-                job_reference.jobId, job.status.errorResult))
-      elif job.status.state == 'DONE':
+                job_reference.jobId, error_result))
+      elif state == 'DONE':
         return True
       else:
         time.sleep(sleep_duration_sec)
@@ -709,7 +688,7 @@ class BigQueryWrapper(object):
       page_token=None,
       max_results=10000,
       location=None):
-    request = bigquery.BigqueryJobsGetQueryResultsRequest(
+    request = gcp_bigquery.BigqueryJobsGetQueryResultsRequest(
         jobId=job_id,
         pageToken=page_token,
         projectId=project_id,
@@ -735,7 +714,7 @@ class BigQueryWrapper(object):
     Docs for this BQ call: https://cloud.google.com/bigquery/docs/reference\
       /rest/v2/tabledata/insertAll."""
     # The rows argument is a list of
-    # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
+    # gcp_bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
     # required by the InsertAll() method.
     resource = resource_identifiers.BigQueryTable(
         project_id, dataset_id, table_id)
@@ -771,17 +750,18 @@ class BigQueryWrapper(object):
       else:
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
-    except (ClientError, GoogleAPICallError) as e:
-      # e.code contains the numeric http status code.
-      service_call_metric.call(e.code)
+    except GoogleAPICallError as e:
+      service_call_metric.call(getattr(e, 'code', e))
       # Package exception with required fields
-      error = {'message': e.message, 'reason': e.response.reason}
+      reason = getattr(e, 'reason', None)
+      if reason is None and hasattr(e, 'response') and hasattr(e.response, 'reason'):
+        reason = e.response.reason
+      if reason is None:
+        reason = getattr(e, 'message', str(e))
+        
+      error = {'message': getattr(e, 'message', str(e)), 'reason': reason}
       # Add all rows to the errors list along with the error
       errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
-    except HttpError as e:
-      service_call_metric.call(e)
-      # Re-raise the exception so that we re-try appropriately.
-      raise
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
@@ -791,23 +771,7 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
   def get_table(self, project_id, dataset_id, table_id):
-    """Lookup a table's metadata object.
-
-    Args:
-      client: bigquery.BigqueryV2 instance
-      project_id: table lookup parameter
-      dataset_id: table lookup parameter
-      table_id: table lookup parameter
-
-    Returns:
-      bigquery.Table instance
-    Raises:
-      HttpError: if lookup failed.
-    """
-    request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    response = self.client.tables.Get(request)
-    return response
+    return self.client.get_table(f"{project_id}.{dataset_id}.{table_id}")
 
   def _create_table(
       self,
@@ -824,17 +788,23 @@ class BigQueryWrapper(object):
           'See https://cloud.google.com/bigquery/docs/tables#table_naming' %
           table_id)
 
-    additional_parameters = additional_parameters or {}
-    table = bigquery.Table(
-        tableReference=TableReference(
-            projectId=project_id, datasetId=dataset_id, tableId=table_id),
-        schema=schema,
-        **additional_parameters)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=project_id, datasetId=dataset_id, table=table)
-    response = self.client.tables.Insert(request)
+    api_repr = {
+        "tableReference": {
+            "projectId": project_id,
+            "datasetId": dataset_id,
+            "tableId": table_id
+        }
+    }
+    if additional_parameters:
+      api_repr.update(additional_parameters)
+
+    table = gcp_bigquery.Table.from_api_repr(api_repr)
+    if schema:
+      table.schema = schema
+
+    response = self.client.create_table(table)
     _LOGGER.debug("Created the table with id %s", table_id)
-    # The response is a bigquery.Table instance.
+    # The response is a gcp_bigquery.Table instance.
     return response
 
   @retry.with_exponential_backoff(
@@ -850,36 +820,31 @@ class BigQueryWrapper(object):
       default_table_expiration_ms=None):
     # Check if dataset already exists otherwise create it
     try:
-      dataset = self.client.datasets.Get(
-          bigquery.BigqueryDatasetsGetRequest(
-              projectId=project_id, datasetId=dataset_id))
+      dataset = self.client.get_dataset(f'{project_id}.{dataset_id}')
       self.created_temp_dataset = False
       return dataset
-    except HttpError as exn:
-      if exn.status_code == 404:
+    except GoogleAPICallError as exn:
+      if exn.code == 404:
         _LOGGER.info(
             'Dataset %s:%s does not exist so we will create it as temporary '
             'with location=%s',
             project_id,
             dataset_id,
             location)
-        dataset_reference = bigquery.DatasetReference(
-            projectId=project_id, datasetId=dataset_id)
-        dataset = bigquery.Dataset(datasetReference=dataset_reference)
+
+        dataset = gcp_bigquery.Dataset(f'{project_id}.{dataset_id}')
         if location is not None:
           dataset.location = location
         if labels is not None:
           dataset.labels = _build_dataset_labels(labels)
         if kms_key is not None:
-          dataset.defaultEncryptionConfiguration = (
+          dataset.default_encryption_configuration = (
               _build_dataset_encryption_config(kms_key))
         if default_table_expiration_ms is not None:
-          dataset.defaultTableExpirationMs = default_table_expiration_ms
-        request = bigquery.BigqueryDatasetsInsertRequest(
-            projectId=project_id, dataset=dataset)
-        response = self.client.datasets.Insert(request)
+          dataset.default_table_expiration_ms = default_table_expiration_ms
+        response = self.client.create_dataset(dataset)
         self.created_temp_dataset = True
-        # The response is a bigquery.Dataset instance.
+        # The response is a gcp_bigquery.Dataset instance.
         return response
       else:
         raise
@@ -888,47 +853,26 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _is_table_empty(self, project_id, dataset_id, table_id):
-    request = bigquery.BigqueryTabledataListRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        tableId=table_id,
-        maxResults=1)
-    response = self.client.tabledata.List(request)
-    # The response is a bigquery.TableDataList instance.
-    return response.totalRows == 0
+    rows = list(
+        self.client.list_rows(
+            f"{project_id}.{dataset_id}.{table_id}", max_results=1))
+    return len(rows) == 0
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_table(self, project_id, dataset_id, table_id):
-    request = bigquery.BigqueryTablesDeleteRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    try:
-      self.client.tables.Delete(request)
-    except HttpError as exn:
-      if exn.status_code == 404:
-        _LOGGER.warning(
-            'Table %s:%s.%s does not exist', project_id, dataset_id, table_id)
-        return
-      else:
-        raise
+    self.client.delete_table(
+        f"{project_id}.{dataset_id}.{table_id}", not_found_ok=True)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        deleteContents=delete_contents)
-    try:
-      self.client.datasets.Delete(request)
-    except HttpError as exn:
-      if exn.status_code == 404:
-        _LOGGER.warning('Dataset %s:%s does not exist', project_id, dataset_id)
-        return
-      else:
-        raise
+    self.client.delete_dataset(
+        f"{project_id}.{dataset_id}",
+        delete_contents=delete_contents,
+        not_found_ok=True)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -969,13 +913,11 @@ class BigQueryWrapper(object):
   def clean_up_temporary_dataset(self, project_id):
     temp_table = self._get_temp_table(project_id)
     try:
-      self.client.datasets.Get(
-          bigquery.BigqueryDatasetsGetRequest(
-              projectId=project_id, datasetId=temp_table.datasetId))
-    except HttpError as exn:
-      if exn.status_code == 404:
+      self.client.get_dataset(f'{project_id}.{temp_table.dataset_id}')
+    except GoogleAPICallError as exn:
+      if exn.code == 404:
         _LOGGER.warning(
-            'Dataset %s:%s does not exist', project_id, temp_table.datasetId)
+            'Dataset %s:%s does not exist', project_id, temp_table.dataset_id)
         return
       else:
         raise
@@ -983,17 +925,17 @@ class BigQueryWrapper(object):
       # We do not want to delete temporary datasets configured by the user hence
       # we just delete the temporary table in that case.
       if not self.is_user_configured_dataset():
-        self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+        self._delete_dataset(temp_table.project, temp_table.dataset_id, True)
       else:
         self._delete_table(
-            temp_table.projectId, temp_table.datasetId, temp_table.tableId)
+            temp_table.project, temp_table.dataset_id, temp_table.table_id)
       self.created_temp_dataset = False
-    except HttpError as exn:
-      if exn.status_code == 403:
+    except GoogleAPICallError as exn:
+      if exn.code == 403:
         _LOGGER.warning(
             'Permission denied to delete temporary dataset %s:%s for clean up',
-            temp_table.projectId,
-            temp_table.datasetId)
+            temp_table.project,
+            temp_table.dataset_id)
         return
       else:
         raise
@@ -1007,29 +949,24 @@ class BigQueryWrapper(object):
       filter_str = _build_filter_from_labels(labels)
 
     if not self.is_user_configured_dataset() and labels is not None:
-      response = (
-          self.client.datasets.List(
-              bigquery.BigqueryDatasetsListRequest(
-                  projectId=project_id, filter=filter_str)))
-      for dataset in response.datasets:
+      datasets = self.client.list_datasets(
+          project=project_id, filter=filter_str)
+      for dataset in datasets:
         try:
-          dataset_id = dataset.datasetReference.datasetId
+          dataset_id = dataset.dataset_id
           self._delete_dataset(project_id, dataset_id, True)
-        except HttpError as exn:
-          if exn.status_code == 403:
-            _LOGGER.warning(
-                'Permission denied to delete temporary dataset %s:%s for '
-                'clean up.',
-                project_id,
-                dataset_id)
-            return
-          else:
-            raise
+        except google_api_core_exceptions.Forbidden:
+          _LOGGER.warning(
+              'Permission denied to delete temporary dataset %s:%s for '
+              'clean up.',
+              project_id,
+              dataset_id)
+          return
     else:
       try:
         self._delete_table(project_id, dataset_id, table_id)
-      except HttpError as exn:
-        if exn.status_code == 403:
+      except GoogleAPICallError as exn:
+        if exn.code == 403:
           _LOGGER.warning(
               'Permission denied to delete temporary table %s:%s.%s for '
               'clean up.',
@@ -1044,12 +981,10 @@ class BigQueryWrapper(object):
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_job(self, project, job_id, location=None):
-    request = bigquery.BigqueryJobsGetRequest()
-    request.jobId = job_id
-    request.projectId = project
-    request.location = location
-
-    return self.client.jobs.Get(request)
+    job = self.client.get_job(job_id, project=project, location=location)
+    # Reload to get status
+    job.reload()
+    return job
 
   def perform_load_job(
       self,
@@ -1067,10 +1002,11 @@ class BigQueryWrapper(object):
     """Starts a job to load data into BigQuery.
 
     Returns:
-      bigquery.JobReference with the information about the job that was started.
+      gcp_bigquery.JobReference with the information about the job that was started.
     """
     project_id = (
-        destination.projectId
+        getattr(
+            destination, 'projectId', getattr(destination, 'project', None))
         if load_job_project_id is None else load_job_project_id)
 
     return self._insert_load_job(
@@ -1103,27 +1039,28 @@ class BigQueryWrapper(object):
     """Starts a job to export data from BigQuery.
 
     Returns:
-      bigquery.JobReference with the information about the job that was started.
+      gcp_bigquery.JobReference with the information about the job that was started.
     """
-    job_project = project or table_reference.projectId
-    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=job_project,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                extract=bigquery.JobConfigurationExtract(
-                    destinationUris=destination,
-                    sourceTable=table_reference,
-                    printHeader=include_header,
-                    destinationFormat=destination_format,
-                    compression=compression,
-                    useAvroLogicalTypes=use_avro_logical_types,
-                ),
-                labels=_build_job_labels(job_labels),
-            ),
-            jobReference=job_reference,
-        ))
-    return self._start_job(request).jobReference
+    job_project = project or table_reference.project
+    job_config = gcp_bigquery.ExtractJobConfig(
+        print_header=include_header,
+        destination_format=destination_format,
+        compression=compression,
+        use_avro_logical_types=use_avro_logical_types,
+        labels=job_labels or {},
+    )
+    try:
+      job = self.client.extract_table(
+          source=table_reference,
+          destination_uris=destination,
+          job_id=job_id,
+          project=job_project,
+          job_config=job_config)
+      return job
+    except google_api_core_exceptions.Conflict as exn:
+      _LOGGER.info("BigQuery job %s already exists", job_id)
+      job_location = self._parse_location_from_exc(exn.message, job_id)
+      return self.get_job(job_project, job_id, job_location)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -1147,12 +1084,12 @@ class BigQueryWrapper(object):
       project_id: The project id owning the table.
       dataset_id: The dataset id owning the table.
       table_id: The table id.
-      schema: A bigquery.TableSchema instance or None.
+      schema: A tuple instance or None.
       create_disposition: CREATE_NEVER or CREATE_IF_NEEDED.
       write_disposition: WRITE_APPEND, WRITE_EMPTY or WRITE_TRUNCATE.
 
     Returns:
-      A bigquery.Table instance if table was found or created.
+      A gcp_bigquery.Table instance if table was found or created.
 
     Raises:
       `RuntimeError`: For various mismatches between the state of the table and
@@ -1165,8 +1102,8 @@ class BigQueryWrapper(object):
     found_table = None
     try:
       found_table = self.get_table(project_id, dataset_id, table_id)
-    except HttpError as exn:
-      if exn.status_code == 404:
+    except GoogleAPICallError as exn:
+      if exn.code == 404:
         if create_disposition == BigQueryDisposition.CREATE_NEVER:
           raise RuntimeError(
               'Table %s:%s.%s not found but create disposition is CREATE_NEVER.'
@@ -1205,8 +1142,8 @@ class BigQueryWrapper(object):
             table_id=table_id,
             schema=schema or found_table.schema,
             additional_parameters=additional_create_parameters)
-      except HttpError as exn:
-        if exn.status_code == 409:
+      except GoogleAPICallError as exn:
+        if exn.code == 409:
           _LOGGER.debug(
               'Skipping Creation. Table %s:%s.%s already exists.' %
               (project_id, dataset_id, table_id))
@@ -1306,7 +1243,7 @@ class BigQueryWrapper(object):
 
     Returns:
       A tuple (bool, errors). If first element is False then the second element
-      will be a bigquery.InsertErrorsValueListEntry instance containing
+      will be a gcp_bigquery.InsertErrorsValueListEntry instance containing
       specific errors.
     """
 
@@ -1331,58 +1268,58 @@ class BigQueryWrapper(object):
     return result, errors
 
   def _convert_cell_value_to_dict(self, value, field):
-    if field.type == 'STRING':
+    if field.field_type == 'STRING':
       # Input: "XYZ" --> Output: "XYZ"
       return value
-    elif field.type == 'BOOLEAN':
+    elif field.field_type == 'BOOLEAN':
       # Input: "true" --> Output: True
       return value == 'true'
-    elif field.type == 'INTEGER':
+    elif field.field_type == 'INTEGER':
       # Input: "123" --> Output: 123
       return int(value)
-    elif field.type == 'FLOAT':
+    elif field.field_type == 'FLOAT':
       # Input: "1.23" --> Output: 1.23
       return float(value)
-    elif field.type == 'TIMESTAMP':
+    elif field.field_type == 'TIMESTAMP':
       # The UTC should come from the timezone library but this is a known
       # issue in python 2.7 so we'll just hardcode it as we're reading using
       # utcfromtimestamp.
       # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
       dt = datetime.datetime.utcfromtimestamp(float(value))
       return dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-    elif field.type == 'BYTES':
+    elif field.field_type == 'BYTES':
       # Input: "YmJi" --> Output: "YmJi"
       return value
-    elif field.type == 'DATE':
+    elif field.field_type == 'DATE':
       # Input: "2016-11-03" --> Output: "2016-11-03"
       return value
-    elif field.type == 'DATETIME':
+    elif field.field_type == 'DATETIME':
       # Input: "2016-11-03T00:49:36" --> Output: "2016-11-03T00:49:36"
       return value
-    elif field.type == 'TIME':
+    elif field.field_type == 'TIME':
       # Input: "00:49:36" --> Output: "00:49:36"
       return value
-    elif field.type == 'RECORD':
+    elif field.field_type == 'RECORD':
       # Note that a schema field object supports also a RECORD type. However
       # when querying, the repeated and/or record fields are flattened
       # unless we pass the flatten_results flag as False to the source
       return self.convert_row_to_dict(value, field)
-    elif field.type == 'NUMERIC':
+    elif field.field_type == 'NUMERIC':
       return decimal.Decimal(value)
-    elif field.type == 'GEOGRAPHY':
+    elif field.field_type == 'GEOGRAPHY':
       return value
     else:
-      raise RuntimeError('Unexpected field type: %s' % field.type)
+      raise RuntimeError('Unexpected field type: %s' % field.field_type)
 
   def convert_row_to_dict(self, row, schema):
     """Converts a TableRow instance using the schema to a Python dict."""
     result = {}
-    for index, field in enumerate(schema.fields):
+    for index, field in enumerate(schema):
       value = None
-      if isinstance(schema, bigquery.TableSchema):
+      if isinstance(schema, (tuple, list)):
         cell = row.f[index]
         value = from_json_value(cell.v) if cell.v is not None else None
-      elif isinstance(schema, bigquery.TableFieldSchema):
+      elif isinstance(schema, SchemaField):
         cell = row['f'][index]
         value = cell['v'] if 'v' in cell else None
       if field.mode == 'REPEATED':
@@ -1411,13 +1348,17 @@ class BigQueryWrapper(object):
 
   @staticmethod
   def _bigquery_client(pipeline_options: PipelineOptions):
-    return bigquery.BigqueryV2(
-        http=get_new_http(),
-        credentials=auth.get_service_credentials(pipeline_options),
-        response_encoding='utf8',
-        additional_http_headers={
-            "user-agent": "apache-beam-%s" % apache_beam.__version__
-        })
+    from google.api_core.client_info import ClientInfo
+    project = pipeline_options.get_all_options().get('project')
+    credentials = auth.get_service_credentials(pipeline_options)
+    if credentials is not None and hasattr(credentials,
+                                           '_google_auth_credentials'):
+      credentials = credentials._google_auth_credentials
+    return gcp_bigquery.Client(
+        project=project,
+        credentials=credentials,
+        client_info=ClientInfo(
+            user_agent="apache-beam-%s" % apache_beam.__version__))
 
 
 class RowAsDictJsonCoder(coders.Coder):
@@ -1621,20 +1562,21 @@ def beam_row_from_dict(row: dict, schema):
   Args:
     row (dict):
       The row to convert.
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The table schema. Will be used to help convert the row.
 
   Returns:
     ~apache_beam.pvalue.Row: The converted row.
   """
-  if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+  if not isinstance(schema, (tuple, list, SchemaField)):
     schema = get_bq_tableschema(schema)
   beam_row = {}
-  for field in schema.fields:
+  fields_to_iterate = schema.fields if isinstance(
+      schema, SchemaField) else schema
+  for field in fields_to_iterate:
     name = field.name
     mode = field.mode.upper()
-    type = field.type.upper()
+    type = field.field_type.upper()
     # When writing with Storage Write API via xlang, we give the Beam Row
     # PCollection a hint on the schema using `with_output_types`.
     # This requires that each row has all the fields in the schema.
@@ -1663,29 +1605,24 @@ bigquery_v2_messages.TableSchema):
 
 def get_table_schema_from_string(schema):
   """Transform the string table schema into a
-  :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema` instance.
+  Sequence[``google.cloud.bigquery.schema.SchemaField``] instance.
 
   Args:
     schema (str): The string schema to be used if the BigQuery table to write
       has to be created.
 
   Returns:
-    ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema:
+    Sequence[``google.cloud.bigquery.schema.SchemaField``]:
     The schema to be used if the BigQuery table to write has to be created
-    but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema` format.
+    but in the Sequence[``google.cloud.bigquery.schema.SchemaField``] format.
   """
-  table_schema = bigquery.TableSchema()
+  table_schema = []
   schema_list = [s.strip() for s in schema.split(',')]
   for field_and_type in schema_list:
     field_name, field_type = field_and_type.split(':')
-    field_schema = bigquery.TableFieldSchema()
-    field_schema.name = field_name
-    field_schema.type = field_type
-    field_schema.mode = 'NULLABLE'
-    table_schema.fields.append(field_schema)
+    field_schema = SchemaField(
+        name=field_name, field_type=field_type, mode='NULLABLE')
+    table_schema.append(field_schema)
   return table_schema
 
 
@@ -1697,7 +1634,7 @@ def table_schema_to_dict(table_schema):
     """
     result = {}
     result['name'] = field.name
-    result['type'] = field.type
+    result['type'] = getattr(field, 'field_type', getattr(field, 'type', None))
     result['mode'] = getattr(field, 'mode', 'NULLABLE')
     if hasattr(field, 'description') and field.description is not None:
       result['description'] = field.description
@@ -1705,10 +1642,10 @@ def table_schema_to_dict(table_schema):
       result['fields'] = [get_table_field(f) for f in field.fields]
     return result
 
-  if not isinstance(table_schema, bigquery.TableSchema):
-    raise ValueError("Table schema must be of the type bigquery.TableSchema")
+  if not isinstance(table_schema, (tuple, list)):
+    raise ValueError("Table schema must be of the type tuple")
   schema = {'fields': []}
-  for field in table_schema.fields:
+  for field in table_schema:
     schema['fields'].append(get_table_field(field))
   return schema
 
@@ -1717,8 +1654,7 @@ def get_dict_table_schema(schema):
   """Transform the table schema into a dictionary instance.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The schema to be used if the BigQuery table to write has to be created.
       This can either be a dict or string or in the TableSchema format.
 
@@ -1732,8 +1668,10 @@ bigquery_v2_messages.TableSchema):
   elif isinstance(schema, str):
     table_schema = get_table_schema_from_string(schema)
     return table_schema_to_dict(table_schema)
-  elif isinstance(schema, bigquery.TableSchema):
+  elif isinstance(schema, (tuple, list)):
     return table_schema_to_dict(schema)
+  elif hasattr(schema, 'fields'):
+    return table_schema_to_dict(schema.fields)
   else:
     raise TypeError('Unexpected schema argument: %s.' % schema)
 
@@ -1742,17 +1680,14 @@ def get_bq_tableschema(schema):
   """Convert the table schema to a TableSchema object.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The schema to be used if the BigQuery table to write has to be created.
       This can either be a dict or string or in the TableSchema format.
 
   Returns:
-    ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema: The schema as a TableSchema object.
+    Sequence[``google.cloud.bigquery.schema.SchemaField``]: The schema as a TableSchema object.
   """
-  if (isinstance(schema,
-                 (bigquery.TableSchema, value_provider.ValueProvider)) or
+  if (isinstance(schema, (tuple, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
     return schema
   elif isinstance(schema, str):
@@ -1768,8 +1703,7 @@ def get_avro_schema_from_table_schema(schema):
   """Transform the table schema into an Avro schema.
 
   Args:
-    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
+    schema (str, dict, Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The TableSchema to convert to Avro schema. This can either be a dict or
       string or in the TableSchema format.
 
@@ -1785,8 +1719,7 @@ def get_beam_typehints_from_tableschema(schema, type_overrides=None):
   """Extracts Beam Python type hints from the schema.
 
   Args:
-    schema (~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
+    schema (Sequence[``google.cloud.bigquery.schema.SchemaField``]):
       The TableSchema to extract type hints from.
     type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
       to Python types. These override the default mappings in
@@ -1798,11 +1731,13 @@ bigquery_v2_messages.TableSchema):
     Nested and repeated fields are supported.
   """
   effective_types = {**BIGQUERY_TYPE_TO_PYTHON_TYPE, **(type_overrides or {})}
-  if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+  if not isinstance(schema, (tuple, list, SchemaField)):
     schema = get_bq_tableschema(schema)
   typehints = []
-  for field in schema.fields:
-    name, field_type, mode = field.name, field.type.upper(), field.mode.upper()
+  fields_to_iterate = schema.fields if isinstance(
+      schema, SchemaField) else schema
+  for field in fields_to_iterate:
+    name, field_type, mode = field.name, field.field_type.upper(), field.mode.upper()
 
     if field_type in ["STRUCT", "RECORD"]:
       # Structs can be represented as Beam Rows.
@@ -1843,8 +1778,8 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
 
 
 def check_schema_equal(
-    left: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
-    right: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
+    left: Union['tuple', 'gcp_bigquery.SchemaField'],
+    right: Union['tuple', 'gcp_bigquery.SchemaField'],
     *,
     ignore_descriptions: bool = False,
     ignore_field_order: bool = False) -> bool:
@@ -1855,13 +1790,11 @@ def check_schema_equal(
   field ordering (optionally).
 
   Args:
-    left (~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
-bigquery.bigquery_v2_messages.TableFieldSchema):
+    left (Sequence[``google.cloud.bigquery.schema.SchemaField``], \
+``google.cloud.bigquery.schema.SchemaField``):
       One schema to compare.
-    right (~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema, ~apache_beam.io.gcp.internal.clients.\
-bigquery.bigquery_v2_messages.TableFieldSchema):
+    right (Sequence[``google.cloud.bigquery.schema.SchemaField``], \
+``google.cloud.bigquery.schema.SchemaField``):
       The other schema to compare.
     ignore_descriptions (bool): (optional) Whether or not to ignore field
       descriptions when comparing. Defaults to False.
@@ -1871,21 +1804,22 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
   Returns:
     bool: True if the schemas are equivalent, False otherwise.
   """
-  if type(left) != type(right) or not isinstance(
-      left, (bigquery.TableSchema, bigquery.TableFieldSchema)):
+  if type(left) != type(right) or not isinstance(left, (tuple, SchemaField)):
     return False
 
-  if isinstance(left, bigquery.TableFieldSchema):
+  if isinstance(left, SchemaField):
     if left.name != right.name:
       return False
 
-    if left.type != right.type:
+    if left.field_type != right.field_type:
       # Check for type aliases
       if sorted(
-          (left.type, right.type)) not in (["BOOL", "BOOLEAN"], ["FLOAT",
-                                                                 "FLOAT64"],
-                                           ["INT64", "INTEGER"], ["RECORD",
-                                                                  "STRUCT"]):
+          (left.field_type, right.field_type)) not in (["BOOL",
+                                                        "BOOLEAN"], ["FLOAT",
+                                                                     "FLOAT64"],
+                                                       ["INT64",
+                                                        "INTEGER"], ["RECORD",
+                                                                     "STRUCT"]):
         return False
 
     if left.mode != right.mode:
@@ -1894,17 +1828,16 @@ bigquery.bigquery_v2_messages.TableFieldSchema):
     if not ignore_descriptions and left.description != right.description:
       return False
 
-  if isinstance(left,
-                bigquery.TableSchema) or left.type in ("RECORD", "STRUCT"):
-    if len(left.fields) != len(right.fields):
+  if isinstance(left, (tuple, list)) or left.field_type in ("RECORD", "STRUCT"):
+    left_fields = left if isinstance(left, (tuple, list)) else left.fields
+    right_fields = right if isinstance(right, (tuple, list)) else right.fields
+
+    if len(left_fields) != len(right_fields):
       return False
 
     if ignore_field_order:
-      left_fields = sorted(left.fields, key=lambda field: field.name)
-      right_fields = sorted(right.fields, key=lambda field: field.name)
-    else:
-      left_fields = left.fields
-      right_fields = right.fields
+      left_fields = sorted(left_fields, key=lambda field: field.name)
+      right_fields = sorted(right_fields, key=lambda field: field.name)
 
     for left_field, right_field in zip(left_fields, right_fields):
       if not check_schema_equal(left_field,

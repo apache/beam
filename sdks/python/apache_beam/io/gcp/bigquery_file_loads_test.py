@@ -29,6 +29,51 @@ from unittest.mock import call
 
 import mock
 import pytest
+
+
+class MockJobReference(object):
+  def __init__(self, project=None, job_id=None, location=None):
+    self.project = project
+    self.job_id = job_id
+    self.location = location
+    self.projectId = project
+    self.jobId = job_id
+
+  def __eq__(self, other):
+    if isinstance(other, MockJobReference):
+      return (
+          self.project == other.project and self.job_id == other.job_id and
+          self.location == other.location)
+    return (
+        self.project == getattr(
+            other, 'projectId', getattr(other, 'project', None)) and self.job_id
+        == getattr(other, 'jobId', getattr(other, 'job_id', None)) and
+        self.location == getattr(other, 'location', None))
+
+
+class MockJobStatus(object):
+  def __init__(self, state='DONE', errorResult=None):
+    self.state = state
+    self.errorResult = errorResult
+
+
+class MockJob(object):
+  def __init__(
+      self,
+      project=None,
+      job_id=None,
+      location=None,
+      state='DONE',
+      errorResult=None):
+    self.project = project
+    self.job_id = job_id
+    self.location = location
+    self.status = MockJobStatus(state, errorResult)
+
+  def reload(self):
+    pass
+
+
 from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 from hamcrest.core.core.is_ import is_
@@ -37,12 +82,7 @@ from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
-from apache_beam.io.gcp import bigquery
-from apache_beam.io.gcp import bigquery_file_loads as bqfl
-from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
 from apache_beam.metrics.metric import Lineage
@@ -59,7 +99,13 @@ from apache_beam.typehints.typehints import Tuple
 from apache_beam.utils import timestamp
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions
+  from google.cloud import bigquery as gcp_bigquery
+
+  from apache_beam.io.gcp import bigquery
+  from apache_beam.io.gcp import bigquery_file_loads as bqfl
+  from apache_beam.io.gcp import bigquery_tools
+  from apache_beam.io.gcp.bigquery import BigQueryDisposition
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
@@ -112,14 +158,19 @@ _DISTINCT_DESTINATIONS = list({elm[0] for elm in _DESTINATION_ELEMENT_PAIRS})
 
 _ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
-_ELEMENTS_SCHEMA = bigquery.WriteToBigQuery.get_dict_table_schema(
-    bigquery_api.TableSchema(
-        fields=[
-            bigquery_api.TableFieldSchema(
-                name="name", type="STRING", mode="REQUIRED"),
-            bigquery_api.TableFieldSchema(name="language", type="STRING"),
-            bigquery_api.TableFieldSchema(name="foundation", type="STRING"),
-        ]))
+_ELEMENTS_SCHEMA = {
+    'fields': [
+        {
+            'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'
+        },
+        {
+            'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'
+        },
+        {
+            'name': 'foundation', 'type': 'STRING', 'mode': 'NULLABLE'
+        },
+    ]
+}
 
 
 class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
@@ -427,21 +478,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_records_traverse_transform_with_mocks(self):
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = bigquery_api.Job()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
 
     transform = bqfl.BigQueryBatchFileLoads(
         destination,
@@ -490,21 +537,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_reshuffle_before_load(self, mock_force_dill, compat_version):
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = bigquery_api.Job()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
 
     transform = bqfl.BigQueryBatchFileLoads(
         destination,
@@ -525,22 +568,19 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     assert transform.reshuffle_before_load == reshuffle_before_load
 
   def test_load_job_id_used(self):
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'loadJobProject'
-    job_reference.jobId = 'job_name1'
+    job_reference = MockJobReference(
+        project='loadJobProject', job_id='job_name1')
 
-    result_job = bigquery_api.Job()
-    result_job.jobReference = job_reference
+    result_job = MockJob(project='loadJobProject', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
 
     transform = bqfl.BigQueryBatchFileLoads(
         'project1:dataset1.table1',
@@ -565,21 +605,19 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_load_job_id_use_for_copy_job(self):
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'loadJobProject'
-    job_reference.jobId = 'job_name1'
-    result_job = mock.Mock()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(
+        project='loadJobProject', job_id='job_name1')
+    result_job = MockJob(project='loadJobProject', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
+
     bq_client.tables.Delete.return_value = None
 
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
@@ -622,36 +660,36 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   @mock.patch('time.sleep')
   def test_wait_for_load_job_completion(self, sleep_mock):
-    job_1 = bigquery_api.Job()
-    job_1.jobReference = bigquery_api.JobReference()
-    job_1.jobReference.projectId = 'project1'
-    job_1.jobReference.jobId = 'jobId1'
-    job_2 = bigquery_api.Job()
-    job_2.jobReference = bigquery_api.JobReference()
-    job_2.jobReference.projectId = 'project1'
-    job_2.jobReference.jobId = 'jobId2'
+    job_1 = MockJob()
 
-    job_1_waiting = mock.Mock()
+    job_1.project = 'project1'
+    job_1.job_id = 'jobId1'
+    job_2 = MockJob()
+
+    job_2.project = 'project1'
+    job_2.job_id = 'jobId2'
+
+    job_1_waiting = MockJob(state='RUNNING')
     job_1_waiting.status.state = 'RUNNING'
-    job_2_done = mock.Mock()
+    job_2_done = MockJob()
     job_2_done.status.state = 'DONE'
     job_2_done.status.errorResult = None
 
-    job_1_done = mock.Mock()
+    job_1_done = MockJob()
     job_1_done.status.state = 'DONE'
     job_1_done.status.errorResult = None
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.side_effect = [
+    bq_client.get_job.side_effect = [
         job_1_waiting, job_2_done, job_1_done, job_2_done
     ]
     partition_1 = ('project:dataset.table0', (0, ['file0']))
     partition_2 = ('project:dataset.table1', (1, ['file1']))
-    bq_client.jobs.Insert.side_effect = [job_1, job_2]
+    bq_client.load_table_from_uri.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
-    expected_dest_jobref_list = [(partition_1[0], job_1.jobReference),
-                                 (partition_2[0], job_2.jobReference)]
+    expected_dest_jobref_list = [(partition_1[0], job_1),
+                                 (partition_2[0], job_2)]
     with TestPipeline('DirectRunner') as p:
       partitions = p | beam.Create([partition_1, partition_2])
       outputs = (
@@ -665,32 +703,32 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
   @mock.patch('time.sleep')
   def test_one_load_job_failed_after_waiting(self, sleep_mock):
-    job_1 = bigquery_api.Job()
-    job_1.jobReference = bigquery_api.JobReference()
-    job_1.jobReference.projectId = 'project1'
-    job_1.jobReference.jobId = 'jobId1'
-    job_2 = bigquery_api.Job()
-    job_2.jobReference = bigquery_api.JobReference()
-    job_2.jobReference.projectId = 'project1'
-    job_2.jobReference.jobId = 'jobId2'
+    job_1 = MockJob()
 
-    job_1_waiting = mock.Mock()
+    job_1.project = 'project1'
+    job_1.job_id = 'jobId1'
+    job_2 = MockJob()
+
+    job_2.project = 'project1'
+    job_2.job_id = 'jobId2'
+
+    job_1_waiting = MockJob(state='RUNNING')
     job_1_waiting.status.state = 'RUNNING'
-    job_2_done = mock.Mock()
+    job_2_done = MockJob()
     job_2_done.status.state = 'DONE'
     job_2_done.status.errorResult = None
 
-    job_1_error = mock.Mock()
+    job_1_error = MockJob(errorResult='error')
     job_1_error.status.state = 'DONE'
     job_1_error.status.errorResult = 'Some problems happened'
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.side_effect = [
+    bq_client.get_job.side_effect = [
         job_1_waiting, job_2_done, job_1_error, job_2_done
     ]
     partition_1 = ('project:dataset.table0', (0, ['file0']))
     partition_2 = ('project:dataset.table1', (1, ['file1']))
-    bq_client.jobs.Insert.side_effect = [job_1, job_2]
+    bq_client.load_table_from_uri.side_effect = [job_1, job_2]
     test_job_prefix = "test_job"
 
     with self.assertRaises(Exception):
@@ -706,21 +744,18 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
   def test_multiple_partition_files(self):
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = mock.Mock()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
+
     bq_client.tables.Delete.return_value = None
 
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
@@ -794,21 +829,18 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       self, mock_call_process, write_disposition):
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = mock.Mock()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
+
     bq_client.tables.Delete.return_value = None
 
     with TestPipeline('DirectRunner') as p:
@@ -832,11 +864,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
       'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper.wait_for_bq_job')
   @mock.patch(
       'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._insert_copy_job')
-  @mock.patch(
-      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._start_job',
-      wraps=BigQueryWrapper._start_job)
   def test_multiple_identical_destinations_on_write_truncate(
-      self, mock_perform_start_job, mock_insert_copy_job, mock_wait_for_bq_job):
+      self, mock_insert_copy_job, mock_wait_for_bq_job):
     """
     Test that multiple identical table names,
      but under different datasets are handled correctly.
@@ -857,21 +886,18 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       return 'project1:dataset3.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = mock.Mock()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
+    bq_client.get_job.return_value = mock_job
 
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
+
     bq_client.tables.Delete.return_value = None
 
     m = bigquery_tools.BigQueryWrapper(bq_client)
@@ -879,12 +905,13 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     m.wait_for_bq_job.return_value = None
 
     mock_jobs = [
-        Mock(jobReference=bigquery_api.JobReference(jobId=f'job_name{i}'))
+        MockJobReference(job_id=f'job_name{i}', project="project1")
         # Order matters in a sense to prove that jobs with different ids
         #  (`2` & `3`) are run with `WRITE_APPEND` without this current fix.
         for i in [1, 1, 1, 1, 1]
     ]
-    mock_perform_start_job.side_effect = mock_jobs
+    bq_client.load_table_from_uri.side_effect = mock_jobs
+    bq_client.load_table_from_file.side_effect = mock_jobs
 
     # For now we don't care about the return value.
     mock_insert_copy_job.return_value = None
@@ -923,20 +950,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               max_files_per_partition=3,
               write_disposition=BigQueryDisposition.WRITE_TRUNCATE))
 
-    from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+    from google.cloud.bigquery import DatasetReference
+    from google.cloud.bigquery import TableReference
     mock_insert_copy_job.assert_has_calls(
         [
             call(
                 'project1',
                 mock.ANY,
                 TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
-                    tableId='job_name1'),
+                    DatasetReference('project1', 'dataset1'), 'job_name1'),
                 TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
-                    tableId='table1'),
+                    DatasetReference('project1', 'dataset1'), 'table1'),
                 create_disposition=None,
                 write_disposition='WRITE_TRUNCATE',
                 job_labels={'step_name': 'bigquerybatchfileloads'}),
@@ -944,13 +968,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 'project1',
                 mock.ANY,
                 TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
-                    tableId='job_name1'),
+                    DatasetReference('project1', 'dataset1'), 'job_name1'),
                 TableReference(
-                    datasetId='dataset1',
-                    projectId='project1',
-                    tableId='table1'),
+                    DatasetReference('project1', 'dataset1'), 'table1'),
                 create_disposition=None,
                 write_disposition='WRITE_APPEND',
                 job_labels={'step_name': 'bigquerybatchfileloads'}),
@@ -958,13 +978,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 'project1',
                 mock.ANY,
                 TableReference(
-                    datasetId='dataset2',
-                    projectId='project1',
-                    tableId='job_name1'),
+                    DatasetReference('project1', 'dataset2'), 'job_name1'),
                 TableReference(
-                    datasetId='dataset2',
-                    projectId='project1',
-                    tableId='table1'),
+                    DatasetReference('project1', 'dataset2'), 'table1'),
                 create_disposition=None,
                 # Previously this was `WRITE_APPEND`.
                 write_disposition='WRITE_TRUNCATE',
@@ -973,13 +989,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
                 'project1',
                 mock.ANY,
                 TableReference(
-                    datasetId='dataset3',
-                    projectId='project1',
-                    tableId='job_name1'),
+                    DatasetReference('project1', 'dataset3'), 'job_name1'),
                 TableReference(
-                    datasetId='dataset3',
-                    projectId='project1',
-                    tableId='table1'),
+                    DatasetReference('project1', 'dataset3'), 'table1'),
                 create_disposition=None,
                 # Previously this was `WRITE_APPEND`.
                 write_disposition='WRITE_TRUNCATE',
@@ -1004,20 +1016,17 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     destination = 'project1:dataset1.table1'
 
-    job_reference = bigquery_api.JobReference()
-    job_reference.projectId = 'project1'
-    job_reference.jobId = 'job_name1'
-    result_job = bigquery_api.Job()
-    result_job.jobReference = job_reference
+    job_reference = MockJobReference(project='project1', job_id='job_name1')
+    result_job = MockJob(project='project1', job_id='job_name1')
 
-    mock_job = mock.Mock()
-    mock_job.status.state = 'DONE'
-    mock_job.status.errorResult = None
-    mock_job.jobReference = job_reference
+    mock_job = MockJob(project="project1", job_id="jobId1")
 
     bq_client = mock.Mock()
-    bq_client.jobs.Get.return_value = mock_job
-    bq_client.jobs.Insert.return_value = result_job
+    bq_client.get_job.return_value = mock_job
+
+    bq_client.load_table_from_file.return_value = result_job
+    bq_client.load_table_from_uri.return_value = result_job
+    bq_client.copy_table.return_value = result_job
 
     # Insert a fake clock to work with auto-sharding which needs a processing
     # time timer.
@@ -1467,13 +1476,13 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     hamcrest_assert(p, all_of(*pipeline_verifiers))
 
   def tearDown(self):
-    request = bigquery_api.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
+      self.bigquery_client.client.delete_dataset(
+          gcp_bigquery.DatasetReference(self.project, self.dataset_id),
+          delete_contents=True)
+    except exceptions.GoogleAPICallError:
       _LOGGER.debug(
           'Failed to clean up dataset %s in project %s',
           self.dataset_id,
