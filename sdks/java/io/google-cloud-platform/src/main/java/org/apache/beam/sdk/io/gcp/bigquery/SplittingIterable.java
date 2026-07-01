@@ -17,23 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.UpgradeTableSchema.isPayloadSchemaOutOfDate;
-
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.auto.value.AutoValue;
-import com.google.cloud.bigquery.storage.v1.ProtoRows;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
-import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.PeekingIterator;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -43,147 +35,73 @@ import org.joda.time.Instant;
  * parameter controls how many rows are batched into a single ProtoRows object before we move on to
  * the next one.
  */
-class SplittingIterable implements Iterable<SplittingIterable.Value> {
-  @AutoValue
-  abstract static class Value {
-    abstract ProtoRows getProtoRows();
-
-    abstract List<Instant> getTimestamps();
-
-    abstract List<@Nullable TableRow> getFailsafeTableRows();
-
-    abstract boolean getSchemaMismatchSeen();
-  }
-
-  interface ConcatFields {
-    ByteString concat(ByteString bytes, TableRow tableRows)
-        throws TableRowToStorageApiProto.SchemaConversionException;
-  }
-
-  private final Iterable<StorageApiWritePayload> underlying;
+class SplittingIterable implements Iterable<AppendRowsPacket> {
+  private final Iterable<StoragePayloadWithDeadline> underlying;
   private final long splitSize;
 
-  private final ConcatFields concatProtoAndTableRow;
-  private final Function<ByteString, TableRow> protoToTableRow;
-  private final BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer;
+  private final Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer;
   private final ThrowingSupplier<byte[]> getCurrentTableSchemaHash;
   private final ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor;
-  private final boolean autoUpdateSchema;
-  private final Instant elementsTimestamp;
+  private final Instant elementTimestamp;
+  private final Supplier<AppendClientInfo> appendClientSupplier;
+  private final SchemaChangeDetectorHelper schemaChangeDetectorHelper;
 
   public SplittingIterable(
-      Iterable<StorageApiWritePayload> underlying,
+      Iterable<StoragePayloadWithDeadline> underlying,
       long splitSize,
-      ConcatFields concatProtoAndTableRow,
-      Function<ByteString, TableRow> protoToTableRow,
-      BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer,
+      Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer,
       ThrowingSupplier<byte[]> getCurrentTableSchemaHash,
       ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor,
-      boolean autoUpdateSchema,
-      Instant elementsTimestamp) {
+      Instant elementTimestamp,
+      Supplier<AppendClientInfo> appendClientSupplier,
+      SchemaChangeDetectorHelper schemaChangeDetectorHelper) {
     this.underlying = underlying;
     this.splitSize = splitSize;
-    this.concatProtoAndTableRow = concatProtoAndTableRow;
-    this.protoToTableRow = protoToTableRow;
     this.failedRowsConsumer = failedRowsConsumer;
     this.getCurrentTableSchemaHash = getCurrentTableSchemaHash;
     this.getCurrentTableSchemaDescriptor = getCurrentTableSchemaDescriptor;
-    this.autoUpdateSchema = autoUpdateSchema;
-    this.elementsTimestamp = elementsTimestamp;
+    this.elementTimestamp = elementTimestamp;
+    this.appendClientSupplier = appendClientSupplier;
+    this.schemaChangeDetectorHelper = schemaChangeDetectorHelper;
   }
 
   @Override
-  public Iterator<Value> iterator() {
-    return new Iterator<Value>() {
-      final PeekingIterator<StorageApiWritePayload> underlyingIterator =
+  public Iterator<AppendRowsPacket> iterator() {
+    return new Iterator<AppendRowsPacket>() {
+      final PeekingIterator<StoragePayloadWithDeadline> underlyingIterator =
           Iterators.peekingIterator(underlying.iterator());
+      @Nullable AppendRowsPacket cachedNext = null;
 
       @Override
       public boolean hasNext() {
-        return underlyingIterator.hasNext();
+        if (cachedNext == null && underlyingIterator.hasNext()) {
+          cachedNext = calculateNext();
+        }
+        return cachedNext != null;
       }
 
       @Override
-      public Value next() {
+      public AppendRowsPacket next() {
         if (!hasNext()) {
           throw new NoSuchElementException();
         }
+        AppendRowsPacket result = Preconditions.checkStateNotNull(cachedNext);
+        cachedNext = null;
+        return result;
+      }
 
-        List<Instant> timestamps = Lists.newArrayList();
-        List<@Nullable TableRow> failsafeRows = Lists.newArrayList();
-        ProtoRows.Builder inserts = ProtoRows.newBuilder();
-        long bytesSize = 0;
-
-        boolean schemaMismatchSeen = false;
-        try {
-          while (underlyingIterator.hasNext()) {
-            // Make sure that we don't exceed the split-size length over multiple elements. A single
-            // element can exceed
-            // the split threshold, but in that case it should be the only element returned.
-            if ((bytesSize + underlyingIterator.peek().getPayload().length > splitSize)
-                && inserts.getSerializedRowsCount() > 0) {
-              break;
-            }
-            StorageApiWritePayload payload = underlyingIterator.next();
-            schemaMismatchSeen =
-                schemaMismatchSeen
-                    || isPayloadSchemaOutOfDate(
-                        payload, getCurrentTableSchemaHash, getCurrentTableSchemaDescriptor);
-
-            ByteString byteString = ByteString.copyFrom(payload.getPayload());
-            @Nullable TableRow failsafeTableRow = null;
-            try {
-              failsafeTableRow = payload.getFailsafeTableRow();
-            } catch (IOException e) {
-              // Do nothing, table row will be generated later from row bytes
-            }
-            if (autoUpdateSchema) {
-              @Nullable TableRow unknownFields = payload.getUnknownFields();
-              if (unknownFields != null && !unknownFields.isEmpty()) {
-                // Protocol buffer serialization format supports concatenation. We serialize any new
-                // "known" fields
-                // into a proto and concatenate to the existing proto.
-
-                try {
-                  byteString = concatProtoAndTableRow.concat(byteString, unknownFields);
-                } catch (TableRowToStorageApiProto.SchemaConversionException e) {
-                  // This generally implies that ignoreUnknownValues=false and there were still
-                  // unknown values here.
-                  // Reconstitute the TableRow and send it to the failed-rows consumer.
-                  TableRow tableRow =
-                      failsafeTableRow != null
-                          ? failsafeTableRow
-                          : protoToTableRow.apply(byteString);
-                  // TODO(24926, reuvenlax): We need to merge the unknown fields in! Currently we
-                  // only execute this
-                  // codepath when ignoreUnknownFields==true, so we should never hit this codepath.
-                  // However once
-                  // 24926 is fixed, we need to merge the unknownFields back into the main row
-                  // before outputting to the
-                  // failed-rows consumer.
-                  Instant timestamp = payload.getTimestamp();
-                  if (timestamp == null) {
-                    timestamp = elementsTimestamp;
-                  }
-                  failedRowsConsumer.accept(TimestampedValue.of(tableRow, timestamp), e.toString());
-                  continue;
-                }
-              }
-            }
-            inserts.addSerializedRows(byteString);
-            Instant timestamp = payload.getTimestamp();
-            if (timestamp == null) {
-              timestamp = elementsTimestamp;
-            }
-            timestamps.add(timestamp);
-            failsafeRows.add(failsafeTableRow);
-            bytesSize += byteString.size();
-          }
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-        return new AutoValue_SplittingIterable_Value(
-            inserts.build(), timestamps, failsafeRows, schemaMismatchSeen);
+      public @Nullable AppendRowsPacket calculateNext() {
+        AppendRowsPacket value =
+            AppendRowsPacket.fromStorageApiWritePayload(
+                underlyingIterator,
+                splitSize,
+                schemaChangeDetectorHelper,
+                elementTimestamp,
+                appendClientSupplier,
+                failedRowsConsumer,
+                getCurrentTableSchemaHash,
+                getCurrentTableSchemaDescriptor);
+        return value.getProtoRows().getSerializedRowsCount() == 0 ? null : value;
       }
     };
   }

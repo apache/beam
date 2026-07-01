@@ -23,13 +23,18 @@ import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.joda.time.Duration;
 
 /**
  * A transform to write sharded records to BigQuery using the Storage API. This transform uses the
@@ -38,7 +43,7 @@ import org.apache.beam.sdk.values.TupleTagList;
  * writes, use {@link StorageApiWritesShardedRecords} or {@link StorageApiWriteUnshardedRecords}.
  */
 @SuppressWarnings("FutureReturnValueIgnored")
-public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
+public class StorageApiWriteRecordsInconsistent<DestinationT extends @NonNull Object, ElementT>
     extends PTransform<PCollection<KV<DestinationT, StorageApiWritePayload>>, PCollectionTuple> {
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final BigQueryServices bqServices;
@@ -47,10 +52,15 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
 
   private final Predicate<String> successfulRowsPredicate;
 
+  // This output is effectively ignored, since this code path uses the default stream which is never
+  // finalized.
   private final TupleTag<KV<String, String>> finalizeTag = new TupleTag<>("finalizeTag");
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
   private final Coder<TableRow> successfulRowsCoder;
+  private final Coder<DestinationT> destinationCoder;
   private final boolean autoUpdateSchema;
+  private final @Nullable Duration autoUpdateSchemaStrictTimeout;
+  private final @Nullable TupleTag<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRowsTag;
   private final boolean ignoreUnknownValues;
   private final BigQueryIO.Write.CreateDisposition createDisposition;
   private final @Nullable String kmsKey;
@@ -66,7 +76,9 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       Predicate<String> successfulRowsPredicate,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
       Coder<TableRow> successfulRowsCoder,
+      Coder<DestinationT> destinationCoder,
       boolean autoUpdateSchema,
+      @Nullable Duration autoUpdateSchemaStrictTimeout,
       boolean ignoreUnknownValues,
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
@@ -78,9 +90,16 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.failedRowsTag = failedRowsTag;
     this.failedRowsCoder = failedRowsCoder;
     this.successfulRowsCoder = successfulRowsCoder;
+    this.destinationCoder = destinationCoder;
     this.successfulRowsTag = successfulRowsTag;
     this.successfulRowsPredicate = successfulRowsPredicate;
     this.autoUpdateSchema = autoUpdateSchema;
+    this.autoUpdateSchemaStrictTimeout = autoUpdateSchemaStrictTimeout;
+    if (autoUpdateSchemaStrictTimeout != null) {
+      this.mismatchedRowsTag = new TupleTag<>("mismatchedRowsTag");
+    } else {
+      this.mismatchedRowsTag = null;
+    }
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.createDisposition = createDisposition;
     this.kmsKey = kmsKey;
@@ -98,36 +117,88 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     if (successfulRowsTag != null) {
       tupleTagList = tupleTagList.and(successfulRowsTag);
     }
+    if (mismatchedRowsTag != null) {
+      tupleTagList = tupleTagList.and(mismatchedRowsTag);
+    }
+
+    StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<DestinationT, ElementT> fnImpl =
+        new StorageApiWriteUnshardedRecords.WriteRecordsDoFnImpl<>(
+            operationName,
+            dynamicDestinations,
+            bqServices,
+            true,
+            bigQueryOptions.getStorageApiAppendThresholdBytes(),
+            bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
+            bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
+            finalizeTag,
+            failedRowsTag,
+            successfulRowsTag,
+            successfulRowsPredicate,
+            autoUpdateSchema,
+            autoUpdateSchemaStrictTimeout,
+            mismatchedRowsTag,
+            ignoreUnknownValues,
+            createDisposition,
+            kmsKey,
+            usesCdc,
+            defaultMissingValueInterpretation,
+            bigQueryOptions.getStorageWriteApiMaxRetries(),
+            bigLakeConfiguration,
+            bigQueryOptions.getStorageApiMismatchLocalRetryTimeMilliSec());
+    StorageApiWriteUnshardedRecords.WriteRecordsDoFn<DestinationT, ElementT> fn =
+        new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(fnImpl);
+    ;
     PCollectionTuple result =
         input.apply(
             "Write Records",
-            ParDo.of(
-                    new StorageApiWriteUnshardedRecords.WriteRecordsDoFn<>(
-                        operationName,
-                        dynamicDestinations,
-                        bqServices,
-                        true,
-                        bigQueryOptions.getStorageApiAppendThresholdBytes(),
-                        bigQueryOptions.getStorageApiAppendThresholdRecordCount(),
-                        bigQueryOptions.getNumStorageWriteApiStreamAppendClients(),
-                        finalizeTag,
-                        failedRowsTag,
-                        successfulRowsTag,
-                        successfulRowsPredicate,
-                        autoUpdateSchema,
-                        ignoreUnknownValues,
-                        createDisposition,
-                        kmsKey,
-                        usesCdc,
-                        defaultMissingValueInterpretation,
-                        bigQueryOptions.getStorageWriteApiMaxRetries(),
-                        bigLakeConfiguration))
+            ParDo.of(fn)
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);
     if (successfulRowsTag != null) {
       result.get(successfulRowsTag).setCoder(successfulRowsCoder);
     }
-    return result;
+
+    @Nullable PCollectionTuple mismatchedResult = null;
+    if (mismatchedRowsTag != null) {
+      PCollection<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+          result.get(mismatchedRowsTag);
+      mismatchedRows.setCoder(KvCoder.of(destinationCoder, StoragePayloadWithDeadline.Coder.of()));
+      mismatchedResult =
+          mismatchedRows.apply(
+              "bufferMismatched",
+              new BufferMismatchedRows<>(
+                  failedRowsCoder,
+                  successfulRowsCoder,
+                  destinationCoder,
+                  dynamicDestinations,
+                  fnImpl,
+                  failedRowsTag,
+                  successfulRowsTag));
+      mismatchedResult.get(failedRowsTag).setCoder(failedRowsCoder);
+      if (successfulRowsTag != null) {
+        mismatchedResult.get(successfulRowsTag).setCoder(successfulRowsCoder);
+      }
+    }
+
+    if (mismatchedResult != null) {
+      // We need to merge in any results from BufferMismatchRows.
+      PCollection<BigQueryStorageApiInsertError> flattenedErrors =
+          PCollectionList.of(result.get(failedRowsTag))
+              .and(mismatchedResult.get(failedRowsTag))
+              .apply("flattenErrors", Flatten.pCollections());
+
+      PCollectionTuple flattenedResult = PCollectionTuple.of(failedRowsTag, flattenedErrors);
+      if (successfulRowsTag != null) {
+        PCollection<TableRow> flattenedSuccesses =
+            PCollectionList.of(result.get(successfulRowsTag))
+                .and(mismatchedResult.get(successfulRowsTag))
+                .apply("flattenSucesses", Flatten.pCollections());
+        flattenedResult = flattenedResult.and(successfulRowsTag, flattenedSuccesses);
+      }
+      return flattenedResult;
+    } else {
+      return result;
+    }
   }
 }
