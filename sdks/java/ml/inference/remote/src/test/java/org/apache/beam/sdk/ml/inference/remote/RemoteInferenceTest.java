@@ -709,7 +709,8 @@ public class RemoteInferenceTest {
     // If this test becomes flaky, increase the number of inputs.
     boolean hasThrottled =
         StreamSupport.stream(metrics.getCounters().spliterator(), false)
-            .anyMatch(metricResult -> metricResult.getAttempted() > 0 || metricResult.getCommitted() > 0);
+            .anyMatch(
+                metricResult -> metricResult.getAttempted() > 0 || metricResult.getCommitted() > 0);
 
     assertTrue("Expected client-side throttling to trigger at least once", hasThrottled);
   }

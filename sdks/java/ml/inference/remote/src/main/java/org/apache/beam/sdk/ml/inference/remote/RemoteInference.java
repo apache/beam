@@ -132,21 +132,25 @@ public class RemoteInference {
 
     /** Configures the throttling delay when the client is preemptively throttled. */
     public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
+      checkArgument(throttleDelaySecs >= 0, "throttleDelaySecs must be non-negative");
       return builder().setThrottleDelaySecs(throttleDelaySecs).build();
     }
 
     /** Configures the length of history to consider when setting throttling probability. */
     public Invoke<InputT, OutputT> withSamplePeriodMs(long samplePeriodMs) {
+      checkArgument(samplePeriodMs > 0, "samplePeriodMs must be positive");
       return builder().setSamplePeriodMs(samplePeriodMs).build();
     }
 
     /** Configures the granularity of time buckets that we store data in for throttling. */
     public Invoke<InputT, OutputT> withSampleUpdateMs(long sampleUpdateMs) {
+      checkArgument(sampleUpdateMs > 0, "sampleUpdateMs must be positive");
       return builder().setSampleUpdateMs(sampleUpdateMs).build();
     }
 
     /** Configures the target ratio between requests sent and successful requests. */
     public Invoke<InputT, OutputT> withOverloadRatio(double overloadRatio) {
+      checkArgument(overloadRatio > 0, "overloadRatio must be positive");
       return builder().setOverloadRatio(overloadRatio).build();
     }
 
