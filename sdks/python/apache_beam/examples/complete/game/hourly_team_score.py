@@ -129,9 +129,8 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.field = field
 
   def expand(self, pcoll):
@@ -169,9 +168,8 @@ class WriteToBigQuery(beam.PTransform):
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
       project: Name of the Cloud project containing BigQuery table.
     """
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
@@ -194,9 +192,8 @@ class WriteToBigQuery(beam.PTransform):
 # [START main]
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.start_timestamp = str2timestamp(start_min)
     self.stop_timestamp = str2timestamp(stop_min)
     self.window_duration_in_seconds = window_duration * 60

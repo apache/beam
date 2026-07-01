@@ -122,9 +122,8 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.field = field
 
   def expand(self, pcoll):

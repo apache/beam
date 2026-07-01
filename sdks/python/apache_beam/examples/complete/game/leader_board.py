@@ -138,9 +138,8 @@ class ExtractAndSumScore(beam.PTransform):
   extracted.
   """
   def __init__(self, field):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.field = field
 
   def expand(self, pcoll):
@@ -178,9 +177,8 @@ class WriteToBigQuery(beam.PTransform):
       schema: Dictionary in the format {'column_name': 'bigquery_type'}
       project: Name of the Cloud project containing BigQuery table.
     """
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.table_name = table_name
     self.dataset = dataset
     self.schema = schema
@@ -208,9 +206,8 @@ class CalculateTeamScores(beam.PTransform):
   default.
   """
   def __init__(self, team_window_duration, allowed_lateness):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.team_window_duration = team_window_duration * 60
     self.allowed_lateness_seconds = allowed_lateness * 60
 
@@ -240,9 +237,8 @@ class CalculateUserScores(beam.PTransform):
   global windowing. Get periodic updates on all users' running scores.
   """
   def __init__(self, allowed_lateness):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.allowed_lateness_seconds = allowed_lateness * 60
 
   def expand(self, pcoll):
