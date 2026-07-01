@@ -30,7 +30,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -82,6 +85,14 @@ public class BoundedQueueExecutorTest {
 
   private static ExecutableWork createWorkWithCompIdAndKeyGroup(
       String computationId, Work.KeyGroup keyGroup, Consumer<Work> executeWorkFn) {
+    return createWorkWithHandle(
+        computationId, keyGroup, (work, handle) -> executeWorkFn.accept(work));
+  }
+
+  private static ExecutableWork createWorkWithHandle(
+      String computationId,
+      Work.KeyGroup keyGroup,
+      BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
     WorkItem workItem =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
@@ -103,9 +114,7 @@ public class BoundedQueueExecutorTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        (work, handle) -> {
-          executeWorkFn.accept(work);
-        });
+        executeWorkFn);
   }
 
   private ExecutableWork createSleepProcessWork(CountDownLatch start, CountDownLatch stop) {
@@ -406,18 +415,25 @@ public class BoundedQueueExecutorTest {
 
   @Test
   public void testHandleMerge() throws Exception {
-    BoundedQueueExecutorWorkHandleImpl handle1 = executor.createBudgetHandle(1, 100L);
-    BoundedQueueExecutorWorkHandleImpl handle2 = executor.createBudgetHandle(2, 200L);
+    Work work1 = createWork(ignored -> {}).work();
+    Work work2 = createWork(ignored -> {}).work();
+    Work work3 = createWork(ignored -> {}).work();
+    BoundedQueueExecutorWorkHandleImpl handle1 = executor.createBudgetHandle(work1, 100L);
+    BoundedQueueExecutorWorkHandleImpl handle2 = executor.createBudgetHandle(work2, 200L);
+    handle2.merge(executor.createBudgetHandle(work3, 0L));
 
     handle1.merge(handle2);
 
     // Verify that handle2 has 0 budget and is closed.
-    assertEquals(0, handle2.elements());
+    assertEquals(0, handle2.getWorkBatch().size());
     assertEquals(0, handle2.bytes());
     assertTrue(handle2.isClosed());
 
     // Verify that handle1 has the combined budget and is not closed.
-    assertEquals(3, handle1.elements());
+    assertEquals(3, handle1.getWorkBatch().size());
+    assertTrue(handle1.getWorkBatch().contains(work1));
+    assertTrue(handle1.getWorkBatch().contains(work2));
+    assertTrue(handle1.getWorkBatch().contains(work3));
     assertEquals(300L, handle1.bytes());
     assertFalse(handle1.isClosed());
   }
@@ -449,11 +465,13 @@ public class BoundedQueueExecutorTest {
     // 1. Create blocker task to occupy the worker thread
     CountDownLatch blockerStart = new CountDownLatch(1);
     CountDownLatch blockerStop = new CountDownLatch(1);
+    AtomicReference<BoundedQueueExecutorWorkHandle> blockerHandleRef = new AtomicReference<>();
     ExecutableWork blockerWork =
-        createWorkWithCompIdAndKeyGroup(
+        createWorkWithHandle(
             "blockerComp",
             DEFAULT_KEY_GROUP,
-            ignored -> {
+            (work, handle) -> {
+              blockerHandleRef.set(handle);
               blockerStart.countDown();
               try {
                 blockerStop.await();
@@ -464,6 +482,9 @@ public class BoundedQueueExecutorTest {
 
     testExecutor.execute(blockerWork, 0);
     blockerStart.await();
+    BoundedQueueExecutorWorkHandleImpl stealHandle =
+        (BoundedQueueExecutorWorkHandleImpl) blockerHandleRef.get();
+    assertNotNull(stealHandle);
 
     // 2. Create two distinct key groups
     Work.KeyGroup keyGroup1 = Work.KeyGroup.create(1, 1);
@@ -488,22 +509,18 @@ public class BoundedQueueExecutorTest {
     assertEquals(3, testExecutor.elementsOutstanding());
 
     // Steal work2 using pollWork with compA and keyGroup2
-    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle);
-      assertNotNull(stolen);
-      assertEquals(work2, stolen);
+    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle);
+    assertNotNull(stolen);
+    assertEquals(work2, stolen);
 
-      // Run the stolen task
-      stolen.run(stealHandle);
-      targetStart.await();
-    }
+    // Run the stolen task
+    stolen.run(stealHandle);
+    targetStart.await();
 
     // Steal work1 using pollWork with compA and keyGroup1
-    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup1, stealHandle);
-      assertNotNull(stolen);
-      assertEquals(work1, stolen);
-    }
+    ExecutableWork stolen1 = testExecutor.pollWork("compA", keyGroup1, stealHandle);
+    assertNotNull(stolen1);
+    assertEquals(work1, stolen1);
 
     // Unblock the blocker and shut down
     blockerStop.countDown();
@@ -525,11 +542,13 @@ public class BoundedQueueExecutorTest {
 
     CountDownLatch blockerStart = new CountDownLatch(1);
     CountDownLatch blockerStop = new CountDownLatch(1);
+    AtomicReference<BoundedQueueExecutorWorkHandle> blockerHandleRef = new AtomicReference<>();
     ExecutableWork blockerWork =
-        createWorkWithCompIdAndKeyGroup(
+        createWorkWithHandle(
             "blockerComp",
             DEFAULT_KEY_GROUP,
-            ignored -> {
+            (work, handle) -> {
+              blockerHandleRef.set(handle);
               blockerStart.countDown();
               try {
                 blockerStop.await();
@@ -540,15 +559,16 @@ public class BoundedQueueExecutorTest {
 
     testExecutor.execute(blockerWork, 0);
     blockerStart.await();
+    BoundedQueueExecutorWorkHandleImpl stealHandle =
+        (BoundedQueueExecutorWorkHandleImpl) blockerHandleRef.get();
+    assertNotNull(stealHandle);
 
     Work.KeyGroup keyGroup = Work.KeyGroup.create(1, 1);
     ExecutableWork work = createWorkWithCompIdAndKeyGroup("compA", keyGroup, ignored -> {});
     testExecutor.execute(work, 100);
 
-    try (BoundedQueueExecutorWorkHandleImpl stealHandle = testExecutor.createBudgetHandle(0, 0L)) {
-      ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
-      assertNull(stolen);
-    }
+    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
+    assertNull(stolen);
 
     blockerStop.countDown();
     testExecutor.shutdown();

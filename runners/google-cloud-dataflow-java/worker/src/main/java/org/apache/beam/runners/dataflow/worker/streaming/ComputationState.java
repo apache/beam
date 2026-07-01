@@ -131,6 +131,10 @@ public class ComputationState {
         .ifPresent(this::forceExecute);
   }
 
+  public void reExecuteActiveWork(ShardedKey shardedKey, WorkId workId) {
+    activeWorkState.getActiveWork(shardedKey, workId).ifPresent(this::forceExecute);
+  }
+
   public void invalidateStuckCommits(Instant stuckCommitDeadline) {
     activeWorkState.invalidateStuckCommits(
         stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);

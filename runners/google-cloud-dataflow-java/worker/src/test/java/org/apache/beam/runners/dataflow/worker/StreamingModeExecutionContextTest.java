@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -58,17 +59,19 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -76,6 +79,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Create;
@@ -102,7 +106,7 @@ import org.mockito.MockitoAnnotations;
 public class StreamingModeExecutionContextTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Mock private WindmillStateReader stateReader;
+
   @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
@@ -114,7 +118,7 @@ public class StreamingModeExecutionContextTest {
   private FakeGlobalConfigHandle globalConfigHandle;
 
   private StreamingModeExecutionContext createExecutionContext(
-      StreamingGlobalConfigHandle configHandle) {
+      DataflowWorkerHarnessOptions options, StreamingGlobalConfigHandle configHandle) {
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
@@ -143,6 +147,7 @@ public class StreamingModeExecutionContextTest {
         /*hotKeyLoggingEnabled=*/ false,
         /*stepName=*/ "stepName",
         "sourceBytesProcessCounterName",
+        options,
         SideInputStateFetcherFactory.fromOptions(options));
   }
 
@@ -150,8 +155,11 @@ public class StreamingModeExecutionContextTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
-    executionContext = createExecutionContext(globalConfigHandle);
+    executionContext = createExecutionContext(options, globalConfigHandle);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -181,7 +189,6 @@ public class StreamingModeExecutionContextTest {
     try {
       context.start(
           work,
-          stateReader,
           workExecutor,
           /* workQueueExecutor= */ null,
           /* budgetHandle= */ null,
@@ -449,7 +456,7 @@ public class StreamingModeExecutionContextTest {
       FakeGlobalConfigHandle configHandle =
           new FakeGlobalConfigHandle(
               StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
-      StreamingModeExecutionContext context = createExecutionContext(configHandle);
+      StreamingModeExecutionContext context = createExecutionContext(options, configHandle);
       assertEquals(expectedEncoding, context.getWindmillTagEncoding().getClass());
     }
   }
@@ -501,6 +508,274 @@ public class StreamingModeExecutionContextTest {
     start(work, org.apache.beam.sdk.coders.StringUtf8Coder.of());
 
     assertEquals("decodedKey", executionContext.getKey());
+  }
+
+  @Test
+  public void testAdvance_success() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    Windmill.WorkItem workItem2 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key2"))
+            .setWorkToken(2L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work2 =
+        createMockWork(
+            workItem2, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+    ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(work1.getKeyGroup()),
+                org.mockito.Mockito.eq(mockHandle)))
+        .thenReturn(executableWork2);
+
+    executionContext.start(
+        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertTrue(executionContext.advance());
+    assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
+  }
+
+  @Test
+  public void testAdvance_noMoreWork() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    org.mockito.Mockito.when(
+            mockExecutor.pollWork(
+                org.mockito.Mockito.eq(COMPUTATION_ID),
+                org.mockito.Mockito.eq(work1.getKeyGroup()),
+                org.mockito.Mockito.eq(mockHandle)))
+        .thenReturn(null);
+
+    executionContext.start(
+        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(executionContext.advance());
+  }
+
+  @Test
+  public void testAdvance_respectsMaxBatchSize() throws Exception {
+    DataflowWorkerHarnessOptions optionsWithBatchSize =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsWithBatchSize
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_size=1"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsWithBatchSize, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_respectsMaxBatchTime() throws Exception {
+    DataflowWorkerHarnessOptions optionsWithBatchTime =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsWithBatchTime
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_time_ms=0"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsWithBatchTime, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_workFailed() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    executionContext.start(
+        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    work1.setFailed();
+
+    assertThrows(WorkItemCancelledException.class, () -> executionContext.advance());
+  }
+
+  @Test
+  public void testAdvance_defaultKeyGroup() throws Exception {
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    executionContext.start(
+        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(executionContext.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_experimentDisabled() throws Exception {
+    DataflowWorkerHarnessOptions optionsDisabled =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsDisabled, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_respectsMaxBatchSinkBytes() throws Exception {
+    DataflowWorkerHarnessOptions optionsWithSinkBytes =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsWithSinkBytes
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "unstable_enable_multi_key_bundle", "windmill_max_key_group_batch_sink_bytes=100"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsWithSinkBytes, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    context.reportBytesSinked(50);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verify(mockExecutor)
+        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+
+    org.mockito.Mockito.reset(mockExecutor);
+
+    context.reportBytesSinked(60);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testExperimentParsingWithInvalidValues() {
+    DataflowWorkerHarnessOptions optionsInvalid =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsInvalid
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "windmill_max_key_group_batch_size=invalid_size",
+                "windmill_max_key_group_batch_time_ms=invalid_time",
+                "windmill_max_key_group_batch_sink_bytes=invalid_bytes"));
+
+    // This should not throw NumberFormatException
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsInvalid, globalConfigHandle);
+
+    org.junit.Assert.assertNotNull(context);
   }
 
   @Test

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -112,7 +114,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
       }
       while (commit != null) {
         ComputationState computationState = commit.computationState();
-        commit.work().setState(Work.State.COMMITTING);
+        checkState(commit.workBatch().size() == 1);
+        commit.workBatch().get(0).setState(Work.State.COMMITTING);
         Windmill.ComputationCommitWorkRequest.Builder computationRequestBuilder =
             computationRequestMap.get(computationState);
         if (computationRequestBuilder == null) {
@@ -120,7 +123,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
           computationRequestBuilder.setComputationId(computationState.getComputationId());
           computationRequestMap.put(computationState, computationRequestBuilder);
         }
-        computationRequestBuilder.addRequests(commit.request());
+        checkState(commit.singleKeyRequest().isPresent());
+        computationRequestBuilder.addRequests(commit.singleKeyRequest().get());
         // Send the request if we've exceeded the bytes or there is no more
         // pending work.  commitBytes is a long, so this cannot overflow.
         commitBytes += commit.getSize();
@@ -155,7 +159,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
                     .setCacheToken(workRequest.getCacheToken())
                     .setWorkToken(workRequest.getWorkToken())
                     .build(),
-                Windmill.CommitStatus.OK));
+                Windmill.CommitStatus.OK,
+                /* retryableFailure= */ false));
       }
     }
   }

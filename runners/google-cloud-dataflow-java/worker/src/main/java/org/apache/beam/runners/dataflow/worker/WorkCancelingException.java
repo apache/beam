@@ -17,23 +17,31 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+/**
+ * Indicates that the work is no longer valid and should be canceled. It is thrown as a signal for
+ * upper layers to mark the work as failed.
+ */
+public class WorkCancelingException extends RuntimeException {
 
-/** Tests for {@link KeyTokenInvalidException}. */
-@RunWith(JUnit4.class)
-public final class KeyTokenInvalidExceptionTest {
-  @Test
-  public void testIsKeyTokenInvalidException() throws Exception {
-    KeyTokenInvalidException exception = new KeyTokenInvalidException("test");
-    RuntimeException keyTokenCauseException = new RuntimeException("key token cause", exception);
-    assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(exception));
-    assertTrue(KeyTokenInvalidException.isKeyTokenInvalidException(keyTokenCauseException));
-    assertFalse(
-        KeyTokenInvalidException.isKeyTokenInvalidException(new RuntimeException("non key token")));
+  public WorkCancelingException(long sharding_key) {
+    super("Work canceling exception for key " + sharding_key);
+  }
+
+  public WorkCancelingException(Throwable cause) {
+    super(cause);
+  }
+
+  /** Returns whether an exception was caused by a {@link WorkCancelingException}. */
+  public static boolean isWorkCancelingException(Throwable t) {
+    @Nullable Throwable throwable = t;
+    while (throwable != null) {
+      if (throwable instanceof WorkCancelingException) {
+        return true;
+      }
+      throwable = throwable.getCause();
+    }
+    return false;
   }
 }
