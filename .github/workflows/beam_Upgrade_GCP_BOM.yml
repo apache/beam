@@ -1,0 +1,94 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Upgrade GCP Libraries BOM
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Weekly on Sundays at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  issues: read
+  statuses: read
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  upgrade_gcp_bom:
+    runs-on: [self-hosted, ubuntu-24.04, main]
+    name: Upgrade GCP BOM
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: 3.11
+          java-version: default
+          go-version: default
+      - name: Check if new BOM is available
+        id: check_bom
+        run: python3 scripts/tools/bomupgrader.py --check
+      - name: Run bomupgrader
+        if: steps.check_bom.outputs.should_upgrade == 'true'
+        run: python3 scripts/tools/bomupgrader.py ${{ steps.check_bom.outputs.latest_version }}
+      - name: Install gh cli
+        if: steps.check_bom.outputs.should_upgrade == 'true'
+        uses: ./.github/actions/setup-gh-cli-linux
+      - name: Set git config
+        if: steps.check_bom.outputs.should_upgrade == 'true'
+        run: |
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+      - name: Commit Changes and create PR
+        if: steps.check_bom.outputs.should_upgrade == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_EVENT: ${{ github.event_name }}
+          LATEST_VER: ${{ steps.check_bom.outputs.latest_version }}
+          CURRENT_VER: ${{ steps.check_bom.outputs.current_version }}
+        run: |
+          # Take the current date, subtract from a release cut date in the past (June 24, 2026),
+          # then get the num days % 42 (our release cadence is 42 days).
+          # This will ensure it only runs the week after a release branch has been cut.
+          days_diff=$(( ($(date +%s) - $(date --date="260624" +%s) )/(60*60*24)%42 ))
+          if [[ $GH_EVENT != 'workflow_dispatch' && $days_diff -gt 6 ]]; then
+            echo "Exiting early. We only update dependencies the week after we cut the release"
+            exit 0
+          fi
+          branchName=upgrade_gcp_bom_${LATEST_VER//./_}
+          git checkout -b $branchName
+          git add -A
+          git diff-index --quiet HEAD || gitdiff=$? || echo $?
+          if [[ $gitDiff != 0 ]]; then
+            echo "Changes are ready to commit"
+            git commit -m "Upgrade GCP Libraries BOM to ${LATEST_VER}" --quiet
+            git push origin $branchName --quiet
+            
+            PR_BODY="This PR was created by automation. It upgrades the Google Cloud Platform Libraries BOM from **${CURRENT_VER}** to **${LATEST_VER}** and updates Netty, gRPC, Arrow, Gax, Protobuf, and OpenTelemetry versions to match.
+            
+            Please review the changes and merge if all tests pass."
+            
+            GITHUB_PR_URL=$(gh pr create --title "Upgrade GCP Libraries BOM to ${LATEST_VER}" --body "$PR_BODY" --label "dependencies" --base master)
+            echo "Link of the new PR: $GITHUB_PR_URL"
+          else
+            echo "No changes on the files"
+          fi
