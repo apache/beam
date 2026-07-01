@@ -758,7 +758,7 @@ class BigQueryWrapper(object):
       # Add all rows to the errors list along with the error
       errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
     except GoogleAPICallError as e:
-      service_call_metric.call(e)
+      service_call_metric.call(getattr(e, 'code', e))
       # Re-raise the exception so that we re-try appropriately.
       raise
     finally:
