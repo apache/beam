@@ -703,6 +703,157 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
     sleep_mock.assert_called_once()
 
+  def test_temporary_table_load_inherits_destination_time_partitioning(self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    destination_table = bigquery_api.Table(
+        timePartitioning=bigquery_api.TimePartitioning(type='DAY'))
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertEqual(
+        load_call['additional_load_parameters']['timePartitioning'],
+        destination_table.timePartitioning)
+    dofn.bq_wrapper.get_table.assert_called_once_with(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+
+  def test_temporary_table_load_inherits_destination_range_partitioning(self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    destination_table = bigquery_api.Table(
+        rangePartitioning=bigquery_api.RangePartitioning())
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertEqual(
+        load_call['additional_load_parameters']['rangePartitioning'],
+        destination_table.rangePartitioning)
+    dofn.bq_wrapper.get_table.assert_called_once_with(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+
+  def test_temporary_table_load_keeps_explicit_partitioning_parameters(self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    explicit_partitioning = {'timePartitioning': {'type': 'DAY'}}
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA,
+        test_client=mock.Mock(),
+        temporary_tables=True,
+        additional_bq_parameters=explicit_partitioning)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock()
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertEqual(
+        load_call['additional_load_parameters'], explicit_partitioning)
+    dofn.bq_wrapper.get_table.assert_not_called()
+
+  def test_temporary_table_load_uses_cached_schema_with_explicit_partitioning(
+      self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    explicit_partitioning = {'timePartitioning': {'type': 'DAY'}}
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    table_reference = bigquery_tools.parse_table_reference(destination)
+    hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=None,
+        test_client=mock.Mock(),
+        temporary_tables=True,
+        additional_bq_parameters=explicit_partitioning)
+    dofn.start_bundle()
+    dofn.schema_cache[hashed_dest] = _ELEMENTS_SCHEMA
+    dofn.bq_wrapper.get_table = mock.Mock()
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertEqual(load_call['schema'], _ELEMENTS_SCHEMA)
+    self.assertEqual(
+        load_call['additional_load_parameters'], explicit_partitioning)
+    dofn.bq_wrapper.get_table.assert_not_called()
+
+  def test_temporary_table_load_caches_destination_table_per_bundle(self):
+    destination = 'project1:dataset1.table1'
+    first_partition = (destination, (0, ['gs://bucket/file1']))
+    second_partition = (destination, (1, ['gs://bucket/file2']))
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    destination_table = bigquery_api.Table(
+        timePartitioning=bigquery_api.TimePartitioning(type='DAY'))
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(
+        dofn.process(first_partition, 'test_job', pane_info=mock.Mock(index=0)))
+    list(
+        dofn.process(
+            second_partition, 'test_job', pane_info=mock.Mock(index=1)))
+
+    dofn.bq_wrapper.get_table.assert_called_once_with(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertEqual(
+        load_call['additional_load_parameters']['timePartitioning'],
+        destination_table.timePartitioning)
+
+  def test_temporary_table_load_ignores_invalid_mock_partitioning_metadata(
+      self):
+    destination = 'project1:dataset1.table1'
+    partition = (destination, (0, ['gs://bucket/file1']))
+    job_reference = bigquery_api.JobReference(
+        projectId='project1', jobId='job_name1')
+    destination_table = mock.Mock()
+    destination_table.timePartitioning = mock.Mock()
+    destination_table.rangePartitioning = mock.Mock()
+
+    dofn = bqfl.TriggerLoadJobs(
+        schema=_ELEMENTS_SCHEMA, test_client=mock.Mock(), temporary_tables=True)
+    dofn.start_bundle()
+    dofn.bq_wrapper.get_table = mock.Mock(return_value=destination_table)
+    dofn.bq_wrapper.perform_load_job = mock.Mock(return_value=job_reference)
+
+    list(dofn.process(partition, 'test_job', pane_info=mock.Mock(index=0)))
+
+    load_call = dofn.bq_wrapper.perform_load_job.call_args.kwargs
+    self.assertNotIn(
+        'timePartitioning', load_call['additional_load_parameters'])
+    self.assertNotIn(
+        'rangePartitioning', load_call['additional_load_parameters'])
+    dofn.bq_wrapper.get_table.assert_called_once_with(
+        project_id='project1', dataset_id='dataset1', table_id='table1')
+
   def test_multiple_partition_files(self):
     destination = 'project1:dataset1.table1'
 
