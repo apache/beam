@@ -38,9 +38,10 @@ public class WorkerStatusPagesTest {
   private final Server server = new Server();
   private final LocalConnector connector = new LocalConnector(server);
   @Mock private MemoryMonitor mockMemoryMonitor;
+  private boolean healthy = true;
 
   private boolean mockHealthyIndicator() {
-    return true;
+    return healthy;
   }
 
   private WorkerStatusPages wsp;
@@ -48,6 +49,7 @@ public class WorkerStatusPagesTest {
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
+    healthy = true;
     wsp = new WorkerStatusPages(server, mockMemoryMonitor, this::mockHealthyIndicator);
     server.addConnector(connector);
     wsp.start();
@@ -77,10 +79,7 @@ public class WorkerStatusPagesTest {
 
   @Test
   public void testHealthzUnhealthy() throws Exception {
-    // set up WorkerStatusPages that respond unhealthy status on "healthz"
-    wsp.stop();
-    wsp = new WorkerStatusPages(server, mockMemoryMonitor, () -> false);
-    wsp.start();
+    healthy = false;
 
     String response = getPage("/healthz");
     assertThat(response, containsString("HTTP/1.1 500 Server Error"));
