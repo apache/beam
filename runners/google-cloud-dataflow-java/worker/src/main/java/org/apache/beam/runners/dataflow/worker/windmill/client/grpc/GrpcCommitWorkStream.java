@@ -34,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -308,7 +309,7 @@ final class GrpcCommitWorkStream
 
     if (requests.size() == 1) {
       Map.Entry<Long, PendingRequest> elem = requests.entrySet().iterator().next();
-      if (elem.getValue().getRequest().getSerializedSize()
+      if (elem.getValue().serializedCommit().size()
           > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         issueMultiChunkRequest(elem.getKey(), elem.getValue());
       } else {
@@ -324,9 +325,10 @@ final class GrpcCommitWorkStream
     StreamingCommitWorkRequest.Builder requestBuilder = StreamingCommitWorkRequest.newBuilder();
     requestBuilder
         .addCommitChunkBuilder()
-        .setComputationId(pendingRequest.getComputationId())
+        .setComputationId(pendingRequest.computationId())
         .setRequestId(id)
         .setShardingKey(pendingRequest.shardingKey())
+        .setCommitType(pendingRequest.commitType())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
     synchronized (this) {
@@ -349,14 +351,15 @@ final class GrpcCommitWorkStream
     for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
       PendingRequest request = entry.getValue();
       StreamingCommitRequestChunk.Builder chunkBuilder = requestBuilder.addCommitChunkBuilder();
-      if (lastComputation == null || !lastComputation.equals(request.getComputationId())) {
-        chunkBuilder.setComputationId(request.getComputationId());
-        lastComputation = request.getComputationId();
+      if (lastComputation == null || !lastComputation.equals(request.computationId())) {
+        chunkBuilder.setComputationId(request.computationId());
+        lastComputation = request.computationId();
       }
       chunkBuilder
           .setRequestId(entry.getKey())
           .setShardingKey(request.shardingKey())
-          .setSerializedWorkItemCommit(request.serializedCommit());
+          .setSerializedWorkItemCommit(request.serializedCommit())
+          .setCommitType(request.commitType());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
     synchronized (this) {
@@ -376,7 +379,7 @@ final class GrpcCommitWorkStream
 
   private void issueMultiChunkRequest(long id, PendingRequest pendingRequest)
       throws WindmillStreamShutdownException {
-    checkNotNull(pendingRequest.getComputationId(), "Cannot commit WorkItem w/o a computationId.");
+    checkNotNull(pendingRequest.computationId(), "Cannot commit WorkItem w/o a computationId.");
     ByteString serializedCommit = pendingRequest.serializedCommit();
     synchronized (this) {
       if (isShutdown) {
@@ -397,8 +400,9 @@ final class GrpcCommitWorkStream
             StreamingCommitRequestChunk.newBuilder()
                 .setRequestId(id)
                 .setSerializedWorkItemCommit(chunk)
-                .setComputationId(pendingRequest.getComputationId())
-                .setShardingKey(pendingRequest.shardingKey());
+                .setComputationId(pendingRequest.computationId())
+                .setShardingKey(pendingRequest.shardingKey())
+                .setCommitType(pendingRequest.commitType());
         int remaining = serializedCommit.size() - end;
         if (remaining > 0) {
           chunkBuilder.setRemainingBytesForWorkItem(remaining);
@@ -416,24 +420,44 @@ final class GrpcCommitWorkStream
 
   private static class PendingRequest {
     private final String computationId;
-    private final WorkItemCommitRequest request;
+    private final long shardingKey;
+    private final ByteString serializedCommit;
+    private final StreamingCommitRequestChunk.CommitType commitType;
     private final Consumer<CommitStatus> onDone;
     private final long startTimeNanos; // System.nanoTime() of when request began.
 
     private PendingRequest(
-        String computationId, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
+        String computationId,
+        long shardingKey,
+        ByteString serializedCommit,
+        StreamingCommitRequestChunk.CommitType commitType,
+        Consumer<CommitStatus> onDone) {
       this.computationId = computationId;
-      this.request = request;
+      this.shardingKey = shardingKey;
+      this.serializedCommit = serializedCommit;
+      this.commitType = commitType;
       this.onDone = onDone;
       this.startTimeNanos = System.nanoTime();
     }
 
-    String getComputationId() {
+    String computationId() {
       return computationId;
     }
 
-    WorkItemCommitRequest getRequest() {
-      return request;
+    long shardingKey() {
+      return shardingKey;
+    }
+
+    ByteString serializedCommit() {
+      return serializedCommit;
+    }
+
+    StreamingCommitRequestChunk.CommitType commitType() {
+      return commitType;
+    }
+
+    Consumer<CommitStatus> onDone() {
+      return onDone;
     }
 
     long getStartTimeNanos() {
@@ -441,19 +465,11 @@ final class GrpcCommitWorkStream
     }
 
     private long getBytes() {
-      return (long) request.getSerializedSize() + computationId.length();
-    }
-
-    private ByteString serializedCommit() {
-      return request.toByteString();
+      return (long) serializedCommit.size() + computationId.length();
     }
 
     private void completeWithStatus(CommitStatus commitStatus) {
       onDone.accept(commitStatus);
-    }
-
-    private long shardingKey() {
-      return request.getShardingKey();
     }
 
     private void abort() {
@@ -512,7 +528,34 @@ final class GrpcCommitWorkStream
         return false;
       }
 
-      PendingRequest request = new PendingRequest(computation, commitRequest, onDone);
+      PendingRequest request =
+          new PendingRequest(
+              computation,
+              commitRequest.getShardingKey(),
+              commitRequest.toByteString(),
+              StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_SINGLE_KEY,
+              onDone);
+      add(idGenerator.incrementAndGet(), request);
+      return true;
+    }
+
+    @Override
+    public boolean commitMultiKeyWorkItem(
+        String computation,
+        Windmill.MultiKeyWorkItemCommitRequest commitRequest,
+        Consumer<CommitStatus> onDone) {
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
+        return false;
+      }
+      Preconditions.checkArgument(commitRequest.getRequestsCount() > 0);
+      PendingRequest request =
+          new PendingRequest(
+              computation,
+              // Any key in the batch for routing
+              commitRequest.getRequests(0).getShardingKey(),
+              commitRequest.toByteString(),
+              StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY,
+              onDone);
       add(idGenerator.incrementAndGet(), request);
       return true;
     }
