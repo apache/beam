@@ -61,6 +61,7 @@ jobs:
         with:
           ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11
@@ -97,7 +98,7 @@ jobs:
           -Pdocker-pull-licenses \
           -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
-          -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
+          -Pdocker-tag-list=${release},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \
           --no-parallel
 

@@ -64,6 +64,8 @@ jobs:
         job_phrase: ["Run Python_Xlang_IO_Direct PostCommit"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
