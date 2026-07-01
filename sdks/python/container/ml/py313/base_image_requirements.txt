@@ -220,7 +220,7 @@ threadpoolctl==3.6.0
 tokenizers==0.21.4
 torch==2.8.0+cpu
 tqdm==4.68.3
-transformers==4.55.4
+transformers==5.3.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
