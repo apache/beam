@@ -31,7 +31,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -56,6 +55,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
@@ -284,12 +284,17 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
           List<WindowedValue<InputT>> residuals = new ArrayList<>();
           TimerInternals.TimerData timer;
           while ((timer = sdfTimerInternals.removeNextProcessingTimer()) != null) {
-            WindowedValue stateValue =
-                sdfStateInternals
-                    .state(timer.getNamespace(), StateTags.value(timer.getTimerId(), inputCoder))
-                    .read();
-
-            residuals.add(stateValue);
+            MapState<String, WindowedValue<InputT>> residualState =
+                sdfStateInternals.state(
+                    timer.getNamespace(),
+                    BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler.residualStateTag(
+                        inputCoder));
+            WindowedValue<InputT> stateValue = residualState.get(timer.getTimerId()).read();
+            residualState.remove(timer.getTimerId());
+            // A pre-#27648 savepoint has no entry under the new tag, so the read is null; drop it.
+            if (stateValue != null) {
+              residuals.add(stateValue);
+            }
           }
           processElements(residuals, bundle);
         }
