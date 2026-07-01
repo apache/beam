@@ -214,7 +214,6 @@ public class WorkerCustomSourcesTest {
     try {
       context.start(
           work,
-          mock(WindmillStateReader.class),
           mock(WorkExecutor.class),
           /* workQueueExecutor= */ null,
           /* budgetHandle= */ null,

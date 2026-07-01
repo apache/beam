@@ -101,7 +101,6 @@ final class ComputationWorkExecutorFactory {
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private final HotKeyLogger hotKeyLogger;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,

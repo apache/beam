@@ -107,7 +107,6 @@ public class StreamingModeExecutionContextTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
-  @Mock private WindmillStateReader stateReader;
   @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
@@ -190,7 +189,6 @@ public class StreamingModeExecutionContextTest {
     try {
       context.start(
           work,
-          stateReader,
           workExecutor,
           /* workQueueExecutor= */ null,
           /* budgetHandle= */ null,

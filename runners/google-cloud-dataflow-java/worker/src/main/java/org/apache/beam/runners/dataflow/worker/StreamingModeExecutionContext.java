@@ -399,7 +399,6 @@ public class StreamingModeExecutionContext
 
   public void start(
       Work work,
-      WindmillStateReader stateReader,
       WorkExecutor workExecutor,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -423,7 +422,7 @@ public class StreamingModeExecutionContext
     // Snapshot the limits for entire bundle processing.
     this.operationalLimits = config.operationalLimits();
 
-    startForNewKey(work, stateReader);
+    startForNewKey(work);
   }
 
   private @Nullable Object decodeKey(Work work) throws CoderException {
@@ -768,7 +767,7 @@ public class StreamingModeExecutionContext
         .orElse(0L);
   }
 
-  public boolean advance() {
+  public boolean advance() throws CoderException {
     if (!multiKeyBundleEnabled) {
       return false;
     }
@@ -810,7 +809,7 @@ public class StreamingModeExecutionContext
     return getBytesSinked() >= maxKeyGroupBatchSinkBytes;
   }
 
-  private void startForNewKey(Work newWork, WindmillStateReader reader) throws CoderException {
+  private void startForNewKey(Work newWork) throws CoderException {
     newWork.setState(Work.State.PROCESSING);
     if (keyTransitionListener != null && this.work != null && this.work != newWork) {
       keyTransitionListener.onKeyTransition(this.work, newWork);

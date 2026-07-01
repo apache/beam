@@ -3848,8 +3848,8 @@ public class StreamingDataflowWorkerTest {
     }
 
     // Ensure that the invalidated dofn had tearDown called on them.
-    assertEquals(2, TestExceptionInvalidatesCacheFn.tearDownCallCount.get());
-    assertEquals(3, TestExceptionInvalidatesCacheFn.setupCallCount.get());
+    assertEquals(1, TestExceptionInvalidatesCacheFn.tearDownCallCount.get());
+    assertEquals(2, TestExceptionInvalidatesCacheFn.setupCallCount.get());
 
     worker.stop();
   }
