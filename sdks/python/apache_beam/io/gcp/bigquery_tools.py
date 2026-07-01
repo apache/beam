@@ -50,7 +50,7 @@ import apache_beam
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
-from apache_beam.internal.http_client import get_new_http
+
 from apache_beam.internal.metrics.metric import MetricLogger
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import bigquery_avro_tools
@@ -317,7 +317,6 @@ def parse_table_reference(table, dataset=None, project=None):
 
 
 def _camel_to_snake(name):
-  import re
   s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
   return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
@@ -648,7 +647,6 @@ class BigQueryWrapper(object):
           projectId=project_id, jobId=job_id, location=job_location)
 
   def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
-    import time
     retry = 0
     project_id = getattr(
         job_reference, 'project', getattr(job_reference, 'projectId', None))
@@ -753,7 +751,7 @@ class BigQueryWrapper(object):
       else:
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
-    except (ClientError, GoogleAPICallError) as e:
+    except ClientError as e:
       # e.code contains the numeric http status code.
       service_call_metric.call(e.code)
       # Package exception with required fields
@@ -957,7 +955,7 @@ class BigQueryWrapper(object):
         try:
           dataset_id = dataset.dataset_id
           self._delete_dataset(project_id, dataset_id, True)
-        except google_api_core_exceptions.Forbidden as exn:
+        except google_api_core_exceptions.Forbidden:
           _LOGGER.warning(
               'Permission denied to delete temporary dataset %s:%s for '
               'clean up.',
