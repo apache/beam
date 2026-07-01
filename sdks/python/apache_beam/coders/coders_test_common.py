@@ -437,6 +437,24 @@ class CodersTest(unittest.TestCase):
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
         ])
 
+  def test_varint_coder_uint64(self):
+    # uint64 values [2**63, 2**64) must encode like the signed int64 with the
+    # same bits instead of overflowing Cython's int64_t. Decoding is signed,
+    # matching Java's VarIntCoder.
+    coder = coders.VarIntCoder()
+    impl = coder.get_impl()
+    for v in [1 << 63, (1 << 63) + 12345, (1 << 64) - 1]:
+      signed_twin = v - (1 << 64)
+      encoded = coder.encode(v)
+      self.assertEqual(encoded, coder.encode(signed_twin))
+      self.assertEqual(impl.estimate_size(v), len(encoded))
+      self.assertEqual(coder.decode(encoded), signed_twin)
+
+    # Values outside the 64-bit range stay out of range on both paths.
+    for v in [1 << 64, (1 << 70), -(1 << 63) - 1]:
+      with self.assertRaises(OverflowError):
+        coder.encode(v)
+
   def test_varint32_coder(self):
     # Small ints.
     self.check_coder(coders.VarInt32Coder(), *range(-10, 10))
