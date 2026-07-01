@@ -18,7 +18,8 @@
 package org.apache.beam.sdk.io.components.throttling;
 
 import java.util.Random;
-import org.apache.beam.sdk.io.components.util.MovingSum;
+import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.util.MovingFunction;
 
 /**
  * Implements adaptive throttling.
@@ -37,39 +38,40 @@ public class AdaptiveThrottler {
   // https://landing.google.com/sre/book/chapters/handling-overload.html )
   public static final int MIN_REQUESTS = 1;
 
-  private final MovingSum allRequests;
-  private final MovingSum successfulRequests;
+  private final MovingFunction allRequests;
+  private final MovingFunction successfulRequests;
   private final double overloadRatio;
   private final Random random;
 
   /**
    * Initializes AdaptiveThrottler.
    *
-   * @param windowMs length of history to consider, in ms, to set throttling.
-   * @param bucketMs granularity of time buckets that we store data in, in ms.
+   * @param samplePeriodMs length of history to consider, in ms, to set throttling.
+   * @param sampleUpdateMs granularity of time buckets that we store data in, in ms.
    * @param overloadRatio the target ratio between requests sent and successful requests.
    */
-  public AdaptiveThrottler(long windowMs, long bucketMs, double overloadRatio) {
-    this(windowMs, bucketMs, overloadRatio, new Random());
+  public AdaptiveThrottler(long samplePeriodMs, long sampleUpdateMs, double overloadRatio) {
+    this(samplePeriodMs, sampleUpdateMs, overloadRatio, new Random());
   }
 
   // visible for testing
-  AdaptiveThrottler(long windowMs, long bucketMs, double overloadRatio, Random random) {
+  AdaptiveThrottler(long samplePeriodMs, long sampleUpdateMs, double overloadRatio, Random random) {
     if (overloadRatio <= 1.0) {
       throw new IllegalArgumentException("overloadRatio must be greater than 1.0");
     }
-    this.allRequests = new MovingSum(windowMs, bucketMs);
-    this.successfulRequests = new MovingSum(windowMs, bucketMs);
+    this.allRequests = new MovingFunction(samplePeriodMs, sampleUpdateMs, 1, 1, Sum.ofLongs());
+    this.successfulRequests =
+        new MovingFunction(samplePeriodMs, sampleUpdateMs, 1, 1, Sum.ofLongs());
     this.overloadRatio = overloadRatio;
     this.random = random;
   }
 
-  protected double throttlingProbability(long now) {
-    if (!allRequests.hasData(now)) {
+  protected double throttlingProbability(long nowMsSinceEpoch) {
+    long allReqs = allRequests.get(nowMsSinceEpoch);
+    if (!allRequests.isSignificant()) {
       return 0.0;
     }
-    long allReqs = allRequests.sum(now);
-    long successfulReqs = successfulRequests.sum(now);
+    long successfulReqs = successfulRequests.get(nowMsSinceEpoch);
     double prob = (allReqs - overloadRatio * successfulReqs) / (allReqs + MIN_REQUESTS);
     return Math.max(0.0, prob);
   }
@@ -80,12 +82,12 @@ public class AdaptiveThrottler {
    * <p>This should be called once each time the caller intends to send an RPC; if it returns true,
    * drop or delay that request (calling this function again after the delay).
    *
-   * @param now time in ms since the epoch
+   * @param nowMsSinceEpoch time in ms since the epoch
    * @return true if the caller should throttle or delay the request.
    */
-  public synchronized boolean throttleRequest(long now) {
-    double prob = throttlingProbability(now);
-    allRequests.add(now, 1);
+  public synchronized boolean throttleRequest(long nowMsSinceEpoch) {
+    double prob = throttlingProbability(nowMsSinceEpoch);
+    allRequests.add(nowMsSinceEpoch, 1);
     return random.nextDouble() < prob;
   }
 
@@ -95,9 +97,9 @@ public class AdaptiveThrottler {
    * <p>Must be called once for each request (for which throttleRequest was previously called) that
    * succeeded.
    *
-   * @param now time in ms since the epoch
+   * @param nowMsSinceEpoch time in ms since the epoch
    */
-  public synchronized void successfulRequest(long now) {
-    successfulRequests.add(now, 1);
+  public synchronized void successfulRequest(long nowMsSinceEpoch) {
+    successfulRequests.add(nowMsSinceEpoch, 1);
   }
 }

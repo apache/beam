@@ -41,16 +41,20 @@ public class ReactiveThrottler extends AdaptiveThrottler {
   /**
    * Initializes the ReactiveThrottler.
    *
-   * @param windowMs length of history to consider, in ms, to set throttling.
-   * @param bucketMs granularity of time buckets that we store data in, in ms.
+   * @param samplePeriodMs length of history to consider, in ms, to set throttling.
+   * @param sampleUpdateMs granularity of time buckets that we store data in, in ms.
    * @param overloadRatio the target ratio between requests sent and successful requests.
    * @param namespace the namespace to use for logging and signaling throttling is occurring.
    * @param throttleDelaySecs the amount of time in seconds to wait after preemptively throttled
    *     requests.
    */
   public ReactiveThrottler(
-      long windowMs, long bucketMs, double overloadRatio, String namespace, int throttleDelaySecs) {
-    super(windowMs, bucketMs, overloadRatio);
+      long samplePeriodMs,
+      long sampleUpdateMs,
+      double overloadRatio,
+      String namespace,
+      int throttleDelaySecs) {
+    super(samplePeriodMs, sampleUpdateMs, overloadRatio);
     if (throttleDelaySecs <= 0) {
       throw new IllegalArgumentException("throttleDelaySecs must be greater than 0");
     }
