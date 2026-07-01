@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -647,18 +648,10 @@ public class RemoteInferenceTest {
     TestParameters params = TestParameters.builder().setConfig("test-config").build();
 
     // Create enough inputs to ensure throttling probabilistically triggers
-    List<TestInput> inputs =
-        Arrays.asList(
-            new TestInput("input1"),
-            new TestInput("input2"),
-            new TestInput("input3"),
-            new TestInput("input4"),
-            new TestInput("input5"),
-            new TestInput("input6"),
-            new TestInput("input7"),
-            new TestInput("input8"),
-            new TestInput("input9"),
-            new TestInput("input10"));
+    List<TestInput> inputs = new ArrayList<>();
+    for (int i = 0; i < 30; i++) {
+      inputs.add(new TestInput("input" + i));
+    }
 
     PCollection<TestInput> inputCollection =
         pipeline.apply(
@@ -679,6 +672,7 @@ public class RemoteInferenceTest {
                 .withBatchConfig(batchConfig)
                 // Set to 1 second to minimize test wait time while still verifying throttling
                 .withThrottleDelaySecs(1)
+                .withOverloadRatio(1.1)
                 .withParameters(params));
 
     PAssert.that(results)
@@ -688,7 +682,7 @@ public class RemoteInferenceTest {
               for (Iterable<PredictionResult<TestInput, TestOutput>> batch : batches) {
                 totalElements += (int) StreamSupport.stream(batch.spliterator(), false).count();
               }
-              assertEquals("Expected all 10 elements to succeed", 10, totalElements);
+              assertEquals("Expected all 30 elements to succeed", 30, totalElements);
               return null;
             });
 
@@ -709,9 +703,9 @@ public class RemoteInferenceTest {
                             org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME))
                     .build());
 
-    // Throttling may not trigger if random numbers are very skewed, but with 10 elements * 2
-    // failures each = 20 failures,
-    // and overloadRatio=2.0, the chance of not throttling at least once is very small.
+    // Throttling may not trigger if random numbers are very skewed, but with 30 elements * 2
+    // failures each = 60 failures,
+    // and overloadRatio=1.1, the chance of not throttling at least once is very small.
     // If this test becomes flaky, increase the number of inputs.
     boolean hasThrottled =
         StreamSupport.stream(metrics.getCounters().spliterator(), false)

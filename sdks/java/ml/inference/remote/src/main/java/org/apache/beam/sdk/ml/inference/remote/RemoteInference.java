@@ -85,6 +85,12 @@ public class RemoteInference {
 
     abstract @Nullable Integer throttleDelaySecs();
 
+    abstract @Nullable Long samplePeriodMs();
+
+    abstract @Nullable Long sampleUpdateMs();
+
+    abstract @Nullable Double overloadRatio();
+
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
@@ -98,6 +104,12 @@ public class RemoteInference {
       abstract Builder<InputT, OutputT> setBatchConfig(BatchElements.BatchConfig batchConfig);
 
       abstract Builder<InputT, OutputT> setThrottleDelaySecs(Integer throttleDelaySecs);
+
+      abstract Builder<InputT, OutputT> setSamplePeriodMs(Long samplePeriodMs);
+
+      abstract Builder<InputT, OutputT> setSampleUpdateMs(Long sampleUpdateMs);
+
+      abstract Builder<InputT, OutputT> setOverloadRatio(Double overloadRatio);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -121,6 +133,21 @@ public class RemoteInference {
     /** Configures the throttling delay when the client is preemptively throttled. */
     public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
       return builder().setThrottleDelaySecs(throttleDelaySecs).build();
+    }
+
+    /** Configures the length of history to consider when setting throttling probability. */
+    public Invoke<InputT, OutputT> withSamplePeriodMs(long samplePeriodMs) {
+      return builder().setSamplePeriodMs(samplePeriodMs).build();
+    }
+
+    /** Configures the granularity of time buckets that we store data in for throttling. */
+    public Invoke<InputT, OutputT> withSampleUpdateMs(long sampleUpdateMs) {
+      return builder().setSampleUpdateMs(sampleUpdateMs).build();
+    }
+
+    /** Configures the target ratio between requests sent and successful requests. */
+    public Invoke<InputT, OutputT> withOverloadRatio(double overloadRatio) {
+      return builder().setOverloadRatio(overloadRatio).build();
     }
 
     @Override
@@ -162,12 +189,18 @@ public class RemoteInference {
       private transient @Nullable BaseModelHandler modelHandler;
       private final RetryHandler retryHandler;
       private final int throttleDelaySecs;
+      private final long samplePeriodMs;
+      private final long sampleUpdateMs;
+      private final double overloadRatio;
       private transient @Nullable ReactiveThrottler throttler;
 
       RemoteInferenceFn(Invoke<InputT, OutputT> spec) {
         this.handlerClass = spec.handler();
         this.parameters = spec.parameters();
         this.throttleDelaySecs = spec.throttleDelaySecs() != null ? spec.throttleDelaySecs() : 5;
+        this.samplePeriodMs = spec.samplePeriodMs() != null ? spec.samplePeriodMs() : 1000L;
+        this.sampleUpdateMs = spec.sampleUpdateMs() != null ? spec.sampleUpdateMs() : 1000L;
+        this.overloadRatio = spec.overloadRatio() != null ? spec.overloadRatio() : 2.0;
         retryHandler = RetryHandler.withDefaults();
       }
 
@@ -178,7 +211,12 @@ public class RemoteInference {
           this.modelHandler = handlerClass.getDeclaredConstructor().newInstance();
           this.modelHandler.createClient(parameters);
           this.throttler =
-              new ReactiveThrottler(1000, 1000, 2.0, "RemoteInference", throttleDelaySecs);
+              new ReactiveThrottler(
+                  samplePeriodMs,
+                  sampleUpdateMs,
+                  overloadRatio,
+                  "RemoteInference",
+                  throttleDelaySecs);
         } catch (Exception e) {
           throw new RuntimeException("Failed to instantiate handler: " + handlerClass.getName(), e);
         }
