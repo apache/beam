@@ -54,6 +54,8 @@ public class BagUserState<T> {
   private List<T> newValues;
   private boolean isCleared;
   private boolean isClosed;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
 
   static final int BAG_APPEND_BATCHING_LIMIT = 10 * 1024 * 1024;
 
@@ -63,18 +65,24 @@ public class BagUserState<T> {
       BeamFnStateClient beamFnStateClient,
       String instructionId,
       StateKey stateKey,
-      Coder<T> valueCoder) {
+      Coder<T> valueCoder,
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasBagUserState(), "Expected BagUserState StateKey but received %s.", stateKey);
     this.cache = cache;
     this.beamFnStateClient = beamFnStateClient;
     this.valueCoder = valueCoder;
+    this.hasNoState = hasNoState;
+    this.onlyBundleForKeys = onlyBundleForKeys;
     this.request =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
 
     this.oldValues =
-        StateFetchingIterators.readAllAndDecodeStartingFrom(
-            this.cache, beamFnStateClient, request, valueCoder);
+        hasNoState
+            ? CachingStateIterable.emptyIterable()
+            : StateFetchingIterators.readAllAndDecodeStartingFrom(
+                this.cache, beamFnStateClient, request, valueCoder);
     this.newValues = new ArrayList<>();
   }
 
@@ -83,8 +91,8 @@ public class BagUserState<T> {
         !isClosed,
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
-    if (isCleared) {
-      // If we were cleared we should disregard old values.
+    if (isCleared || hasNoState) {
+      // If we were cleared or have no state we should disregard old values.
       return PrefetchableIterables.limit(Collections.unmodifiableList(newValues), newValues.size());
     } else if (newValues.isEmpty()) {
       // If we have no new values then just return the old values.
@@ -120,7 +128,7 @@ public class BagUserState<T> {
         "Bag user state is no longer usable because it is closed for %s",
         request.getStateKey());
     isClosed = true;
-    if (!isCleared && newValues.isEmpty()) {
+    if (onlyBundleForKeys || (!isCleared && newValues.isEmpty())) {
       return;
     }
     if (isCleared) {

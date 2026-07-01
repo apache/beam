@@ -88,6 +88,8 @@ public class OrderedListUserState<T> {
 
   private boolean isCleared = false;
   private boolean isClosed = false;
+  private final boolean hasNoState;
+  private final boolean onlyBundleForKeys;
 
   public static class TimestampedValueCoder<T> extends StructuredCoder<TimestampedValue<T>> {
 
@@ -161,7 +163,9 @@ public class OrderedListUserState<T> {
       BeamFnStateClient beamFnStateClient,
       String instructionId,
       StateKey stateKey,
-      Coder<T> valueCoder) {
+      Coder<T> valueCoder,
+      boolean hasNoState,
+      boolean onlyBundleForKeys) {
     checkArgument(
         stateKey.hasOrderedListUserState(),
         "Expected OrderedListUserState StateKey but received %s.",
@@ -170,6 +174,8 @@ public class OrderedListUserState<T> {
     this.timestampedValueCoder = TimestampedValueCoder.of(valueCoder);
     this.requestTemplate =
         StateRequest.newBuilder().setInstructionId(instructionId).setStateKey(stateKey).build();
+    this.hasNoState = hasNoState;
+    this.onlyBundleForKeys = onlyBundleForKeys;
   }
 
   public void add(TimestampedValue<T> value) {
@@ -203,7 +209,7 @@ public class OrderedListUserState<T> {
     }
     Iterable<TimestampedValue<T>> valuesInRange = Iterables.concat(pendingAddsInRange);
 
-    if (!isCleared) {
+    if (!isCleared && !hasNoState) {
       StateRequest.Builder getRequestBuilder = this.requestTemplate.toBuilder();
       getRequestBuilder
           .getStateKeyBuilder()
@@ -283,6 +289,11 @@ public class OrderedListUserState<T> {
 
   public void asyncClose() throws Exception {
     isClosed = true;
+    if (onlyBundleForKeys) {
+      pendingRemoves.clear();
+      pendingAdds.clear();
+      return;
+    }
 
     if (!pendingRemoves.isEmpty()) {
       for (Range<Instant> r : pendingRemoves.asRanges()) {

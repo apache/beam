@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
@@ -76,7 +77,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
     assertThat(userState.read(), is(emptyIterable()));
   }
 
@@ -92,7 +95,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     assertArrayEquals(
         asList(A1, B1).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
@@ -116,7 +121,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     Iterable<TimestampedValue<String>> stateBeforeB2 =
         userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
@@ -171,7 +178,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     // add to an existing timestamp
     userState.add(B1);
@@ -216,7 +225,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     Iterable<TimestampedValue<String>> initStateFrom2To3 =
         userState.readRange(Instant.ofEpochMilli(2), Instant.ofEpochMilli(4));
@@ -284,7 +295,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     Iterable<TimestampedValue<String>> stateBeforeClear = userState.read();
     userState.clear();
@@ -316,7 +329,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     // add to a non-existing timestamp, clear, and then add
     userState.add(A2);
@@ -387,7 +402,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     userState.clear();
     userState.clearRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(5));
@@ -427,7 +444,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       userState.asyncClose();
     }
@@ -439,7 +458,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       assertArrayEquals(
           asList(A1, A3, A4).toArray(),
@@ -466,7 +487,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       userState.add(B1);
       userState.add(A2);
@@ -479,7 +502,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       assertArrayEquals(
           asList(A1, B1, A2, A3, A4).toArray(),
@@ -508,7 +533,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       userState.clearRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(3));
       userState.clearRange(Instant.ofEpochMilli(4), Instant.ofEpochMilli(5));
@@ -521,7 +548,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       assertArrayEquals(
           Collections.singletonList(A3).toArray(),
@@ -546,7 +575,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       userState.add(B1);
       userState.add(A2);
@@ -562,7 +593,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       assertArrayEquals(
           Collections.singletonList(A3).toArray(),
@@ -591,7 +624,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       userState.clear();
       userState.asyncClose();
@@ -603,7 +638,9 @@ public class OrderedListUserStateTest {
               fakeClient,
               "instructionId",
               createOrderedListStateKey("A"),
-              StringUtf8Coder.of());
+              StringUtf8Coder.of(),
+              false /* hasNoState */,
+              false /* onlyBundleForKeys */);
 
       assertThat(userState.read(), is(emptyIterable()));
     }
@@ -630,7 +667,9 @@ public class OrderedListUserStateTest {
             fakeClient,
             "instructionId",
             createOrderedListStateKey("A"),
-            StringUtf8Coder.of());
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            false /* onlyBundleForKeys */);
 
     Iterator<TimestampedValue<String>> iter = userState.read().iterator();
     assertEquals(iter.next(), A1);
@@ -648,6 +687,147 @@ public class OrderedListUserStateTest {
     // Clearing all ranges locally, but A4 should still be returned.
     userState.clear();
     assertEquals(iter.next(), A4);
+  }
+
+  @Test
+  public void testHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(userState.read(), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+    userState.asyncClose();
+
+    // The added value will be persisted, appended to the old values (since we didn't clear)
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A2, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
+  public void testReadRangeHasNoState() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            true, /* hasNoState */
+            false /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(
+        userState.readRange(Instant.ofEpochMilli(0), Instant.ofEpochMilli(2)), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(
+            userState.readRange(Instant.ofEpochMilli(1), Instant.ofEpochMilli(3)),
+            TimestampedValue.class));
+    userState.asyncClose();
+
+    // The added value will be persisted, appended to the old values (since we didn't clear)
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A2, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
+  public void testOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            false /* hasNoState */,
+            true /* onlyBundleForKeys */);
+
+    // Reads still work
+    assertArrayEquals(
+        Collections.singletonList(A1).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    // Add something
+    userState.add(A2);
+
+    // We can observe the added value locally
+    assertArrayEquals(
+        asList(A1, A2).toArray(), Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    userState.asyncClose();
+
+    // But when we close, the data is NOT persisted because onlyBundleForKeys = true
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A1, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 1)));
+    assertFalse(fakeClient.getData().containsKey(createOrderedListStateKey("A", 2)));
+  }
+
+  @Test
+  public void testHasNoStateAndOnlyBundleForKeys() throws Exception {
+    FakeBeamFnStateClient fakeClient =
+        new FakeBeamFnStateClient(
+            timestampedValueCoder,
+            ImmutableMap.of(createOrderedListStateKey("A", 1), Collections.singletonList(A1)));
+    OrderedListUserState<String> userState =
+        new OrderedListUserState<>(
+            Caches.noop(),
+            fakeClient,
+            "instructionId",
+            createOrderedListStateKey("A"),
+            StringUtf8Coder.of(),
+            true /* hasNoState */,
+            true /* onlyBundleForKeys */);
+
+    // Iterating should be empty since hasNoState is true
+    assertThat(userState.read(), is(emptyIterable()));
+
+    // We can add new values
+    userState.add(A2);
+
+    // We can observe the added value locally
+    assertArrayEquals(
+        Collections.singletonList(A2).toArray(),
+        Iterables.toArray(userState.read(), TimestampedValue.class));
+
+    userState.asyncClose();
+
+    // The data is NOT persisted because onlyBundleForKeys = true, and the old data remains
+    // untouched
+    ByteStringOutputStream out = new ByteStringOutputStream();
+    timestampedValueCoder.encode(A1, out);
+    assertEquals(out.toByteString(), fakeClient.getData().get(createOrderedListStateKey("A", 1)));
+    assertFalse(fakeClient.getData().containsKey(createOrderedListStateKey("A", 2)));
   }
 
   private ByteString encode(String... values) throws IOException {

@@ -245,7 +245,9 @@ public class ProcessBundleHandler {
       BundleFinalizer bundleFinalizer,
       Collection<BeamFnDataReadRunner<?>> channelRoots,
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
-      Set<String> runnerCapabilities)
+      Set<String> runnerCapabilities,
+      Supplier<Boolean> hasNoState,
+      Supplier<Boolean> onlyBundleForKeys)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -277,7 +279,9 @@ public class ProcessBundleHandler {
             bundleFinalizer,
             channelRoots,
             outboundAggregatorMap,
-            runnerCapabilities);
+            runnerCapabilities,
+            hasNoState,
+            onlyBundleForKeys);
       }
     }
 
@@ -482,6 +486,16 @@ public class ProcessBundleHandler {
                 @Override
                 public BundleFinalizer getBundleFinalizer() {
                   return bundleFinalizer;
+                }
+
+                @Override
+                public Supplier<Boolean> getHasNoStateSupplier() {
+                  return hasNoState;
+                }
+
+                @Override
+                public Supplier<Boolean> getOnlyBundleForKeysSupplier() {
+                  return onlyBundleForKeys;
                 }
               });
       processedPTransformIds.add(pTransformId);
@@ -923,7 +937,9 @@ public class ProcessBundleHandler {
           bundleFinalizer,
           bundleProcessor.getChannelRoots(),
           bundleProcessor.getOutboundAggregators(),
-          bundleProcessor.getRunnerCapabilities());
+          bundleProcessor.getRunnerCapabilities(),
+          bundleProcessor::getHasNoState,
+          bundleProcessor::getOnlyBundleForKeys);
     }
     bundleProcessor.finish();
 
@@ -1086,6 +1102,8 @@ public class ProcessBundleHandler {
     private String instructionId;
     private List<CacheToken> cacheTokens;
     private ClearableCache<Object, Object> bundleCache;
+    private boolean hasNoState = false;
+    private boolean onlyBundleForKeys = false;
 
     abstract Cache<?, ?> getProcessWideCache();
 
@@ -1144,6 +1162,14 @@ public class ProcessBundleHandler {
       return this.bundleCache;
     }
 
+    synchronized boolean getHasNoState() {
+      return this.hasNoState;
+    }
+
+    synchronized boolean getOnlyBundleForKeys() {
+      return this.onlyBundleForKeys;
+    }
+
     private BeamFnDataInboundObserver inboundObserver2;
 
     BeamFnDataInboundObserver getInboundObserver() {
@@ -1162,6 +1188,8 @@ public class ProcessBundleHandler {
     synchronized void setupForProcessBundleRequest(InstructionRequest request) {
       this.instructionId = request.getInstructionId();
       this.cacheTokens = request.getProcessBundle().getCacheTokensList();
+      this.hasNoState = request.getProcessBundle().getHasNoState();
+      this.onlyBundleForKeys = request.getProcessBundle().getOnlyBundleForKeys();
       getMetricsEnvironmentStateForBundle().start(getStateTracker().getMetricsContainer());
     }
 
@@ -1169,6 +1197,8 @@ public class ProcessBundleHandler {
       synchronized (this) {
         this.instructionId = null;
         this.cacheTokens = null;
+        this.hasNoState = false;
+        this.onlyBundleForKeys = false;
         if (this.bundleCache != null) {
           this.bundleCache.clear();
           this.bundleCache = null;
@@ -1190,6 +1220,8 @@ public class ProcessBundleHandler {
       synchronized (this) {
         this.instructionId = null;
         this.cacheTokens = null;
+        this.hasNoState = false;
+        this.onlyBundleForKeys = false;
         if (this.bundleCache != null) {
           this.bundleCache.clear();
         }
