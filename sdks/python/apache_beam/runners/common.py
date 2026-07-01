@@ -1475,6 +1475,7 @@ class DoFnRunner:
             do_fn_signature.process_batch_method.method_value,
             '_beam_yields_elements',
             False),
+        check_user_dofn_output=not isinstance(fn, core.CallableWrapperDoFn),
     )
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
@@ -1633,6 +1634,7 @@ class _OutputHandler(OutputHandler):
       output_batch_converter,  # type: Optional[BatchConverter]
       process_yields_batches,  # type: bool
       process_batch_yields_elements,  # type: bool
+      check_user_dofn_output=False,  # type: bool
   ):
     """Initializes ``_OutputHandler``.
 
@@ -1642,6 +1644,12 @@ class _OutputHandler(OutputHandler):
       tagged_receivers: main receiver object.
       per_element_output_counter: per_element_output_counter of one work_item.
                                   could be none if experimental flag turn off
+      check_user_dofn_output: if True, validate that a user-class DoFn does not
+                              return a str/bytes/dict (a common bug — see
+                              https://github.com/apache/beam/issues/18712).
+                              Skipped for callable-wrapped DoFns (Map/FlatMap)
+                              where iterating a returned str/bytes/dict is a
+                              legitimate flatten use case.
     """
     self.window_fn = window_fn
     self.main_receivers = main_receivers
@@ -1654,6 +1662,7 @@ class _OutputHandler(OutputHandler):
     self.output_batch_converter = output_batch_converter
     self._process_yields_batches = process_yields_batches
     self._process_batch_yields_elements = process_batch_yields_elements
+    self._check_user_dofn_output = check_user_dofn_output
 
   def handle_process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
@@ -1666,6 +1675,13 @@ class _OutputHandler(OutputHandler):
     """
     if results is None:
       results = []
+
+    if self._check_user_dofn_output and isinstance(results, (str, bytes, dict)):
+      object_type = type(results).__name__
+      raise TypeError(
+          'Returning a %s from a ParDo or FlatMap is not allowed. '
+          'Please use list(%r) if you really want this behavior.' %
+          (object_type, results))
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if

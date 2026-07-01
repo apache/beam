@@ -85,9 +85,11 @@
 
 ## Breaking Changes
 
+* `DoFn.process` returning a `str`, `bytes`, or `dict` (instead of an iterable wrapping one) now raises a `TypeError` rather than silently iterating per-character/byte/key (Python) ([#18712](https://github.com/apache/beam/issues/18712)).
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
