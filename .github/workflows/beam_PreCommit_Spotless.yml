@@ -62,7 +62,7 @@ env:
 jobs:
   beam_PreCommit_Spotless:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    timeout-minutes: 120
+    timeout-minutes: 360
     runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
@@ -77,6 +77,8 @@ jobs:
       github.event.comment.body == 'Run Spotless PreCommit'
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -85,6 +87,29 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+      - name: Fetch base branch for Spotless ratchet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          elif [ "${{ github.event_name }}" = "issue_comment" ]; then
+            BASE_REF=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json baseRefName --jq .baseRefName)
+            PR_NUMBER="${{ github.event.issue.number }}"
+          else
+            BASE_REF="master"
+          fi
+          echo "Base ref is $BASE_REF"
+          if [ -n "$BASE_REF" ]; then
+            git fetch --no-tags --prune origin ${BASE_REF}:refs/remotes/origin/${BASE_REF}
+          fi
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Deepening PR #$PR_NUMBER"
+            git fetch --no-tags origin +refs/pull/${PR_NUMBER}/merge:refs/remotes/pull/${PR_NUMBER}/merge || \
+            git fetch --no-tags origin +refs/pull/${PR_NUMBER}/head:refs/remotes/pull/${PR_NUMBER}/head
+          fi
+        shell: bash
       - name: run Spotless PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

@@ -507,6 +507,41 @@ class BeamModulePlugin implements Plugin<Project> {
 
     project.ext.mavenGroupId = 'org.apache.beam'
 
+    project.ext.getRatchetBranch = {
+      ->
+      if (project.hasProperty('disableSpotlessRatchet') && project.disableSpotlessRatchet == 'true') {
+        return null
+      }
+      try {
+        def checkRef = { ref ->
+          try {
+            def res = project.exec {
+              executable 'git'
+              args 'rev-parse', '--verify', ref
+              ignoreExitValue = true
+              standardOutput = new ByteArrayOutputStream()
+              errorOutput = new ByteArrayOutputStream()
+            }
+            return res.getExitValue() == 0
+          } catch (Exception e) {
+            return false
+          }
+        }
+
+        if (checkRef('upstream/master')) {
+          return 'upstream/master'
+        } else if (checkRef('origin/master')) {
+          return 'origin/master'
+        } else if (checkRef('master')) {
+          return 'master'
+        } else {
+          return null
+        }
+      } catch (Exception e) {
+        return null
+      }
+    }
+
     // Default to dash-separated directories for artifact base name,
     // which will also be the default artifactId for maven publications
     project.apply plugin: 'base'
@@ -1312,7 +1347,10 @@ class BeamModulePlugin implements Plugin<Project> {
 
         // The "errorprone" configuration controls the classpath used by errorprone static analysis, which
         // has different dependencies than our project.
-        if (config.getName() != "errorprone" && !inDependencyUpdates) {
+        if (config.getName() != "errorprone" &&
+            !config.getName().startsWith("spotless") &&
+            !config.getName().startsWith("checkstyle") &&
+            !inDependencyUpdates) {
           config.resolutionStrategy {
             // Filtering versionless coordinates that depend on BOM. Beam project needs to set the
             // versions for only handful libraries when building the project (BEAM-9542).
@@ -1476,9 +1514,13 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat('1.7')
+          googleJavaFormat('1.17.0')
           target project.fileTree(project.projectDir) {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
@@ -1602,6 +1644,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.tasks.withType(JavaCompile).configureEach {
         // we configure the Java compiler to use UTF-8.
         options.encoding = "UTF-8"
+        options.fork = true
+        options.forkOptions.memoryMaximumSize = '4g'
         // If compiled on newer JDK, set byte code compatibility
         if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
           def compatVersion = project.javaVersion == '11' ? '11' : project.javaVersion
@@ -2098,7 +2142,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
-                      if (it.version != null) { // bom-managed artifacts do not have their versions
+                      if (it.version != null) {
+                        // bom-managed artifacts do not have their versions
                         dependencyNode.appendNode('version', it.version)
                       }
                       dependencyNode.appendNode('scope', param.scope)
@@ -2403,10 +2448,17 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+        def ratchetBranch = project.ext.getRatchetBranch()
+        if (ratchetBranch != null) {
+          ratchetFrom ratchetBranch
+        }
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
           greclipse().configFile(grEclipseConfig)
-          target project.fileTree(project.projectDir) { include '**/*.groovy' }
+          target project.fileTree(project.projectDir) {
+            include '**/*.groovy'
+            exclude '**/build/**'
+          }
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
@@ -2465,7 +2517,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:$protobuf_version" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2547,7 +2600,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2745,7 +2799,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
@@ -3037,7 +3092,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
