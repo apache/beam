@@ -327,14 +327,12 @@ public class MqttIO {
 
       if (getUsername() != null) {
         LOG.debug("MQTT client uses username {}", getUsername());
-        builder =
-            builder
-                .simpleAuth()
-                .username(getUsername())
-                .password(getPassword().getBytes(StandardCharsets.UTF_8))
-                .applySimpleAuth();
+        var auth = builder.simpleAuth().username(getUsername());
+        if (getPassword() != null) {
+          auth = auth.password(getPassword().getBytes(StandardCharsets.UTF_8));
+        }
+        builder = auth.applySimpleAuth();
       }
-
       return builder.buildBlocking();
     }
   }
@@ -660,15 +658,23 @@ public class MqttIO {
     @Override
     public void close() throws IOException {
       LOG.debug("Closing MQTT reader (client ID {})", clientId);
-      try {
-        if (publishes != null) {
+      if (publishes != null) {
+        try {
           publishes.close();
+        } catch (Exception e) {
+          LOG.warn("Error closing publishes stream", e);
+        } finally {
+          publishes = null;
         }
-        if (client != null) {
+      }
+      if (client != null) {
+        try {
           client.disconnect();
+        } catch (Exception e) {
+          throw new IOException(e);
+        } finally {
+          client = null;
         }
-      } catch (Exception e) {
-        throw new IOException(e);
       }
     }
 
