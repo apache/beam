@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
+import org.apache.beam.sdk.io.components.throttling.ReactiveThrottler;
 import org.apache.beam.sdk.transforms.BatchElements;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -82,6 +83,8 @@ public class RemoteInference {
 
     abstract BatchElements.@Nullable BatchConfig batchConfig();
 
+    abstract @Nullable Integer throttleDelaySecs();
+
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
@@ -93,6 +96,8 @@ public class RemoteInference {
       abstract Builder<InputT, OutputT> setParameters(BaseModelParameters modelParameters);
 
       abstract Builder<InputT, OutputT> setBatchConfig(BatchElements.BatchConfig batchConfig);
+
+      abstract Builder<InputT, OutputT> setThrottleDelaySecs(Integer throttleDelaySecs);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -111,6 +116,11 @@ public class RemoteInference {
     /** Configures the batching behavior for the inputs. */
     public Invoke<InputT, OutputT> withBatchConfig(BatchElements.BatchConfig batchConfig) {
       return builder().setBatchConfig(batchConfig).build();
+    }
+
+    /** Configures the throttling delay when the client is preemptively throttled. */
+    public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
+      return builder().setThrottleDelaySecs(throttleDelaySecs).build();
     }
 
     @Override
@@ -151,10 +161,13 @@ public class RemoteInference {
       private final BaseModelParameters parameters;
       private transient @Nullable BaseModelHandler modelHandler;
       private final RetryHandler retryHandler;
+      private final int throttleDelaySecs;
+      private transient @Nullable ReactiveThrottler throttler;
 
       RemoteInferenceFn(Invoke<InputT, OutputT> spec) {
         this.handlerClass = spec.handler();
         this.parameters = spec.parameters();
+        this.throttleDelaySecs = spec.throttleDelaySecs() != null ? spec.throttleDelaySecs() : 5;
         retryHandler = RetryHandler.withDefaults();
       }
 
@@ -164,6 +177,8 @@ public class RemoteInference {
         try {
           this.modelHandler = handlerClass.getDeclaredConstructor().newInstance();
           this.modelHandler.createClient(parameters);
+          this.throttler =
+              new ReactiveThrottler(1000, 1000, 2.0, "RemoteInference", throttleDelaySecs);
         } catch (Exception e) {
           throw new RuntimeException("Failed to instantiate handler: " + handlerClass.getName(), e);
         }
@@ -172,7 +187,19 @@ public class RemoteInference {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterable<PredictionResult<InputT, OutputT>> response =
-            retryHandler.execute(() -> modelHandler.request(c.element()));
+            retryHandler.execute(
+                () -> {
+                  if (throttler != null) {
+                    throttler.throttle();
+                  }
+                  long reqTime = System.currentTimeMillis();
+                  Iterable<PredictionResult<InputT, OutputT>> result =
+                      modelHandler.request(c.element());
+                  if (throttler != null) {
+                    throttler.successfulRequest(reqTime);
+                  }
+                  return result;
+                });
         c.output(response);
       }
     }
