@@ -1062,8 +1062,82 @@ class RecordingManagerTest(unittest.TestCase):
     ie.current_env().mark_pcollection_computing({p1})
 
     self.assertTrue(rm._wait_for_dependencies({p2}))
-    mock_future.result.assert_called_once()
+    mock_async_res.wait_for_completion.assert_called_once()
     ie.current_env().unmark_pcollection_computing({p1})
+
+  def test_wait_for_dependencies_async_result(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll = p | beam.Create([1])
+    rm = RecordingManager(p)
+
+    # Mock a background computation for pcoll
+    async_res = MagicMock(spec=AsyncComputationResult)
+    async_res._pcolls = {pcoll}
+    rm._async_computations['id1'] = async_res
+    ie.current_env().mark_pcollection_computing({pcoll})
+
+    # Case 1: Called from main thread (async_result=None)
+    # It should wait for pcoll's background job completion event
+    with patch.object(async_res, 'wait_for_completion') as mock_wait:
+      with patch.object(rm, '_get_all_dependencies', return_value=set()):
+        rm._wait_for_dependencies({pcoll}, async_result=None)
+        mock_wait.assert_called_once()
+
+    # Case 2: Called from background thread (async_result=async_res)
+    # It should NOT wait (prevents self-deadlock)
+    with patch.object(async_res, 'wait_for_completion') as mock_wait:
+      with patch.object(rm, '_get_all_dependencies', return_value=set()):
+        rm._wait_for_dependencies({pcoll}, async_result=async_res)
+        mock_wait.assert_not_called()
+
+  def test_record_recalculates_uncomputed_pcolls_after_wait(self):
+    from apache_beam.runners.interactive import pipeline_fragment as pf
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll = p | beam.Create([1])
+    rm = RecordingManager(p)
+
+    # Mock wait_for_dependencies to simulate pcoll completing during the wait
+    def mock_wait(pcolls, async_result=None):
+      # Simulate pcoll completing by marking it computed
+      ie.current_env().mark_pcollection_computed({pcoll})
+      return True
+
+    with patch.object(rm, '_wait_for_dependencies', side_effect=mock_wait), \
+         patch.object(rm, '_clear') as mock_clear, \
+         patch.object(pf, 'PipelineFragment') as mock_fragment:
+
+      rm.record([pcoll], max_n=10, max_duration='inf')
+
+      # Since pcoll was marked computed during the wait,
+      # uncomputed_pcolls becomes empty.
+      # So _clear() and PipelineFragment should NOT be called.
+      mock_clear.assert_not_called()
+      mock_fragment.assert_not_called()
+
+  def test_get_pipeline_graph_not_cached(self):
+    p = beam.Pipeline(InteractiveRunner())
+    pcoll1 = p | 'Create1' >> beam.Create([1])
+    rm = RecordingManager(p)
+
+    # First call: graph is created
+    graph1 = rm._get_pipeline_graph()
+    self.assertIsNotNone(graph1)
+    self.assertEqual(graph1._pipeline_instrument.user_pipeline, p)
+
+    # Add a new transform to the pipeline
+    pcoll2 = pcoll1 | 'Map1' >> beam.Map(lambda x: x + 1)
+
+    # Second call: graph should be updated and contain the new Map1 transform
+    graph2 = rm._get_pipeline_graph()
+    self.assertIsNotNone(graph2)
+    self.assertIsNot(graph1, graph2)
+
+    # Verify that the new graph contains the newly added transform
+    transform_names = [
+        t.unique_name
+        for t in graph2._pipeline_proto.components.transforms.values()
+    ]
+    self.assertIn('Map1', transform_names)
 
 
 if __name__ == '__main__':
