@@ -442,6 +442,7 @@ except ImportError:
 __all__ = [
     'TableRowJsonCoder',
     'BigQueryDisposition',
+    'BigQuerySchemaUpdateOption',
     'BigQuerySource',
     'BigQuerySink',
     'BigQueryQueryPriority',
@@ -482,6 +483,35 @@ Note: The actual limit is 10MB, but we set it to 9MB to make room for request
 overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 << 20
+
+_SCHEMA_UPDATE_OPTIONS = 'schemaUpdateOptions'
+
+
+def _merge_schema_update_options(
+    additional_bq_parameters, schema_update_options):
+  additional_bq_parameters = dict(additional_bq_parameters or {})
+  if _SCHEMA_UPDATE_OPTIONS in additional_bq_parameters:
+    raise ValueError(
+        '%s can be set with either schema_update_options or '
+        'additional_bq_parameters, but not both.' % _SCHEMA_UPDATE_OPTIONS)
+  additional_bq_parameters[_SCHEMA_UPDATE_OPTIONS] = schema_update_options
+  return additional_bq_parameters
+
+
+class _AdditionalBQParametersWithSchemaUpdateOptions(object):
+  def __init__(self, additional_bq_parameters, schema_update_options):
+    self.additional_bq_parameters = additional_bq_parameters
+    self.schema_update_options = schema_update_options
+
+  def __call__(self, destination):
+    if callable(self.additional_bq_parameters):
+      additional_bq_parameters = self.additional_bq_parameters(destination)
+    elif isinstance(self.additional_bq_parameters, vp.ValueProvider):
+      additional_bq_parameters = self.additional_bq_parameters.get()
+    else:
+      additional_bq_parameters = self.additional_bq_parameters
+    return _merge_schema_update_options(
+        additional_bq_parameters, self.schema_update_options)
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -578,6 +608,13 @@ class BigQueryDisposition(object):
       raise ValueError(
           'Invalid write disposition %s. Expecting %s' % (disposition, values))
     return disposition
+
+
+class BigQuerySchemaUpdateOption(object):
+  """Class holding standard strings used for schema update options."""
+
+  ALLOW_FIELD_ADDITION = 'ALLOW_FIELD_ADDITION'
+  ALLOW_FIELD_RELAXATION = 'ALLOW_FIELD_RELAXATION'
 
 
 class BigQueryQueryPriority(object):
@@ -2007,7 +2044,8 @@ class WriteToBigQuery(PTransform):
       primary_key: list[str] = None,
       expansion_service=None,
       big_lake_configuration=None,
-      type_overrides=None):
+      type_overrides=None,
+      schema_update_options=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2108,6 +2146,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         These can be 'timePartitioning', 'clustering', etc. They are passed
         directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
+      schema_update_options (list): Allows the schema of the destination
+        table to be updated as a side effect of the load job. Supported values
+        are :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION` and
+        :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION`. This option
+        is only valid for ``FILE_LOADS`` and cannot be specified together with
+        ``schemaUpdateOptions`` in ``additional_bq_parameters``.
       table_side_inputs (tuple): A tuple with ``AsSideInput`` PCollections to be
         passed to the table callable (if one is provided).
       schema_side_inputs: A tuple with ``AsSideInput`` PCollections to be
@@ -2222,6 +2266,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
+    self.schema_update_options = schema_update_options
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
@@ -2252,6 +2297,16 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     else:
       return self.method
 
+  def _additional_bq_parameters_for_file_loads(self):
+    if self.schema_update_options is None:
+      return self.additional_bq_parameters
+    if (callable(self.additional_bq_parameters) or
+        isinstance(self.additional_bq_parameters, vp.ValueProvider)):
+      return _AdditionalBQParametersWithSchemaUpdateOptions(
+          self.additional_bq_parameters, self.schema_update_options)
+    return _merge_schema_update_options(
+        self.additional_bq_parameters, self.schema_update_options)
+
   def expand(self, pcoll):
     p = pcoll.pipeline
 
@@ -2269,6 +2324,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
 
     experiments = p.options.view_as(DebugOptions).experiments or []
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
+
+    if (self.schema_update_options is not None and
+        method_to_use != WriteToBigQuery.Method.FILE_LOADS):
+      raise ValueError(
+          'schema_update_options is only supported when writing to BigQuery '
+          'with FILE_LOADS.')
 
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
       if self.schema == SCHEMA_AUTODETECT:
@@ -2369,7 +2430,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           test_client=self.test_client,
           table_side_inputs=self.table_side_inputs,
           schema_side_inputs=self.schema_side_inputs,
-          additional_bq_parameters=self.additional_bq_parameters,
+          additional_bq_parameters=(
+              self._additional_bq_parameters_for_file_loads()),
           validate=self._validate,
           is_streaming_pipeline=is_streaming_pipeline,
           load_job_project_id=self.load_job_project_id)
@@ -2448,6 +2510,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         'method': self.method,
         'insert_retry_strategy': self.insert_retry_strategy,
         'additional_bq_parameters': self.additional_bq_parameters,
+        'schema_update_options': self.schema_update_options,
         'table_side_inputs': table_side_inputs,
         'schema_side_inputs': schema_side_inputs,
         'triggering_frequency': self.triggering_frequency,
