@@ -231,6 +231,9 @@ public class RemoteInference {
                     throttler.throttle();
                   }
                   long reqTime = System.currentTimeMillis();
+                  if (modelHandler == null) {
+                    throw new IllegalStateException("modelHandler is not initialized");
+                  }
                   Iterable<PredictionResult<InputT, OutputT>> result =
                       modelHandler.request(c.element());
                   if (throttler != null) {
