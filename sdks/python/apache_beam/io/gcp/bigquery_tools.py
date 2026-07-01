@@ -750,17 +750,18 @@ class BigQueryWrapper(object):
       else:
         for insert_error in errors:
           service_call_metric.call(insert_error['errors'][0])
-    except ClientError as e:
-      # e.code contains the numeric http status code.
-      service_call_metric.call(e.code)
-      # Package exception with required fields
-      error = {'message': e.message, 'reason': e.response.reason}
-      # Add all rows to the errors list along with the error
-      errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
     except GoogleAPICallError as e:
       service_call_metric.call(getattr(e, 'code', e))
-      # Re-raise the exception so that we re-try appropriately.
-      raise
+      # Package exception with required fields
+      reason = getattr(e, 'reason', None)
+      if reason is None and hasattr(e, 'response') and hasattr(e.response, 'reason'):
+        reason = e.response.reason
+      if reason is None:
+        reason = getattr(e, 'message', str(e))
+        
+      error = {'message': getattr(e, 'message', str(e)), 'reason': reason}
+      # Add all rows to the errors list along with the error
+      errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
     finally:
       self._latency_histogram_metric.update(
           int(time.time() * 1000) - started_millis)
