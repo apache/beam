@@ -123,7 +123,9 @@ class BigqueryTableMatcherTest(unittest.TestCase):
     mock_query_result = mock.Mock()
     mock_query_result.to_api_repr.return_value = {
         'partitioning': 'a lot of partitioning',
-        'clustering': {'column': 'FRIENDS'}
+        'clustering': {
+            'column': 'FRIENDS'
+        }
     }
 
     mock_bigquery.return_value.get_table.return_value = mock_query_result
