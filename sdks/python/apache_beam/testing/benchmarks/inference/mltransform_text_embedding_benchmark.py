@@ -16,9 +16,8 @@
 #
 
 import logging
-
-from google.cloud import monitoring_v3
-from google.protobuf.duration_pb2 import Duration
+from datetime import datetime
+from typing import Optional
 
 from apache_beam.examples.ml_transform import mltransform_text_embedding
 from apache_beam.options.pipeline_options import DebugOptions
@@ -68,69 +67,24 @@ class MLTransformTextEmbeddingBenchmarkTest(DataflowCostBenchmark):
       self,
       project: str,
       job_id: str,
-      start_time: str,
-      end_time: str,
-      pcollection_name: str | None = None) -> dict[str, float]:
-    pcollection_candidates = [
-        pcollection_name or self.pcollection,
-        'MLTransformTextEmbeddings.out0',
-        'MLTransformTextEmbeddings/RunInference.out0',
-        'MLTransformTextEmbeddings/RunInference/'
-        'BeamML_RunInference_Postprocess-0.out0',
-        'WriteOutput/Write/WriteImpl/FinalizeWrite.out0',
-    ]
-    seen = set()
-    for candidate in pcollection_candidates:
-      if not candidate or candidate in seen:
-        continue
-      seen.add(candidate)
-      metrics = super()._get_throughput_metrics(
-          project, job_id, start_time, end_time, candidate)
-      if (metrics.get('AvgThroughputBytes', 0) > 0 or
-          metrics.get('AvgThroughputElements', 0) > 0):
-        logging.info('Using throughput metrics for PCollection %s', candidate)
-        return metrics
-
-    logging.warning(
-        'No PCollection-level throughput metrics found for candidates %s. '
-        'Falling back to job-level Dataflow throughput metrics.',
-        pcollection_candidates)
-    return self._get_job_level_throughput_metrics(
-        project, job_id, start_time, end_time)
-
-  def _get_job_level_throughput_metrics(
-      self, project: str, job_id: str, start_time: str,
-      end_time: str) -> dict[str, float]:
-    interval = monitoring_v3.TimeInterval(
-        start_time=start_time, end_time=end_time)
-    aggregation = monitoring_v3.Aggregation(
-        alignment_period=Duration(seconds=60),
-        per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN)
-    requests = {
-        'Bytes': monitoring_v3.ListTimeSeriesRequest(
-            name=f'projects/{project}',
-            filter=f'metric.type='
-            f'"dataflow.googleapis.com/job/estimated_byte_count" '
-            f'AND metric.labels.job_id="{job_id}"',
-            interval=interval,
-            aggregation=aggregation),
-        'Elements': monitoring_v3.ListTimeSeriesRequest(
-            name=f'projects/{project}',
-            filter=f'metric.type="dataflow.googleapis.com/job/element_count" '
-            f'AND metric.labels.job_id="{job_id}"',
-            interval=interval,
-            aggregation=aggregation),
-    }
-    metrics = {}
-    for key, request in requests.items():
-      values = [
-          point.value.double_value
-          for series in self.monitoring_client.list_time_series(
-              request=request) for point in series.points
-      ]
-      metrics[f'AvgThroughput{key}'] = sum(values) / len(
-          values) if values else 0.0
-    return metrics
+      start_time: datetime,
+      end_time: datetime,
+      pcollection_name: Optional[str] = None,
+  ) -> dict[str, float]:
+    return self._get_throughput_metrics_with_pcollection_fallback(
+        project,
+        job_id,
+        start_time,
+        end_time,
+        pcollection_candidates=[
+            self.pcollection,
+            'MLTransformTextEmbeddings.out0',
+            'MLTransformTextEmbeddings/RunInference.out0',
+            'MLTransformTextEmbeddings/RunInference/'
+            'BeamML_RunInference_Postprocess-0.out0',
+            'WriteOutput/Write/WriteImpl/FinalizeWrite.out0',
+        ],
+        pcollection_name=pcollection_name)
 
   def test(self):
     input_path = self.opts.input or self.opts.input_file
