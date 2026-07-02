@@ -67,6 +67,10 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.AccessToken;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.QuotaProjectIdProvider;
 import com.google.cloud.bigquery.storage.v1.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
@@ -2171,6 +2175,40 @@ public class BigQueryServicesImplTest {
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
     impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testQuotaProjectIdOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryQuotaProjectId("my-quota-project");
+
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+  }
+
+  @Test
+  public void testMaybeWithQuotaProjectId() throws IOException {
+    GoogleCredentials credentials =
+        GoogleCredentials.create(AccessToken.newBuilder().setTokenValue("fake-token").build());
+
+    Credentials withQuota =
+        BigQueryServicesImpl.maybeWithQuotaProjectId(credentials, "my-quota-project");
+    assertEquals("my-quota-project", ((QuotaProjectIdProvider) withQuota).getQuotaProjectId());
+
+    // No quota project configured: credentials are returned unchanged.
+    assertEquals(credentials, BigQueryServicesImpl.maybeWithQuotaProjectId(credentials, null));
+    // Null credentials pass through.
+    assertNull(BigQueryServicesImpl.maybeWithQuotaProjectId(null, "my-quota-project"));
   }
 
   @Test
