@@ -18,13 +18,12 @@
 package org.apache.beam.fn.harness.data;
 
 import java.util.List;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
@@ -47,6 +46,7 @@ public interface BeamFnDataClient {
    */
   void registerReceiver(
       String instructionId,
+      String dataStreamId,
       List<ApiServiceDescriptor> apiServiceDescriptors,
       CloseableFnDataReceiver<Elements> receiver);
 
@@ -58,7 +58,8 @@ public interface BeamFnDataClient {
    * to the {@link BeamFnDataClient} during a future {@link FnDataReceiver#accept} invocation or via
    * a call to {@link #poisonInstructionId}.
    */
-  void unregisterReceiver(String instructionId, List<ApiServiceDescriptor> apiServiceDescriptors);
+  void unregisterReceiver(
+      String instructionId, String dataStreamId, List<ApiServiceDescriptor> apiServiceDescriptors);
 
   /**
    * Poisons the instruction id, indicating that future data arriving for it should be discarded.
@@ -68,22 +69,7 @@ public interface BeamFnDataClient {
    */
   void poisonInstructionId(String instructionId);
 
-  /**
-   * Creates a {@link BeamFnDataOutboundAggregator} for buffering and sending outbound data and
-   * timers over the data plane. It is important that {@link
-   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} is called on
-   * the returned BeamFnDataOutboundAggregator at the end of each bundle. If
-   * collectElementsIfNoFlushes is set to true, {@link
-   * BeamFnDataOutboundAggregator#sendOrCollectBufferedDataAndFinishOutboundStreams()} returns the
-   * buffered elements instead of sending it through the outbound StreamObserver if there's no
-   * previous flush.
-   *
-   * <p>Closing the returned aggregator signals the end of the streams.
-   *
-   * <p>The returned aggregator is not thread safe.
-   */
-  BeamFnDataOutboundAggregator createOutboundAggregator(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      Supplier<String> processBundleRequestIdSupplier,
-      boolean collectElementsIfNoFlushes);
+  /** Get the outbound observer for the specified apiServiceDescriptor and dataStreamId. */
+  StreamObserver<Elements> getOutboundObserver(
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor, String dataStreamId);
 }

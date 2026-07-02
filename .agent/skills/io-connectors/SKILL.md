@@ -189,9 +189,10 @@ Beam supports using I/O connectors from one SDK in another via the expansion ser
 ```
 
 ## Creating New Connectors
-See [Developing I/O connectors](https://beam.apache.org/documentation/io/developing-io-overview)
 
 Key components:
 1. **Source** - Reads data (bounded or unbounded)
 2. **Sink** - Writes data
 3. **Read/Write transforms** - User-facing API
+
+For more detailed information on developing new I/O connectors see the [Developing new I/O connectors SKILL](../developing-new-io-connectors/SKILL.md).

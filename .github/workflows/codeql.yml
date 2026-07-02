@@ -55,7 +55,7 @@ jobs:
         # - language: c-cpp
         #   build-mode: autobuild
         - language: go
-          build-mode: autobuild
+          build-mode: manual
         - language: java-kotlin
           build-mode: autobuild
         - language: javascript-typescript
@@ -74,7 +74,13 @@ jobs:
         # your codebase is analyzed, see https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
+
+    - name: Set up Go
+      if: matrix.language == 'go'
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: 'sdks/go.mod'
 
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
@@ -105,12 +111,22 @@ jobs:
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+        if [ "${{ matrix.language }}" = "go" ]; then
+          echo "Building sdks module..."
+          (cd sdks && go build ./...)
+
+          echo "Building playground/backend module..."
+          (cd playground/backend && go build ./...)
+
+          echo "Building learning/katas/go module..."
+          (cd learning/katas/go && go mod tidy && go build ./...)
+
+          echo "Building learning/tour-of-beam/backend module..."
+          (cd learning/tour-of-beam/backend && go build ./cmd/... ./internal/... ./playground_api/...)
+        else
+          echo "No manual build steps defined for ${{ matrix.language }}"
+          exit 1
+        fi
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4

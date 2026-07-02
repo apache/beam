@@ -62,7 +62,7 @@ jobs:
         job_name: ["beam_Inference_Python_Benchmarks_Dataflow"]
         job_phrase: ["Run Inference Benchmarks"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -229,7 +229,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/examples/ml_transform/mltransform_generate_vocab_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --job_name=benchmark-tests-mltransform-generate-vocab-batch-${{env.NOW_UTC}}'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --job_name=benchmark-tests-mltransform-generate-vocab-batch-${{env.NOW_UTC}} --artifact_location=gs://temp-storage-for-perf-tests/mltransform/vocab_artifacts_${{env.NOW_UTC}} --output_vocab=gs://temp-storage-for-perf-tests/mltransform/vocab_outputs/mltransform_generate_vocab_batch_${{env.NOW_UTC}}'
       - name: run MLTransform One-Hot Encoding Batch
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -239,8 +239,7 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.mltransform_one_hot_encoding_benchmark \
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
-            -PbeamPythonExtra=ml_test \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/transforms/mltransform_tests_requirements.txt \
+            -PloadTest.requirementsTxtFile=apache_beam/examples/ml_transform/mltransform_one_hot_encoding_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --autoscaling_algorithm=NONE --metrics_table=mltransform_one_hot_encoding_batch --influx_measurement=mltransform_one_hot_encoding_batch --job_name=benchmark-tests-mltransform-one-hot-encoding-batch-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/mltransform/one_hot_output_${{env.NOW_UTC}} --artifact_location=gs://temp-storage-for-end-to-end-tests/mltransform/artifacts_${{env.NOW_UTC}}'
       - name: run MLTransform Image Embedding GPU Batch
         uses: ./.github/actions/gradle-command-self-hosted-action

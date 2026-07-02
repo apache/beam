@@ -49,6 +49,7 @@ public class LateDataDroppingDoFnRunnerTest {
   private static final FixedWindows WINDOW_FN = FixedWindows.of(Duration.millis(10));
 
   @Mock private TimerInternals mockTimerInternals;
+  @Mock private StepContext mockStepContext;
 
   @Before
   public void setUp() {
@@ -60,9 +61,10 @@ public class LateDataDroppingDoFnRunnerTest {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
     when(mockTimerInternals.currentInputWatermarkTime()).thenReturn(new Instant(15L));
+    when(mockStepContext.timerInternals()).thenReturn(mockTimerInternals);
 
     LateDataFilter lateDataFilter =
-        new LateDataFilter(WindowingStrategy.of(WINDOW_FN), mockTimerInternals);
+        new LateDataFilter(WindowingStrategy.of(WINDOW_FN), mockStepContext);
 
     Iterable<WindowedValue<Integer>> actual =
         lateDataFilter.filter(

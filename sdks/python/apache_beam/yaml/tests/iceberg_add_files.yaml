@@ -55,6 +55,9 @@ pipelines:
             catalog_properties:
               type: "hadoop"
               warehouse: "{TEMP_DIR}/dir"
+            manifest_file_size: 50
+            sort_fields:
+              - "rank desc"
 
   # Pipeline 3: Read from Iceberg and verify the contents
   - pipeline:

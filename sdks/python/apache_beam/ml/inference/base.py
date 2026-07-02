@@ -1443,6 +1443,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
+        'model_identifier': self._model_tag,
         **super().annotations()
     }
 
@@ -1997,6 +1998,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager:
+      # Force an import here to avoid missing ModelManager when needed.
+      # Throw an error if ModelManager is not available since it's required for this code path.
+      global ModelManager
+      if ModelManager is None:
+        from apache_beam.ml.inference.model_manager import ModelManager
       logging.info("Using Model Manager to manage models automatically.")
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),

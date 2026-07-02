@@ -106,6 +106,53 @@ class AccountKeysPolicyComplianceCheck:
             return username.split(":", 1)[1].strip().lower()
         return username
 
+    def _get_user_managed_keys_from_iam(self, account_email: str) -> List[str]:
+        """"
+        Retrieves the list of user-managed keys for a given service account from IAM.
+
+        Args:
+            account_email (str): The email of the service account to retrieve keys for.
+
+        Returns:
+            List[str]: A list of key IDs for the user-managed keys associated with the service account
+        """
+        request = types.ListServiceAccountKeysRequest()
+        request.name = f"projects/{self.project_id}/serviceAccounts/{account_email}"
+        request.key_types = [types.ListServiceAccountKeysRequest.KeyType.USER_MANAGED]
+
+        try:
+            response = self.service_account_client.list_service_account_keys(request=request)
+            return [key.name.split("/")[-1] for key in response.keys]
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve keys for service account '{account_email}': {e}")
+            return []
+
+    def _get_verified_keys_from_secret_manager(self, secret_name: str) -> List[str]:
+        """
+        Retrieves the list of verified keys for a given service account from Secret Manager.
+
+        Args:
+            secret_name (str): The name of the secret to retrieve keys for.
+
+        Returns:
+            List[str]: A list of key IDs for the verified keys associated with the service account.
+        """
+        verified_keys = []
+        parent = self.secret_client.secret_path(self.project_id, secret_name)
+
+        try:
+            versions = self.secret_client.list_secret_versions(request={"parent": parent})
+            for version in versions:
+                if version.state.name == secretmanager.SecretVersion.State.ENABLED:
+                    response = self.secret_client.access_secret_version(request={"name": version.name})
+                    data_str = response.payload.data.decode("UTF-8")
+                    key_id = data_str.split(":",1)[0]
+                    verified_keys.append(key_id)
+            return verified_keys
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve verified keys from Secret Manager for secret '{secret_name}': {e}")
+            return []
+
     def _get_all_live_service_accounts(self) -> List[str]:
         """
         Retrieves all service accounts that are currently active (not disabled) in the project.
@@ -259,21 +306,35 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.info(f"No service account keys found in the {self.service_account_keys_file}.")
         
         compliance_issues = []
+        live_service_accounts = self._get_all_live_service_accounts()
+        managed_secrets = self._get_all_live_managed_secrets()
 
         # Check that all service accounts that exist are declared
-        for service_account in self._get_all_live_service_accounts():
+        for service_account in live_service_accounts:
             if self._denormalize_account_email(service_account) not in [account["account_id"] for account in file_service_accounts]:
                 msg = f"Service account '{service_account}' is not declared in the service account keys file."
                 compliance_issues.append(msg)
                 self.logger.warning(msg)
+            else:
+                iam_keys = self._get_user_managed_keys_from_iam(service_account)
+                if iam_keys:
+                    secret_name = f"{self._denormalize_account_email(service_account)}-key"
+                    legal_keys = []
+                    if secret_name in managed_secrets:
+                        legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
+                    unmanaged_keys = set(iam_keys) - set(legal_keys)
+                    for unmanaged_key in unmanaged_keys:
+                        msg = f"SECURITY ALERT: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
+                        compliance_issues.append(msg)
+                        self.logger.warning(msg)
 
-        managed_secrets = self._get_all_live_managed_secrets()
         extracted_secrets = [f"{self._denormalize_account_email(account['account_id'])}-key" for account in file_service_accounts]
 
         # Check for managed secrets that are not declared
         for secret in managed_secrets:
             if secret not in extracted_secrets:
-                msg = f"Managed secret '{secret}' is not declared in the service account keys file."
+                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
+                msg = f"Managed secret '{masked_secret}' is not declared in the service account keys file."
                 compliance_issues.append(msg)
                 self.logger.warning(msg)
 
@@ -307,23 +368,34 @@ class AccountKeysPolicyComplianceCheck:
         """
         if not self.sending_client:
             raise ValueError("SendingClient is required for creating announcements")
-            
+
         diff = self.check_compliance()
 
         if not diff:
             self.logger.info("No compliance issues found, no announcement will be created.")
-            return  
+            return
 
-        title = f"Account Keys Compliance Issue Detected"
-        body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
-        for issue in diff:
-            body += f"- {issue}\n"
+        unmanaged_keys_issues = [issue for issue in diff if "SECURITY ALERT" in issue]
+        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
 
-        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
-        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
-        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+        if general_issues:
+            self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
+            title = f"Account Keys Compliance Issue Detected"
+            body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
+            for issue in general_issues:
+                body += f"- {issue}\n"
 
-        self.sending_client.create_announcement(title, body, recipient, announcement)
+            announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
+            announcement += f"We found {len(general_issues)} compliance issue(s) that need your attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+            self.sending_client.create_announcement(title, body, recipient, announcement)
+        if unmanaged_keys_issues:
+            self.logger.info(f"Found {len(unmanaged_keys_issues)} unmanaged key security alerts. Dispatching to GitHub security issue...")
+            self.sending_client.report_unmanaged_keys(self.project_id, unmanaged_keys_issues)
+        else:
+            self.logger.info("No unmanaged key security alerts found, Checking if there are open security issues to auto-close...")
+            self.sending_client.resolve_unmanaged_keys()
 
     def print_announcement(self, recipient: str) -> None:
         """
@@ -382,7 +454,8 @@ class AccountKeysPolicyComplianceCheck:
         # Check for managed secrets that are not declared, if not, add them
         for secret in managed_secrets:
             if secret not in extracted_secrets:
-                self.logger.info(f"Managed secret '{secret}' is not declared in the service account keys file, adding it")
+                masked_secret = f"{secret[:4]}***{secret[-4:]}" if len(secret) >= 8 else "***"
+                self.logger.info(f"Managed secret '{masked_secret}' is not declared in the service account keys file, adding it")
                 file_service_accounts.append({
                     "account_id": secret.strip("-key"),
                     "display_name": self._normalize_account_email(secret.strip("-key")),
@@ -514,7 +587,7 @@ def main():
             logger.error(f"Unknown action: {action}")
             return 1
     except Exception as e:
-        logger.error(f"Error executing action '{action}': {e}")
+        logger.exception(f"Error executing action '{action}': {e}")
         return 1
 
     return 0

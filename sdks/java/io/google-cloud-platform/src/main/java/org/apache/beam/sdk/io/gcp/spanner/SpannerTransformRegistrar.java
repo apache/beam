@@ -81,6 +81,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
     @Nullable String emulatorHost;
     @Nullable String experimentalHost;
     @Nullable Boolean plainText;
+    @Nullable String clientCertPath;
+    @Nullable String clientCertKeyPath;
 
     public void setInstanceId(String instanceId) {
       this.instanceId = instanceId;
@@ -110,6 +112,14 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       this.plainText = plainText;
     }
 
+    public void setClientCertPath(@Nullable String clientCertPath) {
+      this.clientCertPath = clientCertPath;
+    }
+
+    public void setClientCertKeyPath(@Nullable String clientCertKeyPath) {
+      this.clientCertKeyPath = clientCertKeyPath;
+    }
+
     void checkMandatoryFields() {
       if (projectId.isEmpty()) {
         throw new IllegalArgumentException("projectId can't be empty");
@@ -119,6 +129,10 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       }
       if (instanceId.isEmpty()) {
         throw new IllegalArgumentException("instanceId can't be empty");
+      }
+      if ((clientCertPath != null) != (clientCertKeyPath != null)) {
+        throw new IllegalArgumentException(
+            "Both clientCertPath and clientCertKeyPath must be specified together.");
       }
     }
   }
@@ -248,6 +262,11 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       }
       if (configuration.plainText != null) {
         readTransform = readTransform.withUsingPlainTextChannel(configuration.plainText);
+      }
+      if (configuration.clientCertPath != null && configuration.clientCertKeyPath != null) {
+        readTransform =
+            readTransform.withClientCert(
+                configuration.clientCertPath, configuration.clientCertKeyPath);
       }
       @Nullable TimestampBound timestampBound = configuration.getTimestampBound();
       if (timestampBound != null) {
@@ -393,6 +412,11 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       if (configuration.plainText != null) {
         writeTransform = writeTransform.withUsingPlainTextChannel(configuration.plainText);
       }
+      if (configuration.clientCertPath != null && configuration.clientCertKeyPath != null) {
+        writeTransform =
+            writeTransform.withClientCert(
+                configuration.clientCertPath, configuration.clientCertKeyPath);
+      }
       if (configuration.commitDeadline != null) {
         writeTransform = writeTransform.withCommitDeadline(configuration.commitDeadline);
       }
@@ -502,6 +526,12 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
 
       if (configuration.metadataTable != null) {
         readChangeStream = readChangeStream.withMetadataTable(configuration.metadataTable);
+      }
+
+      if (configuration.clientCertPath != null && configuration.clientCertKeyPath != null) {
+        readChangeStream =
+            readChangeStream.withClientCert(
+                configuration.clientCertPath, configuration.clientCertKeyPath);
       }
 
       if (configuration.rpcPriority != null) {

@@ -231,6 +231,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
+
+  @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
     invoker.invokeOnWindowExpiration(
         new OnWindowExpirationArgumentProvider<>(window, timestamp, key));

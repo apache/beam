@@ -47,7 +47,8 @@ class ScanSource extends BoundedSource<Row> {
   }
 
   private TableScan getTableScan() {
-    Table table = scanConfig.getTable();
+    Table table =
+        TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
     TableScan tableScan = table.newScan().project(scanConfig.getProjectedSchema());
 
     if (scanConfig.getFilter() != null) {

@@ -21,19 +21,60 @@ import contextlib
 import copy
 import glob
 import itertools
+import json
 import logging
 import os
 import random
 import secrets
+import shutil
 import sqlite3
 import string
+import struct
+import tempfile
+import time
 import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
 
 import mock
+import requests
+from testcontainers.core.container import DockerContainer
+
+from apache_beam.coders import Coder
+from apache_beam.coders.coder_impl import CoderImpl
+from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
+
+
+class BigEndianIntegerCoderImpl(CoderImpl):
+  """Coder implementation for big-endian integers used in cross-language tests.
+  
+  This is needed because Java's BigEndianIntegerCoder falls back to the generic
+  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
+  Python's FnApiRunner needs to know how to decode it.
+  """
+  def encode_to_stream(self, value, stream, nested):
+    stream.write(struct.pack('>i', value))
+
+  def decode_from_stream(self, stream, nested):
+    return struct.unpack('>i', stream.read(4))[0]
+
+
+class BigEndianIntegerCoder(Coder):
+  def get_impl(self):
+    return BigEndianIntegerCoderImpl()
+
+
+# Register the coder with the fallback URN used by the Java SDK for this coder.
+# This allows the Python FnApiRunner to handle data sharded by Java transforms
+# using BigEndianIntegerCoder in integration tests.
+Coder.register_urn(
+    'beam:coders:javasdk:0.1',
+    None, lambda payload, components, context: BigEndianIntegerCoder())
+
 import psycopg2
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytds
 import sqlalchemy
 import yaml
@@ -523,6 +564,75 @@ def temp_oracle_database():
 
 
 @contextlib.contextmanager
+def temp_iceberg_table_with_pk(table_data):
+
+  # Create a temp dir that will be shared between host and container.
+  # We use the exact same path on both to avoid path mapping issues.
+  # We create it in the current working directory (workspace) because
+  # Docker in GitHub Actions often cannot mount directories from /tmp.
+  temp_dir = tempfile.mkdtemp(dir=os.getcwd())
+  os.chmod(temp_dir, 0o777)
+
+  # Start the Iceberg REST catalog container
+  container = DockerContainer("tabulario/iceberg-rest:0.6.0")
+  container.with_exposed_ports(8181)
+  container.with_volume_mapping(temp_dir, temp_dir, mode='rw')
+  container.with_env("HADOOP_USER_NAME", "iceberg")
+  container.with_env("CATALOG_WAREHOUSE", temp_dir)
+  container.with_env(
+      "CATALOG_IO__IMPL", "org.apache.iceberg.hadoop.HadoopFileIO")
+
+  try:
+    container.start()
+
+    ip = container.get_container_host_ip()
+    port = container.get_exposed_port(8181)
+    api_url = f"http://{ip}:{port}"
+
+    # Poll the REST API until it is ready
+    for _ in range(30):
+      try:
+        response = requests.get(f"{api_url}/v1/config", timeout=5)
+        if response.status_code == 200:
+          break
+      except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+      time.sleep(1)
+    else:
+      raise RuntimeError("Iceberg REST catalog failed to start in time.")
+
+    # Create namespace 'db'
+    requests.post(
+        f"{api_url}/v1/namespaces",
+        json={"namespace": ["db"]},
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+
+    # Create table with primary key
+    response = requests.post(
+        f"{api_url}/v1/namespaces/db/tables",
+        json=table_data,
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+    if response.status_code != 200:
+      raise RuntimeError(f"Failed to create Iceberg table: {response.text}")
+
+    # Change permissions of the created directories inside the container
+    # so the host user can write to them.
+    container.get_wrapped_container().exec_run(f"chmod -R 777 {temp_dir}")
+
+    yield {
+        "api_url": api_url,
+        "temp_dir": temp_dir,
+        "table": f"db.{table_data['name']}"
+    }
+
+  finally:
+    container.stop()
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@contextlib.contextmanager
 def temp_kafka_server():
   """Context manager to provide a temporary Kafka server for testing.
 
@@ -582,6 +692,26 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
       f"projects/{pubsub_container.project}/topics/{topic_id}"
     created_topic_object = publisher.create_topic(name=topic_name_to_create)
     yield created_topic_object.name
+
+
+@contextlib.contextmanager
+def temp_delta_table():
+  with tempfile.TemporaryDirectory() as temp_dir:
+    log_dir = os.path.join(temp_dir, "_delta_log")
+    os.makedirs(log_dir, exist_ok=True)
+    table_data = pa.table({"name": ["a", "b", "c"]})
+    parquet_path = os.path.join(temp_dir, "part-00000.parquet")
+    pq.write_table(table_data, parquet_path)
+    file_size = os.path.getsize(parquet_path)
+    commit_content = (
+        '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}\n'
+        '{"metaData":{"id":"test-id","format":{"provider":"parquet","options":{}},"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[{\\"name\\":\\"name\\",\\"type\\":\\"string\\",\\"nullable\\":true,\\"metadata\\":{}}]}","partitionColumns":[],"configuration":{},"createdAt":123456789}}\n'
+        f'{{"add":{{"path":"part-00000.parquet","partitionValues":{{}},"size":{file_size},"modificationTime":123456789,"dataChange":true}}}}\n'
+    )
+    commit_file = os.path.join(log_dir, "00000000000000000000.json")
+    with open(commit_file, "w") as f:
+      f.write(commit_content)
+    yield temp_dir
 
 
 def replace_recursive(spec, vars):

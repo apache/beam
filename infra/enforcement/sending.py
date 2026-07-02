@@ -102,10 +102,21 @@ class SendingClient:
         Args:
             title (str): The title of the GitHub issue.
         """
-        endpoint = f"search/issues/?q=is:issue+repo:{self.github_repo}+in:title+{title}+is:open"
+        endpoint = f"search/issues?q=is:issue+repo:{self.github_repo}+in:title+{title}+is:open"
         response = self._make_github_request("GET", endpoint)
         issues = response.json().get('items', [])
-        return [GitHubIssue(**issue) for issue in issues]
+        parsed_issues = []
+        for issue in issues:
+            parsed_issues.append(GitHubIssue(
+                number=issue.get("number"),
+                title=issue.get("title"),
+                body=issue.get("body"),
+                state=issue.get("state"),
+                html_url=issue.get("html_url"),
+                created_at=issue.get("created_at"),
+                updated_at=issue.get("updated_at")
+            ))
+        return parsed_issues
 
     def create_issue(self, title: str, body: str) -> GitHubIssue:
         """
@@ -119,7 +130,16 @@ class SendingClient:
         payload = {"title": title, "body": body}
         response = self._make_github_request("POST", endpoint, json=payload)
         self.logger.info(f"Successfully created GitHub issue: {title}")
-        return GitHubIssue(**response.json())
+        data = response.json()
+        return GitHubIssue(
+            number=data.get("number"),
+            title=data.get("title"),
+            body=data.get("body"),
+            state=data.get("state"),
+            html_url=data.get("html_url"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at")
+        )
 
     def update_issue_body(self, issue_number: int, new_body: str) -> None:
         """
@@ -133,6 +153,85 @@ class SendingClient:
         payload = {"body": new_body}
         self._make_github_request("PATCH", endpoint, json=payload)
         self.logger.info(f"Successfully updated body on GitHub issue: #{issue_number}")
+
+    def create_issue_comment(self, issue_number: int, comment_body: str) -> None:
+        """
+        Adds a new comment to an existing GitHub issue in the specified repository.
+
+        Args:
+            issue_number (int): The number of the GitHub issue to comment on.
+            comment_body (str): The content of the comment to add to the GitHub issue.
+        """
+        endpoint = f"repos/{self.github_repo}/issues/{issue_number}/comments"
+        payload = {"body": comment_body}
+        self._make_github_request("POST", endpoint, json=payload)
+        self.logger.info(f"Successfully added comment to GitHub issue: #{issue_number}")
+
+    def report_unmanaged_keys(self, project_id: str, compilance_issues: List[str]) -> None:
+        """
+        Report compliance issues regarding unmanaged keys into a single GitHub issue.
+        Creates a new issue if none exists. If it exists, updates the body with the newest
+        report and moves the previous content into a collapsed history section.
+
+        Args:
+            project_id (str): The ID of the project associated with the unmanaged keys.
+            compilance_issues (List[str]): A list of compliance issues related to the unmanaged keys.
+        """
+        if not compilance_issues:
+            self.logger.info("No compliance issues to report to Github.")
+            return
+
+        issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
+        #markdown body
+        timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        new_report = f"### Unmanaged Keys Audit Report ({timestamp})\n"
+        new_report += f"The following unauthorized or unmanaged keys were detected in `{project_id}`:\n\n"
+
+        for issue_text in compilance_issues:
+            new_report += f"- {issue_text}\n"
+
+        new_report += "\n*Please investigate and revoke these keys if they are not part of the official rotation system.*"
+        open_issues = self._get_open_issues(issue_title)
+
+        if open_issues:
+            target_issue = open_issues[0]
+            self.logger.info(f"Appending report and archiving history to existing security issue #{target_issue.number}")
+
+            old_body = target_issue.body or ""
+            history_marker = "### History\n<details>\n<summary>Click to expand</summary>\n\n"
+
+            if history_marker in old_body:
+                # If history already exists, append the new report to it
+                headed = old_body.split(history_marker)
+                last_report = headed[0].strip()
+                old_history = headed[1].replace("</details>", "").strip()
+
+                combined_history = f"{last_report}\n\n---\n\n{old_history}"
+            else:
+                combined_history = old_body.strip()
+
+            final_body = f"{new_report}\n\n{history_marker}{combined_history}\n</details>"
+            self.update_issue_body(target_issue.number, final_body)
+        else:
+            self.logger.info("Creating new security issue for unmanaged keys report.")
+            new_issue = self.create_issue(issue_title, new_report)
+            self.logger.info(f"Created new security issue : {new_issue.html_url}.")
+
+    def resolve_unmanaged_keys(self) -> None:
+        """
+        Finds any open security issues regarding rogue keys and automatically closes them
+        if the infrastructure is now healthy.
+        """
+        issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
+        open_issues = self._get_open_issues(issue_title)
+        if open_issues:
+            target_issue = open_issues[0]
+            self.logger.info(f"All rogue keys resolved! Auto-closing issue #{target_issue.number}.")
+            self.create_issue_comment(target_issue.number, "All previously reported unmanaged keys have been resolved. Closing this issue.")
+            endpoint = f"repos/{self.github_repo}/issues/{target_issue.number}"
+            payload = {"state": "closed"}
+            self._make_github_request("PATCH", endpoint, json=payload)
+
 
     def create_announcement(self, title: str, body: str, recipient: str, announcement: str) -> None:
         """
