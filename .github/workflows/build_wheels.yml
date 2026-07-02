@@ -245,7 +245,7 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    - uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
+    - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU
     - name: Install cibuildwheel
