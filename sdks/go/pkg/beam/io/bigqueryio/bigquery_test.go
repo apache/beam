@@ -148,3 +148,13 @@ func Test_mustInferSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestWithQuotaProject(t *testing.T) {
+	qo := QueryOptions{}
+	if err := WithQuotaProject("quota-project")(&qo); err != nil {
+		t.Fatalf("WithQuotaProject() returned err: %v", err)
+	}
+	if got, want := qo.QuotaProject, "quota-project"; got != want {
+		t.Errorf("qo.QuotaProject = %q, want %q", got, want)
+	}
+}

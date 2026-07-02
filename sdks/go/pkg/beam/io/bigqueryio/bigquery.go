@@ -34,6 +34,7 @@ import (
 	bq "google.golang.org/api/bigquery/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
@@ -88,14 +89,14 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-func Read(s beam.Scope, project, table string, t reflect.Type) beam.PCollection {
+func Read(s beam.Scope, project, table string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
 	mustParseTable(table)
 
 	s = s.Scope("bigquery.Read")
 
 	stmt := constructSelectStatement(t, bigQueryTag, table)
 
-	return query(s, project, stmt, t)
+	return query(s, project, stmt, t, options...)
 }
 
 func constructSelectStatement(t reflect.Type, tagKey string, table string) string {
@@ -114,12 +115,26 @@ func constructSelectStatement(t reflect.Type, tagKey string, table string) strin
 type QueryOptions struct {
 	// UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 	UseStandardSQL bool
+	// QuotaProject is the GCP project ID used for quota and billing attribution
+	// of the BigQuery API calls, if different from the project the data resides in.
+	QuotaProject string
 }
 
 // UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 func UseStandardSQL() func(qo *QueryOptions) error {
 	return func(qo *QueryOptions) error {
 		qo.UseStandardSQL = true
+		return nil
+	}
+}
+
+// WithQuotaProject sets the GCP project ID used for quota and billing
+// attribution of the BigQuery API calls, if different from the project the
+// data resides in. The credentials used must have the
+// serviceusage.services.use permission on that project.
+func WithQuotaProject(project string) func(qo *QueryOptions) error {
+	return func(qo *QueryOptions) error {
+		qo.QuotaProject = project
 		return nil
 	}
 }
@@ -157,7 +172,11 @@ type queryFn struct {
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
-	client, err := bigquery.NewClient(ctx, f.Project)
+	var opts []option.ClientOption
+	if f.Options.QuotaProject != "" {
+		opts = append(opts, option.WithQuotaProject(f.Options.QuotaProject))
+	}
+	client, err := bigquery.NewClient(ctx, f.Project, opts...)
 	if err != nil {
 		return err
 	}
