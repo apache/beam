@@ -218,7 +218,7 @@ testcontainers==4.14.2
 textual==8.2.7
 threadpoolctl==3.6.0
 tokenizers==0.21.4
-torch==2.8.0+cpu
+torch==2.12.1
 tqdm==4.68.3
 transformers==4.55.4
 typing-inspection==0.4.2
