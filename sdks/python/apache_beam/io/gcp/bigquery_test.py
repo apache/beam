@@ -345,7 +345,11 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     cls.UserDefinedOptions = UserDefinedOptions
 
+  def setUp(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
+
   def tearDown(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
     # Reset runtime options to avoid side-effects caused by other tests.
     RuntimeValueProvider.set_runtime_options(None)
 
@@ -510,12 +514,8 @@ class TestReadFromBigQuery(unittest.TestCase):
           expected_retries=3),
   ])
   def test_get_table_transient_exception(self, responses, expected_retries):
-    class DummyTable:
-      class DummySchema:
-        fields = []
-
-      numBytes = 5
-      schema = DummySchema()
+    dummy_table = bigquery.Table(
+        numBytes=5, schema=bigquery.TableSchema(fields=[]))
 
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
@@ -542,16 +542,16 @@ class TestReadFromBigQuery(unittest.TestCase):
           raise exception
         else:
           call_counter += 1
-          return DummyTable()
+          return dummy_table
 
       mock_get_table.side_effect = store_callback
       _ = p | beam.io.ReadFromBigQuery(
           table="project.dataset.table", gcs_location="gs://some_bucket")
 
-    # ReadFromBigQuery export mode calls get_table() twice. Once to get
-    # metadata (numBytes), and once to retrieve the table's schema
-    # Any additional calls are retries
-    self.assertEqual(expected_retries, mock_get_table.call_count - 2)
+    # ReadFromBigQuery export mode retrieves table metadata once. The later
+    # schema lookup uses the cached table definition.
+    # Any additional calls are retries.
+    self.assertEqual(expected_retries, mock_get_table.call_count - 1)
     self.assertSetEqual(
         Lineage.query(p.result.metrics(), Lineage.SOURCE),
         set(["bigquery:project.dataset.table"]))
@@ -819,9 +819,11 @@ class TestWriteToBigQuery(unittest.TestCase):
       os.remove('insert_calls2')
 
   def setUp(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
     self._cleanup_files()
 
   def tearDown(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
     self._cleanup_files()
 
   def test_noop_schema_parsing(self):
@@ -2090,6 +2092,12 @@ def test_with_batched_input_splits_large_batch(self):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
+  def setUp(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
+
+  def tearDown(self):
+    bigquery_tools.BigQueryWrapper._clear_table_definition_cache()
+
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
     client.tables.Get.return_value = bigquery.Table(
