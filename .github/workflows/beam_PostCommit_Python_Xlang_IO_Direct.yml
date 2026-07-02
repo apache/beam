@@ -85,6 +85,7 @@ jobs:
           gradle-command: :sdks:python:test-suites:direct:ioCrossLanguagePostCommit
           arguments: |
             -PuseWheelDistribution \
+            -PtestJavaVersion=17 \
             -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
