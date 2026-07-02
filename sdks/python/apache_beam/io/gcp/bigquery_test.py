@@ -850,6 +850,34 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
         pipeline_options=options)
     self.assertEqual(source._get_quota_project_id(), 'my-billing-project')
 
+  @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
+  def test_export_source_split_passes_quota_to_client(self, mock_bq_client):
+    """split() must pass the transform-level quota_project_id to the BigQuery
+    client, not only the --quota_project_id pipeline option."""
+    mock_bq_client.side_effect = RuntimeError('stop')
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    with self.assertRaises(RuntimeError):
+      list(source.split(desired_bundle_size=0))
+    mock_bq_client.assert_called_once_with(
+        source.options, quota_project_id='my-billing-project')
+
+  @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
+  def test_storage_source_split_passes_quota_to_client(self, mock_bq_client):
+    """split() must pass the transform-level quota_project_id to the BigQuery
+    client, not only the --quota_project_id pipeline option."""
+    mock_bq_client.side_effect = RuntimeError('stop')
+    source = beam_bq._CustomBigQueryStorageSource(
+        method=ReadFromBigQuery.Method.DIRECT_READ,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    with self.assertRaises(RuntimeError):
+      list(source.split(desired_bundle_size=0))
+    mock_bq_client.assert_called_once_with(
+        source.pipeline_options, quota_project_id='my-billing-project')
+
   def test_quota_project_id_in_export_source_display_data(self):
     """Test that quota_project_id appears in display data for export source."""
     source = beam_bq._CustomBigQuerySource(

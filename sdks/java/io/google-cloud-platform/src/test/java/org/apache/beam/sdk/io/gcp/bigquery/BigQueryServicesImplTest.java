@@ -91,6 +91,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
@@ -2207,8 +2208,39 @@ public class BigQueryServicesImplTest {
 
     // No quota project configured: credentials are returned unchanged.
     assertEquals(credentials, BigQueryServicesImpl.maybeWithQuotaProjectId(credentials, null));
+    // Empty quota project is treated as unset.
+    assertEquals(credentials, BigQueryServicesImpl.maybeWithQuotaProjectId(credentials, ""));
     // Null credentials pass through.
     assertNull(BigQueryServicesImpl.maybeWithQuotaProjectId(null, "my-quota-project"));
+
+    // Credentials that don't support a quota project are returned unchanged.
+    Credentials unsupported =
+        new Credentials() {
+          @Override
+          public String getAuthenticationType() {
+            return "test";
+          }
+
+          @Override
+          public Map<String, List<String>> getRequestMetadata(java.net.URI uri) {
+            return Collections.emptyMap();
+          }
+
+          @Override
+          public boolean hasRequestMetadata() {
+            return false;
+          }
+
+          @Override
+          public boolean hasRequestMetadataOnly() {
+            return true;
+          }
+
+          @Override
+          public void refresh() {}
+        };
+    assertEquals(
+        unsupported, BigQueryServicesImpl.maybeWithQuotaProjectId(unsupported, "my-quota-project"));
   }
 
   @Test

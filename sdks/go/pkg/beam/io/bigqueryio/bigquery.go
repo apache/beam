@@ -139,6 +139,15 @@ func WithQuotaProject(project string) func(qo *QueryOptions) error {
 	}
 }
 
+// clientOptions returns the BigQuery client options implied by qo.
+func clientOptions(qo QueryOptions) []option.ClientOption {
+	var opts []option.ClientOption
+	if qo.QuotaProject != "" {
+		opts = append(opts, option.WithQuotaProject(qo.QuotaProject))
+	}
+	return opts
+}
+
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
 func Query(s beam.Scope, project, q string, t reflect.Type, options ...func(*QueryOptions) error) beam.PCollection {
@@ -172,11 +181,7 @@ type queryFn struct {
 }
 
 func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
-	var opts []option.ClientOption
-	if f.Options.QuotaProject != "" {
-		opts = append(opts, option.WithQuotaProject(f.Options.QuotaProject))
-	}
-	client, err := bigquery.NewClient(ctx, f.Project, opts...)
+	client, err := bigquery.NewClient(ctx, f.Project, clientOptions(f.Options)...)
 	if err != nil {
 		return err
 	}

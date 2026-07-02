@@ -158,3 +158,12 @@ func TestWithQuotaProject(t *testing.T) {
 		t.Errorf("qo.QuotaProject = %q, want %q", got, want)
 	}
 }
+
+func TestClientOptions(t *testing.T) {
+	if got := clientOptions(QueryOptions{}); len(got) != 0 {
+		t.Errorf("clientOptions(no quota) = %d options, want 0", len(got))
+	}
+	if got := clientOptions(QueryOptions{QuotaProject: "quota-project"}); len(got) != 1 {
+		t.Errorf("clientOptions(with quota) = %d options, want 1", len(got))
+	}
+}
