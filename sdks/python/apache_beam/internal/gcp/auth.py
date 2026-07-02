@@ -99,7 +99,8 @@ def with_quota_project(credentials, quota_project_id):
     Credentials with the quota project applied, or the original credentials
     if quota project is not supported or credentials is None.
   """
-  if credentials is None or quota_project_id is None:
+  if not _GOOGLE_AUTH_AVAILABLE or credentials is None or (quota_project_id
+                                                           is None):
     return credentials
 
   # Get the underlying google-auth credentials if wrapped

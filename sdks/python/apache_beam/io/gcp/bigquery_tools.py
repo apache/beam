@@ -1461,10 +1461,10 @@ class BigQueryWrapper(object):
       # Get default credentials and apply quota project
       try:
         import google.auth
-        from google.auth import exceptions as auth_exceptions
         credentials, _ = google.auth.default()
         credentials = auth.with_quota_project(credentials, quota_project_id)
-      except (auth_exceptions.DefaultCredentialsError, AttributeError) as e:
+      except Exception as e:
+        credentials = None
         _LOGGER.warning(
             'Failed to apply quota project %s to gcp-bigquery client: %s. '
             'Falling back to default client.',

@@ -812,7 +812,8 @@ class _CustomBigQuerySource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options),
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(
+              self.options, quota_project_id=self._get_quota_project_id()),
           quota_project_id=self._get_quota_project_id())
 
       if self.query is not None:
@@ -958,11 +959,10 @@ def _create_bq_storage_client(quota_project_id=None):
   if quota_project_id:
     try:
       import google.auth
-      from google.auth import exceptions as auth_exceptions
       credentials, _ = google.auth.default()
       credentials = auth.with_quota_project(credentials, quota_project_id)
       return bq_storage.BigQueryReadClient(credentials=credentials)
-    except (auth_exceptions.DefaultCredentialsError, AttributeError) as e:
+    except Exception as e:
       _LOGGER.warning(
           'Failed to apply quota project %s to BigQuery Storage client: %s. '
           'Falling back to default client.',
@@ -1221,7 +1221,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper(
           temp_table_ref=(self.temp_table if self.temp_table else None),
           client=bigquery_tools.BigQueryWrapper._bigquery_client(
-              self.pipeline_options),
+              self.pipeline_options,
+              quota_project_id=self._get_quota_project_id()),
           quota_project_id=self._get_quota_project_id())
 
       if self.query is not None:
