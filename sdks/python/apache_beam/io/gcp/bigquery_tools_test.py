@@ -29,11 +29,13 @@ import unittest
 from typing import Optional
 from typing import Sequence
 
-import apache_beam as beam
 import fastavro
 import mock
 import numpy as np
 import pytz
+from parameterized import parameterized
+
+import apache_beam as beam
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
@@ -53,7 +55,6 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
-from parameterized import parameterized
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

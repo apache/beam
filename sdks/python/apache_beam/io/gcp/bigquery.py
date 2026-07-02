@@ -3001,6 +3001,12 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    quota_project_id (str): The GCP project ID to use for quota and billing
+      of BigQuery API requests issued by this transform, if different from
+      the project the data resides in. Falls back to the
+      ``--quota_project_id`` pipeline option if not set. The credentials
+      used must have the ``serviceusage.services.use`` permission on that
+      project.
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.

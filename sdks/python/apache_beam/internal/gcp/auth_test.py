@@ -18,6 +18,7 @@ import logging
 import unittest
 
 import mock
+
 from apache_beam.internal.gcp import auth
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
