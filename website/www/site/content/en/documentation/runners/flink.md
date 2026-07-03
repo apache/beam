@@ -93,7 +93,7 @@ from the [compatibility table](#flink-version-compatibility) below. For example:
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
-  <artifactId>beam-runners-flink-1.18</artifactId>
+  <artifactId>beam-runners-flink-1.20</artifactId>
   <version>{{< param release_latest >}}</version>
 </dependency>
 {{< /highlight >}}
@@ -166,7 +166,7 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 To run a pipeline on Flink, set the runner to `FlinkRunner`
 and `flink_master` to the master URL of a Flink cluster.
 In addition, optionally set `environment_type` set to `LOOPBACK`. For example,
-after starting up a [local flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html),
+after starting up a [local flink cluster](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/try-flink/local_installation/),
 one could run:
 {{< /paragraph >}}
 
@@ -196,9 +196,8 @@ The optional `flink_version` option may be required as well for older versions o
 
 {{< paragraph class="language-portable" >}}
 Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
-[Flink 1.16](https://hub.docker.com/r/apache/beam_flink1.16_job_server).
-[Flink 1.17](https://hub.docker.com/r/apache/beam_flink1.17_job_server).
-[Flink 1.18](https://hub.docker.com/r/apache/beam_flink1.18_job_server).
+[Flink 1.19](https://hub.docker.com/r/apache/beam_flink1.19_job_server).
+[Flink 1.20](https://hub.docker.com/r/apache/beam_flink1.20_job_server).
 {{< /paragraph >}}
 
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
@@ -207,7 +206,7 @@ To run a pipeline on an embedded Flink cluster:
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
-(1) Start the JobService endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest`
+(1) Start the JobService endpoint: `docker run --net=host apache/beam_flink1.20_job_server:latest`
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -217,7 +216,7 @@ You might encounter an error message like `Caused by: java.io.IOException: Insuf
 This can be resolved by providing a Flink configuration file to override the default settings.
 You can find an example configuration file [here](https://github.com/apache/beam/blob/master/runners/flink/src/test/resources/flink-conf.yaml).
 To start the Job Service endpoint with your custom configuration, mount a local directory containing your Flink configuration to the `/flink-conf` path in the Docker container and pass this as `--flink-conf-dir`:
-`docker run --net=host -v <your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.18_job_server:latest --flink-conf-dir /flink-conf`
+`docker run --net=host -v <your_flink_conf_dir>:/flink-conf beam-flink-runner apache/beam_flink1.20_job_server:latest --flink-conf-dir /flink-conf`
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -240,7 +239,7 @@ with beam.Pipeline(options) as p:
 <!-- Span implicitly ended -->
 
 {{< paragraph class="language-portable" >}}
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.18/getting-started/tutorials/local_setup.html):
+To run on a separate [Flink cluster](https://nightlies.apache.org/flink/flink-docs-release-1.20/docs/try-flink/local_installation/):
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -248,7 +247,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
-(2) Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.18_job_server:latest --flink-master=localhost:8081`.
+(2) Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.20_job_server:latest --flink-master=localhost:8081`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-portable" >}}
@@ -316,8 +315,8 @@ reference.
 ## Flink Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.18.0` the
-minor version is `1.18`.
+The minor version is the first two numbers in the version string, e.g. in `1.20.0` the
+minor version is `1.20`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
