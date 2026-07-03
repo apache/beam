@@ -40,6 +40,7 @@ from apache_beam.typehints import row_type
 from apache_beam.typehints import typehints
 from apache_beam.typehints.trivial_inference import BoundMethod
 from apache_beam.typehints.trivial_inference import Const
+from apache_beam.typehints.trivial_inference import _TypeInCell
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.trivial_inference import key_value_types
 from apache_beam.typehints.trivial_inference import resolve_dataclass_field_type
@@ -570,18 +571,17 @@ def gen_start(state, arg):
 
 
 def load_closure(state, arg):
-  # The arg is no longer offset by len(covar_names) as of 3.11
+  # closure_type performs version-aware resolution of the index: as of 3.11
+  # it refers to the frame's localsplus storage (in which the cell of a
+  # captured parameter shares the parameter's slot) rather than
+  # co_cellvars + co_freevars.
   # See https://docs.python.org/3/library/dis.html#opcode-LOAD_CLOSURE
-  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-    arg -= len(state.co.co_varnames)
   state.stack.append(state.closure_type(arg))
 
 
 def load_deref(state, arg):
-  # The arg is no longer offset by len(covar_names) as of 3.11
-  # See https://docs.python.org/3/library/dis.html#opcode-LOAD_DEREF
-  if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-    arg -= len(state.co.co_varnames)
+  # See load_closure above for how the index is resolved.
+  # https://docs.python.org/3/library/dis.html#opcode-LOAD_DEREF
   state.stack.append(state.closure_type(arg))
 
 
@@ -615,7 +615,7 @@ def make_function(state, arg):
         closureTuplePos = -2
       else:
         closureTuplePos = -3
-      closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+      closure = tuple((lambda _: lambda: _)(_TypeInCell(t)).__closure__[0]
                       for t in state.stack[closureTuplePos].tuple_types)
 
   func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
@@ -629,7 +629,7 @@ def set_function_attribute(state, arg):
   attr = state.stack.pop().value
   closure = None
   if arg & 0x08:
-    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+    closure = tuple((lambda _: lambda: _)(_TypeInCell(t)).__closure__[0]
                     for t in state.stack[attr].tuple_types)
   new_func = types.FunctionType(
       func.code, func.globals, name=func.name, closure=closure)
