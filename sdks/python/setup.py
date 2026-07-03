@@ -417,7 +417,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0,<48.0.0',
+          'cryptography>=39.0.0,<49.0.0',
           'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
           # Newer version only work on Python 3.11. Versions 0.3 <= ver < 1.x
           # conflict with other GCP dependencies.
