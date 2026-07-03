@@ -31,7 +31,6 @@ asn1crypto==1.5.1
 attrs==26.1.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
-betterproto==2.0.0b6
 bs4==0.0.2
 build==1.5.0
 cachetools==6.2.6
@@ -48,7 +47,6 @@ distro==1.9.0
 dnspython==2.8.0
 docker==7.1.0
 docstring_parser==0.18.0
-envoy_data_plane==1.0.3
 execnet==2.1.2
 fastavro==1.12.2
 fasteners==0.20

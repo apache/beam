@@ -82,6 +82,7 @@ skip = [
     "storage_v1_client.py",
     "storage_v1_messages.py",
     "proto2_coder_test_messages_pb2.py",
+    "rate_limit_pb2.py",
     "cloudbuild_v1_client.py",
     "cloudbuild_v1_messages.py",
     "boto3_client.py",
