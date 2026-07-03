@@ -317,7 +317,7 @@ torch==2.7.1
 torchaudio==2.7.1
 torchvision==0.22.1
 tqdm==4.68.3
-transformers==4.55.4
+transformers==5.3.0
 triton==3.3.1
 typer==0.26.8
 typing-inspection==0.4.2
