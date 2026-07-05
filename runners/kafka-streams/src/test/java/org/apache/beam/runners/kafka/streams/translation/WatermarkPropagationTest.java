@@ -80,7 +80,7 @@ public class WatermarkPropagationTest {
     topology.addProcessor(
         "watermark-capture",
         () -> new WatermarkCapture(captured),
-        KafkaStreamsTestRunner.leafProcessorName(topology));
+        KafkaStreamsTestRunner.findAnyLeafProcessorName(topology));
 
     try (TopologyTestDriver driver =
         new TopologyTestDriver(topology, KafkaStreamsTestRunner.streamsConfig(pipeline))) {

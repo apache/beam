@@ -58,7 +58,8 @@ public class KafkaStreamsRunnerTest {
     CapturingProcessor capture = new CapturingProcessor();
     Topology topology = KafkaStreamsTestRunner.translate(pipeline).getTopology();
     // Impulse is the only transform, so it is the topology leaf; capture what it forwards.
-    topology.addProcessor("capture", capture, KafkaStreamsTestRunner.leafProcessorName(topology));
+    topology.addProcessor(
+        "capture", capture, KafkaStreamsTestRunner.findAnyLeafProcessorName(topology));
 
     try (TopologyTestDriver driver =
         new TopologyTestDriver(topology, KafkaStreamsTestRunner.streamsConfig(pipeline))) {

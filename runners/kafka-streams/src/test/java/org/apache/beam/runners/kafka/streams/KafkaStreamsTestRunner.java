@@ -113,10 +113,11 @@ public final class KafkaStreamsTestRunner {
   }
 
   /**
-   * The name of the single processor node with no successors (the topology leaf). Tests attach a
-   * capture processor here to observe what the last stage forwards.
+   * The name of some processor node with no successors (a topology leaf). Tests with a single leaf
+   * attach a capture processor here to observe what the last stage forwards; if a topology has more
+   * than one leaf, which one is returned is unspecified.
    */
-  public static String leafProcessorName(Topology topology) {
+  public static String findAnyLeafProcessorName(Topology topology) {
     for (TopologyDescription.Subtopology subtopology : topology.describe().subtopologies()) {
       for (TopologyDescription.Node node : subtopology.nodes()) {
         if (node instanceof TopologyDescription.Processor && node.successors().isEmpty()) {
@@ -147,7 +148,17 @@ public final class KafkaStreamsTestRunner {
     return sinkTopics;
   }
 
-  /** Drains each internal topic's output and feeds it back into the source until nothing flows. */
+  /**
+   * Simulates the broker for internal repartition topics.
+   *
+   * <p>The runner shuffles data (and the watermark) through internal topics that a processor both
+   * writes to (a sink) and reads back from (a source) — e.g. the topic GroupByKey introduces to
+   * partition by key. On a real broker those records make the round trip automatically, but {@link
+   * TopologyTestDriver} does not connect a sink back to a source, so the downstream half of the
+   * topology would never see them. This drains what each internal topic's sink wrote and pipes it
+   * into that topic's source, repeating until nothing new flows (a fixpoint), which stands in for
+   * the broker and lets the pipeline run to completion.
+   */
   private static void roundTripInternalTopics(TopologyTestDriver driver, Set<String> topics) {
     for (int round = 0; round < MAX_ROUND_TRIPS; round++) {
       boolean progressed = false;
