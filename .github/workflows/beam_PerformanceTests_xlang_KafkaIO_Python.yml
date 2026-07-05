@@ -73,9 +73,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: '17'
           python-version: default
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
@@ -182,8 +180,6 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:expansion-service:shadowJar
-          arguments: |
-            -Pjava17Home=$JAVA_HOME_17_X64
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run integrationTest
         uses: ./.github/actions/gradle-command-self-hosted-action

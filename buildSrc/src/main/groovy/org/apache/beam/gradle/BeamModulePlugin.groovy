@@ -2721,11 +2721,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
       String ver = project.findProperty('testJavaVersion')
       def javaContainerSuffix = ver ? getSupportedJavaVersion(ver) : getSupportedJavaVersion()
-      // When a specific test JDK is requested (-PtestJavaVersion), launch the Python-started
-      // expansion service on it as well (see the exec block below). Some bundled IOs (e.g.
-      // IcebergIO) are compiled for Java 17, so the expansion service must run on a JDK that can
-      // load them. Mirrors the JAVA_HOME handling in the other cross-language task factories.
-      String testJavaHome = ver ? project.findProperty("java${ver}Home") : null
 
       // Sets up, collects, and runs Python pipeline tests
       project.tasks.register(config.name+"PythonUsingJava") {
@@ -2755,9 +2750,6 @@ class BeamModulePlugin implements Plugin<Project> {
           project.exec {
             // environment variable to indicate that jars have been built
             environment "EXPANSION_JARS", config.expansionProjectPaths
-            if (testJavaHome) {
-              environment "JAVA_HOME", testJavaHome
-            }
             String additionalDependencyCmd = ""
             if (config.additionalDeps != null && !config.additionalDeps.isEmpty()){
               additionalDependencyCmd = "&& pip install ${config.additionalDeps.join(' ')} "

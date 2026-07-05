@@ -102,9 +102,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: '17'
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
@@ -116,6 +114,3 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit --info
-          arguments: |
-            -PtestJavaVersion=17
-            -Pjava17Home=$JAVA_HOME_17_X64
