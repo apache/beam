@@ -670,6 +670,9 @@ public class RemoteInferenceTest {
             RemoteInference.<TestInput, TestOutput>invoke()
                 .handler(MockThrottlingHandler.class)
                 .withBatchConfig(batchConfig)
+                // Use large sample periods so the 1s retry delay doesn't flush the history
+                .withSamplePeriodMs(60000L)
+                .withSampleUpdateMs(60000L)
                 // Set to 1 second to minimize test wait time while still verifying throttling
                 .withThrottleDelaySecs(1)
                 .withOverloadRatio(1.1)
