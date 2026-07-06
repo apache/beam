@@ -120,13 +120,8 @@ class BigqueryTableMatcherTest(unittest.TestCase):
     patch_retry(self, bq_verifier)
 
   def test_bigquery_table_matcher_success(self, mock_bigquery):
-    mock_query_result = mock.Mock()
-    mock_query_result.to_api_repr.return_value = {
-        'partitioning': 'a lot of partitioning',
-        'clustering': {
-            'column': 'FRIENDS'
-        }
-    }
+    mock_query_result = mock.Mock(
+        partitioning='a lot of partitioning', clustering={'column': 'FRIENDS'})
 
     mock_bigquery.return_value.get_table.return_value = mock_query_result
 

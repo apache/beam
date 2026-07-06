@@ -236,14 +236,13 @@ class BigQueryTableMatcher(BaseMatcher):
 
   @staticmethod
   def _get_or_none(obj, attr):
-    if hasattr(obj, 'to_api_repr'):
-      obj = obj.to_api_repr()
-    if isinstance(obj, dict):
-      return obj.get(attr, None)
     try:
-      return getattr(obj, attr)
+      return obj.__getattribute__(attr)
     except AttributeError:
-      return None
+      try:
+        return obj.get(attr, None)
+      except TypeError:
+        return None
 
   @staticmethod
   def _match_property(expected, actual):

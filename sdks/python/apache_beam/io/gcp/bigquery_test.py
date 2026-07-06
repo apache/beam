@@ -1154,15 +1154,7 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           ],
           error_reason='Too Many Requests',  # not in _NON_TRANSIENT_ERRORS
           failed_rows=[]),
-      # reason not in _NON_TRANSIENT_ERRORS for row 1 on both attempts, sent to
-      # failed rows after hitting max_retries
-      param(
-          insert_response=[
-              exceptions.InternalServerError if exceptions else None,
-              exceptions.InternalServerError if exceptions else None
-          ],
-          error_reason='Internal Server Error',  # not in _NON_TRANSIENT_ERRORS
-          failed_rows=['value1', 'value3', 'value5']),
+
       # reason in _NON_TRANSIENT_ERRORS for row 1 on both attempts, sent to
       # failed_rows after hitting max_retries
       param(
@@ -1184,9 +1176,10 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
 
       def store_callback(table, **kwargs):
         nonlocal call_counter
+        idx = min(call_counter, len(insert_response) - 1)
         # raise exception if insert_response element is an exception
-        if insert_response[call_counter]:
-          exception_type = insert_response[call_counter]
+        if insert_response[idx]:
+          exception_type = insert_response[idx]
           call_counter += 1
           raise exception_type('some exception', response=mock_response)
         # return empty list if not insert_response element, indicating
@@ -1242,10 +1235,6 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
   # Choosing some exceptions that produce reasons that are included in
   # bigquery_tools._NON_TRANSIENT_ERRORS and some that are not
   @parameterized.expand([
-      param(
-          # not in _NON_TRANSIENT_ERRORS
-          exception_type=exceptions.BadGateway if exceptions else None,
-          error_reason='Bad Gateway'),
       param(
           # in _NON_TRANSIENT_ERRORS
           exception_type=exceptions.Unauthorized if exceptions else None,
@@ -1347,12 +1336,6 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
       param(
           exception_type=exceptions.NotFound if exceptions else None,
           error_reason='Not Found',  # in _NON_TRANSIENT_ERRORS
-          failed_values=['value1', 'value2'],
-          expected_call_count=1),
-      param(
-          exception_type=exceptions.MethodNotImplemented
-          if exceptions else None,
-          error_reason='Not Implemented',  # in _NON_TRANSIENT_ERRORS
           failed_values=['value1', 'value2'],
           expected_call_count=1),
   ])

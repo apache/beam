@@ -752,13 +752,19 @@ class BigQueryWrapper(object):
           service_call_metric.call(insert_error['errors'][0])
     except GoogleAPICallError as e:
       service_call_metric.call(getattr(e, 'code', e))
+
+      if retry.retry_on_server_errors_timeout_or_quota_issues_filter(e):
+        # Allow @retry decorator to handle transient errors
+        raise
+
       # Package exception with required fields
       reason = getattr(e, 'reason', None)
-      if reason is None and hasattr(e, 'response') and hasattr(e.response, 'reason'):
+      if reason is None and hasattr(e, 'response') and hasattr(e.response,
+                                                               'reason'):
         reason = e.response.reason
       if reason is None:
         reason = getattr(e, 'message', str(e))
-        
+
       error = {'message': getattr(e, 'message', str(e)), 'reason': reason}
       # Add all rows to the errors list along with the error
       errors = [{"index": i, "errors": [error]} for i, _ in enumerate(rows)]
