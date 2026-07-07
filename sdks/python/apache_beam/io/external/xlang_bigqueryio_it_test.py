@@ -483,6 +483,56 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
+  def test_write_to_dynamic_destinations_with_dynamic_schema(self):
+    base_table_spec = '{}.dynamic_dest_dyn_schema_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % tables[i],
+            data=self.parse_expected_data(self.ELEMENTS[i]))
+        for i in range(len(tables))
+    ]
+
+    with beam.Pipeline(argv=self.args) as p:
+      schema_pc = p | "CreateSchema" >> beam.Create([self.ALL_TYPES_SCHEMA])
+      _ = (
+          p
+          | "CreateElements" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=lambda record: spec_with_project + str(record['int']),
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=lambda dest, schema: schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc),),
+              use_at_least_once=False))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_with_dynamic_schema(self):
+    table = 'write_with_dynamic_schema'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
+
+    with beam.Pipeline(argv=self.args) as p:
+      schema_pc = p | "CreateSchema" >> beam.Create([self.ALL_TYPES_SCHEMA])
+      _ = (
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=lambda dest, schema: schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc),),
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE'))
+
+    hamcrest_assert(p, bq_matcher)
+
   def test_write_to_dynamic_destinations_with_beam_rows(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
