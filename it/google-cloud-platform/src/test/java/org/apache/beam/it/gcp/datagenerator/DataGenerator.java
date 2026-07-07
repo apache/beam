@@ -17,7 +17,7 @@
  */
 package org.apache.beam.it.gcp.datagenerator;
 
-import static org.apache.beam.it.gcp.LoadTestBase.createConfig;
+import static org.apache.beam.it.common.dataflow.LoadTestBase.createConfig;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatPipeline;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatResult;
 

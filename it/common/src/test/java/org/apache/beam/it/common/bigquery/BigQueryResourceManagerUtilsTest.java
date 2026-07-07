@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.bigquery;
+package org.apache.beam.it.common.bigquery;
 
 import static org.apache.beam.it.common.bigquery.BigQueryResourceManagerUtils.checkValidTableId;
 import static org.junit.Assert.assertThrows;
 
 import java.util.Arrays;
 
-import org.apache.beam.it.common.bigquery.BigQueryResourceManagerUtils;
 import org.junit.Test;
 
 /** Unit tests for {@link BigQueryResourceManagerUtils}. */

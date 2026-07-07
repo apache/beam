@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.common;
+package org.apache.beam.it.common.dataflow;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -24,7 +24,9 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher;
+import org.apache.beam.it.common.PipelineLauncher;
+import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testutils.NamedTestResult;
@@ -37,6 +39,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.BEAM_METRICS_NAMESPACE;
 
 /** Base class for IO Load tests. */
 @RunWith(JUnit4.class)
@@ -88,21 +92,6 @@ public class IOLoadTestBase extends LoadTestBase {
       ctx.output(ctx.element());
     }
   }
-
-  // To make PipelineLauncher.getMetric work in a unified way for both runner provided metrics and
-  // pipeline defined
-  // metrics, here we wrap Beam provided metrics as a pre-defined metrics name
-  // [name_space:metric_type:metric_name
-  // which will be recognized by getMetric method
-  public enum PipelineMetricsType {
-    COUNTER,
-    STARTTIME,
-    ENDTIME,
-    RUNTIME,
-  }
-
-  /** Namespace for Beam provided pipeline metrics (set up by Metrics transform). */
-  public static final String BEAM_METRICS_NAMESPACE = "BEAM_METRICS";
 
   /** Given a metrics name, return Beam metrics name. */
   public static String getBeamMetricsName(PipelineMetricsType metricstype, String metricsName) {

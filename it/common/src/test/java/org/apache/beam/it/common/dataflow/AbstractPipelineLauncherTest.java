@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.dataflow;
+package org.apache.beam.it.common.dataflow;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -34,7 +34,6 @@ import dev.failsafe.FailsafeException;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import org.apache.beam.it.common.PipelineLauncher.JobState;
-import org.apache.beam.it.common.dataflow.AbstractPipelineLauncher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;

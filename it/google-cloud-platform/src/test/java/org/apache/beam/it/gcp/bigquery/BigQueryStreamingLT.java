@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.common.IOLoadTestBase;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;

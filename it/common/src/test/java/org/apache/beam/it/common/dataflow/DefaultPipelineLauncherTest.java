@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.dataflow;
+package org.apache.beam.it.common.dataflow;
 
+import static org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.BEAM_METRICS_NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Instant;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
 import org.apache.beam.it.common.PipelineLauncher;
-import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher;
-import org.apache.beam.it.gcp.IOLoadTestBase;
-import org.apache.beam.it.gcp.IOLoadTestBase.PipelineMetricsType;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
@@ -49,7 +48,7 @@ public class DefaultPipelineLauncherTest {
 
     pipeline
         .apply(GenerateSequence.from(0).to(numElements))
-        .apply(ParDo.of(new TimeMonitor<>(IOLoadTestBase.BEAM_METRICS_NAMESPACE, timeMetrics)))
+        .apply(ParDo.of(new TimeMonitor<>(BEAM_METRICS_NAMESPACE, timeMetrics)))
         .apply(ParDo.of(new IOLoadTestBase.CountingFn<>(counterMetrics)));
 
     PipelineLauncher.LaunchConfig options =
