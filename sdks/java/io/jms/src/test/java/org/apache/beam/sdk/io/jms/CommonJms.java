@@ -17,15 +17,15 @@
  */
 package org.apache.beam.sdk.io.jms;
 
+import jakarta.jms.BytesMessage;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.Message;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
-import javax.jms.BytesMessage;
-import javax.jms.ConnectionFactory;
-import javax.jms.Message;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
@@ -143,7 +143,7 @@ public class CommonJms implements Serializable {
     return this.connectionFactoryClass;
   }
 
-  /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */
+  /** A test class that maps a {@link jakarta.jms.BytesMessage} into a {@link String}. */
   public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
 
     @Override
