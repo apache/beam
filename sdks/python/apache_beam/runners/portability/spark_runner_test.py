@@ -146,6 +146,10 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports SDF.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
+  def test_unbounded_source_read(self):
+    # Skip until Spark runner supports SDF.
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
+
   def test_sdf_with_watermark_tracking(self):
     # Skip until Spark runner supports SDF.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
