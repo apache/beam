@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
@@ -160,21 +161,28 @@ public final class KafkaStreamsTestRunner {
    * the broker and lets the pipeline run to completion.
    */
   private static void roundTripInternalTopics(TopologyTestDriver driver, Set<String> topics) {
+    // Create the sink-output and source-input handles once and reuse them across rounds; a single
+    // TestOutputTopic keeps returning newly produced records on each read.
+    List<TopicRoundTrip> roundTrips = new ArrayList<>();
+    for (String topic : topics) {
+      roundTrips.add(
+          new TopicRoundTrip(
+              driver.createOutputTopic(
+                  topic, new ByteArrayDeserializer(), new ByteArrayDeserializer()),
+              driver.createInputTopic(
+                  topic, new ByteArraySerializer(), new ByteArraySerializer())));
+    }
+
     for (int round = 0; round < MAX_ROUND_TRIPS; round++) {
       boolean progressed = false;
-      for (String topic : topics) {
-        TestOutputTopic<byte[], byte[]> out =
-            driver.createOutputTopic(
-                topic, new ByteArrayDeserializer(), new ByteArrayDeserializer());
-        List<TestRecord<byte[], byte[]>> records = out.readRecordsToList();
+      for (TopicRoundTrip roundTrip : roundTrips) {
+        List<TestRecord<byte[], byte[]>> records = roundTrip.output.readRecordsToList();
         if (records.isEmpty()) {
           continue;
         }
         progressed = true;
-        TestInputTopic<byte[], byte[]> in =
-            driver.createInputTopic(topic, new ByteArraySerializer(), new ByteArraySerializer());
         for (TestRecord<byte[], byte[]> record : records) {
-          in.pipeInput(record);
+          roundTrip.input.pipeInput(record);
         }
       }
       if (!progressed) {
@@ -183,6 +191,17 @@ public final class KafkaStreamsTestRunner {
     }
     throw new IllegalStateException(
         "Internal topics did not reach quiescence after " + MAX_ROUND_TRIPS + " round trips");
+  }
+
+  /** The reusable sink-output and source-input handles for one internal topic. */
+  private static final class TopicRoundTrip {
+    final TestOutputTopic<byte[], byte[]> output;
+    final TestInputTopic<byte[], byte[]> input;
+
+    TopicRoundTrip(TestOutputTopic<byte[], byte[]> output, TestInputTopic<byte[], byte[]> input) {
+      this.output = output;
+      this.input = input;
+    }
   }
 
   /** Kafka Streams config for a {@link TopologyTestDriver} built from the pipeline's app id. */
