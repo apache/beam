@@ -49,15 +49,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // Apply remote inference transform
  * PCollection<OpenAIModelInput> inputs = pipeline.apply(Create.of(
  *     OpenAIModelInput.create("An excellent B2B SaaS solution that streamlines business processes efficiently."),
- *     OpenAIModelInput.create("Really impressed with the innovative features!")
- * ));
+ *     OpenAIModelInput.create("Really impressed with the innovative features!")));
  *
- * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results =
- *     inputs.apply(
- *         RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
- *             .handler(OpenAIModelHandler.class)
- *             .withParameters(params)
- *     );
+ * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results = inputs.apply(
+ *     RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
+ *         .handler(OpenAIModelHandler.class)
+ *         .withParameters(params));
  * }</pre>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -132,7 +129,7 @@ public class RemoteInference {
 
     /**
      * Configures the throttling delay when the client is preemptively throttled. Defaults to 5
-     * seconds. For more context, see {@link ReactiveThrottler}
+     * seconds. A value of 0 disables throttling. For more context, see {@link ReactiveThrottler}
      */
     public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
       checkArgument(throttleDelaySecs >= 0, "throttleDelaySecs must be non-negative");
@@ -226,17 +223,20 @@ public class RemoteInference {
         try {
           this.modelHandler = handlerClass.getDeclaredConstructor().newInstance();
           this.modelHandler.createClient(parameters);
-          this.throttler =
-              new ReactiveThrottler(
-                  samplePeriodMs,
-                  sampleUpdateMs,
-                  overloadRatio,
-                  "RemoteInference",
-                  throttleDelaySecs);
+          if (throttleDelaySecs > 0) {
+            this.throttler =
+                new ReactiveThrottler(
+                    samplePeriodMs,
+                    sampleUpdateMs,
+                    overloadRatio,
+                    "RemoteInference",
+                    throttleDelaySecs);
+          }
         } catch (Exception e) {
           throw new RuntimeException("Failed to instantiate handler: " + handlerClass.getName(), e);
         }
       }
+
       /** Perform Inference. */
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
