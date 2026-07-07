@@ -130,25 +130,37 @@ public class RemoteInference {
       return builder().setBatchConfig(batchConfig).build();
     }
 
-    /** Configures the throttling delay when the client is preemptively throttled. */
+    /**
+     * Configures the throttling delay when the client is preemptively throttled. Defaults to 5
+     * seconds. For more context, see {@link ReactiveThrottler}
+     */
     public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
       checkArgument(throttleDelaySecs >= 0, "throttleDelaySecs must be non-negative");
       return builder().setThrottleDelaySecs(throttleDelaySecs).build();
     }
 
-    /** Configures the length of history to consider when setting throttling probability. */
+    /**
+     * Configures the length of history to consider when setting throttling probability. Defaults to
+     * a sample period of 1000ms. For more context, see {@link AdaptiveThrottler}
+     */
     public Invoke<InputT, OutputT> withSamplePeriodMs(long samplePeriodMs) {
       checkArgument(samplePeriodMs > 0, "samplePeriodMs must be positive");
       return builder().setSamplePeriodMs(samplePeriodMs).build();
     }
 
-    /** Configures the granularity of time buckets that we store data in for throttling. */
+    /**
+     * Configures the granularity of time buckets that we store data in for throttling. Defaults to
+     * a sample period of 1000ms. For more context, see {@link AdaptiveThrottler}
+     */
     public Invoke<InputT, OutputT> withSampleUpdateMs(long sampleUpdateMs) {
       checkArgument(sampleUpdateMs > 0, "sampleUpdateMs must be positive");
       return builder().setSampleUpdateMs(sampleUpdateMs).build();
     }
 
-    /** Configures the target ratio between requests sent and successful requests. */
+    /**
+     * Configures the target ratio between requests sent and successful requests. Defaults to an
+     * overload ratio of 2.0. For more context, see {@link AdaptiveThrottler}
+     */
     public Invoke<InputT, OutputT> withOverloadRatio(double overloadRatio) {
       checkArgument(overloadRatio > 0, "overloadRatio must be positive");
       return builder().setOverloadRatio(overloadRatio).build();
