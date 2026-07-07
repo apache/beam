@@ -55,7 +55,7 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.75.0] - 2026-07-??
+# [2.75.0] - 2026-07-08
 
 ## Highlights
 
