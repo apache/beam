@@ -509,30 +509,6 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
-  def test_write_with_dynamic_schema(self):
-    table = 'write_with_dynamic_schema'
-    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
-
-    bq_matcher = BigqueryFullResultMatcher(
-        project=self.project,
-        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
-        data=self.parse_expected_data(self.ELEMENTS))
-
-    with beam.Pipeline(argv=self.args) as p:
-      schema_pc = p | "CreateSchema" >> beam.Create([self.ALL_TYPES_SCHEMA])
-      _ = (
-          p
-          | "Create test data" >> beam.Create(self.ELEMENTS)
-          | beam.io.WriteToBigQuery(
-              table=table_id,
-              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              schema=lambda dest, schema: schema,
-              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
-              create_disposition='CREATE_IF_NEEDED',
-              write_disposition='WRITE_TRUNCATE'))
-
-    hamcrest_assert(p, bq_matcher)
-
   def test_write_to_dynamic_destinations_with_beam_rows(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)

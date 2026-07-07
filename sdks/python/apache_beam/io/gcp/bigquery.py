@@ -2694,17 +2694,17 @@ class StorageWriteToBigQuery(PTransform):
 
     # if writing to one destination, just convert to Beam rows and send over
     if not callable(table):
+      if callable(schema):
+        raise ValueError(
+            "Writing with a dynamic schema is only supported when writing to "
+            "dynamic destinations.")
       if is_rows:
         input_beam_rows = input
       else:
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema,
-                False,
-                self._type_overrides,
-                schema_side_inputs=self._schema_side_inputs,
-                destination=table).with_output_types())
+                schema, False, self._type_overrides).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2813,13 +2813,11 @@ class StorageWriteToBigQuery(PTransform):
         schema,
         dynamic_destinations,
         type_overrides=None,
-        schema_side_inputs=None,
-        destination=None):
+        schema_side_inputs=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
       self.type_overrides = type_overrides
       self.schema_side_inputs = schema_side_inputs or ()
-      self.destination = destination
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
@@ -2848,32 +2846,20 @@ class StorageWriteToBigQuery(PTransform):
                               beam_row_from_dict(row[1], schema)
                           })))
       else:
-        if callable(self.schema):
-          return (
-              input_dicts
-              | "Convert dict to Beam Row" >> beam.Map(
-                  lambda row, *schema_side_inputs: bigquery_tools.
-                  beam_row_from_dict(
-                      row, self.schema(self.destination, *schema_side_inputs)),
-                  *self.schema_side_inputs))
-        else:
-          return (
-              input_dicts
-              | "Convert dict to Beam Row" >> beam.Map(
-                  lambda row, schema=DoFn.SetupContextParam(
-                      StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
-                      [self.schema]): bigquery_tools.beam_row_from_dict(
-                          row, schema)))
+        return (
+            input_dicts
+            | "Convert dict to Beam Row" >> beam.Map(
+                lambda row, schema=DoFn.SetupContextParam(
+                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=[
+                        self.schema
+                    ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
       if callable(self.schema):
-        if self.dynamic_destinations:
-          type_hint = RowTypeConstraint.from_fields([
-              (StorageWriteToBigQuery.DESTINATION, str),
-              (StorageWriteToBigQuery.RECORD, Any)
-          ])
-        else:
-          type_hint = Any
+        type_hint = RowTypeConstraint.from_fields([
+            (StorageWriteToBigQuery.DESTINATION, str),
+            (StorageWriteToBigQuery.RECORD, Any)
+        ])
         return super().with_output_types(type_hint)
 
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(

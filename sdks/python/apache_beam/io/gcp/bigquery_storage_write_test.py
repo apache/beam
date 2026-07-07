@@ -20,14 +20,13 @@
 import unittest
 from unittest import mock
 
-from apache_beam.typehints.typehints import Any
-
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.typehints import Any
 
 
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
@@ -140,48 +139,17 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
       ]
       assert_that(res, equal_to(expected_rows))
 
-  def test_convert_to_beam_rows_static_destination_with_side_inputs(
+  def test_storage_write_static_destination_dynamic_schema_raises_error(
       self, mock_expansion_service):
-    """Test ConvertToBeamRows with static destination and dynamic schema."""
-    schema1 = {
-        'fields': [
-            {
-                'name': 'id', 'type': 'INTEGER'
-            },
-            {
-                'name': 'name', 'type': 'STRING'
-            },
-        ]
-    }
-
-    with TestPipeline() as p:
-      side_pcoll = (
-          p
-          | "CreateSide" >> beam.Create([{
-              'proj:ds.table': schema1
-          }]))
-
-      converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
-          schema=lambda dest, side_map: side_map[dest],
-          dynamic_destinations=False,
-          schema_side_inputs=(beam.pvalue.AsSingleton(side_pcoll), ),
-          destination='proj:ds.table')
-
-      input_data = [
-          {
-              'id': 1, 'name': 'foo'
-          },
-          {
-              'id': 2, 'name': 'bar'
-          },
-      ]
-      res = p | "CreateInput" >> beam.Create(input_data) | converter
-
-      expected_rows = [
-          beam.Row(id=1, name='foo'),
-          beam.Row(id=2, name='bar'),
-      ]
-      assert_that(res, equal_to(expected_rows))
+    """Test that static destination with dynamic schema raises ValueError."""
+    transform = bigquery.StorageWriteToBigQuery(
+        table='test-project:test_dataset.test_table', schema=lambda dest: None)
+    with self.assertRaisesRegex(
+        ValueError,
+        "Writing with a dynamic schema is only supported when writing to "
+        "dynamic destinations."):
+      with TestPipeline() as p:
+        _ = p | "CreateInput" >> beam.Create([{'id': 1}]) | transform
 
   def test_convert_to_beam_rows_with_output_types_dynamic_schema(
       self, mock_expansion_service):
@@ -197,12 +165,6 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
             (bigquery.StorageWriteToBigQuery.DESTINATION, str),
             (bigquery.StorageWriteToBigQuery.RECORD, Any),
         ))
-
-    converter_static = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
-        schema=lambda dest: None, dynamic_destinations=False)
-    type_hint_static = converter_static.with_output_types().get_type_hints(
-    ).simple_output_type('')
-    self.assertEqual(type_hint_static, Any)
 
   def test_storage_write_to_bigquery_expand_dynamic_schema(
       self, mock_expansion_service):
