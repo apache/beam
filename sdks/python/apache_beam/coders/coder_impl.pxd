@@ -135,6 +135,7 @@ cdef class TimestampCoderImpl(StreamCoderImpl):
 
 cdef list small_ints
 cdef class VarIntCoderImpl(StreamCoderImpl):
+  @cython.locals(ivalue=libc.stdint.int64_t)
   cpdef bytes encode(self, value)
 
 

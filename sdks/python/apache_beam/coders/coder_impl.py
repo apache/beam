@@ -90,20 +90,6 @@ else:
 is_compiled = False
 fits_in_64_bits = lambda x: -(1 << 63) <= x <= (1 << 63) - 1
 
-
-def _as_signed_int64(value):
-  # type: (int) -> int
-
-  """Folds a uint64 to the signed int64 with the same bits (and VarInt
-  encoding), which the Cython int64_t stream params accept. Values outside the
-  64-bit range raise here so the pure-Python path matches Cython's overflow."""
-  if (1 << 63) <= value < (1 << 64):
-    return int(value) - (1 << 64)
-  if not fits_in_64_bits(value):
-    raise OverflowError("%d is out of range for a 64-bit integer." % value)
-  return value
-
-
 if TYPE_CHECKING or SLOW_STREAM:
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import InputStream as create_InputStream
@@ -1058,14 +1044,12 @@ class VarIntCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     # type: (int, create_OutputStream, bool) -> None
     try:
-      # Fold uint64 values into signed int64 so Cython doesn't overflow.
-      out.write_var_int64(_as_signed_int64(value))
+      out.write_var_int64(value)
     except OverflowError as e:
       raise OverflowError(
           f"Integer value '{value}' is out of the encodable range for "
-          f"VarIntCoder. This coder is limited to 64-bit integers: the "
-          f"signed range -(2**63) to 2**63 - 1, plus unsigned values up to "
-          f"2**64 - 1 which share the same wire encoding. "
+          f"VarIntCoder. This coder is limited to values that fit "
+          f"within a 64-bit signed integer (-(2**63) to 2**63 - 1). "
           f"Original error: {e}") from e
 
   def decode_from_stream(self, in_stream, nested):
@@ -1073,11 +1057,9 @@ class VarIntCoderImpl(StreamCoderImpl):
     return in_stream.read_var_int64()
 
   def encode(self, value):
-    # Compare as a Python object: a uint64 value overflows the int64_t cast
-    # the compiled fast path used to do here. Non-small values (including
-    # uint64) fall through to encode_to_stream, which folds them.
-    if 0 <= value < len(small_ints):
-      return small_ints[value]
+    ivalue = value  # type cast
+    if 0 <= ivalue < len(small_ints):
+      return small_ints[ivalue]
     return StreamCoderImpl.encode(self, value)
 
   def decode(self, encoded):
@@ -1091,11 +1073,11 @@ class VarIntCoderImpl(StreamCoderImpl):
     # type: (Any, bool) -> int
     # Note that VarInts are encoded the same way regardless of nesting.
     try:
-      return get_varint_size(_as_signed_int64(value))
+      return get_varint_size(value)
     except OverflowError as e:
       raise OverflowError(
           f"Cannot estimate size for integer value '{value}'. "
-          f"Value is out of the range for VarIntCoder (64-bit integer). "
+          f"Value is out of the range for VarIntCoder (64-bit signed integer). "
           f"Original error: {e}") from e
 
 
