@@ -20,35 +20,19 @@ package org.apache.beam.runners.kafka.streams.translation;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Properties;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.construction.Environments;
-import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.TopologyTestDriver;
 import org.junit.Test;
 
 /**
  * End-to-end test for {@link ExecutableStageTranslator}: builds an {@code Impulse -> ParDo}
- * pipeline with the high-level Beam Java SDK, fuses + translates it, and runs the resulting Kafka
- * Streams topology under {@link TopologyTestDriver}. The fused ParDo executes in an in-process
- * (EMBEDDED) Java SDK harness, so the {@link DoFn}'s {@code @ProcessElement} body runs for real —
- * no Docker, no broker.
+ * pipeline with the high-level Beam Java SDK and runs it through {@link KafkaStreamsTestRunner}.
+ * The fused ParDo executes in an in-process (EMBEDDED) Java SDK harness, so the {@link DoFn}'s
+ * {@code @ProcessElement} body runs for real — no Docker, no broker.
  *
  * <p>Because the ParDo's output PCollection has no downstream consumer, it is not a stage output
  * and is never forwarded out of the harness — that is the documented behaviour. The test verifies
@@ -56,9 +40,6 @@ import org.junit.Test;
  * and asserting the recorded input from the test thread.
  */
 public class ExecutableStageTranslatorTest {
-
-  private static final String JOB_ID = "kafka-streams-executable-stage-test";
-  private static final String APPLICATION_ID = "ks-executable-stage-test";
 
   /**
    * Records the length of every input element seen by the harness so the test can verify the DoFn
@@ -82,31 +63,14 @@ public class ExecutableStageTranslatorTest {
   }
 
   @Test
-  public void impulseThenParDoExecutesDoFnInHarnessOncePerImpulseElement() throws Exception {
+  public void impulseThenParDoExecutesDoFnInHarnessOncePerImpulseElement() {
     try (SharedTestCollector<Integer> collector = SharedTestCollector.create()) {
-      Pipeline pipeline = Pipeline.create(pipelineOptions());
+      Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
       pipeline
           .apply("impulse", Impulse.create())
           .apply("pardo", ParDo.of(new RecordingFn(collector)));
 
-      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-
-      KafkaStreamsPipelineOptions options =
-          pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
-      KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
-      JobInfo jobInfo =
-          JobInfo.create(
-              JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
-      KafkaStreamsTranslationContext context =
-          translator.createTranslationContext(jobInfo, options);
-
-      translator.translate(context, translator.prepareForTranslation(pipelineProto));
-
-      Topology topology = context.getTopology();
-      try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
-        driver.advanceWallClockTime(Duration.ofSeconds(1));
-        driver.advanceWallClockTime(Duration.ofSeconds(1));
-      }
+      KafkaStreamsTestRunner.run(pipeline);
 
       List<Integer> recorded = collector.recorded();
       // Impulse emits exactly one empty byte[] in the GlobalWindow, so the DoFn must run exactly
@@ -114,27 +78,5 @@ public class ExecutableStageTranslatorTest {
       assertThat(recorded.size(), is(1));
       assertThat(recorded.get(0), is(0));
     }
-  }
-
-  private static PipelineOptions pipelineOptions() {
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--applicationId=" + APPLICATION_ID).create();
-    options.setRunner(CrashingRunner.class);
-    options.as(KafkaStreamsPipelineOptions.class).setApplicationId(APPLICATION_ID);
-    options
-        .as(PortablePipelineOptions.class)
-        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
-    return options;
-  }
-
-  private static Properties streamsConfig() {
-    Properties props = new Properties();
-    props.put(StreamsConfig.APPLICATION_ID_CONFIG, APPLICATION_ID);
-    props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-    props.put(
-        StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    props.put(
-        StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    return props;
   }
 }

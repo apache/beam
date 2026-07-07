@@ -23,26 +23,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.construction.Environments;
-import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.TopologyDescription;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.Record;
@@ -56,8 +43,6 @@ import org.junit.Test;
  * processor attached to the leaf captures the forwarded watermark and the test asserts on it.
  */
 public class WatermarkPropagationTest {
-
-  private static final String APPLICATION_ID = "ks-watermark-propagation-test";
 
   /** Identity DoFn so the pipeline contains a fused ExecutableStage. */
   private static class IdentityFn extends DoFn<byte[], byte[]> {
@@ -86,26 +71,19 @@ public class WatermarkPropagationTest {
 
   @Test
   public void terminalWatermarkPropagatesToDownstreamStampedAsSingleSource() throws Exception {
-    Pipeline pipeline = Pipeline.create(pipelineOptions());
+    Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
     pipeline.apply("impulse", Impulse.create()).apply("identity", ParDo.of(new IdentityFn()));
 
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-    KafkaStreamsPipelineOptions options =
-        pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
-    KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
-    JobInfo jobInfo =
-        JobInfo.create(
-            APPLICATION_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
-    KafkaStreamsTranslationContext context = translator.createTranslationContext(jobInfo, options);
-    translator.translate(context, translator.prepareForTranslation(pipelineProto));
-
     // Attach a sink to the leaf ExecutableStage processor to capture the watermark it forwards.
-    Topology topology = context.getTopology();
+    Topology topology = KafkaStreamsTestRunner.translate(pipeline).getTopology();
     List<KStreamsPayload<?>> captured = new ArrayList<>();
     topology.addProcessor(
-        "watermark-capture", () -> new WatermarkCapture(captured), findLeafProcessor(topology));
+        "watermark-capture",
+        () -> new WatermarkCapture(captured),
+        KafkaStreamsTestRunner.findAnyLeafProcessorName(topology));
 
-    try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
+    try (TopologyTestDriver driver =
+        new TopologyTestDriver(topology, KafkaStreamsTestRunner.streamsConfig(pipeline))) {
       driver.advanceWallClockTime(Duration.ofSeconds(1));
       driver.advanceWallClockTime(Duration.ofSeconds(1));
     }
@@ -115,41 +93,5 @@ public class WatermarkPropagationTest {
     assertThat(terminal.getWatermarkMillis(), is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
     assertThat(terminal.getSourcePartition(), is(0));
     assertThat(terminal.getTotalSourcePartitions(), is(1));
-  }
-
-  /**
-   * Returns the name of the single processor node with no successors (the leaf of the topology).
-   */
-  private static String findLeafProcessor(Topology topology) {
-    for (TopologyDescription.Subtopology subtopology : topology.describe().subtopologies()) {
-      for (TopologyDescription.Node node : subtopology.nodes()) {
-        if (node instanceof TopologyDescription.Processor && node.successors().isEmpty()) {
-          return node.name();
-        }
-      }
-    }
-    throw new IllegalStateException("no leaf processor found in topology");
-  }
-
-  private static PipelineOptions pipelineOptions() {
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--applicationId=" + APPLICATION_ID).create();
-    options.setRunner(CrashingRunner.class);
-    options.as(KafkaStreamsPipelineOptions.class).setApplicationId(APPLICATION_ID);
-    options
-        .as(PortablePipelineOptions.class)
-        .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
-    return options;
-  }
-
-  private static Properties streamsConfig() {
-    Properties props = new Properties();
-    props.put(StreamsConfig.APPLICATION_ID_CONFIG, APPLICATION_ID);
-    props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-    props.put(
-        StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    props.put(
-        StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    return props;
   }
 }

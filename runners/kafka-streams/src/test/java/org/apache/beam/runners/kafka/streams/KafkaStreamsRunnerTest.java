@@ -24,22 +24,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Properties;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.translation.KStreamsPayload;
-import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTranslator;
-import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
-import org.apache.beam.sdk.util.construction.PipelineTranslation;
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.processor.api.Processor;
@@ -51,8 +40,8 @@ import org.junit.Test;
 
 /**
  * Pipeline-level integration tests that build a Beam {@link Pipeline} via the high-level Java SDK
- * ({@code Pipeline.create().apply(Impulse.create())}), translate it via the runner, and execute the
- * resulting Kafka Streams topology under {@link TopologyTestDriver}.
+ * ({@code Pipeline.create().apply(Impulse.create())}) and run it through {@link
+ * KafkaStreamsTestRunner}.
  *
  * <p>This is the test layer Jan requested on PR #38689: rather than building hand-rolled {@link
  * RunnerApi.Pipeline} protos, drive translation from the same surface a user would write. The tests
@@ -61,33 +50,19 @@ import org.junit.Test;
  */
 public class KafkaStreamsRunnerTest {
 
-  private static final String JOB_ID = "kafka-streams-runner-test";
-  private static final String APPLICATION_ID = "ks-runner-test";
-
   @Test
   public void impulseOnlyPipelineEmitsDataAndTerminalWatermark() {
-    Pipeline pipeline = Pipeline.create(pipelineOptions());
+    Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
     pipeline.apply("impulse", Impulse.create());
 
-    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
-
-    KafkaStreamsPipelineOptions options =
-        pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
-    KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
-    JobInfo jobInfo =
-        JobInfo.create(
-            JOB_ID, options.getJobName(), "", PipelineOptionsTranslation.toProto(options));
-    KafkaStreamsTranslationContext context = translator.createTranslationContext(jobInfo, options);
-    translator.translate(context, translator.prepareForTranslation(pipelineProto));
-
     CapturingProcessor capture = new CapturingProcessor();
-    Topology topology = context.getTopology();
-    // Wire a downstream test sink to every translated transform node so we can capture emissions.
-    // Impulse is the only transform here, so we attach to "impulse" (the processor name registered
-    // by ImpulseTranslator).
-    topology.addProcessor("capture", capture, expectedImpulseProcessorName(pipelineProto));
+    Topology topology = KafkaStreamsTestRunner.translate(pipeline).getTopology();
+    // Impulse is the only transform, so it is the topology leaf; capture what it forwards.
+    topology.addProcessor(
+        "capture", capture, KafkaStreamsTestRunner.findAnyLeafProcessorName(topology));
 
-    try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig())) {
+    try (TopologyTestDriver driver =
+        new TopologyTestDriver(topology, KafkaStreamsTestRunner.streamsConfig(pipeline))) {
       driver.advanceWallClockTime(Duration.ofSeconds(1));
       driver.advanceWallClockTime(Duration.ofSeconds(1));
     }
@@ -99,42 +74,6 @@ public class KafkaStreamsRunnerTest {
     assertThat(
         capture.received.get(1).asWatermark().getWatermarkMillis(),
         is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
-  }
-
-  /**
-   * Finds the transform id that {@link Impulse} got assigned by the SDK so the test can attach a
-   * capturing processor to the matching Kafka Streams processor node (the translator names the
-   * processor after the transform id).
-   */
-  private static String expectedImpulseProcessorName(RunnerApi.Pipeline pipelineProto) {
-    for (java.util.Map.Entry<String, RunnerApi.PTransform> entry :
-        pipelineProto.getComponents().getTransformsMap().entrySet()) {
-      if ("beam:transform:impulse:v1".equals(entry.getValue().getSpec().getUrn())) {
-        return entry.getKey();
-      }
-    }
-    throw new IllegalStateException("Impulse transform not found in pipeline proto");
-  }
-
-  private static PipelineOptions pipelineOptions() {
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--applicationId=" + APPLICATION_ID).create();
-    // Pipeline.create() requires a runner; CrashingRunner is the conventional "this pipeline is
-    // not going to be run() directly" choice used by other portable-runner tests.
-    options.setRunner(CrashingRunner.class);
-    options.as(KafkaStreamsPipelineOptions.class).setApplicationId(APPLICATION_ID);
-    return options;
-  }
-
-  private static Properties streamsConfig() {
-    Properties props = new Properties();
-    props.put(StreamsConfig.APPLICATION_ID_CONFIG, APPLICATION_ID);
-    props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-    props.put(
-        StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    props.put(
-        StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.ByteArray().getClass().getName());
-    return props;
   }
 
   private static class CapturingProcessor
