@@ -192,15 +192,13 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(
-                        MetricNameFilter.named(BEAM_METRICS_NAMESPACE, metricName))
+                    .addNameFilter(MetricNameFilter.named(BEAM_METRICS_NAMESPACE, metricName))
                     .build());
     return metrics.getDistributions();
   }
 
   /** Pull Beam pipeline defined metrics given the jobId. */
-  public Long getBeamMetric(
-      String jobId, PipelineMetricsType metricType, String metricName) {
+  public Long getBeamMetric(String jobId, PipelineMetricsType metricType, String metricName) {
     PipelineResult pipelineResult =
         MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
     if (pipelineResult != null) {
@@ -209,8 +207,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
               .metrics()
               .queryMetrics(
                   MetricsFilter.builder()
-                      .addNameFilter(
-                          MetricNameFilter.named(BEAM_METRICS_NAMESPACE, metricName))
+                      .addNameFilter(MetricNameFilter.named(BEAM_METRICS_NAMESPACE, metricName))
                       .build());
 
       switch (metricType) {
@@ -222,9 +219,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
             return metricResult.getAttempted();
           } catch (NoSuchElementException e) {
             LOG.error(
-                "Failed to get metric {}, from namespace {}",
-                metricName,
-                BEAM_METRICS_NAMESPACE);
+                "Failed to get metric {}, from namespace {}", metricName, BEAM_METRICS_NAMESPACE);
           }
           return UNKNOWN_METRIC_VALUE;
         case STARTTIME:
@@ -273,8 +268,7 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           String.format(
               "Invalid Beam metrics name: %s, expected: '%s:metric_type:metric_name'",
               metricName, BEAM_METRICS_NAMESPACE));
-      PipelineMetricsType metricType =
-          PipelineMetricsType.valueOf(nameSpacedMetrics[1]);
+      PipelineMetricsType metricType = PipelineMetricsType.valueOf(nameSpacedMetrics[1]);
 
       // Pipeline defined metrics are long values. Have to cast to double that is what the base
       // class defined.
@@ -449,7 +443,9 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     // add pipeline options from beamTestPipelineOptions system property to preserve the
     // pipeline options already set in TestPipeline.
     @Nullable
-    String beamTestPipelineOptions = System.getProperty(org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+    String beamTestPipelineOptions =
+        System.getProperty(
+            org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
     if (!Strings.isNullOrEmpty(beamTestPipelineOptions)) {
       try {
         additionalOptions.addAll(MAPPER.readValue(beamTestPipelineOptions, List.class));
@@ -457,7 +453,8 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
         throw new RuntimeException(
             "Unable to instantiate test options from system property "
                 + org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
-                + ":" + beamTestPipelineOptions,
+                + ":"
+                + beamTestPipelineOptions,
             e);
       }
     }

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.storage;
+package org.apache.beam.it.common.storage;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -39,10 +39,10 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.apache.beam.it.common.ResourceManager;
-import org.apache.beam.it.gcp.artifacts.Artifact;
-import org.apache.beam.it.gcp.artifacts.ArtifactClient;
-import org.apache.beam.it.gcp.artifacts.GcsArtifact;
-import org.apache.beam.it.gcp.artifacts.utils.ArtifactUtils;
+import org.apache.beam.it.common.artifacts.Artifact;
+import org.apache.beam.it.common.artifacts.ArtifactClient;
+import org.apache.beam.it.common.artifacts.GcsArtifact;
+import org.apache.beam.it.common.artifacts.utils.ArtifactUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;

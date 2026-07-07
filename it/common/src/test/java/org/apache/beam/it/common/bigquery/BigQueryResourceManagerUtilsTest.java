@@ -21,7 +21,6 @@ import static org.apache.beam.it.common.bigquery.BigQueryResourceManagerUtils.ch
 import static org.junit.Assert.assertThrows;
 
 import java.util.Arrays;
-
 import org.junit.Test;
 
 /** Unit tests for {@link BigQueryResourceManagerUtils}. */

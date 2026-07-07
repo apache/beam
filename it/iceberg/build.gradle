@@ -31,7 +31,6 @@ ext.summary = "Integration test utilities for Iceberg."
 
 def iceberg_version = "1.10.0"
 def parquet_version = "1.16.0"
-def orc_version = "1.9.6"
 def hive_version = "3.1.3"
 
 def hadoopVersions = [
@@ -43,27 +42,8 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 evaluationDependsOn(":it:common")
 
 dependencies {
-  implementation library.java.vendored_guava_32_1_2_jre
-  implementation project(path: ":sdks:java:core", configuration: "shadow")
-  implementation project(path: ":model:pipeline", configuration: "shadow")
-  implementation library.java.avro
-  implementation library.java.slf4j_api
-  implementation library.java.joda_time
-  implementation "org.apache.parquet:parquet-column:$parquet_version"
-  implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
-  implementation "org.apache.parquet:parquet-common:$parquet_version"
-  implementation project(":sdks:java:io:parquet")
-  implementation "org.apache.orc:orc-core:$orc_version"
-  implementation "org.apache.iceberg:iceberg-core:$iceberg_version"
-  implementation "org.apache.iceberg:iceberg-api:$iceberg_version"
-  implementation "org.apache.iceberg:iceberg-parquet:$iceberg_version"
-  implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
-  implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
-  implementation "org.apache.hadoop:hadoop-common:3.3.6"
-
   provided "org.immutables:value:2.8.8"
   permitUnusedDeclared "org.immutables:value:2.8.8"
-  implementation library.java.vendored_calcite_1_40_0
   runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
   runtimeOnly "org.apache.iceberg:iceberg-aws:$iceberg_version"
   runtimeOnly "org.apache.iceberg:iceberg-aws-bundle:$iceberg_version"
@@ -113,28 +93,10 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-mapreduce-client-core:$kv.value"
   }
 
-  implementation project(path: ":runners:google-cloud-dataflow-java")
-  implementation project(path: ":it:common")
-  implementation project(path: ":it:conditions")
-  implementation project(path: ":it:truthmatchers")
-  implementation project(path: ":sdks:java:testing:test-utils")
-  implementation library.java.failsafe
-  implementation library.java.google_api_services_dataflow
-  implementation(library.java.truth) {
-    exclude group: 'com.google.guava', module: 'guava'
-  }
-  implementation library.java.jackson_core
-  implementation library.java.jackson_databind
-  implementation 'org.apache.commons:commons-lang3:3.9'
-  implementation library.java.google_api_client
-  implementation library.java.google_http_client
-  implementation library.java.guava
-  implementation library.java.protobuf_java_util
-  implementation library.java.protobuf_java
-  implementation library.java.threetenbp
-
   testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
   testImplementation project(path: ":sdks:java:io:synthetic")
+  testImplementation project(path: ":sdks:java:io:iceberg")
+  testImplementation project(path: ":it:truthmatchers")
   testImplementation project(path: ":it:common", configuration: "testRuntimeMigration")
   testImplementation library.java.mockito_inline
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")

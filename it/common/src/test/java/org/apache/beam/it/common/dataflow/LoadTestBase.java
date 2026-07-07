@@ -17,8 +17,8 @@
  */
 package org.apache.beam.it.common.dataflow;
 
-import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.RUNNER_V2;
+import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineOperator;

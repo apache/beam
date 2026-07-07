@@ -15,15 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts.matchers;
+package org.apache.beam.it.truthmatchers;
 
-import static com.google.common.truth.Truth.assertAbout;
-import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
-
+import com.google.common.truth.Truth;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.it.gcp.artifacts.Artifact;
-import org.apache.beam.it.truthmatchers.RecordsSubject;
+import org.apache.beam.it.common.artifacts.Artifact;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 public class ArtifactAsserts {
@@ -36,7 +33,7 @@ public class ArtifactAsserts {
    * @return Truth Subject to chain assertions.
    */
   public static ArtifactsSubject assertThatArtifacts(List<Artifact> artifacts) {
-    return assertAbout(ArtifactsSubject.records()).that(artifacts);
+    return Truth.assertAbout(ArtifactsSubject.records()).that(artifacts);
   }
 
   /**
@@ -47,7 +44,7 @@ public class ArtifactAsserts {
    * @return Truth Subject to chain assertions.
    */
   public static ArtifactsSubject assertThatArtifact(Artifact artifact) {
-    return assertAbout(ArtifactsSubject.records()).that(ImmutableList.of(artifact));
+    return Truth.assertAbout(ArtifactsSubject.records()).that(ImmutableList.of(artifact));
   }
 
   /**
@@ -57,6 +54,6 @@ public class ArtifactAsserts {
    * @return Truth Subject to chain assertions.
    */
   public static RecordsSubject assertThatGenericRecords(List<GenericRecord> records) {
-    return assertThatRecords(ArtifactsSubject.genericRecordToRecords(records));
+    return PipelineAsserts.assertThatRecords(ArtifactsSubject.genericRecordToRecords(records));
   }
 }

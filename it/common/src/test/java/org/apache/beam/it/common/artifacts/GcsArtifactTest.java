@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts;
+package org.apache.beam.it.common.artifacts;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
@@ -30,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-/** Unit tests for {@link GcsArtifact}. */
+/** Unit tests for {@link org.apache.beam.it.common.artifacts.GcsArtifact}. */
 @RunWith(JUnit4.class)
 public class GcsArtifactTest {
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();

@@ -15,11 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts.matchers;
+package org.apache.beam.it.truthmatchers;
 
-import static org.apache.beam.it.gcp.artifacts.matchers.ArtifactAsserts.assertThatGenericRecords;
-import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatRecords;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing.sha256;
+import static org.apache.beam.it.truthmatchers.ArtifactAsserts.assertThatGenericRecords;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,11 +29,11 @@ import java.util.List;
 import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.it.gcp.artifacts.Artifact;
-import org.apache.beam.it.gcp.artifacts.utils.AvroTestUtil;
-import org.apache.beam.it.gcp.artifacts.utils.JsonTestUtil;
-import org.apache.beam.it.gcp.artifacts.utils.ParquetTestUtil;
-import org.apache.beam.it.truthmatchers.RecordsSubject;
+import org.apache.beam.it.common.artifacts.Artifact;
+import org.apache.beam.it.common.artifacts.utils.AvroTestUtil;
+import org.apache.beam.it.common.artifacts.utils.JsonTestUtil;
+import org.apache.beam.it.common.artifacts.utils.ParquetTestUtil;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 
 /**
  * Subject that has assertion operations for artifact lists (GCS files), usually coming from the
@@ -98,7 +96,8 @@ public final class ArtifactsSubject extends Subject {
    */
   public void hasHash(String hash) {
     if (actual.stream()
-        .noneMatch(artifact -> sha256().hashBytes(artifact.contents()).toString().equals(hash))) {
+        .noneMatch(
+            artifact -> Hashing.sha256().hashBytes(artifact.contents()).toString().equals(hash))) {
       failWithActual("expected to contain hash", hash);
     }
   }
@@ -167,6 +166,6 @@ public final class ArtifactsSubject extends Subject {
         throw new RuntimeException("Error reading " + artifact.name() + " as JSON.", e);
       }
     }
-    return assertThatRecords(allRecords);
+    return PipelineAsserts.assertThatRecords(allRecords);
   }
 }

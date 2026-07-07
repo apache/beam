@@ -17,13 +17,14 @@
  */
 package org.apache.beam.it.common.dataflow;
 
+import static org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.BEAM_METRICS_NAMESPACE;
+
 import com.google.cloud.Timestamp;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
-
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
@@ -39,8 +40,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.BEAM_METRICS_NAMESPACE;
 
 /** Base class for IO Load tests. */
 @RunWith(JUnit4.class)

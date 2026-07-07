@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts;
+package org.apache.beam.it.common.artifacts;
 
 import com.google.cloud.storage.Blob;
 

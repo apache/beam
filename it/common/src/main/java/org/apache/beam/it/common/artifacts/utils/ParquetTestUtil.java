@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts.utils;
+package org.apache.beam.it.common.artifacts.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;

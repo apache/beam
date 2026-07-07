@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.artifacts.utils;
+package org.apache.beam.it.common.artifacts.utils;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Artifacts for {@link ArtifactUtils}. */
+/** Artifacts for {@link org.apache.beam.it.common.artifacts.utils.ArtifactUtils}. */
 @RunWith(JUnit4.class)
 public final class ArtifactUtilsTest {
 

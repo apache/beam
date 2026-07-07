@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Package for artifact utilities. */
-package org.apache.beam.it.gcp.artifacts.utils;
+/** Package for managing Google Cloud Storage resources within integration tests. */
+package org.apache.beam.it.common.storage;

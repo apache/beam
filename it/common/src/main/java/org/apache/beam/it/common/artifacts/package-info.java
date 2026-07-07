@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Package for Artifact Truth matchers / subjects to have reusable assertions. */
-package org.apache.beam.it.gcp.artifacts.matchers;
+/** Package for working with test artifacts. */
+package org.apache.beam.it.common.artifacts;

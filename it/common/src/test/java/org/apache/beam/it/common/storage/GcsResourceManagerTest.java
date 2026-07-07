@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.storage;
+package org.apache.beam.it.common.storage;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -35,6 +35,7 @@ import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BucketListOption;
+import com.google.common.truth.Truth;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -43,8 +44,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import org.apache.beam.it.gcp.artifacts.Artifact;
-import org.apache.beam.it.gcp.artifacts.GcsArtifact;
+import org.apache.beam.it.common.artifacts.Artifact;
+import org.apache.beam.it.common.artifacts.GcsArtifact;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.junit.After;
@@ -128,7 +129,7 @@ public final class GcsResourceManagerTest {
     verify(client).create(blobInfoCaptor.capture(), contentsCaptor.capture());
     BlobInfo actualInfo = blobInfoCaptor.getValue();
 
-    assertThat(actual.blob).isSameInstanceAs(blob);
+    Truth.assertThat(actual.blob).isSameInstanceAs(blob);
     assertThat(actualInfo.getBucket()).isEqualTo(BUCKET);
     assertThat(actualInfo.getName())
         .isEqualTo(String.format("%s/%s/%s", TEST_CLASS, gcsClient.runId(), artifactName));
@@ -144,7 +145,7 @@ public final class GcsResourceManagerTest {
     verify(client).create(blobInfoCaptor.capture(), contentsCaptor.capture());
     BlobInfo actualInfo = blobInfoCaptor.getValue();
 
-    assertThat(actual.blob).isSameInstanceAs(blob);
+    Truth.assertThat(actual.blob).isSameInstanceAs(blob);
     assertThat(actualInfo.getBucket()).isEqualTo(BUCKET);
     assertThat(actualInfo.getName())
         .isEqualTo(String.format("%s/%s/%s", TEST_CLASS, gcsClient.runId(), ARTIFACT_NAME));
@@ -185,8 +186,8 @@ public final class GcsResourceManagerTest {
     BlobListOption actualOptions = listOptionsCaptor.getValue();
 
     assertThat(actual).hasSize(2);
-    assertThat(actual.get(0).name()).isEqualTo(name1);
-    assertThat(actual.get(1).name()).isEqualTo(name3);
+    Truth.assertThat(actual.get(0).name()).isEqualTo(name1);
+    Truth.assertThat(actual.get(1).name()).isEqualTo(name3);
     assertThat(actualBucket).isEqualTo(BUCKET);
     assertThat(actualOptions)
         .isEqualTo(
@@ -221,8 +222,8 @@ public final class GcsResourceManagerTest {
     BlobListOption actualOptions = listOptionsCaptor.getValue();
 
     assertThat(actual).hasSize(2);
-    assertThat(actual.get(0).name()).isEqualTo(name1);
-    assertThat(actual.get(1).name()).isEqualTo(name3);
+    Truth.assertThat(actual.get(0).name()).isEqualTo(name1);
+    Truth.assertThat(actual.get(1).name()).isEqualTo(name3);
     assertThat(actualBucket).isEqualTo(BUCKET);
     assertThat(actualOptions)
         .isEqualTo(

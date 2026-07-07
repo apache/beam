@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Package for working with test artifacts. */
-package org.apache.beam.it.gcp.artifacts;
+/** Package for artifact utilities. */
+package org.apache.beam.it.common.artifacts.utils;

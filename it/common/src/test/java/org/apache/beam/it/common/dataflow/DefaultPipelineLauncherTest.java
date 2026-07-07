@@ -23,8 +23,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Instant;
-import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
 import org.apache.beam.it.common.PipelineLauncher;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;

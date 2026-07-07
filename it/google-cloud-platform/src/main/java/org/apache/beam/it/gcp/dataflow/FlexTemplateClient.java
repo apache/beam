@@ -32,7 +32,6 @@ import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
 import dev.failsafe.Failsafe;
 import java.io.IOException;
-
 import org.apache.beam.it.common.dataflow.AbstractPipelineLauncher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
