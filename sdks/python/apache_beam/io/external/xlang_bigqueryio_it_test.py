@@ -505,7 +505,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=lambda record: spec_with_project + str(record['int']),
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=lambda dest, schema: schema,
-              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc),),
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
@@ -527,7 +527,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=table_id,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=lambda dest, schema: schema,
-              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc),),
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               create_disposition='CREATE_IF_NEEDED',
               write_disposition='WRITE_TRUNCATE'))
 
