@@ -33,15 +33,14 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
 class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
   """Test dynamic schema support in BigQuery Storage Write API."""
-
   def test_storage_write_init_with_schema_side_inputs(
       self, mock_expansion_service):
     """Test that StorageWriteToBigQuery accepts schema_side_inputs."""
     transform = bigquery.StorageWriteToBigQuery(
         table='test-project:test_dataset.test_table',
         schema=lambda dest: None,
-        schema_side_inputs=('side_input_1',))
-    self.assertEqual(transform._schema_side_inputs, ('side_input_1',))
+        schema_side_inputs=('side_input_1', ))
+    self.assertEqual(transform._schema_side_inputs, ('side_input_1', ))
     self.assertEqual(transform._table_side_inputs, ())
 
   def test_convert_to_beam_rows_dynamic_destinations_dynamic_schema(
@@ -49,26 +48,37 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     """Test ConvertToBeamRows with dynamic destinations and dynamic schema."""
     schema1 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
-            {'name': 'name', 'type': 'STRING'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
+            {
+                'name': 'name', 'type': 'STRING'
+            },
         ]
     }
     schema2 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
-            {'name': 'score', 'type': 'FLOAT'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
+            {
+                'name': 'score', 'type': 'FLOAT'
+            },
         ]
     }
     schema_map = {'table1': schema1, 'table2': schema2}
 
     converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
-        schema=lambda dest: schema_map[dest],
-        dynamic_destinations=True)
+        schema=lambda dest: schema_map[dest], dynamic_destinations=True)
 
     with TestPipeline() as p:
       input_data = [
-          ('table1', {'id': 1, 'name': 'foo'}),
-          ('table2', {'id': 2, 'score': 3.14}),
+          ('table1', {
+              'id': 1, 'name': 'foo'
+          }),
+          ('table2', {
+              'id': 2, 'score': 3.14
+          }),
       ]
       res = p | "CreateInput" >> beam.Create(input_data) | converter
 
@@ -83,31 +93,44 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     """Test ConvertToBeamRows with dynamic schema and side inputs."""
     schema1 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
-            {'name': 'name', 'type': 'STRING'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
+            {
+                'name': 'name', 'type': 'STRING'
+            },
         ]
     }
     schema2 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
-            {'name': 'score', 'type': 'FLOAT'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
+            {
+                'name': 'score', 'type': 'FLOAT'
+            },
         ]
     }
 
     with TestPipeline() as p:
       side_pcoll = (
           p
-          | "CreateSide" >> beam.Create([{'table1': schema1, 'table2': schema2}])
-      )
+          | "CreateSide" >> beam.Create([{
+              'table1': schema1, 'table2': schema2
+          }]))
 
       converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
           schema=lambda dest, side_map: side_map[dest],
           dynamic_destinations=True,
-          schema_side_inputs=(beam.pvalue.AsSingleton(side_pcoll),))
+          schema_side_inputs=(beam.pvalue.AsSingleton(side_pcoll), ))
 
       input_data = [
-          ('table1', {'id': 1, 'name': 'foo'}),
-          ('table2', {'id': 2, 'score': 3.14}),
+          ('table1', {
+              'id': 1, 'name': 'foo'
+          }),
+          ('table2', {
+              'id': 2, 'score': 3.14
+          }),
       ]
       res = p | "CreateInput" >> beam.Create(input_data) | converter
 
@@ -122,26 +145,35 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     """Test ConvertToBeamRows with static destination and dynamic schema."""
     schema1 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
-            {'name': 'name', 'type': 'STRING'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
+            {
+                'name': 'name', 'type': 'STRING'
+            },
         ]
     }
 
     with TestPipeline() as p:
       side_pcoll = (
           p
-          | "CreateSide" >> beam.Create([{'proj:ds.table': schema1}])
-      )
+          | "CreateSide" >> beam.Create([{
+              'proj:ds.table': schema1
+          }]))
 
       converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
           schema=lambda dest, side_map: side_map[dest],
           dynamic_destinations=False,
-          schema_side_inputs=(beam.pvalue.AsSingleton(side_pcoll),),
+          schema_side_inputs=(beam.pvalue.AsSingleton(side_pcoll), ),
           destination='proj:ds.table')
 
       input_data = [
-          {'id': 1, 'name': 'foo'},
-          {'id': 2, 'name': 'bar'},
+          {
+              'id': 1, 'name': 'foo'
+          },
+          {
+              'id': 2, 'name': 'bar'
+          },
       ]
       res = p | "CreateInput" >> beam.Create(input_data) | converter
 
@@ -155,19 +187,19 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
       self, mock_expansion_service):
     """Test with_output_types when schema is callable."""
     converter_dyn = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
-        schema=lambda dest: None,
-        dynamic_destinations=True)
+        schema=lambda dest: None, dynamic_destinations=True)
     type_hint_dyn = converter_dyn.with_output_types().get_type_hints(
     ).simple_output_type('')
     self.assertIsInstance(type_hint_dyn, RowTypeConstraint)
-    self.assertEqual(type_hint_dyn._fields, (
-        (bigquery.StorageWriteToBigQuery.DESTINATION, str),
-        (bigquery.StorageWriteToBigQuery.RECORD, Any),
-    ))
+    self.assertEqual(
+        type_hint_dyn._fields,
+        (
+            (bigquery.StorageWriteToBigQuery.DESTINATION, str),
+            (bigquery.StorageWriteToBigQuery.RECORD, Any),
+        ))
 
     converter_static = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
-        schema=lambda dest: None,
-        dynamic_destinations=False)
+        schema=lambda dest: None, dynamic_destinations=False)
     type_hint_static = converter_static.with_output_types().get_type_hints(
     ).simple_output_type('')
     self.assertEqual(type_hint_static, Any)
@@ -177,7 +209,9 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     """Test StorageWriteToBigQuery expand does not fail for callable schema."""
     schema1 = {
         'fields': [
-            {'name': 'id', 'type': 'INTEGER'},
+            {
+                'name': 'id', 'type': 'INTEGER'
+            },
         ]
     }
 
@@ -188,12 +222,12 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
                 pcoll.pipeline | "CreateErrors" >> beam.Create([]))
         }
 
-    with mock.patch.object(
-        bigquery, 'SchemaAwareExternalTransform', autospec=True) as mock_ext:
+    with mock.patch.object(bigquery,
+                           'SchemaAwareExternalTransform',
+                           autospec=True) as mock_ext:
       mock_ext.return_value = _DummyExternalTransform()
       transform = bigquery.StorageWriteToBigQuery(
-          table=lambda record: 'table1',
-          schema=lambda dest: schema1)
+          table=lambda record: 'table1', schema=lambda dest: schema1)
 
       with TestPipeline() as p:
         _ = p | "CreateInput" >> beam.Create([{'id': 1}]) | transform
@@ -206,8 +240,8 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
   def test_write_to_bigquery_storage_api_passes_schema_side_inputs(
       self, mock_expansion_service):
     """Test WriteToBigQuery passes schema_side_inputs to StorageWriteToBigQuery."""
-    with mock.patch.object(
-        bigquery, 'StorageWriteToBigQuery', autospec=True) as mock_storage_write:
+    with mock.patch.object(bigquery, 'StorageWriteToBigQuery',
+                           autospec=True) as mock_storage_write:
       mock_storage_write.return_value = beam.Map(lambda x: x)
       with TestPipeline() as p:
         side_pc = p | "CreateSide" >> beam.Create([1])
@@ -215,7 +249,7 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
             table='proj:ds.table',
             method=bigquery.WriteToBigQuery.Method.STORAGE_WRITE_API,
             schema=lambda dest: None,
-            schema_side_inputs=(beam.pvalue.AsSingleton(side_pc),))
+            schema_side_inputs=(beam.pvalue.AsSingleton(side_pc), ))
         _ = p | "CreateInput" >> beam.Create([{'id': 1}]) | write_transform
 
       mock_storage_write.assert_called_once()

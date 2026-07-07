@@ -366,7 +366,6 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
-from apache_beam.typehints.typehints import Any
 from typing import Optional
 from typing import Union
 
@@ -418,6 +417,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import schema_from_element_type
+from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
@@ -2739,7 +2739,8 @@ class StorageWriteToBigQuery(PTransform):
                 schema,
                 True,
                 self._type_overrides,
-                schema_side_inputs=self._schema_side_inputs).with_output_types())
+                schema_side_inputs=self._schema_side_inputs).with_output_types(
+                ))
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2828,8 +2829,8 @@ class StorageWriteToBigQuery(PTransform):
               | "Convert dict to Beam Row" >> beam.Map(
                   lambda row, *schema_side_inputs: beam.Row(
                       **{
-                          StorageWriteToBigQuery.DESTINATION: row[0],
-                          StorageWriteToBigQuery.RECORD: bigquery_tools.
+                          StorageWriteToBigQuery.DESTINATION: row[
+                              0], StorageWriteToBigQuery.RECORD: bigquery_tools.
                           beam_row_from_dict(
                               row[1], self.schema(row[0], *schema_side_inputs))
                       }),
