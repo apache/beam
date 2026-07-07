@@ -76,9 +76,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: default
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
@@ -89,7 +87,6 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerGoUsingJava
           arguments: |
-              -Pjava17Home=$JAVA_HOME_17_X64 \
               -PuseDockerBuildx
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7

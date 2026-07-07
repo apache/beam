@@ -74,9 +74,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: |
             3.10
             ${{ matrix.python_version }}
@@ -85,8 +83,7 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingJava
           arguments: |
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            -PpythonVersion=${{ matrix.python_version }} \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()
