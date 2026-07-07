@@ -186,6 +186,8 @@ jobs:
             -Pjava17Home=$JAVA_HOME_17_X64
       # The env variable is created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run integrationTest
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:apache_beam:testing:load_tests:run
