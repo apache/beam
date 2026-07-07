@@ -35,7 +35,6 @@ astunparse==1.6.3
 attrs==26.1.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
-betterproto==2.0.0b6
 blake3==1.0.9
 bs4==0.0.2
 build==1.5.0
@@ -65,7 +64,6 @@ docker==7.1.0
 docstring_parser==0.18.0
 einops==0.8.2
 email-validator==2.3.0
-envoy_data_plane==1.0.3
 execnet==2.1.2
 fastapi==0.138.1
 fastapi-cli==0.0.27
