@@ -58,7 +58,7 @@ runs:
 
     - name: Cache tox environments
       if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         path: |
           sdks/python/target/.tox
@@ -71,7 +71,7 @@ runs:
 
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
