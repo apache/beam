@@ -34,7 +34,7 @@ import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.common.IOLoadTestBase;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;

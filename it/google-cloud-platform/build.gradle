@@ -27,6 +27,8 @@ applyJavaNature(
 description = "Apache Beam :: IT :: Google Cloud Platform"
 ext.summary = "Integration test utilities for Google Cloud Platform."
 
+evaluationDependsOn(":it:common")
+
 dependencies {
     implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
     implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -84,6 +86,7 @@ dependencies {
     implementation 'com.google.cloud:google-cloud-secretmanager'
     provided 'com.google.api.grpc:proto-google-cloud-secretmanager-v1'
 
+    testImplementation project(path: ":it:common", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
     testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:io:synthetic")

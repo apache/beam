@@ -41,6 +41,8 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
 import com.google.cloud.bigquery.TimePartitioning;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManagerException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;

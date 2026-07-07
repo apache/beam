@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp;
+package org.apache.beam.it.common;
 
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
-import static org.apache.beam.it.gcp.dataflow.AbstractPipelineLauncher.RUNNER_V2;
+import static org.apache.beam.it.common.dataflow.AbstractPipelineLauncher.RUNNER_V2;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
@@ -40,12 +40,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import org.apache.beam.it.common.PipelineLauncher;
+
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
-import org.apache.beam.it.common.PipelineOperator;
-import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
-import org.apache.beam.it.gcp.monitoring.MonitoringClient;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
+import org.apache.beam.it.common.dataflow.AbstractPipelineLauncher;
+import org.apache.beam.it.common.monitoring.MonitoringClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;

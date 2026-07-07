@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.IOException;
 import java.time.Instant;
 import org.apache.beam.it.common.PipelineLauncher;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher;
 import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.it.gcp.IOLoadTestBase.PipelineMetricsType;
 import org.apache.beam.sdk.io.GenerateSequence;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.dataflow;
+package org.apache.beam.it.common.dataflow;
 
 import static org.apache.beam.it.common.logging.LogStrings.formatForLogging;
 import static org.apache.beam.sdk.testing.TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS;
@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.utils.PipelineUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.common.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.DistributionResult;

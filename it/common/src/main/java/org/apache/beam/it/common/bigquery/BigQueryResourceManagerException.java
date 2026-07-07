@@ -15,6 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.it.common.bigquery;
 
-/** Package for querying metrics from cloud monitoring. */
-package org.apache.beam.it.gcp.monitoring;
+/** Custom exception for {@link BigQueryResourceManager} implementations. */
+public class BigQueryResourceManagerException extends RuntimeException {
+
+  public BigQueryResourceManagerException(String errorMessage, Throwable err) {
+    super(errorMessage, err);
+  }
+}

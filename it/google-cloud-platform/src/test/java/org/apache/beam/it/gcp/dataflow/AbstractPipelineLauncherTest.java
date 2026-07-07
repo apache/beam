@@ -34,6 +34,7 @@ import dev.failsafe.FailsafeException;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import org.apache.beam.it.common.PipelineLauncher.JobState;
+import org.apache.beam.it.common.dataflow.AbstractPipelineLauncher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;

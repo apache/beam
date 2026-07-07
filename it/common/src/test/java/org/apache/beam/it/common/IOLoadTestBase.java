@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp;
+package org.apache.beam.it.common;
 
 import com.google.cloud.Timestamp;
 import java.io.IOException;
@@ -23,9 +23,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.it.common.PipelineLauncher;
-import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.gcp.dataflow.DefaultPipelineLauncher;
+
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.testutils.NamedTestResult;

@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.dataflow;
+package org.apache.beam.it.common.dataflow;
 
 import static org.apache.beam.it.common.PipelineLauncher.JobState.ACTIVE_STATES;
 import static org.apache.beam.it.common.PipelineLauncher.JobState.FAILED;

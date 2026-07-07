@@ -35,3 +35,7 @@ tasks.register('BigTablePerformanceTest') {
 tasks.register('BigQueryStorageApiStreamingPerformanceTest') {
     dependsOn(":it:google-cloud-platform:BigQueryStorageApiStreamingPerformanceTest")
 }
+
+tasks.register('IcebergPerformanceTest') {
+  dependsOn(":it:iceberg:IcebergPerformanceTest")
+}

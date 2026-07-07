@@ -17,10 +17,12 @@
  */
 package org.apache.beam.it.gcp.bigquery;
 
-import static org.apache.beam.it.gcp.bigquery.BigQueryResourceManagerUtils.checkValidTableId;
+import static org.apache.beam.it.common.bigquery.BigQueryResourceManagerUtils.checkValidTableId;
 import static org.junit.Assert.assertThrows;
 
 import java.util.Arrays;
+
+import org.apache.beam.it.common.bigquery.BigQueryResourceManagerUtils;
 import org.junit.Test;
 
 /** Unit tests for {@link BigQueryResourceManagerUtils}. */

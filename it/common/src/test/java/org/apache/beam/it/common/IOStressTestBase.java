@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp;
+package org.apache.beam.it.common;
 
 import java.io.Serializable;
 import java.time.Duration;

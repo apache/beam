@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.it.gcp.monitoring;
+package org.apache.beam.it.common.monitoring;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.cloud.monitoring.v3.MetricServiceClient;
