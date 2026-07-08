@@ -20,8 +20,8 @@ package org.apache.beam.sdk.io.jms;
 import static org.apache.beam.sdk.io.jms.CommonJms.PASSWORD;
 import static org.apache.beam.sdk.io.jms.CommonJms.QUEUE;
 import static org.apache.beam.sdk.io.jms.CommonJms.USERNAME;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,8 +29,10 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.IOITHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.Default;
@@ -63,6 +66,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.joda.time.Duration;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -145,84 +149,145 @@ public class JmsIOIT implements Serializable {
   @Parameterized.Parameters(name = "with client class {3}")
   public static Collection<Object[]> connectionFactories() {
     return ImmutableList.of(
-        new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        });
-    // TODO(https://github.com/apache/beam/issues/26175) Test failure on direct runner due to
-    //  JmsIO read on amqp slow on CI (passed locally)
-    // new Object[] {
-    //   "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
-    // });
+        new Object[] {"vm://localhost", "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class},
+        new Object[] {"amqp://localhost", "jms.forceAsyncAcks=false", JmsConnectionFactory.class});
   }
 
-  private final CommonJms commonJms;
+  private static final Map<String, CommonJms> BROKERS = new ConcurrentHashMap<>();
+
+  private final String brokerUrl;
+  private final Integer brokerPort;
+  private final String forceAsyncAcksParam;
+  private final Class<? extends ConnectionFactory> connectionFactoryClassParam;
+  private CommonJms commonJms;
   private ConnectionFactory connectionFactory;
   private Class<? extends ConnectionFactory> connectionFactoryClass;
 
   public JmsIOIT(
       String brokerUrl,
-      Integer brokerPort,
       String forceAsyncAcksParam,
       Class<? extends ConnectionFactory> connectionFactoryClass) {
-    this.commonJms =
-        new CommonJms(
-            OPTIONS.isLocalJmsBrokerEnabled() ? brokerUrl : OPTIONS.getJmsBrokerHost(),
-            OPTIONS.isLocalJmsBrokerEnabled() ? brokerPort : OPTIONS.getJmsBrokerPort(),
-            forceAsyncAcksParam,
-            connectionFactoryClass);
+    this.brokerUrl = brokerUrl;
+    if (OPTIONS.isLocalJmsBrokerEnabled()) {
+      try {
+        this.brokerPort = NetworkTestHelper.getAvailableLocalPort();
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to find available port", e);
+      }
+    } else {
+      this.brokerPort = OPTIONS.getJmsBrokerPort();
+    }
+    this.forceAsyncAcksParam = forceAsyncAcksParam;
+    this.connectionFactoryClassParam = connectionFactoryClass;
   }
 
   @Before
   public void setup() throws Exception {
     if (OPTIONS.isLocalJmsBrokerEnabled()) {
-      this.commonJms.startBroker();
-      connectionFactory = this.commonJms.createConnectionFactory();
-      connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
-      // use a small number of record for local integration test
+      String key = brokerUrl + ":" + connectionFactoryClassParam.getName();
+      commonJms =
+          BROKERS.computeIfAbsent(
+              key,
+              k -> {
+                CommonJms broker =
+                    new CommonJms(
+                        brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClassParam);
+                try {
+                  broker.startBroker();
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+                return broker;
+              });
       OPTIONS.setNumberOfRecords(10000);
+    } else {
+      commonJms =
+          new CommonJms(
+              OPTIONS.getJmsBrokerHost(),
+              OPTIONS.getJmsBrokerPort(),
+              forceAsyncAcksParam,
+              connectionFactoryClassParam);
     }
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    for (CommonJms broker : BROKERS.values()) {
+      try {
+        broker.stopBroker();
+      } catch (Exception e) {
+        // ignore errors on shutdown
+      }
+    }
+    BROKERS.clear();
+  }
+
+  private void setupConnection(JmsIO.AcknowledgeMode acknowledgeMode) throws Exception {
+    if (acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE) {
+      connectionFactory = this.commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
+    } else {
+      connectionFactory = this.commonJms.createConnectionFactory();
+    }
+    connectionFactoryClass = this.commonJms.getConnectionFactoryClass();
   }
 
   @After
   public void tearDown() throws Exception {
-    if (OPTIONS.isLocalJmsBrokerEnabled()) {
-      this.commonJms.stopBroker();
-      connectionFactory = null;
-      connectionFactoryClass = null;
-    }
+    connectionFactory = null;
+    connectionFactoryClass = null;
   }
 
   @Test
-  public void testPublishingThenReadingAll() throws IOException, JMSException {
-    PipelineResult writeResult = publishingMessages();
+  public void testPublishingThenReadingAll() throws Exception {
+    runPublishingThenReadingAll(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE);
+  }
+
+  @Test
+  public void testPublishingThenReadingAllIndividualAcknowledge() throws Exception {
+    runPublishingThenReadingAll(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+  }
+
+  @Test
+  public void testPublishingThenReadingAllClientAcknowledgeUnsafe() throws Exception {
+    runPublishingThenReadingAll(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE);
+  }
+
+  private void runPublishingThenReadingAll(JmsIO.AcknowledgeMode acknowledgeMode) throws Exception {
+    setupConnection(acknowledgeMode);
+    String queue = QUEUE + "_" + acknowledgeMode.name();
+    PipelineResult writeResult = publishingMessages(queue);
     PipelineResult.State writeState = writeResult.waitUntilFinish();
     assertNotEquals(PipelineResult.State.FAILED, writeState);
 
-    PipelineResult readResult = readMessages();
-    PipelineResult.State readState =
-        readResult.waitUntilFinish(Duration.standardSeconds(OPTIONS.getReadTimeout()));
-    // A workaround to stop the pipeline for waiting for too long
+    PipelineResult readResult = readMessages(acknowledgeMode, queue);
+    MetricsReader metricsReader = new MetricsReader(readResult, NAMESPACE);
+    long startTime = System.currentTimeMillis();
+    long timeoutMillis = OPTIONS.getReadTimeout() * 1000L;
+    PipelineResult.State readState = readResult.getState();
+    while (System.currentTimeMillis() - startTime < timeoutMillis
+        && (readState == null || !readState.isTerminal())) {
+      Thread.sleep(500);
+      readState = readResult.getState();
+      if (readState != null && readState.isTerminal()) {
+        break;
+      }
+      long actualRecords = metricsReader.getCounterMetric(READ_ELEMENT_METRIC_NAME);
+      if (actualRecords >= OPTIONS.getNumberOfRecords()) {
+        int unackRecords = countRemain(queue);
+        if (unackRecords == 0) {
+          readResult.cancel();
+          readState = readResult.getState();
+          break;
+        }
+      }
+    }
     cancelIfTimeouted(readResult, readState);
     assertNotEquals(PipelineResult.State.FAILED, readState);
 
-    MetricsReader metricsReader = new MetricsReader(readResult, NAMESPACE);
     long actualRecords = metricsReader.getCounterMetric(READ_ELEMENT_METRIC_NAME);
-
-    // TODO(yathu) resolve pending messages with direct runner then we can simply assert
-    //   actual-records == total-records.
-    //   Due to direct runner only finalize checkpoint at very end, there are open consumers (may
-    //   with buffer) and O(open_consumer) message won't get delivered to other session.
-    int unackRecords = countRemain(QUEUE);
-    assertTrue(
-        String.format("Too many unacknowledged messages: %d", unackRecords),
-        unackRecords < OPTIONS.getNumberOfRecords() * 0.003);
-
-    // acknowledged records
-    int ackRecords = OPTIONS.getNumberOfRecords() - unackRecords;
-    assertTrue(
-        String.format(
-            "actual number of records %d smaller than expected: %d.", actualRecords, ackRecords),
-        ackRecords <= actualRecords);
+    int unackRecords = countRemain(queue);
+    assertEquals("All messages should be acknowledged", 0, unackRecords);
+    assertEquals("All records should be read", (long) OPTIONS.getNumberOfRecords(), actualRecords);
     collectAndPublishMetrics(writeResult, readResult);
   }
 
@@ -233,14 +298,22 @@ public class JmsIOIT implements Serializable {
     }
   }
 
-  private PipelineResult readMessages() {
+  private PipelineResult readMessages(JmsIO.AcknowledgeMode acknowledgeMode, String queue) {
     pipelineRead.getOptions().as(JmsIOITOptions.class).setStreaming(true);
     pipelineRead.getOptions().as(JmsIOITOptions.class).setBlockOnRun(false);
-    JmsIO.Read<String> jmsIORead = JmsIO.readMessage();
+    JmsIO.Read<String> jmsIORead =
+        JmsIO.<String>readMessage()
+            .withAcknowledgeMode(acknowledgeMode)
+            // Decrease withCloseTimeout to be smaller than pipeline runtime. Direct runner randomly
+            // closes reader causing cached pending consumer hanging until closeTimeout
+            .withCloseTimeout(Duration.standardSeconds(5));
     if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
       jmsIORead =
           jmsIORead.withConnectionFactoryProviderFn(
-              CommonJms.toSerializableFunction(commonJms::createConnectionFactory));
+              CommonJms.toSerializableFunction(
+                  acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE
+                      ? commonJms::createConnectionFactoryWithSyncAcksAndWithoutPrefetch
+                      : commonJms::createConnectionFactory));
     } else {
       jmsIORead = jmsIORead.withConnectionFactory(connectionFactory);
     }
@@ -248,7 +321,7 @@ public class JmsIOIT implements Serializable {
         .apply(
             "Read Messages",
             jmsIORead
-                .withQueue(QUEUE)
+                .withQueue(queue)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withCoder(SerializableCoder.of(String.class))
@@ -258,7 +331,7 @@ public class JmsIOIT implements Serializable {
     return pipelineRead.run();
   }
 
-  private PipelineResult publishingMessages() {
+  private PipelineResult publishingMessages(String queue) {
 
     JmsIO.Write<String> jmsIOWrite = JmsIO.write();
     if (pipelineWrite.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
@@ -276,7 +349,7 @@ public class JmsIOIT implements Serializable {
         .apply(
             "Publish to Jms Broker",
             jmsIOWrite
-                .withQueue(QUEUE)
+                .withQueue(queue)
                 .withUsername(USERNAME)
                 .withPassword(PASSWORD)
                 .withValueMapper(new TextMessageMapper()));
@@ -318,17 +391,19 @@ public class JmsIOIT implements Serializable {
   }
 
   private int countRemain(String queue) throws JMSException {
-    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
-    connection.start();
-    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-    QueueBrowser browser = session.createBrowser(session.createQueue(queue));
-    Enumeration<Message> messages = browser.getEnumeration();
-    int count = 0;
-    while (messages.hasMoreElements()) {
-      messages.nextElement();
-      count++;
+    try (Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD)) {
+      connection.start();
+      try (Session session = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+          QueueBrowser browser = session.createBrowser(session.createQueue(queue))) {
+        Enumeration<Message> messages = browser.getEnumeration();
+        int count = 0;
+        while (messages.hasMoreElements()) {
+          messages.nextElement();
+          count++;
+        }
+        return count;
+      }
     }
-    return count;
   }
 
   static class ToString extends DoFn<Long, String> {
