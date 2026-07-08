@@ -32,13 +32,10 @@ public abstract class GeminiModelParameters<InputT, OutputT> implements BaseMode
 
   public abstract String getModelName();
 
-  public abstract boolean getUseVertexFlexApi();
-
   public abstract GeminiRequestFunction<InputT, OutputT> getRequestFn();
 
   public static <InputT, OutputT> Builder<InputT, OutputT> builder() {
-    return new AutoValue_GeminiModelParameters.Builder<InputT, OutputT>()
-        .setUseVertexFlexApi(false);
+    return new AutoValue_GeminiModelParameters.Builder<InputT, OutputT>();
   }
 
   @AutoValue.Builder
@@ -50,8 +47,6 @@ public abstract class GeminiModelParameters<InputT, OutputT> implements BaseMode
     public abstract Builder<InputT, OutputT> setLocation(String location);
 
     public abstract Builder<InputT, OutputT> setModelName(String modelName);
-
-    public abstract Builder<InputT, OutputT> setUseVertexFlexApi(boolean useVertexFlexApi);
 
     public abstract Builder<InputT, OutputT> setRequestFn(
         GeminiRequestFunction<InputT, OutputT> requestFn);

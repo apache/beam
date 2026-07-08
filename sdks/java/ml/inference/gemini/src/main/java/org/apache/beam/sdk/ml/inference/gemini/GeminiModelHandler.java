@@ -39,6 +39,9 @@ public class GeminiModelHandler<InputT, OutputT>
 
   @Override
   public void createClient(GeminiModelParameters<InputT, OutputT> parameters) {
+    if (parameters == null) {
+      throw new NullPointerException("GeminiModelParameters must not be null");
+    }
     this.modelParameters = parameters;
 
     // Configure client based on vertex or API key
@@ -48,16 +51,13 @@ public class GeminiModelHandler<InputT, OutputT>
       }
       this.client = Client.builder().apiKey(parameters.getApiKey()).build();
     } else {
-      if (parameters.getProject() == null || parameters.getLocation() == null) {
+      Client.Builder builder = Client.builder();
+      if (parameters.getProject() != null && parameters.getLocation() != null) {
+        builder.vertexAI(true).project(parameters.getProject()).location(parameters.getLocation());
+      } else if (parameters.getProject() != null || parameters.getLocation() != null) {
         throw new IllegalArgumentException(
-            "Project and location must both be provided if API key is not set");
+            "Project and location must both be provided if one is provided");
       }
-      Client.Builder builder =
-          Client.builder()
-              .vertexAI(true)
-              .project(parameters.getProject())
-              .location(parameters.getLocation());
-
       this.client = builder.build();
     }
   }

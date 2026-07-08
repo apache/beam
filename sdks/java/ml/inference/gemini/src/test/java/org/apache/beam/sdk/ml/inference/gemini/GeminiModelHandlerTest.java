@@ -69,14 +69,9 @@ public class GeminiModelHandlerTest {
   }
 
   @Test
-  public void testMissingAllParams() {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
-            .setModelName("gemini-model-123")
-            .setRequestFn(GeminiInferenceFunctions.generateFromString())
-            .build();
+  public void testNullParameters() {
     GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
-    assertThrows(IllegalArgumentException.class, () -> handler.createClient(parameters));
+    assertThrows(NullPointerException.class, () -> handler.createClient(null));
   }
 
   @Test
