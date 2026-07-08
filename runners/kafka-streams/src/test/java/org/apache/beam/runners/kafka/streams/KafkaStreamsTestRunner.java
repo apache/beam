@@ -36,6 +36,7 @@ import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Serdes;
@@ -88,6 +89,11 @@ public final class KafkaStreamsTestRunner {
   public static KafkaStreamsTranslationContext translate(Pipeline pipeline) {
     KafkaStreamsPipelineOptions options =
         pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
+    // Force every Read.Bounded (including the one Create of 2+ elements expands to) into the
+    // deprecated primitive Read the runner translates, instead of the default
+    // BoundedSourceAsSDFWrapperFn splittable-DoFn expansion the runner cannot execute yet. This is
+    // unconditional — it does not depend on the use_deprecated_read experiment (mentor's steer).
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     JobInfo jobInfo =

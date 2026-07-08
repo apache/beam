@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
 import org.apache.kafka.streams.Topology;
@@ -33,6 +34,12 @@ public class KafkaStreamsTranslationContext {
 
   /** Prefix for the per-job bootstrap topic Impulse reads from. */
   private static final String IMPULSE_BOOTSTRAP_TOPIC_PREFIX = "__beam_impulse_";
+
+  /** Prefix for the per-transform bootstrap topic a primitive Read reads from. */
+  private static final String READ_BOOTSTRAP_TOPIC_PREFIX = "__beam_read_";
+
+  /** Characters not legal in a Kafka topic name; a topic's legal set is {@code [a-zA-Z0-9._-]}. */
+  private static final Pattern ILLEGAL_TOPIC_CHARS = Pattern.compile("[^a-zA-Z0-9._-]");
 
   private final JobInfo jobInfo;
   private final KafkaStreamsPipelineOptions pipelineOptions;
@@ -99,5 +106,18 @@ public class KafkaStreamsTranslationContext {
   /** Returns the dedicated bootstrap topic name used by Impulse for this application. */
   public String getImpulseBootstrapTopic() {
     return IMPULSE_BOOTSTRAP_TOPIC_PREFIX + pipelineOptions.getApplicationId();
+  }
+
+  /**
+   * Returns the dedicated bootstrap topic name a primitive Read reads from. Keyed by transform id
+   * (sanitized to Kafka's legal topic-name character set) so multiple Reads — and Impulse — never
+   * register the same topic on two source nodes, which Kafka Streams rejects.
+   */
+  public String getReadBootstrapTopic(String transformId) {
+    String sanitizedTransformId = ILLEGAL_TOPIC_CHARS.matcher(transformId).replaceAll("_");
+    return READ_BOOTSTRAP_TOPIC_PREFIX
+        + pipelineOptions.getApplicationId()
+        + "_"
+        + sanitizedTransformId;
   }
 }
