@@ -34,7 +34,8 @@ except ImportError:
   GoogleAPICallError = None
 
 
-@unittest.skipIf(GoogleAPICallError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(
+    GoogleAPICallError is None, 'GCP dependencies are not installed')
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
 class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
   """Test dynamic schema support in BigQuery Storage Write API."""
