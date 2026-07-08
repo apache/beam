@@ -340,6 +340,16 @@ def _build_dataset_encryption_config(kms_key):
   return gcp_bigquery.EncryptionConfiguration(kms_key_name=kms_key)
 
 
+class _QueryResultsResponse(object):
+  def __init__(self, job_complete, rows, schema, page_token):
+    self.jobComplete = job_complete
+    self.job_complete = job_complete
+    self.rows = rows
+    self.schema = schema
+    self.pageToken = page_token
+    self.next_page_token = page_token
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -361,9 +371,7 @@ class BigQueryWrapper(object):
 
   def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
     self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
-    self.gcp_bq_client = client or gcp_bigquery.Client(
-        client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+    self.gcp_bq_client = self.client
 
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
@@ -688,14 +696,18 @@ class BigQueryWrapper(object):
       page_token=None,
       max_results=10000,
       location=None):
-    request = gcp_bigquery.BigqueryJobsGetQueryResultsRequest(
-        jobId=job_id,
-        pageToken=page_token,
-        projectId=project_id,
-        maxResults=max_results,
-        location=location)
-    response = self.client.jobs.GetQueryResults(request)
-    return response
+    job = self.get_job(project_id, job_id, location=location)
+    job_complete = job.state == 'DONE'
+    if not job_complete:
+      return _QueryResultsResponse(
+          job_complete=False, rows=[], schema=None, page_token=None)
+    rows_iter = job.result(page_token=page_token, max_results=max_results)
+    page_token = getattr(rows_iter, 'next_page_token', None)
+    return _QueryResultsResponse(
+        job_complete=True,
+        rows=list(rows_iter),
+        schema=getattr(rows_iter, 'schema', getattr(job, 'schema', None)),
+        page_token=page_token)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
