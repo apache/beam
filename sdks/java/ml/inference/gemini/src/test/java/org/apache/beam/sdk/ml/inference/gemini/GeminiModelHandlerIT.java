@@ -23,9 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.ml.inference.remote.PredictionResult;
 import org.apache.beam.sdk.ml.inference.remote.RemoteInference;
 import org.apache.beam.sdk.testing.PAssert;
@@ -83,18 +80,16 @@ public class GeminiModelHandlerIT {
     PCollection<String> inputs = pipeline.apply("CreateSingleInput", Create.of(input));
 
     PCollection<Iterable<PredictionResult<String, String>>> results =
-        inputs
-            .apply(
-                "SentimentInference",
-                RemoteInference.<String, String>invoke()
-                    .handler(GeminiStringContentHandler.class)
-                    .withParameters(
-                        GeminiModelParameters.<String, String>builder()
-                            .setApiKey(apiKey)
-                            .setModelName(DEFAULT_MODEL)
-                            .setRequestFn(GeminiInferenceFunctions.generateFromString())
-                            .build()))
-            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
+        inputs.apply(
+            "SentimentInference",
+            RemoteInference.<String, String>invoke()
+                .handler(GeminiStringContentHandler.class)
+                .withParameters(
+                    GeminiModelParameters.<String, String>builder()
+                        .setApiKey(apiKey)
+                        .setModelName(DEFAULT_MODEL)
+                        .setRequestFn(GeminiInferenceFunctions.generateFromString())
+                        .build()));
 
     // Verify results
     PAssert.that(results)
@@ -127,18 +122,16 @@ public class GeminiModelHandlerIT {
     PCollection<String> inputs = pipeline.apply("CreateImageInput", Create.of(input));
 
     PCollection<Iterable<PredictionResult<String, byte[]>>> results =
-        inputs
-            .apply(
-                "ImageInference",
-                RemoteInference.<String, byte[]>invoke()
-                    .handler(GeminiStringImageHandler.class)
-                    .withParameters(
-                        GeminiModelParameters.<String, byte[]>builder()
-                            .setApiKey(apiKey)
-                            .setModelName("imagen-4.0-generate-001")
-                            .setRequestFn(GeminiInferenceFunctions.generateImageFromString())
-                            .build()))
-            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
+        inputs.apply(
+            "ImageInference",
+            RemoteInference.<String, byte[]>invoke()
+                .handler(GeminiStringImageHandler.class)
+                .withParameters(
+                    GeminiModelParameters.<String, byte[]>builder()
+                        .setApiKey(apiKey)
+                        .setModelName("imagen-4.0-generate-001")
+                        .setRequestFn(GeminiInferenceFunctions.generateImageFromString())
+                        .build()));
 
     // Verify results
     PAssert.that(results)
