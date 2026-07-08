@@ -202,7 +202,8 @@ class RecordWriterManager implements AutoCloseable {
                 table,
                 icebergDestination.getFileFormat(),
                 filePrefix + "_" + stateToken + "_" + recordIndex,
-                partitionKey);
+                partitionKey,
+                catalogConfig.getConfigProperties());
         openWriters++;
         return writer;
       } catch (IOException e) {

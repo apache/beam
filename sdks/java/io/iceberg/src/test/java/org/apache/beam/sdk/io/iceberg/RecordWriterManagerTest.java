@@ -53,6 +53,8 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
@@ -77,6 +79,10 @@ import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
+import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -1299,5 +1305,73 @@ public class RecordWriterManagerTest {
     assertFalse("FileIO must survive after bundle 2 close", sharedIO.closed);
     assertTrue(
         "Bundle 2 should produce data files", bundle2.getSerializableDataFiles().containsKey(dest));
+  }
+
+  @Test
+  public void testWritePropertiesAppliedToParquetFiles() throws IOException {
+    Schema bloomSchema =
+        Schema.builder().addInt32Field("colWithBf").addInt32Field("colWithoutBf").build();
+    org.apache.iceberg.Schema icebergBloomSchema =
+        IcebergUtils.beamSchemaToIcebergSchema(bloomSchema);
+
+    TableIdentifier tableId = TableIdentifier.of("default", "test_write_properties");
+    warehouse.createTable(tableId, icebergBloomSchema);
+
+    IcebergCatalogConfig catalogWithWriteProps =
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(
+                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+            .setConfigProperties(
+                ImmutableMap.of(
+                    "write.parquet.bloom-filter-enabled.column.colWithBf", "true",
+                    "write.parquet.bloom-filter-enabled.column.colWithoutBf", "false"))
+            .build();
+
+    IcebergDestination destination =
+        IcebergDestination.builder()
+            .setTableIdentifier(tableId)
+            .setFileFormat(FileFormat.PARQUET)
+            .build();
+    WindowedValue<IcebergDestination> dest = WindowedValues.valueInGlobalWindow(destination);
+
+    RecordWriterManager writerManager =
+        new RecordWriterManager(catalogWithWriteProps, "test_bloom", Long.MAX_VALUE, 3);
+    for (int i = 0; i < 10; i++) {
+      Row row = Row.withSchema(bloomSchema).addValues(i, 100 + i).build();
+      assertTrue(writerManager.write(dest, row));
+    }
+    writerManager.close();
+
+    List<SerializableDataFile> dataFiles = writerManager.getSerializableDataFiles().get(dest);
+    assertEquals(1, dataFiles.size());
+
+    String dataFilePath = dataFiles.get(0).getPath();
+    assertNotNull(dataFilePath);
+
+    try (ParquetFileReader reader =
+        ParquetFileReader.open(
+            HadoopInputFile.fromPath(new Path(dataFilePath), new Configuration()))) {
+      List<BlockMetaData> blocks = reader.getFooter().getBlocks();
+      assertFalse("Parquet file should have at least one row group", blocks.isEmpty());
+
+      for (int i = 0; i < blocks.size(); i++) {
+        BlockMetaData block = blocks.get(i);
+        assertEquals("Each row group should have 2 columns", 2, block.getColumns().size());
+
+        for (ColumnChunkMetaData col : block.getColumns()) {
+          boolean hasBloomFilter = col.getBloomFilterOffset() > 0;
+          String colName = col.getPath().toDotString();
+          if (colName.equals("colWithBf")) {
+            assertTrue(
+                "Column 'colWithBf' in row group " + i + " should have a bloom filter",
+                hasBloomFilter);
+          } else if (colName.equals("colWithoutBf")) {
+            assertFalse(
+                "Column 'colWithoutBf' in row group " + i + " should not have a bloom filter",
+                hasBloomFilter);
+          }
+        }
+      }
+    }
   }
 }

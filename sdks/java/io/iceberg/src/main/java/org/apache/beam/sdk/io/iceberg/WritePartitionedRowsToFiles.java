@@ -132,7 +132,12 @@ class WritePartitionedRowsToFiles
               .addExtension(String.format("%s-%s", filePrefix, UUID.randomUUID()));
 
       RecordWriter writer =
-          new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
+          new RecordWriter(
+              table,
+              destination.getFileFormat(),
+              fileName,
+              partitionData,
+              catalogConfig.getConfigProperties());
       try {
         for (Row row : element.getValue()) {
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
