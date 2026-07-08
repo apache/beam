@@ -19,11 +19,11 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
 import java.time.Duration;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -85,7 +85,9 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
   private static final Duration PUNCTUATION_DELAY = Duration.ofMillis(50);
 
   private final BoundedSource<T> source;
-  private final PipelineOptions options;
+  // Held as SerializablePipelineOptions (Beam's idiom for a reader holding options) so the
+  // processor's captured state is uniformly serializable alongside the BoundedSource and coders.
+  private final SerializablePipelineOptions options;
   // Encodes a raw WindowedValue<T> as the SDK harness would on the wire (length-prefixing the
   // element coder if the runner does not know it); the runner-side coder then decodes it into the
   // wire form the downstream stage's input receiver expects. See the class javadoc.
@@ -100,7 +102,7 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
 
   ReadProcessor(
       BoundedSource<T> source,
-      PipelineOptions options,
+      SerializablePipelineOptions options,
       Coder<WindowedValue<T>> sdkWireCoder,
       Coder<WindowedValue<?>> runnerWireCoder,
       String stateStoreName,
@@ -151,7 +153,7 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
   /** Reads the whole bounded source and forwards each element, in wire form, as a data payload. */
   private int readAndForward(ProcessorContext<byte[], KStreamsPayload<?>> ctx) {
     int count = 0;
-    try (BoundedReader<T> reader = source.createReader(options)) {
+    try (BoundedReader<T> reader = source.createReader(options.get())) {
       for (boolean hasElement = reader.start(); hasElement; hasElement = reader.advance()) {
         WindowedValue<T> element =
             WindowedValues.timestampedValueInGlobalWindow(

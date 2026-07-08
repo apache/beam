@@ -20,10 +20,10 @@ package org.apache.beam.runners.kafka.streams.translation;
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -117,7 +117,8 @@ class ReadTranslator implements PTransformTranslator {
     String sourceNodeName = transformId + SOURCE_SUFFIX;
     String stateStoreName = transformId + STATE_STORE_SUFFIX;
     String bootstrapTopic = context.getReadBootstrapTopic(transformId);
-    PipelineOptions options = context.getPipelineOptions();
+    SerializablePipelineOptions options =
+        new SerializablePipelineOptions(context.getPipelineOptions());
 
     topology.addSource(
         sourceNodeName,
