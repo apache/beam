@@ -43,6 +43,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.util.SnapshotUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -93,6 +94,12 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
   public OffsetRange initialRestriction() {
     Table table =
         TableCache.getRefreshed(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
+    checkArgument(
+        TableUtil.formatVersion(table) >= 2,
+        "Reading CDC records from an Iceberg table requires a table version > 2, "
+            + "but table %s has version %s",
+        scanConfig.getTableIdentifier(),
+        TableUtil.formatVersion(table));
 
     long toSnapshotExclusiveSeq = POLL_FOREVER;
     @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, scanConfig);
