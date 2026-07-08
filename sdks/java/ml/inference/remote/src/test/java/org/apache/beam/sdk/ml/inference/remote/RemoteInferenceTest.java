@@ -29,6 +29,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -45,7 +47,7 @@ public class RemoteInferenceTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   // Test input class
-  public static class TestInput implements BaseInput {
+  public static class TestInput implements BaseInput, java.io.Serializable {
     private final String value;
 
     private TestInput(String value) {
@@ -84,7 +86,7 @@ public class RemoteInferenceTest {
   }
 
   // Test output class
-  public static class TestOutput implements BaseResponse {
+  public static class TestOutput implements BaseResponse, java.io.Serializable {
     private final String result;
 
     private TestOutput(String result) {
@@ -300,11 +302,13 @@ public class RemoteInferenceTest {
     PCollection<TestInput> inputCollection = pipeline.apply(Create.of(input));
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockSuccessHandler.class)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockSuccessHandler.class)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Verify the output contains expected predictions
     PAssert.thatSingleton(results)
@@ -337,11 +341,13 @@ public class RemoteInferenceTest {
             "CreateInputs", Create.of(inputs).withCoder(SerializableCoder.of(TestInput.class)));
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockSuccessHandler.class)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockSuccessHandler.class)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Count total results across all batches
     PAssert.that(results)
@@ -373,11 +379,13 @@ public class RemoteInferenceTest {
         pipeline.apply("CreateEmptyInput", Create.empty(SerializableCoder.of(TestInput.class)));
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockSuccessHandler.class)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockSuccessHandler.class)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // assertion for empty PCollection
     PAssert.that(results).empty();
@@ -395,11 +403,13 @@ public class RemoteInferenceTest {
             "CreateInput", Create.of(input).withCoder(SerializableCoder.of(TestInput.class)));
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockEmptyResultHandler.class)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockEmptyResultHandler.class)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Verify we still get a result, but it's empty
     PAssert.thatSingleton(results)
@@ -423,11 +433,13 @@ public class RemoteInferenceTest {
         pipeline.apply(
             "CreateInput", Create.of(input).withCoder(SerializableCoder.of(TestInput.class)));
 
-    inputCollection.apply(
-        "RemoteInference",
-        RemoteInference.<TestInput, TestOutput>invoke()
-            .handler(MockFailingSetupHandler.class)
-            .withParameters(params));
+    inputCollection
+        .apply(
+            "RemoteInference",
+            RemoteInference.<TestInput, TestOutput>invoke()
+                .handler(MockFailingSetupHandler.class)
+                .withParameters(params))
+        .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Verify pipeline fails with expected error
     try {
@@ -452,11 +464,13 @@ public class RemoteInferenceTest {
         pipeline.apply(
             "CreateInput", Create.of(input).withCoder(SerializableCoder.of(TestInput.class)));
 
-    inputCollection.apply(
-        "RemoteInference",
-        RemoteInference.<TestInput, TestOutput>invoke()
-            .handler(MockFailingRequestHandler.class)
-            .withParameters(params));
+    inputCollection
+        .apply(
+            "RemoteInference",
+            RemoteInference.<TestInput, TestOutput>invoke()
+                .handler(MockFailingRequestHandler.class)
+                .withParameters(params))
+        .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Verify pipeline fails with expected error
     try {
@@ -479,11 +493,13 @@ public class RemoteInferenceTest {
         pipeline.apply(
             "CreateInput", Create.of(input).withCoder(SerializableCoder.of(TestInput.class)));
 
-    inputCollection.apply(
-        "RemoteInference",
-        RemoteInference.<TestInput, TestOutput>invoke()
-            .handler(MockNoDefaultConstructorHandler.class)
-            .withParameters(params));
+    inputCollection
+        .apply(
+            "RemoteInference",
+            RemoteInference.<TestInput, TestOutput>invoke()
+                .handler(MockNoDefaultConstructorHandler.class)
+                .withParameters(params))
+        .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     // Verify pipeline fails when handler cannot be instantiated
     try {
@@ -519,11 +535,13 @@ public class RemoteInferenceTest {
             "CreateInput", Create.of(input).withCoder(SerializableCoder.of(TestInput.class)));
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockSuccessHandler.class)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockSuccessHandler.class)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     PAssert.thatSingleton(results)
         .satisfies(
@@ -573,12 +591,14 @@ public class RemoteInferenceTest {
             .build();
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockSuccessHandler.class)
-                .withBatchConfig(batchConfig)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockSuccessHandler.class)
+                    .withBatchConfig(batchConfig)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     PAssert.that(results)
         .satisfies(
@@ -665,18 +685,20 @@ public class RemoteInferenceTest {
             .build();
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
-        inputCollection.apply(
-            "RemoteInference",
-            RemoteInference.<TestInput, TestOutput>invoke()
-                .handler(MockThrottlingHandler.class)
-                .withBatchConfig(batchConfig)
-                // Use large sample periods so the 1s retry delay doesn't flush the history
-                .withSamplePeriodMs(60000L)
-                .withSampleUpdateMs(60000L)
-                // Set to 1 second to minimize test wait time while still verifying throttling
-                .withThrottleDelaySecs(1)
-                .withOverloadRatio(1.1)
-                .withParameters(params));
+        inputCollection
+            .apply(
+                "RemoteInference",
+                RemoteInference.<TestInput, TestOutput>invoke()
+                    .handler(MockThrottlingHandler.class)
+                    .withBatchConfig(batchConfig)
+                    // Use large sample periods so the 1s retry delay doesn't flush the history
+                    .withSamplePeriodMs(60000L)
+                    .withSampleUpdateMs(60000L)
+                    // Set to 1 second to minimize test wait time while still verifying throttling
+                    .withThrottleDelaySecs(1)
+                    .withOverloadRatio(1.1)
+                    .withParameters(params))
+            .setCoder((Coder) IterableCoder.of(SerializableCoder.of(PredictionResult.class)));
 
     PAssert.that(results)
         .satisfies(
