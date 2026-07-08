@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "website": "Abacn"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
