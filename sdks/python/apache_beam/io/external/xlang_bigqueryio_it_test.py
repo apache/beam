@@ -486,25 +486,60 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   def test_write_to_dynamic_destinations_with_dynamic_schema(self):
     base_table_spec = '{}.dynamic_dest_dyn_schema_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
-    tables = [base_table_spec + str(record['int']) for record in self.ELEMENTS]
+    table_a = base_table_spec + 'users'
+    table_b = base_table_spec + 'scores'
+
+    schema_a = "id:INTEGER,name:STRING"
+    schema_b = "id:INTEGER,score:INTEGER,active:BOOLEAN"
+
+    elements_a = [
+        {
+            'id': 1, 'name': 'alice'
+        },
+        {
+            'id': 2, 'name': 'bob'
+        },
+    ]
+    elements_b = [
+        {
+            'id': 101, 'score': 95, 'active': True
+        },
+        {
+            'id': 102, 'score': 80, 'active': False
+        },
+    ]
+    elements = elements_a + elements_b
+
+    schema_map = {
+        spec_with_project + 'users': schema_a,
+        spec_with_project + 'scores': schema_b,
+    }
 
     bq_matchers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % tables[i],
-            data=self.parse_expected_data(self.ELEMENTS[i]))
-        for i in range(len(tables))
+            query="SELECT * FROM %s" % table_a,
+            data=self.parse_expected_data(elements_a)),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % table_b,
+            data=self.parse_expected_data(elements_b)),
     ]
 
+    def get_destination(record):
+      if 'name' in record:
+        return spec_with_project + 'users'
+      return spec_with_project + 'scores'
+
     with beam.Pipeline(argv=self.args) as p:
-      schema_pc = p | "CreateSchema" >> beam.Create([self.ALL_TYPES_SCHEMA])
+      schema_pc = p | "CreateSchema" >> beam.Create([schema_map])
       _ = (
           p
-          | "CreateElements" >> beam.Create(self.ELEMENTS)
+          | "CreateElements" >> beam.Create(elements)
           | beam.io.WriteToBigQuery(
-              table=lambda record: spec_with_project + str(record['int']),
+              table=get_destination,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              schema=lambda dest, schema: schema,
+              schema=lambda dest, side_map: side_map[dest],
               schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
