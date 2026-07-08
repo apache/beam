@@ -1078,6 +1078,22 @@ class TestWriteToBigQuery(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, 'schemaUpdateOptions'):
       transform._additional_bq_parameters_for_file_loads()
 
+  def test_schema_update_options_rejects_non_list(self):
+    schema_update_option = (
+        beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION)
+    with self.assertRaisesRegex(ValueError, 'must be a list'):
+      WriteToBigQuery(
+          table='dataset.table',
+          method=WriteToBigQuery.Method.FILE_LOADS,
+          schema_update_options=schema_update_option)
+
+  def test_schema_update_options_rejects_invalid_value(self):
+    with self.assertRaisesRegex(ValueError, 'Invalid schema update option'):
+      WriteToBigQuery(
+          table='dataset.table',
+          method=WriteToBigQuery.Method.FILE_LOADS,
+          schema_update_options=['INVALID_SCHEMA_UPDATE_OPTION'])
+
   def test_schema_update_options_with_callable_additional_bq_parameters(self):
     schema_update_options = [
         beam_bq.BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION

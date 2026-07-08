@@ -616,6 +616,23 @@ class BigQuerySchemaUpdateOption(object):
   ALLOW_FIELD_ADDITION = 'ALLOW_FIELD_ADDITION'
   ALLOW_FIELD_RELAXATION = 'ALLOW_FIELD_RELAXATION'
 
+  @staticmethod
+  def validate(options):
+    if options is None:
+      return None
+    if not isinstance(options, list):
+      raise ValueError(
+          'schema_update_options must be a list. Received %s.' %
+          type(options).__name__)
+    values = (
+        BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION,
+        BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION)
+    for option in options:
+      if option not in values:
+        raise ValueError(
+            'Invalid schema update option %s. Expecting %s' % (option, values))
+    return options
+
 
 class BigQueryQueryPriority(object):
   """Class holding standard strings used for query priority."""
@@ -2266,7 +2283,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
-    self.schema_update_options = schema_update_options
+    self.schema_update_options = BigQuerySchemaUpdateOption.validate(
+        schema_update_options)
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
     self._ignore_insert_ids = ignore_insert_ids
