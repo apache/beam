@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/bigtable v1.50.0
 	cloud.google.com/go/datastore v1.24.0
 	cloud.google.com/go/profiler v0.6.0
-	cloud.google.com/go/pubsub v1.50.2
+	cloud.google.com/go/pubsub v1.50.3
 	cloud.google.com/go/spanner v1.92.0
 	cloud.google.com/go/storage v1.63.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
