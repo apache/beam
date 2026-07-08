@@ -1,4 +1,61 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.74.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.75.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.75.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2750-2026-07-08">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.75.0, check out the &lt;a href="https://github.com/apache/beam/milestone/43">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>Python SDK now supports memory profiling with Memray (&lt;a href="https://github.com/apache/beam/issues/38853">#38853&lt;/a>).&lt;/li>
+&lt;li>(Python) Added &lt;a href="https://qdrant.tech/">Qdrant&lt;/a> VectorDatabaseWriteConfig implementation (&lt;a href="https://github.com/apache/beam/issues/38141">#38141&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Support for reading from Delta Lake added (Java) (&lt;a href="https://github.com/apache/beam/issues/38551">#38551&lt;/a>).&lt;/li>
+&lt;li>ClickHouseIO: support writing &lt;code>DateTime64(precision[, 'timezone'])&lt;/code> columns with sub-second precision (Java) (&lt;a href="https://github.com/apache/beam/issues/38466">#38466&lt;/a>).&lt;/li>
+&lt;li>Upgraded IO Expansion Service to Java 17 (&lt;a href="https://github.com/apache/beam/issues/38974">#38974&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Dataflow Runner v2 has been renamed to Dataflow Portable Runner. Please refer to Dataflow &lt;a href="https://docs.cloud.google.com/dataflow/docs/runner-v2">public documentation&lt;/a> on when to enable Portable Runner.(&lt;a href="https://github.com/apache/beam/issues/39000">#39000&lt;/a>).&lt;/li>
+&lt;li>(Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing &lt;code>--experiments=disable_streaming_engine_state_tag_encoding_v2&lt;/code> or &lt;code>--updateCompatibilityVersion=2.74.0&lt;/code> pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. (&lt;a href="https://github.com/apache/beam/issues/38705">#38705&lt;/a>).&lt;/li>
+&lt;li>(Python) Added instrumentation to support off-the-shelf profiling agents when launching Python SDK Harness (&lt;a href="https://github.com/apache/beam/issues/38853">#38853&lt;/a>).&lt;/li>
+&lt;li>(Java) Added support to the FnApi Data stream protocol allowing runners to isolate bundles slowly processing input from other bundles. (&lt;a href="https://github.com/apache/beam/issues/39001">#39001&lt;/a>).&lt;/li>
+&lt;li>(YAML) Switched js2py library to Quickjs (&lt;a href="https://github.com/apache/beam/issues/38473">#38473&lt;/a>).&lt;/li>
+&lt;li>(YAML) Added HuggingFaceModelHandler for YAML usage (&lt;a href="https://github.com/apache/beam/issues/38696">#38696&lt;/a>).&lt;/li>
+&lt;li>(YAML) Added WriteToMongoDB transform (&lt;a href="https://github.com/apache/beam/issues/38376">#38376&lt;/a>).&lt;/li>
+&lt;li>(YAML) Added WriteToDatadog transform (&lt;a href="https://github.com/apache/beam/issues/38362">#38362&lt;/a>).&lt;/li>
+&lt;li>(Java) Flink 2.1 and 2.2 support is added (&lt;a href="https://github.com/apache/beam/issues/38947">#38947&lt;/a>) (&lt;a href="https://github.com/apache/beam/issues/38978">#38978&lt;/a>); Flink 1.17 and 1.18 support is dropped.&lt;/li>
+&lt;li>(Python) MqttIO is now supported in Python via cross-language (&lt;a href="https://github.com/apache/beam/issues/21060">#21060&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>(Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
+use pipeline option &lt;code>--exclude_infer_dataclass_field_type&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/38797">#38797&lt;/a>).
+However fixing forward is recommended.&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed GCS filesystem glob matching to correctly handle &lt;code>/&lt;/code> in object names and support &lt;code>**&lt;/code> for recursive matching (Go) (&lt;a href="https://github.com/apache/beam/issues/38059">#38059&lt;/a>).&lt;/li>
+&lt;li>Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) (&lt;a href="https://github.com/apache/beam/issues/38035">#38035&lt;/a>).&lt;/li>
+&lt;li>Fixed IcebergIO writing manifest column bounds padded with trailing &lt;code>0x00&lt;/code> bytes, which broke equality predicate pushdown in some query engines (Java) (&lt;a href="https://github.com/apache/beam/issues/38580">#38580&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;ul>
+&lt;li>(Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring &lt;code>org.lz4:lz4-java&lt;/code> (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships &lt;code>at.yawk.lz4:lz4-java&lt;/code> which declares the same capability. To resolve, add a &lt;code>capabilitiesResolution&lt;/code> rule to your &lt;code>build.gradle&lt;/code> that selects &lt;code>at.yawk.lz4:lz4-java&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/38947">#38947&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;p>According to git shortlog, the following people contributed to the 2.75.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Akshat, Andrew Crites, Andrew Kabas, Anurag Pappula, Arpit Jain, Arun Pandian, Atharv, Chamikara Jayalath, Danny McCormick, Deji Ibrahim, Derrick Williams, Drew Stevens, Durgaprasad M L, Elia Liu, Enzo Maruffa Moreira, Ganesh Sivakumar, Goutam Adwant, HansMarcus01, Jack McCluskey, Joe Santos, Kenneth Knowles, Lalit Yadav, Liam Miller-Cushon, Maciej Szwaja, Manan Mangal, Michael Gruschke, Nikita Grover, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., Sachin Ranjalkar, Sagnik Ghosh, Sam Whittle, Shunping Huang, Subramanya V, Tarun Annapareddy, Tobias Kaymak, TongruiLi, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, aaaZayne, claudevdm, ddebowczyk92, innuendo, kellen, parveensania, tejasiyer-dev&lt;/p></description><link>/blog/beam-2.75.0/</link><pubDate>Wed, 08 Jul 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.75.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.74.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -758,83 +815,4 @@ more likely to be in the program, but also give you a lot of confidence when con
 &lt;ul>
 &lt;li>&lt;a href="https://summerofcode.withgoogle.com/programs/2025/projects/f4kiDdus">Google Summer of Code Project Listing&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.google.com/document/d/1MSAVF6X9ggtVZbqz8YJGmMgkolR_dve0Lr930cByyac/edit?usp=sharing">Google Summer of Code Final Report&lt;/a>&lt;/li>
-&lt;/ul></description><link>/blog/gsoc-25-yaml-user-accessibility/</link><pubDate>Tue, 23 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-yaml-user-accessibility/</guid><category>blog</category><category>gsoc</category></item><item><title>Apache Beam 2.68.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.68.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2680-2025-09-22">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.68.0, check out the &lt;a href="https://github.com/apache/beam/milestone/36?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>[Python] Prism runner now enabled by default for most Python pipelines using the direct runner (&lt;a href="https://github.com/apache/beam/pull/34612">#34612&lt;/a>). This may break some tests, see &lt;a href="https://github.com/apache/beam/pull/34612">https://github.com/apache/beam/pull/34612&lt;/a> for details on how to handle issues.&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Upgraded Iceberg dependency to 1.9.2 (&lt;a href="https://github.com/apache/beam/pull/35981">#35981&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>BigtableRead Connector for BeamYaml added with new Config Param (&lt;a href="https://github.com/apache/beam/pull/35696">#35696&lt;/a>)&lt;/li>
-&lt;li>MongoDB Java driver upgraded from 3.12.11 to 5.5.0 with API refactoring and GridFS implementation updates (Java) (&lt;a href="https://github.com/apache/beam/pull/35946">#35946&lt;/a>).&lt;/li>
-&lt;li>Introduced a dedicated module for JUnit-based testing support: &lt;code>sdks/java/testing/junit&lt;/code>, which provides &lt;code>TestPipelineExtension&lt;/code> for JUnit 5 while maintaining backward compatibility with existing JUnit 4 &lt;code>TestRule&lt;/code>-based tests (Java) (&lt;a href="https://github.com/apache/beam/issues/18733">#18733&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/35688">#35688&lt;/a>).
-&lt;ul>
-&lt;li>To use JUnit 5 with Beam tests, add a test-scoped dependency on &lt;code>org.apache.beam:beam-sdks-java-testing-junit&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Google CloudSQL enrichment handler added (Python) (&lt;a href="https://github.com/apache/beam/pull/34398">#34398&lt;/a>).
-Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
-&lt;ul>
-&lt;li>Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL&lt;/li>
-&lt;li>Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>[Python] Added the &lt;code>ReactiveThrottler&lt;/code> and &lt;code>ThrottlingSignaler&lt;/code> classes to streamline throttling behavior in DoFns, expose throttling mechanisms for users (&lt;a href="https://github.com/apache/beam/pull/35984">#35984&lt;/a>)&lt;/li>
-&lt;li>Added a pipeline option to specify the processing timeout for a single element by any PTransform (Java/Python/Go) (&lt;a href="https://github.com/apache/beam/issues/35174">#35174&lt;/a>).
-&lt;ul>
-&lt;li>When specified, the SDK harness automatically restarts if an element takes too long to process. Beam runner may then retry processing of the same work item.&lt;/li>
-&lt;li>Use the &lt;code>--element_processing_timeout_minutes&lt;/code> option to reduce the chance of having stalled pipelines due to unexpected cases of slow processing, where slowness might not happen again if processing of the same element is retried.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>(Python) Adding GCP Spanner Change Stream support for Python (apache_beam.io.gcp.spanner) (&lt;a href="https://github.com/apache/beam/issues/24103">#24103&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Previously deprecated Beam ZetaSQL component has been removed (&lt;a href="https://github.com/apache/beam/issues/34423">#34423&lt;/a>).
-ZetaSQL users could migrate to Calcite SQL with BigQuery dialect enabled.&lt;/li>
-&lt;li>Upgraded Beam vendored Calcite to 1.40.0 for Beam SQL (&lt;a href="https://github.com/apache/beam/issues/35483">#35483&lt;/a>), which
-improves support for BigQuery and other SQL dialects. Note: Minor behavior changes are observed such as output
-significant digits related to casting.&lt;/li>
-&lt;li>(Python) The deterministic fallback coder for complex types like NamedTuple, Enum, and dataclasses now uses cloudpickle instead of dill. If your pipeline is affected, you may see a warning like: &amp;ldquo;Using fallback deterministic coder for type X&amp;hellip;&amp;rdquo;. You can revert to the previous behavior by using the pipeline option &lt;code>--update_compatibility_version=2.67.0&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/35725">35725&lt;/a>). Report any pickling related issues to &lt;a href="https://github.com/apache/beam/issues/34903">#34903&lt;/a>&lt;/li>
-&lt;li>(Python) Prism runner now enabled by default for most Python pipelines using the direct runner (&lt;a href="https://github.com/apache/beam/pull/34612">#34612&lt;/a>). This may break some tests, see &lt;a href="https://github.com/apache/beam/pull/34612">https://github.com/apache/beam/pull/34612&lt;/a> for details on how to handle issues.&lt;/li>
-&lt;li>Dropped Java 8 support for &lt;a href="https://central.sonatype.com/artifact/org.apache.beam/beam-sdks-java-io-expansion-service">IO expansion-service&lt;/a>. Cross-language pipelines using this expansion service will need a Java11+ runtime (&lt;a href="https://github.com/apache/beam/pull/35981">#35981&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>Python SDK native SpannerIO (apache_beam/io/gcp/experimental/spannerio) is deprecated. Use cross-language wrapper
-(apache_beam/io/gcp/spanner) instead (Python) (&lt;a href="https://github.com/apache/beam/issues/35860">#35860&lt;/a>).&lt;/li>
-&lt;li>Samza runner is deprecated and scheduled for removal in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35448">#35448&lt;/a>).&lt;/li>
-&lt;li>Twister2 runner is deprecated and scheduled for removal in Beam 3.0 (&lt;a href="https://github.com/apache/beam/issues/35905">#35905&lt;/a>)).&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>(Python) Fixed Java YAML provider fails on Windows (&lt;a href="https://github.com/apache/beam/issues/35617">#35617&lt;/a>).&lt;/li>
-&lt;li>Fixed BigQueryIO creating temporary datasets in wrong project when temp_dataset is specified with a different project than the pipeline project. For some jobs, temporary datasets will now be created in the correct project (Python) (&lt;a href="https://github.com/apache/beam/issues/35813">#35813&lt;/a>).&lt;/li>
-&lt;li>(Go) Fix duplicates due to reads after blind writes to Bag State (&lt;a href="https://github.com/apache/beam/issues/35869">#35869&lt;/a>).
-&lt;ul>
-&lt;li>Earlier Go SDK versions can avoid the issue by not reading in the same call after a blind write.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.68.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud, Andrew Crites, Ashok Devireddy, Chamikara Jayalath, Charles Nguyen, Danny McCormick, Davda James, Derrick Williams, Diego Hernandez, Dip Patel, Dustin Rhodes, Enrique Calderon, Hai Joey Tran, Jack McCluskey, Kenneth Knowles, Keshav, Khorbaladze A., LEEKYE, Lanny Boarts, Mattie Fu, Minbo Bae, Mohamed Awnallah, Naireen Hussain, Nathaniel Young, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, Sam Whittle, Shehab, Shingo Furuyama, Shunping Huang, Steven van Rossum, Suvrat Acharya, Svetak Sundhar, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, apanich, arnavarora2004, claudevdm, flpablo, kristynsmith, shreyakhajanchi&lt;/p></description><link>/blog/beam-2.68.0/</link><pubDate>Mon, 22 Sep 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.68.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;/ul></description><link>/blog/gsoc-25-yaml-user-accessibility/</link><pubDate>Tue, 23 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-yaml-user-accessibility/</guid><category>blog</category><category>gsoc</category></item></channel></rss>
