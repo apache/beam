@@ -97,10 +97,10 @@ function download_files() {
       exit 1
     fi
 
-    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
+    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" "$RC_STAGING_URL"
   else
     BEAM_PYTHON_SDK_ZIP="apache_beam-$VERSION.tar.gz"
-    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
+    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" "$RC_STAGING_URL"
   fi
 }
 
