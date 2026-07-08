@@ -58,9 +58,11 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
@@ -488,6 +490,56 @@ public class IcebergWriteSchemaTransformProviderTest {
     PCollection<Row> readRows =
         p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
     PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run();
+  }
+
+  @Test
+  public void testWritingPartitionedDataRespectsFileSizePropertyWithSpillOver() {
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    PartitionSpec spec = PartitionSpec.builderFor(icebergSchema).identity("str").build();
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+
+    Table table =
+        warehouse.createTable(
+            TableIdentifier.parse(identifier),
+            icebergSchema,
+            spec,
+            ImmutableMap.of(TableProperties.WRITE_TARGET_FILE_SIZE_BYTES, "1"));
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
+            "distribution_mode",
+            distributionMode.name());
+
+    List<Row> rows =
+        Arrays.asList(
+            Row.withSchema(schema).addValues("a", 1).build(),
+            Row.withSchema(schema).addValues("a", 2).build(),
+            Row.withSchema(schema).addValues("a", 3).build(),
+            Row.withSchema(schema).addValues("b", 1).build(),
+            Row.withSchema(schema).addValues("b", 2).build(),
+            Row.withSchema(schema).addValues("b", 3).build());
+
+    testPipeline
+        .apply("Records To Add", Create.of(rows))
+        .setRowSchema(schema)
+        .apply(Managed.write(Managed.ICEBERG).withConfig(config));
+    testPipeline.run().waitUntilFinish();
+
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+
+    table.refresh();
+    List<DataFile> datafiles = new ArrayList<>();
+    table.snapshots().forEach(s -> s.addedDataFiles(table.io()).forEach(datafiles::add));
+    assertEquals(6, datafiles.size());
+
     p.run();
   }
 
