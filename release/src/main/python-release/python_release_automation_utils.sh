@@ -82,23 +82,25 @@ function get_version() {
 #######################################
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
-    if [[ $2 == "python3.7" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-    elif [[ $2 == "python3.8" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-    elif [[ $2 == "python3.9" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
-    elif [[ $2 == "python3.10" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+    if [[ $2 == "python3.10" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+    elif [[ $2 == "python3.11" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+    elif [[ $2 == "python3.12" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+    elif [[ $2 == "python3.13" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
+    elif [[ $2 == "python3.14" ]]; then
+      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl"
     else
       echo "Unable to determine a Beam wheel for interpreter version $2."
       exit 1
     fi
 
-    wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
+    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_WHL*" $RC_STAGING_URL
   else
-    BEAM_PYTHON_SDK_ZIP="apache-beam-$VERSION.tar.gz"
-    wget -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
+    BEAM_PYTHON_SDK_ZIP="apache_beam-$VERSION.tar.gz"
+    wget -e robots=off -r -l2 --no-parent -nd -A "$BEAM_PYTHON_SDK_ZIP*" $RC_STAGING_URL
   fi
 }
 
