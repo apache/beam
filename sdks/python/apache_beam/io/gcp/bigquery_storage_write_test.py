@@ -28,7 +28,13 @@ from apache_beam.testing.util import equal_to
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import Any
 
+try:
+  from google.api_core.exceptions import GoogleAPICallError
+except ImportError:
+  GoogleAPICallError = None
 
+
+@unittest.skipIf(GoogleAPICallError is None, 'GCP dependencies are not installed')
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')
 class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
   """Test dynamic schema support in BigQuery Storage Write API."""
