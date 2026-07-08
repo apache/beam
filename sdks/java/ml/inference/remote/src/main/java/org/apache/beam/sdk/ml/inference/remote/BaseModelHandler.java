@@ -56,8 +56,7 @@ import java.util.List;
  *   <li>Maintain input-output correspondence in {@link PredictionResult}
  * </ul>
  */
-public interface BaseModelHandler<
-    ParamT extends BaseModelParameters, InputT extends BaseInput, OutputT extends BaseResponse> {
+public interface BaseModelHandler<ParamT extends BaseModelParameters, InputT, OutputT> {
   /** Initializes the remote model client with the provided parameters. */
   void createClient(ParamT parameters);
 
