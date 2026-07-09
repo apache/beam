@@ -37,7 +37,7 @@ jobs:
     name: Upgrade GCP BOM
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
