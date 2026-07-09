@@ -1,6 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "java": "chamikaramj"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
