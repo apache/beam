@@ -19,11 +19,12 @@ package org.apache.beam.runners.flink;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -230,21 +231,50 @@ public class FlinkSubmissionTest {
    * We modify the JVM's environment variables here. This is necessary for the end-to-end test
    * because Flink's CliFrontend requires a Flink configuration file for which the location can only
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
+   *
+   * <p>On Unix JDKs, {@code ProcessEnvironment.theEnvironment} is a {@code Map<Variable,Value>}.
+   * {@code System.getenv(String)} looks up {@code Variable} keys, so inserting plain {@code String}
+   * keys (via {@code putAll}) is a no-op for lookups and leaves Flink unable to find {@code
+   * FLINK_CONF_DIR}. On Windows the map uses {@code String} keys (plus a case-insensitive map).
    */
+  @SuppressWarnings("unchecked")
   private static void modifyEnv(Map<String, String> env) throws Exception {
-    Class processEnv = Class.forName("java.lang.ProcessEnvironment");
-    Field envField = processEnv.getDeclaredField("theUnmodifiableEnvironment");
+    Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
 
-    Field modifiersField = Field.class.getDeclaredField("modifiers");
-    modifiersField.setAccessible(true);
-    modifiersField.setInt(envField, envField.getModifiers() & ~Modifier.FINAL);
+    Field theEnvironmentField = processEnvironment.getDeclaredField("theEnvironment");
+    theEnvironmentField.setAccessible(true);
+    Map<Object, Object> envMap = (Map<Object, Object>) theEnvironmentField.get(null);
+    envMap.clear();
+    try {
+      // Unix: keys/values are ProcessEnvironment$Variable / $Value, not String.
+      Class<?> variableClass = Class.forName("java.lang.ProcessEnvironment$Variable");
+      Class<?> valueClass = Class.forName("java.lang.ProcessEnvironment$Value");
+      Method valueOfVariable = variableClass.getDeclaredMethod("valueOf", String.class);
+      Method valueOfValue = valueClass.getDeclaredMethod("valueOf", String.class);
+      valueOfVariable.setAccessible(true);
+      valueOfValue.setAccessible(true);
+      for (Map.Entry<String, String> entry : env.entrySet()) {
+        envMap.put(
+            valueOfVariable.invoke(null, entry.getKey()),
+            valueOfValue.invoke(null, entry.getValue()));
+      }
+    } catch (ClassNotFoundException e) {
+      // Windows (and similar): theEnvironment uses String keys.
+      envMap.putAll(env);
+    }
 
-    envField.setAccessible(true);
-    envField.set(null, env);
-    envField.setAccessible(false);
-
-    modifiersField.setInt(envField, envField.getModifiers() & Modifier.FINAL);
-    modifiersField.setAccessible(false);
+    // Windows: System.getenv(String) reads the case-insensitive map.
+    if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
+      Field theCaseInsensitiveEnvironmentField =
+          processEnvironment.getDeclaredField("theCaseInsensitiveEnvironment");
+      theCaseInsensitiveEnvironmentField.setAccessible(true);
+      Map<String, String> ciEnvMap =
+          (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+      if (ciEnvMap != null) {
+        ciEnvMap.clear();
+        ciEnvMap.putAll(env);
+      }
+    }
   }
 
   /** Prevents the CliFrontend from calling System.exit. */
