@@ -27,7 +27,7 @@ on:
         description: Your Looker Client Secret.
         required: true
       LOOKERSDK_BASE_URL:
-        description: Your Looker Client Secret.
+        description: Your Looker Base URL.
         required: true
 
 env:
@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - run: pip install requests google-cloud-storage looker-sdk==25.18.0
+      - run: pip install requests google-cloud-storage looker-sdk
       - name: Authenticate on GCP
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
