@@ -828,7 +828,7 @@ class InteractiveBeamComputeTest(unittest.TestCase):
     ])
 
     mock_clear_output.assert_called_once()
-    async_result.wait_for_completion()
+    async_result.wait_for_completion(timeout=60)
 
   def test_compute_dependency_wait_true(self):
     p = beam.Pipeline(ir.InteractiveRunner())
@@ -853,12 +853,12 @@ class InteractiveBeamComputeTest(unittest.TestCase):
       spy_wait.assert_called_with({pcoll2}, async_res2)
 
       # Let pcoll1 finish
-      async_res1.wait_for_completion()
+      async_res1.wait_for_completion(timeout=60)
       self.assertTrue(pcoll1 in self.env.computed_pcollections)
       self.assertFalse(self.env.is_pcollection_computing(pcoll1))
 
       # pcoll2 should now run and complete
-      async_res2.wait_for_completion()
+      async_res2.wait_for_completion(timeout=60)
       self.assertTrue(pcoll2 in self.env.computed_pcollections)
 
   @patch.object(ie.InteractiveEnvironment, 'is_pcollection_computing')
@@ -878,7 +878,7 @@ class InteractiveBeamComputeTest(unittest.TestCase):
                       '_execute_pipeline_fragment',
                       wraps=rm._execute_pipeline_fragment) as spy_execute:
       async_res2 = ib.compute(pcoll2, blocking=False, wait_for_inputs=False)
-      async_res2.wait_for_completion()
+      async_res2.wait_for_completion(timeout=60)
 
       # Assert that execute was called for pcoll2 without waiting
       spy_execute.assert_called_with({pcoll2}, async_res2, ANY, ANY)

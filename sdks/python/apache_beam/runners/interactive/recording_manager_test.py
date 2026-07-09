@@ -1148,7 +1148,7 @@ class RecordingManagerTest(unittest.TestCase):
     future.set_exception(exc)
     async_res._completed_event.set()  # Simulate completion
     with self.assertRaises(ValueError) as context:
-      async_res.wait_for_completion()
+      async_res.wait_for_completion(timeout=60)
     self.assertEqual(context.exception, exc)
 
   def test_wait_for_completion_raises_error_on_cancellation(self):
@@ -1158,7 +1158,7 @@ class RecordingManagerTest(unittest.TestCase):
     future.cancel()
     async_res._completed_event.set()
     with self.assertRaises(RuntimeError) as context:
-      async_res.wait_for_completion()
+      async_res.wait_for_completion(timeout=60)
     self.assertIn('computation was cancelled', str(context.exception))
 
   def test_wait_for_completion_raises_timeout_error(self):
