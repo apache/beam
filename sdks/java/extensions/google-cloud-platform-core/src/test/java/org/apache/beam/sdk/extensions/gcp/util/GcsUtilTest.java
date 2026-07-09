@@ -1703,7 +1703,7 @@ public class GcsUtilTest {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions);
     }
 
     private GcsUtilV1Mock(
@@ -1715,7 +1715,7 @@ public class GcsUtilTest {
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
         GcsUtilV1.GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
+        GcsOptions gcsOptions) {
       super(
           storageClient,
           httpRequestInitializer,
@@ -1725,7 +1725,7 @@ public class GcsUtilTest {
           uploadBufferSizeBytes,
           rewriteDataOpBatchLimit,
           gcsCountersOptions,
-          gcsReadOptions);
+          gcsOptions);
     }
 
     @Override
@@ -1864,6 +1864,19 @@ public class GcsUtilTest {
   @Test
   public void testReadMetricsAreNotCollectedWhenNotEnabledOpenWithOptions() throws Exception {
     testReadMetrics(false, GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  @Test
+  public void testGcsEndpointPropagation() {
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
+    options.setGcpCredential(new TestCredential());
+    options.setGcsEndpoint("http://localhost:8080/storage/v1/");
+
+    GcsUtilV1 gcsUtilV1 = new GcsUtilV1.GcsUtilFactory().create(options);
+    GoogleCloudStorageOptions googleCloudStorageOptions = gcsUtilV1.getGoogleCloudStorageOptions();
+
+    assertEquals("http://localhost:8080", googleCloudStorageOptions.getStorageRootUrl());
+    assertEquals("/storage/v1/", googleCloudStorageOptions.getStorageServicePath());
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
