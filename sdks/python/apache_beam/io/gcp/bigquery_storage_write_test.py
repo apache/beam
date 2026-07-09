@@ -22,6 +22,7 @@ from unittest import mock
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -173,6 +174,29 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
                 bigquery.StorageWriteToBigQuery.RECORD,
                 RowTypeConstraint.from_fields([])),
         ))
+
+  def test_convert_to_beam_rows_with_output_types_dynamic_schema_hint(
+      self, mock_expansion_service):
+    """Test with_output_types when schema is callable with _union_schema."""
+    def dyn_schema(dest):
+      return None
+
+    dyn_schema._union_schema = 'id:INTEGER,name:STRING'
+    converter_dyn = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
+        schema=dyn_schema, dynamic_destinations=True)
+    type_hint_dyn = converter_dyn.with_output_types().get_type_hints(
+    ).simple_output_type('')
+    self.assertIsInstance(type_hint_dyn, RowTypeConstraint)
+    self.assertEqual(
+        type_hint_dyn._fields[0],
+        (bigquery.StorageWriteToBigQuery.DESTINATION, str))
+    self.assertEqual(
+        type_hint_dyn._fields[1][0], bigquery.StorageWriteToBigQuery.RECORD)
+    expected_record_hint = RowTypeConstraint.from_fields(
+        bigquery_tools.get_beam_typehints_from_tableschema(
+            'id:INTEGER,name:STRING'))
+    self.assertEqual(
+        type_hint_dyn._fields[1][1]._fields, expected_record_hint._fields)
 
   def test_storage_write_to_bigquery_expand_dynamic_schema(
       self, mock_expansion_service):
