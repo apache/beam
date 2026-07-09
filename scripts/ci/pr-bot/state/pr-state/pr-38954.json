@@ -4,7 +4,7 @@
     "java": "ahmedabu98",
     "build": "damccorm"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
