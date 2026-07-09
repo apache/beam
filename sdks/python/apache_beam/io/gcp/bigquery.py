@@ -1398,7 +1398,8 @@ class BigQueryWriteFn(DoFn):
       with_batched_input=False,
       ignore_unknown_columns=False,
       max_retries=MAX_INSERT_RETRIES,
-      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
+      max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
+      options=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1489,6 +1490,7 @@ class BigQueryWriteFn(DoFn):
     self.ignore_unknown_columns = ignore_unknown_columns
     self._max_retries = max_retries
     self._max_insert_payload_size = max_insert_payload_size
+    self.options = options
 
   def display_data(self):
     return {
@@ -1524,6 +1526,10 @@ class BigQueryWriteFn(DoFn):
       return bigquery_tools.parse_table_schema_from_json(schema)
     elif isinstance(schema, dict):
       return bigquery_tools.parse_table_schema_from_json(json.dumps(schema))
+    elif isinstance(schema, (tuple, list)):
+      return tuple(schema)
+    elif hasattr(schema, 'fields'):
+      return BigQueryWriteFn.get_table_schema(schema.fields)
     else:
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
@@ -1532,7 +1538,7 @@ class BigQueryWriteFn(DoFn):
 
     if not self.bigquery_wrapper:
       self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
-          client=self.test_client)
+          client=self.test_client, pipeline_options=self.options)
 
     (
         bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.
@@ -1876,7 +1882,8 @@ class _StreamToBigQuery(PTransform):
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
         max_retries=self._max_retries,
-        max_insert_payload_size=self._max_insert_payload_size)
+        max_insert_payload_size=self._max_insert_payload_size,
+        options=input.pipeline.options)
 
     def _add_random_shard(element):
       key = element[0]

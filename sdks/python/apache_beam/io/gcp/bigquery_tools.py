@@ -369,8 +369,14 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
+  def __init__(
+      self,
+      client=None,
+      temp_dataset_id=None,
+      temp_table_ref=None,
+      pipeline_options=None):
+    self.client = client or BigQueryWrapper._bigquery_client(
+        pipeline_options or PipelineOptions())
     self.gcp_bq_client = self.client
 
     self._unique_row_id = 0
@@ -1362,7 +1368,8 @@ class BigQueryWrapper(object):
   @staticmethod
   def from_pipeline_options(pipeline_options: PipelineOptions):
     return BigQueryWrapper(
-        client=BigQueryWrapper._bigquery_client(pipeline_options))
+        client=BigQueryWrapper._bigquery_client(pipeline_options),
+        pipeline_options=pipeline_options)
 
   @staticmethod
   def _bigquery_client(pipeline_options: PipelineOptions):
@@ -1650,6 +1657,8 @@ def table_schema_to_dict(table_schema):
   def get_table_field(field):
     """Create a dictionary representation of a table field
     """
+    if isinstance(field, dict):
+      return field
     result = {}
     result['name'] = field.name
     result['type'] = getattr(field, 'field_type', getattr(field, 'type', None))
@@ -1705,14 +1714,16 @@ def get_bq_tableschema(schema):
   Returns:
     Sequence[``google.cloud.bigquery.schema.SchemaField``]: The schema as a TableSchema object.
   """
-  if (isinstance(schema, (tuple, value_provider.ValueProvider)) or
+  if (isinstance(schema, (tuple, list, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
-    return schema
+    return tuple(schema) if isinstance(schema, list) else schema
   elif isinstance(schema, str):
     return get_table_schema_from_string(schema)
   elif isinstance(schema, dict):
     schema_string = json.dumps(schema)
     return parse_table_schema_from_json(schema_string)
+  elif hasattr(schema, 'fields'):
+    return get_bq_tableschema(schema.fields)
   else:
     raise TypeError('Unexpected schema argument: %s.' % schema)
 
