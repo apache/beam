@@ -1139,6 +1139,36 @@ class RecordingManagerTest(unittest.TestCase):
     ]
     self.assertIn('Map1', transform_names)
 
+  def test_wait_for_completion_raises_exception_on_failure(self):
+    future = Future()
+    async_res = AsyncComputationResult(
+        future, set(), beam.Pipeline(InteractiveRunner()), MagicMock())
+    # Set the future exception
+    exc = ValueError("computation error")
+    future.set_exception(exc)
+    async_res._completed_event.set()  # Simulate completion
+    with self.assertRaises(ValueError) as context:
+      async_res.wait_for_completion()
+    self.assertEqual(context.exception, exc)
+
+  def test_wait_for_completion_raises_error_on_cancellation(self):
+    future = Future()
+    async_res = AsyncComputationResult(
+        future, set(), beam.Pipeline(InteractiveRunner()), MagicMock())
+    future.cancel()
+    async_res._completed_event.set()
+    with self.assertRaises(RuntimeError) as context:
+      async_res.wait_for_completion()
+    self.assertIn('computation was cancelled', str(context.exception))
+
+  def test_wait_for_completion_raises_timeout_error(self):
+    future = Future()
+    async_res = AsyncComputationResult(
+        future, set(), beam.Pipeline(InteractiveRunner()), MagicMock())
+    # completed_event is NOT set, so wait will timeout
+    with self.assertRaises(TimeoutError):
+      async_res.wait_for_completion(timeout=0.01)
+
 
 if __name__ == '__main__':
   unittest.main()

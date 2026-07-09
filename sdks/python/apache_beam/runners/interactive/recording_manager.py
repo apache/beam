@@ -152,8 +152,15 @@ class AsyncComputationResult:
     except TimeoutError:
       return None
 
-  def wait_for_completion(self):
-    self._completed_event.wait()
+  def wait_for_completion(self, timeout=None):
+    if not self._completed_event.wait(timeout=timeout):
+      raise TimeoutError(
+          'Timeout waiting for asynchronous computation completion.')
+    if self._future.cancelled():
+      raise RuntimeError('Asynchronous computation was cancelled.')
+    exc = self.exception()
+    if exc:
+      raise exc
 
   def _on_done(self, future: Future):
     try:
@@ -724,6 +731,9 @@ class RecordingManager:
       return PipelineGraph(self.user_pipeline)
     except (ImportError, NameError, AttributeError):
       # If pydot is missing, PipelineGraph() might crash.
+      _LOGGER.warning(
+          "Could not create PipelineGraph (pydot missing?). "
+          "Async features disabled.")
       return None
 
   def _get_pcoll_id_map(self):
