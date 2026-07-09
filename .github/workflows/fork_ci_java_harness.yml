@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fork-friendly CI for the Java SDK harness. The upstream Beam PreCommit
+# workflows run on self-hosted runners which are unavailable on forks, so
+# this workflow provides build, test, and style verification for changes to
+# the Java SDK harness using GitHub-hosted runners.
+name: Fork CI Java Harness
+
+on:
+  pull_request:
+    branches: ['master', 'release-*']
+    paths:
+      - 'model/**'
+      - 'sdks/java/core/**'
+      - 'sdks/java/harness/**'
+      - '.github/workflows/fork_ci_java_harness.yml'
+  workflow_dispatch:
+
+permissions: read-all
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  java_sdk_harness_tests:
+    name: Java SDK harness build, tests and style checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: default
+      - name: Run Java SDK harness tests
+        run: |
+          ./gradlew :sdks:java:harness:test \
+            -PdisableSpotlessApply \
+            --max-workers=2 \
+            --continue
+      - name: Run Java SDK harness style checks
+        run: |
+          ./gradlew :sdks:java:harness:spotlessCheck \
+            :sdks:java:harness:checkstyleMain \
+            :sdks:java:harness:checkstyleTest \
+            -PdisableSpotlessApply \
+            --max-workers=2 \
+            --continue
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: java-harness-test-reports
+          path: sdks/java/harness/build/reports
+          if-no-files-found: ignore
