@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.Permission;
@@ -231,20 +230,28 @@ public class FlinkSubmissionTest {
    * because Flink's CliFrontend requires a Flink configuration file for which the location can only
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
    */
+  @SuppressWarnings("unchecked")
   private static void modifyEnv(Map<String, String> env) throws Exception {
-    Class processEnv = Class.forName("java.lang.ProcessEnvironment");
-    Field envField = processEnv.getDeclaredField("theUnmodifiableEnvironment");
+    Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
+    Field theEnvironmentField = processEnvironment.getDeclaredField("theEnvironment");
+    theEnvironmentField.setAccessible(true);
+    Map<String, String> envMap = (Map<String, String>) theEnvironmentField.get(null);
+    envMap.clear();
+    envMap.putAll(env);
 
-    Field modifiersField = Field.class.getDeclaredField("modifiers");
-    modifiersField.setAccessible(true);
-    modifiersField.setInt(envField, envField.getModifiers() & ~Modifier.FINAL);
-
-    envField.setAccessible(true);
-    envField.set(null, env);
-    envField.setAccessible(false);
-
-    modifiersField.setInt(envField, envField.getModifiers() & Modifier.FINAL);
-    modifiersField.setAccessible(false);
+    try {
+      Field theCaseInsensitiveEnvironmentField =
+          processEnvironment.getDeclaredField("theCaseInsensitiveEnvironment");
+      theCaseInsensitiveEnvironmentField.setAccessible(true);
+      Map<String, String> ciEnvMap =
+          (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+      if (ciEnvMap != null) {
+        ciEnvMap.clear();
+        ciEnvMap.putAll(env);
+      }
+    } catch (NoSuchFieldException e) {
+      // theCaseInsensitiveEnvironment is not present on all JDK platforms (e.g. Linux).
+    }
   }
 
   /** Prevents the CliFrontend from calling System.exit. */
