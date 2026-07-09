@@ -239,7 +239,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   Function<TableRow, Boolean> shouldFailRow =
       (Function<TableRow, Boolean> & Serializable) tr -> false;
 
-  private volatile Throwable appendRowsError = null;
+  private transient volatile Throwable appendRowsError = null;
 
   public void setAppendRowsError(Throwable t) {
     this.appendRowsError = t;
