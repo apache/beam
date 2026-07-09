@@ -417,7 +417,6 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.util import ReshufflePerKey
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.schemas import schema_from_element_type
-from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
@@ -2858,7 +2857,7 @@ class StorageWriteToBigQuery(PTransform):
       if callable(self.schema):
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
-            (StorageWriteToBigQuery.RECORD, Any)
+            (StorageWriteToBigQuery.RECORD, RowTypeConstraint.from_fields([]))
         ])
         return super().with_output_types(type_hint)
 

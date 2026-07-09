@@ -26,7 +26,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints.row_type import RowTypeConstraint
-from apache_beam.typehints.typehints import Any
 
 try:
   from google.api_core.exceptions import GoogleAPICallError
@@ -170,7 +169,9 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
         type_hint_dyn._fields,
         (
             (bigquery.StorageWriteToBigQuery.DESTINATION, str),
-            (bigquery.StorageWriteToBigQuery.RECORD, Any),
+            (
+                bigquery.StorageWriteToBigQuery.RECORD,
+                RowTypeConstraint.from_fields([])),
         ))
 
   def test_storage_write_to_bigquery_expand_dynamic_schema(
