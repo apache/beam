@@ -17,41 +17,43 @@
  */
 package org.apache.beam.sdk.io.delta;
 
-import static org.junit.Assert.assertNotNull;
-
 import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import java.nio.charset.StandardCharsets;
+import io.delta.kernel.DataWriteContext;
+import io.delta.kernel.Operation;
+import io.delta.kernel.Table;
+import io.delta.kernel.Transaction;
+import io.delta.kernel.TransactionBuilder;
+import io.delta.kernel.TransactionCommitResult;
+import io.delta.kernel.data.ColumnVector;
+import io.delta.kernel.data.ColumnarBatch;
+import io.delta.kernel.data.FilteredColumnarBatch;
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.defaults.internal.data.DefaultColumnarBatch;
+import io.delta.kernel.engine.Engine;
+import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.IntegerType;
+import io.delta.kernel.types.StringType;
+import io.delta.kernel.types.StructType;
+import io.delta.kernel.utils.CloseableIterable;
+import io.delta.kernel.utils.CloseableIterator;
+import io.delta.kernel.utils.DataFileStatus;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.runners.direct.DirectOptions;
-import org.apache.beam.runners.direct.DirectRunner;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
-import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
-import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.hadoop.conf.Configuration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -91,8 +93,8 @@ public class DeltaIOIT {
 
     String tempLocation = readPipeline.getOptions().getTempLocation();
     if (tempLocation != null && tempLocation.startsWith("gs://")) {
-      org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath gcsPath = org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath
-          .fromUri(tempLocation);
+      org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath gcsPath =
+          org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath.fromUri(tempLocation);
       bucket = gcsPath.getBucket();
       repoPrefix = gcsPath.getObject() + "/delta_io_it/" + testName.getMethodName() + "-" + salt;
     } else {
@@ -103,51 +105,119 @@ public class DeltaIOIT {
 
     LOG.info("Generating Delta Lake repository at {}", repoPath);
 
-    // 1. Write Parquet file using a direct local pipeline
-    DirectOptions setupOptions = PipelineOptionsFactory.as(DirectOptions.class);
-    setupOptions.setRunner(DirectRunner.class);
-    setupOptions.setBlockOnRun(true);
-    Pipeline setupPipeline = Pipeline.create(setupOptions);
+    Configuration configuration = new Configuration();
+    configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    configuration.set(
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    configuration.set("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    String project =
+        readPipeline
+            .getOptions()
+            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+            .getProject();
+    if (project != null) {
+      configuration.set("fs.gs.project.id", project);
+    }
 
-    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
-    setupPipeline
-        .apply(Create.of(TEST_ROWS).withRowSchema(ROW_SCHEMA))
-        .apply(
-            MapElements.into(TypeDescriptor.of(GenericRecord.class))
-                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
-        .setCoder(AvroCoder.of(avroSchema))
-        .apply(
-            FileIO.<GenericRecord>write()
-                .via(ParquetIO.sink(avroSchema))
-                .to(repoPath + "/")
-                .withNaming(
-                    (BoundedWindow window,
-                        PaneInfo paneInfo,
-                        int numShards,
-                        int shardIndex,
-                        Compression compression) -> "part-00000.parquet"));
-    setupPipeline.run().waitUntilFinish();
+    Engine engine = DefaultEngine.create(configuration);
+    Table table = Table.forPath(engine, repoPath);
 
-    // 2. Find written Parquet file to inspect its size
-    BlobId parquetBlobId = BlobId.of(bucket, repoPrefix + "/part-00000.parquet");
-    Blob parquetBlob = storage.get(parquetBlobId);
-    assertNotNull("Parquet file not found on GCS: " + parquetBlobId, parquetBlob);
-    long fileSize = parquetBlob.getSize();
+    StructType deltaSchema =
+        new StructType().add("id", IntegerType.INTEGER).add("name", StringType.STRING);
 
-    // 3. Create the Delta log commit file
-    String commitContent =
-        "{\"protocol\":{\"minReaderVersion\":1,\"minWriterVersion\":2}}\n"
-            + "{\"metaData\":{\"id\":\""
-            + salt
-            + "\",\"format\":{\"provider\":\"parquet\",\"options\":{}},\"schemaString\":\"{\\\"type\\\":\\\"struct\\\",\\\"fields\\\":[{\\\"name\\\":\\\"id\\\",\\\"type\\\":\\\"integer\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}},{\\\"name\\\":\\\"name\\\",\\\"type\\\":\\\"string\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}}]}\",\"partitionColumns\":[],\"configuration\":{},\"createdAt\":123456789}}\n"
-            + "{\"add\":{\"path\":\"part-00000.parquet\",\"partitionValues\":{},\"size\":"
-            + fileSize
-            + ",\"modificationTime\":123456789,\"dataChange\":true}}";
+    TransactionBuilder txnBuilder =
+        table.createTransactionBuilder(engine, "DeltaIOIT", Operation.CREATE_TABLE);
+    txnBuilder = txnBuilder.withSchema(engine, deltaSchema);
+    Transaction txn = txnBuilder.build(engine);
+    io.delta.kernel.data.Row txnState = txn.getTransactionState(engine);
 
-    BlobId commitBlobId = BlobId.of(bucket, repoPrefix + "/_delta_log/00000000000000000000.json");
-    BlobInfo commitBlobInfo =
-        BlobInfo.newBuilder(commitBlobId).setContentType("application/json").build();
-    storage.create(commitBlobInfo, commitContent.getBytes(StandardCharsets.UTF_8));
+    ColumnVector idVector =
+        new ColumnVector() {
+          @Override
+          public DataType getDataType() {
+            return IntegerType.INTEGER;
+          }
+
+          @Override
+          public int getSize() {
+            return TEST_ROWS.size();
+          }
+
+          @Override
+          public void close() {}
+
+          @Override
+          public boolean isNullAt(int rowId) {
+            return TEST_ROWS.get(rowId).getValue("id") == null;
+          }
+
+          @Override
+          public int getInt(int rowId) {
+            return TEST_ROWS.get(rowId).getInt32("id");
+          }
+        };
+
+    ColumnVector nameVector =
+        new ColumnVector() {
+          @Override
+          public DataType getDataType() {
+            return StringType.STRING;
+          }
+
+          @Override
+          public int getSize() {
+            return TEST_ROWS.size();
+          }
+
+          @Override
+          public void close() {}
+
+          @Override
+          public boolean isNullAt(int rowId) {
+            return TEST_ROWS.get(rowId).getValue("name") == null;
+          }
+
+          @Override
+          public String getString(int rowId) {
+            return TEST_ROWS.get(rowId).getString("name");
+          }
+        };
+
+    ColumnVector[] vectors = new ColumnVector[] {idVector, nameVector};
+    ColumnarBatch columnarBatch = new DefaultColumnarBatch(TEST_ROWS.size(), deltaSchema, vectors);
+    FilteredColumnarBatch filteredBatch =
+        new FilteredColumnarBatch(columnarBatch, Optional.empty());
+
+    CloseableIterator<FilteredColumnarBatch> data =
+        io.delta.kernel.internal.util.Utils.toCloseableIterator(
+            Collections.singletonList(filteredBatch).iterator());
+
+    CloseableIterator<FilteredColumnarBatch> physicalData =
+        Transaction.transformLogicalData(engine, txnState, data, Collections.emptyMap());
+
+    DataWriteContext writeContext =
+        Transaction.getWriteContext(engine, txnState, Collections.emptyMap());
+
+    CloseableIterator<DataFileStatus> dataFiles =
+        engine
+            .getParquetHandler()
+            .writeParquetFiles(
+                writeContext.getTargetDirectory(),
+                physicalData,
+                writeContext.getStatisticsColumns());
+
+    CloseableIterator<io.delta.kernel.data.Row> dataActions =
+        Transaction.generateAppendActions(engine, txnState, dataFiles, writeContext);
+
+    CloseableIterable<io.delta.kernel.data.Row> dataActionsIterable =
+        CloseableIterable.inMemoryIterable(dataActions);
+
+    TransactionCommitResult commitResult = txn.commit(engine, dataActionsIterable);
+
+    if (commitResult.getVersion() < 0) {
+      throw new RuntimeException("Table creation/write failed");
+    }
+
     LOG.info("Successfully generated Delta Lake repository");
   }
 
@@ -172,10 +242,11 @@ public class DeltaIOIT {
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(
         "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String project = readPipeline
-        .getOptions()
-        .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-        .getProject();
+    String project =
+        readPipeline
+            .getOptions()
+            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+            .getProject();
     if (project != null) {
       hadoopConfig.put("fs.gs.project.id", project);
     }
