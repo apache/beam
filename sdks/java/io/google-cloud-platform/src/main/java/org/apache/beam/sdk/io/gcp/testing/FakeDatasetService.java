@@ -239,10 +239,13 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
   Function<TableRow, Boolean> shouldFailRow =
       (Function<TableRow, Boolean> & Serializable) tr -> false;
 
-  private transient volatile Throwable appendRowsError = null;
+  private volatile String appendRowsErrorCode = null;
+  private volatile String appendRowsErrorDescription = null;
 
   public void setAppendRowsError(Throwable t) {
-    this.appendRowsError = t;
+    io.grpc.Status status = io.grpc.Status.fromThrowable(t);
+    this.appendRowsErrorCode = status.getCode().name();
+    this.appendRowsErrorDescription = status.getDescription();
   }
 
   Map<String, List<String>> insertErrors = Maps.newHashMap();
@@ -808,8 +811,13 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
-        if (appendRowsError != null) {
-          return ApiFutures.immediateFailedFuture(appendRowsError);
+        if (appendRowsErrorCode != null) {
+          io.grpc.Status.Code code = io.grpc.Status.Code.valueOf(appendRowsErrorCode);
+          io.grpc.Status status =
+              appendRowsErrorDescription != null
+                  ? code.toStatus().withDescription(appendRowsErrorDescription)
+                  : code.toStatus();
+          return ApiFutures.immediateFailedFuture(new io.grpc.StatusRuntimeException(status));
         }
         // The BigQuery client returns stream-open errors when the first append is called, so we
         // duplicate that here.
