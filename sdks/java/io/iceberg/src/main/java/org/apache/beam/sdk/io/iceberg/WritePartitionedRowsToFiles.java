@@ -59,14 +59,17 @@ class WritePartitionedRowsToFiles
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
+  private final @Nullable Map<String, String> writeProperties;
 
   WritePartitionedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.writeProperties = writeProperties;
   }
 
   @Override
@@ -78,7 +81,9 @@ class WritePartitionedRowsToFiles
                     .getElemCoder())
             .getSchema();
     return input.apply(
-        ParDo.of(new WriteDoFn(catalogConfig, dynamicDestinations, filePrefix, dataSchema)));
+        ParDo.of(
+            new WriteDoFn(
+                catalogConfig, dynamicDestinations, filePrefix, dataSchema, writeProperties)));
   }
 
   private static class WriteDoFn extends DoFn<KV<Row, Iterable<Row>>, FileWriteResult> {
@@ -87,6 +92,7 @@ class WritePartitionedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final Schema dataSchema;
+    private final @Nullable Map<String, String> writeProperties;
     private transient @MonotonicNonNull Map<TableIdentifier, Integer> specIds;
     private transient @MonotonicNonNull Map<TableIdentifier, Map<String, PartitionField>>
         partitionFieldMaps;
@@ -95,11 +101,13 @@ class WritePartitionedRowsToFiles
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         String filePrefix,
-        Schema dataSchema) {
+        Schema dataSchema,
+        @Nullable Map<String, String> writeProperties) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.dataSchema = dataSchema;
+      this.writeProperties = writeProperties;
     }
 
     @Setup
@@ -133,11 +141,7 @@ class WritePartitionedRowsToFiles
 
       RecordWriter writer =
           new RecordWriter(
-              table,
-              destination.getFileFormat(),
-              fileName,
-              partitionData,
-              catalogConfig.getConfigProperties());
+              table, destination.getFileFormat(), fileName, partitionData, writeProperties);
       try {
         for (Row row : element.getValue()) {
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);

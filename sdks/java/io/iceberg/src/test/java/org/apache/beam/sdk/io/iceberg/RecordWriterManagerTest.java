@@ -1317,15 +1317,10 @@ public class RecordWriterManagerTest {
     TableIdentifier tableId = TableIdentifier.of("default", "test_write_properties");
     warehouse.createTable(tableId, icebergBloomSchema);
 
-    IcebergCatalogConfig catalogWithWriteProps =
-        IcebergCatalogConfig.builder()
-            .setCatalogProperties(
-                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
-            .setConfigProperties(
-                ImmutableMap.of(
-                    "write.parquet.bloom-filter-enabled.column.colWithBf", "true",
-                    "write.parquet.bloom-filter-enabled.column.colWithoutBf", "false"))
-            .build();
+    Map<String, String> writeProperties =
+        ImmutableMap.of(
+            "write.parquet.bloom-filter-enabled.column.colWithBf", "true",
+            "write.parquet.bloom-filter-enabled.column.colWithoutBf", "false");
 
     IcebergDestination destination =
         IcebergDestination.builder()
@@ -1335,7 +1330,7 @@ public class RecordWriterManagerTest {
     WindowedValue<IcebergDestination> dest = WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager =
-        new RecordWriterManager(catalogWithWriteProps, "test_bloom", Long.MAX_VALUE, 3);
+        new RecordWriterManager(catalogConfig, "test_bloom", Long.MAX_VALUE, 3, writeProperties);
     for (int i = 0; i < 10; i++) {
       Row row = Row.withSchema(bloomSchema).addValues(i, 100 + i).build();
       assertTrue(writerManager.write(dest, row));
