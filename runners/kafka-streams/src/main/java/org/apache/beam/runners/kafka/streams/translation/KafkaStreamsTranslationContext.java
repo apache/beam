@@ -41,10 +41,18 @@ public class KafkaStreamsTranslationContext {
   /** Characters not legal in a Kafka topic name; a topic's legal set is {@code [a-zA-Z0-9._-]}. */
   private static final Pattern ILLEGAL_TOPIC_CHARS = Pattern.compile("[^a-zA-Z0-9._-]");
 
+  /** The watermark source stamp a producer reports for an output not consumed by a Flatten. */
+  private static final SourceStamp SINGLE_SOURCE = new SourceStamp(0, 1);
+
   private final JobInfo jobInfo;
   private final KafkaStreamsPipelineOptions pipelineOptions;
   private final Topology topology;
   private final Map<String, String> pCollectionIdToProcessorName;
+  // PCollection id -> the (sourcePartition, totalPartitions) its producer stamps its watermark
+  // with.
+  // Only PCollections consumed by a Flatten get a non-default entry (their branch index of the
+  // Flatten's fan-in); everything else reports as the single source (0 of 1). See getSourceStamp.
+  private final Map<String, SourceStamp> pCollectionIdToSourceStamp;
 
   public static KafkaStreamsTranslationContext create(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
@@ -62,6 +70,7 @@ public class KafkaStreamsTranslationContext {
     this.pipelineOptions = pipelineOptions;
     this.topology = topology;
     this.pCollectionIdToProcessorName = new HashMap<>();
+    this.pCollectionIdToSourceStamp = new HashMap<>();
   }
 
   public JobInfo getJobInfo() {
@@ -119,5 +128,45 @@ public class KafkaStreamsTranslationContext {
         + pipelineOptions.getApplicationId()
         + "_"
         + sanitizedTransformId;
+  }
+
+  /**
+   * Records that the given PCollection is the {@code sourcePartition}-th of {@code totalPartitions}
+   * input branches of a Flatten, so its producer stamps its watermark with that identity instead of
+   * the default single source. Lets the Flatten's {@link WatermarkManager} tell its branches apart
+   * (Kafka Streams does not tell a processor which parent forwarded a record).
+   */
+  public void registerFlattenSourceStamp(
+      String pCollectionId, int sourcePartition, int totalPartitions) {
+    pCollectionIdToSourceStamp.put(
+        pCollectionId, new SourceStamp(sourcePartition, totalPartitions));
+  }
+
+  /**
+   * Returns the watermark source stamp a producer should report for the given output PCollection:
+   * its Flatten branch identity if it feeds a Flatten (see {@link #registerFlattenSourceStamp}), or
+   * the single source {@code (0 of 1)} otherwise.
+   */
+  public SourceStamp getSourceStamp(String pCollectionId) {
+    return pCollectionIdToSourceStamp.getOrDefault(pCollectionId, SINGLE_SOURCE);
+  }
+
+  /** A watermark report's source identity: partition {@code sourcePartition} of {@code total}. */
+  public static final class SourceStamp {
+    private final int sourcePartition;
+    private final int totalPartitions;
+
+    SourceStamp(int sourcePartition, int totalPartitions) {
+      this.sourcePartition = sourcePartition;
+      this.totalPartitions = totalPartitions;
+    }
+
+    public int getSourcePartition() {
+      return sourcePartition;
+    }
+
+    public int getTotalPartitions() {
+      return totalPartitions;
+    }
   }
 }

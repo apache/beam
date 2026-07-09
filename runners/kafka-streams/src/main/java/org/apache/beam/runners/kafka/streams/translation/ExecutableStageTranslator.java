@@ -82,10 +82,22 @@ class ExecutableStageTranslator implements PTransformTranslator {
     String inputPCollectionId = stagePayload.getInput();
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
+    // A stage has at most one output (multi-output rejected above). Stamp its watermark with that
+    // output's Flatten branch identity if it feeds one, else the default single source (0 of 1).
+    KafkaStreamsTranslationContext.SourceStamp stamp =
+        transform.getOutputsMap().isEmpty()
+            ? context.getSourceStamp("")
+            : context.getSourceStamp(Iterables.getOnlyElement(transform.getOutputsMap().values()));
+
     Topology topology = context.getTopology();
     topology.addProcessor(
         transformId,
-        () -> new ExecutableStageProcessor(stagePayload, context.getJobInfo()),
+        () ->
+            new ExecutableStageProcessor(
+                stagePayload,
+                context.getJobInfo(),
+                stamp.getSourcePartition(),
+                stamp.getTotalPartitions()),
         parentProcessor);
 
     if (!transform.getOutputsMap().isEmpty()) {

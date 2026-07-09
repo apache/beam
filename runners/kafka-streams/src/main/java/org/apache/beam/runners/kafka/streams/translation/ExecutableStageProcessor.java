@@ -70,6 +70,11 @@ class ExecutableStageProcessor
 
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final JobInfo jobInfo;
+  // The source identity this stage stamps on its forwarded watermark. Normally (0 of 1), a single
+  // source to the next stage; but when this stage's output feeds a Flatten it is that branch's
+  // (i of N), so the Flatten's WatermarkManager can tell the branches apart. See FlattenProcessor.
+  private final int sourcePartition;
+  private final int totalPartitions;
 
   // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
   // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
@@ -90,9 +95,15 @@ class ExecutableStageProcessor
   private @Nullable StageBundleFactory stageBundleFactory;
   private @Nullable RemoteBundle currentBundle;
 
-  ExecutableStageProcessor(RunnerApi.ExecutableStagePayload stagePayload, JobInfo jobInfo) {
+  ExecutableStageProcessor(
+      RunnerApi.ExecutableStagePayload stagePayload,
+      JobInfo jobInfo,
+      int sourcePartition,
+      int totalPartitions) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
+    this.sourcePartition = sourcePartition;
+    this.totalPartitions = totalPartitions;
   }
 
   @Override
@@ -203,14 +214,17 @@ class ExecutableStageProcessor
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
-    // This stage is a single instance for now, so it forwards its watermark as the only source
-    // partition (0 of 1). Fanning the watermark out to every downstream partition — and producing
-    // it atomically with the offset commit so it is durable — lands with the topic-based shuffle
-    // work, when there are real source partitions to track (#18479).
+    // This stage is a single instance for now, so downstream it is one source — reported as
+    // (sourcePartition of totalPartitions), which is (0 of 1) unless its output feeds a Flatten, in
+    // which case it is that branch's identity so the Flatten can tell its branches apart. Fanning
+    // the watermark out to every downstream partition — and producing it atomically with the offset
+    // commit so it is durable — lands with the topic-based shuffle work (#18479).
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
-            record.key(), KStreamsPayload.watermark(watermarkMillis, 0, 1), record.timestamp()));
+            record.key(),
+            KStreamsPayload.watermark(watermarkMillis, sourcePartition, totalPartitions),
+            record.timestamp()));
   }
 
   @Override

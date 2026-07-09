@@ -52,6 +52,7 @@ public class KafkaStreamsPipelineTranslator {
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
             .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
             .put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, new RedistributeTranslator())
+            .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenTranslator())
             .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
             .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());
@@ -106,6 +107,7 @@ public class KafkaStreamsPipelineTranslator {
    * Throws {@link UnsupportedOperationException} on the first unsupported URN.
    */
   public void translate(KafkaStreamsTranslationContext context, RunnerApi.Pipeline pipeline) {
+    registerFlattenSourceStamps(context, pipeline);
     QueryablePipeline queryable =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
@@ -123,6 +125,28 @@ public class KafkaStreamsPipelineTranslator {
                 + ")");
       }
       translator.translate(node.getId(), pipeline, context);
+    }
+  }
+
+  /**
+   * Records each Flatten input PCollection's branch identity {@code (i of N)} with the context, so
+   * the producer of that PCollection stamps its watermark with a distinct source partition. Without
+   * this every branch would report as the single source {@code (0 of 1)} and the Flatten's {@link
+   * WatermarkManager} could not tell them apart, releasing its watermark before every branch
+   * drains.
+   */
+  private static void registerFlattenSourceStamps(
+      KafkaStreamsTranslationContext context, RunnerApi.Pipeline pipeline) {
+    for (RunnerApi.PTransform transform : pipeline.getComponents().getTransformsMap().values()) {
+      if (!PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
+        continue;
+      }
+      int totalPartitions = transform.getInputsMap().size();
+      int sourcePartition = 0;
+      for (String inputPCollectionId : transform.getInputsMap().values()) {
+        context.registerFlattenSourceStamp(inputPCollectionId, sourcePartition, totalPartitions);
+        sourcePartition++;
+      }
     }
   }
 

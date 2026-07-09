@@ -46,8 +46,9 @@ public class ExecutableStageProcessorWatermarkTest {
             "job-name",
             "",
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
+    // Forwards its watermark as the single source (0 of 1); this test exercises the consume side.
     return new ExecutableStageProcessor(
-        RunnerApi.ExecutableStagePayload.getDefaultInstance(), jobInfo);
+        RunnerApi.ExecutableStagePayload.getDefaultInstance(), jobInfo, 0, 1);
   }
 
   private static Record<byte[], KStreamsPayload<?>> watermark(
