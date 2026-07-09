@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -40,6 +41,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * refreshed after a caller started its request, the caller reuses that refresh instead of making
  * another catalog call.
  */
+@Internal
 public class TableCache {
   static final Duration DEFAULT_REFRESH_INTERVAL = Duration.ofMinutes(2);
 
