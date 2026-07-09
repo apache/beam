@@ -18,6 +18,9 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import com.google.auto.service.AutoService;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -141,9 +144,15 @@ public class KafkaStreamsPipelineTranslator {
       if (!PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
         continue;
       }
-      int totalPartitions = transform.getInputsMap().size();
+      // Sort the input PCollection ids so each branch's index is assigned deterministically. Not
+      // required for correctness — a Flatten and its producers sit in one task, so the indices only
+      // have to agree within a single topology build — but a stable assignment is easier to reason
+      // about and reproduce. registerFlattenSourceStamp fails fast on a duplicate (self-flatten).
+      List<String> inputPCollectionIds = new ArrayList<>(transform.getInputsMap().values());
+      Collections.sort(inputPCollectionIds);
+      int totalPartitions = inputPCollectionIds.size();
       int sourcePartition = 0;
-      for (String inputPCollectionId : transform.getInputsMap().values()) {
+      for (String inputPCollectionId : inputPCollectionIds) {
         context.registerFlattenSourceStamp(inputPCollectionId, sourcePartition, totalPartitions);
         sourcePartition++;
       }

@@ -138,8 +138,20 @@ public class KafkaStreamsTranslationContext {
    */
   public void registerFlattenSourceStamp(
       String pCollectionId, int sourcePartition, int totalPartitions) {
-    pCollectionIdToSourceStamp.put(
-        pCollectionId, new SourceStamp(sourcePartition, totalPartitions));
+    SourceStamp existing =
+        pCollectionIdToSourceStamp.putIfAbsent(
+            pCollectionId, new SourceStamp(sourcePartition, totalPartitions));
+    if (existing != null) {
+      // A PCollection feeding a Flatten more than once — the same Flatten twice, or two different
+      // Flattens — would need a distinct watermark source per branch, but its single producer can
+      // only stamp one identity. Fail fast rather than get the watermark stuck or silently drop the
+      // duplicate branch.
+      throw new UnsupportedOperationException(
+          "PCollection "
+              + pCollectionId
+              + " feeds a Flatten more than once (the same Flatten twice, or multiple Flattens);"
+              + " this is not yet supported by the Kafka Streams runner.");
+    }
   }
 
   /**
