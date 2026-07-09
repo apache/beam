@@ -2855,9 +2855,31 @@ class StorageWriteToBigQuery(PTransform):
 
     def with_output_types(self):
       if callable(self.schema):
+        schema_hint = (
+            getattr(self.schema, '_union_schema', None) or
+            getattr(self.schema, '_table_schema', None) or
+            getattr(self.schema, '_beam_schema', None) or
+            getattr(self.schema, '_schema_hint', None) or
+            getattr(self.schema, '_output_types', None) or
+            getattr(self.schema, 'table_schema', None) or
+            getattr(self.schema, 'schema', None))
+        if schema_hint is not None:
+          if isinstance(
+              schema_hint,
+              (bigquery.TableSchema, bigquery.TableFieldSchema, str, dict)):
+            row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+                schema_hint, self.type_overrides)
+            record_hint = RowTypeConstraint.from_fields(row_type_hints)
+          elif isinstance(schema_hint, RowTypeConstraint):
+            record_hint = schema_hint
+          else:
+            record_hint = RowTypeConstraint.from_fields([])
+        else:
+          record_hint = RowTypeConstraint.from_fields([])
+
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
-            (StorageWriteToBigQuery.RECORD, RowTypeConstraint.from_fields([]))
+            (StorageWriteToBigQuery.RECORD, record_hint)
         ])
         return super().with_output_types(type_hint)
 

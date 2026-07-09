@@ -531,6 +531,12 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         return spec_with_project + 'users'
       return spec_with_project + 'scores'
 
+    def get_schema(dest, side_map):
+      return side_map[dest]
+
+    get_schema._union_schema = (
+        "id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN")
+
     with beam.Pipeline(argv=self.args) as p:
       schema_pc = p | "CreateSchema" >> beam.Create([schema_map])
       _ = (
@@ -539,7 +545,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | beam.io.WriteToBigQuery(
               table=get_destination,
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-              schema=lambda dest, side_map: side_map[dest],
+              schema=get_schema,
               schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
