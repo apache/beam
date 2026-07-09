@@ -29,7 +29,7 @@ require (
 	cloud.google.com/go/bigtable v1.50.0
 	cloud.google.com/go/datastore v1.24.0
 	cloud.google.com/go/profiler v0.6.0
-	cloud.google.com/go/pubsub v1.50.3
+	cloud.google.com/go/pubsub v1.50.4
 	cloud.google.com/go/spanner v1.92.0
 	cloud.google.com/go/storage v1.63.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
@@ -175,7 +175,7 @@ require (
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
-	github.com/googleapis/gax-go/v2 v2.22.0 // indirect
+	github.com/googleapis/gax-go/v2 v2.23.0 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
@@ -203,6 +203,6 @@ require (
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/tools v0.47.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260615183401-62b3387ff324 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
 )
