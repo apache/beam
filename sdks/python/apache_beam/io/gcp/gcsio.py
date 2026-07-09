@@ -35,6 +35,7 @@ import time
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import Conflict
 from google.api_core.exceptions import RetryError
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
@@ -143,7 +144,17 @@ def get_or_create_default_gcs_bucket(options):
         'Creating default GCS bucket for project %s: gs://%s',
         project,
         bucket_name)
-    return gcs.create_bucket(bucket_name, project, location=region)
+    try:
+      return gcs.create_bucket(bucket_name, project, location=region)
+    except Conflict:
+      bucket = gcs.get_bucket(bucket_name)
+      if bucket:
+        _validate_bucket_project(
+            bucket,
+            project,
+            credentials=getattr(gcs.client, '_credentials', None))
+        return bucket
+      raise
 
 
 def create_storage_client(pipeline_options, use_credentials=True):
