@@ -2818,20 +2818,61 @@ class StorageWriteToBigQuery(PTransform):
       self.type_overrides = type_overrides
       self.schema_side_inputs = schema_side_inputs or ()
 
+    def _get_record_type_hint(self):
+      if callable(self.schema):
+        schema_hint = (
+            getattr(self.schema, '_union_schema', None) or
+            getattr(self.schema, '_table_schema', None) or
+            getattr(self.schema, '_beam_schema', None) or
+            getattr(self.schema, '_schema_hint', None) or
+            getattr(self.schema, '_output_types', None) or
+            getattr(self.schema, 'table_schema', None) or
+            getattr(self.schema, 'schema', None))
+        if schema_hint is not None:
+          if isinstance(
+              schema_hint,
+              (bigquery.TableSchema, bigquery.TableFieldSchema, str, dict)):
+            row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+                schema_hint, self.type_overrides)
+            return RowTypeConstraint.from_fields(row_type_hints)
+          elif isinstance(schema_hint, RowTypeConstraint):
+            return schema_hint
+        return RowTypeConstraint.from_fields([])
+      else:
+        row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+            self.schema, self.type_overrides)
+        return RowTypeConstraint.from_fields(row_type_hints)
+
     def expand(self, input_dicts):
       if self.dynamic_destinations:
         if callable(self.schema):
+          record_hint = self._get_record_type_hint()
+          union_field_names = [
+              name for name, _ in getattr(record_hint, '_fields', ())
+          ]
+
+          def convert_dynamic_row(row, *schema_side_inputs):
+            dest, dict_row = row[0], row[1]
+            record_schema = self.schema(dest, *schema_side_inputs)
+            record_row = bigquery_tools.beam_row_from_dict(
+                dict_row, record_schema)
+            if union_field_names:
+              record_dict = record_row._asdict()
+              record_row = beam.Row(
+                  **{
+                      name: record_dict.get(name, None)
+                      for name in union_field_names
+                  })
+            return beam.Row(
+                **{
+                    StorageWriteToBigQuery.DESTINATION: dest,
+                    StorageWriteToBigQuery.RECORD: record_row
+                })
+
           return (
               input_dicts
               | "Convert dict to Beam Row" >> beam.Map(
-                  lambda row, *schema_side_inputs: beam.Row(
-                      **{
-                          StorageWriteToBigQuery.DESTINATION: row[
-                              0], StorageWriteToBigQuery.RECORD: bigquery_tools.
-                          beam_row_from_dict(
-                              row[1], self.schema(row[0], *schema_side_inputs))
-                      }),
-                  *self.schema_side_inputs))
+                  convert_dynamic_row, *self.schema_side_inputs))
         else:
           return (
               input_dicts
@@ -2854,46 +2895,14 @@ class StorageWriteToBigQuery(PTransform):
                     ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
-      if callable(self.schema):
-        schema_hint = (
-            getattr(self.schema, '_union_schema', None) or
-            getattr(self.schema, '_table_schema', None) or
-            getattr(self.schema, '_beam_schema', None) or
-            getattr(self.schema, '_schema_hint', None) or
-            getattr(self.schema, '_output_types', None) or
-            getattr(self.schema, 'table_schema', None) or
-            getattr(self.schema, 'schema', None))
-        if schema_hint is not None:
-          if isinstance(
-              schema_hint,
-              (bigquery.TableSchema, bigquery.TableFieldSchema, str, dict)):
-            row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-                schema_hint, self.type_overrides)
-            record_hint = RowTypeConstraint.from_fields(row_type_hints)
-          elif isinstance(schema_hint, RowTypeConstraint):
-            record_hint = schema_hint
-          else:
-            record_hint = RowTypeConstraint.from_fields([])
-        else:
-          record_hint = RowTypeConstraint.from_fields([])
-
+      record_hint = self._get_record_type_hint()
+      if self.dynamic_destinations:
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
             (StorageWriteToBigQuery.RECORD, record_hint)
         ])
-        return super().with_output_types(type_hint)
-
-      row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-          self.schema, self.type_overrides)
-      if self.dynamic_destinations:
-        type_hint = RowTypeConstraint.from_fields([
-            (StorageWriteToBigQuery.DESTINATION, str),
-            (
-                StorageWriteToBigQuery.RECORD,
-                RowTypeConstraint.from_fields(row_type_hints))
-        ])
       else:
-        type_hint = RowTypeConstraint.from_fields(row_type_hints)
+        type_hint = record_hint
 
       return super().with_output_types(type_hint)
 

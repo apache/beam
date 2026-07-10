@@ -518,11 +518,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     bq_matchers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % table_a,
+            query="SELECT id, name FROM %s" % table_a,
             data=self.parse_expected_data(elements_a)),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT * FROM %s" % table_b,
+            query="SELECT id, score, active FROM %s" % table_b,
             data=self.parse_expected_data(elements_b)),
     ]
 
