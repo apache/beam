@@ -232,23 +232,26 @@ public class FlinkSubmissionTest {
    * because Flink's CliFrontend requires a Flink configuration file for which the location can only
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
    *
-   * <p>On Unix JDKs, {@code ProcessEnvironment.theEnvironment} is a {@code Map<Variable,Value>}.
-   * {@code System.getenv(String)} looks up {@code Variable} keys, so inserting plain {@code String}
-   * keys (via {@code putAll}) is a no-op for lookups and leaves Flink unable to find {@code
-   * FLINK_CONF_DIR}. On Windows the map uses {@code String} keys (plus a case-insensitive map).
+   * <p>On Unix, {@code theEnvironment} uses {@code Variable}/{@code Value} keys; {@code putAll} with
+   * {@code String} keys does not work for {@code System.getenv(String)} lookups.
    */
   @SuppressWarnings("unchecked")
   private static void modifyEnv(Map<String, String> env) throws Exception {
-    Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
-
-    Field theEnvironmentField = processEnvironment.getDeclaredField("theEnvironment");
+    Class processEnv = Class.forName("java.lang.ProcessEnvironment");
+    Field theEnvironmentField = processEnv.getDeclaredField("theEnvironment");
     theEnvironmentField.setAccessible(true);
     Map<Object, Object> envMap = (Map<Object, Object>) theEnvironmentField.get(null);
     envMap.clear();
+
+    Class<?> variableClass = null;
+    Class<?> valueClass = null;
     try {
-      // Unix: keys/values are ProcessEnvironment$Variable / $Value, not String.
-      Class<?> variableClass = Class.forName("java.lang.ProcessEnvironment$Variable");
-      Class<?> valueClass = Class.forName("java.lang.ProcessEnvironment$Value");
+      variableClass = Class.forName("java.lang.ProcessEnvironment$Variable");
+      valueClass = Class.forName("java.lang.ProcessEnvironment$Value");
+    } catch (ClassNotFoundException e) {
+      // Windows: theEnvironment uses String keys.
+    }
+    if (variableClass != null && valueClass != null) {
       Method valueOfVariable = variableClass.getDeclaredMethod("valueOf", String.class);
       Method valueOfValue = valueClass.getDeclaredMethod("valueOf", String.class);
       valueOfVariable.setAccessible(true);
@@ -258,18 +261,14 @@ public class FlinkSubmissionTest {
             valueOfVariable.invoke(null, entry.getKey()),
             valueOfValue.invoke(null, entry.getValue()));
       }
-    } catch (ClassNotFoundException e) {
-      // Windows (and similar): theEnvironment uses String keys.
+    } else {
       envMap.putAll(env);
     }
 
-    // Windows: System.getenv(String) reads the case-insensitive map.
     if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
-      Field theCaseInsensitiveEnvironmentField =
-          processEnvironment.getDeclaredField("theCaseInsensitiveEnvironment");
-      theCaseInsensitiveEnvironmentField.setAccessible(true);
-      Map<String, String> ciEnvMap =
-          (Map<String, String>) theCaseInsensitiveEnvironmentField.get(null);
+      Field ciEnvField = processEnv.getDeclaredField("theCaseInsensitiveEnvironment");
+      ciEnvField.setAccessible(true);
+      Map<String, String> ciEnvMap = (Map<String, String>) ciEnvField.get(null);
       if (ciEnvMap != null) {
         ciEnvMap.clear();
         ciEnvMap.putAll(env);
