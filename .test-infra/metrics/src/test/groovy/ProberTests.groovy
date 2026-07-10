@@ -22,12 +22,12 @@ import groovy.json.JsonSlurper
 import static groovy.test.GroovyAssert.shouldFail
 
 /**
- * Prober tests which performs health checks on deployed infrasture for
+ * Prober tests which performs health checks on deployed infrastructure for
  * community metrics.
  */
 class ProberTests {
   // TODO: Make this configurable
-  def grafanaEndpoint = 'http://metrics.beam.apache.org'
+  def grafanaEndpoint = 'https://metrics.beam.apache.org'
 
   @Test
   void PingGrafanaHttpApi() {
