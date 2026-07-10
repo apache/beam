@@ -63,8 +63,15 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 	if b.logs == nil {
 		b.logs = make([]string, 0, initialLogSize)
 	}
-	b.logs = append(b.logs, b.builder.String())
-	b.builder.Reset()
+	s := b.builder.String()
+	if lastNL := strings.LastIndex(s, "\n"); lastNL != -1 {
+		lines := strings.Split(s[:lastNL], "\n")
+		for _, line := range lines {
+			b.logs = append(b.logs, strings.TrimSuffix(line, "\r"))
+		}
+		b.builder.Reset()
+		b.builder.WriteString(s[lastNL+1:])
+	}
 	if b.now().Sub(b.lastFlush) > b.flushInterval {
 		b.FlushAtDebug(b.periodicFlushContext)
 	}
@@ -76,6 +83,10 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 	if b.logger == nil {
 		return
+	}
+	if b.builder.Len() > 0 {
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
 	}
 	for _, message := range b.logs {
 		b.logger.Errorf(ctx, "%s", message)
@@ -89,6 +100,10 @@ func (b *BufferedLogger) FlushAtError(ctx context.Context) {
 func (b *BufferedLogger) FlushAtDebug(ctx context.Context) {
 	if b.logger == nil {
 		return
+	}
+	if b.builder.Len() > 0 {
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
 	}
 	for _, message := range b.logs {
 		b.logger.Printf(ctx, "%s", message)
