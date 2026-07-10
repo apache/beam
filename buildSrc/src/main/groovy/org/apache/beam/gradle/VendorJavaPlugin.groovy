@@ -86,7 +86,9 @@ class VendorJavaPlugin implements Plugin<Project> {
 
       // plugin to support repository authentication via ~/.m2/settings.xml
       // https://github.com/mark-vieira/gradle-maven-settings-plugin/
-      project.apply plugin: 'net.linguica.maven-settings'
+      if (isRelease(project) || project.hasProperty('publishing')) {
+        project.apply plugin: 'net.linguica.maven-settings'
+      }
 
       // Projects should only depend on the shadowJar output
       project.jar.enabled = false
