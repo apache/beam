@@ -1663,6 +1663,22 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testStorageApiWriteFailureExhaustedRetries() throws Exception {
     assumeTrue(useStorageApi);
 
+    // Create the table in the fake dataset service so write stream creation succeeds.
+    // The error will be injected at the appendRows level.
+    Table table =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("project-id")
+                    .setDatasetId("dataset-id")
+                    .setTableId("table-id"))
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+    fakeDatasetService.createTable(table);
+
     // Set up fake dataset service to return PERMISSION_DENIED for appendRows
     fakeDatasetService.setAppendRowsError(
         new io.grpc.StatusRuntimeException(
