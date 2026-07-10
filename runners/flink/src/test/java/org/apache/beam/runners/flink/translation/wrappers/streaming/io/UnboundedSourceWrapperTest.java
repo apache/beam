@@ -665,15 +665,16 @@ public class UnboundedSourceWrapperTest {
         // Wait to see if the wrapper shuts down immediately in case it doesn't have readers
         if (!shouldHaveReaders) {
           // The expected state is for finalizeSource to sleep instead of exiting
-          while (true) {
-            StackTraceElement[] callStack = thread.getStackTrace();
-            if (callStack.length >= 2
-                && "sleep".equals(callStack[0].getMethodName())
-                && "finalizeSource".equals(callStack[1].getMethodName())) {
+          long deadlineNs = System.nanoTime() + 9_000_000_000L;
+          boolean reachedFinalizeSource = false;
+          while (System.nanoTime() < deadlineNs) {
+            if (isInFinalizeSource(thread.getStackTrace())) {
+              reachedFinalizeSource = true;
               break;
             }
             Thread.sleep(10);
           }
+          assertThat(reachedFinalizeSource, is(true));
         }
         // Source should still be running even if there are no readers
         assertThat(sourceWrapper.isRunning(), is(true));
@@ -692,6 +693,15 @@ public class UnboundedSourceWrapperTest {
         thread.join(1000);
       }
       assertThat(thread.isAlive(), is(false));
+    }
+
+    private static boolean isInFinalizeSource(StackTraceElement[] callStack) {
+      for (StackTraceElement frame : callStack) {
+        if ("finalizeSource".equals(frame.getMethodName())) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Test
