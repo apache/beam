@@ -232,8 +232,8 @@ public class FlinkSubmissionTest {
    * because Flink's CliFrontend requires a Flink configuration file for which the location can only
    * be set using the {@code ConfigConstants.ENV_FLINK_CONF_DIR} environment variable.
    *
-   * <p>On Unix, {@code theEnvironment} uses {@code Variable}/{@code Value} keys; {@code putAll} with
-   * {@code String} keys does not work for {@code System.getenv(String)} lookups.
+   * <p>On Unix, {@code theEnvironment} uses {@code Variable}/{@code Value} keys; {@code putAll}
+   * with {@code String} keys does not work for {@code System.getenv(String)} lookups.
    */
   @SuppressWarnings("unchecked")
   private static void modifyEnv(Map<String, String> env) throws Exception {
