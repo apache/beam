@@ -57,7 +57,7 @@ jobs:
         - language: go
           build-mode: manual
         - language: java-kotlin
-          build-mode: autobuild
+          build-mode: manual
         - language: javascript-typescript
           build-mode: none
         - language: python
@@ -81,6 +81,12 @@ jobs:
       uses: actions/setup-go@v6
       with:
         go-version-file: 'sdks/go.mod'
+
+    - name: Setup environment for Java
+      if: matrix.language == 'java-kotlin'
+      uses: ./.github/actions/setup-environment-action
+      with:
+        java-version: default
 
     # Add any setup steps before running the `github/codeql-action/init` action.
     # This includes steps like installing compilers or runtimes (`actions/setup-node`
@@ -123,6 +129,9 @@ jobs:
 
           echo "Building learning/tour-of-beam/backend module..."
           (cd learning/tour-of-beam/backend && go build ./cmd/... ./internal/... ./playground_api/...)
+        elif [ "${{ matrix.language }}" = "java-kotlin" ]; then
+          echo "Building Java classes for CodeQL analysis..."
+          ./gradlew compileJava -x test -x check -PdisableSpotlessCheck=true -PdisableCheckStyle=true --no-daemon
         else
           echo "No manual build steps defined for ${{ matrix.language }}"
           exit 1
