@@ -43,7 +43,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
-	github.com/johannesboyne/gofakes3 v0.0.0-20250106100439-5c39aecd6999
+	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/nats-io/nats-server/v2 v2.14.3
@@ -147,7 +147,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
 	github.com/apache/thrift v0.23.0 // indirect
-	github.com/aws/aws-sdk-go v1.55.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.14 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.30 // indirect
