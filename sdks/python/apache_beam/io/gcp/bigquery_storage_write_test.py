@@ -198,6 +198,48 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     self.assertEqual(
         type_hint_dyn._fields[1][1]._fields, expected_record_hint._fields)
 
+  def test_convert_to_beam_rows_union_schema_fills_missing_attributes(
+      self, mock_expansion_service):
+    """Test ConvertToBeamRows fills None for fields in union schema not in row."""
+    def dyn_schema(dest):
+      if 'users' in dest:
+        return 'id:INTEGER,name:STRING'
+      return 'id:INTEGER,score:INTEGER'
+
+    dyn_schema._union_schema = 'id:INTEGER,name:STRING,score:INTEGER'
+    converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
+        schema=dyn_schema, dynamic_destinations=True)
+
+    with TestPipeline() as p:
+      rows = (
+          p
+          | beam.Create([
+              ('dest_users', {
+                  'id': 1, 'name': 'alice'
+              }),
+              ('dest_scores', {
+                  'id': 2, 'score': 95
+              }),
+          ])
+          | converter)
+
+      def check_rows(actual):
+        actual_list = list(actual)
+        assert len(actual_list) == 2
+        r1, r2 = actual_list[0], actual_list[1]
+        if r1.destination == 'dest_scores':
+          r1, r2 = r2, r1
+        assert r1.destination == 'dest_users'
+        assert r1.record.id == 1
+        assert r1.record.name == 'alice'
+        assert r1.record.score is None
+        assert r2.destination == 'dest_scores'
+        assert r2.record.id == 2
+        assert r2.record.name is None
+        assert r2.record.score == 95
+
+      assert_that(rows, check_rows)
+
   def test_storage_write_to_bigquery_expand_dynamic_schema(
       self, mock_expansion_service):
     """Test StorageWriteToBigQuery expand does not fail for callable schema."""
