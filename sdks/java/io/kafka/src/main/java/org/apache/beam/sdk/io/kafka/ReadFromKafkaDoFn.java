@@ -641,7 +641,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
         final long estimatedBacklogBytes =
             (long)
-                (BigDecimal.valueOf(latestOffsetEstimator.get())
+                (BigDecimal.valueOf(Math.max(expectedOffset, latestOffsetEstimator.get()))
                         .subtract(BigDecimal.valueOf(expectedOffset), MathContext.DECIMAL128)
                         .doubleValue()
                     * avgRecordSize.get());
