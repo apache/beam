@@ -64,13 +64,21 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 		b.logs = make([]string, 0, initialLogSize)
 	}
 	s := b.builder.String()
-	if lastNL := strings.LastIndex(s, "\n"); lastNL != -1 {
-		lines := strings.Split(s[:lastNL], "\n")
-		for _, line := range lines {
-			b.logs = append(b.logs, strings.TrimSuffix(line, "\r"))
+	start := 0
+	for {
+		nl := strings.IndexByte(s[start:], '\n')
+		if nl == -1 {
+			break
 		}
+		line := s[start : start+nl]
+		b.logs = append(b.logs, strings.TrimSuffix(line, "\r"))
+		start += nl + 1
+	}
+	if start > 0 {
 		b.builder.Reset()
-		b.builder.WriteString(s[lastNL+1:])
+		if start < len(s) {
+			b.builder.WriteString(s[start:])
+		}
 	}
 	if b.now().Sub(b.lastFlush) > b.flushInterval {
 		b.FlushAtDebug(b.periodicFlushContext)
