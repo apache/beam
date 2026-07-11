@@ -1652,7 +1652,6 @@ message StandardEnvironments {
 }
 
 // Payload for a Docker container environment.
-// The container image is assumed to be linux_amd64.
 message DockerPayload {
   // (Required) The Docker container image URL, e.g. "apache/beam_java_sdk:2.59.0"
   string container_image = 1;  // implicitly linux_amd64.

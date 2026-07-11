@@ -61,8 +61,9 @@ message ExpansionMethods {
 
 // Defines the URNs for managed transforms.
 // Managed transforms are high-level, pre-configured transforms that map to
-// specific SchemaTransform implementations. They provide a convenient way
-// to use common I/O patterns without specifying the full transform details.
+// specific SchemaTransform implementations. They provide a way to
+// to use common I/O patterns without worrying about Beam version.
+// See https://beam.apache.org/documentation/io/managed-io/
 message ManagedTransforms {
   enum Urns {
     // Reads from an Iceberg table.
