@@ -60,32 +60,48 @@ message ExpansionMethods {
 }
 
 // Defines the URNs for managed transforms.
+// Managed transforms are high-level, pre-configured transforms that map to
+// specific SchemaTransform implementations. They provide a convenient way
+// to use common I/O patterns without specifying the full transform details.
 message ManagedTransforms {
   enum Urns {
+    // Reads from an Iceberg table.
     ICEBERG_READ = 0 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:iceberg_read:v1"];
+    // Writes to an Iceberg table.
     ICEBERG_WRITE = 1 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:iceberg_write:v1"];
+    // Reads from a Kafka topic.
     KAFKA_READ = 2 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:kafka_read:v1"];
+    // Writes to a Kafka topic.
     KAFKA_WRITE = 3 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:kafka_write:v1"];
+    // Reads from BigQuery using the Storage API.
     BIGQUERY_READ = 4 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:bigquery_storage_read:v1"];
+    // Writes to BigQuery.
     BIGQUERY_WRITE = 5 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:bigquery_write:v1"];
+    // Reads from Iceberg in CDC (Change Data Capture) mode.
     ICEBERG_CDC_READ = 6 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:iceberg_cdc_read:v1"];
+    // Reads from a PostgreSQL database.
     POSTGRES_READ = 7 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:postgres_read:v1"];
+    // Writes to a PostgreSQL database.
     POSTGRES_WRITE = 8 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:postgres_write:v1"];
+    // Reads from a MySQL database.
     MYSQL_READ = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:mysql_read:v1"];
+    // Writes to a MySQL database.
     MYSQL_WRITE = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:mysql_write:v1"];
+    // Reads from a SQL Server database.
     SQL_SERVER_READ = 11 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:sql_server_read:v1"];
+    // Writes to a SQL Server database.
     SQL_SERVER_WRITE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:sql_server_write:v1"];
   }
@@ -143,6 +159,9 @@ message BuilderMethod {
   bytes payload = 3;
 }
 
+// Defines annotation keys used to attach metadata to transforms in the
+// portable pipeline representation. These annotations allow SDKs to
+// recover configuration information that was used to construct a transform.
 message Annotations {
   enum Enum {
     // The annotation key for the encoded configuration Row used to build a transform
