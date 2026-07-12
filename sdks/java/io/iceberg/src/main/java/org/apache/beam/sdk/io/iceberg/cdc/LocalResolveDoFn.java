@@ -132,7 +132,11 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
       readAndRoute(descriptor, task, table, overlapLower, overlapUpper, pkGroups, out);
     }
 
-    resolveAndEmit(descriptor, pkGroups, table.schema(), out);
+    resolveAndEmit(
+        descriptor,
+        pkGroups,
+        CdcOutputUtils.readSchemaWithRowMetadata(scanConfig.getMetadataColumns(), table.schema()),
+        out);
   }
 
   /**

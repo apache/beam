@@ -591,12 +591,18 @@ public class IcebergUtils {
         rowBuilder.addValue(((ByteBuffer) icebergValue).array());
         break;
       case ROW:
-        Record nestedRecord = (Record) icebergValue;
         Schema nestedSchema =
             checkArgumentNotNull(
                 field.getType().getRowSchema(),
                 "Corrupted schema: Row type did not have associated nested schema.");
-        rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, nestedRecord));
+        if (icebergValue instanceof Record) {
+          rowBuilder.addValue(icebergRecordToBeamRow(nestedSchema, (Record) icebergValue));
+        } else if (icebergValue instanceof StructLike) {
+          rowBuilder.addValue(structToRow(nestedSchema, (StructLike) icebergValue));
+        } else {
+          throw new UnsupportedOperationException(
+              "Unsupported row type: " + icebergValue.getClass());
+        }
         break;
       case LOGICAL_TYPE:
         rowBuilder.addValue(getLogicalTypeValue(icebergValue, field.getType()));

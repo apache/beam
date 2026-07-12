@@ -50,8 +50,10 @@ final class OverlapRange {
   }
 
   static OverlapRange forScanConfig(IcebergScanConfig scanConfig) {
-    Schema fullSchema =
+    Schema tableSchema =
         TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier()).schema();
+    Schema fullSchema =
+        CdcOutputUtils.readSchemaWithRowMetadata(scanConfig.getMetadataColumns(), tableSchema);
     StructProjection projection = StructProjection.create(fullSchema, scanConfig.recordIdSchema());
     return new OverlapRange(
         scanConfig.recordIdSchema(), projection, scanConfig.recordIdComparator());
@@ -75,7 +77,7 @@ final class OverlapRange {
   }
 
   /**
-   * Wraps the record to project its Primary Key, then checks if the PK within the overlap {@code
+   * Wraps the record to project its Primary Key, then checks if the PK is within the overlap {@code
    * [lower, upper]} (inclusive). Can be paired with a subsequent {@link #recordIdProjection()} call
    * to fetch the PK value.
    *

@@ -415,8 +415,10 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
       if (pkProjector == null) {
         pkProjector =
             StructProjection.create(
-                TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier())
-                    .schema(),
+                CdcOutputUtils.readSchemaWithRowMetadata(
+                    scanConfig.getMetadataColumns(),
+                    TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier())
+                        .schema()),
                 scanConfig.recordIdSchema());
       }
       return pkProjector;
