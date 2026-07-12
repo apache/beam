@@ -146,17 +146,20 @@ class SchemaChangeDetectorHelper {
       ThrowingSupplier<Descriptors.Descriptor> schemaDescriptor)
       throws Exception {
     if (ignoreSchemaHashes) {
-
-      if (payload.getUnknownFields() == null) {
-        return false;
+      if (payload.getUnknownFields() != null
+          && UpgradeTableSchema.missingUnknownField(
+              Preconditions.checkStateNotNull(payload.getUnknownFields()), schemaDescriptor)) {
+        return true;
       }
-      // TODO: CHECK FOR REQUIRED FIELDS AS WELL.
-      return UpgradeTableSchema.missingUnknownField(
-          Preconditions.checkStateNotNull(payload.getUnknownFields()), schemaDescriptor);
+      // We currently rely on getting an append failure from Vortex if there are
+      // missing required
+      // fields. However
+      // we should consider explicitly checking here in the future.
     } else {
       return UpgradeTableSchema.isPayloadSchemaOutOfDate(
           payload.getSchemaHash(), () -> mergedPayload, schemaHash, schemaDescriptor);
     }
+    return false;
   }
 
   static void bufferMismatchedRows(

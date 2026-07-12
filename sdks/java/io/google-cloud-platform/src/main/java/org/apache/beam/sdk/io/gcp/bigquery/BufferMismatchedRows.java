@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -164,11 +164,6 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
       this.writeDoFn = writeDoFn;
     }
 
-    @StartBundle
-    public void startBundle() throws IOException {
-      writeDoFn.startBundle();
-    }
-
     @ProcessElement
     public void process(
         PipelineOptions pipelineOptions,
@@ -216,15 +211,25 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
         MultiOutputReceiver o)
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromOnTimerContext(context);
+      writeDoFn.startBundle();
 
       mismatchedRowsBag.readLater();
       currentTimerValue.readLater();
       minPendingTimestamp.readLater();
 
+      TableDestination tableDestination = dynamicDestinations.getTable(shardedDestination.getKey());
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          writeDoFn.messageConverters.get(
+              shardedDestination.getKey(),
+              dynamicDestinations,
+              pipelineOptions,
+              writeDoFn.getDatasetService(pipelineOptions),
+              writeDoFn.getWriteStreamService(pipelineOptions));
+      messageConverter.updateSchemaFromTable();
+
       List<Iterable<KV<DestinationT, StoragePayloadWithDeadline>>> mismatchedRowsList =
           Lists.newArrayList();
       for (StoragePayloadWithDeadline row : mismatchedRowsBag.read()) {
-        // TODO: This will reset the target expiration time!
         Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
             writeDoFn.processElement(
                 pipelineOptions, KV.of(shardedDestination.getKey(), row), null, o);
@@ -247,17 +252,6 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
       currentTimerValue.clear();
       minPendingTimestamp.clear();
       if (!mismatchedRowsList.isEmpty()) {
-        TableDestination tableDestination =
-            dynamicDestinations.getTable(shardedDestination.getKey());
-        StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
-            writeDoFn.messageConverters.get(
-                shardedDestination.getKey(),
-                dynamicDestinations,
-                pipelineOptions,
-                writeDoFn.getDatasetService(pipelineOptions),
-                writeDoFn.getWriteStreamService(pipelineOptions));
-        messageConverter.updateSchemaFromTable();
-
         AppendClientInfo appendClientInfo =
             AppendClientInfo.of(
                 messageConverter.getTableSchema(),
@@ -285,6 +279,73 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
             rowsSentToFailedRowsCollection,
             timerRetryDuration);
       }
+    }
+
+    @OnWindowExpiration
+    public void onWindowExpiration(
+        OnWindowExpirationContext context,
+        @Key ShardedKey<DestinationT> shardedDestination,
+        @Timestamp org.joda.time.Instant elementTs,
+        @StateId("mismatchedRows") BagState<StoragePayloadWithDeadline> mismatchedRowsBag,
+        PipelineOptions pipelineOptions,
+        MultiOutputReceiver o)
+        throws Exception {
+      dynamicDestinations.setSideInputAccessorFromOnWindowExpirationContext(context);
+
+      TableDestination tableDestination = dynamicDestinations.getTable(shardedDestination.getKey());
+      StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
+          writeDoFn.messageConverters.get(
+              shardedDestination.getKey(),
+              dynamicDestinations,
+              pipelineOptions,
+              writeDoFn.getDatasetService(pipelineOptions),
+              writeDoFn.getWriteStreamService(pipelineOptions));
+      messageConverter.updateSchemaFromTable();
+
+      java.time.Duration waitTime =
+          java.time.Duration.ofMillis(
+              pipelineOptions
+                  .as(BigQueryOptions.class)
+                  .getStorageApiMismatchDrainRetryTimeMilliSec());
+
+      Iterable<StoragePayloadWithDeadline> bufferedRows = mismatchedRowsBag.read();
+      Instant start = Instant.now();
+      while (!Iterables.isEmpty(bufferedRows) && start.plus(waitTime).isAfter(Instant.now())) {
+        writeDoFn.startBundle();
+        List<Iterable<KV<DestinationT, StoragePayloadWithDeadline>>> mismatchedRowsList =
+            Lists.newArrayList();
+        for (StoragePayloadWithDeadline row : bufferedRows) {
+          Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedRows =
+              writeDoFn.processElement(
+                  pipelineOptions, KV.of(shardedDestination.getKey(), row), null, o);
+          if (!Iterables.isEmpty(mismatchedRows)) {
+            mismatchedRowsList.add(mismatchedRows);
+          }
+        }
+        // Once we're done, delegate to finishBundle to finish things.
+        Iterable<KV<DestinationT, StoragePayloadWithDeadline>> mismatchedDestRows =
+            writeDoFn.finishBundle(
+                o.get(failedRowsTag),
+                successfulRowsTag != null ? o.get(successfulRowsTag) : null,
+                o.get(finalizeTag),
+                null);
+        if (!Iterables.isEmpty(mismatchedDestRows)) {
+          mismatchedRowsList.add(mismatchedDestRows);
+        }
+
+        bufferedRows =
+            () ->
+                StreamSupport.stream(Iterables.concat(mismatchedRowsList).spliterator(), false)
+                    .map(KV::getValue)
+                    .iterator();
+      }
+      writeDoFn.writeFailedRows(
+          shardedDestination.getKey(),
+          bufferedRows,
+          "Timed out waiting for table schema update in OnWindowExpiration",
+          pipelineOptions,
+          elementTs,
+          o.get(failedRowsTag));
     }
 
     @Teardown

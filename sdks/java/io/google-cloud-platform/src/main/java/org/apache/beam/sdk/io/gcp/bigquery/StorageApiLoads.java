@@ -304,7 +304,8 @@ public class StorageApiLoads<DestinationT, ElementT>
                 autoUpdateSchemaStrictTimeout,
                 ignoreUnknownValues,
                 defaultMissingValueInterpretation,
-                bigLakeConfiguration));
+                bigLakeConfiguration,
+                hasSchemaUpdateOptions));
 
     PCollection<BigQueryStorageApiInsertError> insertErrors =
         PCollectionList.of(convertMessagesResult.get(failedRowsTag))

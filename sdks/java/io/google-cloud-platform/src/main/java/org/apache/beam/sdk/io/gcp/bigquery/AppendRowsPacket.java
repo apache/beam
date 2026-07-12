@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -66,7 +66,7 @@ abstract class AppendRowsPacket {
       SchemaChangeDetectorHelper schemaChangeDetectorHelper,
       Instant elementTimestamp,
       Supplier<AppendClientInfo> appendClientInfoSupplier,
-      Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer,
+      Function<TimestampedValue<BigQueryStorageApiInsertError>, Boolean> failedRowsHandler,
       ThrowingSupplier<byte[]> getCurrentTableSchemaHash,
       ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor) {
     List<Instant> timestamps = Lists.newArrayList();
@@ -99,14 +99,22 @@ abstract class AppendRowsPacket {
         }
 
         // If autoUpdateSchema is set, we try to automatically merge in unknown fields.
+        ByteString byteString;
         SchemaChangeDetectorHelper.MergePayloadResult mergeResult =
             schemaChangeDetectorHelper.getMergedPayload(
                 storagePayload, elementTimestamp, failsafeTableRow, appendClientInfoSupplier.get());
         if (mergeResult.getKind() == SchemaChangeDetectorHelper.MergePayloadResult.Kind.FAILED) {
-          failedRowsConsumer.accept(mergeResult.getFailed());
-          continue;
+          if (failedRowsHandler.apply(mergeResult.getFailed())) {
+            continue;
+          } else {
+            // This implies that instead of skipping failed rows, we should mark it as a mismatched
+            // row.
+            byteString = ByteString.empty();
+            mismatchedRows.set(inserts.getSerializedRowsCount());
+          }
+        } else {
+          byteString = mergeResult.getMerged();
         }
-        ByteString byteString = mergeResult.getMerged();
 
         if (schemaChangeDetectorHelper.isPayloadSchemaOutOfDate(
             storagePayload,

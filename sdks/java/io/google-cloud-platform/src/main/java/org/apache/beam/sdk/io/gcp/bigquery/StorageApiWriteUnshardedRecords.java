@@ -49,7 +49,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -650,6 +650,37 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
       }
 
+      void writeFailedRows(
+          Iterable<StoragePayloadWithDeadline> failedRows,
+          String msg,
+          org.joda.time.Instant defaultTs,
+          DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
+          throws IOException {
+
+        for (StoragePayloadWithDeadline mismatchedRow : failedRows) {
+          TableRow failedRow = mismatchedRow.getStoragePayload().getFailsafeTableRow();
+          if (failedRow == null) {
+            AppendClientInfo aci = getAppendClientInfo(true, null);
+            failedRow =
+                aci.toTableRow(
+                    ByteString.copyFrom(mismatchedRow.getStoragePayload().getPayload()),
+                    Predicates.alwaysTrue());
+          }
+          BigQueryStorageApiInsertError error =
+              new BigQueryStorageApiInsertError(
+                  failedRow, msg, tableDestination.getTableReference());
+          org.joda.time.Instant ts =
+              MoreObjects.firstNonNull(mismatchedRow.getStoragePayload().getTimestamp(), defaultTs);
+          failedRowsReceiver.outputWithTimestamp(error, ts);
+          rowsSentToFailedRowsCollection.inc();
+          BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                  BigQuerySinkMetrics.RowStatus.FAILED,
+                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                  tableDestination.getShortTableUrn())
+              .inc(1);
+        }
+      }
+
       void addMessage(StoragePayloadWithDeadline payload) throws Exception {
         maybeTickleCache();
         pendingMessages.add(payload);
@@ -720,12 +751,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 Preconditions.checkStateNotNull(
                     getAppendClientInfo(
                         false, null /* read updated schema from messageConverter */));
-            // Convert back to an Iterable<StorageApiWritePayload> to try again. We can't reuse the
-            // existing
-            // payloadsToIterate as if there are any failures in it, that would cause us to output
-            // them again to
-            // the dead-letter collection, resulting in duplicate outputs to dead letter.
-            payloadsToIterate = () -> processingRows.toPayloadStream().iterator();
           }
         } while (schemaMismatchSeen && BackOffUtils.next(Sleeper.DEFAULT, backoff));
 
@@ -1047,11 +1072,14 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               return appendClientInfo;
             };
 
-        Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer =
-            tv -> {
-              rowsSentToFailedRowsCollection.inc();
-              failedRowsReceiver.outputWithTimestamp(tv.getValue(), tv.getTimestamp());
-            };
+        Function<TimestampedValue<BigQueryStorageApiInsertError>, Boolean> failedRowsHandler =
+            (autoUpdateSchemaStrictTimeout == null)
+                ? tv -> {
+                  rowsSentToFailedRowsCollection.inc();
+                  failedRowsReceiver.outputWithTimestamp(tv.getValue(), tv.getTimestamp());
+                  return true;
+                }
+                : tv -> false;
 
         PeekingIterator<StoragePayloadWithDeadline> peekingIterator =
             Iterators.peekingIterator(payloads.iterator());
@@ -1061,7 +1089,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             schemaChangeDetectorHelper,
             BoundedWindow.TIMESTAMP_MAX_VALUE,
             appendClientInfoSupplier,
-            failedRowsConsumer,
+            failedRowsHandler,
             () -> getAppendClientInfo(true, null).getTableSchemaHash(),
             () ->
                 TableRowToStorageApiProto.wrapDescriptorProto(
@@ -1312,6 +1340,31 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
+    }
+
+    void writeFailedRows(
+        DestinationT destination,
+        Iterable<StoragePayloadWithDeadline> failedRows,
+        String msg,
+        PipelineOptions pipelineOptions,
+        org.joda.time.Instant defaultTs,
+        DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver)
+        throws IOException {
+      DatasetService initializedDatasetService = getDatasetService(pipelineOptions);
+      WriteStreamService initializedWriteStreamService = getWriteStreamService(pipelineOptions);
+      DestinationState state =
+          Preconditions.checkStateNotNull(destinations)
+              .computeIfAbsent(
+                  destination,
+                  d ->
+                      createDestinationState(
+                          pipelineOptions,
+                          destination,
+                          usesCdc,
+                          initializedDatasetService,
+                          initializedWriteStreamService,
+                          pipelineOptions.as(BigQueryOptions.class)));
+      state.writeFailedRows(failedRows, msg, defaultTs, failedRowsReceiver);
     }
 
     Iterable<KV<DestinationT, StoragePayloadWithDeadline>> processElement(

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import com.google.protobuf.Descriptors;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ThrowingSupplier;
@@ -39,7 +39,8 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
   private final Iterable<StoragePayloadWithDeadline> underlying;
   private final long splitSize;
 
-  private final Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer;
+  private final Function<TimestampedValue<BigQueryStorageApiInsertError>, Boolean>
+      failedRowsHandler;
   private final ThrowingSupplier<byte[]> getCurrentTableSchemaHash;
   private final ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor;
   private final Instant elementTimestamp;
@@ -49,7 +50,7 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
   public SplittingIterable(
       Iterable<StoragePayloadWithDeadline> underlying,
       long splitSize,
-      Consumer<TimestampedValue<BigQueryStorageApiInsertError>> failedRowsConsumer,
+      Function<TimestampedValue<BigQueryStorageApiInsertError>, Boolean> failedRowsHandler,
       ThrowingSupplier<byte[]> getCurrentTableSchemaHash,
       ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor,
       Instant elementTimestamp,
@@ -57,7 +58,7 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
       SchemaChangeDetectorHelper schemaChangeDetectorHelper) {
     this.underlying = underlying;
     this.splitSize = splitSize;
-    this.failedRowsConsumer = failedRowsConsumer;
+    this.failedRowsHandler = failedRowsHandler;
     this.getCurrentTableSchemaHash = getCurrentTableSchemaHash;
     this.getCurrentTableSchemaDescriptor = getCurrentTableSchemaDescriptor;
     this.elementTimestamp = elementTimestamp;
@@ -98,7 +99,7 @@ class SplittingIterable implements Iterable<AppendRowsPacket> {
                 schemaChangeDetectorHelper,
                 elementTimestamp,
                 appendClientSupplier,
-                failedRowsConsumer,
+                failedRowsHandler,
                 getCurrentTableSchemaHash,
                 getCurrentTableSchemaDescriptor);
         return value.getProtoRows().getSerializedRowsCount() == 0 ? null : value;
