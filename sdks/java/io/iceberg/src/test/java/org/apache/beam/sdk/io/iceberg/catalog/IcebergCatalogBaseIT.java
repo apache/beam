@@ -56,13 +56,16 @@ import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -74,10 +77,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.ChangelogOperation;
 import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
@@ -85,15 +94,22 @@ import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SortDirection;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.GenericAppenderFactory;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.deletes.EqualityDeleteWriter;
+import org.apache.iceberg.deletes.PositionDelete;
+import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
@@ -277,6 +293,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
           .build();
+  private static final Schema CDC_BEAM_SCHEMA =
+      Schema.builder().addInt64Field("id").addStringField("data").build();
 
   private static final SimpleFunction<Long, Row> ROW_FUNC =
       new SimpleFunction<Long, Row>() {
@@ -320,6 +338,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
       new org.apache.iceberg.Schema(
           beamSchemaToIcebergSchema(BEAM_SCHEMA).columns(), Collections.singleton(1));
+  private static final org.apache.iceberg.Schema CDC_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          beamSchemaToIcebergSchema(CDC_BEAM_SCHEMA).columns(), Collections.singleton(1));
   protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
@@ -561,6 +582,131 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
+  public void testStreamingCdcReadMixedDeleteAndOverwriteSnapshots() throws Exception {
+    Table table = createCdcTable();
+    DataFile firstFile =
+        commitCdcAppend(
+            table,
+            "cdc-first-data.parquet",
+            Arrays.asList(
+                cdcRecord(table.schema(), 1L, "first-file-update-before"),
+                cdcRecord(table.schema(), 2L, "first-file-delete")));
+    Snapshot firstSnapshot = checkStateNotNull(table.currentSnapshot());
+
+    DataFile secondFile =
+        commitCdcAppend(
+            table,
+            "cdc-second-data.parquet",
+            Arrays.asList(
+                cdcRecord(table.schema(), 3L, "second-file-unchanged"),
+                cdcRecord(table.schema(), 4L, "second-file-update-before")));
+    Snapshot secondSnapshot = checkStateNotNull(table.currentSnapshot());
+
+    DeleteFile equalityDelete = writeCdcEqualityDelete(table, "cdc-equality-delete.parquet", 2L);
+    DeleteFile positionDelete =
+        writeCdcPositionDelete(table, "cdc-position-delete.parquet", firstFile, 0L);
+    DataFile thirdFile =
+        writeCdcDataFile(
+            table,
+            "cdc-third-data.parquet",
+            Collections.singletonList(cdcRecord(table.schema(), 1L, "third-file-update-after")));
+    table
+        .newRowDelta()
+        .addDeletes(equalityDelete)
+        .addDeletes(positionDelete)
+        .addRows(thirdFile)
+        .commit();
+    table.refresh();
+    Snapshot thirdSnapshot = checkStateNotNull(table.currentSnapshot());
+
+    DataFile fourthFile =
+        writeCdcDataFile(
+            table,
+            "cdc-fourth-data.parquet",
+            Arrays.asList(
+                cdcRecord(table.schema(), 3L, "second-file-unchanged"),
+                cdcRecord(table.schema(), 4L, "fourth-file-update-after")));
+    table.newOverwrite().deleteFile(secondFile).addFile(fourthFile).commit();
+    table.refresh();
+    Snapshot fourthSnapshot = checkStateNotNull(table.currentSnapshot());
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("from_snapshot", firstSnapshot.snapshotId());
+    config.put("to_snapshot", fourthSnapshot.snapshotId());
+    config.put("streaming", true);
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
+
+    PCollection<String> changes = rows.apply("Format CDC Changes", ParDo.of(new FormatCdcChange()));
+
+    assertThat(rows.isBounded(), equalTo(UNBOUNDED));
+    assertEquals(CDC_BEAM_SCHEMA, rows.getSchema());
+    PAssert.that(changes)
+        .containsInAnyOrder(
+            cdcChange(ValueKind.INSERT, firstSnapshot, 1L, "first-file-update-before"),
+            cdcChange(ValueKind.INSERT, firstSnapshot, 2L, "first-file-delete"),
+            cdcChange(ValueKind.INSERT, secondSnapshot, 3L, "second-file-unchanged"),
+            cdcChange(ValueKind.INSERT, secondSnapshot, 4L, "second-file-update-before"),
+            cdcChange(ValueKind.UPDATE_BEFORE, thirdSnapshot, 1L, "first-file-update-before"),
+            cdcChange(ValueKind.UPDATE_AFTER, thirdSnapshot, 1L, "third-file-update-after"),
+            cdcChange(ValueKind.DELETE, thirdSnapshot, 2L, "first-file-delete"),
+            cdcChange(ValueKind.UPDATE_BEFORE, fourthSnapshot, 4L, "second-file-update-before"),
+            cdcChange(ValueKind.UPDATE_AFTER, fourthSnapshot, 4L, "fourth-file-update-after"));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testCdcReadWithMetadataColumns() throws Exception {
+    Table table =
+        catalog.createTable(
+            TableIdentifier.parse(tableId()),
+            CDC_ICEBERG_SCHEMA,
+            PartitionSpec.unpartitioned(),
+            ImmutableMap.of(TableProperties.FORMAT_VERSION, "3"));
+    commitCdcAppend(
+        table,
+        "metadata-columns.parquet",
+        Arrays.asList(cdcRecord(table.schema(), 1L, "one"), cdcRecord(table.schema(), 2L, "two")));
+    Snapshot snapshot = checkStateNotNull(table.currentSnapshot());
+    long firstRowId = checkStateNotNull(snapshot.firstRowId());
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("to_snapshot", snapshot.snapshotId());
+    config.put(
+        "include_metadata_columns",
+        Arrays.asList(
+            IcebergCdcMetadataColumns.CHANGE_TYPE,
+            IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID,
+            IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER,
+            IcebergCdcMetadataColumns.ROW_ID,
+            IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER));
+
+    Schema outputSchema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("data")
+            .addStringField(IcebergCdcMetadataColumns.CHANGE_TYPE)
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_ID)
+            .addInt64Field(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)
+            .addNullableField(IcebergCdcMetadataColumns.ROW_ID, Schema.FieldType.INT64)
+            .addNullableField(
+                IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER, Schema.FieldType.INT64)
+            .build();
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
+
+    assertEquals(BOUNDED, rows.isBounded());
+    assertEquals(outputSchema, rows.getSchema());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            cdcMetadataRow(1L, "one", snapshot, firstRowId, outputSchema),
+            cdcMetadataRow(2L, "two", snapshot, firstRowId + 1, outputSchema));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testBatchReadBetweenSnapshots() throws Exception {
     runReadBetween(true, false);
   }
@@ -621,7 +767,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testReadWriteStreaming() throws IOException {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    org.apache.iceberg.Schema schemaWithPk =
+        new org.apache.iceberg.Schema(ICEBERG_SCHEMA.columns(), ImmutableSet.of(1));
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), schemaWithPk);
     List<Row> expectedRows = populateTable(table);
 
     Map<String, Object> config = managedIcebergConfig(tableId());
@@ -1035,7 +1183,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   public void runReadBetween(boolean useSnapshotBoundary, boolean streaming) throws Exception {
-    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    org.apache.iceberg.Schema schemaWithPk =
+        new org.apache.iceberg.Schema(ICEBERG_SCHEMA.columns(), ImmutableSet.of(1));
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), schemaWithPk);
 
     populateTable(table, "a"); // first snapshot
     Thread.sleep(AFTER_UPDATE_SLEEP_MS);
@@ -1066,6 +1216,133 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
+  }
+
+  private Table createCdcTable() {
+    return catalog.createTable(
+        TableIdentifier.parse(tableId()),
+        CDC_ICEBERG_SCHEMA,
+        PartitionSpec.unpartitioned(),
+        ImmutableMap.of(
+            TableProperties.FORMAT_VERSION,
+            "2",
+            TableProperties.SPLIT_SIZE,
+            "1",
+            TableProperties.DEFAULT_WRITE_METRICS_MODE,
+            "full"));
+  }
+
+  private static String cdcChange(ValueKind valueKind, Snapshot snapshot, long id, String data) {
+    return String.format("%s:%d:%d:%s", valueKind, snapshot.timestampMillis(), id, data);
+  }
+
+  private static Row cdcMetadataRow(
+      long id, String data, Snapshot snapshot, long rowId, Schema outputSchema) {
+    return Row.withSchema(outputSchema)
+        .addValues(
+            id,
+            data,
+            ChangelogOperation.INSERT.name(),
+            snapshot.snapshotId(),
+            snapshot.sequenceNumber(),
+            rowId,
+            snapshot.sequenceNumber())
+        .build();
+  }
+
+  private static Record cdcRecord(org.apache.iceberg.Schema schema, long id, String data) {
+    GenericRecord record = GenericRecord.create(schema);
+    record.setField("id", id);
+    if (schema.findField("data") != null) {
+      record.setField("data", data);
+    }
+    return record;
+  }
+
+  private DataFile commitCdcAppend(Table table, String filename, List<Record> records)
+      throws IOException {
+    DataFile dataFile = writeCdcDataFile(table, filename, records);
+    table.newFastAppend().appendFile(dataFile).commit();
+    table.refresh();
+    return dataFile;
+  }
+
+  private DataFile writeCdcDataFile(Table table, String filename, List<Record> records)
+      throws IOException {
+    OutputFile file =
+        table.io().newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename);
+    DataWriter<Record> writer =
+        Parquet.writeData(file)
+            .schema(table.schema())
+            .createWriterFunc(GenericParquetWriter::create)
+            .overwrite()
+            .withSpec(table.spec())
+            .build();
+
+    try (writer) {
+      for (Record record : records) {
+        writer.write(record);
+      }
+    }
+
+    return writer.toDataFile();
+  }
+
+  private DeleteFile writeCdcEqualityDelete(Table table, String filename, long id)
+      throws IOException {
+    org.apache.iceberg.Schema deleteSchema = table.schema().select("id");
+    GenericAppenderFactory appenderFactory =
+        new GenericAppenderFactory(table.schema(), table.spec(), new int[] {1}, deleteSchema, null);
+    EqualityDeleteWriter<Record> writer =
+        appenderFactory.newEqDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table
+                    .io()
+                    .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
+            FileFormat.PARQUET,
+            null);
+
+    try (writer) {
+      writer.write(cdcRecord(deleteSchema, id, null));
+    }
+
+    return writer.toDeleteFile();
+  }
+
+  private DeleteFile writeCdcPositionDelete(
+      Table table, String filename, DataFile dataFile, long... positions) throws IOException {
+    GenericAppenderFactory appenderFactory =
+        new GenericAppenderFactory(table.schema(), table.spec());
+    PositionDeleteWriter<Record> writer =
+        appenderFactory.newPosDeleteWriter(
+            EncryptedFiles.plainAsEncryptedOutput(
+                table
+                    .io()
+                    .newOutputFile(table.location() + "/" + UUID.randomUUID() + "-" + filename)),
+            FileFormat.PARQUET,
+            null);
+
+    try (writer) {
+      for (long position : positions) {
+        writer.write(PositionDelete.<Record>create().set(dataFile.location(), position));
+      }
+    }
+
+    return writer.toDeleteFile();
+  }
+
+  private static final class FormatCdcChange extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row,
+        ValueKind valueKind,
+        @Timestamp Instant timestamp,
+        OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(
+          String.format(
+              "%s:%d:%d:%s",
+              valueKind, timestamp.getMillis(), row.getInt64("id"), row.getString("data")));
+    }
   }
 
   @Test

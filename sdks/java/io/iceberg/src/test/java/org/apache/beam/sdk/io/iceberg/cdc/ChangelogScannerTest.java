@@ -49,9 +49,11 @@ import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.DeletedDataFileScanTask;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
+import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.ExpressionParser;
@@ -83,6 +85,8 @@ public class ChangelogScannerTest {
   private static final Schema SINGLE_RECORD_ID_SCHEMA = recordIdSchema(SINGLE_PK_SCHEMA);
   private static final Schema COMPOSITE_RECORD_ID_SCHEMA = recordIdSchema(COMPOSITE_PK_SCHEMA);
   private static final PartitionSpec UNPARTITIONED_SPEC = PartitionSpec.unpartitioned();
+  private static final PartitionSpec IDENTITY_ID_SPEC =
+      PartitionSpec.builderFor(SINGLE_PK_SCHEMA).identity("id").build();
 
   @Test
   public void analyzeFilesPrunesNonOverlappingOpposingTasksToUnidirectional() {
@@ -306,6 +310,15 @@ public class ChangelogScannerTest {
       }
     }
     return builder.build();
+  }
+
+  private static StructLike partition(long id) {
+    PartitionKey partitionKey = new PartitionKey(IDENTITY_ID_SPEC, SINGLE_PK_SCHEMA);
+    GenericRecord record = GenericRecord.create(SINGLE_PK_SCHEMA);
+    record.setField("id", id);
+    record.setField("data", "partition-" + id);
+    partitionKey.partition(record);
+    return partitionKey;
   }
 
   private static SerializableChangelogTask serializableTask(String name, long length) {

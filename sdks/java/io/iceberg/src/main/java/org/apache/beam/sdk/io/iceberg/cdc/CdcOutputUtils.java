@@ -96,6 +96,21 @@ final class CdcOutputUtils {
     return builder.build();
   }
 
+  static Row outputRow(
+      List<String> metadataColumns,
+      Schema outputSchema,
+      ChangelogDescriptor descriptor,
+      ValueKind valueKind,
+      Row dataAndRowMetadata) {
+    return outputRow(
+        metadataColumns,
+        outputSchema,
+        descriptor.getCommitSnapshotId(),
+        descriptor.getSnapshotSequenceNumber(),
+        valueKind,
+        dataAndRowMetadata);
+  }
+
   /**
    * Builds the final public Beam row.
    *
