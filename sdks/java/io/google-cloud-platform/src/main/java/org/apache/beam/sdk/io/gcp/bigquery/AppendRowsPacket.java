@@ -174,16 +174,18 @@ abstract class AppendRowsPacket {
           inserts.addSerializedRows(getProtoRows().getSerializedRows(i));
           timestamps.add(getTimestamps().get(i));
           failsafeTableRows.add(getFailsafeTableRows().get(i));
-          if (getUnknownFields().containsKey(i)) {
-            unknownFields.put(newIndex, Preconditions.checkStateNotNull(getUnknownFields().get(i)));
+          TableRow unknown = getUnknownFields().get(i);
+          if (unknown != null) {
+            unknownFields.put(newIndex, unknown);
           }
-          if (getOriginalPayloads().containsKey(i)) {
-            originalPayloads.put(
-                newIndex, Preconditions.checkStateNotNull(getOriginalPayloads().get(i)));
+          byte[] originalPayload = getOriginalPayloads().get(i);
+          if (originalPayload != null) {
+            originalPayloads.put(newIndex, originalPayload);
           }
           deadlines.add(getDeadlines().get(i));
-          if (getSchemaHashes().containsKey(i)) {
-            schemaHashes.put(newIndex, Preconditions.checkStateNotNull(getSchemaHashes().get(i)));
+          byte[] schemaHash = getSchemaHashes().get(i);
+          if (schemaHash != null) {
+            schemaHashes.put(newIndex, schemaHash);
           }
           newIndex++;
         }
@@ -220,15 +222,17 @@ abstract class AppendRowsPacket {
         inserts.addSerializedRows(getProtoRows().getSerializedRows(i));
         timestamps.add(getTimestamps().get(i));
         failsafeTableRows.add(getFailsafeTableRows().get(i));
-        if (getSchemaHashes().containsKey(i)) {
-          schemaHashes.put(newIndex, Preconditions.checkStateNotNull(getSchemaHashes().get(i)));
+        byte[] schemaHash = getSchemaHashes().get(i);
+        if (schemaHash != null) {
+          schemaHashes.put(newIndex, schemaHash);
         }
-        if (getUnknownFields().containsKey(i)) {
-          unknownFields.put(newIndex, Preconditions.checkStateNotNull(getUnknownFields().get(i)));
+        TableRow unknown = getUnknownFields().get(i);
+        if (unknown != null) {
+          unknownFields.put(newIndex, unknown);
         }
-        if (getOriginalPayloads().containsKey(i)) {
-          originalPayloads.put(
-              newIndex, Preconditions.checkStateNotNull(getOriginalPayloads().get(i)));
+        byte[] originalPayload = getOriginalPayloads().get(i);
+        if (originalPayload != null) {
+          originalPayloads.put(newIndex, originalPayload);
         }
         deadlines.add(getDeadlines().get(i));
         newIndex++;
