@@ -954,18 +954,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
     /** ***********************************************************************************************/
 
-    // Resolves a capability conflict for a given configuration by selecting the preferred capability provider.
-    project.ext.resolveCapabilitiesConflict = { Configuration configuration, String capability, String preferred ->
-      configuration.resolutionStrategy.capabilitiesResolution.withCapability(capability) {
-        def candidate = candidates.find { it.id.toString().contains(preferred) }
-        if (candidate != null) {
-          select(candidate)
-        } else {
-          selectHighestVersion()
-        }
-      }
-    }
-
     // Returns a string representing the relocated path to be used with the shadow plugin when
     // given a suffix such as "com.google.common".
     project.ext.getJavaRelocatedPath = { String suffix ->

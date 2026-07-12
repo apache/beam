@@ -1056,3 +1056,22 @@ if (project.hasProperty("testJavaVersion")) {
     }
   }
 }
+
+subprojects {
+  configurations {
+    configureEach {
+      resolutionStrategy {
+        dependencySubstitution {
+          // Substitute dependencies (including transitive) on org.lz4:lz4-java regardless of capability conflicts.
+          // All published versions of org.lz4:lz4-java have known vulnerabilities.
+          // At present, all versions of at.yawk.lz4:lz4-java <1.10.1 have known vulnerabilities.
+          // Substituting org.lz4:lz4-java ensures that at.yawk.lz4:lz4-java is always selected.
+          // Gradle resolves version conflicts by selecting the highest version by default.
+          // Gradle only resolves capability conflicts when multiple modules provide the same capability.
+          // This would allow org.lz4:lz4-java to still be selected, which is undesirable because of vulnerabilities.
+          substitute(module("org.lz4:lz4-java")).using(module("at.yawk.lz4:lz4-java:1.10.1"))
+        }
+      }
+    }
+  }
+}

@@ -94,10 +94,6 @@ dependencies {
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 }
 
-if (isFlink2) {
-    resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
-}
-
 if (isSpark) {
     configurations.gradleRun {
       exclude group: "org.slf4j", module: "slf4j-jdk14"

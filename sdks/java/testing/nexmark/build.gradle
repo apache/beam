@@ -103,10 +103,6 @@ dependencies {
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 }
 
-if (isFlink2) {
-  resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
-}
-
 if (isSparkRunner) {
   configurations.gradleRun {
     // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
