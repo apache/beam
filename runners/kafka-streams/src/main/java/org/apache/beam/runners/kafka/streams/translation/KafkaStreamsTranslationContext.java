@@ -41,18 +41,21 @@ public class KafkaStreamsTranslationContext {
   /** Characters not legal in a Kafka topic name; a topic's legal set is {@code [a-zA-Z0-9._-]}. */
   private static final Pattern ILLEGAL_TOPIC_CHARS = Pattern.compile("[^a-zA-Z0-9._-]");
 
-  /** The watermark source stamp a producer reports for an output not consumed by a Flatten. */
-  private static final SourceStamp SINGLE_SOURCE = new SourceStamp(0, 1);
+  /** The watermark source id a producer reports for an output no Flatten consumes. */
+  private static final int SINGLE_SOURCE_ID = 0;
 
   private final JobInfo jobInfo;
   private final KafkaStreamsPipelineOptions pipelineOptions;
   private final Topology topology;
   private final Map<String, String> pCollectionIdToProcessorName;
-  // PCollection id -> the (sourcePartition, totalPartitions) its producer stamps its watermark
-  // with.
-  // Only PCollections consumed by a Flatten get a non-default entry (their branch index of the
-  // Flatten's fan-in); everything else reports as the single source (0 of 1). See getSourceStamp.
-  private final Map<String, SourceStamp> pCollectionIdToSourceStamp;
+  // PCollection id -> a stable global id its producer stamps on the watermark it emits (always as
+  // "1 source of 1"), so a downstream Flatten can tell its input branches apart by producer. Only
+  // PCollections feeding a Flatten are numbered; everything else reports id 0. A PCollection
+  // feeding
+  // several Flattens keeps ONE id, so each Flatten just waits for its own inputs' ids to report
+  // (je-ik's steer — the watermark is generated without regard to who consumes it).
+  private final Map<String, Integer> pCollectionIdToProducerId;
+  private int nextProducerId = SINGLE_SOURCE_ID + 1;
 
   public static KafkaStreamsTranslationContext create(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
@@ -70,7 +73,7 @@ public class KafkaStreamsTranslationContext {
     this.pipelineOptions = pipelineOptions;
     this.topology = topology;
     this.pCollectionIdToProcessorName = new HashMap<>();
-    this.pCollectionIdToSourceStamp = new HashMap<>();
+    this.pCollectionIdToProducerId = new HashMap<>();
   }
 
   public JobInfo getJobInfo() {
@@ -131,54 +134,21 @@ public class KafkaStreamsTranslationContext {
   }
 
   /**
-   * Records that the given PCollection is the {@code sourcePartition}-th of {@code totalPartitions}
-   * input branches of a Flatten, so its producer stamps its watermark with that identity instead of
-   * the default single source. Lets the Flatten's {@link WatermarkManager} tell its branches apart
-   * (Kafka Streams does not tell a processor which parent forwarded a record).
+   * Assigns the given Flatten-input PCollection a stable global producer id (or returns the one it
+   * already has, so a PCollection feeding several Flattens keeps a single id). Its producer stamps
+   * this id on the watermark it emits so each downstream Flatten can tell its input branches apart.
    */
-  public void registerFlattenSourceStamp(
-      String pCollectionId, int sourcePartition, int totalPartitions) {
-    SourceStamp existing =
-        pCollectionIdToSourceStamp.putIfAbsent(
-            pCollectionId, new SourceStamp(sourcePartition, totalPartitions));
-    if (existing != null) {
-      // A PCollection feeding a Flatten more than once — the same Flatten twice, or two different
-      // Flattens — would need a distinct watermark source per branch, but its single producer can
-      // only stamp one identity. Fail fast rather than get the watermark stuck or silently drop the
-      // duplicate branch.
-      throw new UnsupportedOperationException(
-          "PCollection "
-              + pCollectionId
-              + " feeds a Flatten more than once (the same Flatten twice, or multiple Flattens);"
-              + " this is not yet supported by the Kafka Streams runner.");
-    }
+  public int assignFlattenProducerId(String pCollectionId) {
+    return pCollectionIdToProducerId.computeIfAbsent(pCollectionId, id -> nextProducerId++);
   }
 
   /**
-   * Returns the watermark source stamp a producer should report for the given output PCollection:
-   * its Flatten branch identity if it feeds a Flatten (see {@link #registerFlattenSourceStamp}), or
-   * the single source {@code (0 of 1)} otherwise.
+   * Returns the watermark source id a producer should stamp for the given output PCollection: its
+   * global producer id if it feeds a Flatten (see {@link #assignFlattenProducerId}), or {@link
+   * #SINGLE_SOURCE_ID} otherwise. The producer always reports "1 source of 1"; a Flatten holds its
+   * watermark using its own input count, not the reported total.
    */
-  public SourceStamp getSourceStamp(String pCollectionId) {
-    return pCollectionIdToSourceStamp.getOrDefault(pCollectionId, SINGLE_SOURCE);
-  }
-
-  /** A watermark report's source identity: partition {@code sourcePartition} of {@code total}. */
-  public static final class SourceStamp {
-    private final int sourcePartition;
-    private final int totalPartitions;
-
-    SourceStamp(int sourcePartition, int totalPartitions) {
-      this.sourcePartition = sourcePartition;
-      this.totalPartitions = totalPartitions;
-    }
-
-    public int getSourcePartition() {
-      return sourcePartition;
-    }
-
-    public int getTotalPartitions() {
-      return totalPartitions;
-    }
+  public int getProducerWatermarkId(String pCollectionId) {
+    return pCollectionIdToProducerId.getOrDefault(pCollectionId, SINGLE_SOURCE_ID);
   }
 }

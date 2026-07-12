@@ -83,21 +83,21 @@ class ExecutableStageTranslator implements PTransformTranslator {
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
     // A stage has at most one output (multi-output rejected above). Stamp its watermark with that
-    // output's Flatten branch identity if it feeds one, else the default single source (0 of 1).
-    KafkaStreamsTranslationContext.SourceStamp stamp =
+    // output's global producer id (0 if no Flatten consumes it), always as a single source (1 of
+    // 1):
+    // a downstream Flatten tells its branches apart by this id and holds using its own input count,
+    // while a single-input consumer just sees one source.
+    int watermarkSourceId =
         transform.getOutputsMap().isEmpty()
-            ? context.getSourceStamp("")
-            : context.getSourceStamp(Iterables.getOnlyElement(transform.getOutputsMap().values()));
+            ? 0
+            : context.getProducerWatermarkId(
+                Iterables.getOnlyElement(transform.getOutputsMap().values()));
 
     Topology topology = context.getTopology();
     topology.addProcessor(
         transformId,
         () ->
-            new ExecutableStageProcessor(
-                stagePayload,
-                context.getJobInfo(),
-                stamp.getSourcePartition(),
-                stamp.getTotalPartitions()),
+            new ExecutableStageProcessor(stagePayload, context.getJobInfo(), watermarkSourceId, 1),
         parentProcessor);
 
     if (!transform.getOutputsMap().isEmpty()) {

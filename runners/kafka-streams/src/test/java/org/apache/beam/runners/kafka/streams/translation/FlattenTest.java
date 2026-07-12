@@ -90,6 +90,39 @@ public class FlattenTest {
   }
 
   @Test
+  public void pCollectionFeedingTwoFlattensIsSupported() {
+    // je-ik's #39273 case: input2 feeds both flattens. Per-Flatten branch numbering could not
+    // express this (input2 would need two identities); a global producer id per PCollection can —
+    // input2's producer stamps one id, and each flatten still holds until its own two branches
+    // drain. Verify both flattens produce the right union.
+    try (SharedTestCollector<Integer> left = SharedTestCollector.create();
+        SharedTestCollector<Integer> right = SharedTestCollector.create()) {
+      Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
+      PCollection<Integer> input1 =
+          pipeline.apply("c1", Create.of(1, 2)).apply("id1", ParDo.of(new IdentityFn()));
+      PCollection<Integer> input2 =
+          pipeline.apply("c2", Create.of(3, 4)).apply("id2", ParDo.of(new IdentityFn()));
+      PCollection<Integer> input3 =
+          pipeline.apply("c3", Create.of(5, 6)).apply("id3", ParDo.of(new IdentityFn()));
+      PCollectionList.of(input1)
+          .and(input2)
+          .apply("l1", Flatten.pCollections())
+          .apply("recordL1", ParDo.of(new RecordingFn(left)));
+      PCollectionList.of(input2)
+          .and(input3)
+          .apply("l2", Flatten.pCollections())
+          .apply("recordL2", ParDo.of(new RecordingFn(right)));
+
+      KafkaStreamsTestRunner.run(pipeline);
+
+      assertThat(left.recorded().size(), is(4));
+      assertThat(left.recorded(), hasItems(1, 2, 3, 4));
+      assertThat(right.recorded().size(), is(4));
+      assertThat(right.recorded(), hasItems(3, 4, 5, 6));
+    }
+  }
+
+  @Test
   public void flattenOfOneBranchTwiceIsRejected() {
     Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
     PCollection<Integer> branch =

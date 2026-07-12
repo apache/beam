@@ -33,9 +33,11 @@ import org.apache.kafka.streams.Topology;
  * processor forwards data through and owns its output watermark via a {@link WatermarkManager},
  * exactly like GroupByKey — see {@link FlattenProcessor}.
  *
- * <p>The {@code (i of N)} branch identity the {@link WatermarkManager} needs is stamped upstream,
- * by the parent transform that produces each branch, because Kafka Streams does not tell a
- * processor which parent forwarded a record.
+ * <p>The producer id the {@link WatermarkManager} keys each branch on is stamped upstream, by the
+ * branch's producing transform, because Kafka Streams does not tell a processor which parent
+ * forwarded a record. Ids are assigned once per Flatten-input PCollection (see {@link
+ * KafkaStreamsPipelineTranslator}), so an input shared by two Flattens reports one id and each
+ * Flatten still waits only for its own branches.
  */
 class FlattenTranslator implements PTransformTranslator {
 
@@ -51,9 +53,15 @@ class FlattenTranslator implements PTransformTranslator {
       parentProcessors.add(context.getProcessorNameForPCollection(inputPCollectionId));
     }
 
+    // The Flatten holds its watermark until all of its input branches report. Inputs are distinct
+    // (a self-flatten is rejected during producer-id assignment), so the input count is the number
+    // of producer ids to wait for.
+    int inputCount = transform.getInputsMap().size();
     Topology topology = context.getTopology();
     topology.addProcessor(
-        transformId, FlattenProcessor::new, parentProcessors.toArray(new String[0]));
+        transformId,
+        () -> new FlattenProcessor(inputCount),
+        parentProcessors.toArray(new String[0]));
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
   }

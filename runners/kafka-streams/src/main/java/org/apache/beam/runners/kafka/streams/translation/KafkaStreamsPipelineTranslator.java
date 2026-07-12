@@ -20,6 +20,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -110,7 +111,7 @@ public class KafkaStreamsPipelineTranslator {
    * Throws {@link UnsupportedOperationException} on the first unsupported URN.
    */
   public void translate(KafkaStreamsTranslationContext context, RunnerApi.Pipeline pipeline) {
-    registerFlattenSourceStamps(context, pipeline);
+    assignFlattenProducerIds(context, pipeline);
     QueryablePipeline queryable =
         QueryablePipeline.forTransforms(
             pipeline.getRootTransformIdsList(), pipeline.getComponents());
@@ -132,29 +133,35 @@ public class KafkaStreamsPipelineTranslator {
   }
 
   /**
-   * Records each Flatten input PCollection's branch identity {@code (i of N)} with the context, so
-   * the producer of that PCollection stamps its watermark with a distinct source partition. Without
-   * this every branch would report as the single source {@code (0 of 1)} and the Flatten's {@link
-   * WatermarkManager} could not tell them apart, releasing its watermark before every branch
-   * drains.
+   * Assigns each Flatten input PCollection a stable global producer id, so the producer of that
+   * PCollection stamps its watermark with that id and each downstream Flatten can tell its input
+   * branches apart. A PCollection shared by several Flattens keeps one id, so every Flatten still
+   * waits only for its own inputs' ids — this is what makes a PCollection feeding two Flattens work
+   * (je-ik's review of #39273). A self-flatten (the same PCollection listed as an input twice) is
+   * rejected: its single producer cannot be two branches, and Kafka Streams cannot wire the same
+   * parent to a child twice, so the duplicate copy would be silently dropped.
    */
-  private static void registerFlattenSourceStamps(
+  private static void assignFlattenProducerIds(
       KafkaStreamsTranslationContext context, RunnerApi.Pipeline pipeline) {
     for (RunnerApi.PTransform transform : pipeline.getComponents().getTransformsMap().values()) {
       if (!PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
         continue;
       }
-      // Sort the input PCollection ids so each branch's index is assigned deterministically. Not
-      // required for correctness — a Flatten and its producers sit in one task, so the indices only
-      // have to agree within a single topology build — but a stable assignment is easier to reason
-      // about and reproduce. registerFlattenSourceStamp fails fast on a duplicate (self-flatten).
+      // Sorted so the numbering is deterministic across topology builds.
       List<String> inputPCollectionIds = new ArrayList<>(transform.getInputsMap().values());
       Collections.sort(inputPCollectionIds);
-      int totalPartitions = inputPCollectionIds.size();
-      int sourcePartition = 0;
+      Set<String> seenInputs = new HashSet<>();
       for (String inputPCollectionId : inputPCollectionIds) {
-        context.registerFlattenSourceStamp(inputPCollectionId, sourcePartition, totalPartitions);
-        sourcePartition++;
+        if (!seenInputs.add(inputPCollectionId)) {
+          throw new UnsupportedOperationException(
+              "Flatten "
+                  + transform.getUniqueName()
+                  + " has PCollection "
+                  + inputPCollectionId
+                  + " as an input more than once; a self-flatten is not yet supported by the Kafka"
+                  + " Streams runner.");
+        }
+        context.assignFlattenProducerId(inputPCollectionId);
       }
     }
   }

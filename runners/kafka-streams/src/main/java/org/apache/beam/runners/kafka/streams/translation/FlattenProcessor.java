@@ -38,12 +38,13 @@ import org.joda.time.Instant;
  * <em>every</em> input branch has reported, so a downstream GroupByKey does not fire before all
  * flattened branches are drained.
  *
- * <p>The {@link WatermarkManager} tells the N input branches apart by the {@code (sourcePartition,
- * totalSourcePartitions)} carried in each watermark payload. Because Kafka Streams does not tell a
- * processor which parent forwarded a record, the branch identity {@code (i of N)} is stamped
- * upstream — by the parent transform that produces the branch — so the reports arriving here
- * already carry distinct partitions. (Every parent stamping the same {@code 0 of 1} would collide
- * and release the watermark too early.)
+ * <p>The {@link WatermarkManager} tells the input branches apart by the global producer id each
+ * branch's producer stamps on its watermark (Kafka Streams does not tell a processor which parent
+ * forwarded a record). Each producer stamps its own stable id regardless of who consumes it, so a
+ * PCollection feeding several Flattens reports one id and every Flatten still waits only for its
+ * own inputs. The Flatten holds its watermark using its own input count — passed in at construction
+ * — not the reported total (producers always report the single source {@code 1 of 1}); that is what
+ * lets an input shared by two Flattens work.
  */
 class FlattenProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
@@ -51,10 +52,18 @@ class FlattenProcessor
   // Computes the output watermark as min() over the input branches, holding until every branch has
   // reported (see WatermarkManager). Flatten is a single instance for now.
   private final WatermarkManager watermarkManager = new WatermarkManager();
+  // How many input branches feed this Flatten. The watermark is held until every branch's producer
+  // has reported, so this is the count the WatermarkManager waits for — not the reported total,
+  // which is always 1 because a producer stamps its watermark without regard to who consumes it.
+  private final int expectedInputCount;
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
+
+  FlattenProcessor(int expectedInputCount) {
+    this.expectedInputCount = expectedInputCount;
+  }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
@@ -71,10 +80,11 @@ class FlattenProcessor
       return;
     }
     WatermarkPayload report = payload.asWatermark();
+    // Key on the producer id the branch stamped, but wait for this Flatten's own input count — not
+    // the report's total (always 1) — so a producer shared with another Flatten reports one id yet
+    // each Flatten still holds until all of its own branches arrive.
     watermarkManager.observe(
-        report.getSourcePartition(),
-        new Instant(report.getWatermarkMillis()),
-        report.getTotalSourcePartitions());
+        report.getSourcePartition(), new Instant(report.getWatermarkMillis()), expectedInputCount);
     Instant advanced = watermarkManager.advance();
     if (advanced.isAfter(lastForwardedWatermark)) {
       lastForwardedWatermark = advanced;
