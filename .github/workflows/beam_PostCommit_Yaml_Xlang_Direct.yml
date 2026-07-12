@@ -63,7 +63,7 @@ jobs:
         job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
         test_set: ["data", "databases", "messaging"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,7 +74,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-          java-version: '11'
+          java-version: '17'
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: run PostCommit Yaml Xlang Direct script

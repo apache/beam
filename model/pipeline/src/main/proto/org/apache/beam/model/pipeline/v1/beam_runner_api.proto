@@ -1692,6 +1692,10 @@ message StandardProtocols {
     // Indicates whether the SDK supports multimap state.
     MULTIMAP_STATE = 12
     [(beam_urn) = "beam:protocol:multimap_state:v1"];
+
+    // Indicates whether the SDK supports data stream ids being requested by the runner in
+    // ProcessBundleRequests.
+    NAMED_DATA_STREAMS = 13 [(beam_urn) = "beam:protocol:named_data_streams:v1"];
   }
 }
 
