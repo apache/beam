@@ -74,9 +74,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: run PostCommit XVR Direct script
         env:
@@ -86,7 +84,6 @@ jobs:
           gradle-command: :sdks:python:test-suites:direct:xlang:validatesCrossLanguageRunner
           arguments: |
             -PpythonVersion=${{ matrix.python_version }} \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
             -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7

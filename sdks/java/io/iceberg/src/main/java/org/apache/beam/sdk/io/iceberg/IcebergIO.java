@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.schemas.Schema;
@@ -406,6 +407,8 @@ public class IcebergIO {
 
     abstract boolean getAutoSharding();
 
+    abstract @Nullable Map<String, String> getWriteProperties();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -423,6 +426,8 @@ public class IcebergIO {
       abstract Builder setDistributionMode(DistributionMode mode);
 
       abstract Builder setAutoSharding(boolean autoSharding);
+
+      abstract Builder setWriteProperties(Map<String, String> writeProperties);
 
       abstract WriteRows build();
     }
@@ -474,6 +479,10 @@ public class IcebergIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    public WriteRows withWriteProperties(Map<String, String> writeProperties) {
+      return toBuilder().setWriteProperties(writeProperties).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -509,7 +518,8 @@ public class IcebergIO {
                       getCatalogConfig(),
                       destinations,
                       getTriggeringFrequency(),
-                      getDirectWriteByteLimit()));
+                      getDirectWriteByteLimit(),
+                      getWriteProperties()));
         case HASH:
           return input
               .apply(
@@ -521,7 +531,8 @@ public class IcebergIO {
                       getCatalogConfig(),
                       destinations,
                       getTriggeringFrequency(),
-                      getAutoSharding()));
+                      getAutoSharding(),
+                      getWriteProperties()));
         default:
           throw new UnsupportedOperationException(
               "Unsupported distribution mode: " + getDistributionMode());

@@ -104,7 +104,6 @@ class OneHotEncodingPipelineTest(unittest.TestCase):
     self.assertEqual(parsed['category'], 'test')
     self.assertEqual(parsed['value'], 123)
 
-  @pytest.mark.uses_tft
   def test_end_to_end_pipeline_local(self):
     """Integration test running the full pipeline locally."""
     extra_opts = {
@@ -140,7 +139,6 @@ class OneHotEncodingPipelineTest(unittest.TestCase):
       self.assertIn('color', record)
       self.assertIn('size', record)
 
-  @pytest.mark.uses_tft
   def test_pipeline_with_missing_columns(self):
     """Test pipeline handles records with missing columns gracefully."""
     # Create input with some missing columns

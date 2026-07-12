@@ -26,7 +26,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
-import org.apache.beam.sdk.io.iceberg.TableCache;
 import org.apache.beam.sdk.io.iceberg.TestDataWarehouse;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -135,7 +134,6 @@ public class OverlapRangeTest {
             .setSchema(IcebergUtils.icebergSchemaToBeamSchema(schema))
             .setUseCdc(true)
             .build();
-    TableCache.setup(scanConfig);
     return OverlapRange.forScanConfig(scanConfig);
   }
 

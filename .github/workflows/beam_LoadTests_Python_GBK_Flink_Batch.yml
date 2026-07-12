@@ -47,15 +47,13 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
-  GCLOUD_ZONE: us-central1-a
+  GCLOUD_REGION: us-central1
   CLUSTER_NAME: beam-loadtests-py-gbk-flk-batch-${{ github.run_id }}
   GCS_BUCKET: gs://beam-flink-cluster
-  FLINK_DOWNLOAD_URL: https://archive.apache.org/dist/flink/flink-2.0.1/flink-2.0.1-bin-scala_2.12.tgz
-  HADOOP_DOWNLOAD_URL: https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
   FLINK_TASKMANAGER_SLOTS: 1
   DETACHED_MODE: true
   HARNESS_IMAGES_TO_PULL: gcr.io/apache-beam-testing/beam-sdk/beam_go_sdk:latest
-  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink_job_server:latest-flink2.0
+  JOB_SERVER_IMAGE: gcr.io/apache-beam-testing/beam_portability/beam_flink_job_server:latest-flink2.2
   ARTIFACTS_DIR: gs://beam-flink-cluster/beam-loadtests-py-gbk-flk-batch-${{ github.run_id }}
 
 jobs:
@@ -126,11 +124,11 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.load_tests.group_by_key_test \
             -Prunner=PortableRunner \
             '-PloadTest.args=${{ env.beam_LoadTests_Python_GBK_Flink_Batch_test_arguments_5 }} --job_name=load-tests-python-flink-batch-gbk-6-${{env.NOW_UTC}}' \
-      - name: Restart Flink with parallelism 16
+      - name: Resize Flink to 10 workers
         env:
-          FLINK_NUM_WORKERS: 16
+          FLINK_NUM_WORKERS: 10
         run: |
-          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh restart
+          cd ${{ github.workspace }}/.test-infra/dataproc; ./flink_cluster.sh resize
       - name: run fanout 4 times with 2GB 10-byte records total test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -151,5 +149,5 @@ jobs:
         if: always()
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
-        
+
         # TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.
