@@ -292,7 +292,6 @@ class BufferMismatchedRows<DestinationT extends @NonNull Object, ElementT>
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromOnWindowExpirationContext(context);
 
-      TableDestination tableDestination = dynamicDestinations.getTable(shardedDestination.getKey());
       StorageApiDynamicDestinations.MessageConverter<?> messageConverter =
           writeDoFn.messageConverters.get(
               shardedDestination.getKey(),
