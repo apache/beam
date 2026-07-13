@@ -92,7 +92,7 @@ public class SimpleParDoFnTest {
     // TODO: Remove once Distributions has shipped.
     options
         .as(DataflowPipelineDebugOptions.class)
-        .setExperiments(Lists.newArrayList(SimpleParDoFn.OUTPUTS_PER_ELEMENT_EXPERIMENT));
+        .setExperiments(Lists.newArrayList(SimpleParDoFnHelpers.OUTPUTS_PER_ELEMENT_EXPERIMENT));
 
     operationContext = TestOperationContext.create();
     stepContext =
@@ -489,7 +489,7 @@ public class SimpleParDoFnTest {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) throws Exception {
+      public void processElement() throws Exception {
         assertThat(startCalled, equalTo(true));
         assertThat(tracker.getCurrentState(), equalTo(operationContext.getProcessState()));
       }
@@ -558,7 +558,7 @@ public class SimpleParDoFnTest {
   public void testOutputsPerElementCounterDisabledViaExperiment() throws Exception {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     List<String> experiments = debugOptions.getExperiments();
-    experiments.remove(SimpleParDoFn.OUTPUTS_PER_ELEMENT_EXPERIMENT);
+    experiments.remove(SimpleParDoFnHelpers.OUTPUTS_PER_ELEMENT_EXPERIMENT);
     debugOptions.setExperiments(experiments);
 
     List<CounterUpdate> counterUpdates = executeParDoFnCounterTest(0);

@@ -77,9 +77,8 @@ def sparkTestProperties(overrides = [:]) {
 
 
 def sparkTestJvmArgs() {
-  // run tests with Java 17 using -PtestJavaVersion=17 -Pjava17Home=???
-  if (project.hasProperty('testJavaVersion') &&
-          project.getProperty('testJavaVersion') in ['17', '21']) {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
     return [
       "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
       // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest
@@ -406,6 +405,8 @@ def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
     // TODO(https://github.com/apache/beam/issues/32021)
     excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+    // Spark does not support side inputs in timers (added in #38363)
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSideInputNotReadyTimer'
   }
 }
 

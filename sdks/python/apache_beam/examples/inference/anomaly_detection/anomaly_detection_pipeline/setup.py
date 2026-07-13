@@ -33,7 +33,7 @@ REQUIREMENTS = [
     "hdbscan==0.8.28",
     "scikit-learn==1.7.1",
     "transformers==4.36.0",
-    "torch==1.13.1",
+    "torch==2.12.0",
     "pandas==1.3.5",
     "yagmail==0.15.283",
 ]

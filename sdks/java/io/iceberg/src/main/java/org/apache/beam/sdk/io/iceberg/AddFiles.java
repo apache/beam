@@ -31,6 +31,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -65,7 +66,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -97,7 +97,6 @@ import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
-import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -226,8 +225,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           batchManifestFiles.withMaxBufferingDuration(checkStateNotNull(intervalTrigger));
     }
 
-    PCollection<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>> groupedFiles =
-        keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles.withShardedKey());
+    PCollection<KV<Integer, Iterable<SerializableDataFile>>> groupedFiles =
+        keyedFiles.apply("GroupDataFilesIntoBatches", batchDataFiles);
 
     PCollection<KV<String, byte[]>> manifests =
         groupedFiles.apply(
@@ -532,17 +531,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
           SortOrder sortOrder = SortOrderUtils.toSortOrder(sortFields, schema);
-
-          Catalog.TableBuilder builder =
-              catalogConfig
-                  .catalog()
-                  .buildTable(tableId, schema)
-                  .withPartitionSpec(spec)
-                  .withSortOrder(sortOrder);
-          if (tableProps != null) {
-            builder.withProperties(tableProps);
+          Map<String, String> properties =
+              tableProps != null ? new HashMap<>(tableProps) : new HashMap<>();
+          if (properties.get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
+            // Forces Name based resolution instead of position based resolution
+            NameMapping mapping = MappingUtil.create(schema);
+            String mappingJson = NameMappingParser.toJson(mapping);
+            properties.put(TableProperties.DEFAULT_NAME_MAPPING, mappingJson);
           }
-          return builder.create();
+
+          return catalogConfig
+              .catalog()
+              .buildTable(tableId, schema)
+              .withPartitionSpec(spec)
+              .withSortOrder(sortOrder)
+              .withProperties(properties)
+              .create();
+
         } catch (AlreadyExistsException e2) { // if table already exists, just load it
           return catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
         }
@@ -660,7 +665,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * downstream {@link CommitManifestFilesDoFn}.
    */
   static class CreateManifests
-      extends DoFn<KV<ShardedKey<Integer>, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
+      extends DoFn<KV<Integer, Iterable<SerializableDataFile>>, KV<String, byte[]>> {
     private final IcebergCatalogConfig catalogConfig;
     private final String identifier;
     private transient @MonotonicNonNull Table table;
@@ -672,7 +677,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @ProcessElement
     public void process(
-        @Element KV<ShardedKey<Integer>, Iterable<SerializableDataFile>> batch,
+        @Element KV<Integer, Iterable<SerializableDataFile>> batch,
         OutputReceiver<KV<String, byte[]>> output)
         throws IOException {
       if (!batch.getValue().iterator().hasNext()) {
@@ -682,7 +687,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         table = catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(identifier));
       }
 
-      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey().getKey()));
+      PartitionSpec spec = checkStateNotNull(table.specs().get(batch.getKey()));
 
       String manifestPath =
           String.format(

@@ -165,7 +165,7 @@ class TFRunInferenceTest(unittest.TestCase):
               examples, [tf.math.multiply(n, 2) for n in examples])
       ]
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(examples, reshuffle=False)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,
@@ -258,7 +258,7 @@ class TFRunInferenceTest(unittest.TestCase):
               examples, [numpy.multiply(n, 2) for n in examples])
       ]
 
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(examples, reshuffle=False)
       predictions = pcoll | RunInference(model_handler)
       assert_that(
           predictions,

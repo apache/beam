@@ -147,9 +147,8 @@ class AssignDestinationsAndPartitions
           try {
             // see if table already exists with a spec
             spec =
-                catalogConfig
-                    .catalog()
-                    .loadTable(IcebergUtils.parseTableIdentifier(tableIdentifier))
+                TableCache.getAndRefreshIfStale(
+                        catalogConfig, IcebergUtils.parseTableIdentifier(tableIdentifier))
                     .spec();
 
           } catch (NoSuchTableException ignored) {

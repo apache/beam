@@ -52,10 +52,9 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   @Override
   public PCollection<Row> expand(PBegin input) {
     Table table =
-        scanConfig
-            .getCatalogConfig()
-            .catalog()
-            .loadTable(IcebergUtils.parseTableIdentifier(scanConfig.getTableIdentifier()));
+        TableCache.get(
+            scanConfig.getCatalogConfig(),
+            IcebergUtils.parseTableIdentifier(scanConfig.getTableIdentifier()));
 
     PCollection<KV<String, List<SnapshotInfo>>> snapshots =
         MoreObjects.firstNonNull(scanConfig.getStreaming(), false)

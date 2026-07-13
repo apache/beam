@@ -33,8 +33,8 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.common.IOITHelper;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.rules.ExternalResource;
 import org.slf4j.Logger;
@@ -73,12 +73,11 @@ public class IntegrationTestEnv extends ExternalResource {
     final ChangeStreamTestPipelineOptions options =
         IOITHelper.readIOTestPipelineOptions(ChangeStreamTestPipelineOptions.class);
 
-    projectId =
-        Optional.ofNullable(options.getProjectId())
-            .orElseGet(() -> options.as(GcpOptions.class).getProject());
-    instanceId = options.getInstanceId();
+    projectId = SpannerTestHelper.getProject(options, options.getProjectId());
+    instanceId = SpannerTestHelper.getInstanceId(options.getInstanceId());
     generateDatabaseIds(options);
-    spanner =
+
+    SpannerOptions.Builder spannerBuilder =
         SpannerOptions.newBuilder()
             .setProjectId(projectId)
             .setHost(host)
@@ -86,9 +85,9 @@ public class IntegrationTestEnv extends ExternalResource {
             .setSessionPoolOption(
                 SessionPoolOptions.newBuilder()
                     .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
-                    .build())
-            .build()
-            .getService();
+                    .build());
+    spannerBuilder = SpannerTestHelper.setUpSpannerOptions(spannerBuilder);
+    spanner = spannerBuilder.build().getService();
     databaseAdminClient = spanner.getDatabaseAdminClient();
     metadataTableName = generateTableName(METADATA_TABLE_NAME_PREFIX);
 

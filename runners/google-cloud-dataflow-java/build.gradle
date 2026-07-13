@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20260601'
-ext.dataflowFnapiContainerVersion = 'beam-master-20260601'
+ext.dataflowLegacyContainerVersion = 'beam-master-20260624'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260624'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -113,6 +113,9 @@ dependencies {
   implementation library.java.google_cloud_logging
   permitUnusedDeclared library.java.google_cloud_logging // BEAM-11761
   implementation library.java.opentelemetry_context
+  runtimeOnly library.java.opentelemetry_exporter_otlp
+  runtimeOnly library.java.opentelemetry_extension_autoconfigure
+  runtimeOnly project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -167,6 +170,7 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -184,6 +188,7 @@ def runnerV2CommonPipelineOptions = [
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
 
@@ -484,6 +489,9 @@ def validatesRunnerStreamingConfig = [
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInSetupStateful',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
     'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
+    // Bundle finalizer tests are flaky https://github.com/apache/beam/issues/38710
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnBoundedSplittableDoFn',
+    'org.apache.beam.sdk.transforms.SplittableDoFnTest.testBundleFinalizationOccursOnUnboundedSplittableDoFn',
   ]
 ]
 

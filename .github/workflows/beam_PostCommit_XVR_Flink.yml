@@ -47,7 +47,7 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  FlinkVersion: 1.20
+  FlinkVersion: 2.2
 
 jobs:
   beam_PostCommit_XVR_Flink:
@@ -65,7 +65,7 @@ jobs:
         job_phrase: ["Run XVR_Flink PostCommit"]
         python_version: ['3.10','3.14']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -75,6 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: run PostCommit XVR Flink script
         env:

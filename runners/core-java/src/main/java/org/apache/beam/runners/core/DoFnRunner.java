@@ -64,6 +64,18 @@ public interface DoFnRunner<InputT extends @Nullable Object, OutputT extends @Nu
       BoundedWindow window, Instant timestamp, KeyT key);
 
   /**
+   * Performs per-key cleanup or processing after all elements, timers for a key have been processed
+   * and before moving to the next key or before finishBundle for the last key.
+   *
+   * <p>This is an optional method that can be used by runners as a hook to reset any per key state
+   * before moving to a different key in the same bundle. Currently used only by the Dataflow
+   * Streaming runner.
+   *
+   * @param key current key to clean up or finish processing
+   */
+  <KeyT extends @Nullable Object> void finishKey(KeyT key);
+
+  /**
    * Returns the underlying fn instance.
    *
    * @since 2.5.0

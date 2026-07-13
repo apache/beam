@@ -235,8 +235,13 @@ def _build_pipeline_yaml_from_argv(argv):
   argv = _preparse_jinja_flags(argv)
   known_args, pipeline_args = _parse_arguments(argv)
   pipeline_template = _pipeline_spec_from_args(known_args)
+
+  search_paths = []
+  if known_args.yaml_pipeline_file:
+    search_paths.append(FileSystems.split(known_args.yaml_pipeline_file)[0])
+
   pipeline_yaml = yaml_transform.expand_jinja(
-      pipeline_template, known_args.jinja_variables or {})
+      pipeline_template, known_args.jinja_variables or {}, search_paths)
   return known_args, pipeline_args, pipeline_template, pipeline_yaml
 
 

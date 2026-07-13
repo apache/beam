@@ -75,7 +75,7 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Java_Flink_Versions PreCommit'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -84,7 +84,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: default
+          java-version: 11
           python-version: default
       - name: run Java Flink Versions PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action

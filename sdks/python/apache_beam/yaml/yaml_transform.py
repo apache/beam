@@ -1391,19 +1391,63 @@ def preprocess(spec, verbose=False, known_transforms=None):
   return spec
 
 
+def strip_leading_comments(source: str) -> str:
+  lines = source.splitlines(keepends=True)
+  stripped_lines = []
+  in_leading_comments = True
+  for line in lines:
+    stripped_line = line.lstrip()
+    if in_leading_comments:
+      if stripped_line.startswith('#') or not stripped_line:
+        continue
+      else:
+        in_leading_comments = False
+    stripped_lines.append(line)
+  return "".join(stripped_lines)
+
+
 class _BeamFileIOLoader(jinja2.BaseLoader):
+  def __init__(self, search_paths=()):
+    self.search_paths = list(search_paths)
+
   def get_source(self, environment, path):
-    with FileSystems.open(path) as fin:
-      source = fin.read().decode()
-    return source, path, lambda: True
+    candidates = [path]
+    if FileSystems.get_scheme(path) is None and not os.path.isabs(path):
+      for search_path in self.search_paths:
+        candidates.append(FileSystems.join(search_path, path))
+
+    for candidate in candidates:
+      try:
+        exists = FileSystems.exists(candidate)
+      except Exception:
+        exists = False
+
+      if exists:
+        with FileSystems.open(candidate) as fin:
+          source = fin.read().decode()
+        return strip_leading_comments(source), candidate, lambda: True
+
+    raise jinja2.TemplateNotFound(path)
 
 
 def expand_jinja(
-    jinja_template: str, jinja_variables: Mapping[str, Any]) -> str:
+    jinja_template: str,
+    jinja_variables: Mapping[str, Any],
+    search_paths: Iterable[str] = ()) -> str:
+  beam_root_dir = os.path.dirname(
+      os.path.dirname(os.path.abspath(beam.__file__)))
+
+  all_search_paths = list(search_paths)
+  if beam_root_dir not in all_search_paths:
+    all_search_paths.append(beam_root_dir)
+  if '.' not in all_search_paths:
+    all_search_paths.append('.')
+
   return (  # keep formatting
       jinja2.Environment(
-          undefined=jinja2.StrictUndefined, loader=_BeamFileIOLoader())
-      .from_string(jinja_template)
+          undefined=jinja2.StrictUndefined,
+          loader=_BeamFileIOLoader(all_search_paths))
+      .from_string(strip_leading_comments(jinja_template))
       .render(datetime=datetime, **jinja_variables))
 
 

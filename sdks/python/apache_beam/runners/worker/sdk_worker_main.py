@@ -33,7 +33,6 @@ from google.protobuf import text_format
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
-from apache_beam.metrics import metric
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -124,7 +123,6 @@ def create_harness(environment, dry_run=False):
   RuntimeValueProvider.set_runtime_options(pipeline_options_dict)
   sdk_pipeline_options = PipelineOptions.from_dictionary(pipeline_options_dict)
   filesystems.FileSystems.set_options(sdk_pipeline_options)
-  metric.MetricsFlag.set_default_pipeline_options(sdk_pipeline_options)
   pickle_library = sdk_pipeline_options.view_as(SetupOptions).pickle_library
   pickler.set_library(pickle_library)
 

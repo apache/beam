@@ -52,6 +52,7 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "aws":  ["sdks/java/io/amazon-web-services/**/*", "sdks/java/io/amazon-web-services2/**/*", "sdks/python/apache_beam/io/aws/**/*"]
 "cassandra":  ["sdks/java/io/cassandra/**/*"]
 "clickhouse":  ["sdks/java/io/clickhouse/**/*"]
+"delta":  ["sdks/java/io/delta/**/*"]
 "elasticsearch":  ["sdks/java/io/elasticsearch/**/*", "sdks/java/io/elasticsearch-tests/**/*"]
 "gcp":  ["sdks/go/pkg/beam/io/bigqueryio/**/*", "sdks/go/pkg/beam/io/datastoreio/**/*", "sdks/go/pkg/beam/io/pubsubio/**/*", "sdks/java/io/bigquery-io-perf-tests/**/*", "sdks/java/io/google-cloud-platform/**/*", "sdks/python/apache_beam/io/gcp/**/*", "sdks/java/extensions/google-cloud-platform-core/**/*"]
 "hadoop":  ["sdks/java/io/hadoop-common/**/*", "sdks/java/io/hadoop-file-system/**/*", "sdks/java/io/hadoop-format/**/*"]
