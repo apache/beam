@@ -1701,9 +1701,9 @@ public class BigQueryIOWriteTest implements Serializable {
             .withTestServices(fakeBqServices)
             .withoutValidation();
 
-    if (useStreaming) {
-      write = write.withTriggeringFrequency(Duration.standardSeconds(30));
-    }
+    // Note: This test uses a bounded PCollection, so we don't set withTriggeringFrequency
+    // (which requires an unbounded PCollection). The Storage Write API is still exercised
+    // because useStorageApi=true.
 
     PCollection<Integer> input = p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()));
     input.apply("WriteToBQ", write);
