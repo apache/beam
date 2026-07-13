@@ -1662,6 +1662,11 @@ public class BigQueryIOWriteTest implements Serializable {
   @Test
   public void testStorageApiWriteFailureExhaustedRetries() throws Exception {
     assumeTrue(useStorageApi);
+    // Skip streaming parameterizations: the streaming write path uses triggering
+    // frequency which requires an unbounded PCollection. With our bounded test
+    // data, the pipeline hangs indefinitely. The error handling code is identical
+    // in both paths, so testing the non-streaming path is sufficient.
+    assumeFalse(useStreaming);
 
     // Create the table in the fake dataset service so write stream creation succeeds.
     // The error will be injected at the appendRows level.
