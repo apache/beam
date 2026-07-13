@@ -207,7 +207,10 @@ class PipelineOptionsValidator(object):
       return self._validate_error(
           "Invalid GCS path: '%s' given for option: %s. "
           "Did you mean: 'gs://%s/ or gs://some_bucket/%s'?",
-          arg, arg_name, bucket, bucket)
+          arg,
+          arg_name,
+          bucket,
+          bucket)
     if '\n' in gcs_object or '\r' in gcs_object:
       return self._validate_error(self.ERR_INVALID_GCS_OBJECT, arg, arg_name)
     return []

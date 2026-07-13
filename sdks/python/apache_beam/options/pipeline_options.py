@@ -1243,6 +1243,7 @@ class GoogleCloudOptions(PipelineOptions):
             key="message")
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
+
   # If either temp or staging location has an issue, we use the valid one for
   # both locations. If both are bad we return an error.
   def _handle_temp_and_staging_locations(self, validator):
