@@ -51,7 +51,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.AddedRowsScanTask;
-import org.apache.iceberg.BaseIncrementalChangelogScan;
+import org.apache.iceberg.BeamBaseIncrementalChangelogScan;
 import org.apache.iceberg.ChangelogScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataOperations;
@@ -230,7 +230,7 @@ class ChangelogScanner
     // TODO(ahmedabu98): replace this with table.newIncrementalChangelogScan() when
     //  https://github.com/apache/iceberg/pull/14264/ gets merged and released.
     IncrementalChangelogScan scan =
-        new BaseIncrementalChangelogScan(table)
+        new BeamBaseIncrementalChangelogScan(table)
             .toSnapshot(snapshotId)
             .project(scanConfig.getProjectedSchema());
     if (fromSnapshotId != null) {
