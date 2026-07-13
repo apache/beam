@@ -17,7 +17,7 @@
 torch>=1.7.1
 torchvision>=0.8.2
 pillow>=8.0.0
-transformers==4.57.1
+transformers==5.5.0
 sentencepiece==0.2.1
 google-cloud-monitoring>=2.27.0
 openai>=1.52.2
