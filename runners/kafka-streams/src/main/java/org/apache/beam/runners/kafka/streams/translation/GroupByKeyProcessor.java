@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -41,10 +42,10 @@ import org.joda.time.Instant;
  *
  * <p>Records arrive on the repartition topic keyed by the encoded Beam key, so every value of a key
  * is co-located here. Each value is appended to a per-key buffer in a Kafka Streams state store.
- * Watermark reports are fed to a {@link WatermarkManager}; when the input watermark reaches {@link
- * BoundedWindow#TIMESTAMP_MAX_VALUE} (the end of the global window) every buffered key is emitted
- * once as {@code KV<K, Iterable<V>>} and the buffer cleared, then the watermark is forwarded
- * downstream.
+ * Watermark reports are fed to a {@link WatermarkAggregator}; when the input watermark reaches
+ * {@link BoundedWindow#TIMESTAMP_MAX_VALUE} (the end of the global window) every buffered key is
+ * emitted once as {@code KV<K, Iterable<V>>} and the buffer cleared, then the watermark is
+ * forwarded downstream.
  *
  * <p>Buffering whole value lists and re-encoding on each append is O(n^2) per key; fine for this
  * first GroupByKey, and replaced when this moves to runner-core {@code GroupAlsoByWindow}.
@@ -53,10 +54,15 @@ class GroupByKeyProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
 
   private final String stateStoreName;
+  // This transform's own id, stamped on every watermark it forwards downstream.
+  private final String transformId;
   private final Coder<Object> keyCoder;
   private final IterableCoder<@Nullable Object> bufferCoder;
 
-  private final WatermarkManager watermarkManager = new WatermarkManager();
+  // Aggregates the input watermark from the upstream transform's reports, which arrive through the
+  // repartition topic with the upstream producer's transform id intact (the shuffle forwards
+  // watermark payloads unchanged).
+  private final WatermarkAggregator watermarkAggregator;
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
   // The global window fires exactly once, when the watermark first reaches its end. Later watermark
   // reports (e.g. the same terminal watermark broadcast across repartition partitions) must not
@@ -69,9 +75,20 @@ class GroupByKeyProcessor
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable KeyValueStore<byte[], byte[]> store;
 
+  /**
+   * @param transformId this transform's own id, stamped on the watermarks it emits
+   * @param upstreamTransformIds the transform ids feeding this GroupByKey (known from the pipeline
+   *     graph), whose reports the {@link WatermarkAggregator} waits for
+   */
   GroupByKeyProcessor(
-      String stateStoreName, Coder<Object> keyCoder, Coder<@Nullable Object> valueCoder) {
+      String stateStoreName,
+      String transformId,
+      Set<String> upstreamTransformIds,
+      Coder<Object> keyCoder,
+      Coder<@Nullable Object> valueCoder) {
     this.stateStoreName = stateStoreName;
+    this.transformId = transformId;
+    this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
     this.keyCoder = keyCoder;
     this.bufferCoder = IterableCoder.of(valueCoder);
   }
@@ -94,12 +111,8 @@ class GroupByKeyProcessor
       appendValue(encodedKey, element);
       return;
     }
-    WatermarkPayload report = payload.asWatermark();
-    watermarkManager.observe(
-        report.getSourcePartition(),
-        new Instant(report.getWatermarkMillis()),
-        report.getTotalSourcePartitions());
-    Instant advanced = watermarkManager.advance();
+    watermarkAggregator.observe(payload.asWatermark());
+    Instant advanced = watermarkAggregator.advance();
     if (!fired && !advanced.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
       fireAll(record);
       fired = true;
@@ -153,10 +166,13 @@ class GroupByKeyProcessor
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> trigger, long watermarkMillis) {
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
-    // GroupByKey is a single logical source for the next stage; report it as partition 0 of 1.
+    // Stamped with this transform's own id; GroupByKey is a single instance for now, so the report
+    // is for its only partition (0 of 1).
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
-            trigger.key(), KStreamsPayload.watermark(watermarkMillis, 0, 1), trigger.timestamp()));
+            trigger.key(),
+            KStreamsPayload.watermark(watermarkMillis, transformId, 0, 1),
+            trigger.timestamp()));
   }
 
   private byte[] encodeBuffer(List<@Nullable Object> values) {

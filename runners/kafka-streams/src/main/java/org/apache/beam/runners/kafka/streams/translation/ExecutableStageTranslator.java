@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.Topology;
 
@@ -82,22 +83,15 @@ class ExecutableStageTranslator implements PTransformTranslator {
     String inputPCollectionId = stagePayload.getInput();
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
-    // A stage has at most one output (multi-output rejected above). Stamp its watermark with that
-    // output's global producer id (0 if no Flatten consumes it), always as a single source (1 of
-    // 1):
-    // a downstream Flatten tells its branches apart by this id and holds using its own input count,
-    // while a single-input consumer just sees one source.
-    int watermarkSourceId =
-        transform.getOutputsMap().isEmpty()
-            ? 0
-            : context.getProducerWatermarkId(
-                Iterables.getOnlyElement(transform.getOutputsMap().values()));
-
     Topology topology = context.getTopology();
+    // The stage stamps its own transform id on the watermarks it emits, and aggregates its input
+    // watermark from the reports of its single upstream transform (the producer of its input
+    // PCollection, whose node name is the upstream transform id).
     topology.addProcessor(
         transformId,
         () ->
-            new ExecutableStageProcessor(stagePayload, context.getJobInfo(), watermarkSourceId, 1),
+            new ExecutableStageProcessor(
+                stagePayload, context.getJobInfo(), transformId, ImmutableSet.of(parentProcessor)),
         parentProcessor);
 
     if (!transform.getOutputsMap().isEmpty()) {

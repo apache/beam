@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -51,12 +52,12 @@ import org.slf4j.LoggerFactory;
  * ProcessorContext#forward} must only be called from the processing thread, so outputs are never
  * forwarded directly from a harness callback.
  *
- * <p>A {@link KStreamsPayload#isWatermark() watermark} payload is a per-source-partition report and
- * marks a bundle boundary: the open bundle (if any) is closed (flushing outputs), the report is fed
- * to the {@link WatermarkManager}, and the stage's output watermark is forwarded downstream only
- * when the {@code min()} across its source partitions actually advances. Until every source
- * partition has reported, the watermark is held and nothing is forwarded — but data is still
- * processed in the meantime.
+ * <p>A {@link KStreamsPayload#isWatermark() watermark} payload is a report from one partition of
+ * one upstream transform and marks a bundle boundary: the open bundle (if any) is closed (flushing
+ * outputs), the report is fed to the {@link WatermarkAggregator}, and the stage's output watermark
+ * is forwarded downstream — stamped with this stage's own transform id — only when the aggregate
+ * across the upstream transform's partitions actually advances. Until every partition has reported,
+ * the watermark is held and nothing is forwarded — but data is still processed in the meantime.
  *
  * <p>This is the Kafka Streams analogue of Flink's {@code ExecutableStageDoFnOperator} and Spark's
  * {@code SparkExecutableStageFunction}. State, timers, and side inputs are out of scope for this
@@ -70,11 +71,9 @@ class ExecutableStageProcessor
 
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final JobInfo jobInfo;
-  // The source identity this stage stamps on its forwarded watermark. Normally (0 of 1), a single
-  // source to the next stage; but when this stage's output feeds a Flatten it is that branch's
-  // (i of N), so the Flatten's WatermarkManager can tell the branches apart. See FlattenProcessor.
-  private final int sourcePartition;
-  private final int totalPartitions;
+  // This stage's own transform id, stamped on every watermark it forwards so downstream watermark
+  // aggregators know which transform the report came from — regardless of who consumes it.
+  private final String transformId;
 
   // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
   // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
@@ -84,9 +83,9 @@ class ExecutableStageProcessor
   // only safe because the Impulse output coder happens to be ByteArrayCoder.
   private final Queue<WindowedValue<?>> pendingOutputs = new ConcurrentLinkedQueue<>();
 
-  // Computes this stage's output watermark as min() over its source partitions' reported
-  // watermarks, holding until every source partition has reported (see WatermarkManager).
-  private final WatermarkManager watermarkManager = new WatermarkManager();
+  // Computes this stage's input watermark from its upstream transform's reports, holding until
+  // every partition of the upstream transform has reported (see WatermarkAggregator).
+  private final WatermarkAggregator watermarkAggregator;
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
@@ -95,15 +94,20 @@ class ExecutableStageProcessor
   private @Nullable StageBundleFactory stageBundleFactory;
   private @Nullable RemoteBundle currentBundle;
 
+  /**
+   * @param transformId this stage's own transform id, stamped on the watermarks it emits
+   * @param upstreamTransformIds the transform ids feeding this stage (known from the pipeline
+   *     graph), whose reports the {@link WatermarkAggregator} waits for
+   */
   ExecutableStageProcessor(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
-      int sourcePartition,
-      int totalPartitions) {
+      String transformId,
+      Set<String> upstreamTransformIds) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
-    this.sourcePartition = sourcePartition;
-    this.totalPartitions = totalPartitions;
+    this.transformId = transformId;
+    this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
   }
 
   @Override
@@ -131,14 +135,10 @@ class ExecutableStageProcessor
       // Emit any buffered outputs before the watermark. Data is processed regardless of watermark
       // readiness; only the watermark itself is held until every source partition has reported.
       closeBundleAndFlush(record);
-      // Feed the report into the WatermarkManager and forward the stage's output watermark only
-      // when min() across the source partitions actually advances, not on every received watermark.
-      WatermarkPayload report = payload.asWatermark();
-      watermarkManager.observe(
-          report.getSourcePartition(),
-          new Instant(report.getWatermarkMillis()),
-          report.getTotalSourcePartitions());
-      Instant advanced = watermarkManager.advance();
+      // Feed the report into the aggregator and forward the stage's output watermark only when the
+      // aggregate across the upstream transform's partitions actually advances.
+      watermarkAggregator.observe(payload.asWatermark());
+      Instant advanced = watermarkAggregator.advance();
       if (advanced.isAfter(lastForwardedWatermark)) {
         lastForwardedWatermark = advanced;
         forwardWatermark(record, advanced.getMillis());
@@ -214,16 +214,15 @@ class ExecutableStageProcessor
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
-    // This stage is a single instance for now, so downstream it is one source — reported as
-    // (sourcePartition of totalPartitions), which is (0 of 1) unless its output feeds a Flatten, in
-    // which case it is that branch's identity so the Flatten can tell its branches apart. Fanning
-    // the watermark out to every downstream partition — and producing it atomically with the offset
-    // commit so it is durable — lands with the topic-based shuffle work (#18479).
+    // Stamped with this stage's own transform id; this stage is a single instance for now, so the
+    // report is for its only partition (0 of 1). Fanning the watermark out to every downstream
+    // partition — and producing it atomically with the offset commit so it is durable — lands with
+    // the topic-based shuffle work (#18479).
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
             record.key(),
-            KStreamsPayload.watermark(watermarkMillis, sourcePartition, totalPartitions),
+            KStreamsPayload.watermark(watermarkMillis, transformId, 0, 1),
             record.timestamp()));
   }
 

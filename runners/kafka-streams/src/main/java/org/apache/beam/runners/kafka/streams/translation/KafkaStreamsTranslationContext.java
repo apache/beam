@@ -41,21 +41,10 @@ public class KafkaStreamsTranslationContext {
   /** Characters not legal in a Kafka topic name; a topic's legal set is {@code [a-zA-Z0-9._-]}. */
   private static final Pattern ILLEGAL_TOPIC_CHARS = Pattern.compile("[^a-zA-Z0-9._-]");
 
-  /** The watermark source id a producer reports for an output no Flatten consumes. */
-  private static final int SINGLE_SOURCE_ID = 0;
-
   private final JobInfo jobInfo;
   private final KafkaStreamsPipelineOptions pipelineOptions;
   private final Topology topology;
   private final Map<String, String> pCollectionIdToProcessorName;
-  // PCollection id -> a stable global id its producer stamps on the watermark it emits (always as
-  // "1 source of 1"), so a downstream Flatten can tell its input branches apart by producer. Only
-  // PCollections feeding a Flatten are numbered; everything else reports id 0. A PCollection
-  // feeding
-  // several Flattens keeps ONE id, so each Flatten just waits for its own inputs' ids to report
-  // (je-ik's steer — the watermark is generated without regard to who consumes it).
-  private final Map<String, Integer> pCollectionIdToProducerId;
-  private int nextProducerId = SINGLE_SOURCE_ID + 1;
 
   public static KafkaStreamsTranslationContext create(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
@@ -73,7 +62,6 @@ public class KafkaStreamsTranslationContext {
     this.pipelineOptions = pipelineOptions;
     this.topology = topology;
     this.pCollectionIdToProcessorName = new HashMap<>();
-    this.pCollectionIdToProducerId = new HashMap<>();
   }
 
   public JobInfo getJobInfo() {
@@ -131,24 +119,5 @@ public class KafkaStreamsTranslationContext {
         + pipelineOptions.getApplicationId()
         + "_"
         + sanitizedTransformId;
-  }
-
-  /**
-   * Assigns the given Flatten-input PCollection a stable global producer id (or returns the one it
-   * already has, so a PCollection feeding several Flattens keeps a single id). Its producer stamps
-   * this id on the watermark it emits so each downstream Flatten can tell its input branches apart.
-   */
-  public int assignFlattenProducerId(String pCollectionId) {
-    return pCollectionIdToProducerId.computeIfAbsent(pCollectionId, id -> nextProducerId++);
-  }
-
-  /**
-   * Returns the watermark source id a producer should stamp for the given output PCollection: its
-   * global producer id if it feeds a Flatten (see {@link #assignFlattenProducerId}), or {@link
-   * #SINGLE_SOURCE_ID} otherwise. The producer always reports "1 source of 1"; a Flatten holds its
-   * watermark using its own input count, not the reported total.
-   */
-  public int getProducerWatermarkId(String pCollectionId) {
-    return pCollectionIdToProducerId.getOrDefault(pCollectionId, SINGLE_SOURCE_ID);
   }
 }

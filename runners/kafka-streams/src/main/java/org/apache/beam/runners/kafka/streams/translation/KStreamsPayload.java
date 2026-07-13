@@ -57,6 +57,7 @@ public final class KStreamsPayload<T> {
   private final Kind kind;
   private final @Nullable WindowedValue<T> data;
   private final long watermarkMillis;
+  private final String transformId;
   private final int sourcePartition;
   private final int totalSourcePartitions;
 
@@ -64,27 +65,33 @@ public final class KStreamsPayload<T> {
       Kind kind,
       @Nullable WindowedValue<T> data,
       long watermarkMillis,
+      String transformId,
       int sourcePartition,
       int totalSourcePartitions) {
     this.kind = kind;
     this.data = data;
     this.watermarkMillis = watermarkMillis;
+    this.transformId = transformId;
     this.sourcePartition = sourcePartition;
     this.totalSourcePartitions = totalSourcePartitions;
   }
 
   /** Returns a data payload wrapping the given {@link WindowedValue}. */
   public static <T> KStreamsPayload<T> data(WindowedValue<T> value) {
-    return new KStreamsPayload<>(Kind.DATA, value, 0L, 0, 0);
+    return new KStreamsPayload<>(Kind.DATA, value, 0L, "", 0, 0);
   }
 
   /**
    * Returns a watermark report payload: the event-time milliseconds together with the in-band
-   * coordination fields the downstream stage's {@link WatermarkManager} needs — which source
-   * partition this report is for and how many source partitions feed the stage in total.
+   * coordination fields a downstream watermark aggregator needs — which transform produced the
+   * report ({@code transformId}, stamped by the producer without regard to who consumes it), which
+   * of that transform's partitions this report is for, and how many partitions that transform has
+   * in total.
    */
   public static <T> KStreamsPayload<T> watermark(
-      long watermarkMillis, int sourcePartition, int totalSourcePartitions) {
+      long watermarkMillis, String transformId, int sourcePartition, int totalSourcePartitions) {
+    Preconditions.checkArgument(
+        transformId != null && !transformId.isEmpty(), "transformId must be non-empty");
     Preconditions.checkArgument(
         totalSourcePartitions > 0,
         "totalSourcePartitions must be positive: %s",
@@ -95,7 +102,7 @@ public final class KStreamsPayload<T> {
         sourcePartition,
         totalSourcePartitions);
     return new KStreamsPayload<>(
-        Kind.WATERMARK, null, watermarkMillis, sourcePartition, totalSourcePartitions);
+        Kind.WATERMARK, null, watermarkMillis, transformId, sourcePartition, totalSourcePartitions);
   }
 
   public boolean isData() {
@@ -135,6 +142,11 @@ public final class KStreamsPayload<T> {
     }
 
     @Override
+    public String getTransformId() {
+      return transformId;
+    }
+
+    @Override
     public int getSourcePartition() {
       return sourcePartition;
     }
@@ -156,6 +168,7 @@ public final class KStreamsPayload<T> {
     KStreamsPayload<?> that = (KStreamsPayload<?>) o;
     return kind == that.kind
         && watermarkMillis == that.watermarkMillis
+        && transformId.equals(that.transformId)
         && sourcePartition == that.sourcePartition
         && totalSourcePartitions == that.totalSourcePartitions
         && Objects.equals(data, that.data);
@@ -163,7 +176,8 @@ public final class KStreamsPayload<T> {
 
   @Override
   public int hashCode() {
-    return Objects.hash(kind, data, watermarkMillis, sourcePartition, totalSourcePartitions);
+    return Objects.hash(
+        kind, data, watermarkMillis, transformId, sourcePartition, totalSourcePartitions);
   }
 
   @Override
@@ -174,6 +188,7 @@ public final class KStreamsPayload<T> {
     } else {
       helper
           .add("watermarkMillis", watermarkMillis)
+          .add("transformId", transformId)
           .add("sourcePartition", sourcePartition)
           .add("totalSourcePartitions", totalSourcePartitions);
     }

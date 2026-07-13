@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -38,31 +39,34 @@ import org.joda.time.Instant;
  * <em>every</em> input branch has reported, so a downstream GroupByKey does not fire before all
  * flattened branches are drained.
  *
- * <p>The {@link WatermarkManager} tells the input branches apart by the global producer id each
+ * <p>The {@link WatermarkAggregator} tells the input branches apart by the transform id each
  * branch's producer stamps on its watermark (Kafka Streams does not tell a processor which parent
- * forwarded a record). Each producer stamps its own stable id regardless of who consumes it, so a
- * PCollection feeding several Flattens reports one id and every Flatten still waits only for its
- * own inputs. The Flatten holds its watermark using its own input count — passed in at construction
- * — not the reported total (producers always report the single source {@code 1 of 1}); that is what
- * lets an input shared by two Flattens work.
+ * forwarded a record). Each producer stamps its own identity regardless of who consumes it, so a
+ * PCollection feeding several Flattens reports one identity and every Flatten still waits only for
+ * the upstream transforms it expects — the set handed to it at construction from the pipeline
+ * graph.
  */
 class FlattenProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
 
-  // Computes the output watermark as min() over the input branches, holding until every branch has
-  // reported (see WatermarkManager). Flatten is a single instance for now.
-  private final WatermarkManager watermarkManager = new WatermarkManager();
-  // How many input branches feed this Flatten. The watermark is held until every branch's producer
-  // has reported, so this is the count the WatermarkManager waits for — not the reported total,
-  // which is always 1 because a producer stamps its watermark without regard to who consumes it.
-  private final int expectedInputCount;
+  // This transform's own id, stamped on every watermark it forwards downstream.
+  private final String transformId;
+  // Computes the output watermark as min() over the upstream transforms' reports, holding until
+  // every partition of every expected upstream transform has reported (see WatermarkAggregator).
+  private final WatermarkAggregator watermarkAggregator;
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
 
-  FlattenProcessor(int expectedInputCount) {
-    this.expectedInputCount = expectedInputCount;
+  /**
+   * @param transformId this Flatten's own transform id, stamped on the watermarks it emits
+   * @param upstreamTransformIds the producers of this Flatten's input PCollections (known from the
+   *     pipeline graph), whose reports the {@link WatermarkAggregator} waits for
+   */
+  FlattenProcessor(String transformId, Set<String> upstreamTransformIds) {
+    this.transformId = transformId;
+    this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
   }
 
   @Override
@@ -79,20 +83,16 @@ class FlattenProcessor
       ctx.forward(record);
       return;
     }
-    WatermarkPayload report = payload.asWatermark();
-    // Key on the producer id the branch stamped, but wait for this Flatten's own input count — not
-    // the report's total (always 1) — so a producer shared with another Flatten reports one id yet
-    // each Flatten still holds until all of its own branches arrive.
-    watermarkManager.observe(
-        report.getSourcePartition(), new Instant(report.getWatermarkMillis()), expectedInputCount);
-    Instant advanced = watermarkManager.advance();
+    watermarkAggregator.observe(payload.asWatermark());
+    Instant advanced = watermarkAggregator.advance();
     if (advanced.isAfter(lastForwardedWatermark)) {
       lastForwardedWatermark = advanced;
-      // Flatten is one logical source to the next stage; report it as partition 0 of 1.
+      // Stamped with this Flatten's own transform id; Flatten is a single instance for now, so the
+      // report is for its only partition (0 of 1).
       ctx.forward(
           new Record<byte[], KStreamsPayload<?>>(
               record.key(),
-              KStreamsPayload.watermark(advanced.getMillis(), 0, 1),
+              KStreamsPayload.watermark(advanced.getMillis(), transformId, 0, 1),
               record.timestamp()));
     }
   }

@@ -20,7 +20,6 @@ package org.apache.beam.runners.kafka.streams.translation;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertThrows;
 
 import java.util.List;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
@@ -39,10 +38,11 @@ import org.junit.Test;
  *
  * <p>Each branch is a {@code Create -> identity ParDo}, so its producer feeding the Flatten is an
  * {@link ExecutableStageProcessor} — the same shape PAssert's {@code GroupGlobally} produces. This
- * is the case the {@code (i of N)} watermark stamping exists for: without it both branches would
- * report as the single source {@code (0 of 1)}, the Flatten would release its watermark after the
- * first branch drained, and the downstream stage's bundle would close early and drop the second
- * branch's elements.
+ * exercises the per-producing-transform watermark aggregation: each branch's producer stamps its
+ * own transform id on its watermark, and the Flatten holds its output watermark until every
+ * upstream transform it expects has reported. Without that, the Flatten would release its watermark
+ * after the first branch drained and the downstream stage's bundle would close early, dropping the
+ * second branch's elements.
  */
 public class FlattenTest {
 
@@ -123,19 +123,26 @@ public class FlattenTest {
   }
 
   @Test
-  public void flattenOfOneBranchTwiceIsRejected() {
-    Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
-    PCollection<Integer> branch =
-        pipeline.apply("create", Create.of(1, 2)).apply("id", ParDo.of(new IdentityFn()));
-    // Flattening a branch with itself needs a distinct watermark source per branch, but the branch
-    // has a single producer that can only stamp one identity, so the runner rejects it (rather than
-    // getting the watermark stuck or silently dropping the duplicate copy).
-    PCollectionList.of(branch)
-        .and(branch)
-        .apply("flatten", Flatten.pCollections())
-        .apply("sink", ParDo.of(new IdentityFn()));
+  public void flattenOfOneBranchTwiceDuplicatesEveryElement() {
+    // A self-flatten is a bag union with itself: every element must appear twice. The fuser folds
+    // the Flatten into the SDK-harness stage (it never reaches the runner's Flatten translator as a
+    // duplicate-input node), so the duplication happens in the harness.
+    try (SharedTestCollector<Integer> collector = SharedTestCollector.create()) {
+      Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
+      PCollection<Integer> branch =
+          pipeline.apply("create", Create.of(1, 2)).apply("id", ParDo.of(new IdentityFn()));
+      PCollectionList.of(branch)
+          .and(branch)
+          .apply("flatten", Flatten.pCollections())
+          .apply("record", ParDo.of(new RecordingFn(collector)));
 
-    assertThrows(
-        UnsupportedOperationException.class, () -> KafkaStreamsTestRunner.translate(pipeline));
+      KafkaStreamsTestRunner.run(pipeline);
+
+      List<Integer> recorded = collector.recorded();
+      assertThat(recorded.size(), is(4));
+      assertThat(recorded, hasItems(1, 2));
+      assertThat(recorded.stream().filter(v -> v == 1).count(), is(2L));
+      assertThat(recorded.stream().filter(v -> v == 2).count(), is(2L));
+    }
   }
 }

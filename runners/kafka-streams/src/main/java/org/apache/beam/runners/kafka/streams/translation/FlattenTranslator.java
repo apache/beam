@@ -18,7 +18,9 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.Topology;
@@ -30,14 +32,17 @@ import org.apache.kafka.streams.Topology;
  * <p>Wires a single {@link FlattenProcessor} node to the producer of every input PCollection (Kafka
  * Streams lets a processor have many parents), so the parents' data streams merge into it, and
  * registers it as the producer of the flattened output so downstream translators wire to it. The
- * processor forwards data through and owns its output watermark via a {@link WatermarkManager},
- * exactly like GroupByKey — see {@link FlattenProcessor}.
+ * processor forwards data through and owns its output watermark via a {@link WatermarkAggregator},
+ * which is handed the producers of the input PCollections — the upstream transform ids whose
+ * watermark reports the Flatten must hear from. Producers stamp their own transform id on the
+ * reports they emit, without regard to who consumes them, so an input shared with another Flatten
+ * needs no special handling.
  *
- * <p>The producer id the {@link WatermarkManager} keys each branch on is stamped upstream, by the
- * branch's producing transform, because Kafka Streams does not tell a processor which parent
- * forwarded a record. Ids are assigned once per Flatten-input PCollection (see {@link
- * KafkaStreamsPipelineTranslator}), so an input shared by two Flattens reports one id and each
- * Flatten still waits only for its own branches.
+ * <p>A user-written self-flatten never reaches this translator: the fuser folds the Flatten into
+ * the consuming SDK-harness stage, which performs the duplication itself. The duplicate-input check
+ * below is defensive — if a runner-executed Flatten ever did receive the same PCollection twice,
+ * Kafka Streams could not wire the same parent to a child twice and the duplicate copy would be
+ * silently dropped, so failing fast is safer.
  */
 class FlattenTranslator implements PTransformTranslator {
 
@@ -48,19 +53,28 @@ class FlattenTranslator implements PTransformTranslator {
     // Flatten produces exactly one output PCollection, fed by all of its input PCollections.
     String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
 
+    Set<String> seenInputs = new HashSet<>();
     List<String> parentProcessors = new ArrayList<>();
+    Set<String> upstreamTransformIds = new HashSet<>();
     for (String inputPCollectionId : transform.getInputsMap().values()) {
-      parentProcessors.add(context.getProcessorNameForPCollection(inputPCollectionId));
+      if (!seenInputs.add(inputPCollectionId)) {
+        throw new UnsupportedOperationException(
+            "Flatten "
+                + transform.getUniqueName()
+                + " has PCollection "
+                + inputPCollectionId
+                + " as an input more than once; a self-flatten is not yet supported by the Kafka"
+                + " Streams runner.");
+      }
+      String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
+      parentProcessors.add(parentProcessor);
+      upstreamTransformIds.add(parentProcessor);
     }
 
-    // The Flatten holds its watermark until all of its input branches report. Inputs are distinct
-    // (a self-flatten is rejected during producer-id assignment), so the input count is the number
-    // of producer ids to wait for.
-    int inputCount = transform.getInputsMap().size();
     Topology topology = context.getTopology();
     topology.addProcessor(
         transformId,
-        () -> new FlattenProcessor(inputCount),
+        () -> new FlattenProcessor(transformId, upstreamTransformIds),
         parentProcessors.toArray(new String[0]));
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);

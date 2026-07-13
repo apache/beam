@@ -82,6 +82,7 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
         proto.setWatermark(
             KafkaStreamsPayload.WatermarkPayload.newBuilder()
                 .setMillis(watermark.getWatermarkMillis())
+                .setTransformId(watermark.getTransformId())
                 .setSourcePartition(watermark.getSourcePartition())
                 .setTotalPartitions(watermark.getTotalSourcePartitions()));
       }
@@ -109,6 +110,7 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
           KafkaStreamsPayload.WatermarkPayload watermark = proto.getWatermark();
           return KStreamsPayload.watermark(
               watermark.getMillis(),
+              watermark.getTransformId(),
               watermark.getSourcePartition(),
               watermark.getTotalPartitions());
         case PAYLOAD_NOT_SET:
