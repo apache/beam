@@ -189,8 +189,7 @@ def runnerV2CommonPipelineOptions = [
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
   "--usePublicIps=false",
-  "--experiments=enable_lineage",
-  "--jdkAddOpenModules=java.base/java.nio=ALL-UNNAMED",
+  "--experiments=enable_lineage"
 ]
 
 def runnerV2PipelineOptions = runnerV2CommonPipelineOptions + [
