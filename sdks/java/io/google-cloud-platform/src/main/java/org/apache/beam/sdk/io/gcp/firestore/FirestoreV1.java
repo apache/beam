@@ -1410,7 +1410,7 @@ public final class FirestoreV1 {
   }
 
   /** DoFn to output CollectionIds from a {@link ListCollectionIdsResponse}. */
-  private static final class FlattenListCollectionIdsResponse
+  static final class FlattenListCollectionIdsResponse
       extends DoFn<ListCollectionIdsResponse, String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -1419,7 +1419,7 @@ public final class FirestoreV1 {
   }
 
   /** DoFn to output {@link Document}s from a {@link ListDocumentsResponse}. */
-  private static final class ListDocumentsResponseToDocument
+  static final class ListDocumentsResponseToDocument
       extends DoFn<ListDocumentsResponse, Document> {
     @ProcessElement
     public void processElement(ProcessContext c) {
@@ -1826,7 +1826,7 @@ public final class FirestoreV1 {
    * @param <BldrT> The type of the type safe builder which is used to build and instance of {@link
    *     TrfmT}
    */
-  private abstract static class Transform<
+  public abstract static class Transform<
           InT extends PInput,
           OutT extends POutput,
           TrfmT extends Transform<InT, OutT, TrfmT, BldrT>,
@@ -1880,7 +1880,7 @@ public final class FirestoreV1 {
      * @param <BldrT> The type of the type safe builder which is used to build and instance of
      *     {@link TrfmT}
      */
-    abstract static class Builder<
+    public abstract static class Builder<
         InT extends PInput,
         OutT extends POutput,
         TrfmT extends Transform<InT, OutT, TrfmT, BldrT>,
@@ -2018,7 +2018,7 @@ public final class FirestoreV1 {
     }
   }
 
-  private abstract static class ReadTransform<
+  public abstract static class ReadTransform<
           InT extends PInput,
           OutT extends POutput,
           TrfmT extends ReadTransform<InT, OutT, TrfmT, BldrT>,
@@ -2041,7 +2041,7 @@ public final class FirestoreV1 {
     @Override
     public abstract BldrT toBuilder();
 
-    abstract static class Builder<
+    public abstract static class Builder<
             InT extends PInput,
             OutT extends POutput,
             TrfmT extends ReadTransform<InT, OutT, TrfmT, BldrT>,
