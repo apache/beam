@@ -281,6 +281,7 @@ public final class IcebergIOLT extends IOLoadTestBase {
   private static class MapToIcebergFormat extends DoFn<Long, Row> {
 
     private final int valueSizeBytes;
+    private transient Random random;
 
     private MapToIcebergFormat(int valueSizeBytes) {
       if (valueSizeBytes <= 0) {
@@ -288,6 +289,11 @@ public final class IcebergIOLT extends IOLoadTestBase {
       }
 
       this.valueSizeBytes = valueSizeBytes;
+    }
+
+    @Setup
+    public void setup() {
+      random = new Random();
     }
 
     @ProcessElement
@@ -299,7 +305,8 @@ public final class IcebergIOLT extends IOLoadTestBase {
        * Using the row index as the seed makes retries deterministic. Random data also prevents
        * compression from making the generated payload significantly smaller than configured.
        */
-      new Random(index).nextBytes(value);
+      random.setSeed(index);
+      random.nextBytes(value);
 
       output.output(Row.withSchema(ROW_SCHEMA).addValues(index, value).build());
     }
