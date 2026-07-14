@@ -29,6 +29,12 @@ ext.summary = "Integration test utilities for ClickHouse."
 
 def clickhouse_java_client_version = "0.9.6"
 
+configurations.configureEach {
+  resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
+    select("at.yawk.lz4:lz4-java:1.10.2")
+  }
+}
+
 dependencies {
     implementation project(path: ":it:common")
     implementation project(path: ":it:testcontainers")
