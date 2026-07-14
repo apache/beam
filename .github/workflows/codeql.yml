@@ -35,28 +35,11 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: dorny/paths-filter@v3
-        id: filter
+      - name: Checkout repository history
+        uses: actions/checkout@v4
         with:
-          filters: |
-            actions:
-              - '.github/**'
-            go:
-              - 'sdks/go/**'
-              - 'playground/backend/**'
-              - 'learning/katas/go/**'
-              - 'learning/tour-of-beam/backend/**'
-            java-kotlin:
-              - 'sdks/java/**'
-              - 'runners/**'
-              - 'examples/java/**'
-              - 'examples/kotlin/**'
-            javascript-typescript:
-              - 'sdks/typescript/**'
-            python:
-              - 'sdks/python/**'
-            rust:
-              - '**/*.rs'
+          fetch-depth: 0
+
       - name: Generate Matrix
         id: set-matrix
         run: |
@@ -71,17 +54,55 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "matrix=$ALL_MATRIX" >> $GITHUB_OUTPUT
-          else
-            FILTERED=$(echo "$ALL_MATRIX" | jq -c '[.[] | select(
-              (.language == "actions" and "${{ steps.filter.outputs.actions }}" == "true") or
-              (.language == "go" and "${{ steps.filter.outputs.go }}" == "true") or
-              (.language == "java-kotlin" and "${{ steps.filter.outputs['java-kotlin'] }}" == "true") or
-              (.language == "javascript-typescript" and "${{ steps.filter.outputs['javascript-typescript'] }}" == "true") or
-              (.language == "python" and "${{ steps.filter.outputs.python }}" == "true") or
-              (.language == "rust" and "${{ steps.filter.outputs.rust }}" == "true")
-            )]')
-            echo "matrix=$FILTERED" >> $GITHUB_OUTPUT
+            exit 0
           fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.event.after }}"
+          fi
+
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+          else
+            CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
+          fi
+
+          check_path() {
+            local pattern="$1"
+            if echo "$CHANGED_FILES" | grep -q -E "$pattern"; then
+              echo "true"
+            else
+              echo "false"
+            fi
+          }
+
+          ACTIONS_CHANGED=$(check_path "^\.github/")
+          GO_CHANGED=$(check_path "^sdks/go/|^playground/backend/|^learning/katas/go/|^learning/tour-of-beam/backend/")
+          JAVA_CHANGED=$(check_path "^sdks/java/|^runners/|^examples/java/|^examples/kotlin/|\.java$")
+          JS_CHANGED=$(check_path "^sdks/typescript/|\.js$|\.ts$")
+          PYTHON_CHANGED=$(check_path "^sdks/python/|\.py$")
+          RUST_CHANGED=$(check_path "\.rs$")
+
+          FILTERED=$(echo "$ALL_MATRIX" | jq -c --arg actions "$ACTIONS_CHANGED" \
+                                               --arg go "$GO_CHANGED" \
+                                               --arg java "$JAVA_CHANGED" \
+                                               --arg js "$JS_CHANGED" \
+                                               --arg python "$PYTHON_CHANGED" \
+                                               --arg rust "$RUST_CHANGED" \
+            '[.[] | select(
+              (.language == "actions" and $actions == "true") or
+              (.language == "go" and $go == "true") or
+              (.language == "java-kotlin" and $java == "true") or
+              (.language == "javascript-typescript" and $js == "true") or
+              (.language == "python" and $python == "true") or
+              (.language == "rust" and $rust == "true")
+            )]')
+
+          echo "matrix=$FILTERED" >> $GITHUB_OUTPUT
 
   analyze:
     name: Analyze (${{ matrix.language }})
