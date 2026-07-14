@@ -293,7 +293,7 @@ public class JmsIOIT implements Serializable {
 
   private void cancelIfTimeouted(PipelineResult readResult, PipelineResult.State readState)
       throws IOException {
-    if (readState == null) {
+    if (readState == null || !readState.isTerminal()) {
       readResult.cancel();
     }
   }

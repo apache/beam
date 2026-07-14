@@ -254,6 +254,9 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
                   activeCheckpoints);
           messages.clear();
           oldestMessageTimestamp = Instant.now();
+          if (activeCheckpoints != null) {
+            activeCheckpoints.incrementAndGet();
+          }
         }
       } finally {
         lock.writeLock().unlock();

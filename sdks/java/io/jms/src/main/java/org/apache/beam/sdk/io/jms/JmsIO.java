@@ -34,6 +34,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.jms.Connection;
@@ -510,7 +511,12 @@ public class JmsIO {
       return builder().setRequiresDeduping(true).build();
     }
 
-    /** Specify the {@link AcknowledgeMode} used for consuming and acknowledging JMS messages. */
+    /**
+     * Specify the {@link AcknowledgeMode} used for consuming and acknowledging JMS messages.
+     *
+     * <p>To use {@link AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}, providers other than ActiveMQ, Qpid
+     * JMS, ActiveMQ require configuring {@link #withIndividualAcknowledgeModeCode} explicitly.
+     */
     public Read<T> withAcknowledgeMode(AcknowledgeMode acknowledgeMode) {
       checkArgument(acknowledgeMode != null, "acknowledgeMode can not be null");
       return builder().setAcknowledgeMode(acknowledgeMode).build();
@@ -521,7 +527,7 @@ public class JmsIO {
      * AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}.
      *
      * <p>Different JMS providers use different proprietary integer constants for individual
-     * acknowledgment (e.g., ActiveMQ uses 4, Qpid JMS / ActiveMQ Artemis / IBM MQ use 101).
+     * acknowledgment (e.g., ActiveMQ uses 4, Qpid JMS / ActiveMQ Artemis use 101).
      */
     public Read<T> withIndividualAcknowledgeModeCode(int individualAcknowledgeModeCode) {
       return builder().setIndividualAcknowledgeModeCode(individualAcknowledgeModeCode).build();
@@ -872,7 +878,6 @@ public class JmsIO {
           sessionTofinalize = null;
         }
       }
-      activeCheckpoints.incrementAndGet();
       return checkpointMarkPreparer.newCheckpoint(
           consumerToClose, sessionTofinalize, mode, activeCheckpoints);
     }
@@ -911,25 +916,26 @@ public class JmsIO {
         } else {
           ScheduledExecutorService executorService =
               options.as(ExecutorOptions.class).getScheduledExecutorService();
-          executorService.submit(
-              () -> {
-                long startTime = System.currentTimeMillis();
-                long timeoutMillis = source.spec.getCloseTimeout().getMillis();
-                while (activeCheckpoints.get() > 0
-                    && System.currentTimeMillis() - startTime < timeoutMillis) {
-                  try {
-                    Thread.sleep(1_000); // poll in 1 sec interval
-                  } catch (InterruptedException ignored) {
-                    break;
+          long deadline = System.currentTimeMillis() + source.spec.getCloseTimeout().getMillis();
+          long pollInterval = 1L;
+          executorService.schedule(
+              new Runnable() {
+                @Override
+                public void run() {
+                  if (activeCheckpoints.get() == 0 || System.currentTimeMillis() >= deadline) {
+                    LOG.debug(
+                        "Closing connection after checkpoints finalized or timeout: {}",
+                        source.spec.getCloseTimeout());
+                    closeConsumer();
+                    closeSession();
+                    closeConnection();
+                  } else {
+                    executorService.schedule(this, pollInterval, TimeUnit.SECONDS);
                   }
                 }
-                LOG.debug(
-                    "Closing connection after checkpoints finalized or timeout: {}",
-                    source.spec.getCloseTimeout());
-                closeConsumer();
-                closeSession();
-                closeConnection();
-              });
+              },
+              pollInterval,
+              TimeUnit.SECONDS);
         }
       } catch (Exception e) {
         LOG.warn("Error closing reader", e);

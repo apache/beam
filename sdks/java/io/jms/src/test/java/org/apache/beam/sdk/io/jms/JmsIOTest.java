@@ -43,6 +43,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,6 +67,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import javax.jms.BytesMessage;
@@ -694,7 +697,7 @@ public class JmsIOTest {
     preparer.add(msg2);
     preparer.add(msg3);
 
-    AtomicInteger activeCheckpoints = new AtomicInteger(1);
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
     JmsCheckpointMark mark =
         preparer.newCheckpoint(
             null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
@@ -722,7 +725,7 @@ public class JmsIOTest {
     preparer.add(msg1);
     preparer.add(msg2);
 
-    AtomicInteger activeCheckpoints = new AtomicInteger(1);
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
     JmsCheckpointMark mark =
         preparer.newCheckpoint(
             null, null, JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE, activeCheckpoints);
@@ -960,17 +963,20 @@ public class JmsIOTest {
     ExecutorOptions options = PipelineOptionsFactory.as(ExecutorOptions.class);
     options.setScheduledExecutorService(mockScheduledExecutorService);
     ArgumentCaptor<Runnable> runnableArgumentCaptor = ArgumentCaptor.forClass(Runnable.class);
-    when(mockScheduledExecutorService.submit(runnableArgumentCaptor.capture()))
+    when(mockScheduledExecutorService.schedule(
+            runnableArgumentCaptor.capture(), anyLong(), any(TimeUnit.class)))
         .thenReturn(null /* unused */);
 
     JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
     reader.start();
     assertFalse(getDiscardedValue(reader));
     reader.checkpointMarkPreparer.add(Mockito.mock(Message.class));
-    reader.getCheckpointMark();
+    CheckpointMark mark = reader.getCheckpointMark();
     reader.close();
     assertTrue(getDiscardedValue(reader));
-    verify(mockScheduledExecutorService).submit(any(Runnable.class));
+    verify(mockScheduledExecutorService)
+        .schedule(any(Runnable.class), eq(1L), eq(TimeUnit.SECONDS));
+    mark.finalizeCheckpoint();
     runnableArgumentCaptor.getValue().run();
     assertTrue(getDiscardedValue(reader));
     verifyNoMoreInteractions(mockScheduledExecutorService);
