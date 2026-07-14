@@ -64,7 +64,7 @@ public class KafkaCommitOffset<K, V>
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(CommitOffsetDoFn.class);
-    private final Counter commitFailures =
+    private static final Counter COMMIT_FAILURES =
         Metrics.counter(CommitOffsetDoFn.class, "commit-failures");
 
     private final Map<String, Object> consumerConfig;
@@ -90,7 +90,7 @@ public class KafkaCommitOffset<K, V>
                   element.getKey().getTopicPartition(),
                   new OffsetAndMetadata(element.getValue() + 1)));
         } catch (Exception e) {
-          commitFailures.inc();
+          COMMIT_FAILURES.inc();
           // TODO: consider retrying.
           LOG.warn("Getting exception when committing offset: {}", e.getMessage());
         }
