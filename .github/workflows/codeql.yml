@@ -27,8 +27,49 @@ on:
     - cron: '25 10 * * 6'
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      actions: ${{ steps.filter.outputs.actions }}
+      go: ${{ steps.filter.outputs.go }}
+      java-kotlin: ${{ steps.filter.outputs['java-kotlin'] }}
+      javascript-typescript: ${{ steps.filter.outputs['javascript-typescript'] }}
+      python: ${{ steps.filter.outputs.python }}
+      rust: ${{ steps.filter.outputs.rust }}
+    steps:
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            actions:
+              - '.github/**'
+            go:
+              - 'sdks/go/**'
+              - 'playground/backend/**'
+              - 'learning/katas/go/**'
+              - 'learning/tour-of-beam/backend/**'
+            java-kotlin:
+              - 'sdks/java/**'
+              - 'runners/**'
+              - 'examples/java/**'
+              - 'examples/kotlin/**'
+            javascript-typescript:
+              - 'sdks/typescript/**'
+            python:
+              - 'sdks/python/**'
+            rust:
+              - '**/*.rs'
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: detect-changes
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      needs.detect-changes.outputs[matrix.language] == 'true'
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
