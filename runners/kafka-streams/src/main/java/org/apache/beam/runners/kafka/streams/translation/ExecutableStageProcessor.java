@@ -131,6 +131,13 @@ class ExecutableStageProcessor
   @Override
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     KStreamsPayload<?> payload = record.value();
+    if (payload == null) {
+      // A topic feeding the runner can always be written to from outside (or carry a tombstone),
+      // so recover from the obvious error instead of crashing the task: warn and drop.
+      LOG.warn(
+          "Stage {} dropping record with null payload (external write or tombstone)", transformId);
+      return;
+    }
     if (payload.isWatermark()) {
       // Emit any buffered outputs before the watermark. Data is processed regardless of watermark
       // readiness; only the watermark itself is held until every source partition has reported.

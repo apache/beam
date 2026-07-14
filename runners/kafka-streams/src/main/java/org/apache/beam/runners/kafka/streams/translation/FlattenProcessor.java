@@ -24,6 +24,8 @@ import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Kafka Streams {@link Processor} implementing Beam's {@code Flatten} primitive ({@code
@@ -33,7 +35,7 @@ import org.joda.time.Instant;
  * data streams <em>is</em> the flatten.
  *
  * <p><b>Watermark</b> reports are where Flatten does real work, and it owns its output watermark
- * the same way GroupByKey does: it runs a {@link WatermarkManager} over its inputs, forwards its
+ * the same way GroupByKey does: it runs a {@link WatermarkAggregator} over its inputs, forwards its
  * own watermark only when the {@code min()} across them advances, and stamps that as a single
  * source ({@code 0 of 1}) to its downstream. This holds the output watermark back until
  * <em>every</em> input branch has reported, so a downstream GroupByKey does not fire before all
@@ -48,6 +50,8 @@ import org.joda.time.Instant;
  */
 class FlattenProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(FlattenProcessor.class);
 
   // This transform's own id, stamped on every watermark it forwards downstream.
   private final String transformId;
@@ -77,6 +81,14 @@ class FlattenProcessor
   @Override
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     KStreamsPayload<?> payload = record.value();
+    if (payload == null) {
+      // A topic feeding the runner can always be written to from outside (or carry a tombstone),
+      // so recover from the obvious error instead of crashing the task: warn and drop.
+      LOG.warn(
+          "Flatten {} dropping record with null payload (external write or tombstone)",
+          transformId);
+      return;
+    }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     if (!payload.isWatermark()) {
       // Data: the union of the parents' data streams is the flatten — forward unchanged.

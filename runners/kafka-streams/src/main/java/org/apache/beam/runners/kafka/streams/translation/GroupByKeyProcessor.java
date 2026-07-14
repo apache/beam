@@ -36,6 +36,8 @@ import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Executes a {@code GroupByKey} (GlobalWindow, default trigger, no allowed lateness).
@@ -52,6 +54,8 @@ import org.joda.time.Instant;
  */
 class GroupByKeyProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GroupByKeyProcessor.class);
 
   private final String stateStoreName;
   // This transform's own id, stamped on every watermark it forwards downstream.
@@ -102,6 +106,14 @@ class GroupByKeyProcessor
   @Override
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     KStreamsPayload<?> payload = record.value();
+    if (payload == null) {
+      // The repartition topic can be written to from outside the runner (or carry a tombstone),
+      // so recover from the obvious error instead of crashing the task: warn and drop.
+      LOG.warn(
+          "GroupByKey {} dropping record with null payload (external write or tombstone)",
+          transformId);
+      return;
+    }
     if (payload.isData()) {
       byte[] encodedKey = record.key();
       Object element = payload.getData().getValue();
