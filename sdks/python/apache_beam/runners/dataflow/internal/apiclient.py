@@ -1265,5 +1265,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
       'Dataflow runner currently supports Python versions %s, got %s.%s.\n'
       'To ignore this requirement and start a job '
       'using an unsupported version of Python interpreter, pass '
-      '--experiment use_unsupported_python_version pipeline option.' %
-      (_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW, sys.version_info[0], sys.version_info[1]))
+      '--experiment use_unsupported_python_version pipeline option.' % (
+          _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW,
+          sys.version_info[0],
+          sys.version_info[1]))

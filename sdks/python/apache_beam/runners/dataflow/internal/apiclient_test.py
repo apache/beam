@@ -1030,6 +1030,9 @@ class UtilTest(unittest.TestCase):
     self.assertNotIn(
         'use_multiple_sdk_containers', environment.proto.experiments)
 
+  # Note: We mock Python to 3.11 here. Keep this mocked version aligned with a
+  # version in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW to prevent test failures
+  # on release (non-dev) builds.
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
       (3, 11))
