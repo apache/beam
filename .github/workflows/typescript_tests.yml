@@ -59,7 +59,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -101,7 +101,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -169,7 +169,7 @@ jobs:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
