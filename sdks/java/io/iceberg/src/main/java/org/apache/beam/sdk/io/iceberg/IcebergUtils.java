@@ -108,8 +108,8 @@ public class IcebergUtils {
         return Schema.FieldType.STRING;
       case UUID:
       case BINARY:
-        return Schema.FieldType.BYTES;
       case FIXED:
+        return Schema.FieldType.BYTES;
       case DECIMAL:
         return Schema.FieldType.DECIMAL;
       case STRUCT:
@@ -359,7 +359,8 @@ public class IcebergUtils {
             .ifPresent(v -> rec.setField(name, UUID.nameUUIDFromBytes(v)));
         break;
       case FIXED:
-        throw new UnsupportedOperationException("Fixed-precision fields are not yet supported.");
+        Optional.ofNullable(value.getBytes(name)).ifPresent(v -> rec.setField(name, v));
+        break;
       case BINARY:
         Optional.ofNullable(value.getBytes(name))
             .ifPresent(v -> rec.setField(name, ByteBuffer.wrap(v)));
@@ -587,8 +588,11 @@ public class IcebergUtils {
         rowBuilder.addValue(getBeamDateTimeValue(icebergValue));
         break;
       case BYTES:
-        // Iceberg uses ByteBuffer; Beam uses byte[]
-        rowBuilder.addValue(((ByteBuffer) icebergValue).array());
+        // Beam uses byte[]. Iceberg represents `binary` as a ByteBuffer but `fixed` as a byte[].
+        rowBuilder.addValue(
+            icebergValue instanceof byte[]
+                ? (byte[]) icebergValue
+                : ((ByteBuffer) icebergValue).array());
         break;
       case ROW:
         Schema nestedSchema =

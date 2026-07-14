@@ -461,7 +461,7 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
 
       for (long l = restriction.getFrom(); l < restriction.getTo(); l++) {
         SerializableChangelogTask task = element.getValue().get((int) l);
-        size += task.getDataFile().getFileSizeInBytes() * COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
+        size += task.getLength() * COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
         size +=
             task.getAddedDeletes().stream()
                     .mapToLong(SerializableDeleteFile::getFileSizeInBytes)

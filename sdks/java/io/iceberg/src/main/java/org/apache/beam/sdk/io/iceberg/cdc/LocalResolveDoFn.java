@@ -23,12 +23,11 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergScanConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.TableCache;
@@ -44,8 +43,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.types.Comparators;
-import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructLikeMap;
 import org.apache.iceberg.util.StructLikeUtil;
@@ -132,11 +130,7 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
       readAndRoute(descriptor, task, table, overlapLower, overlapUpper, pkGroups, out);
     }
 
-    resolveAndEmit(
-        descriptor,
-        pkGroups,
-        CdcOutputUtils.readSchemaWithRowMetadata(scanConfig.getMetadataColumns(), table.schema()),
-        out);
+    resolveAndEmit(descriptor, pkGroups, out);
   }
 
   /**
@@ -178,11 +172,8 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
 
   /** Resolves each PK group using {@link CdcResolver}. */
   private void resolveAndEmit(
-      ChangelogDescriptor descriptor,
-      StructLikeMap<PkGroup> pkGroups,
-      Schema fullSchema,
-      OutputReceiver<Row> out) {
-    CdcResolver<Record> resolver = new RecordResolver(checkStateNotNull(nonPkFields), fullSchema);
+      ChangelogDescriptor descriptor, StructLikeMap<PkGroup> pkGroups, OutputReceiver<Row> out) {
+    CdcResolver<Record> resolver = new RecordResolver(checkStateNotNull(nonPkFields));
     for (PkGroup group : pkGroups.values()) {
       resolver.resolve(
           group.deletes,
@@ -196,32 +187,41 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
   /** Resolver specialization that hashes Iceberg Record non-PK fields. */
   private static final class RecordResolver extends CdcResolver<Record> {
     private final List<Types.NestedField> nonPkFields;
-    private final Comparator<StructLike> nonPkComparator;
-    private final StructProjection left;
-    private final StructProjection right;
 
-    RecordResolver(List<Types.NestedField> nonPkFields, Schema recSchema) {
+    RecordResolver(List<Types.NestedField> nonPkFields) {
       this.nonPkFields = nonPkFields;
-      Set<Integer> nonPkFieldIds =
-          nonPkFields.stream().map(Types.NestedField::fieldId).collect(Collectors.toSet());
-      this.left = StructProjection.create(recSchema, nonPkFieldIds);
-      this.right = StructProjection.create(recSchema, nonPkFieldIds);
-      this.nonPkComparator =
-          Comparators.forType(TypeUtil.select(recSchema, nonPkFieldIds).asStruct());
     }
 
     @Override
     protected int nonPkHash(Record rec) {
       int hash = 1;
       for (Types.NestedField field : nonPkFields) {
-        hash = 31 * hash + Objects.hashCode(rec.getField(field.name()));
+        hash = 31 * hash + deepHash(rec.getField(field.name()));
       }
       return hash;
     }
 
     @Override
     protected boolean nonPkEquals(Record delete, Record insert) {
-      return nonPkComparator.compare(left.wrap(delete), right.wrap(insert)) == 0;
+      for (Types.NestedField field : nonPkFields) {
+        // consistent with deepHash
+        if (!Objects.deepEquals(delete.getField(field.name()), insert.getField(field.name()))) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    /**
+     * Content hash consistent with {@link Objects#deepEquals}. Iceberg's generic model only ever
+     * produces a {@code byte[]} for {@link Type.TypeID#FIXED} columns, but we use {@link
+     * Class#isArray} to handle any array type.
+     */
+    private static int deepHash(@Nullable Object value) {
+      if (value != null && value.getClass().isArray()) {
+        return Arrays.deepHashCode(new Object[] {value});
+      }
+      return Objects.hashCode(value);
     }
   }
 

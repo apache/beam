@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
@@ -541,7 +542,7 @@ public abstract class IcebergScanConfig implements Serializable {
               == LONG,
           error("watermark_column_time_unit is only applicable for LONG columns."));
       try {
-        TimeUnit.valueOf(watermarkColumnTimeUnit.toUpperCase());
+        TimeUnit.valueOf(watermarkColumnTimeUnit.toUpperCase(Locale.ENGLISH));
       } catch (IllegalArgumentException e) {
         throw new IllegalArgumentException(
             error(

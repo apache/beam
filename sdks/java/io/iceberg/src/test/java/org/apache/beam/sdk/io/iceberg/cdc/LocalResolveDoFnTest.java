@@ -68,6 +68,14 @@ public class LocalResolveDoFnTest {
               Types.NestedField.optional(3, "hidden", Types.StringType.get())),
           ImmutableSet.of(1));
 
+  private static final org.apache.iceberg.Schema FIXED_CDC_SCHEMA =
+      new org.apache.iceberg.Schema(
+          ImmutableList.of(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.optional(2, "visible", Types.StringType.get()),
+              Types.NestedField.optional(3, "data", Types.FixedType.ofLength(4))),
+          ImmutableSet.of(1));
+
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
   @Rule public TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
@@ -135,6 +143,69 @@ public class LocalResolveDoFnTest {
         output.stream().map(ValueInSingleWindow::getTimestamp).collect(Collectors.toList()));
   }
 
+  @Test
+  public void copyOnWriteRewriteWithFixedColumnIsDropped() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, FIXED_CDC_SCHEMA, null, tableProperties());
+    IcebergScanConfig scanConfig = scanConfig(table, tableId);
+    // Distinct byte[] instances with identical content. The CoW no-op is only dropped when the
+    // `fixed` column is hashed/compared by content; an identity hashCode would leak a spurious
+    // UPDATE pair.
+    DataFile oldFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(fixedRecord(1L, "shown", new byte[] {1, 2, 3, 4})));
+    DataFile newFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(fixedRecord(1L, "shown", new byte[] {1, 2, 3, 4})));
+
+    List<ValueInSingleWindow<Row>> output =
+        process(
+            scanConfig,
+            descriptor(tableId, 1L, 1L),
+            ImmutableList.of(
+                task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 300L),
+                task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 300L)),
+            new Instant(0L));
+
+    assertThat(output, empty());
+  }
+
+  @Test
+  public void differingFixedColumnBecomesUpdatePair() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, FIXED_CDC_SCHEMA, null, tableProperties());
+    IcebergScanConfig scanConfig = scanConfig(table, tableId);
+    // Same PK and projected fields, but the `fixed` column differs, so this must NOT be treated as
+    // a CoW duplicate -- guards against the fixed column being ignored during resolution.
+    DataFile oldFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(fixedRecord(1L, "shown", new byte[] {1, 2, 3, 4})));
+    DataFile newFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(fixedRecord(1L, "shown", new byte[] {5, 6, 7, 8})));
+
+    List<ValueInSingleWindow<Row>> output =
+        process(
+            scanConfig,
+            descriptor(tableId, 1L, 1L),
+            ImmutableList.of(
+                task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 302L),
+                task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 302L)),
+            new Instant(0L));
+
+    assertThat(
+        output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
+        contains("UPDATE_BEFORE:1:shown:2", "UPDATE_AFTER:1:shown:2"));
+  }
+
   private List<ValueInSingleWindow<Row>> process(
       IcebergScanConfig scanConfig,
       ChangelogDescriptor descriptor,
@@ -185,6 +256,14 @@ public class LocalResolveDoFnTest {
     record.setField("id", id);
     record.setField("visible", visible);
     record.setField("hidden", hidden);
+    return record;
+  }
+
+  private static Record fixedRecord(long id, String visible, byte[] data) {
+    GenericRecord record = GenericRecord.create(FIXED_CDC_SCHEMA);
+    record.setField("id", id);
+    record.setField("visible", visible);
+    record.setField("data", data);
     return record;
   }
 
