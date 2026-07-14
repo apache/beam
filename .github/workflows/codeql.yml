@@ -43,6 +43,7 @@ jobs:
       - name: Generate Matrix
         id: set-matrix
         run: |
+          # Full matrix of all CodeQL supported languages and their build modes in Apache Beam.
           ALL_MATRIX='[
             {"language": "actions", "build-mode": "none"},
             {"language": "go", "build-mode": "manual"},
@@ -52,11 +53,13 @@ jobs:
             {"language": "rust", "build-mode": "none"}
           ]'
 
+          # On periodic scheduled runs (cron) or manual dispatches, scan all languages.
           if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "matrix=$ALL_MATRIX" >> $GITHUB_OUTPUT
             exit 0
           fi
 
+          # Determine the commit range to compare for changed files.
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             HEAD_SHA="${{ github.event.pull_request.head.sha }}"
@@ -65,12 +68,14 @@ jobs:
             HEAD_SHA="${{ github.event.after }}"
           fi
 
+          # Fall back to comparing against HEAD~1 if base SHA is empty or zeroed.
           if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
             CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
           else
             CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
           fi
 
+          # Helper function to check if any changed file matches a given regex pattern.
           check_path() {
             local pattern="$1"
             if echo "$CHANGED_FILES" | grep -q -E "$pattern"; then
@@ -80,6 +85,7 @@ jobs:
             fi
           }
 
+          # Check path changes for each language/module context.
           ACTIONS_CHANGED=$(check_path "^\.github/")
           GO_CHANGED=$(check_path "^sdks/go/|^playground/backend/|^learning/katas/go/|^learning/tour-of-beam/backend/")
           JAVA_CHANGED=$(check_path "^sdks/java/|^runners/|^examples/java/|^examples/kotlin/|\.java$")
@@ -87,6 +93,7 @@ jobs:
           PYTHON_CHANGED=$(check_path "^sdks/python/|\.py$")
           RUST_CHANGED=$(check_path "\.rs$")
 
+          # Filter ALL_MATRIX entries using jq, keeping only entries for languages with path changes.
           FILTERED=$(echo "$ALL_MATRIX" | jq -c --arg actions "$ACTIONS_CHANGED" \
                                                --arg go "$GO_CHANGED" \
                                                --arg java "$JAVA_CHANGED" \
