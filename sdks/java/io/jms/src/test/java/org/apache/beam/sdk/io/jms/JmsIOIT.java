@@ -146,7 +146,7 @@ public class JmsIOIT implements Serializable {
   @Rule public transient TestPipeline pipelineWrite = TestPipeline.create();
   @Rule public transient TestPipeline pipelineRead = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}")
+  @Parameterized.Parameters(name = "with client class {2}")
   public static Collection<Object[]> connectionFactories() {
     return ImmutableList.of(
         new Object[] {"vm://localhost", "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class},
@@ -304,9 +304,9 @@ public class JmsIOIT implements Serializable {
     JmsIO.Read<String> jmsIORead =
         JmsIO.<String>readMessage()
             .withAcknowledgeMode(acknowledgeMode)
-            // Decrease withCloseTimeout to be smaller than pipeline runtime. Direct runner randomly
+            // Decrease withCloseTimeout to be smaller than pipeline timeout. Direct runner randomly
             // closes reader causing cached pending consumer hanging until closeTimeout
-            .withCloseTimeout(Duration.standardSeconds(5));
+            .withCloseTimeout(Duration.standardSeconds(10));
     if (pipelineRead.getOptions().as(JmsIOITOptions.class).getUseConnectionFactoryProviderFn()) {
       jmsIORead =
           jmsIORead.withConnectionFactoryProviderFn(

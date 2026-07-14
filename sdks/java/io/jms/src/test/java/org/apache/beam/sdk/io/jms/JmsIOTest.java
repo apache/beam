@@ -152,7 +152,7 @@ public class JmsIOTest {
       RetryConfiguration.create(1, Duration.standardSeconds(1), null);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}")
+  @Parameterized.Parameters(name = "with client class {2}")
   public static Collection<Object[]> connectionFactories() {
     return Arrays.asList(
         new Object[] {"vm://localhost", "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class},
