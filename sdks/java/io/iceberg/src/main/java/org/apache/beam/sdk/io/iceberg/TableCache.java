@@ -55,7 +55,7 @@ public class TableCache {
 
   /** Returns the cached table for a string identifier, loading it on a cache miss. */
   public static Table get(IcebergCatalogConfig catalogConfig, String identifier) {
-    return get(catalogConfig, TableIdentifier.parse(identifier));
+    return get(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
   }
 
   /** Returns the cached table, using the given loader only on a cache miss. */
@@ -75,11 +75,11 @@ public class TableCache {
 
   /** Returns the cached table for a string identifier after refreshing any pre-existing entry. */
   public static Table getRefreshed(IcebergCatalogConfig catalogConfig, String identifier) {
-    return getRefreshed(catalogConfig, TableIdentifier.parse(identifier));
+    return getRefreshed(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
   }
 
   public static Table getAndRefreshIfStale(IcebergCatalogConfig catalogConfig, String identifier) {
-    return getAndRefreshIfStale(catalogConfig, TableIdentifier.parse(identifier));
+    return getAndRefreshIfStale(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
   }
 
   /**
