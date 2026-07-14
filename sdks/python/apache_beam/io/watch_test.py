@@ -21,20 +21,24 @@ import collections
 import unittest
 
 import apache_beam as beam
+from apache_beam.coders.coders import Coder
 from apache_beam.coders.coders import StrUtf8Coder
+from apache_beam.io.watch import PollFn
 from apache_beam.io.watch import PollResult
 from apache_beam.io.watch import Watch
 from apache_beam.io.watch import _GrowthRestrictionTracker
 from apache_beam.io.watch import _GrowthStateCoder
+from apache_beam.io.watch import _never_seen_before
 from apache_beam.io.watch import _NonPollingGrowthState
-from apache_beam.io.watch import _plan_poll_round
 from apache_beam.io.watch import _PollingGrowthState
-from apache_beam.io.watch import _replay_plan
+from apache_beam.io.watch import _WatchGrowthDoFn
 from apache_beam.io.watch import after_total_of
 from apache_beam.io.watch import never
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
 from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
+from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
@@ -52,14 +56,17 @@ def _ts(value, timestamp):
   return TimestampedValue(value, Timestamp(timestamp))
 
 
-def _plan(restriction, poll_fn, now=0.0, termination=None):
-  termination = termination or never()
-  return _plan_poll_round(
-      restriction,
-      poll_fn('input'),
-      termination,
-      StrUtf8Coder(),
-      Timestamp.of(now))
+def _identity(output):
+  return output
+
+
+def _new_results(restriction, result, key_fn=None):
+  return _never_seen_before(
+      restriction, result, key_fn or _identity, StrUtf8Coder())
+
+
+def _tracker(restriction):
+  return _GrowthRestrictionTracker(restriction, _identity, StrUtf8Coder())
 
 
 def _initial_polling(termination=None, now=Timestamp(0)):
@@ -94,120 +101,131 @@ class GrowthStateCoderTest(unittest.TestCase):
                      [(o.value, o.timestamp) for o in decoded.pending.outputs])
 
 
+class NeverSeenBeforeTest(unittest.TestCase):
+  def test_dedups_and_sorts_by_timestamp(self):
+    result = PollResult.incomplete([_ts('b', 2), _ts('a', 1), _ts('a', 1)])
+    new_results = _new_results(_initial_polling(), result)
+    self.assertEqual(['a', 'b'], [o.value for o in new_results.outputs])
+
+  def test_dedups_against_completed_keys(self):
+    state = _initial_polling()
+    first = _new_results(
+        state, PollResult.incomplete([_ts('a', 1), _ts('b', 2)]))
+    tracker = _tracker(state)
+    self.assertTrue(tracker.try_claim((first, 0)))
+    _, residual = tracker.try_split(0)
+    second = _new_results(
+        residual, PollResult.incomplete([_ts('a', 1), _ts('c', 3)]))
+    self.assertEqual(['c'], [o.value for o in second.outputs])
+
+  def test_output_key_dedups_by_derived_key(self):
+    result = PollResult.incomplete([_ts('a1', 1), _ts('a2', 2), _ts('b1', 3)])
+    # The key is the first character, so 'a1' and 'a2' collapse to one output.
+    new_results = _new_results(
+        _initial_polling(), result, key_fn=lambda output: output[0])
+    self.assertEqual(['a1', 'b1'], [o.value for o in new_results.outputs])
+
+  def test_preserves_explicit_watermark(self):
+    result = PollResult.incomplete([_ts('c', 3)]).with_watermark(5)
+    new_results = _new_results(_initial_polling(), result)
+    self.assertEqual(Timestamp(5), new_results.watermark)
+
+
 class GrowthTrackerTest(unittest.TestCase):
-  def test_poll_claims_dedups_and_checkpoints(self):
-    def poll(unused_element):
-      return PollResult.incomplete([_ts('a', 1), _ts('a', 1), _ts('b', 2)])
-
-    plan = _plan(_initial_polling(), poll)
-    self.assertEqual(['a', 'b'], [o.value for o in plan.emit])
-    self.assertFalse(plan.stop)
-    self.assertEqual(Timestamp(1), plan.watermark)
-    self.assertIsInstance(plan.primary, _NonPollingGrowthState)
-    self.assertIsInstance(plan.residual, _PollingGrowthState)
-    self.assertEqual(2, len(plan.residual.completed))
-
-    tracker = _GrowthRestrictionTracker(_initial_polling())
+  def test_claim_then_split_builds_replay_primary_and_merged_residual(self):
+    state = _initial_polling()
+    new_results = _new_results(
+        state, PollResult.incomplete([_ts('a', 1), _ts('b', 2)]))
+    tracker = _tracker(state)
     self.assertFalse(tracker.is_bounded())
-    self.assertTrue(tracker.try_claim(plan))
+    self.assertTrue(tracker.try_claim((new_results, 0)))
     primary, residual = tracker.try_split(0)
-    self.assertIs(plan.primary, primary)
-    self.assertIs(plan.residual, residual)
+    self.assertIsInstance(primary, _NonPollingGrowthState)
+    self.assertEqual(new_results, primary.pending)
+    self.assertIsInstance(residual, _PollingGrowthState)
+    self.assertEqual(2, len(residual.completed))
+    self.assertEqual(0, residual.termination_state)
     self.assertTrue(tracker.check_done())
 
-    def explicit_watermark_poll(unused_element):
-      return PollResult.incomplete([_ts('c', 3)]).with_watermark(5)
+  def test_split_merges_explicit_watermark_into_residual(self):
+    state = _initial_polling()
+    result = PollResult.incomplete([_ts('c', 3)]).with_watermark(5)
+    tracker = _tracker(state)
+    self.assertTrue(tracker.try_claim((_new_results(state, result), 0)))
+    _, residual = tracker.try_split(0)
+    self.assertEqual(Timestamp(5), residual.poll_watermark)
 
-    plan = _plan(_initial_polling(), explicit_watermark_poll)
-    self.assertEqual(Timestamp(5), plan.watermark)
-    self.assertEqual(Timestamp(5), plan.residual.poll_watermark)
+  def test_second_claim_is_rejected(self):
+    state = _initial_polling()
+    new_results = _new_results(state, PollResult.incomplete([_ts('a', 1)]))
+    tracker = _tracker(state)
+    self.assertTrue(tracker.try_claim((new_results, 0)))
+    self.assertFalse(tracker.try_claim((new_results, 0)))
 
-  def test_second_round_repolls_and_dedups_against_completed(self):
-    polls = []
+  def test_claim_rejects_already_completed_keys(self):
+    # The tracker re-validates a claim, so a poll round that was not deduped
+    # against the restriction is rejected instead of emitting duplicates.
+    state = _initial_polling()
+    first = _new_results(state, PollResult.incomplete([_ts('a', 1)]))
+    tracker = _tracker(state)
+    self.assertTrue(tracker.try_claim((first, 0)))
+    _, residual = tracker.try_split(0)
+    stale = PollResult.incomplete([_ts('a', 1)])
+    self.assertFalse(_tracker(residual).try_claim((stale, 0)))
 
-    def poll(unused_element):
-      polls.append(len(polls))
-      if len(polls) == 1:
-        return PollResult.incomplete([_ts('a', 1), _ts('b', 2)])
-      return PollResult.incomplete([_ts('a', 1), _ts('c', 3)])
-
-    first = _plan(_initial_polling(), poll)
-    resumed = _plan(first.residual, poll)
-    self.assertEqual(2, len(polls))
-    self.assertEqual(['c'], [o.value for o in resumed.emit])
-
-  def test_termination_condition_sets_stop(self):
-    def poll(unused_element):
-      return PollResult.incomplete([_ts('a', 1)])
-
-    termination = after_total_of(10)
-    for now, expected_stop in [(10.0, False), (11.0, True)]:
-      with self.subTest(now=now):
-        plan = _plan(
-            _initial_polling(termination, Timestamp(0)),
-            poll,
-            now=now,
-            termination=termination)
-        self.assertEqual(expected_stop, plan.stop)
-
-  def test_non_polling_replays(self):
-    pending = PollResult((_ts('a', 1), _ts('b', 2)), MAX_TIMESTAMP)
-    restriction = _NonPollingGrowthState(pending)
-    plan = _replay_plan(restriction)
-    self.assertEqual(['a', 'b'], [o.value for o in plan.emit])
-    self.assertTrue(plan.stop)
-
-    tracker = _GrowthRestrictionTracker(restriction)
-    self.assertTrue(tracker.is_bounded())
-    self.assertTrue(tracker.try_claim(plan))
-    # A checkpoint after replay resumes an empty state that emits nothing.
+  def test_split_before_claim_moves_all_work_to_residual(self):
+    state = _initial_polling()
+    tracker = _tracker(state)
     primary, residual = tracker.try_split(0)
-    self.assertIs(restriction, primary)
+    self.assertIs(state, residual)
+    self.assertIsInstance(primary, _NonPollingGrowthState)
+    self.assertEqual((), primary.pending.outputs)
+    new_results = _new_results(state, PollResult.incomplete([_ts('a', 1)]))
+    self.assertFalse(tracker.try_claim((new_results, 0)))
+    self.assertTrue(tracker.check_done())
+
+  def test_non_polling_replays_exactly_the_pending_outputs(self):
+    pending = PollResult((_ts('a', 1), _ts('b', 2)), MAX_TIMESTAMP)
+    tracker = _tracker(_NonPollingGrowthState(pending))
+    self.assertTrue(tracker.is_bounded())
+    # A replay must claim the pending poll result exactly.
+    partial = PollResult((_ts('a', 1), ), None)
+    self.assertFalse(tracker.try_claim((partial, None)))
+    self.assertTrue(tracker.try_claim((pending, None)))
+    # A checkpoint after the replay leaves no residual work.
+    _, residual = tracker.try_split(0)
     self.assertEqual((), residual.pending.outputs)
     self.assertTrue(tracker.check_done())
 
-  def test_terminal_split_residual_is_empty_for_all_stop_causes(self):
-    termination = after_total_of(Duration(10))
-    cases = [
-        (
-            'reached_max',
-            never(),
-            _initial_polling(), lambda element: PollResult(
-                (TimestampedValue('a', MAX_TIMESTAMP), ), None),
-            0.0),
-        (
-            'complete',
-            never(),
-            _initial_polling(),
-            lambda element: PollResult.complete([_ts('a', 1)]),
-            0.0),
-        (
-            'after_total_of',
-            termination,
-            _initial_polling(termination, Timestamp(0)),
-            lambda element: PollResult.incomplete([_ts('a', 1)]),
-            100.0),
-    ]
-    for name, condition, restriction, poll_fn, now in cases:
-      with self.subTest(name=name):
-        plan = _plan(restriction, poll_fn, now=now, termination=condition)
-        self.assertTrue(plan.stop)
-        self.assertIsInstance(plan.residual, _NonPollingGrowthState)
-        self.assertEqual((), plan.residual.pending.outputs)
+  def test_check_done_raises_without_claim_or_split(self):
+    tracker = _tracker(_initial_polling())
+    with self.assertRaises(ValueError):
+      tracker.check_done()
 
   def test_wrapper_chain_defers_merged_residual(self):
-    def poll(unused_element):
-      return PollResult.incomplete([_ts('a', 1), _ts('b', 2)])
-
-    plan = _plan(_initial_polling(), poll)
-    threadsafe = ThreadsafeRestrictionTracker(
-        _GrowthRestrictionTracker(_initial_polling()))
+    state = _initial_polling()
+    new_results = _new_results(
+        state, PollResult.incomplete([_ts('a', 1), _ts('b', 2)]))
+    threadsafe = ThreadsafeRestrictionTracker(_tracker(state))
     view = RestrictionTrackerView(threadsafe)
-    self.assertTrue(view.try_claim(plan))
+    self.assertTrue(view.try_claim((new_results, 0)))
     view.defer_remainder(Duration(5))
     residual, _ = threadsafe.deferred_status()
     self.assertIsInstance(residual, _PollingGrowthState)
     self.assertEqual(2, len(residual.completed))
+
+
+class TerminationConditionTest(unittest.TestCase):
+  def test_never_does_not_stop(self):
+    termination = never()
+    state = termination.for_new_input(Timestamp(0), 'input')
+    self.assertFalse(termination.can_stop_polling(MAX_TIMESTAMP, state))
+
+  def test_after_total_of_stops_once_duration_elapsed(self):
+    termination = after_total_of(10)
+    state = termination.for_new_input(Timestamp(0), 'input')
+    self.assertFalse(termination.can_stop_polling(Timestamp(10), state))
+    self.assertTrue(termination.can_stop_polling(Timestamp(11), state))
 
 
 # Module-level so the poll function pickles by reference; the call counter is
@@ -216,6 +234,7 @@ _POLL_CALLS = collections.defaultdict(int)
 
 
 def _growing_poll(prefix):
+  # Unannotated on purpose: dedup must hold on the inferred fallback coder.
   _POLL_CALLS[prefix] += 1
   count = _POLL_CALLS[prefix]
   outputs = [_ts('%s%d' % (prefix, i), i + 1) for i in range(count)]
@@ -224,12 +243,82 @@ def _growing_poll(prefix):
   return PollResult.incomplete(outputs)
 
 
-def _complete_poll(prefix):
+def _complete_poll(prefix) -> PollResult[str]:
   return PollResult.complete([_ts(prefix + 'a', 1), _ts(prefix + 'b', 2)])
+
+
+def _first_char(output):
+  return output[0]
+
+
+def _empty_poll(unused_element):
+  return PollResult.incomplete([])
+
+
+def _keyed_poll(prefix):
+  # 'a1' and 'a2' share the dedup key 'a', so only 'a1' is emitted.
+  return PollResult.complete([_ts('a1', 1), _ts('a2', 2), _ts('b1', 3)])
+
+
+class _StrCoderPollFn(PollFn):
+  def __call__(self, element):
+    return PollResult.complete([_ts(element + 'a', 1)])
+
+  def default_output_coder(self):
+    return StrUtf8Coder()
+
+
+class _NoDeterministicFormCoder(Coder):
+  def encode(self, value):
+    return b''
+
+  def decode(self, encoded):
+    return None
+
+  def is_deterministic(self):
+    return False
 
 
 def _windowed_group(kv, window=beam.DoFn.WindowParam):
   return ((window.start, window.end), sorted(kv[1]))
+
+
+class WatchDoFnProcessTest(unittest.TestCase):
+  def _process(self, poll_fn, element, timestamp):
+    dofn = _WatchGrowthDoFn(
+        poll_fn,
+        never(),
+        Duration(1),
+        StrUtf8Coder(),
+        _identity,
+        StrUtf8Coder())
+    threadsafe = ThreadsafeRestrictionTracker(
+        dofn.create_tracker(dofn.initial_restriction(element)))
+    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
+    outputs = list(
+        dofn.process(
+            element,
+            timestamp=timestamp,
+            tracker=RestrictionTrackerView(threadsafe),
+            watermark_estimator=estimator))
+    return outputs, threadsafe, estimator
+
+  def test_empty_round_holds_watermark_at_input_timestamp(self):
+    outputs, threadsafe, estimator = self._process(
+        _empty_poll, 'in', Timestamp(7))
+    self.assertEqual([], outputs)
+    # The estimator is seeded from the input timestamp, so the deferred
+    # residual holds the watermark there instead of at MIN_TIMESTAMP.
+    self.assertEqual(Timestamp(7), estimator.current_watermark())
+    residual, _ = threadsafe.deferred_status()
+    self.assertIsInstance(residual, _PollingGrowthState)
+
+  def test_complete_round_stops_without_residual(self):
+    outputs, threadsafe, _ = self._process(_complete_poll, 'k:', Timestamp(0))
+    self.assertEqual([('k:', 'k:a'), ('k:', 'k:b')],
+                     [value.value for value in outputs])
+    self.assertIsNone(threadsafe.deferred_status())
+    self.assertTrue(threadsafe.check_done())
 
 
 class WatchEndToEndTest(unittest.TestCase):
@@ -241,8 +330,7 @@ class WatchEndToEndTest(unittest.TestCase):
     with self._in_memory_pipeline() as p:
       output = (
           p | beam.Create(['k:'])
-          | Watch.growth_of(_complete_poll).with_poll_interval(
-              Duration(1)).with_output_coder(StrUtf8Coder()))
+          | Watch(_complete_poll, poll_interval=Duration(1)))
       assert_that(
           output,
           equal_to([
@@ -255,8 +343,7 @@ class WatchEndToEndTest(unittest.TestCase):
     with self._in_memory_pipeline() as p:
       output = (
           p | beam.Create(['k:'])
-          | Watch.growth_of(_complete_poll).with_poll_interval(
-              Duration(1)).with_output_coder(StrUtf8Coder()))
+          | Watch(_complete_poll, poll_interval=Duration(1)))
       grouped = (
           output
           | beam.WindowInto(FixedWindows(10))
@@ -274,8 +361,7 @@ class WatchEndToEndTest(unittest.TestCase):
     with self._in_memory_pipeline() as p:
       output = (
           p | beam.Create(['x:', 'y:'])
-          | Watch.growth_of(_growing_poll).with_poll_interval(
-              Duration(0.05)).with_output_coder(StrUtf8Coder()))
+          | Watch(_growing_poll, poll_interval=Duration(0.05)))
       assert_that(
           output,
           equal_to([('x:', 'x:0'), ('x:', 'x:1'), ('x:', 'x:2'), ('y:', 'y:0'),
@@ -283,23 +369,39 @@ class WatchEndToEndTest(unittest.TestCase):
     self.assertEqual(3, _POLL_CALLS['x:'])
     self.assertEqual(3, _POLL_CALLS['y:'])
 
-  def test_rejects_non_deterministic_output_coder(self):
-    # No output coder resolves to PickleCoder, which is non-deterministic, so
-    # dedup could re-emit equal outputs. Expansion must reject it.
+  def test_output_key_dedups_across_pipeline(self):
+    with self._in_memory_pipeline() as p:
+      output = (
+          p | beam.Create(['k'])
+          | Watch(
+              _keyed_poll, poll_interval=Duration(1),
+              output_key_fn=_first_char))
+      assert_that(output, equal_to([('k', 'a1'), ('k', 'b1')]))
+
+  def test_rejects_key_coder_without_deterministic_form(self):
     with self.assertRaises(ValueError):
       with self._in_memory_pipeline() as p:
         _ = (
             p | beam.Create(['k:'])
-            | Watch.growth_of(_complete_poll).with_poll_interval(Duration(1)))
+            | Watch(
+                _complete_poll,
+                poll_interval=Duration(1),
+                output_key_coder=_NoDeterministicFormCoder()))
 
-  def test_derives_output_type_from_input_and_coder(self):
-    # expand() types the (input, output) pairs from the input type and the
-    # resolved coder, so downstream stays typed without a manual hint.
+  def test_infers_output_coder_from_return_annotation(self):
+    # _complete_poll is annotated ``-> PollResult[str]``, so the output coder
+    # and with it the (input, output) element type are inferred without hints.
     with self._in_memory_pipeline() as p:
       output = (
           p | beam.Create(['k:'])
-          | Watch.growth_of(_complete_poll).with_poll_interval(
-              Duration(1)).with_output_coder(StrUtf8Coder()))
+          | Watch(_complete_poll, poll_interval=Duration(1)))
+      self.assertEqual(typehints.Tuple[str, str], output.element_type)
+
+  def test_uses_poll_fn_default_output_coder(self):
+    with self._in_memory_pipeline() as p:
+      output = (
+          p | beam.Create(['k:'])
+          | Watch(_StrCoderPollFn(), poll_interval=Duration(1)))
       self.assertEqual(typehints.Tuple[str, str], output.element_type)
 
 

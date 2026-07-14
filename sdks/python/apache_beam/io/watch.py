@@ -28,9 +28,11 @@ For every input element the transform runs an independent loop::
     update watermark -> check termination -> wait(poll_interval) -> poll -> ...
 
 The output is an unbounded ``PCollection`` of ``(input, output)`` pairs. Each
-output carries the event time the poll function first reported it. Dedup uses a
-stable 128-bit hash of the encoded output, so the output coder must be
-deterministic for dedup to hold across workers and restarts.
+output carries the event time the poll function first reported it. Dedup
+hashes each output's key: the output itself by default, or
+``output_key_fn(output)`` when one is given. The key coder is inferred when
+not passed explicitly and converted to its deterministic form, so equal keys
+hash equally across workers and restarts.
 
 Example::
 
@@ -38,15 +40,15 @@ Example::
     from apache_beam.transforms.window import TimestampedValue
     from apache_beam.utils.timestamp import Duration, Timestamp
 
-    def poll(prefix):
+    def poll(prefix) -> PollResult[str]:
       now = Timestamp.now()
       outputs = [TimestampedValue(prefix + str(i), now) for i in range(3)]
       return PollResult.complete(outputs)
 
-    watched = (inputs
-               | Watch.growth_of(poll)
-                      .with_poll_interval(Duration(seconds=5))
-                      .with_termination_per_input(after_total_of(60)))
+    watched = inputs | Watch(
+        poll,
+        poll_interval=Duration(seconds=5),
+        termination=after_total_of(60))
 
 This API is experimental and may change in backwards-incompatible ways.
 """
@@ -54,13 +56,16 @@ This API is experimental and may change in backwards-incompatible ways.
 import collections
 import dataclasses
 import hashlib
+import inspect
 import time
+import typing
 from typing import Any
 from typing import Callable
+from typing import Generic
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 
 from apache_beam import coders
 from apache_beam.coders.coders import Coder
@@ -88,18 +93,23 @@ __all__ = [
 
 _HASH_DIGEST_SIZE = 16  # 128-bit digest width.
 
+OutputT = TypeVar('OutputT')
+
 # ------------------------------------------------------------------------------
 # Public API.
 # ------------------------------------------------------------------------------
 
 
 @dataclasses.dataclass(frozen=True)
-class PollResult:
+class PollResult(Generic[OutputT]):
   """Outputs produced by one poll, plus an optional explicit watermark.
 
   ``watermark`` of ``None`` lets the transform infer the watermark from the
   earliest new output. A watermark of ``MAX_TIMESTAMP`` (set by
   :meth:`complete`) marks the input finished, so polling stops.
+
+  The ``OutputT`` type parameter can annotate a poll function's return type,
+  as in ``-> PollResult[str]``; the transform infers the output coder from it.
   """
   outputs: Tuple[TimestampedValue, ...]
   watermark: Optional[Timestamp] = None
@@ -149,8 +159,7 @@ class PollFn(object):
   """Optional base for a poll function ``input -> PollResult``.
 
   Any callable with that signature works; subclass only to attach an output
-  coder hint via :meth:`default_output_coder`. The hint is used for dedup and
-  must be deterministic::
+  coder hint via :meth:`default_output_coder`::
 
       from apache_beam import coders
 
@@ -160,6 +169,9 @@ class PollFn(object):
 
         def default_output_coder(self):
           return coders.StrUtf8Coder()
+
+  A plain function can instead annotate its return type as ``PollResult[V]``
+  and have the output coder inferred from ``V``.
   """
   def __call__(self, element: Any) -> PollResult:
     raise NotImplementedError
@@ -244,9 +256,9 @@ class _GrowthState:
 class _PollingGrowthState(_GrowthState):
   """Keep-polling state: emitted-output hashes, watermark, termination state.
 
-  ``completed`` maps a 16-byte output hash to the event time it was first seen.
-  It is insertion-ordered and treated as immutable; a new mapping is built for
-  each residual.
+  ``completed`` maps a 16-byte output-key hash to the event time it was first
+  seen. It is insertion-ordered and treated as immutable; a new mapping is
+  built for each residual.
   """
   completed: 'collections.OrderedDict[bytes, Timestamp]'
   poll_watermark: Optional[Timestamp]
@@ -262,6 +274,9 @@ class _NonPollingGrowthState(_GrowthState):
   """
   pending: PollResult
 
+
+# Primary used when a checkpoint arrives before any claim; replays nothing.
+_EMPTY_STATE = _NonPollingGrowthState(PollResult((), None))
 
 # ------------------------------------------------------------------------------
 # Coders.
@@ -344,19 +359,8 @@ class _GrowthStateCoder(Coder):
 # ------------------------------------------------------------------------------
 
 
-@dataclasses.dataclass(frozen=True)
-class _PollPlan:
-  """One planned poll round: what to emit plus the self-checkpoint split.
-
-  ``process()`` builds this from a poll result before claiming, so the poll runs
-  outside the tracker lock. ``primary`` is the round just processed and
-  ``residual`` is the work a checkpoint resumes.
-  """
-  emit: Tuple[TimestampedValue, ...]
-  watermark: Optional[Timestamp]
-  stop: bool
-  primary: _GrowthState
-  residual: _GrowthState
+def _identity(value: Any) -> Any:
+  return value
 
 
 def _hash_output(key_coder: Coder, value: Any) -> bytes:
@@ -373,117 +377,110 @@ def _max_watermark(left: Optional[Timestamp],
   return max(left, right)
 
 
-def _plan_poll_round(
+def _never_seen_before(
     restriction: _PollingGrowthState,
     result: PollResult,
-    termination: TerminationCondition,
-    key_coder: Coder,
-    now: Timestamp) -> _PollPlan:
-  """Dedups a poll result into new outputs and builds the checkpoint split.
+    key_fn: Callable[[Any], Any],
+    key_coder: Coder) -> PollResult:
+  """Filters a poll result down to outputs whose key was never seen before.
 
-  Pure and side-effect free, so ``process()`` can call it after the poll and
-  before claiming, keeping the poll off the tracker lock.
+  Dedup hashes ``key_fn(output.value)`` against the restriction's completed
+  set, also dropping in-round duplicates. Outputs are sorted by timestamp so
+  the earliest one can serve as the inferred watermark.
   """
-  new_outputs = []  # type: List[TimestampedValue]
-  claimed = []  # type: List[Tuple[bytes, Timestamp]]
-  seen_this_round = set()  # type: set
+  new_outputs = []
+  seen_this_round = set()
   for output in result.outputs:
-    key_hash = _hash_output(key_coder, output.value)
+    key_hash = _hash_output(key_coder, key_fn(output.value))
     if key_hash in restriction.completed or key_hash in seen_this_round:
       continue
     seen_this_round.add(key_hash)
     new_outputs.append(output)
-    claimed.append((key_hash, output.timestamp))
   new_outputs.sort(key=lambda output: output.timestamp)
-
-  termination_state = restriction.termination_state
-  if new_outputs:
-    termination_state = termination.on_seen_new_output(now, termination_state)
-  termination_state = termination.on_poll_complete(termination_state)
-
-  if result.watermark is not None:
-    watermark = result.watermark
-  elif new_outputs:
-    watermark = new_outputs[0].timestamp
-  else:
-    watermark = None
-
-  # A watermark at MAX means no more output is possible, so polling stops.
-  reached_max = watermark is not None and watermark >= MAX_TIMESTAMP
-  stop = (
-      result.is_complete or reached_max or
-      termination.can_stop_polling(now, termination_state))
-
-  primary = _NonPollingGrowthState(PollResult(tuple(new_outputs), watermark))
-  if stop:
-    # Terminal round: no polling work remains, so a checkpoint (runner-initiated
-    # or via defer_remainder) resumes a state that emits nothing.
-    residual = _NonPollingGrowthState(PollResult((), watermark))
-  else:
-    merged = collections.OrderedDict(restriction.completed)
-    for key_hash, first_seen in claimed:
-      merged[key_hash] = first_seen
-    residual_watermark = _max_watermark(restriction.poll_watermark, watermark)
-    residual = _PollingGrowthState(
-        merged, residual_watermark, termination_state)
-  return _PollPlan(tuple(new_outputs), watermark, stop, primary, residual)
-
-
-def _replay_plan(restriction: _NonPollingGrowthState) -> _PollPlan:
-  """Plans a replay of the outputs already emitted this round, then stops."""
-  resumed = _NonPollingGrowthState(
-      PollResult((), restriction.pending.watermark))
-  return _PollPlan(
-      restriction.pending.outputs, None, True, restriction, resumed)
+  return dataclasses.replace(result, outputs=tuple(new_outputs))
 
 
 class _GrowthRestrictionTracker(iobase.RestrictionTracker):
-  """Tracks one input's polling restriction and its self-checkpoints.
+  """Tracks one input's polling restriction over claimed poll rounds.
 
-  ``process()`` runs the poll and plans the round with
-  :func:`_plan_poll_round`, then claims the plan; the tracker only records the
-  plan's primary and residual so a checkpoint (via ``defer_remainder`` or the
-  runner) resumes correctly. Keeping the poll in ``process()`` means a slow
-  poll never holds the tracker lock, so it cannot delay runner progress checks
-  or checkpoints.
+  The claimed position is one poll round: a ``(PollResult, termination_state)``
+  pair whose ``PollResult`` holds only never-seen-before outputs. ``process()``
+  polls and dedups before claiming, so a slow poll never holds the tracker
+  lock; the tracker validates each claim against the restriction and derives
+  the checkpoint split from the claimed round in :meth:`try_split`.
   """
-  def __init__(self, restriction: _GrowthState):
+  def __init__(
+      self,
+      restriction: _GrowthState,
+      key_fn: Callable[[Any], Any],
+      key_coder: Coder):
     self._restriction = restriction
+    self._key_fn = key_fn
+    self._key_coder = key_coder
+    self._claimed_result = None  # type: Optional[PollResult]
+    self._claimed_termination_state = None  # type: Any
+    self._claimed_hashes = None  # type: Optional[collections.OrderedDict]
     self._should_stop = False
-    self._primary = None  # type: Optional[_GrowthState]
-    self._residual = None  # type: Optional[_GrowthState]
+
+  def _hash(self, value: Any) -> bytes:
+    return _hash_output(self._key_coder, self._key_fn(value))
 
   def current_restriction(self) -> _GrowthState:
     return self._restriction
 
-  def try_claim(self, plan: _PollPlan) -> bool:
-    """Records a planned round's checkpoint split; one claim per ``process()``.
+  def try_claim(self, position: Tuple[PollResult, Any]) -> bool:
+    """Claims one poll round; at most one claim succeeds per ``process()``.
 
-    Returns ``False`` only when a checkpoint already stopped this invocation, in
-    which case ``process()`` must emit nothing.
+    The claim is rejected after a checkpoint already stopped this invocation,
+    when a claimed output key was already completed, or when a replay does not
+    match the pending outputs exactly.
     """
     if self._should_stop:
       return False
-    self._primary = plan.primary
-    self._residual = plan.residual
+    result, termination_state = position
+    claimed_hashes = collections.OrderedDict()
+    for output in result.outputs:
+      claimed_hashes[self._hash(output.value)] = output.timestamp
+    if isinstance(self._restriction, _PollingGrowthState):
+      if any(key_hash in self._restriction.completed
+             for key_hash in claimed_hashes):
+        return False
+    else:
+      expected = set(
+          self._hash(output.value)
+          for output in self._restriction.pending.outputs)
+      if expected != set(claimed_hashes):
+        return False
     self._should_stop = True
+    self._claimed_result = result
+    self._claimed_termination_state = termination_state
+    self._claimed_hashes = claimed_hashes
     return True
 
   def try_split(self, fraction_of_remainder):
-    # Only self-checkpoint (fraction 0) is supported; decline dynamic splits.
-    if fraction_of_remainder != 0:
-      return None
-    if self._primary is None:
-      # No claim happened this invocation: keep the whole state as the residual.
-      primary = _NonPollingGrowthState(PollResult((), None))
+    # Every split checkpoints at the claimed poll round; splitting a round
+    # further is not supported.
+    if self._claimed_result is None:
+      # No claim happened this invocation: the residual is all the work and
+      # the primary replays nothing.
       residual = self._restriction
-      self._restriction = primary
-      self._should_stop = True
-      return primary, residual
-    primary, residual = self._primary, self._residual
-    self._restriction = primary
+      self._restriction = _EMPTY_STATE
+    elif isinstance(self._restriction, _NonPollingGrowthState):
+      # The claimed replay was the entire restriction, so nothing remains.
+      residual = _EMPTY_STATE
+    else:
+      # The primary becomes a replay of the claimed round; the residual
+      # resumes polling with the claimed keys marked completed.
+      merged = collections.OrderedDict(self._restriction.completed)
+      merged.update(self._claimed_hashes)
+      residual = _PollingGrowthState(
+          merged,
+          _max_watermark(
+              self._restriction.poll_watermark, self._claimed_result.watermark),
+          self._claimed_termination_state)
+      self._restriction = _NonPollingGrowthState(self._claimed_result)
     self._should_stop = True
-    return primary, residual
+    return self._restriction, residual
 
   def check_done(self) -> bool:
     # Called after every process(); the single claim or a split sets the flag.
@@ -523,12 +520,15 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       termination: TerminationCondition,
       poll_interval: Duration,
       output_coder: Coder,
+      key_fn: Callable[[Any], Any],
+      key_coder: Coder,
       now_fn: Optional[Callable[[], float]] = None):
     self._poll_fn = poll_fn
     self._termination = termination
     self._poll_interval = poll_interval
     self._output_coder = output_coder
-    self._key_coder = output_coder
+    self._key_fn = key_fn
+    self._key_coder = key_coder
     self._now = now_fn or time.time
     self._restriction_coder = _GrowthStateCoder(output_coder, termination)
 
@@ -540,23 +540,13 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
         self._termination.for_new_input(now, element))
 
   def create_tracker(self, restriction) -> _GrowthRestrictionTracker:
-    return _GrowthRestrictionTracker(restriction)
-
-  def split(self, element, restriction):
-    # Watch fans out by input element, so each restriction stays whole.
-    yield restriction
+    return _GrowthRestrictionTracker(restriction, self._key_fn, self._key_coder)
 
   def restriction_coder(self) -> Coder:
     return self._restriction_coder
 
   def restriction_size(self, element, restriction) -> int:
     return 1
-
-  def truncate(self, element, restriction):
-    # On drain, replay a pending NonPolling state and stop further polling.
-    if isinstance(restriction, _NonPollingGrowthState):
-      return restriction
-    return None
 
   @core.DoFn.unbounded_per_element()
   def process(
@@ -567,34 +557,50 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       watermark_estimator=core.DoFn.WatermarkEstimatorParam(
           ManualWatermarkEstimator.default_provider())):
     assert isinstance(tracker, sdf_utils.RestrictionTrackerView)
+    # Java seeds the manual estimator with the element timestamp; the Python
+    # default provider starts at None, which a runner reads as MIN_TIMESTAMP
+    # and would pin the stage's output watermark until the first output.
+    if watermark_estimator.current_watermark() is None:
+      watermark_estimator.set_watermark(timestamp)
     restriction = tracker.current_restriction()
     if isinstance(restriction, _NonPollingGrowthState):
       # Replay the outputs already emitted this round, then stop. No poll.
-      if not tracker.try_claim(_replay_plan(restriction)):
+      if not tracker.try_claim((restriction.pending, None)):
         return
-      _set_watermark_if_greater(watermark_estimator, timestamp)
       for output in restriction.pending.outputs:
         yield TimestampedValue((element, output.value), output.timestamp)
       return
     # Poll before claiming so a slow poll never holds the tracker lock, which
     # would block runner progress checks and checkpoints.
-    now = Timestamp.of(self._now())
     result = self._poll_fn(element)
-    plan = _plan_poll_round(
-        restriction, result, self._termination, self._key_coder, now)
-    if not tracker.try_claim(plan):
+    # Read the clock after the poll so a slow poll counts against termination.
+    now = Timestamp.of(self._now())
+    new_results = _never_seen_before(
+        restriction, result, self._key_fn, self._key_coder)
+    termination_state = restriction.termination_state
+    if new_results.outputs:
+      termination_state = self._termination.on_seen_new_output(
+          now, termination_state)
+    termination_state = self._termination.on_poll_complete(termination_state)
+    if not tracker.try_claim((new_results, termination_state)):
       # A checkpoint already stopped this invocation; emit nothing.
       return
-    # Seed the watermark hold from the input event time after the claim.
-    _set_watermark_if_greater(watermark_estimator, timestamp)
-    for output in plan.emit:
+    for output in new_results.outputs:
       yield TimestampedValue((element, output.value), output.timestamp)
-    if plan.stop:
-      # The input is finished, so release the watermark hold to MAX.
-      _set_watermark_if_greater(watermark_estimator, MAX_TIMESTAMP)
+    if new_results.watermark is not None:
+      watermark = new_results.watermark
+    elif new_results.outputs:
+      # Outputs are timestamp-sorted, so the first one is the earliest.
+      watermark = new_results.outputs[0].timestamp
+    else:
+      watermark = None
+    if self._termination.can_stop_polling(now, termination_state):
       return
-    if plan.watermark is not None:
-      _set_watermark_if_greater(watermark_estimator, plan.watermark)
+    if watermark is not None and watermark >= MAX_TIMESTAMP:
+      # No more output is possible (PollResult.complete), so polling stops.
+      return
+    if watermark is not None:
+      _set_watermark_if_greater(watermark_estimator, watermark)
     tracker.defer_remainder(self._poll_interval)
 
 
@@ -610,66 +616,97 @@ def _set_watermark_if_greater(watermark_estimator, new_watermark) -> None:
 # ------------------------------------------------------------------------------
 
 
+def _return_type(fn) -> Any:
+  """The return type annotation of ``fn`` or its ``__call__``, else ``Any``."""
+  target = fn if inspect.isroutine(fn) else getattr(type(fn), '__call__', None)
+  if target is None:
+    return Any
+  try:
+    hints = typing.get_type_hints(target)
+  except (NameError, TypeError):
+    return Any
+  return hints.get('return', Any)
+
+
+def _poll_output_type(poll_fn) -> Any:
+  """The ``V`` of a ``PollResult[V]`` return annotation on ``poll_fn``.
+
+  This mirrors the Java SDK, which infers the output coder from the
+  ``PollFn``'s ``OutputT`` type parameter. Returns ``Any`` when ``poll_fn``
+  carries no such annotation.
+  """
+  hint = _return_type(poll_fn)
+  if typing.get_origin(hint) is PollResult:
+    args = typing.get_args(hint)
+    if len(args) == 1:
+      return args[0]
+  return Any
+
+
 class Watch(PTransform):
   """Watches a growing set of outputs per input via a periodic poll function.
 
-  Build with :meth:`growth_of` and the ``with_*`` methods. The output is an
-  unbounded ``PCollection`` of ``(input, output)`` pairs.
+  The output is an unbounded ``PCollection`` of ``(input, output)`` pairs.
+
+  Args:
+    poll_fn: callable ``input -> PollResult``, invoked once per poll round.
+    poll_interval: delay between two poll rounds for one input, as a
+      :class:`Duration` or in seconds.
+    termination: per-input stop policy; defaults to :func:`never`.
+    output_coder: coder for the poll outputs, used to keep them in the
+      restriction state. Inferred when omitted: from a :class:`PollFn`'s
+      :meth:`~PollFn.default_output_coder`, else from the registered coder for
+      the ``V`` of a ``PollResult[V]`` return annotation on ``poll_fn``.
+    output_key_fn: derives the dedup key from an output; an output is emitted
+      only when its key was never seen before. Defaults to the output itself.
+    output_key_coder: coder whose encoding of the key is hashed for dedup;
+      inferred like ``output_coder`` when omitted. It is converted with
+      ``as_deterministic_coder`` so equal keys always hash equally; a coder
+      with no deterministic form is rejected.
+    now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(
       self,
       poll_fn: Callable[[Any], PollResult],
+      poll_interval,
       termination: Optional[TerminationCondition] = None,
-      poll_interval: Optional[Duration] = None,
       output_coder: Optional[Coder] = None,
+      output_key_fn: Optional[Callable[[Any], Any]] = None,
+      output_key_coder: Optional[Coder] = None,
       now_fn: Optional[Callable[[], float]] = None):
     super().__init__()
+    if poll_interval is None:
+      raise ValueError('Watch requires a poll_interval')
     self._poll_fn = poll_fn
+    self._poll_interval = _as_duration(poll_interval)
     self._termination = termination or never()
-    self._poll_interval = poll_interval
     self._output_coder = output_coder
+    self._output_key_fn = output_key_fn
+    self._output_key_coder = output_key_coder
     self._now = now_fn
 
-  @classmethod
-  def growth_of(cls, poll_fn: Callable[[Any], PollResult]) -> 'Watch':
-    return cls(poll_fn)
-
-  def _replace(self, **changes) -> 'Watch':
-    spec = dict(
-        poll_fn=self._poll_fn,
-        termination=self._termination,
-        poll_interval=self._poll_interval,
-        output_coder=self._output_coder,
-        now_fn=self._now)
-    spec.update(changes)
-    return Watch(**spec)
-
-  def with_poll_interval(self, poll_interval) -> 'Watch':
-    return self._replace(poll_interval=_as_duration(poll_interval))
-
-  def with_termination_per_input(
-      self, termination: TerminationCondition) -> 'Watch':
-    return self._replace(termination=termination)
-
-  def with_output_coder(self, output_coder: Coder) -> 'Watch':
-    return self._replace(output_coder=output_coder)
-
   def expand(self, pcoll):
-    if self._poll_interval is None:
-      raise ValueError('Watch requires with_poll_interval(...)')
     output_coder = self._output_coder
+    if output_coder is None and isinstance(self._poll_fn, PollFn):
+      output_coder = self._poll_fn.default_output_coder()
     if output_coder is None:
-      hint = self._poll_fn.default_output_coder() if isinstance(
-          self._poll_fn, PollFn) else None
-      output_coder = hint or coders.PickleCoder()
-    # Dedup hashes the encoded output as its key, so a non-deterministic coder
-    # would hash equal outputs differently and re-emit them, defeating the
-    # transform. Require determinism rather than silently emitting duplicates.
-    if not output_coder.is_deterministic():
-      raise ValueError(
-          'Watch dedup requires a deterministic output coder, but %s is not '
-          'deterministic. Pass one via with_output_coder().' %
-          type(output_coder).__name__)
+      output_coder = coders.registry.get_coder(_poll_output_type(self._poll_fn))
+    if self._output_key_fn is None:
+      # The output is its own dedup key, so the key coder is the output coder.
+      key_fn = _identity
+      key_coder = self._output_key_coder or output_coder
+    else:
+      key_fn = self._output_key_fn
+      key_coder = self._output_key_coder or coders.registry.get_coder(
+          _return_type(self._output_key_fn))
+    # Dedup hashes the encoded key, so equal keys must encode equally; use the
+    # coder's deterministic form and reject coders that have none.
+    key_coder = key_coder.as_deterministic_coder(
+        self.label,
+        'Watch dedups by hashing the encoded output key, so the key coder '
+        'must be deterministic. %s has no deterministic form; pass a '
+        'deterministic output_key_coder (or output_coder).' %
+        type(key_coder).__name__)
     # Type the (input, output) pairs from the input type and the resolved
     # coder's type, so downstream transforms are typed and coder inference does
     # not fall back to pickling.
@@ -684,6 +721,8 @@ class Watch(PTransform):
             self._termination,
             self._poll_interval,
             output_coder,
+            key_fn,
+            key_coder,
             self._now)).with_output_types(Tuple[input_type, value_type])
 
 
