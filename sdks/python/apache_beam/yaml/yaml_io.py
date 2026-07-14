@@ -24,6 +24,7 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
+import json
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -42,6 +43,7 @@ from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
 from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
+from apache_beam.io import mongodbio
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
@@ -565,6 +567,29 @@ def read_from_iceberg(
           config_properties=config_properties))
 
 
+def read_from_delta(
+    table: str,
+    version: Optional[int] = None,
+    timestamp: Optional[str] = None,
+    hadoop_config: Optional[Mapping[str, str]] = None,
+):
+  """Reads a Delta Lake table.
+
+  Args:
+    table: Identifier of the Delta Lake table.
+    version: Version of the Delta Lake table to read.
+    timestamp: Timestamp of the Delta Lake table to read.
+    hadoop_config: Hadoop configuration properties.
+  """
+  return beam.managed.Read(
+      "delta",
+      config=dict(
+          table=table,
+          version=version,
+          timestamp=timestamp,
+          hadoop_config=hadoop_config))
+
+
 def write_to_iceberg(
     table: str,
     catalog_name: Optional[str] = None,
@@ -741,26 +766,63 @@ def write_to_tfrecord(
 
 @beam.ptransform_fn
 @yaml_errors.maybe_with_exception_handling_transform_fn
+def read_from_mongodb(
+    root,
+    *,
+    database: str,
+    collection: str,
+    schema: Union[str, dict[str, Any]],
+    uri: Optional[str] = None,
+    filter: Optional[dict[str, Any]] = None):
+  """Reads data from MongoDB.
+
+  The resulting PCollection consists of rows with fields matching the provided
+  schema.
+
+  Args:
+    database: The MongoDB database name.
+    collection: The MongoDB collection name.
+    schema: JSON schema specifying the fields to select and their types.
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    filter: A JSON/bson mapping specifying elements which must be present.
+  """
+  if isinstance(schema, str):
+    schema = json.loads(schema)
+  if isinstance(filter, str):
+    filter = json.loads(filter)
+
+  beam_schema = json_utils.json_schema_to_beam_schema(schema)
+  beam_type = schema_pb2.FieldType(
+      row_type=schema_pb2.RowType(schema=beam_schema))
+  to_row_fn = json_utils.json_to_row(beam_type)
+
+  output = (
+      root
+      | mongodbio.ReadFromMongoDB(
+          uri=uri, db=database, coll=collection, filter=filter)
+      | beam.Map(to_row_fn))
+  output.element_type = schemas.named_tuple_from_schema(beam_schema)
+  return output
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def write_to_mongodb(
     pcoll,
     *,
     database: str,
     collection: str,
-    connection_uri: Optional[str] = None,
-    batch_size: int = 1024,
-    extra_client_params: Optional[Mapping[str, Any]] = None):
+    uri: Optional[str] = None,
+    batch_size: int = 1024):
   """Writes data to MongoDB.
 
   Args:
     pcoll: The input PCollection of Beam Rows.
     database: The MongoDB database name.
     collection: The MongoDB collection name.
-    connection_uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
+    uri: The MongoDB connection string. e.g. "mongodb://localhost:27017"
     batch_size: Number of documents per bulk_write to MongoDB.
-    extra_client_params: Optional MongoClient parameters.
   """
-  from apache_beam.io import mongodbio
-
   def row_to_dict(value):
     if value is None:
       return None
@@ -779,11 +841,7 @@ def write_to_mongodb(
       pcoll
       | beam.Map(row_to_dict)
       | mongodbio.WriteToMongoDB(
-          uri=connection_uri,
-          db=database,
-          coll=collection,
-          batch_size=batch_size,
-          extra_client_params=extra_client_params))
+          uri=uri, db=database, coll=collection, batch_size=batch_size))
 
 
 @beam.ptransform_fn

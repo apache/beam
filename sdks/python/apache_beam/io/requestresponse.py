@@ -358,7 +358,7 @@ class _CallDoFn(beam.DoFn):
     self._metrics_collector.requests.inc(1)
 
     is_throttled_request = False
-    if self._throttler:
+    if self._throttler is not None:
       while self._throttler.throttler.throttle_request(time.time() *
                                                        MSEC_TO_SEC):
         _LOGGER.info(
@@ -375,7 +375,8 @@ class _CallDoFn(beam.DoFn):
       response = self._repeater.repeat(
           self._caller, request, self._timeout, self._metrics_collector)
       self._metrics_collector.responses.inc(1)
-      self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
+      if self._throttler is not None:
+        self._throttler.throttler.successful_request(req_time * MSEC_TO_SEC)
       yield response
     except Exception as e:
       raise e

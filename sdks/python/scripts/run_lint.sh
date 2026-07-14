@@ -57,6 +57,7 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_client.py"
 "apache_beam/io/gcp/internal/clients/storage/storage_v1_messages.py"
 "apache_beam/coders/proto2_coder_test_messages_pb2.py"
+"apache_beam/io/components/rate_limit_pb2.py"
 "apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_client.py"
 "apache_beam/runners/dataflow/internal/clients/cloudbuild/cloudbuild_v1_messages.py"
 "apache_beam/io/aws/clients/s3/boto3_client.py"

@@ -90,6 +90,40 @@
   destinations:
     python: apache_beam/io
   fields:
+  - description: The MongoDB collection to read from.
+    name: collection
+    nullable: false
+    type: str
+  - description: The MongoDB database to read from.
+    name: database
+    nullable: false
+    type: str
+  - description: This option specifies whether and where to output rows that failed
+      to be read.
+    name: error_handling
+    nullable: true
+    type: Row(output=<class 'str'>)
+  - description: An optional BSON filter to apply to the read. This should be a valid
+      JSON string.
+    name: filter
+    nullable: true
+    type: str
+  - description: The schema in which the data is encoded, defined with JSON-schema
+      syntax (https://json-schema.org/).
+    name: schema
+    nullable: false
+    type: str
+  - description: The connection URI for the MongoDB server.
+    name: uri
+    nullable: false
+    type: str
+  identifier: beam:schematransform:org.apache.beam:mongodb_read:v1
+  name: MongodbRead
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: ''
+  destinations:
+    python: apache_beam/io
+  fields:
   - description: The number of documents to include in each batch write.
     name: batch_size
     nullable: true

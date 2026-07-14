@@ -52,6 +52,7 @@
     - 'beam:schematransform:org.apache.beam:iceberg_write:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
+    - 'beam:schematransform:org.apache.beam:delta_lake_read:v1'
 
 - gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
   destinations:

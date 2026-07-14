@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit Java Examples Dataflow Java21
+name: PreCommit Java Examples Dataflow Java11
 
 on:
   push:
@@ -26,7 +26,7 @@ on:
     - 'examples/java/**'
     - 'examples/kotlin/**'
     - 'release/**'
-    - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow_Java21.yml'
+    - '.github/workflows/beam_PreCommit_Java_Examples_Dataflow_Java11.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
@@ -37,7 +37,7 @@ on:
     - 'examples/kotlin/**'
     - 'release/**'
     - 'release/trigger_all_tests.json'
-    - '.github/trigger_files/beam_PreCommit_Java_Examples_Dataflow_Java21.json'
+    - '.github/trigger_files/beam_PreCommit_Java_Examples_Dataflow_Java11.json'
   issue_comment:
     types: [created]
   schedule:
@@ -71,22 +71,22 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Java_Examples_Dataflow_Java21:
+  beam_PreCommit_Java_Examples_Dataflow_Java11:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PreCommit_Java_Examples_Dataflow_Java21"]
-        job_phrase: ["Run Java_Examples_Dataflow_Java21 PreCommit"]
+        job_name: ["beam_PreCommit_Java_Examples_Dataflow_Java11"]
+        job_phrase: ["Run Java_Examples_Dataflow_Java11 PreCommit"]
     timeout-minutes: 75
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_Examples_Dataflow_Java21 PreCommit'
+      github.event.comment.body == 'Run Java_Examples_Dataflow_Java11 PreCommit'
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
@@ -116,9 +116,9 @@ jobs:
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \
-          -PtestJavaVersion=21 \
+          -PtestJavaVersion=11 \
           -PskipCheckerFramework \
-          -Pjava21Home=$JAVA_HOME_21_X64 \
+          -Pjava11Home=$JAVA_HOME_11_X64 \
           -Pdocker-pull-licenses \
         max-workers: 12
     - name: Archive JUnit Test Results

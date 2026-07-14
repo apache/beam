@@ -28,6 +28,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -82,6 +84,8 @@ public final class Work implements RefreshableWork {
   private volatile TimedState currentState;
   private volatile boolean isFailed;
   private volatile String processingThreadName = "";
+  private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
+      new AtomicReference<>(null);
   private final boolean drainMode;
 
   private Work(
@@ -191,6 +195,10 @@ public final class Work implements RefreshableWork {
     return serializedWorkItemSize;
   }
 
+  public String getComputationId() {
+    return processingContext.computationId();
+  }
+
   @Override
   public ShardedKey getShardedKey() {
     return shardedKey;
@@ -244,6 +252,19 @@ public final class Work implements RefreshableWork {
   @Override
   public void setFailed() {
     this.isFailed = true;
+    AtomicBoolean listener = onFailureListener.get();
+    if (listener != null) {
+      listener.set(true);
+    }
+  }
+
+  // Sets the passed in boolean to true if the work fails
+  // Supports registering only one boolean at a time.
+  public void setOnFailureListener(@Nullable AtomicBoolean listener) {
+    onFailureListener.set(listener);
+    if (isFailed && listener != null) {
+      listener.set(true);
+    }
   }
 
   public boolean isCommitPending() {
@@ -266,6 +287,10 @@ public final class Work implements RefreshableWork {
   public void queueCommit(WorkItemCommitRequest commitRequest, ComputationState computationState) {
     setState(State.COMMIT_QUEUED);
     processingContext.workCommitter().accept(Commit.create(commitRequest, computationState, this));
+  }
+
+  public Consumer<Commit> workCommitter() {
+    return processingContext.workCommitter();
   }
 
   public WindmillStateReader createWindmillStateReader() {
@@ -388,10 +413,6 @@ public final class Work implements RefreshableWork {
     abstract State state();
 
     abstract Instant startTime();
-  }
-
-  public String getComputationId() {
-    return processingContext.computationId();
   }
 
   public KeyGroup getKeyGroup() {

@@ -32,7 +32,7 @@ requires = [
     # Numpy headers
     "numpy>=1.14.3,<2.5.0", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
-    "cython>=3.2.5,<4",
+    "cython>=3.2.6,<4",
     ## deps for generating external transform wrappers:
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
     'pyyaml>=3.12,<7.0.0',
@@ -82,6 +82,7 @@ skip = [
     "storage_v1_client.py",
     "storage_v1_messages.py",
     "proto2_coder_test_messages_pb2.py",
+    "rate_limit_pb2.py",
     "cloudbuild_v1_client.py",
     "cloudbuild_v1_messages.py",
     "boto3_client.py",

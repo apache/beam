@@ -35,16 +35,8 @@ configurations.sparkRunnerPreCommit {
   exclude group: "org.slf4j", module: "jul-to-slf4j"
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
-configurations.flinkRunnerPreCommit {
-  resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
-    def candidate = candidates.find { it.id.toString().contains('at.yawk.lz4') }
-    if (candidate != null) {
-      select(candidate)
-    } else {
-      selectHighestVersion()
-    }
-  }
-}
+resolveCapabilitiesConflict(configurations.flinkRunnerPreCommit, 'org.lz4:lz4-java', 'at.yawk.lz4')
+
 
 dependencies {
   directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")

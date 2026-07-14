@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_XVR_PythonUsingJavaSQL_Dataflow"]
         job_phrase: ["Run XVR_PythonUsingJavaSQL_Dataflow PostCommit"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -73,17 +73,14 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: 3.14
       - name: run PostCommit XVR PythonUsingJavaSQL Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesCrossLanguageRunnerPythonUsingSql
           arguments: |
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            -PpythonVersion=3.14 \
+            -PpythonVersion=3.14
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

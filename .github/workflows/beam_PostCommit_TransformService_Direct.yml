@@ -64,7 +64,7 @@ jobs:
         job_phrase: ["Run TransformService_Direct PostCommit"]
         python_version: ['3.10','3.14']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,9 +74,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: |
             3.10
             ${{ matrix.python_version }}
@@ -85,10 +83,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava
           arguments: |
-            -PtestJavaVersion=17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
-            -Pjava11Home=$JAVA_HOME_11_X64 \
-            -PpythonVersion=${{ matrix.python_version }} \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()
