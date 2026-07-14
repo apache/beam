@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -83,7 +84,6 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     this.stepContext = stepContext;
 
     this.mainWindowCoder = windowingStrategy.getWindowFn().windowCoder();
-
     this.sideInputViews = new HashMap<>();
     for (PCollectionView<?> view : views) {
       sideInputViews.put(view.getTagInternal().getId(), view);
@@ -188,11 +188,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     return timers;
   }
 
-  /** Compute the set of side inputs that are not yet ready for the given main input window. */
-  public boolean storeIfBlocked(WindowedValue<InputT> elem) {
-    @SuppressWarnings("unchecked")
-    W window = (W) Iterables.getOnlyElement(elem.getWindows());
-
+  private Set<Windmill.GlobalDataRequest> checkIfBlocked(W window) {
     Set<Windmill.GlobalDataRequest> blocked = blockedMap().get(window);
     if (blocked == null) {
       for (PCollectionView<?> view : sideInputViews.values()) {
@@ -205,7 +201,16 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
         }
       }
     }
-    if (blocked != null) {
+    return blocked == null ? Collections.emptySet() : blocked;
+  }
+
+  /** Compute the set of side inputs that are not yet ready for the given main input window. */
+  public boolean storeIfBlocked(WindowedValue<InputT> elem) {
+    @SuppressWarnings("unchecked")
+    W window = (W) Iterables.getOnlyElement(elem.getWindows());
+
+    Set<Windmill.GlobalDataRequest> blocked = checkIfBlocked(window);
+    if (!blocked.isEmpty()) {
       elementBag(window).add(elem);
       watermarkHold(window).add(elem.getTimestamp());
       stepContext.addBlockingSideInputs(blocked);
@@ -223,17 +228,12 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     @SuppressWarnings("unchecked")
     WindowNamespace<W> windowNamespace = (WindowNamespace<W>) timer.getNamespace();
     W window = windowNamespace.getWindow();
-
-    boolean blocked = false;
-    for (PCollectionView<?> view : sideInputViews.values()) {
-      if (!stepContext.issueSideInputFetch(view, window, SideInputState.UNKNOWN)) {
-        blocked = true;
-      }
-    }
-    if (blocked) {
+    Set<Windmill.GlobalDataRequest> blocked = checkIfBlocked(window);
+    if (!blocked.isEmpty()) {
       timerBag(window).add(timer);
+      return true;
     }
-    return blocked;
+    return false;
   }
 
   public void persist() {
@@ -332,7 +332,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
         .build();
   }
 
-  private static class GlobalDataRequestCoder extends AtomicCoder<GlobalDataRequest> {
+  static class GlobalDataRequestCoder extends AtomicCoder<GlobalDataRequest> {
     private final Class<Windmill.GlobalDataRequest> protoMessageClass =
         Windmill.GlobalDataRequest.class;
     private transient Parser<Windmill.GlobalDataRequest> memoizedParser;

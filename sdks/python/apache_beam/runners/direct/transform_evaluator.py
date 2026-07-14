@@ -19,18 +19,15 @@
 
 # pytype: skip-file
 
-import atexit
 import collections
 import logging
 import random
+import threading
 import time
+import weakref
 from collections import abc
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
-from typing import Type
 
 from apache_beam import coders
 from apache_beam import io
@@ -89,13 +86,13 @@ class TransformEvaluatorRegistry(object):
   Creates instances of TransformEvaluator for the application of a transform.
   """
 
-  _test_evaluators_overrides: Dict[Type[core.PTransform],
-                                   Type['_TransformEvaluator']] = {}
+  _test_evaluators_overrides: dict[type[core.PTransform],
+                                   type['_TransformEvaluator']] = {}
 
   def __init__(self, evaluation_context: 'EvaluationContext') -> None:
     assert evaluation_context
     self._evaluation_context = evaluation_context
-    self._evaluators: Dict[Type[core.PTransform], Type[_TransformEvaluator]] = {
+    self._evaluators: dict[type[core.PTransform], type[_TransformEvaluator]] = {
         io.Read: _BoundedReadEvaluator,
         _DirectReadFromPubSub: _PubSubReadEvaluator,
         core.Flatten: _FlattenEvaluator,
@@ -581,13 +578,46 @@ class _TestStreamEvaluator(_TransformEvaluator):
         self, self.bundles, unprocessed_bundles, None, {None: self.watermark})
 
 
+class _PubSubSubscriberClient(object):
+  """SubscriberClient state cached for one DirectRunner Pub/Sub read."""
+  def __init__(self, client):
+    self.client = client
+    self._temporary_subscription = None
+    self._closed = False
+    self._lock = threading.Lock()
+
+  def set_temporary_subscription(self, subscription):
+    self._temporary_subscription = subscription
+
+  def close(self):
+    if self._closed:
+      return
+    self._closed = True
+
+    try:
+      if self._temporary_subscription:
+        self.client.delete_subscription(
+            subscription=self._temporary_subscription)
+    except Exception:
+      _LOGGER.warning(
+          'Failed to delete temporary Pub/Sub subscription %s',
+          self._temporary_subscription,
+          exc_info=True)
+
+    try:
+      self.client.close()
+    except Exception:
+      _LOGGER.warning(
+          'Failed to close Pub/Sub subscriber client', exc_info=True)
+
+
 class _PubSubReadEvaluator(_TransformEvaluator):
   """TransformEvaluator for PubSub read."""
 
-  # A mapping of transform to _PubSubSubscriptionWrapper.
-  # TODO(https://github.com/apache/beam/issues/19751): Prevents garbage
-  # collection of pipeline instances.
-  _subscription_cache: Dict[AppliedPTransform, str] = {}
+  # Weak-keyed per-transform caches avoid keeping completed pipelines alive.
+  _subscription_cache = weakref.WeakKeyDictionary()
+  _subscriber_client_cache = weakref.WeakKeyDictionary()
+  _subscriber_client_cache_lock = threading.Lock()
 
   def __init__(
       self,
@@ -631,18 +661,46 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if short_sub_name:
       return pubsub.SubscriberClient.subscription_path(project, short_sub_name)
 
-    if transform in cls._subscription_cache:
-      return cls._subscription_cache[transform]
+    with cls._subscriber_client_cache_lock:
+      sub_name = cls._subscription_cache.get(transform)
+      if sub_name:
+        return sub_name
 
-    sub_client = pubsub.SubscriberClient()
-    sub_name = sub_client.subscription_path(
-        sub_project,
-        'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
-    topic_name = sub_client.topic_path(project, short_topic_name)
-    sub_client.create_subscription(name=sub_name, topic=topic_name)
-    atexit.register(sub_client.delete_subscription, subscription=sub_name)
-    cls._subscription_cache[transform] = sub_name
-    return cls._subscription_cache[transform]
+      subscriber_client = cls._get_subscriber_client_state_unlocked(transform)
+
+    with subscriber_client._lock:
+      with cls._subscriber_client_cache_lock:
+        sub_name = cls._subscription_cache.get(transform)
+        if sub_name:
+          return sub_name
+
+      sub_client = subscriber_client.client
+      sub_name = sub_client.subscription_path(
+          sub_project,
+          'beam_%d_%x' % (int(time.time()), random.randrange(1 << 32)))
+      topic_name = sub_client.topic_path(project, short_topic_name)
+      sub_client.create_subscription(name=sub_name, topic=topic_name)
+      subscriber_client.set_temporary_subscription(sub_name)
+
+      with cls._subscriber_client_cache_lock:
+        cls._subscription_cache[transform] = sub_name
+
+      return sub_name
+
+  @classmethod
+  def _get_subscriber_client(cls, transform):
+    with cls._subscriber_client_cache_lock:
+      return cls._get_subscriber_client_state_unlocked(transform).client
+
+  @classmethod
+  def _get_subscriber_client_state_unlocked(cls, transform):
+    subscriber_client = cls._subscriber_client_cache.get(transform)
+    if subscriber_client is None:
+      from google.cloud import pubsub
+      subscriber_client = _PubSubSubscriberClient(pubsub.SubscriberClient())
+      cls._subscriber_client_cache[transform] = subscriber_client
+      weakref.finalize(transform, subscriber_client.close)
+    return subscriber_client
 
   def start_bundle(self):
     pass
@@ -651,9 +709,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     pass
 
   def _read_from_pubsub(
-      self, timestamp_attribute) -> List[Tuple[Timestamp, 'PubsubMessage']]:
-    from google.cloud import pubsub
-
+      self, timestamp_attribute) -> list[tuple[Timestamp, 'PubsubMessage']]:
     from apache_beam.io.gcp.pubsub import PubsubMessage
 
     def _get_element(message):
@@ -682,16 +738,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     # evaluator fails with an exception before emitting a bundle. However,
     # the DirectRunner currently doesn't retry work items anyway, so the
     # pipeline would enter an inconsistent state on any error.
-    sub_client = pubsub.SubscriberClient()
-    try:
-      response = sub_client.pull(
-          subscription=self._sub_name, max_messages=10, timeout=30)
-      results = [_get_element(rm.message) for rm in response.received_messages]
-      ack_ids = [rm.ack_id for rm in response.received_messages]
-      if ack_ids:
-        sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
-    finally:
-      sub_client.close()
+    sub_client = self._get_subscriber_client(self._applied_ptransform)
+    response = sub_client.pull(
+        subscription=self._sub_name, max_messages=10, timeout=30)
+    results = [_get_element(rm.message) for rm in response.received_messages]
+    ack_ids = [rm.ack_id for rm in response.received_messages]
+    if ack_ids:
+      sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
 
     return results
 

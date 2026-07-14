@@ -81,7 +81,7 @@ import scala.collection.Seq;
 import scala.collection.immutable.List;
 
 /**
- * Translator for {@link GroupByKey} using {@link Dataset#groupByKey} with the build-in aggregation
+ * Translator for {@link GroupByKey} using {@link Dataset#groupByKey} with the built-in aggregation
  * function {@code collect_list} when applicable.
  *
  * <p>Note: Using {@code collect_list} isn't any worse than using {@link ReduceFnRunner}. In the

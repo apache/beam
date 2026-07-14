@@ -87,7 +87,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Tpcds_Flink"]
         job_phrase: ["Run Flink Runner Tpcds Tests"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -101,5 +101,5 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:tpcds:run
           arguments: |
-            -Ptpcds.runner=:runners:flink:1.20 \
+            -Ptpcds.runner=:runners:flink:2.2 \
             "-Ptpcds.args=${{env.tpcdsBigQueryArgs}} ${{env.tpcdsInfluxDBArgs}} ${{ env.GRADLE_COMMAND_ARGUMENTS }} --queries=${{env.tpcdsQueriesArg}}" \

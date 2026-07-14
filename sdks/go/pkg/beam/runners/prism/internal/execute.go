@@ -376,7 +376,11 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 			eg.Go(func() error {
 				s := stages[rb.StageID]
 				wk := wks[s.envID]
-				if err := s.Execute(ctx, j, wk, comps, em, rb); err != nil {
+				// Pass egctx instead of the parent ctx so that when any bundle fails,
+				// the errgroup cancels egctx and all other concurrent bundle execution
+				// goroutines immediately detect cancellation and abort. This prevents
+				// eg.Wait() from blocking indefinitely and allows prompt error reporting.
+				if err := s.Execute(egctx, j, wk, comps, em, rb); err != nil {
 					// Ensure we clean up on bundle failure
 					j.Logger.Error("Bundle Failed.", slog.Any("error", err))
 					em.FailBundle(rb)

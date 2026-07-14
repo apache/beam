@@ -59,7 +59,7 @@ class DaskOptions(PipelineOptions):
       return dask.config.no_default
 
   @staticmethod
-  def _extract_bag_kwargs(dask_options: t.Dict) -> t.Dict:
+  def _extract_bag_kwargs(dask_options: dict) -> dict:
     """Parse keyword arguments for `dask.Bag`s; used in graph translation."""
     out = {}
 
@@ -174,7 +174,7 @@ class DaskRunner(BundleBasedDirectRunner):
 
     @dataclasses.dataclass
     class DaskBagVisitor(PipelineVisitor):
-      bags: t.Dict[AppliedPTransform, db.Bag] = dataclasses.field(
+      bags: dict[AppliedPTransform, db.Bag] = dataclasses.field(
           default_factory=collections.OrderedDict)
 
       def visit_transform(self, transform_node: AppliedPTransform) -> None:

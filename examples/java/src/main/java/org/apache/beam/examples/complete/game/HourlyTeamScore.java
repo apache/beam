@@ -112,11 +112,11 @@ public class HourlyTeamScore extends UserScore {
    */
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>> configureOutput() {
     Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
-    config.put("team", (c, w) -> c.element().getKey());
-    config.put("total_score", (c, w) -> c.element().getValue());
+    config.put("team", (e, w, t, p) -> e.getKey());
+    config.put("total_score", (e, w, t, p) -> e.getValue());
     config.put(
         "window_start",
-        (c, w) -> {
+        (e, w, t, p) -> {
           IntervalWindow window = (IntervalWindow) w;
           return GameConstants.DATE_TIME_FORMATTER.print(window.start());
         });

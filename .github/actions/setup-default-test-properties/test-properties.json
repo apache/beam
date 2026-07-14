@@ -14,7 +14,7 @@
   },
   "JavaTestProperties": {
     "SUPPORTED_VERSIONS": ["8", "11", "17", "21", "25"],
-    "FLINK_VERSIONS": ["1.17", "1.18", "1.19", "1.20"],
+    "FLINK_VERSIONS": ["1.19", "1.20", "2.0", "2.1", "2.2"],
     "SPARK_VERSIONS": ["3"]
   },
   "GoTestProperties": {

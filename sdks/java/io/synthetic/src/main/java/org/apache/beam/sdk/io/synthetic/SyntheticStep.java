@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay.delay;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay;
@@ -83,6 +84,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   }
 
   @ProcessElement
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // intended
   public void processElement(ProcessContext c) throws Exception {
     byte[] key = c.element().getKey();
     byte[] val = c.element().getValue();

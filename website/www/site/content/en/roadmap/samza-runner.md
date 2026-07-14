@@ -17,7 +17,7 @@ limitations under the License.
 
 # Samza Runner Roadmap
 
-**Note** Samza runner is deprecated and the support is planned to be removed in Beam 3.0 ([Issue](https://github.com/apache/beam/issues/35448)).
+**Note** Samza runner is no longer supported since Beam 2.74.0 ([Issue](https://github.com/apache/beam/issues/35448)).
 
 For references, here are available resources:
 

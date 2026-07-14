@@ -22,6 +22,7 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import operator
 
 from apache_beam.transforms import core

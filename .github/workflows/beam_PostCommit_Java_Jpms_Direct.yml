@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Jpms_Direct"]
         job_phrase: ["Run Jpms Direct PostCommit"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -72,14 +72,12 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-        with:
-          java-version: 11
       - name: run PostCommit Java Jpms Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

@@ -407,6 +407,26 @@ public class DataflowPipelineJobTest {
   }
 
   @Test
+  public void testDrainUnterminatedJobThatSucceeds() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenReturn(new Job().setCurrentState("JOB_STATE_DRAINING"));
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    assertEquals(State.RUNNING, job.drain());
+    Job content = new Job();
+    content.setProjectId(PROJECT_ID);
+    content.setId(JOB_ID);
+    content.setRequestedState("JOB_STATE_DRAINED");
+    verify(mockJobs).update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), eq(content));
+    verifyNoMoreInteractions(mockJobs);
+  }
+
+  @Test
   public void testCancelUnterminatedJobThatFails() throws IOException {
     Dataflow.Projects.Locations.Jobs.Get statusRequest =
         mock(Dataflow.Projects.Locations.Jobs.Get.class);
@@ -421,6 +441,32 @@ public class DataflowPipelineJobTest {
     when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
         .thenReturn(update);
     when(update.execute()).thenThrow(new IOException("Some random IOException"));
+
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(
+        "Failed to cancel job in state RUNNING, "
+            + "please go to the Developers Console to cancel it manually:");
+    job.cancel();
+  }
+
+  @Test
+  public void testCancelUnterminatedJobWithNullFailureMessage() throws IOException {
+    Dataflow.Projects.Locations.Jobs.Get statusRequest =
+        mock(Dataflow.Projects.Locations.Jobs.Get.class);
+
+    Job statusResponse = new Job();
+    statusResponse.setCurrentState("JOB_STATE_RUNNING");
+    when(mockJobs.get(PROJECT_ID, REGION_ID, JOB_ID)).thenReturn(statusRequest);
+    when(statusRequest.execute()).thenReturn(statusResponse);
+
+    Dataflow.Projects.Locations.Jobs.Update update =
+        mock(Dataflow.Projects.Locations.Jobs.Update.class);
+    when(mockJobs.update(eq(PROJECT_ID), eq(REGION_ID), eq(JOB_ID), any(Job.class)))
+        .thenReturn(update);
+    when(update.execute()).thenThrow(new IOException());
 
     DataflowPipelineJob job =
         new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, null);

@@ -81,7 +81,7 @@ class CrossLanguageKafkaIO(object):
         | 'Generate' >> beam.Create(range(NUM_RECORDS))  # pylint: disable=bad-option-value
         | 'MakeKV' >> beam.Map(
             lambda x: (None if self.null_key else b'key', str(x).encode())).
-        with_output_types(typing.Tuple[typing.Optional[bytes], bytes])
+        with_output_types(tuple[typing.Optional[bytes], bytes])
         | 'WriteToKafka' >> WriteToKafka(
             producer_config={'bootstrap.servers': self.bootstrap_servers},
             topic=self.topic,

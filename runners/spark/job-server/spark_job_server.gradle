@@ -28,7 +28,10 @@ apply plugin: 'application'
 // we need to set mainClassName before applying shadow plugin
 mainClassName = "org.apache.beam.runners.spark.SparkJobServerDriver"
 
+def sparkVersion = project.findProperty('spark_version') ?: ''
+
 applyJavaNature(
+  requireJavaVersion: (sparkVersion.startsWith("4") ? org.gradle.api.JavaVersion.VERSION_17 : null),
   automaticModuleName: 'org.apache.beam.runners.spark.jobserver',
   archivesBaseName: project.hasProperty('archives_base_name') ? archives_base_name : archivesBaseName,
   validateShadowJar: false,
@@ -207,6 +210,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
         // TODO(https://github.com/apache/beam/issues/31231)
         excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+        // Spark does not support side inputs in timers (added in #38363)
+        excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testSideInputNotReadyTimer'
         for (String test : sickbayTests) {
           excludeTestsMatching test
         }
@@ -262,13 +267,35 @@ tasks.register("validatesRunnerSickbay", Test) {
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
+def sparkJobServerJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
+}
+
+// TestPortableRunner starts SparkJobServerDriver in-process in the test JVM.
+['validatesPortableRunnerDocker', 'validatesPortableRunnerBatch', 'validatesPortableRunnerStreaming'].each { taskName ->
+  tasks.named(taskName) {
+    jvmArgs += sparkJobServerJvmArgs()
+  }
+}
+
 def setupTask = project.tasks.register("sparkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir
   def sparkJobServerJar = shadowJar.archivePath
+  def jvmArgs = sparkJobServerJvmArgs().join(' ')
+  def jvmArgsOpt = jvmArgs ? "--jvm_args \"${jvmArgs}\"" : ""
 
   executable 'sh'
-  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${sparkJobServerJar}"
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${sparkJobServerJar} ${jvmArgsOpt}"
 }
 
 def cleanupTask = project.tasks.register("sparkJobServerCleanup", Exec) {
@@ -304,5 +331,7 @@ createCrossLanguageValidatesRunnerTask(
 )
 
 shadowJar {
-  outputs.upToDateWhen { false }
+  manifest {
+    attributes(["Multi-Release": true])
+  }
 }

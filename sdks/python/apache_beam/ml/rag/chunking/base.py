@@ -19,7 +19,6 @@ import abc
 import functools
 from collections.abc import Callable
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import apache_beam as beam
@@ -71,7 +70,7 @@ class ChunkingTransformProvider(MLTransformProvider):
   @abc.abstractmethod
   def get_splitter_transform(
       self
-  ) -> beam.PTransform[beam.PCollection[Dict[str, Any]],
+  ) -> beam.PTransform[beam.PCollection[dict[str, Any]],
                        beam.PCollection[Chunk]]:
     """Creates transforms that emits splits for given content."""
     raise NotImplementedError(
@@ -79,7 +78,7 @@ class ChunkingTransformProvider(MLTransformProvider):
 
   def get_ptransform_for_processing(
       self, **kwargs
-  ) -> beam.PTransform[beam.PCollection[Dict[str, Any]],
+  ) -> beam.PTransform[beam.PCollection[dict[str, Any]],
                        beam.PCollection[Chunk]]:
     """Creates transform for processing documents into chunks."""
     ptransform = (

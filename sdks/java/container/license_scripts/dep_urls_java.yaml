@@ -46,7 +46,7 @@ jaxen:
   '1.1.6':
     type: "3-Clause BSD"
 libraries-bom:
-  '26.80.0':
+  '26.85.0':
     license: "https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-opensource-java/master/LICENSE"
     type: "Apache License 2.0"
 paranamer:
@@ -58,7 +58,7 @@ xz:
   '1.5': # The original repo is down. This license is taken from https://tukaani.org/xz/java.html.
     license: "file://{}/xz/COPYING"
 jackson-bom:
-  '2.15.4':
+  '2.18.8':
     license: "https://raw.githubusercontent.com/FasterXML/jackson-bom/master/LICENSE"
     type: "Apache License 2.0"
 org.eclipse.jgit:
@@ -66,12 +66,12 @@ org.eclipse.jgit:
     license: "https://www.eclipse.org/org/documents/edl-v10.html"
     type: "Eclipse Distribution License - v1.0"
 opentelemetry-bom:
-  '1.51.0':
-    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.51.0/LICENSE"
+  '1.62.0':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.62.0/LICENSE"
     type: "Apache License 2.0"
 opentelemetry-bom-alpha:
-  '1.51.0-alpha':
-    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.51.0/LICENSE"
+   '1.62.0-alpha':
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.62.0/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
   '1.5.2-5':

@@ -32,10 +32,12 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.google.gson.Gson;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -100,6 +102,16 @@ public class SpannerChangeStreamPlacementTablePostgresIT {
 
   @Test
   public void testReadSpannerChangeStream() {
+    testReadSpannerChangeStreamImpl(null);
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamWithTvfNameList() {
+    testReadSpannerChangeStreamImpl(
+        Collections.singletonList("read_proto_bytes_" + "'" + changeStreamName + "'"));
+  }
+
+  private void testReadSpannerChangeStreamImpl(List<String> tvfNameList) {
     // Defines how many rows are going to be inserted / updated / deleted in the test
     final int numRows = 5;
     // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
@@ -114,23 +126,28 @@ public class SpannerChangeStreamPlacementTablePostgresIT {
     final Timestamp endAt = deleteTimestamps.getRight();
 
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId)
+        SpannerTestHelper.setUpSpannerConfig(
+                SpannerConfig.create()
+                    .withProjectId(projectId)
+                    .withInstanceId(instanceId)
+                    .withDatabaseId(databaseId))
             .withHost(ValueProvider.StaticValueProvider.of(host));
 
+    SpannerIO.ReadChangeStream readChangeStream =
+        SpannerIO.readChangeStream()
+            .withSpannerConfig(spannerConfig)
+            .withChangeStreamName(changeStreamName)
+            .withMetadataDatabase(databaseId)
+            .withMetadataTable(metadataTableName)
+            .withInclusiveStartAt(startAt)
+            .withInclusiveEndAt(endAt);
+
+    if (tvfNameList != null) {
+      readChangeStream = readChangeStream.withTvfNameList(tvfNameList);
+    }
+
     final PCollection<String> tokens =
-        pipeline
-            .apply(
-                SpannerIO.readChangeStream()
-                    .withSpannerConfig(spannerConfig)
-                    .withChangeStreamName(changeStreamName)
-                    .withMetadataDatabase(databaseId)
-                    .withMetadataTable(metadataTableName)
-                    .withInclusiveStartAt(startAt)
-                    .withInclusiveEndAt(endAt))
-            .apply(ParDo.of(new ModsToString()));
+        pipeline.apply(readChangeStream).apply(ParDo.of(new ModsToString()));
 
     // Each row is composed by the following data
     // <mod type, singer id, old first name, old last name, new first name, new last name>

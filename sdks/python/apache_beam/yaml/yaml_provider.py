@@ -469,10 +469,14 @@ class ExternalPythonProvider(ExternalProvider):
 
 @ExternalProvider.register_provider_type('yaml')
 class YamlProvider(Provider):
-  def __init__(self, transforms: Mapping[str, Mapping[str, Any]]):
+  def __init__(
+      self,
+      transforms: Mapping[str, Mapping[str, Any]],
+      provider_base_path: Optional[str] = None):
     if not isinstance(transforms, dict):
       raise ValueError('Transform mapping must be a dict.')
     self._transforms = transforms
+    self._provider_base_path = provider_base_path
 
   def available(self):
     return True
@@ -524,7 +528,10 @@ class YamlProvider(Provider):
     else:
       body_str = yaml.safe_dump(SafeLineLoader.strip_metadata(body))
     # Now re-parse resolved templatization.
-    body = yaml.load(expand_jinja(body_str, args), Loader=SafeLineLoader)
+    search_paths = [FileSystems.split(self._provider_base_path)[0]
+                    ] if self._provider_base_path else []
+    body = yaml.load(
+        expand_jinja(body_str, args, search_paths), Loader=SafeLineLoader)
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'
@@ -1207,6 +1214,22 @@ class YamlProviders:
 
     return pcoll | "LogForTesting" >> beam.Map(log_and_return)
 
+  class Reshuffle(beam.PTransform):
+    """Reshuffles the elements of a PCollection.
+
+    Redistributes the elements of a PCollection to prevent fusion or balance
+    load.
+
+    Args:
+      num_buckets: (optional) Specifies the maximum random keys that would be
+        generated. If not set, a default value is used.
+    """
+    def __init__(self, num_buckets: Optional[int] = None):
+      self.num_buckets = num_buckets
+
+    def expand(self, pcoll):
+      return pcoll | beam.Reshuffle(num_buckets=self.num_buckets)
+
   @staticmethod
   def create_builtin_provider():
     return InlineProvider({
@@ -1216,6 +1239,7 @@ class YamlProviders:
         'PyTransform': YamlProviders.fully_qualified_named_transform,
         'Flatten': YamlProviders.Flatten,
         'WindowInto': YamlProviders.WindowInto,
+        'Reshuffle': YamlProviders.Reshuffle,
     },
                           no_input_transforms=('Create', ))
 

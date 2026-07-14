@@ -373,7 +373,9 @@ public class StreamingDataflowWorkerTest {
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now),
-        processWorkFn);
+        (work, handle) -> {
+          processWorkFn.accept(work);
+        });
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -418,6 +420,7 @@ public class StreamingDataflowWorkerTest {
             CloudObjects.asCloudObject(IntervalWindowCoder.of(), /* sdkComponents= */ null)));
 
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -437,6 +440,7 @@ public class StreamingDataflowWorkerTest {
 
   private ParallelInstruction makeSourceInstruction(Coder<?> coder) {
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -525,6 +529,7 @@ public class StreamingDataflowWorkerTest {
     CloudObject spec = CloudObject.forClass(WindmillSink.class);
     addString(spec, "stream_id", streamId);
     return new ParallelInstruction()
+        .setName(streamId)
         .setSystemName(DEFAULT_SINK_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SINK_ORIGINAL_NAME)
         .setWrite(
@@ -569,11 +574,16 @@ public class StreamingDataflowWorkerTest {
     Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     TextFormat.merge(input, builder);
     if (metadata != null) {
-      Windmill.InputMessageBundle.Builder messageBundleBuilder =
-          builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
-      for (Windmill.Message.Builder messageBuilder :
-          messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+      for (Windmill.ComputationWorkItems.Builder compBuilder : builder.getWorkBuilderList()) {
+        for (Windmill.WorkItem.Builder workBuilder : compBuilder.getWorkBuilderList()) {
+          for (Windmill.InputMessageBundle.Builder messageBundleBuilder :
+              workBuilder.getMessageBundlesBuilderList()) {
+            for (Windmill.Message.Builder messageBuilder :
+                messageBundleBuilder.getMessagesBuilderList()) {
+              messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+            }
+          }
+        }
       }
     }
 
@@ -1325,7 +1335,7 @@ public class StreamingDataflowWorkerTest {
         makeExpectedTruncationRequestOutput(
                 1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
-        largeCommit);
+        removeDynamicFields(largeCommit));
 
     // Check this explicitly since the estimated commit bytes weren't actually
     // checked against an expected value in the previous step
@@ -1807,6 +1817,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -1836,10 +1847,10 @@ public class StreamingDataflowWorkerTest {
 
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
-
+    // no combined metadata as it's default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -1915,6 +1926,13 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        // 0x02: Protobuf Delimited Length (Payload is 2 bytes), 0x08: Protobuf Tag
+        // (Field #1), 0x01: Protobuf Value (Enum 1 = NOT_DRAINING).
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -1960,10 +1978,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));
@@ -2097,6 +2121,7 @@ public class StreamingDataflowWorkerTest {
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
     ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
+    ByteString combinedMetadataTag = ByteString.copyFromUtf8(window + "+ucombinedMetadata");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -2127,9 +2152,10 @@ public class StreamingDataflowWorkerTest {
     // Set timer
     verifyTimers(actualOutput, buildWatermarkTimer(timerTagPrefix, 999));
 
+    // no combinedMetadataTag as it is default
     assertThat(
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
@@ -2205,6 +2231,11 @@ public class StreamingDataflowWorkerTest {
         .getValueBuilder()
         .setTimestamp(0)
         .setData(ByteString.EMPTY);
+    dataBuilder
+        .addBagsBuilder()
+        .setTag(combinedMetadataTag)
+        .setStateFamily(stateFamily)
+        .addValues(ByteString.copyFrom(new byte[] {0x02, 0x08, 0x01}));
     server.whenGetDataCalled().thenReturn(dataResponse.build());
 
     expectedBytesRead += dataBuilder.build().getSerializedSize();
@@ -2250,10 +2281,16 @@ public class StreamingDataflowWorkerTest {
     assertThat(
         "" + actualOutput.getBagUpdatesList(),
         actualOutput.getBagUpdatesList(),
-        Matchers.contains(
+        Matchers.containsInAnyOrder(
             Matchers.equalTo(
                 Windmill.TagBag.newBuilder()
                     .setTag(bufferTag)
+                    .setStateFamily(stateFamily)
+                    .setDeleteAll(true)
+                    .build()),
+            Matchers.equalTo(
+                Windmill.TagBag.newBuilder()
+                    .setTag(combinedMetadataTag)
                     .setStateFamily(stateFamily)
                     .setDeleteAll(true)
                     .build())));
@@ -2374,9 +2411,6 @@ public class StreamingDataflowWorkerTest {
             new Action(
                     buildSessionInput(
                         1, 40, 0, Collections.singletonList(1L), Collections.EMPTY_LIST))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true))
                 .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))));
   }
 
@@ -2404,10 +2438,7 @@ public class StreamingDataflowWorkerTest {
                         0,
                         Collections.EMPTY_LIST,
                         Collections.singletonList(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 10))))
-                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010))
-                .withHolds(
-                    buildHold("/gAAAAAAAAAsK/+uhold", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", -1, true)),
+                .withTimers(buildWatermarkTimer("/s/gAAAAAAAAAsK/+0", 3600010)),
             new Action(
                     buildSessionInput(
                         3, 30, 0, Collections.singletonList(8L), Collections.EMPTY_LIST))
@@ -2436,8 +2467,8 @@ public class StreamingDataflowWorkerTest {
                 .withHolds(
                     buildHold("/gAAAAAAAACkK/+uhold", -1, true),
                     buildHold("/gAAAAAAAACkK/+uextra", -1, true),
-                    buildHold("/gAAAAAAAAAsK/+uhold", 40, true),
-                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, true)),
+                    buildHold("/gAAAAAAAAAsK/+uhold", 40, false),
+                    buildHold("/gAAAAAAAAAsK/+uextra", 3600040, false)),
             new Action(
                     buildSessionInput(
                         6,
@@ -2472,6 +2503,7 @@ public class StreamingDataflowWorkerTest {
 
     return Arrays.asList(
         new ParallelInstruction()
+            .setName("Read")
             .setSystemName("Read")
             .setOriginalName("OriginalReadName")
             .setRead(
@@ -3013,7 +3045,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3074,7 +3107,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3144,7 +3178,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3218,7 +3253,8 @@ public class StreamingDataflowWorkerTest {
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3636,8 +3672,8 @@ public class StreamingDataflowWorkerTest {
         server.waitForAndGetCommitsWithTimeout(1, Duration.standardSeconds(5));
     assertEquals(1, commits.size());
 
-    assertEquals(0, BlockingFn.teardownCounter.get());
-    assertEquals(1, BlockingFn.setupCounter.get());
+    assertEquals(1, BlockingFn.teardownCounter.get());
+    assertEquals(2, BlockingFn.setupCounter.get());
 
     worker.stop();
   }
@@ -3927,11 +3963,16 @@ public class StreamingDataflowWorkerTest {
         LatencyAttribution.newBuilder().setState(State.ACTIVE).setTotalDurationMillis(100);
     for (LatencyAttribution la : commit.getPerWorkItemLatencyAttributionsList()) {
       if (la.getState() == State.ACTIVE) {
-        assertThat(la.getActiveLatencyBreakdownCount(), equalTo(1));
-        assertThat(
-            la.getActiveLatencyBreakdown(0).getUserStepName(), equalTo(DEFAULT_PARDO_USER_NAME));
-        Assert.assertTrue(la.getActiveLatencyBreakdown(0).hasProcessingTimesDistribution());
-        Assert.assertFalse(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+        LatencyAttribution.ActiveLatencyBreakdown pardoBreakdown = null;
+        for (LatencyAttribution.ActiveLatencyBreakdown lb : la.getActiveLatencyBreakdownList()) {
+          if (DEFAULT_PARDO_USER_NAME.equals(lb.getUserStepName())) {
+            pardoBreakdown = lb;
+            break;
+          }
+        }
+        Assert.assertNotNull("Expected breakdown for " + DEFAULT_PARDO_USER_NAME, pardoBreakdown);
+        Assert.assertTrue(pardoBreakdown.hasProcessingTimesDistribution());
+        Assert.assertFalse(pardoBreakdown.hasActiveMessageMetadata());
       }
     }
 

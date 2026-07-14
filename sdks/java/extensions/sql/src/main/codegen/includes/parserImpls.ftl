@@ -381,7 +381,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 
 /**
- * USE DATABASE ( catalog_name '.' )? database_name
+ * USE [ DATABASE ] ( catalog_name '.' )? database_name
  */
 SqlCall SqlUseDatabase(Span s, String scope) :
 {
@@ -391,7 +391,7 @@ SqlCall SqlUseDatabase(Span s, String scope) :
     <USE> {
         s.add(this);
     }
-    <DATABASE>
+    [ <DATABASE> ]
     databaseName = CompoundIdentifier()
     {
         return new SqlUseDatabase(

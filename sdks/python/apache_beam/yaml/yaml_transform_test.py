@@ -23,12 +23,16 @@ import shutil
 import tempfile
 import unittest
 
+import yaml
+
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import YamlTransform
+from apache_beam.yaml.yaml_transform import expand_jinja
 
 try:
   import jsonschema
@@ -253,17 +257,8 @@ class YamlTransformE2ETest(unittest.TestCase):
       raise unittest.SkipTest('Pandas not available.')
 
     with tempfile.TemporaryDirectory() as tmpdir:
-      data = pd.DataFrame([
-          {
-              'label': '11a', 'rank': 0
-          },
-          {
-              'label': '37a', 'rank': 1
-          },
-          {
-              'label': '389a', 'rank': 2
-          },
-      ])
+      data = pd.DataFrame([{'label': f'{i}a', 'rank': i} for i in range(1024)])
+
       input = os.path.join(tmpdir, 'input.csv')
       output = os.path.join(tmpdir, 'output.json')
       data.to_csv(input, index=False)
@@ -286,12 +281,17 @@ class YamlTransformE2ETest(unittest.TestCase):
                     num_shards: 1
               - type: LogForTesting
             ''' % (repr(input), repr(output)))
-      all_output = list(glob.glob(output + "*"))
-      self.assertEqual(len(all_output), 1)
-      output_shard = list(glob.glob(output + "*"))[0]
+      all_output = list(glob.glob(output + "-*"))
+      file_and_size = {f: os.path.getsize(f) for f in all_output}
+      self.assertEqual(
+          len(all_output),
+          1,
+          msg=f"Expected 1 shard file, but found {len(all_output)}. "
+          f"Files & sizes (bytes): {file_and_size}")
+      output_shard = all_output[0]
       result = pd.read_json(
           output_shard, orient='records',
-          lines=True).sort_values('rank').reindex()
+          lines=True).sort_values('rank').reset_index(drop=True)
       pd.testing.assert_frame_equal(data, result)
 
   def test_circular_reference_validation(self):
@@ -1471,6 +1471,65 @@ class TestExternalYamlProvider(unittest.TestCase):
             ''',
             providers=merged_providers)
 
+  def test_provider_with_jinja_imports(self):
+    # Create a macro file in the same temp directory as the provider
+    macro_path = os.path.join(self.temp_dir, 'my_macros.yaml')
+    with open(macro_path, 'w') as f:
+      f.write(
+          """
+{%- macro power_expr(var, n) -%}
+{{ var }} ** {{ n }}
+{%- endmacro -%}
+""")
+
+    # Create a provider that imports and uses the macro
+    templated_provider_path = os.path.join(
+        self.temp_dir, 'templated_provider.yaml')
+    with open(templated_provider_path, 'w') as f:
+      f.write(
+          """
+- type: yaml
+  transforms:
+    CustomPower:
+      config_schema:
+        properties:
+          n: {type: integer}
+      body: |
+        type: MapToFields
+        config:
+          language: python
+          append: true
+          fields:
+            power: "{% import 'my_macros.yaml' as m %}{{ m.power_expr('element', n) }}"
+""")
+
+    loaded_providers = yaml_provider.load_providers(templated_provider_path)
+    test_providers = yaml_provider.InlineProvider(TEST_PROVIDERS)
+    merged_providers = yaml_provider.merge_providers(
+        loaded_providers, [test_providers])
+
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      results = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                elements: [2, 3]
+            - type: CustomPower
+              input: Create
+              config:
+                n: 3
+          output: CustomPower
+          ''',
+          providers=merged_providers)
+
+      assert_that(
+          results,
+          equal_to(
+              [beam.Row(element=2, power=8), beam.Row(element=3, power=27)]))
+
 
 @beam.transforms.ptransform.annotate_yaml
 class LinearTransform(beam.PTransform):
@@ -1483,6 +1542,62 @@ class LinearTransform(beam.PTransform):
     a = self._a
     b = self._b
     return pcoll | beam.Map(lambda x: a * x.element + b)
+
+
+class TestYamlExpandJinja(unittest.TestCase):
+  def setUp(self):
+    self.temp_dir = tempfile.mkdtemp()
+    # Create a macro file with leading comments (license header)
+    self.macro_path = os.path.join(self.temp_dir, 'my_macros.yaml')
+    with open(self.macro_path, 'w') as f:
+      f.write(
+          """# coding=utf-8
+# Licensed to the Apache Software Foundation...
+# Some leading comment line
+
+{%- macro add_n(val, n) -%}
+{{ val }} + {{ n }}
+{%- endmacro -%}
+""")
+
+    # Create a pipeline template that includes/imports the macro
+    self.pipeline_path = os.path.join(self.temp_dir, 'my_pipeline.yaml')
+    with open(self.pipeline_path, 'w') as f:
+      f.write(
+          """# coding=utf-8
+# Licensed to the Apache Software Foundation...
+
+{% import 'my_macros.yaml' as macros %}
+type: composite
+transforms:
+  - type: Create
+    config:
+      elements: [1, 2, 3]
+  - type: MapToFields
+    config:
+      language: python
+      fields:
+        result: {{ macros.add_n('element', 10) }}
+""")
+
+  def tearDown(self):
+    shutil.rmtree(self.temp_dir)
+
+  def test_expand_jinja_with_leading_comments_and_imports(self):
+    # Read the pipeline template
+    with open(self.pipeline_path, 'r') as f:
+      template_content = f.read()
+
+    # Expand the jinja using our temp_dir as a search path
+    expanded = expand_jinja(template_content, {}, [self.temp_dir])
+
+    # Parse the expanded YAML
+    parsed = yaml.load(expanded, Loader=SafeLineLoader)
+
+    # Verify the comment-stripping and import resolution was successful
+    self.assertEqual(parsed['type'], 'composite')
+    self.assertEqual(
+        parsed['transforms'][1]['config']['fields']['result'], 'element + 10')
 
 
 if __name__ == '__main__':

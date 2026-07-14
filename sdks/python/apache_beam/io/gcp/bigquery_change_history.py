@@ -50,11 +50,8 @@ import sys
 import time
 import uuid
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
@@ -155,7 +152,7 @@ class _StreamRestriction:
   __slots__ = ('stream_names', 'range')
 
   def __init__(
-      self, stream_names: Tuple[str, ...], start: int, stop: int) -> None:
+      self, stream_names: tuple[str, ...], start: int, stop: int) -> None:
     self.stream_names = stream_names  # tuple of BQ stream name strings
     self.range = OffsetRange(start, stop)
 
@@ -201,7 +198,7 @@ class _StreamRestrictionTracker(beam.io.iobase.RestrictionTracker):
 
   def try_split(
       self, fraction_of_remainder: float
-  ) -> Optional[Tuple[_StreamRestriction, _StreamRestriction]]:
+  ) -> Optional[tuple[_StreamRestriction, _StreamRestriction]]:
     result = self._offset_tracker.try_split(fraction_of_remainder)
     if result is not None:
       primary, residual = result
@@ -228,7 +225,7 @@ class _NonSplittableOffsetTracker(OffsetRestrictionTracker):
   """
   def try_split(
       self, fraction_of_remainder: float
-  ) -> Optional[Tuple[OffsetRange, OffsetRange]]:
+  ) -> Optional[tuple[OffsetRange, OffsetRange]]:
     if fraction_of_remainder == 0:
       return super().try_split(fraction_of_remainder)
     return None
@@ -250,7 +247,7 @@ class _PollWatermarkEstimator(WatermarkEstimator):
   State is checkpointed as (watermark_hold, last_end) so
   both values survive SDF re-dispatch.
   """
-  def __init__(self, state: Tuple[Timestamp, Timestamp]) -> None:
+  def __init__(self, state: tuple[Timestamp, Timestamp]) -> None:
     self._watermark_hold, self._last_end = state
 
   def observe_timestamp(self, timestamp: Timestamp) -> None:
@@ -259,7 +256,7 @@ class _PollWatermarkEstimator(WatermarkEstimator):
   def current_watermark(self) -> Timestamp:
     return self._watermark_hold
 
-  def get_estimator_state(self) -> Tuple[Timestamp, Timestamp]:
+  def get_estimator_state(self) -> tuple[Timestamp, Timestamp]:
     return (self._watermark_hold, self._last_end)
 
   def set_watermark(self, timestamp: Timestamp) -> None:
@@ -293,11 +290,11 @@ class _PollWatermarkEstimatorProvider(WatermarkEstimatorProvider):
   """
   def initial_estimator_state(
       self, element: _PollConfig,
-      restriction: OffsetRange) -> Tuple[Timestamp, Timestamp]:
+      restriction: OffsetRange) -> tuple[Timestamp, Timestamp]:
     return (element.start_time, element.start_time)
 
   def create_watermark_estimator(
-      self, estimator_state: Tuple[Timestamp,
+      self, estimator_state: tuple[Timestamp,
                                    Timestamp]) -> _PollWatermarkEstimator:
     return _PollWatermarkEstimator(estimator_state)
 
@@ -309,7 +306,7 @@ def build_changes_query(
     change_function: str,
     change_type_column: str = 'change_type',
     change_timestamp_column: str = 'change_timestamp',
-    columns: Optional[List[str]] = None,
+    columns: Optional[list[str]] = None,
     row_filter: Optional[str] = None) -> str:
   """Build a CHANGES() or APPENDS() SQL query.
 
@@ -353,7 +350,7 @@ def build_changes_query(
 
 
 def compute_ranges(start: Timestamp, end: Timestamp,
-                   change_function: str) -> List[Tuple[Timestamp, Timestamp]]:
+                   change_function: str) -> list[tuple[Timestamp, Timestamp]]:
   """Split [start, end) into query-safe chunks.
 
   CHANGES() has a max 1-day range. APPENDS() has no limit.
@@ -571,7 +568,7 @@ class _ExecuteQueryFn(beam.DoFn):
       location: Optional[str],
       change_type_column: str = 'change_type',
       change_timestamp_column: str = 'change_timestamp',
-      columns: Optional[List[str]] = None,
+      columns: Optional[list[str]] = None,
       row_filter: Optional[str] = None) -> None:
     self._table = table
     self._project = project
@@ -735,8 +732,8 @@ class _ReadStorageStreamsSDF(beam.DoFn,
     self._ensure_client()
 
   def _split_all_streams(
-      self, stream_names: Tuple[str, ...],
-      max_split_rounds: int) -> Tuple[str, ...]:
+      self, stream_names: tuple[str, ...],
+      max_split_rounds: int) -> tuple[str, ...]:
     """Split each stream at fraction=0.5 for up to max_split_rounds rounds.
 
     Each round attempts to split every stream in the current list. A
@@ -952,7 +949,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         len(session.streams))
     return session
 
-  def _read_stream(self, stream_name: str) -> Iterable[Dict[str, Any]]:
+  def _read_stream(self, stream_name: str) -> Iterable[dict[str, Any]]:
     """Read all rows from a single Storage API stream as dicts.
 
     When batch_arrow_read is enabled, converts entire Arrow RecordBatches
@@ -966,7 +963,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       yield from self._read_stream_row_by_row(stream_name)
 
   def _read_stream_row_by_row(self,
-                              stream_name: str) -> Iterable[Dict[str, Any]]:
+                              stream_name: str) -> Iterable[dict[str, Any]]:
     """Row-by-row Arrow conversion (lower memory than batch mode)."""
     t0 = time.time()
     row_count = 0
@@ -980,7 +977,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         elapsed,
         row_count / elapsed if elapsed > 0 else 0)
 
-  def _read_stream_batch(self, stream_name: str) -> Iterable[Dict[str, Any]]:
+  def _read_stream_batch(self, stream_name: str) -> Iterable[dict[str, Any]]:
     """Batch-convert Arrow RecordBatches for high throughput."""
     schema = None
     row_count = 0
@@ -1002,7 +999,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         elapsed,
         row_count / elapsed if elapsed > 0 else 0)
 
-  def _read_stream_raw(self, stream_name: str) -> Iterable[Tuple[bytes, bytes]]:
+  def _read_stream_raw(self, stream_name: str) -> Iterable[tuple[bytes, bytes]]:
     """Yield raw (schema_bytes, batch_bytes) without decompression.
 
     Used when emit_raw_batches is enabled to defer decompression and
@@ -1034,7 +1031,7 @@ class _DecompressArrowBatchesFn(beam.DoFn):
   def __init__(self, change_timestamp_column: str = 'change_timestamp') -> None:
     self._change_timestamp_column = change_timestamp_column
 
-  def process(self, element: Tuple[bytes, bytes]) -> Iterable[Dict[str, Any]]:
+  def process(self, element: tuple[bytes, bytes]) -> Iterable[dict[str, Any]]:
     schema_bytes, batch_bytes = element
     schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
     batch = pyarrow.ipc.read_record_batch(
@@ -1077,7 +1074,7 @@ class _CleanupTempTablesFn(beam.DoFn):
 
   def process(
       self,
-      element: Tuple[str, Tuple[int, int]],
+      element: tuple[str, tuple[int, int]],
       streams_read=beam.DoFn.StateParam(STREAMS_READ)
   ) -> None:
     table_key = element[0]
@@ -1194,7 +1191,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
       location: Optional[str] = None,
       change_type_column: str = 'change_type',
       change_timestamp_column: str = 'change_timestamp',
-      columns: Optional[List[str]] = None,
+      columns: Optional[list[str]] = None,
       row_filter: Optional[str] = None,
       batch_arrow_read: bool = True,
       max_split_rounds: int = 1,
@@ -1322,9 +1319,9 @@ class ReadBigQueryChangeHistory(beam.PTransform):
             max_split_rounds=self._max_split_rounds,
             emit_raw_batches=emit_raw))
     if emit_raw:
-      read_sdf = read_sdf.with_output_types(Tuple[bytes, bytes])
+      read_sdf = read_sdf.with_output_types(tuple[bytes, bytes])
     else:
-      read_sdf = read_sdf.with_output_types(Dict[str, Any])
+      read_sdf = read_sdf.with_output_types(dict[str, Any])
 
     read_outputs = (
         query_results

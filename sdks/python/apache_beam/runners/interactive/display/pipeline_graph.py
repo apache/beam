@@ -25,11 +25,7 @@ This module is experimental. No backwards-compatibility guarantees.
 import collections
 import logging
 import threading
-from typing import DefaultDict
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -93,9 +89,10 @@ class PipelineGraph(object):
           (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers: DefaultDict[str, List[str]] = collections.defaultdict(list)
+    self._consumers: collections.defaultdict[
+        str, list[str]] = collections.defaultdict(list)
     # A dict from PCollection ID to its producing Transform ID
-    self._producers: Dict[str, str] = {}
+    self._producers: dict[str, str] = {}
 
     for transform_id, transform_proto in self._top_level_transforms():
       for pcoll_id in transform_proto.inputs.values():
@@ -132,7 +129,7 @@ class PipelineGraph(object):
             'pipeline graph.')
 
   def _top_level_transforms(
-      self) -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]:
+      self) -> Iterator[tuple[str, beam_runner_api_pb2.PTransform]]:
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
     Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.

@@ -40,7 +40,7 @@ If you're new to Apache Beam, start here:
 
 ## Status
 
-[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
+[![Maven Central](https://img.shields.io/maven-central/v/org.apache.beam/beam-sdks-java-core.svg)](https://search.maven.org/artifact/org.apache.beam/beam-sdks-java-core)
 [![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
 [![Go version](https://pkg.go.dev/badge/github.com/apache/beam/sdks/v2/go.svg)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go)
 [![Python coverage](https://codecov.io/gh/apache/beam/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/beam)
@@ -113,7 +113,7 @@ Here are some resources actively maintained by the Beam community to help you ge
 <tbody>
   <tr>
     <td><a href="https://beam.apache.org" target="_blank" rel="noopener noreferrer">Apache Beam Website</a></td>
-    <td>Offical website with documentation, concepts, and guides for Apache Beam.</td>
+    <td>Official website with documentation, concepts, and guides for Apache Beam.</td>
   </tr>
   <tr>
     <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>

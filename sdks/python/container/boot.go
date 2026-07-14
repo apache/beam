@@ -32,6 +32,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -133,7 +134,17 @@ type PipelineOptionsData struct {
 }
 
 type OptionsData struct {
-	Experiments []string `json:"experiments"`
+	Experiments                   []string `json:"experiments"`
+	ProfilerAgent                 string   `json:"profiler_agent"`
+	ProfilerExtraArgs             []string `json:"profiler_extra_args"`
+	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
+	ProfileLocation               string   `json:"profile_location"`
+	ProfileTempLocation           string   `json:"profile_temp_location"`
+	ProfileUploadIntervalSec      int      `json:"profile_upload_interval_sec"`
+	ProfilerStopAfterSec          int      `json:"profiler_stop_after_sec"`
+	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
+	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
+	JobId                         string   `json:"jobId,omitempty"`
 }
 
 func getExperiments(options string) []string {
@@ -184,12 +195,27 @@ func launchSDKProcess() error {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Inject artifact validation enabled state into context
+	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+
 	experiments := getExperiments(options)
-	pipNoBuildIsolation = false
-	if slices.Contains(experiments, "pip_no_build_isolation") {
-		pipNoBuildIsolation = true
-		logger.Printf(ctx, "Disabled build isolation when installing packages with pip")
+	logger.Printf(ctx, "Experiments=%v", experiments)
+
+	pipNoBuildIsolation = true
+	if slices.Contains(experiments, "pip_use_build_isolation") {
+		pipNoBuildIsolation = false
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
 	}
+
+	var opts PipelineOptionsData
+	if err := json.Unmarshal([]byte(options), &opts); err != nil {
+		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
+	}
+
+	ctx = setupProfilerConfig(ctx, logger, &opts)
+	startProfilerBackgroundTasks(ctx, logger)
 
 	// (2) Retrieve and install the staged packages.
 	//
@@ -307,11 +333,6 @@ func launchSDKProcess() error {
 		childPids.mu.Unlock()
 	}()
 
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
-	}
-
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
 	for _, workerId := range workerIds {
@@ -326,12 +347,68 @@ func launchSDKProcess() error {
 					childPids.mu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
+
+				currentProg := "python"
+				currentArgs := []string{"-m", sdkHarnessEntrypoint}
+				currentEnv := map[string]string{"WORKER_ID": workerId}
+
+				profilingActive := false
+				currentProg, currentArgs, currentEnv, profilingActive = maybeWithProfiler(
+					ctx, logger, workerId, currentProg, currentArgs, currentEnv,
+				)
+
+				var envStr string
+				if len(currentEnv) > 0 {
+					var envStrings []string
+					for k, v := range currentEnv {
+						envStrings = append(envStrings, k+"="+v)
+					}
+					slices.Sort(envStrings)
+					envStr = strings.Join(envStrings, ", ")
+				}
+
+				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
+				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
 				childPids.v = append(childPids.v, cmd.Process.Pid)
 				childPids.mu.Unlock()
 
-				if err := cmd.Wait(); err != nil {
+				var timer *time.Timer
+				var profilingTimedOut atomic.Bool
+
+				pcfg := getProfilerConfig(ctx)
+				if profilingActive && pcfg.StopAfterSec > 0 {
+					duration := time.Duration(pcfg.StopAfterSec) * time.Second
+					timer = time.AfterFunc(duration, func() {
+						childPids.mu.Lock()
+						defer childPids.mu.Unlock()
+						if cmd.Process != nil {
+							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
+								pcfg.StopAfterSec, workerId)
+							profilingTimedOut.Store(true)
+							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+						}
+					})
+				}
+
+				err := cmd.Wait()
+				if timer != nil {
+					timer.Stop()
+				}
+
+				if err != nil {
+					if profilingTimedOut.Load() {
+						stopProfiling(ctx)
+						bufLogger.FlushAtDebug(ctx)
+						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
+						// Error is not counted toward error budget.
+						continue
+					}
+
+					if profilingActive && pcfg.StopAfterCrash {
+						stopProfiling(ctx)
+						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
+					}
+
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
@@ -403,10 +480,14 @@ func setupVenv(ctx context.Context, logger *tools.Logger, baseDir, workerId stri
 	return dir, nil
 }
 
-// installSetupPackages installs Beam SDK and user dependencies.
+// installSetupPackages installs user dependencies.
 func installSetupPackages(ctx context.Context, logger *tools.Logger, files []string, workDir string, requirementsFiles []string) error {
 	bufLogger := tools.NewBufferedLogger(logger)
-	bufLogger.Printf(ctx, "Installing setup packages ...")
+	bufLogger.Printf(ctx, "Installing user dependencies ...")
+
+	if err := logRuntimeDependencies(ctx, bufLogger, "initial runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
+	}
 
 	// Install the Dataflow Python SDK if one was staged. In released
 	// container images, SDK is already installed, but can be overriden
@@ -432,11 +513,11 @@ func installSetupPackages(ctx context.Context, logger *tools.Logger, files []str
 	if err := pipInstallPackage(ctx, logger, files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
-	if err := logRuntimeDependencies(ctx, bufLogger); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the runtime python dependencies: %v", err)
+	if err := logRuntimeDependencies(ctx, bufLogger, "final runtime environment"); err != nil {
+		bufLogger.Printf(ctx, "Failed to fetch the runtime python dependencies: %v", err)
 	}
 	if err := logSubmissionEnvDependencies(ctx, bufLogger, workDir); err != nil {
-		bufLogger.Printf(ctx, "couldn't fetch the submission environment dependencies: %v", err)
+		bufLogger.Printf(ctx, "Failed to fetch the submission environment dependencies: %v", err)
 	}
 
 	return nil
@@ -485,20 +566,20 @@ func processArtifactsInSetupOnlyMode() {
 
 // logRuntimeDependencies logs the python dependencies
 // installed in the runtime environment.
-func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger) error {
+func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, phase string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Using Python version:")
+	bufLogger.Printf(ctx, "Python version in %s:", phase)
 	args := []string{"--version"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
 	}
-	bufLogger.Printf(ctx, "Logging runtime dependencies:")
-	args = []string{"-m", "pip", "freeze"}
+	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
+	args = []string{"-m", "pip", "freeze", "--all"}
 	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
@@ -510,7 +591,7 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Logging submission environment dependencies:")
+	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
@@ -521,3 +602,5 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
 }
+
+

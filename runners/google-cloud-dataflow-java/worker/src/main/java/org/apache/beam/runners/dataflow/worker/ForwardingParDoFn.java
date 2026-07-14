@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A base class for {@link ParDoFn} implementations for overriding particular methods while
@@ -45,6 +46,11 @@ public abstract class ForwardingParDoFn implements ParDoFn {
   @Override
   public void processTimers() throws Exception {
     delegate.processTimers();
+  }
+
+  @Override
+  public void finishKey(@Nullable Object key) throws Exception {
+    delegate.finishKey(key);
   }
 
   @Override

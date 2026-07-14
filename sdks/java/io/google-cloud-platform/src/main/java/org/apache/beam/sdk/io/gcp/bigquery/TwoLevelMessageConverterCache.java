@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.StorageApiDynamicDestinations.MessageConverter;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -61,7 +62,9 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
   public MessageConverter<ElementT> get(
       DestinationT destination,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
-      DatasetService datasetService)
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
       throws Exception {
     // Lookup first in the local cache, and fall back to the static cache if necessary.
     return localMessageConverters.get(
@@ -70,7 +73,9 @@ class TwoLevelMessageConverterCache<DestinationT extends @NonNull Object, Elemen
             (MessageConverter<ElementT>)
                 CACHED_MESSAGE_CONVERTERS.get(
                     KV.of(operationName, destination),
-                    () -> dynamicDestinations.getMessageConverter(destination, datasetService)));
+                    () ->
+                        dynamicDestinations.getMessageConverter(
+                            destination, pipelineOptions, datasetService, writeStreamService)));
   }
 
   public KV<String, ShardedKey<?>> getAppendClientKey(ShardedKey<DestinationT> shardedKey) {

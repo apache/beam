@@ -25,7 +25,6 @@ from inspect import ismodule
 from inspect import unwrap
 from typing import Any
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -163,7 +162,7 @@ for op in ['__add__',
 DeferredBase._pandas_type_map[None] = _DeferredScalar
 
 
-def name_and_func(method: Union[str, Callable]) -> Tuple[str, Callable]:
+def name_and_func(method: Union[str, Callable]) -> tuple[str, Callable]:
   """For the given method name or method, return the method name and the method
   itself.
 

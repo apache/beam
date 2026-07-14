@@ -42,6 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -61,7 +62,9 @@ import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
+import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
@@ -70,6 +73,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -97,8 +102,8 @@ import org.mockito.MockitoAnnotations;
 public class StreamingModeExecutionContextTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-  @Mock private SideInputStateFetcher sideInputStateFetcher;
   @Mock private WindmillStateReader stateReader;
+  @Mock private WorkExecutor workExecutor;
 
   private static final String COMPUTATION_ID = "computationId";
 
@@ -108,36 +113,45 @@ public class StreamingModeExecutionContextTest {
   DataflowWorkerHarnessOptions options;
   private FakeGlobalConfigHandle globalConfigHandle;
 
+  private StreamingModeExecutionContext createExecutionContext(
+      StreamingGlobalConfigHandle configHandle) {
+    CounterSet counterSet = new CounterSet();
+    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
+    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
+    return new StreamingModeExecutionContext(
+        counterSet,
+        COMPUTATION_ID,
+        new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
+        stateNameMap,
+        WindmillStateCache.builder()
+            .setSizeMb(options.getWorkerCacheMb())
+            .build()
+            .forComputation("comp"),
+        StreamingStepMetricsContainer.createRegistry(),
+        new DataflowExecutionStateTracker(
+            ExecutionStateSampler.newForTest(),
+            executionStateRegistry.getState(
+                NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
+            counterSet,
+            PipelineOptionsFactory.create(),
+            "test-work-item-id"),
+        executionStateRegistry,
+        configHandle,
+        Long.MAX_VALUE,
+        /*throwExceptionOnLargeOutput=*/ false,
+        new HotKeyLogger(),
+        /*hotKeyLoggingEnabled=*/ false,
+        /*stepName=*/ "stepName",
+        "sourceBytesProcessCounterName",
+        SideInputStateFetcherFactory.fromOptions(options));
+  }
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
-    CounterSet counterSet = new CounterSet();
-    ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
-    stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
-    executionContext =
-        new StreamingModeExecutionContext(
-            counterSet,
-            COMPUTATION_ID,
-            new ReaderCache(Duration.standardMinutes(1), Executors.newCachedThreadPool()),
-            stateNameMap,
-            WindmillStateCache.builder()
-                .setSizeMb(options.getWorkerCacheMb())
-                .build()
-                .forComputation("comp"),
-            StreamingStepMetricsContainer.createRegistry(),
-            new DataflowExecutionStateTracker(
-                ExecutionStateSampler.newForTest(),
-                executionStateRegistry.getState(
-                    NameContext.forStage("stage"), "other", null, NoopProfileScope.NOOP),
-                counterSet,
-                PipelineOptionsFactory.create(),
-                "test-work-item-id"),
-            executionStateRegistry,
-            globalConfigHandle,
-            Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+    executionContext = createExecutionContext(globalConfigHandle);
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
@@ -151,24 +165,45 @@ public class StreamingModeExecutionContextTest {
         Instant::now);
   }
 
+  private void start(Work work) {
+    start(executionContext, work, null);
+  }
+
+  private void start(Work work, Coder<?> keyCoder) {
+    start(executionContext, work, keyCoder);
+  }
+
+  private void start(StreamingModeExecutionContext context, Work work) {
+    start(context, work, null);
+  }
+
+  private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
+    try {
+      context.start(
+          work,
+          stateReader,
+          workExecutor,
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          keyCoder,
+          /* keyTransitionListener= */ (k, c) -> {});
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Test
-  public void testTimerInternalsSetTimer() {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
+  public void testTimerInternalsSetTimer() throws Exception {
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
     StreamingModeExecutionContext.StepContext stepContext =
         executionContext.getStepContext(operationContext);
 
-    executionContext.start(
-        "key",
+    start(
         createMockWork(
             Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
-        stateReader,
-        sideInputStateFetcher,
-        outputBuilder);
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
 
     TimerInternals timerInternals = stepContext.timerInternals();
 
@@ -179,8 +214,10 @@ public class StreamingModeExecutionContextTest {
             new Instant(5000),
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
+    executionContext.finishKey();
     executionContext.flushState();
 
+    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
     Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
@@ -189,9 +226,6 @@ public class StreamingModeExecutionContextTest {
 
   @Test
   public void testTimerInternalsProcessingTimeSkew() {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder =
-        Windmill.WorkItemCommitRequest.newBuilder();
-
     NameContext nameContext = NameContextsForTests.nameContextForTest();
     DataflowOperationContext operationContext =
         executionContext.createOperationContext(nameContext);
@@ -211,14 +245,10 @@ public class StreamingModeExecutionContextTest {
         .setTimestamp(timerTimestamp.getMillis() * 1000)
         .setType(Windmill.Timer.Type.REALTIME);
 
-    executionContext.start(
-        "key",
+    start(
         createMockWork(
             workItemBuilder.build(),
-            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
-        stateReader,
-        sideInputStateFetcher,
-        outputBuilder);
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
     TimerInternals timerInternals = stepContext.timerInternals();
     assertTrue(timerTimestamp.isBefore(timerInternals.currentProcessingTime()));
   }
@@ -416,19 +446,112 @@ public class StreamingModeExecutionContextTest {
     for (Boolean isV2Encoding : Lists.newArrayList(Boolean.TRUE, Boolean.FALSE)) {
       Class<?> expectedEncoding =
           isV2Encoding ? WindmillTagEncodingV2.class : WindmillTagEncodingV1.class;
-      Windmill.WorkItemCommitRequest.Builder outputBuilder =
-          Windmill.WorkItemCommitRequest.newBuilder();
-      globalConfigHandle.setConfig(
-          StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
-      executionContext.start(
-          "key",
-          createMockWork(
-              Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()),
-          stateReader,
-          sideInputStateFetcher,
-          outputBuilder);
-      assertEquals(expectedEncoding, executionContext.getWindmillTagEncoding().getClass());
+      FakeGlobalConfigHandle configHandle =
+          new FakeGlobalConfigHandle(
+              StreamingGlobalConfig.builder().setEnableStateTagEncodingV2(isV2Encoding).build());
+      StreamingModeExecutionContext context = createExecutionContext(configHandle);
+      assertEquals(expectedEncoding, context.getWindmillTagEncoding().getClass());
+    }
+  }
+
+  @Test
+  public void testSetBacklogBytes() {
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    start(
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
+
+    stepContext.setBacklogBytes(1234.0);
+    executionContext.finishKey();
+    executionContext.flushState();
+
+    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
+  }
+
+  @Test
+  public void testFinishKeyReentrantSafety() {
+    start(
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
+
+    // First call
+    executionContext.finishKey();
+    // Second call - should not throw any Exception
+    executionContext.finishKey();
+  }
+
+  @Test
+  public void testStart_internalKeyDecoding() throws Exception {
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("decodedKey"))
+            .setWorkToken(17L)
+            .build();
+    Work work =
+        createMockWork(
+            workItem, Watermarks.builder().setInputDataWatermark(new Instant(1000)).build());
+
+    start(work, org.apache.beam.sdk.coders.StringUtf8Coder.of());
+
+    assertEquals("decodedKey", executionContext.getKey());
+  }
+
+  @Test
+  public void testInternalsPoisonedAfterFlushState() throws Exception {
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    start(
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
+
+    TimerInternals timerInternals = stepContext.timerInternals();
+    StateInternals stateInternals = stepContext.stateInternals();
+
+    executionContext.finishKey();
+    executionContext.flushState();
+
+    // Verify timerInternals is poisoned
+    try {
+      timerInternals.currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stateInternals is poisoned
+    try {
+      stateInternals.getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.stateInternals() returns poisoned instance
+    try {
+      stepContext.stateInternals().getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.timerInternals() returns poisoned instance
+    try {
+      stepContext.timerInternals().currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
     }
   }
 }

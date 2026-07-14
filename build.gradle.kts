@@ -275,16 +275,12 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:google-cloud-dataflow-java:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:build")
   dependsOn(":runners:google-cloud-dataflow-java:examples:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:build")
-  dependsOn(":runners:google-cloud-dataflow-java:worker:windmill:build")
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
-  dependsOn(":runners:samza:build")
-  dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -343,7 +339,8 @@ tasks.register("javaPreCommit") {
 // a precommit task build multiple IOs (except those splitting into single jobs)
 tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:amqp:build")
-  dependsOn(":sdks:java:io:cassandra:build")
+  // CassandraIO, HBaseIO and HCatalogIO do not support Java17+, test ran separately
+  // dependsOn(":sdks:java:io:cassandra:build")
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
@@ -353,8 +350,8 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:google-ads:build")
-  dependsOn(":sdks:java:io:hbase:build")
-  dependsOn(":sdks:java:io:hcatalog:build")
+  // dependsOn(":sdks:java:io:hbase:build")
+  // dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
   dependsOn(":sdks:java:io:jdbc:build")
   dependsOn(":sdks:java:io:jms:build")
@@ -412,7 +409,6 @@ tasks.register("javaPostCommit") {
 }
 
 tasks.register("javaPostCommitSickbay") {
-  dependsOn(":runners:samza:validatesRunnerSickbay")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
   }

@@ -334,9 +334,10 @@ public class SpannerChangeStreamErrorTest implements Serializable {
     mockChangeStreamOptions();
     mockTableExists();
     mockGetWatermark(startTimestamp);
+    mockGetPartitionSize(endTimestamp, 0);
     ResultSet getPartitionResultSet = mockGetParentPartition(startTimestamp, endTimestamp);
-    mockchangePartitionState(startTimestamp, endTimestamp, "CREATED");
-    mockchangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
+    mockChangePartitionState(startTimestamp, endTimestamp, "CREATED");
+    mockChangePartitionState(startTimestamp, endTimestamp, "SCHEDULED");
     mockGetPartitionsAfter(
         Timestamp.ofTimeSecondsAndNanos(startTimestamp.getSeconds(), startTimestamp.getNanos() - 1),
         getPartitionResultSet);
@@ -497,6 +498,40 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
   }
 
+  private void mockGetPartitionSize(Timestamp timestamp, long partitionSize) {
+    Statement getPartitionsAfterStatement =
+        Statement.newBuilder(
+                "SELECT COUNT(*) as count FROM my-metadata-table WHERE CreatedAt > @timestamp")
+            .bind("timestamp")
+            .to(Timestamp.ofTimeSecondsAndNanos(timestamp.getSeconds(), timestamp.getNanos()))
+            .build();
+    ResultSetMetadata metadata =
+        ResultSetMetadata.newBuilder()
+            .setRowType(
+                StructType.newBuilder()
+                    .addFields(
+                        Field.newBuilder()
+                            .setName("count")
+                            .setType(
+                                com.google.spanner.v1.Type.newBuilder()
+                                    .setCode(TypeCode.INT64)
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+    ResultSet countResultSet =
+        ResultSet.newBuilder()
+            .addRows(
+                ListValue.newBuilder()
+                    .addValues(
+                        Value.newBuilder().setStringValue(String.valueOf(partitionSize)).build())
+                    .build())
+            .setMetadata(metadata)
+            .build();
+    mockSpannerService.putStatementResult(
+        StatementResult.query(getPartitionsAfterStatement, countResultSet));
+  }
+
   private void mockGetWatermark(Timestamp watermark) {
     final String minWatermark = "min_watermark";
     // The query needs to sync with getUnfinishedMinWatermark() in PartitionMetadataDao file.
@@ -591,15 +626,15 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(tableExistsStatement, tableExistsResultSet));
   }
 
-  private ResultSet mockchangePartitionState(
+  private ResultSet mockChangePartitionState(
       Timestamp startTimestamp, Timestamp after3Seconds, String state) {
-    List<String> tokens = new ArrayList<>();
-    tokens.add("Parent0");
+    List<String> composedPartitionTokens = new ArrayList<>();
+    composedPartitionTokens.add("Parent0");
     Statement getPartitionStatement =
         Statement.newBuilder(
-                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@partitionTokens) AND State = @state")
-            .bind("partitionTokens")
-            .toStringArray(tokens)
+                "SELECT * FROM my-metadata-table WHERE PartitionToken IN UNNEST(@composedPartitionTokens) AND State = @state")
+            .bind("composedPartitionTokens")
+            .toStringArray(composedPartitionTokens)
             .bind("state")
             .to(state)
             .build();

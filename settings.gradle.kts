@@ -18,6 +18,20 @@
 import com.gradle.enterprise.gradleplugin.internal.extension.BuildScanExtensionWithHiddenFeatures
 
 pluginManagement {
+    val mavenCentralMirrorUrl = settings.providers.gradleProperty("mavenCentralMirrorUrl").orNull
+    val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+    val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
+
+    if (useMirror) {
+        logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror.")
+    }
+
+    repositories {
+        if (useMirror) {
+            maven { url = uri(mavenCentralMirrorUrl!!) }
+        }
+        gradlePluginPortal()
+    }
     plugins {
         id("org.javacc.javacc") version "4.0.3" // enable the JavaCC parser generator
     }
@@ -25,9 +39,8 @@ pluginManagement {
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.4.0"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.7.0"
 }
-
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
 val isJenkinsBuild = arrayOf("JENKINS_HOME", "BUILD_ID").all { System.getenv(it) != null }
@@ -150,8 +163,8 @@ include(":runners:prism:java")
 include(":runners:spark:3")
 include(":runners:spark:3:job-server")
 include(":runners:spark:3:job-server:container")
-include(":runners:samza")
-include(":runners:samza:job-server")
+include(":runners:spark:4")
+include(":runners:spark:4:job-server")
 include(":sdks:go")
 include(":sdks:go:container")
 include(":sdks:go:examples")
@@ -176,10 +189,10 @@ include(":sdks:java:expansion-service:container")
 include(":sdks:java:expansion-service:app")
 include(":sdks:java:extensions:arrow")
 include(":sdks:java:extensions:avro")
-include("sdks:java:extensions:avro:vendored-test")
 include(":sdks:java:extensions:euphoria")
 include(":sdks:java:extensions:kryo")
 include(":sdks:java:extensions:google-cloud-platform-core")
+include(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:kafka-factories")
@@ -223,10 +236,12 @@ include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-9")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
 include(":sdks:java:io:expansion-service")
+include(":sdks:java:io:messaging-expansion-service")
 include(":sdks:java:io:file-based-io-tests")
 include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
 include(":sdks:java:io:csv")
+include(":sdks:java:io:delta")
 include(":sdks:java:io:datadog")
 include(":sdks:java:io:file-schema-transform")
 include(":sdks:java:io:google-ads")

@@ -88,7 +88,6 @@ You must ensure that when a DoFn processes an element and outputs a new element,
 ### Timers
 If metadata needs to survive timer firings (e.g., knowing an `@OnTimer` fired because of a system drain), it must be added to Timer data structures. This is a bit of uncharted area which was only implemented for CausedByDrain metadata that comes from backend, not from persisted metadata. In order to persist all WindowedValue metadata across timer, more work has to be done, below are some pointers:
 *   `runners/core-java/src/main/java/org/apache/beam/runners/core/TimerInternals.java` and implementations (e.g., `WindmillTimerInternals.java` in Dataflow).
-*   `runners/samza/src/test/java/org/apache/beam/runners/samza/runtime/KeyedTimerData.java` (or generic `TimerData`).
 *   **Action:** Add the field to `TimerData`, next to `CausedByDrain`. Propagate it when setting the timer and expose it when the timer fires so it bubbles up.
 * Eventually, metadata from Timer lands in WindowedValue, so it can be exposed to users. Keep field names, types, and getters similar to WindowedValue as much as possible, as common interface may be introduced eventually.
 
@@ -116,4 +115,4 @@ User needs to access the metadata in their `DoFn` (e.g., `@ProcessElement public
 9.  [ ] Update `ReduceFnRunner` and `OutputAndTimeBoundedSplittableProcessElementInvoker` for complex transform propagation.
 10. [ ] If required by timers, update `TimerData` and `TimerInternals`.
 11. [ ] If exposed to the user, update `DoFnSignatures` and `ByteBuddyDoFnInvokerFactory`.
-12. [ ] Update other runners (Flink, Spark, Samza) to ensure they propagate the new `WindowedValue` fields correctly in their specific operators/runners.
+12. [ ] Update other runners (Flink, Spark) to ensure they propagate the new `WindowedValue` fields correctly in their specific operators/runners.

@@ -27,7 +27,6 @@ import (
 	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	instancepb "cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
-	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -59,7 +58,7 @@ func setUpTestContainer(ctx context.Context, t *testing.T) string {
 		containers.WithWaitStrategy(wait.ForLog("Cloud Spanner emulator running")),
 	)
 
-	mappedPort := containers.Port(ctx, t, container, nat.Port(spannerPorts[0]))
+	mappedPort := containers.Port(ctx, t, container, spannerPorts[0])
 
 	hostIP, err := container.Host(ctx)
 	if err != nil {

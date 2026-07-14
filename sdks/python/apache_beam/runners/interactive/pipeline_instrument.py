@@ -24,7 +24,6 @@ to transform original pipeline into a one-shot pipeline with interactivity.
 # pytype: skip-file
 
 import logging
-from typing import Dict
 
 import apache_beam as beam
 from apache_beam.pipeline import PipelineVisitor
@@ -332,7 +331,7 @@ class PipelineInstrument(object):
     return pipeline_to_execute
 
   @property
-  def cacheables(self) -> Dict[str, Cacheable]:
+  def cacheables(self) -> dict[str, Cacheable]:
     """Returns the Cacheables by PCollection ids.
 
     If you're already working with user defined pipelines and PCollections,
@@ -372,7 +371,7 @@ class PipelineInstrument(object):
     pipeline to instances in the user pipeline."""
     return self._runner_pcoll_to_user_pcoll
 
-  def find_cacheables(self) -> Dict[str, Cacheable]:
+  def find_cacheables(self) -> dict[str, Cacheable]:
     """Finds PCollections that need to be cached for analyzed pipeline.
 
     There might be multiple pipelines defined and watched, this will only find

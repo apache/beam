@@ -65,7 +65,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java SingleStoreIO Performance Test'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -83,7 +83,7 @@ jobs:
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-rbac.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-cluster-crd.yaml
           kubectl apply -f ${{github.workspace}}/.test-infra/kubernetes/singlestore/sdb-operator.yaml
-          kubectl wait --for=condition=Ready pod -l name=sdb-operator --timeout=300s
+          kubectl rollout status deployment/sdb-operator --timeout=300s
       - name: Install Singlestore cluster
         id: install_singlestore
         run: |

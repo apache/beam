@@ -26,11 +26,8 @@ import logging
 import os
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Sequence
-from typing import Type
 from typing import TypeVar
 
 import apache_beam as beam
@@ -488,7 +485,7 @@ class PipelineOptions(HasDisplayData):
       retain_unknown_options=False,
       display_warnings=False,
       current_only=False,
-  ) -> Dict[str, Any]:
+  ) -> dict[str, Any]:
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments into a dictionary.
@@ -629,7 +626,7 @@ class PipelineOptions(HasDisplayData):
   def display_data(self):
     return self.get_all_options(drop_default=True, retain_unknown_options=True)
 
-  def view_as(self, cls: Type[PipelineOptionsT]) -> PipelineOptionsT:
+  def view_as(self, cls: type[PipelineOptionsT]) -> PipelineOptionsT:
     """Returns a view of current object as provided PipelineOption subclass.
 
     Example Usage::
@@ -687,11 +684,11 @@ class PipelineOptions(HasDisplayData):
     v2_parts = (breaking_change_version.split('.') + ['0', '0', '0'])[:3]
     return tuple(map(int, v1_parts)) < tuple(map(int, v2_parts))
 
-  def _visible_option_list(self) -> List[str]:
+  def _visible_option_list(self) -> list[str]:
     return sorted(
         option for option in dir(self._visible_options) if option[0] != '_')
 
-  def __dir__(self) -> List[str]:
+  def __dir__(self) -> list[str]:
     return sorted(
         dir(type(self)) + list(self.__dict__) + self._visible_option_list())
 
@@ -853,7 +850,7 @@ def additional_option_ptransform_fn():
 
 
 # Optional type checks that aren't enabled by default.
-additional_type_checks: Dict[str, Callable[[], None]] = {
+additional_type_checks: dict[str, Callable[[], None]] = {
     'ptransform_fn': additional_option_ptransform_fn,
 }
 
@@ -886,6 +883,20 @@ class TypeOptions(PipelineOptions):
         action='store_false',
         help='Disable type checking at pipeline construction '
         'time')
+    parser.add_argument(
+        '--disable_beartype',
+        default=False,
+        action='store_true',
+        help='Disable the use of beartype for type checking.')
+    parser.add_argument(
+        '--exclude_infer_dataclass_field_type',
+        default=False,
+        action='store_true',
+        help='Exclude certain typehint inference involving dataclass fields '
+        'and resolve to Any (as in beam<=2.74.0). NOTE: this option is '
+        'for backward compatibility only and the exclusion scenarios are '
+        'subject to change or remove in a future version. For details see: '
+        'https://beam.apache.org/releases/pydoc/current/apache_beam.typehints.trivial_inference.html#apache_beam.typehints.trivial_inference.resolve_dataclass_field_type')  # pylint: disable=line-too-long
     parser.add_argument(
         '--runtime_type_check',
         default=False,
@@ -1238,12 +1249,22 @@ class GoogleCloudOptions(PipelineOptions):
   def _handle_temp_and_staging_locations(self, validator):
     temp_errors = validator.validate_gcs_path(self, 'temp_location')
     staging_errors = validator.validate_gcs_path(self, 'staging_location')
+
+    temp_location = getattr(self, 'temp_location', None)
+    staging_location = getattr(self, 'staging_location', None)
+
+    if temp_location is not None and temp_errors:
+      _LOGGER.warning(temp_errors[0])
+
+    if staging_location is not None and staging_errors:
+      _LOGGER.warning(staging_errors[0])
+
     if temp_errors and not staging_errors:
-      setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      setattr(self, 'temp_location', staging_location)
       self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     elif staging_errors and not temp_errors:
-      setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      setattr(self, 'staging_location', temp_location)
       self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:
@@ -1405,6 +1426,24 @@ class WorkerOptions(PipelineOptions):
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
+    parser.add_argument(
+        '--disk_provisioned_iops',
+        type=int,
+        default=None,
+        dest='disk_provisioned_iops',
+        help=(
+            'The provisioned IOPS of the disk. If not set, the Dataflow service'
+            ' will choose a reasonable default.'),
+    )
+    parser.add_argument(
+        '--disk_provisioned_throughput_mibps',
+        type=int,
+        default=None,
+        dest='disk_provisioned_throughput_mibps',
+        help=(
+            'The provisioned throughput of the disk in MiB/s. If not set, the'
+            ' Dataflow service will choose a reasonable default.'),
+    )
     parser.add_argument(
         '--worker_region',
         default=None,
@@ -1629,6 +1668,82 @@ class ProfilingOptions(PipelineOptions):
         default=1.0,
         help='A number between 0 and 1 indicating the ratio '
         'of bundles that should be profiled.')
+    parser.add_argument(
+        '--profiler_agent',
+        default=None,
+        help=(
+            'Specifies the profiling agent to launch the SDK worker harness '
+            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'
+        ))
+    parser.add_argument(
+        '--profiler_extra_arg',
+        '--profiler_extra_args',
+        dest='profiler_extra_args',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=
+        'Comma-separated list of extra arguments to pass to the profiler agent.'
+    )
+    parser.add_argument(
+        '--profiler_extra_env_var',
+        '--profiler_extra_env_vars',
+        dest='profiler_extra_env_vars',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=(
+            'Comma-separated list of environment variables required by the profiler agent '
+            'in format "KEY1=VAL1,KEY2=VAL2".'))
+    parser.add_argument(
+        '--profile_temp_location',
+        default=None,
+        help=(
+            'Directory path on the worker where local profiles are saved. '
+            'Defaults to ${semi_persist_dir}/profiles if not specified.'))
+    parser.add_argument(
+        '--profile_upload_interval_sec',
+        type=int,
+        default=300,
+        help=(
+            'Frequency (in seconds) at which the local profiles are uploaded to GCS. '
+            'Defaults to 300 (5 min).'))
+    parser.add_argument(
+        '--profiler_stop_after_sec',
+        type=int,
+        default=0,
+        help=(
+            'Time limit (in seconds) for profiling a single process. When exceeded, '
+            'the worker process is restarted without the profiler.'))
+    parser.add_argument(
+        '--profiler_stop_after_crash',
+        action='store_true',
+        default=False,
+        help=(
+            'If True, the profiling agent won\'t be re-enabled after a worker '
+            'process crash.'))
+    parser.add_argument(
+        '--profile_postprocess_interval_sec',
+        type=int,
+        default=600,
+        help=(
+            'Frequency (in seconds) at which the local profiles are post-processed '
+            'on-the-fly. Defaults to 600 (10 minutes). Set to 0 to disable.'))
+
+  def validate(self, validator):
+    errors = []
+    if self.profiler_agent:
+      if self.profile_cpu or self.profile_memory:
+        errors.append(
+            '--profiler_agent is mutually exclusive with --profile_cpu '
+            'and --profile_memory.')
+
+      if not self.profile_location:
+        temp_location = self.view_as(GoogleCloudOptions).temp_location
+        if temp_location:
+          self.profile_location = temp_location.rstrip('/') + '/profiles'
+          _LOGGER.info(
+              'Setting --profile_location to %s since profiling is enabled.',
+              self.profile_location)
+    return errors
 
 
 class SetupOptions(PipelineOptions):
@@ -2001,7 +2116,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20']
+  PUBLISHED_FLINK_VERSIONS = ['1.19', '1.20', '2.0', '2.1', '2.2']
 
   @classmethod
   def _add_argparse_args(cls, parser):
@@ -2169,7 +2284,7 @@ class OptionsContext(object):
 
   Can also be used as a decorator.
   """
-  overrides: List[Dict[str, Any]] = []
+  overrides: list[dict[str, Any]] = []
 
   def __init__(self, **options):
     self.options = options

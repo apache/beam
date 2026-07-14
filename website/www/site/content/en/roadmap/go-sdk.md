@@ -20,7 +20,7 @@ limitations under the License.
 The Go SDK is [fully released as of v2.33.0](/blog/go-sdk-release/).
 
 The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)
-and can execute pipelines on portable runners, like Flink, Spark, Samza, and Google Cloud Dataflow.
+and can execute pipelines on portable runners, like Flink, Spark, and Google Cloud Dataflow.
 
 Current roadmap:
 * continue building up unbounded pipeline facing features, as described on the [Beam Dev Wiki](https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK).

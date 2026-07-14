@@ -34,6 +34,7 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Playground PreCommit'
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     runs-on: [self-hosted, ubuntu-24.04, main]
@@ -45,9 +46,9 @@ jobs:
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
       PYTHON_VERSION: '3.10'
-      JAVA_VERSION: '11'
+      JAVA_VERSION: '17'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -62,7 +63,10 @@ jobs:
 
       - name: Add GOPATH/bin to PATH
         run: echo "PATH=$PATH:$(go env GOPATH)/bin" >> $GITHUB_ENV
-
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install -y wget
       - name: Install sbt for running SCIO tests
         run: |
           sudo apt-get update --yes

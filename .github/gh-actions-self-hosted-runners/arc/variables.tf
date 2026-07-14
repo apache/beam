@@ -90,8 +90,8 @@ variable "main_runner" {
       max_replicas = optional(number, 1)
       disk_size_gb = optional(number, 100)
       webhook_scaling = optional(bool, false)
-      runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
-      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","main"])
+      runner_image = optional(string, "summerwind/actions-runner:v2.334.0-ubuntu-24.04-012f1a5")
+      labels = optional(list(string), ["self-hosted", "ubuntu-24.04","main"])
       enable_selector = optional(bool, false)
       enable_taint = optional(bool, false)
       requests = optional(object({
@@ -119,8 +119,8 @@ variable "additional_runner_pools" {
       max_replicas = optional(number, 1)
       disk_size_gb = optional(number, 100)
       webhook_scaling = optional(bool, false)
-      runner_image = optional(string, "summerwind/actions-runner:v2.304.0-ubuntu-20.04-30355f7")
-      labels = optional(list(string), ["self-hosted", "ubuntu-20.04","changeme"])
+      runner_image = optional(string, "summerwind/actions-runner:v2.334.0-ubuntu-24.04-012f1a5")
+      labels = optional(list(string), ["self-hosted", "ubuntu-24.04","changeme"])
       enable_selector = optional(bool, true)
       enable_taint = optional(bool, true)
       requests = optional(object({

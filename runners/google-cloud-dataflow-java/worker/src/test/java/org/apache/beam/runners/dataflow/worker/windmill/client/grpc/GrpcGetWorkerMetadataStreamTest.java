@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -194,45 +193,6 @@ public class GrpcGetWorkerMetadataStreamTest {
                     endpointProto ->
                         WindmillEndpoints.Endpoint.from(endpointProto, AUTHENTICATING_SERVICE))
                 .collect(Collectors.toList()));
-  }
-
-  @Test
-  public void testGetWorkerMetadata_doesNotConsumeResponseIfMetadataStale() {
-    WorkerMetadataResponse freshEndpoints =
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(2)
-            .addAllWorkEndpoints(DIRECT_PATH_ENDPOINTS)
-            .putAllGlobalDataEndpoints(GLOBAL_DATA_ENDPOINTS)
-            .setExternalEndpoint(AUTHENTICATING_SERVICE)
-            .build();
-
-    TestWindmillEndpointsConsumer testWindmillEndpointsConsumer =
-        Mockito.spy(new TestWindmillEndpointsConsumer());
-    GetWorkerMetadataTestStub testStub =
-        new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
-    stream = getWorkerMetadataTestStream(testStub, testWindmillEndpointsConsumer);
-    testStub.injectWorkerMetadata(freshEndpoints);
-
-    List<WorkerMetadataResponse.Endpoint> staleDirectPathEndpoints =
-        Lists.newArrayList(
-            WorkerMetadataResponse.Endpoint.newBuilder()
-                .setDirectEndpoint("staleWindmillEndpoint")
-                .build());
-    Map<String, WorkerMetadataResponse.Endpoint> staleGlobalDataEndpoints = new HashMap<>();
-    staleGlobalDataEndpoints.put(
-        "stale_global_data",
-        WorkerMetadataResponse.Endpoint.newBuilder().setDirectEndpoint("staleGlobalData").build());
-
-    testStub.injectWorkerMetadata(
-        WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(1)
-            .addAllWorkEndpoints(staleDirectPathEndpoints)
-            .putAllGlobalDataEndpoints(staleGlobalDataEndpoints)
-            .build());
-
-    // Should have ignored the stale update and only used initial.
-    verify(testWindmillEndpointsConsumer).accept(WindmillEndpoints.from(freshEndpoints));
-    verifyNoMoreInteractions(testWindmillEndpointsConsumer);
   }
 
   @Test

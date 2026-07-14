@@ -54,12 +54,12 @@ jobs:
         os: [[self-hosted, ubuntu-24.04, main], macos-latest]
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -96,12 +96,12 @@ jobs:
       fail-fast: false
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -111,6 +111,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |
@@ -137,7 +142,7 @@ jobs:
     outputs:
       gcp-variables-set: ${{ steps.check_gcp_variables.outputs.gcp-variables-set }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -159,12 +164,12 @@ jobs:
       fail-fast: false
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '18'
       - name: Install Develocity npm Agent
@@ -174,6 +179,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+      - name: Install Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
       - name: Setup Beam Python
         working-directory: ./sdks/python
         run: |

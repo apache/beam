@@ -63,13 +63,16 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
 
   private final ExecutableTriggerStateMachine rootTrigger;
   private final TriggerStateMachineContextFactory<W> contextFactory;
+  private final boolean useNewWindowOptimization;
 
   public TriggerStateMachineRunner(
       ExecutableTriggerStateMachine rootTrigger,
-      TriggerStateMachineContextFactory<W> contextFactory) {
+      TriggerStateMachineContextFactory<W> contextFactory,
+      boolean useNewWindowOptimization) {
     checkState(rootTrigger.getTriggerIndex() == 0);
     this.rootTrigger = rootTrigger;
     this.contextFactory = contextFactory;
+    this.useNewWindowOptimization = useNewWindowOptimization;
   }
 
   private FinishedTriggersBitSet readFinishedBits(ValueState<BitSet> state) {
@@ -81,9 +84,11 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     }
 
     @Nullable BitSet bitSet = state.read();
-    return bitSet == null
-        ? FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree())
-        : FinishedTriggersBitSet.fromBitSet(bitSet);
+    if (bitSet == null) {
+      return FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree());
+    }
+
+    return FinishedTriggersBitSet.fromBitSet(bitSet);
   }
 
   private void clearFinishedBits(ValueState<BitSet> state) {
@@ -99,19 +104,29 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
-  public void prefetchIsClosed(StateAccessor<?> state) {
+  /** Return true if the window is new (no trigger state has ever been persisted). */
+  public boolean isNew(StateAccessor<?> state) {
+    return isFinishedSetNeeded() && state.access(FINISHED_BITS_TAG).read() == null;
+  }
+
+  @VisibleForTesting
+  public BitSet getFinishedBits(StateAccessor<?> state) {
+    return readFinishedBits(state.access(FINISHED_BITS_TAG)).getBitSet();
+  }
+
+  public void prefetchFinishedSet(StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
   }
 
   public void prefetchForValue(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
+    prefetchFinishedSet(state);
     rootTrigger.invokePrefetchOnElement(contextFactory.createPrefetchContext(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
-    prefetchIsClosed(state);
+    prefetchFinishedSet(state);
     rootTrigger.invokePrefetchShouldFire(contextFactory.createPrefetchContext(window, rootTrigger));
   }
 
@@ -180,13 +195,23 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     persistFinishedSet(state, finishedSet);
   }
 
-  private void persistFinishedSet(
-      StateAccessor<?> state, FinishedTriggersBitSet modifiedFinishedSet) {
+  @VisibleForTesting
+  void persistFinishedSet(StateAccessor<?> state, FinishedTriggersBitSet modifiedFinishedSet) {
     if (!isFinishedSetNeeded()) {
       return;
     }
 
     ValueState<BitSet> finishedSetState = state.access(FINISHED_BITS_TAG);
+
+    if (useNewWindowOptimization) {
+      if (finishedSetState.read() == null
+          || !readFinishedBits(finishedSetState).equals(modifiedFinishedSet)) {
+        // Write a value even if the bitset was empty
+        finishedSetState.write(modifiedFinishedSet.getBitSet());
+      }
+      return;
+    }
+
     if (!readFinishedBits(finishedSetState).equals(modifiedFinishedSet)) {
       if (modifiedFinishedSet.getBitSet().isEmpty()) {
         finishedSetState.clear();

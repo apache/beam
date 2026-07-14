@@ -99,7 +99,7 @@ class TriggerMergeContext(WindowFn.MergeContext):
     super().__init__(all_windows)
     self.trigger_context = context
     self.windowing = windowing
-    self.merged_away: typing.Dict[BoundedWindow, BoundedWindow] = {}
+    self.merged_away: dict[BoundedWindow, BoundedWindow] = {}
 
   def merge(self, to_be_merged, merge_result):
     _LOGGER.debug("Merging %s into %s", to_be_merged, merge_result)
@@ -117,9 +117,9 @@ class TriggerMergeContext(WindowFn.MergeContext):
 
 
 @typehints.with_input_types(
-    typing.Tuple[K, typing.Iterable[windowed_value.WindowedValue]])
+    tuple[K, typing.Iterable[windowed_value.WindowedValue]])
 @typehints.with_output_types(
-    typing.Tuple[K, typing.Iterable[windowed_value.WindowedValue]])
+    tuple[K, typing.Iterable[windowed_value.WindowedValue]])
 class GeneralTriggerManagerDoFn(DoFn):
   """A trigger manager that supports all windowing / triggering cases.
 
@@ -153,7 +153,7 @@ class GeneralTriggerManagerDoFn(DoFn):
 
   def process(
       self,
-      element: typing.Tuple[K, typing.Iterable[windowed_value.WindowedValue]],
+      element: tuple[K, typing.Iterable[windowed_value.WindowedValue]],
       all_elements: BagRuntimeState = DoFn.StateParam(WINDOW_ELEMENT_PAIRS),  # type: ignore
       latest_processing_time: AccumulatingRuntimeState = DoFn.StateParam(LAST_KNOWN_TIME),  # type: ignore
       latest_watermark: AccumulatingRuntimeState = DoFn.StateParam(  # type: ignore
@@ -226,7 +226,7 @@ class GeneralTriggerManagerDoFn(DoFn):
       timestamp: Timestamp,
       timer_tag: typing.Optional[str],
       context: 'FnRunnerStatefulTriggerContext',
-      windows_of_interest: typing.Optional[typing.Set[BoundedWindow]] = None):
+      windows_of_interest: typing.Optional[set[BoundedWindow]] = None):
     windows_to_elements = context.windows_to_elements_map()
     context.all_elements_state.clear()
 
@@ -254,7 +254,7 @@ class GeneralTriggerManagerDoFn(DoFn):
         elems = [WindowedValue(e.value, e.timestamp, (w, )) for e in elems]
         yield (key, elems)
 
-    finished_windows: typing.Set[BoundedWindow] = set(
+    finished_windows: set[BoundedWindow] = set(
         context.finished_windows_state.read())
     # Add elements that were not fired back into state.
     for w, elems in windows_to_elements.items():
@@ -341,13 +341,11 @@ class FnRunnerStatefulTriggerContext(TriggerContext):
     self.finished_windows_state = finished_windows_state
 
   def windows_to_elements_map(
-      self
-  ) -> typing.Dict[BoundedWindow, typing.List[windowed_value.WindowedValue]]:
-    window_element_pairs: typing.Iterable[typing.Tuple[
-        BoundedWindow,
-        windowed_value.WindowedValue]] = self.all_elements_state.read()
-    result: typing.Dict[BoundedWindow,
-                        typing.List[windowed_value.WindowedValue]] = {}
+      self) -> dict[BoundedWindow, list[windowed_value.WindowedValue]]:
+    window_element_pairs: typing.Iterable[
+        tuple[BoundedWindow,
+              windowed_value.WindowedValue]] = self.all_elements_state.read()
+    result: dict[BoundedWindow, list[windowed_value.WindowedValue]] = {}
     for w, e in window_element_pairs:
       if w not in result:
         result[w] = []

@@ -15,7 +15,6 @@
 #
 
 import logging
-import signal
 import typing
 
 import apache_beam as beam
@@ -84,7 +83,7 @@ class InferenceTransform(ptransform.PTransform):
       self.bert_tokenizer = bert_tokenizer
       logging.info('Starting Postprocess')
 
-    def process(self, element: typing.Tuple[str, PredictionResult]) \
+    def process(self, element: tuple[str, PredictionResult]) \
         -> typing.Iterable[str]:
       text, prediction_result = element
       inputs = prediction_result.example

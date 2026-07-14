@@ -19,12 +19,18 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -40,8 +46,8 @@ import org.junit.runners.JUnit4;
 public class WindmillReaderIteratorBaseTest {
   private static class TestWindmillReaderIterator extends WindmillReaderIteratorBase<Long> {
     protected TestWindmillReaderIterator(
-        Windmill.WorkItem work, ValueProvider<Boolean> skipUndecodableElements) {
-      super(work, skipUndecodableElements);
+        StreamingModeExecutionContext context, ValueProvider<Boolean> skipUndecodableElements) {
+      super(context, skipUndecodableElements);
     }
 
     @Override
@@ -81,6 +87,122 @@ public class WindmillReaderIteratorBaseTest {
     testForMessageBundleCounts(true, 0, 0, 1, 3, 0, 1, 0, 0, 0, 0);
   }
 
+  @Test
+  public void testWorkItemCancelledException() throws IOException {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(true);
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(0L).build();
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      iter.start();
+      fail("Expected WorkItemCancelledException");
+    } catch (WorkItemCancelledException e) {
+      // Expected
+    }
+  }
+
+  @Test
+  public void testFinishKeyCalled() throws Exception {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(false);
+    Windmill.WorkItem workItem =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setWorkToken(0L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(0)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+    when(mockContext.advance()).thenReturn(false);
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      assertTrue(iter.start());
+      assertFalse(iter.advance()); // This should trigger finishKey
+      verify(mockContext).finishKey();
+    }
+  }
+
+  @Test
+  public void testAdvanceKeyChaining() throws Exception {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(false);
+
+    // Work item A (1 message)
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(1000)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+    when(mockContext.getWorkItem()).thenReturn(workItemA);
+
+    // Work item B (1 message)
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(2000)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+
+    // Set up context.advance() to mock transition
+    when(mockContext.advance())
+        .thenAnswer(
+            new org.mockito.stubbing.Answer<Boolean>() {
+              private int count = 0;
+
+              @Override
+              public Boolean answer(org.mockito.invocation.InvocationOnMock invocation) {
+                if (count == 0) {
+                  count++;
+                  when(mockContext.getWorkItem()).thenReturn(workItemB);
+                  return true;
+                }
+                return false;
+              }
+            });
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      assertTrue(iter.start());
+      assertEquals(1000L, iter.getCurrent().getValue().longValue());
+
+      // Advance should trigger context.advance(), transition to workItemB, and decode message from
+      // workItemB (timestamp 2000)
+      assertTrue(iter.advance());
+      assertEquals(2000L, iter.getCurrent().getValue().longValue());
+
+      // Next advance should exhaust it and return false
+      assertFalse(iter.advance());
+    }
+  }
+
   private void testForMessageBundleCounts(int... messageBundleCounts) throws IOException {
     testForMessageBundleCounts(false, messageBundleCounts);
   }
@@ -111,9 +233,13 @@ public class WindmillReaderIteratorBaseTest {
             .setWorkToken(0L)
             .addAllMessageBundles(bundles)
             .build();
+
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.getWorkItem()).thenReturn(workItem);
+
     try (TestWindmillReaderIterator iter =
         new TestWindmillReaderIterator(
-            workItem, ValueProvider.StaticValueProvider.of(skipErrors))) {
+            mockContext, ValueProvider.StaticValueProvider.of(skipErrors))) {
       List<Long> actual =
           ReaderTestUtils.windowedValuesToValues(
               ReaderUtils.readRemainingFromIterator(iter, false));
@@ -124,5 +250,25 @@ public class WindmillReaderIteratorBaseTest {
       }
       assertEquals(Arrays.toString(messageBundleCounts) + skipErrors, expected, actual);
     }
+  }
+
+  private static Work createMockWork(Windmill.WorkItem workItem) {
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
+        org.apache.beam.runners.dataflow.worker.streaming.Watermarks.builder()
+            .setInputDataWatermark(new org.joda.time.Instant(1000))
+            .build(),
+        Work.createProcessingContext(
+            "computationId",
+            mock(
+                org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient
+                    .class),
+            ignored -> {},
+            mock(
+                org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender
+                    .class)),
+        false,
+        org.joda.time.Instant::now);
   }
 }

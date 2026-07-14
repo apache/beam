@@ -25,7 +25,6 @@ import io
 import tempfile
 from typing import Any
 from typing import Iterable
-from typing import List
 from typing import NamedTuple
 
 from apache_beam import pvalue
@@ -67,7 +66,7 @@ class BeamAssertException(Exception):
 class TestWindowedValue(NamedTuple):
   value: Any
   timestamp: Any
-  windows: List
+  windows: list
   pane_info: PaneInfo = PANE_INFO_UNKNOWN
 
 

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,8 +49,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import scala.Serializable;
 
 /**
  * Factory to create a {@link DoFnRunner}. The factory supports fusing multiple {@link DoFnRunner
@@ -283,6 +284,9 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
           runners[i].finishBundle();
         }
       }
+
+      @Override
+      public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
       @Override
       public DoFn<InT, T> getFn() {

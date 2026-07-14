@@ -204,6 +204,10 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+
+    Table patchTableSchema(
+        TableReference tableReference, com.google.api.services.bigquery.model.TableSchema newSchema)
+        throws IOException, InterruptedException;
   }
 
   /** An interface to get, create and flush Cloud BigQuery STORAGE API write streams. */
@@ -266,7 +270,7 @@ public interface BigQueryServices extends Serializable {
     /**
      * Unpin this object. If the object has been closed, this will release any underlying resources.
      */
-    void unpin() throws Exception;
+    void unpin();
   }
 
   /**

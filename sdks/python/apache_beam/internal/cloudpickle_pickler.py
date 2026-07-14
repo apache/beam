@@ -256,20 +256,27 @@ def dump_session(file_path):
   # dump supported Beam Registries (currently only logical type registry)
   from apache_beam.coders import typecoders
   from apache_beam.typehints import schemas
+  from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 
   with _pickle_lock, open(file_path, 'wb') as file:
     coder_reg = typecoders.registry.get_custom_type_coder_tuples()
     logical_type_reg = schemas.LogicalType._known_logical_types.copy_custom()
+    schema_reg = SCHEMA_REGISTRY.get_registered_typings()
 
     pickler = cloudpickle.CloudPickler(file)
     # TODO(https://github.com/apache/beam/issues/18500) add file system registry
     # once implemented
-    pickler.dump({"coder": coder_reg, "logical_type": logical_type_reg})
+    pickler.dump({
+        "coder": coder_reg,
+        "logical_type": logical_type_reg,
+        "schema": schema_reg
+    })
 
 
 def load_session(file_path):
   from apache_beam.coders import typecoders
   from apache_beam.typehints import schemas
+  from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 
   with _pickle_lock, open(file_path, 'rb') as file:
     registries = cloudpickle.load(file)
@@ -284,3 +291,7 @@ def load_session(file_path):
       schemas.LogicalType._known_logical_types.load(registries["logical_type"])
     else:
       _LOGGER.warning('No logical type registry found in saved session')
+    if "schema" in registries:
+      SCHEMA_REGISTRY.load_registered_typings(registries["schema"])
+    else:
+      _LOGGER.warning('No schema registry found in saved session')

@@ -20,6 +20,7 @@
 For internal use only, no backward compatibility guarantees.
 """
 
+# ruff: noqa: UP006
 from functools import partial
 from typing import Dict
 from typing import List

@@ -26,7 +26,7 @@ from uuid import uuid4
 class SchemaTypeRegistry(object):
   def __init__(self):
     self.by_id = {}
-    self.by_typing = {}
+    self.by_typing = {}  # currently not used
 
   def generate_new_id(self):
     for _ in range(100):
@@ -42,6 +42,15 @@ class SchemaTypeRegistry(object):
   def add(self, typing, schema):
     if schema.id:
       self.by_id[schema.id] = (typing, schema)
+
+  def load_registered_typings(self, by_id):
+    for id, typing in by_id.items():
+      if id not in self.by_id:
+        self.by_id[id] = (typing, None)
+
+  def get_registered_typings(self):
+    # Used by save_main_session, as pb2.schema isn't picklable
+    return {k: v[0] for k, v in self.by_id.items()}
 
   def get_typing_by_id(self, unique_id):
     if not unique_id:

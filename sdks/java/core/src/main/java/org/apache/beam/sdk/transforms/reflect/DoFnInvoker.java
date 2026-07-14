@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -184,6 +185,10 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a {@link DoFn.OnWindowExpirationContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
@@ -218,8 +223,22 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a reference to the record id of the current element. */
+    @Nullable
+    String currentRecordId(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a reference to the record offset of the current element. */
+    @Nullable
+    Long currentRecordOffset(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a reference to the firing timestamp of the current timer. */
+    Instant fireTimestamp(DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the caused by drain. */
     CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a reference to the {@link ValueKind}. */
+    ValueKind valueKind(DoFn<InputT, OutputT> doFn);
 
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
@@ -330,9 +349,33 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("RecordId unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("RecordOffset unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("FireTimestamp unsupported in %s", getErrorContext()));
+    }
+
+    @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("CausedByDrain unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("ValueKind unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -406,6 +449,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("OnTimerContext unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("OnWindowExpirationContext unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -500,6 +550,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      return delegate.onWindowExpirationContext(doFn);
+    }
+
+    @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return delegate.element(doFn);
     }
@@ -525,8 +581,28 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      return delegate.currentRecordId(doFn);
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      return delegate.currentRecordOffset(doFn);
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      return delegate.fireTimestamp(doFn);
+    }
+
+    @Override
     public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return delegate.causedByDrain(doFn);
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return delegate.valueKind(doFn);
     }
 
     @Override

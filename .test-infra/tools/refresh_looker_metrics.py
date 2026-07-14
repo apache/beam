@@ -44,7 +44,12 @@ LOOKS_TO_DOWNLOAD = [
     ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
     ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
-    ("106", ["355", "356", "357", "358", "359"])   # Table Row Inference Sklearn Streaming
+    ("106", ["355", "356", "357", "358", "359"]),   # Table Row Inference Sklearn Streaming
+    ("107", ["360", "361", "362", "363", "364"]),  # MLTransform Generate Vocab Batch
+    ("108", ["365", "366", "367", "368", "369"]),  # MLTransform One-Hot Encoding Batch
+    ("109", ["375", "376", "377", "378", "379"]),  # MLTransform Text Embedding Batch
+    ("110", ["380", "381", "382", "383", "385"]),  # MLTransform Image Embedding GPU Batch
+    ("111", ["370", "371", "372", "373", "374"]),  # MLTransform Image Embedding CPU Batch
 ]
 
 def get_look(id: str) -> models.Look:

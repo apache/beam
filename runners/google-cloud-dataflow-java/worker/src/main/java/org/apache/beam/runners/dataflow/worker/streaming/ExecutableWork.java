@@ -17,32 +17,69 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import com.google.auto.value.AutoValue;
-import java.util.function.Consumer;
+import java.util.Objects;
+import java.util.function.BiConsumer;
+import org.apache.beam.runners.dataflow.worker.util.ExceptionUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 
 /** {@link Work} instance and a processing function used to process the work. */
-@AutoValue
-public abstract class ExecutableWork implements Runnable {
+public final class ExecutableWork {
 
-  public static ExecutableWork create(Work work, Consumer<Work> executeWorkFn) {
-    return new AutoValue_ExecutableWork(work, executeWorkFn);
+  private final Work work;
+  private final BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn;
+
+  private ExecutableWork(
+      Work work, BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
+    this.work = Objects.requireNonNull(work);
+    this.executeWorkFn = Objects.requireNonNull(executeWorkFn);
   }
 
-  public abstract Work work();
-
-  public abstract Consumer<Work> executeWorkFn();
-
-  @Override
-  public void run() {
-    executeWorkFn().accept(work());
+  /**
+   * Creates an {@link ExecutableWork} instance.
+   *
+   * @param executeWorkFn The function executing the work. It'll be called along with a
+   *     BoundedQueueExecutorWorkHandle. The handle needs to be passed to BoundedQueueExecutor when
+   *     requesting more work to process inline.
+   */
+  public static ExecutableWork create(
+      Work work, BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn) {
+    return new ExecutableWork(work, executeWorkFn);
   }
 
-  public final WorkId id() {
+  public Work work() {
+    return work;
+  }
+
+  public BiConsumer<Work, BoundedQueueExecutorWorkHandle> executeWorkFn() {
+    return executeWorkFn;
+  }
+
+  public void run(BoundedQueueExecutorWorkHandle handle) {
+    try {
+      executeWorkFn().accept(work(), handle);
+    } catch (Throwable t) {
+      throw ExceptionUtils.safeWrapThrowableAsException(t);
+    }
+  }
+
+  public WorkId id() {
     return work().id();
   }
 
-  public final Windmill.WorkItem getWorkItem() {
+  public Windmill.WorkItem getWorkItem() {
     return work().getWorkItem();
+  }
+
+  @Override
+  public String toString() {
+    return "ExecutableWork{" + id() + "}";
+  }
+
+  public String getComputationId() {
+    return work().getComputationId();
+  }
+
+  public Work.KeyGroup getKeyGroup() {
+    return work().getKeyGroup();
   }
 }

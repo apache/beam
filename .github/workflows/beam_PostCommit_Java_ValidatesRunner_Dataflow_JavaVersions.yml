@@ -60,14 +60,14 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions]
         job_phrase: [Run Dataflow ValidatesRunner Java]
-        java_version: ['8', '25']
+        java_version: ['25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Dataflow ValidatesRunner Java')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -89,7 +89,7 @@ jobs:
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
           max-workers: 12
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results

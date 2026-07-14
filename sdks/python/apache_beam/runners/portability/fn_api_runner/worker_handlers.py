@@ -34,14 +34,10 @@ from typing import Any
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Callable
 from typing import DefaultDict
-from typing import Dict
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import Mapping
 from typing import Optional
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import cast
@@ -1034,7 +1030,7 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     def extend(self, other: Buffer) -> None:
       raise NotImplementedError()
 
-  StateType = Union[CopyOnWriteState, DefaultDict[bytes, Buffer]]
+  StateType = Union[CopyOnWriteState, collections.defaultdict[bytes, Buffer]]
 
   def __init__(self):
     # type: () -> None

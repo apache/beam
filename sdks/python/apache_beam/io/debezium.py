@@ -80,7 +80,6 @@
 
 import json
 from enum import Enum
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 
@@ -109,8 +108,8 @@ ReadFromDebeziumSchema = NamedTuple(
     'ReadFromDebeziumSchema',
     [('connector_class', str), ('username', str), ('password', str),
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
-     ('connection_properties', List[str]),
-     ('start_offset', Optional[List[str]]),
+     ('connection_properties', list[str]),
+     ('start_offset', Optional[list[str]]),
      ('offset_storage_path', Optional[str])])
 
 

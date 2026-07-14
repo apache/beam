@@ -20,7 +20,6 @@
 import contextlib
 import threading
 from typing import TYPE_CHECKING
-from typing import Dict
 from typing import NamedTuple
 from typing import Optional
 from typing import Union
@@ -96,7 +95,7 @@ class StateSampler(statesampler_impl.StateSampler):
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
     self._prefix = prefix
     self._counter_factory = counter_factory
-    self._states_by_name: Dict[CounterName, statesampler_impl.ScopedState] = {}
+    self._states_by_name: dict[CounterName, statesampler_impl.ScopedState] = {}
     self.sampling_period_ms = sampling_period_ms
     self.tracked_thread: Optional[threading.Thread] = None
     self.finished = False

@@ -93,6 +93,8 @@ public class PartitionMetadata implements Serializable {
   @AvroEncode(using = TimestampEncoding.class)
   private Timestamp finishedAt;
 
+  private String tvfName;
+
   /** Default constructor for serialization only. */
   private PartitionMetadata() {}
 
@@ -107,7 +109,8 @@ public class PartitionMetadata implements Serializable {
       Timestamp createdAt,
       @Nullable Timestamp scheduledAt,
       @Nullable Timestamp runningAt,
-      @Nullable Timestamp finishedAt) {
+      @Nullable Timestamp finishedAt,
+      String tvfName) {
     this.partitionToken = partitionToken;
     this.parentTokens = parentTokens;
     this.startTimestamp = startTimestamp;
@@ -119,11 +122,17 @@ public class PartitionMetadata implements Serializable {
     this.scheduledAt = scheduledAt;
     this.runningAt = runningAt;
     this.finishedAt = finishedAt;
+    this.tvfName = tvfName;
   }
 
-  /** Unique partition identifier, which can be used to perform a change stream query. */
+  /** The partition token used to perform a change stream query. */
   public String getPartitionToken() {
     return partitionToken;
+  }
+
+  /** The table-valued function used to perform a change stream query. */
+  public String getTvfName() {
+    return tvfName;
   }
 
   /**
@@ -212,7 +221,8 @@ public class PartitionMetadata implements Serializable {
         && Objects.equals(createdAt, that.createdAt)
         && Objects.equals(scheduledAt, that.scheduledAt)
         && Objects.equals(runningAt, that.runningAt)
-        && Objects.equals(finishedAt, that.finishedAt);
+        && Objects.equals(finishedAt, that.finishedAt)
+        && Objects.equals(tvfName, that.tvfName);
   }
 
   @Override
@@ -228,7 +238,8 @@ public class PartitionMetadata implements Serializable {
         createdAt,
         scheduledAt,
         runningAt,
-        finishedAt);
+        finishedAt,
+        tvfName);
   }
 
   @Override
@@ -257,6 +268,8 @@ public class PartitionMetadata implements Serializable {
         + runningAt
         + ", finishedAt="
         + finishedAt
+        + ", tvfName="
+        + tvfName
         + '}';
   }
 
@@ -279,6 +292,7 @@ public class PartitionMetadata implements Serializable {
     @Nullable private Timestamp scheduledAt;
     @Nullable private Timestamp runningAt;
     @Nullable private Timestamp finishedAt;
+    private String tvfName;
 
     public Builder() {}
 
@@ -294,6 +308,7 @@ public class PartitionMetadata implements Serializable {
       this.scheduledAt = partition.scheduledAt;
       this.runningAt = partition.runningAt;
       this.finishedAt = partition.finishedAt;
+      this.tvfName = partition.tvfName;
     }
 
     /** Sets the unique partition identifier. */
@@ -362,6 +377,12 @@ public class PartitionMetadata implements Serializable {
       return this;
     }
 
+    /** Sets the TVF to be used for querying this partition. */
+    public Builder setTvfName(String tvfName) {
+      this.tvfName = tvfName;
+      return this;
+    }
+
     /**
      * Builds a {@link PartitionMetadata} from the given fields. Mandatory fields are:
      *
@@ -394,7 +415,8 @@ public class PartitionMetadata implements Serializable {
           createdAt,
           scheduledAt,
           runningAt,
-          finishedAt);
+          finishedAt,
+          tvfName);
     }
   }
 }

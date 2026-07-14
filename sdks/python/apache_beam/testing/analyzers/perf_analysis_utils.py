@@ -19,10 +19,7 @@ import logging
 from dataclasses import asdict
 from dataclasses import dataclass
 from statistics import median
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -80,7 +77,7 @@ class TestConfigContainer:
   test_id: str  # unique id for each test config.
   test_description: str
   test_name: Optional[str] = None
-  labels: Optional[List[str]] = None
+  labels: Optional[list[str]] = None
 
 
 @dataclass
@@ -92,8 +89,8 @@ class MetricContainer:
     timestamps: List of pandas timestamps corresponding to the metric values.
   """
 
-  values: List[Union[int, float]]
-  timestamps: List[pd.Timestamp]
+  values: list[Union[int, float]]
+  timestamps: list[pd.Timestamp]
 
   def sort_by_timestamp(self, in_place=True):
     """
@@ -138,9 +135,9 @@ def get_existing_issues_data(table_name: str) -> Optional[pd.DataFrame]:
 
 
 def is_sibling_change_point(
-    previous_change_point_timestamps: List[pd.Timestamp],
+    previous_change_point_timestamps: list[pd.Timestamp],
     change_point_index: int,
-    timestamps: List[pd.Timestamp],
+    timestamps: list[pd.Timestamp],
     min_runs_between_change_points: int,
     test_id: str,
 ) -> bool:
@@ -181,7 +178,7 @@ def is_sibling_change_point(
   return True
 
 
-def read_test_config(config_file_path: str) -> Dict:
+def read_test_config(config_file_path: str) -> dict:
   """
   Reads the config file in which the data required to
   run the change point analysis is specified.
@@ -195,12 +192,12 @@ def validate_config(keys):
   return constants._PERF_TEST_KEYS.issubset(keys)
 
 
-def find_change_points(metric_values: List[Union[float, int]]):
+def find_change_points(metric_values: list[Union[float, int]]):
   return e_divisive(metric_values)
 
 
 def find_latest_change_point_index(
-    metric_values: List[Union[float, int]],
+    metric_values: list[Union[float, int]],
     median_abs_deviation_threshold: int = 2):
   """
   Args:
@@ -262,7 +259,7 @@ def create_performance_alert(
     metric_container: MetricContainer,
     change_point_index: int,
     existing_issue_number: Optional[int],
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
   """
   Creates performance alert on GitHub issues and returns GitHub issue
   number and issue URL.
@@ -293,8 +290,8 @@ def create_performance_alert(
 
 
 def filter_change_points_by_median_threshold(
-    data: List[Union[int, float]],
-    change_points: List[int],
+    data: list[Union[int, float]],
+    change_points: list[int],
     threshold: float = 0.05,
     median_abs_deviation_threshold: int = 2,
 ):

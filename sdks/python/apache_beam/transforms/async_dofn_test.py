@@ -16,11 +16,14 @@
 #
 
 import logging
+import multiprocessing
 import random
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
+
+from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
@@ -62,7 +65,7 @@ class FakeBagState:
   def __init__(self, items):
     self.items = items
     # Normally SE would have a lock on the BT row protecting this from multiple
-    # updates. Here without SE we must lock ourselvs.
+    # updates. Here without SE we must lock ourselves.
     self.lock = Lock()
 
   def add(self, item):
@@ -86,6 +89,14 @@ class FakeTimer:
     self.time = time
 
 
+@parameterized_class([
+    {
+        "use_asyncio": True
+    },
+    {
+        "use_asyncio": False
+    },
+])
 class AsyncTest(unittest.TestCase):
   def setUp(self):
     super().setUp()
@@ -132,7 +143,8 @@ class AsyncTest(unittest.TestCase):
         return self.element_id == other.element_id
 
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(dofn, id_fn=lambda x: x.element_id)
+    async_dofn = async_lib.AsyncWrapper(
+        dofn, id_fn=lambda x: x.element_id, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -156,7 +168,7 @@ class AsyncTest(unittest.TestCase):
   def test_basic(self):
     # Setup an async dofn and send a message in to process.
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -181,9 +193,9 @@ class AsyncTest(unittest.TestCase):
     self.assertEqual(fake_bag_state.items, [])
 
   def test_multi_key(self):
-    # Send in two messages with different keys..
+    # Send in two messages with different keys.
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state_key1 = FakeBagState([])
     fake_bag_state_key2 = FakeBagState([])
@@ -211,7 +223,7 @@ class AsyncTest(unittest.TestCase):
   def test_long_item(self):
     # Test that everything still works with a long running time for the dofn.
     dofn = BasicDofn(sleep_time=5)
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -231,10 +243,10 @@ class AsyncTest(unittest.TestCase):
     self.assertEqual(fake_bag_state.items, [])
 
   def test_lost_item(self):
-    # Setup an element in the bag stat thats not in processing state.
+    # Setup an element in the bag state that's not in processing state.
     # The async dofn should reschedule this element.
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_timer = FakeTimer(0)
     msg = ('key1', 1)
@@ -250,9 +262,9 @@ class AsyncTest(unittest.TestCase):
   def test_cancelled_item(self):
     # Test that an item gets removed for processing and does not get output when
     # it is not present in the bag state. Either this item moved or a commit
-    # failed making the local state and bag stat inconsistent.
+    # failed making the local state and bag state inconsistent.
     dofn = BasicDofn()
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     msg = ('key1', 1)
     msg2 = ('key1', 2)
@@ -272,7 +284,7 @@ class AsyncTest(unittest.TestCase):
     # Test that async works when a dofn produces multiple elements in process
     # and finish_bundle.
     dofn = MultiElementDoFn()
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -289,7 +301,7 @@ class AsyncTest(unittest.TestCase):
     # Test that async will produce a single output when a given input is sent
     # multiple times.
     dofn = BasicDofn(5)
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -310,7 +322,7 @@ class AsyncTest(unittest.TestCase):
     # Test that async will produce a single output when a given input is sent
     # multiple times.
     dofn = BasicDofn(5)
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -335,7 +347,7 @@ class AsyncTest(unittest.TestCase):
   def test_buffer_count(self):
     # Test that the buffer count is correctly incremented when adding items.
     dofn = BasicDofn(5)
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     msg = ('key1', 1)
     fake_timer = FakeTimer(0)
@@ -353,7 +365,10 @@ class AsyncTest(unittest.TestCase):
     # Test that the buffer stops accepting items when it is full.
     dofn = BasicDofn(5)
     async_dofn = async_lib.AsyncWrapper(
-        dofn, parallelism=1, max_items_to_buffer=5)
+        dofn,
+        parallelism=1,
+        max_items_to_buffer=5,
+        use_asyncio=self.use_asyncio)
     async_dofn.setup()
     fake_timer = FakeTimer(0)
     fake_bag_state = FakeBagState([])
@@ -391,7 +406,7 @@ class AsyncTest(unittest.TestCase):
 
   def test_buffer_with_cancellation(self):
     dofn = BasicDofn(3)
-    async_dofn = async_lib.AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     msg = ('key1', 1)
     msg2 = ('key1', 2)
@@ -423,7 +438,8 @@ class AsyncTest(unittest.TestCase):
     # Test AsyncDofn over heavy load.
     dofn = BasicDofn(1)
     max_sleep = 10
-    async_dofn = async_lib.AsyncWrapper(dofn, max_wait_time=max_sleep)
+    async_dofn = async_lib.AsyncWrapper(
+        dofn, max_wait_time=max_sleep, use_asyncio=self.use_asyncio)
     async_dofn.setup()
     bag_states = {}
     timers = {}
@@ -471,6 +487,87 @@ class AsyncTest(unittest.TestCase):
     for i in range(0, 10):
       self.check_output(results[i], expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
+
+  @staticmethod
+  def _run_reset_state_concurrent_teardown(use_asyncio):
+    dofn = BasicDofn(sleep_time=0.5)
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=use_asyncio)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+
+    # Start processing an item. This starts a worker thread/coroutine sleeping for 0.5s.
+    async_dofn.process(('key1', 1), to_process=fake_bag_state, timer=fake_timer)
+    time.sleep(0.05)
+
+    # Verify that calling reset_state() while background tasks are actively running
+    # completes cleanly without causing lock-ordering deadlocks.
+    async_lib.AsyncWrapper.reset_state()
+
+  def test_reset_state_concurrent_teardown(self):
+    # Verify concurrent teardown safety in a separate process to prevent any potential
+    # regressions from freezing the main pytest process at exit.
+    p = multiprocessing.Process(
+        target=AsyncTest._run_reset_state_concurrent_teardown,
+        args=(self.use_asyncio, ))
+    p.start()
+    p.join(timeout=10.0)
+
+    if p.is_alive():
+      p.terminate()
+      p.join()
+      self.fail(
+          "reset_state() deadlocked/hung waiting for active threads/tasks to finish"
+      )
+    else:
+      self.assertEqual(p.exitcode, 0)
+
+  def test_transient_rpc_failure_retry(self):
+    # Verify DoFn exceptions wipe local active state so retries reschedule work.
+    class FlakyDoFn(beam.DoFn):
+      def __init__(self):
+        self.attempts = 0
+        self.lock = Lock()
+
+      def process(self, element):
+        with self.lock:
+          self.attempts += 1
+          current_attempt = self.attempts
+        if current_attempt == 1:
+          raise RuntimeError("Transient RPC Error")
+        yield element
+
+    dofn = FlakyDoFn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+    msg = ('key1', 1)
+
+    async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
+    self.wait_for_empty(async_dofn)
+
+    # Attempt 1 should raise the RuntimeError stored in the future
+    with self.assertRaises(RuntimeError):
+      async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    # Verify the failed future was popped from local processing_elements
+    with async_lib.AsyncWrapper._lock:
+      self.assertNotIn(
+          async_dofn._id_fn(msg[1]),
+          async_lib.AsyncWrapper._processing_elements[async_dofn._uuid],
+      )
+
+    # Simulate runner bundle retry: commit_finished_items runs again with msg still in state.
+    # Because the dead future was popped, it will reschedule msg and succeed on Attempt 2.
+    self.wait_for_empty(async_dofn)
+    result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+    if not result:
+      self.wait_for_empty(async_dofn)
+      result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    self.check_output(result, [msg])
+    self.assertEqual(fake_bag_state.items, [])
 
 
 if __name__ == '__main__':

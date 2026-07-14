@@ -395,6 +395,138 @@ class TestGCSIO(unittest.TestCase):
                 DEFAULT_GCP_PROJECT, "us-central1", kms_key="kmskey!")),
         None)
 
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_ownership_match(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = 123456789
+    mock_gcsio.get_bucket.return_value = mock_bucket
+
+    mock_crm_client = mock_crm_class.return_value
+    mock_project_info = mock.Mock()
+    mock_project_info.name = 'projects/123456789'
+    mock_crm_client.get_project.return_value = mock_project_info
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(bucket, mock_bucket)
+    mock_gcsio.get_bucket.assert_called_once_with(
+        'dataflow-staging-us-central1-77b801c0838aee13391c0d1885860494')
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_ownership_mismatch(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = 999999999
+    mock_gcsio.get_bucket.return_value = mock_bucket
+
+    mock_crm_client = mock_crm_class.return_value
+    mock_project_info = mock.Mock()
+    mock_project_info.name = 'projects/123456789'
+    mock_crm_client.get_project.return_value = mock_project_info
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    with self.assertRaises(ValueError) as ctx:
+      gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertIn(
+        f'is not owned by project {DEFAULT_GCP_PROJECT}', str(ctx.exception))
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_ownership_no_bucket_number(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = None
+    mock_bucket.name = 'dataflow-staging-us-central1-77b801c0838aee13391c0d1885860494'
+    mock_gcsio.get_bucket.return_value = mock_bucket
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(bucket, mock_bucket)
+    mock_crm_class.assert_not_called()
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_ownership_crm_error(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = 123456789
+    mock_gcsio.get_bucket.return_value = mock_bucket
+
+    mock_crm_client = mock_crm_class.return_value
+    mock_crm_client.get_project.side_effect = Exception("API Disabled")
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    # Should fall back to success (warn only)
+    self.assertEqual(bucket, mock_bucket)
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_ownership_mock_project_number(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    # Creating a mock bucket without setting project_number (it returns another mock object)
+    mock_bucket = mock.Mock()
+    mock_gcsio.get_bucket.return_value = mock_bucket
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    # Verification should be skipped, returning the mock bucket and never calling CRM
+    self.assertEqual(bucket, mock_bucket)
+    mock_crm_class.assert_not_called()
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_conflict(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = 123456789
+    mock_gcsio.get_bucket.side_effect = [None, mock_bucket]
+
+    from google.api_core.exceptions import Conflict
+    mock_gcsio.create_bucket.side_effect = Conflict("Already owned by you")
+
+    mock_crm_client = mock_crm_class.return_value
+    mock_project_info = mock.Mock()
+    mock_project_info.name = 'projects/123456789'
+    mock_crm_client.get_project.return_value = mock_project_info
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(bucket, mock_bucket)
+    self.assertEqual(mock_gcsio.get_bucket.call_count, 2)
+    mock_gcsio.create_bucket.assert_called_once()
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_conflict_reraise(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_gcsio.get_bucket.side_effect = [None, None]
+
+    from google.api_core.exceptions import Conflict
+    mock_gcsio.create_bucket.side_effect = Conflict("Bucket name unavailable")
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    with self.assertRaises(Conflict):
+      gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(mock_gcsio.get_bucket.call_count, 2)
+
   def test_exists(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234

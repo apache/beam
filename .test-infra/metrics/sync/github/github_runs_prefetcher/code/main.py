@@ -182,16 +182,20 @@ async def check_workflow_flakiness(workflow):
 
     success_rate = 1.0
     if len(workflow_runs):
-        failed_runs = list(filter(lambda r: r.status == "failure" | r.status == "cancelled", workflow_runs))
+        failed_runs = list(filter(lambda r: r.status == "failure" or r.status == "cancelled", workflow_runs))
         print(f"Number of failed workflow runs: {len(failed_runs)}")
         success_rate -= len(failed_runs) / len(workflow_runs)
 
     print(f"Success rate: {success_rate}")
 
-    # Check if last 5 runs are all failures
-    last_5_failed = len(workflow_runs) >= 5 and all(run.status == "failure" for run in workflow_runs[:5])
+    # Check if last 5 runs are all failures or cancelled (e.g. job timeout)
+    last_5_failed = len(workflow_runs) >= 5 and all(
+        run.status in ("failure", "cancelled") for run in workflow_runs[:5]
+    )
     if last_5_failed:
-        print(f"The last 5 workflow runs for {workflow.name} have all failed")
+        print(
+            f"The last 5 workflow runs for {workflow.name} have all failed or been cancelled"
+        )
 
     return success_rate < workflow.threshold or last_5_failed
 

@@ -154,8 +154,8 @@ public abstract class IcebergCatalogConfig implements Serializable {
       String tableIdentifier,
       Schema tableSchema,
       @Nullable List<String> partitionFields,
-      Map<String, String> properties) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+      @Nullable Map<String, String> properties) {
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
@@ -164,7 +164,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
-      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec, properties);
+      Catalog.TableBuilder builder =
+          catalog().buildTable(icebergIdentifier, icebergSchema).withPartitionSpec(icebergSpec);
+      if (properties != null) {
+        builder = builder.withProperties(properties);
+      }
+      builder.create();
+
       LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
@@ -172,7 +178,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     try {
       Table table = catalog().loadTable(icebergIdentifier);
       return new IcebergTableInfo(tableIdentifier, table);
@@ -264,13 +270,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public boolean dropTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     return catalog().dropTable(icebergIdentifier);
   }
 
   public Set<String> listTables(String namespace) {
     return catalog().listTables(Namespace.of(namespace)).stream()
-        .map(TableIdentifier::name)
+        .map(TableIdentifier::toString)
         .collect(Collectors.toSet());
   }
 

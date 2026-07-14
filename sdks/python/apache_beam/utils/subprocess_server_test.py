@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import atexit
 import glob
 import os
 import random
@@ -29,11 +30,30 @@ import subprocess
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
+from apache_beam.runners.portability import job_server
 from apache_beam.utils import subprocess_server
 
 
 class JavaJarServerTest(unittest.TestCase):
+
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  @classmethod
+  def setUpClass(cls):
+    cls._old_fork_support = os.environ.get('GRPC_ENABLE_FORK_SUPPORT')
+    os.environ['GRPC_ENABLE_FORK_SUPPORT'] = 'false'
+    super().setUpClass()
+
+  # TODO(https://github.com/grpc/grpc/issues/37710): Remove once fixed.
+  @classmethod
+  def tearDownClass(cls):
+    if cls._old_fork_support is None:
+      os.environ.pop('GRPC_ENABLE_FORK_SUPPORT', None)
+    else:
+      os.environ['GRPC_ENABLE_FORK_SUPPORT'] = cls._old_fork_support
+    super().tearDownClass()
+
   def test_gradle_jar_release(self):
     self.assertEqual(
         'https://repo.maven.apache.org/maven2/org/apache/beam/'
@@ -301,6 +321,292 @@ class CacheTest(unittest.TestCase):
     owner3 = cache.register()
     self.assertNotEqual(cache.get('b'), b)
     cache.purge(owner3)
+
+  def test_destructor_exception_partial_state(self):
+    # In SubprocessServer.stop_process(), we need to make sure self._owner_id is always
+    # set to None if it is not already set, even if a destructor exception happens
+    # during purge(owner_id).
+
+    destructor_calls = []
+
+    def faulty_destructor(obj):
+      destructor_calls.append(obj)
+      raise RuntimeError("Destructor failed")
+
+    custom_cache = subprocess_server._SharedCache(
+        lambda *args: "process_obj", faulty_destructor)
+
+    class CustomServer(subprocess_server.SubprocessServer):
+      _cache = custom_cache
+
+      def __init__(self):
+        super().__init__(lambda channel: None, ["dummy_cmd"], port=12345)
+
+    server = CustomServer()
+    server.start_process()
+    owner_id = server._owner_id
+    self.assertIsNotNone(owner_id)
+    self.assertIn(owner_id, custom_cache._live_owners)
+
+    # First stop attempt fails in the destructor
+    with self.assertRaises(RuntimeError):
+      server.stop_process()
+
+    # Verify fixed state: owner is purged from cache set, AND self._owner_id is successfully cleared to None
+    self.assertNotIn(owner_id, custom_cache._live_owners)
+    self.assertIsNone(server._owner_id)
+
+    # Second stop attempt safely does nothing (no ValueError raised)
+    try:
+      server.stop_process()
+    except ValueError:
+      self.fail("ValueError should not be raised here.")
+
+  def test_duplicate_atexit_registration_on_restart(self):
+    # Make sure we don't have duplicate atexit registration when reusing a
+    # StopOnExistJobServer instance.
+
+    class DummyJobServer(job_server.JobServer):
+      def start(self):
+        return "localhost:8080"
+
+      def stop(self):
+        pass
+
+    wrapper = job_server.StopOnExitJobServer(DummyJobServer())
+
+    registered_callbacks = []
+
+    def mock_register(cb):
+      registered_callbacks.append(cb)
+
+    def mock_unregister(cb):
+      if cb in registered_callbacks:
+        registered_callbacks.remove(cb)
+
+    with patch('atexit.register', side_effect=mock_register), \
+         patch('atexit.unregister', side_effect=mock_unregister, create=True):
+      # First start registers stop callback
+      wrapper.start()
+      self.assertTrue(wrapper._started)
+      self.assertEqual(len(registered_callbacks), 1)
+
+      # Explicit stop clears _started AND unregisters the callback
+      wrapper.stop()
+      self.assertFalse(wrapper._started)
+      self.assertEqual(len(registered_callbacks), 0)
+
+      # Re-starting registers the callback again, leaving exactly 1 active callback
+      wrapper.start()
+      self.assertTrue(wrapper._started)
+      self.assertEqual(len(registered_callbacks), 1)
+
+  def test_concurrent_purge_race_condition(self):
+    # Concurrent threads attempting to check membership and call purge for the same owner.
+    # Here we explicitly define a synchronized dict to mimic the behavior of _live_owners.
+    # This dict will block two threads on __contains__, allowing us to test the race condition.
+    cache = subprocess_server._SharedCache(lambda x: "obj", lambda x: None)
+    owner = cache.register()
+
+    barrier = threading.Barrier(2)
+    exceptions = []
+
+    class SynchronizedDict(dict):
+      def __contains__(self, item):
+        res = super().__contains__(item)
+        try:
+          # Force both threads to align right after checking membership but before removal
+          barrier.wait(timeout=0.2)
+        except threading.BrokenBarrierError:
+          pass
+        return res
+
+    cache._live_owners = SynchronizedDict(cache._live_owners)
+
+    def purge_worker():
+      try:
+        cache.purge(owner)
+      except Exception as e:
+        exceptions.append(e)
+
+    t1 = threading.Thread(target=purge_worker)
+    t2 = threading.Thread(target=purge_worker)
+
+    t1.start()
+    t2.start()
+
+    t1.join()
+    t2.join()
+
+    # Both threads should succeed cleanly without raising an exception under idempotent purging.
+    self.assertEqual(len(exceptions), 0)
+
+  def test_stop_process_after_cache_purged(self):
+    # Reproduce the ValueError when stop_process() (called by atexit)
+    # runs after the cache/owner was already purged during test teardown.
+    cache = subprocess_server._SharedCache(
+        lambda *args: "dummy_process", lambda obj: None)
+
+    class DummySubprocessServer(subprocess_server.SubprocessServer):
+      _cache = cache
+
+      def __init__(self):
+        super().__init__(lambda channel: None, ["dummy_cmd"], port=12345)
+
+    server = DummySubprocessServer()
+    server.start_process()
+    owner_id = server._owner_id
+
+    # Simulate pipeline context exit or test teardown purging the cache directly
+    cache.purge(owner_id)
+
+    # Calling stop_process() (which happens during atexit) should succeed cleanly
+    # without raising ValueError.
+    server.stop_process()
+
+  def test_force_remove(self):
+    destructor_calls = []
+
+    def custom_destructor(obj):
+      destructor_calls.append(obj)
+
+    cache = subprocess_server._SharedCache(self.with_prefix, custom_destructor)
+
+    owner1 = cache.register()
+    owner2 = cache.register()
+
+    # Get object 'a' under both active owners
+    a = cache.get('a')
+    self.assertEqual(a[0], 'a')
+    self.assertIn(('a', ), cache._cache)
+
+    # force_remove on a non-existent key should be a safe no-op
+    cache.force_remove('non_existent')
+
+    # Call force_remove, which should bypass the owners check and delete it immediately
+    cache.force_remove('a')
+
+    # The cache entry should be gone
+    self.assertNotIn(('a', ), cache._cache)
+
+    # Destructor must be called on 'a'
+    self.assertEqual(destructor_calls, [a])
+
+    # Retrieving 'a' again under the active owners should construct a new object
+    new_a = cache.get('a')
+    self.assertNotEqual(new_a, a)
+    self.assertEqual(new_a[0], 'a')
+
+    # Clean up
+    cache.purge(owner1)
+    cache.purge(owner2)
+
+  def test_subprocess_server_start_failed_no_leak(self):
+    destructor_calls = []
+
+    def custom_destructor(obj):
+      destructor_calls.append(obj)
+
+    class DummyProcess:
+      def __init__(self):
+        self.args = ["dummy_cmd"]
+
+      def poll(self):
+        return 1  # Simulate that process exited/failed
+
+    constructor_calls = 0
+
+    def custom_constructor(*args):
+      nonlocal constructor_calls
+      constructor_calls += 1
+      return (dummy_process, "localhost:12345")
+
+    dummy_process = DummyProcess()
+    cache = subprocess_server._SharedCache(
+        custom_constructor, custom_destructor)
+
+    # 1. Register an independent, unrelated owner in the cache first.
+    other_owner = cache.register()
+
+    class CustomServer(subprocess_server.SubprocessServer):
+      _cache = cache
+
+      def __init__(self):
+        super().__init__(lambda channel: None, ["dummy_cmd"], port=12345)
+
+    server = CustomServer()
+    # Fetch the process using other_owner, creating the cache entry and registering other_owner on it.
+    cache.get(tuple(server._cmd), server._port, server._logger)
+
+    cache_key = (tuple(server._cmd), server._port, server._logger)
+    self.assertIn(cache_key, cache._cache)
+    self.assertEqual(cache._cache[cache_key].owners, {other_owner})
+
+    # 2. Verify starting the server (which registers its own owner and retrieves from cache) raises RuntimeError
+    with patch('time.sleep'):
+      with self.assertRaises(RuntimeError):
+        server.start()
+    self.assertEqual(constructor_calls, 3)
+
+    # 3. Verify that the destructor was called on the process for each retry attempt (3 total),
+    # meaning there is no leak (even though other_owner was still registered).
+    self.assertEqual(destructor_calls, [(dummy_process, "localhost:12345")] * 3)
+
+    # 4. Verify that the server has cleaned up its owner_id
+    self.assertIsNone(server._owner_id)
+
+    # 5. Verify the cache entry has been removed completely
+    self.assertNotIn(cache_key, cache._cache)
+
+    # Clean up the other owner
+    cache.purge(other_owner)
+
+  def test_non_context_owners_do_not_share_keys(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    # owner1 is a non-context owner (e.g., prism)
+    owner1 = cache.register(is_context=False)
+    a = cache.get('a', owner=owner1)
+
+    # owner2 is another non-context owner (e.g., short-lived expansion service)
+    owner2 = cache.register(is_context=False)
+    b = cache.get('b', owner=owner2)
+
+    # Verify that owner1 does not own 'b'
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
+
+    # Verify that owner2 does not own 'a'
+    self.assertNotIn(owner2, cache._cache[('a', )].owners)
+
+    # Purging owner2 should immediately destroy/remove 'b'
+    cache.purge(owner2)
+    self.assertNotIn(('b', ), cache._cache)
+
+    # 'a' is still alive because owner1 is still registered
+    self.assertIn(('a', ), cache._cache)
+
+    # Purging owner1 should destroy/remove 'a'
+    cache.purge(owner1)
+    self.assertNotIn(('a', ), cache._cache)
+
+  def test_context_owner_owns_all_keys(self):
+    cache = subprocess_server._SharedCache(self.with_prefix, lambda x: None)
+    # owner1 is a non-context owner (e.g., prism)
+    owner1 = cache.register(is_context=False)
+
+    # owner2 is a context owner (e.g., cache_subprocesses)
+    owner2 = cache.register(is_context=True)
+
+    # owner3 is another non-context owner (e.g., short-lived service)
+    owner3 = cache.register(is_context=False)
+
+    # owner3 requests 'b'
+    b = cache.get('b', owner=owner3)
+
+    # owner2 (context) should own 'b'
+    self.assertIn(owner2, cache._cache[('b', )].owners)
+
+    # owner1 (non-context) should NOT own 'b'
+    self.assertNotIn(owner1, cache._cache[('b', )].owners)
 
 
 if __name__ == '__main__':

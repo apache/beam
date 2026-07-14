@@ -36,4 +36,10 @@ public interface StepContext {
   default BundleFinalizer bundleFinalizer() {
     throw new UnsupportedOperationException("BundleFinalizer is unsupported.");
   }
+
+  /**
+   * Set the current backlog bytes for this step. This is mainly used by splittable DoFn to report
+   * the size of the residual restriction.
+   */
+  default void setBacklogBytes(double backlogBytes) {}
 }

@@ -30,9 +30,7 @@ import logging
 import threading
 import time
 from typing import TYPE_CHECKING
-from typing import Dict
 from typing import Optional
-from typing import Type
 from typing import Union
 
 from apache_beam.metrics import monitoring_infos
@@ -59,7 +57,7 @@ class Metrics(object):
   @staticmethod
   def counter(
       urn: str,
-      labels: Optional[Dict[str, str]] = None,
+      labels: Optional[dict[str, str]] = None,
       process_wide: bool = False) -> UserMetrics.DelegatingCounter:
     """Obtains or creates a Counter metric.
 
@@ -82,14 +80,14 @@ class Metrics(object):
 class MetricLogger(object):
   """Simple object to locally aggregate and log metrics."""
   def __init__(self) -> None:
-    self._metric: Dict[MetricName, 'MetricCell'] = {}
+    self._metric: dict[MetricName, 'MetricCell'] = {}
     self._lock = threading.Lock()
     self._last_logging_millis = int(time.time() * 1000)
     self.minimum_logging_frequency_msec = 180000
 
   def update(
       self,
-      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      cell_type: Union[type['MetricCell'], 'MetricCellFactory'],
       metric_name: MetricName,
       value: object) -> None:
     cell = self._get_metric_cell(cell_type, metric_name)
@@ -97,7 +95,7 @@ class MetricLogger(object):
 
   def _get_metric_cell(
       self,
-      cell_type: Union[Type['MetricCell'], 'MetricCellFactory'],
+      cell_type: Union[type['MetricCell'], 'MetricCellFactory'],
       metric_name: MetricName) -> 'MetricCell':
     with self._lock:
       if metric_name not in self._metric:
@@ -139,7 +137,7 @@ class ServiceCallMetric(object):
   def __init__(
       self,
       request_count_urn: str,
-      base_labels: Optional[Dict[str, str]] = None) -> None:
+      base_labels: Optional[dict[str, str]] = None) -> None:
     self.base_labels = base_labels if base_labels else {}
     self.request_count_urn = request_count_urn
 

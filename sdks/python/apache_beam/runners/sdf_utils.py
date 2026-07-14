@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import NamedTuple
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from apache_beam.transforms.core import WatermarkEstimatorProvider
@@ -117,7 +116,7 @@ class ThreadsafeRestrictionTracker(object):
     with self._lock:
       return self._restriction_tracker.try_split(fraction_of_remainder)
 
-  def deferred_status(self) -> Optional[Tuple[Any, Duration]]:
+  def deferred_status(self) -> Optional[tuple[Any, Duration]]:
     """Returns deferred work which is produced by ``defer_remainder()``.
 
     When there is a self-checkpoint performed, the system needs to fulfill the

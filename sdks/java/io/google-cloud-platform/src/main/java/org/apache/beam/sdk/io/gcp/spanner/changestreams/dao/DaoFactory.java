@@ -21,8 +21,10 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 
 /**
  * Factory class to create data access objects to perform change stream queries and access the
@@ -45,6 +47,7 @@ public class DaoFactory implements Serializable {
 
   private final String changeStreamName;
   private final PartitionMetadataTableNames partitionMetadataTableNames;
+  private final List<String> tvfNameList;
   private final RpcPriority rpcPriority;
   private final String jobName;
   private final Dialect spannerChangeStreamDatabaseDialect;
@@ -58,12 +61,14 @@ public class DaoFactory implements Serializable {
    * @param changeStreamName the name of the change stream for the change streams DAO
    * @param metadataSpannerConfig the metadata tables configuration
    * @param partitionMetadataTableNames the names of the partition metadata ddl objects
+   * @param tvfNameList the list of TVF names specified to query and union
    * @param rpcPriority the priority of the requests made by the DAO queries
    * @param jobName the name of the running job
    */
   public DaoFactory(
       SpannerConfig changeStreamSpannerConfig,
       String changeStreamName,
+      List<String> tvfNameList,
       SpannerConfig metadataSpannerConfig,
       PartitionMetadataTableNames partitionMetadataTableNames,
       RpcPriority rpcPriority,
@@ -79,6 +84,8 @@ public class DaoFactory implements Serializable {
     }
     this.changeStreamSpannerConfig = changeStreamSpannerConfig;
     this.changeStreamName = changeStreamName;
+    this.tvfNameList =
+        tvfNameList == null ? ChangeStreamsConstants.DEFAULT_TVF_NAME_LIST : tvfNameList;
     this.metadataSpannerConfig = metadataSpannerConfig;
     this.partitionMetadataTableNames = partitionMetadataTableNames;
     this.rpcPriority = rpcPriority;
@@ -86,6 +93,11 @@ public class DaoFactory implements Serializable {
     this.spannerChangeStreamDatabaseDialect = spannerChangeStreamDatabaseDialect;
     this.metadataDatabaseDialect = metadataDatabaseDialect;
     this.isMutableChangeStream = isMutableChangeStream;
+  }
+
+  /** Returns the tvf name list. */
+  public List<String> getTvfNameList() {
+    return this.tvfNameList;
   }
 
   /**

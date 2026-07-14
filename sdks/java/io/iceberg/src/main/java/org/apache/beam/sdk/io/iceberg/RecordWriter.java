@@ -18,11 +18,13 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.io.IOException;
+import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionKey;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
@@ -33,6 +35,7 @@ import org.apache.iceberg.encryption.EncryptionKeyMetadata;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,10 +56,21 @@ class RecordWriter {
         catalog.loadTable(destination.getTableIdentifier()),
         destination.getFileFormat(),
         filename,
-        partitionKey);
+        partitionKey,
+        null);
   }
 
-  RecordWriter(Table table, FileFormat fileFormat, String filename, PartitionKey partitionKey)
+  RecordWriter(Table table, FileFormat fileFormat, String filename, StructLike partitionKey)
+      throws IOException {
+    this(table, fileFormat, filename, partitionKey, null);
+  }
+
+  RecordWriter(
+      Table table,
+      FileFormat fileFormat,
+      String filename,
+      StructLike partitionKey,
+      @Nullable Map<String, String> writeProperties)
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;
@@ -90,14 +104,17 @@ class RecordWriter {
                 .build();
         break;
       case PARQUET:
-        icebergDataWriter =
+        Parquet.DataWriteBuilder parquetBuilder =
             Parquet.writeData(outputFile)
                 .forTable(table)
                 .createWriterFunc(GenericParquetWriter::create)
                 .withPartition(partitionKey)
                 .withKeyMetadata(keyMetadata)
-                .overwrite()
-                .build();
+                .overwrite();
+        if (writeProperties != null && !writeProperties.isEmpty()) {
+          parquetBuilder.setAll(writeProperties);
+        }
+        icebergDataWriter = parquetBuilder.build();
         break;
       case ORC:
         throw new UnsupportedOperationException("ORC file format not currently supported.");

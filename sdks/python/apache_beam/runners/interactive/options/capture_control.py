@@ -25,7 +25,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 import logging
 from datetime import timedelta
-from typing import List
 
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.runners.interactive import interactive_environment as ie
@@ -46,7 +45,7 @@ class CaptureControl(object):
     self._capture_size_limit = 1e9
     self._test_limiters = None
 
-  def limiters(self) -> List['capture_limiters.Limiter']:
+  def limiters(self) -> list['capture_limiters.Limiter']:
     # noqa: F821
     if self._test_limiters:
       return self._test_limiters
@@ -56,7 +55,7 @@ class CaptureControl(object):
     ]
 
   def set_limiters_for_test(
-      self, limiters: List['capture_limiters.Limiter']) -> None:
+      self, limiters: list['capture_limiters.Limiter']) -> None:
     # noqa: F821
     self._test_limiters = limiters
 

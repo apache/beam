@@ -20,7 +20,6 @@ functionality.
 """
 
 import logging
-from typing import List
 
 from google.cloud import dlp_v2
 
@@ -128,7 +127,7 @@ class MaskDetectedDetails(PTransform):
 
 
 @typehints.with_input_types(str)
-@typehints.with_output_types(List[dlp_v2.types.dlp.Finding])
+@typehints.with_output_types(list[dlp_v2.types.dlp.Finding])
 class InspectForDetails(PTransform):
   """Inspects input text for sensitive information.
   the ``PTransform`` returns a ``PCollection`` of

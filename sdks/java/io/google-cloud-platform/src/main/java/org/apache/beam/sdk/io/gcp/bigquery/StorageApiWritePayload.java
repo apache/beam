@@ -42,6 +42,9 @@ public abstract class StorageApiWritePayload {
   @SuppressWarnings("mutable")
   public abstract @Nullable byte[] getFailsafeTableRowPayload();
 
+  @SuppressWarnings("mutable")
+  public abstract @Nullable byte[] getSchemaHash();
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setPayload(byte[] value);
@@ -51,6 +54,8 @@ public abstract class StorageApiWritePayload {
     public abstract Builder setFailsafeTableRowPayload(@Nullable byte[] value);
 
     public abstract Builder setTimestamp(@Nullable Instant value);
+
+    public abstract Builder setSchemaHash(@Nullable byte[] value);
 
     public abstract StorageApiWritePayload build();
   }
@@ -80,6 +85,10 @@ public abstract class StorageApiWritePayload {
 
   public StorageApiWritePayload withTimestamp(Instant instant) {
     return toBuilder().setTimestamp(instant).build();
+  }
+
+  public StorageApiWritePayload withSchemaHash(byte[] schemaHash) {
+    return toBuilder().setSchemaHash(schemaHash).build();
   }
 
   public @Memoized @Nullable TableRow getUnknownFields() throws IOException {

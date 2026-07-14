@@ -41,9 +41,11 @@ def _make_mock_runner(
     final_text: str = "Hello from agent",
 ) -> mock.MagicMock:
   """Returns a mock Runner whose run_async yields one final-response event."""
-  # Build a mock event that looks like a final response
+  part = mock.MagicMock()
+  part.text = final_text
+
   content = mock.MagicMock()
-  content.text = final_text
+  content.parts = [part]
 
   event = mock.MagicMock()
   event.is_final_response.return_value = True
@@ -56,6 +58,9 @@ def _make_mock_runner(
   runner.agent = agent
   runner.run_async = mock.MagicMock(side_effect=_async_gen)
   runner.session_service = mock.MagicMock()
+  runner.session_service.get_session = mock.AsyncMock(
+      side_effect=Exception("Session not found"))
+  runner.session_service.create_session = mock.AsyncMock()
   return runner
 
 
@@ -251,8 +256,8 @@ class TestSessionManagement(unittest.TestCase):
 
 class TestResponseExtraction(unittest.TestCase):
   """Tests for extraction of the final response from the event stream."""
-  def test_returns_none_when_no_final_response(self):
-    """Agent emits only non-final events; inference should be None."""
+  def test_raises_when_no_final_response(self):
+    """Agent emits only non-final events; should raise ValueError."""
     agent = _make_mock_agent()
 
     # Build a runner that yields only non-final events
@@ -266,14 +271,14 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
-    results = list(handler.run_inference(batch=["hello"], model=runner))
+    with self.assertRaisesRegex(ValueError, "did not return a response"):
+      list(handler.run_inference(batch=["hello"], model=runner))
 
-    self.assertEqual(len(results), 1)
-    self.assertIsNone(results[0].inference)
-
-  def test_returns_none_when_final_event_has_no_content(self):
+  def test_raises_when_final_event_has_no_content(self):
     agent = _make_mock_agent()
 
     event = mock.MagicMock()
@@ -287,19 +292,22 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
-    results = list(handler.run_inference(batch=["hello"], model=runner))
-
-    self.assertIsNone(results[0].inference)
+    with self.assertRaisesRegex(ValueError, "did not return a response"):
+      list(handler.run_inference(batch=["hello"], model=runner))
 
   def test_stops_after_first_final_response(self):
     """Multiple final events: only the first one's text should be used."""
     agent = _make_mock_agent()
 
     def _make_event(text: str):
+      part = mock.MagicMock()
+      part.text = text
       content = mock.MagicMock()
-      content.text = text
+      content.parts = [part]
       event = mock.MagicMock()
       event.is_final_response.return_value = True
       event.content = content
@@ -313,6 +321,8 @@ class TestResponseExtraction(unittest.TestCase):
     runner.agent = agent
     runner.run_async = mock.MagicMock(side_effect=_async_gen)
     runner.session_service = mock.MagicMock()
+    runner.session_service.get_session = mock.AsyncMock(side_effect=Exception())
+    runner.session_service.create_session = mock.AsyncMock()
 
     handler = ADKAgentModelHandler(agent=agent)
     results = list(handler.run_inference(batch=["hi"], model=runner))
@@ -326,7 +336,7 @@ class TestResponseExtraction(unittest.TestCase):
 
     result = asyncio.run(
         ADKAgentModelHandler._invoke_agent(
-            runner, "user", "session-1", mock.MagicMock()))
+            runner, "user", "session-1", "test_app", mock.MagicMock()))
     self.assertEqual(result, "direct result")
 
 

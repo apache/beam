@@ -1614,7 +1614,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     assertEquals(4, msg.getAllFields().size());
 
@@ -1642,7 +1650,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA_NO_F);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     TableRow recovered =
         TableRowToStorageApiProto.tableRowFromMessage(
@@ -1690,7 +1706,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(nestedSchema);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     TableRow recovered =
         TableRowToStorageApiProto.tableRowFromMessage(
             schemaInformation, msg, true, Predicates.alwaysTrue());
@@ -1722,7 +1746,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(nestedSchema);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     TableRow recovered =
         TableRowToStorageApiProto.tableRowFromMessage(
             schemaInformation, msg, true, Predicates.alwaysTrue());
@@ -1738,7 +1770,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(BASE_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, BASE_TABLE_ROW, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            BASE_TABLE_ROW,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertBaseRecord(msg, true);
   }
 
@@ -1782,7 +1822,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, repeatedRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            repeatedRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(4, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -1828,7 +1876,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(REPEATED_MESSAGE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, repeatedRow, false, false, null, null, -1);
+            schemaInformation,
+            descriptor,
+            repeatedRow,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     Map<String, FieldDescriptor> fieldDescriptors =
         descriptor.getFields().stream()
@@ -1882,7 +1938,7 @@ public class TableRowToStorageApiProtoTest {
       try {
         Object converted =
             TableRowToStorageApiProto.singularFieldToProtoValue(
-                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
+                fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null, null);
         assertEquals(expectedConvertedValue, converted);
       } catch (SchemaConversionException e) {
         fail(
@@ -1928,7 +1984,7 @@ public class TableRowToStorageApiProtoTest {
       String expectedError = (String) invalidValue[1];
       try {
         TableRowToStorageApiProto.singularFieldToProtoValue(
-            fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null);
+            fieldSchema, fieldDescriptor, sourceValue, false, false, () -> null, null);
         fail(
             "Expected to throw an exception converting "
                 + sourceValue
@@ -1954,7 +2010,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1971,7 +2035,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -1989,7 +2061,15 @@ public class TableRowToStorageApiProtoTest {
 
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -2009,7 +2089,15 @@ public class TableRowToStorageApiProtoTest {
     thrown.expect(TableRowToStorageApiProto.SchemaConversionException.class);
 
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, false, false, null, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
   }
 
   @Test
@@ -2025,7 +2113,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow ignored = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, true, false, ignored, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        true,
+        false,
+        ignored,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(1, ignored.size());
     assertEquals("foobar", ignored.get("unknown"));
   }
@@ -2044,7 +2140,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow ignored = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, row, true, false, ignored, null, -1);
+        schemaInformation,
+        descriptor,
+        row,
+        true,
+        false,
+        ignored,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(BASE_TABLE_ROW.getF().size() + 1, ignored.getF().size());
     assertEquals("foobar", ignored.getF().get(BASE_TABLE_ROW.getF().size()).getV());
   }
@@ -2075,7 +2179,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow unknown = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, topRow, true, false, unknown, null, -1);
+        schemaInformation,
+        descriptor,
+        topRow,
+        true,
+        false,
+        unknown,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(3, unknown.size());
     assertEquals("foobar", unknown.get("unknowntop"));
     assertEquals(1, ((TableRow) unknown.get("nestedvalue1")).size());
@@ -2122,7 +2234,15 @@ public class TableRowToStorageApiProtoTest {
 
     TableRow unknown = new TableRow();
     TableRowToStorageApiProto.messageFromTableRow(
-        schemaInformation, descriptor, repeatedRow, true, false, unknown, null, -1);
+        schemaInformation,
+        descriptor,
+        repeatedRow,
+        true,
+        false,
+        unknown,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     System.out.println(unknown);
     // unkown at top level
     assertEquals(2, unknown.size());
@@ -2174,7 +2294,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(2, msg.getAllFields().size());
     assertTrue(unknown.isEmpty());
   }
@@ -2213,7 +2341,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(2, msg.getAllFields().size());
     assertFalse(unknown.isEmpty());
     assertEquals(2, ((List<?>) unknown.get("repeated1")).size());
@@ -2257,7 +2393,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     assertTrue(
         ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
@@ -2330,7 +2474,15 @@ public class TableRowToStorageApiProtoTest {
     TableRow unknown = new TableRow();
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, true, false, unknown, null, -1);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            true,
+            false,
+            unknown,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
 
     assertTrue(
         ((TableRow) ((List<?>) unknown.get("repeated1")).get(0)).isEmpty()); // empty tablerow
@@ -2379,7 +2531,15 @@ public class TableRowToStorageApiProtoTest {
         TableRowToStorageApiProto.SchemaInformation.fromTableSchema(NESTED_TABLE_SCHEMA);
     DynamicMessage msg =
         TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation, descriptor, tableRow, false, false, null, "UPDATE", 42);
+            schemaInformation,
+            descriptor,
+            tableRow,
+            false,
+            false,
+            null,
+            "UPDATE",
+            42,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
     assertEquals(6, msg.getAllFields().size());
 
     Map<String, FieldDescriptor> fieldDescriptors =
@@ -2393,5 +2553,145 @@ public class TableRowToStorageApiProtoTest {
     assertEquals("UPDATE", msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_TYPE_COLUMN)));
     assertEquals(
         Long.toHexString(42L), msg.getField(fieldDescriptors.get(StorageApiCDC.CHANGE_SQN_COLUMN)));
+  }
+
+  @Test
+  public void testTableSchemaHash() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schema1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaNameDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1_diff")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaTypeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaModeDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaOrderDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field2")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.INT64)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.REQUIRED)
+                    .build())
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("field1")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hash2 = TableRowToStorageApiProto.tableSchemaHash(schema1);
+    byte[] hashNameDiff = TableRowToStorageApiProto.tableSchemaHash(schemaNameDiff);
+    byte[] hashTypeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaTypeDiff);
+    byte[] hashModeDiff = TableRowToStorageApiProto.tableSchemaHash(schemaModeDiff);
+    byte[] hashOrderDiff = TableRowToStorageApiProto.tableSchemaHash(schemaOrderDiff);
+
+    assertTrue(Arrays.equals(hash1, hash2));
+    assertFalse(Arrays.equals(hash1, hashNameDiff));
+    assertFalse(Arrays.equals(hash1, hashTypeDiff));
+    assertFalse(Arrays.equals(hash1, hashModeDiff));
+    assertFalse(Arrays.equals(hash1, hashOrderDiff));
+  }
+
+  @Test
+  public void testTableSchemaHashWithStruct() {
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStruct1 =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedField")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    com.google.cloud.bigquery.storage.v1.TableSchema schemaWithStructDiff =
+        com.google.cloud.bigquery.storage.v1.TableSchema.newBuilder()
+            .addFields(
+                com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                    .setName("structField")
+                    .setType(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRUCT)
+                    .setMode(com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                    .addFields(
+                        com.google.cloud.bigquery.storage.v1.TableFieldSchema.newBuilder()
+                            .setName("nestedFieldDiff")
+                            .setType(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Type.STRING)
+                            .setMode(
+                                com.google.cloud.bigquery.storage.v1.TableFieldSchema.Mode.NULLABLE)
+                            .build())
+                    .build())
+            .build();
+
+    byte[] hash1 = TableRowToStorageApiProto.tableSchemaHash(schemaWithStruct1);
+    byte[] hashDiff = TableRowToStorageApiProto.tableSchemaHash(schemaWithStructDiff);
+
+    assertFalse(Arrays.equals(hash1, hashDiff));
   }
 }

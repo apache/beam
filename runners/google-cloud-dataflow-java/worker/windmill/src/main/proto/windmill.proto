@@ -421,6 +421,11 @@ message WatermarkHold {
   optional string state_family = 4;
 }
 
+message Uint128Proto {
+  required fixed64 high = 1;
+  required fixed64 low = 2;
+}
+
 // Proto describing a hot key detected on a given WorkItem.
 message HotKeyInfo {
   // The age of the hot key measured from when it was first detected.
@@ -447,6 +452,8 @@ message WorkItem {
   // elements mapped to a single key to impact pipeline performance. When
   // present, this field includes metadata associated with any hot key.
   optional HotKeyInfo hot_key_info = 11;
+
+  optional Uint128Proto key_group = 18;
 
   reserved 12, 13, 14, 15, 16;
 }
@@ -979,12 +986,14 @@ enum ConnectivityType {
   CONNECTIVITY_TYPE_DIRECTPATH = 2;
 }
 
-// Settings to control runtime behavior of the java runner v1 user worker.
+// Settings to control runtime behavior of the Streaming Java Runner user worker.
 message UserWorkerRunnerV1Settings {
   optional UserWorkerGrpcFlowControlSettings flow_control_settings = 3;
 
   optional ConnectivityType connectivity_type = 4
     [default = CONNECTIVITY_TYPE_DEFAULT];
+
+  optional int64 max_cached_entry_bytes = 5 [default = -1];
 
   reserved 1, 2;
 }

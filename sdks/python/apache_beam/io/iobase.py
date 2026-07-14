@@ -39,7 +39,6 @@ from collections import namedtuple
 from typing import Any
 from typing import Iterator
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import apache_beam as beam
@@ -919,7 +918,10 @@ class Read(ptransform.PTransform):
     """Initializes a Read transform.
 
     Args:
-      source: Data source to read from.
+      source: the data source to read from. May be a ``BoundedSource``, an
+        ``UnboundedSource``, or a ``PTransform`` (which is applied directly).
+        For any other source ``Read`` is treated as a primitive and relayed to
+        the runner implementation.
     """
     super().__init__()
     self.source = source
@@ -945,6 +947,11 @@ class Read(ptransform.PTransform):
           | 'EmitSource' >>
           core.Map(lambda _: self.source).with_output_types(BoundedSource)
           | SDFBoundedSourceReader(display_data))
+    # Local import to avoid a circular dependency.
+    from apache_beam.io.unbounded_source import ReadFromUnboundedSource
+    from apache_beam.io.unbounded_source import UnboundedSource
+    if isinstance(self.source, UnboundedSource):
+      return pbegin | ReadFromUnboundedSource(self.source)
     elif isinstance(self.source, ptransform.PTransform):
       # The Read transform can also admit a full PTransform as an input
       # rather than an anctual source. If the input is a PTransform, then
@@ -975,7 +982,7 @@ class Read(ptransform.PTransform):
   def to_runner_api_parameter(
       self,
       context: PipelineContext,
-  ) -> Tuple[str, Any]:
+  ) -> tuple[str, Any]:
     from apache_beam.io.gcp.pubsub import _PubSubSource
     if isinstance(self.source, _PubSubSource):
       return (
@@ -994,6 +1001,10 @@ class Read(ptransform.PTransform):
               is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
               if self.source.is_bounded() else
               beam_runner_api_pb2.IsBounded.UNBOUNDED))
+    # Local import to avoid a circular dependency.
+    from apache_beam.io.unbounded_source import UnboundedSource
+    if isinstance(self.source, UnboundedSource):
+      return super().to_runner_api_parameter(context)
     elif isinstance(self.source, ptransform.PTransform):
       return self.source.to_runner_api_parameter(context)
     raise NotImplementedError(
@@ -1120,7 +1131,7 @@ class Write(ptransform.PTransform):
   def to_runner_api_parameter(
       self,
       context: PipelineContext,
-  ) -> Tuple[str, Any]:
+  ) -> tuple[str, Any]:
     # TODO(BEAM-27443): Remove the need for special casing here.
     # Importing locally to prevent circular dependencies.
     from apache_beam.io.gcp.pubsub import _PubSubSink

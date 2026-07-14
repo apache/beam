@@ -145,13 +145,16 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
   @GetInitialRestriction
   public TimestampRange initialRestriction(@Element PartitionMetadata partition) {
     final String token = partition.getPartitionToken();
+    final String tvfName = partition.getTvfName();
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
     final com.google.cloud.Timestamp endTimestamp =
         TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
-        daoFactory.getPartitionMetadataDao().updateToRunning(token);
+        daoFactory
+            .getPartitionMetadataDao()
+            .updateToRunning(PartitionMetadataDao.composePartitionTokenWithTvfName(token, tvfName));
 
     if (partitionScheduledAt != null && partitionRunningAt != null) {
       metrics.updatePartitionScheduledToRunning(

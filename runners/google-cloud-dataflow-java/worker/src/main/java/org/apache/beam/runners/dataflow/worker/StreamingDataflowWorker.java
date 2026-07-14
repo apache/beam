@@ -50,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.WeightedSemaphore;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponseProcessor;
 import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig;
+import org.apache.beam.runners.dataflow.worker.streaming.config.ComputationConfig.Fetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingApplianceComputationConfigFetcher;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingEngineComputationConfigFetcher;
@@ -113,6 +114,8 @@ import org.apache.beam.sdk.fn.JvmInitializers;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -176,6 +179,9 @@ public final class StreamingDataflowWorker {
   // Experiment make the monitor within BoundedQueueExecutor fair
   public static final String BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT =
       "windmill_bounded_queue_executor_use_fair_monitor";
+  // Don't use. Experiment guarding multi key bundles. The feature is work in progress and
+  // incomplete.
+  private static final String UNSTABLE_ENABLE_MULTI_KEY_BUNDLE = "unstable_enable_multi_key_bundle";
 
   private final WindmillStateCache stateCache;
   private AtomicReference<StreamingWorkerStatusPages> statusPages = new AtomicReference<>();
@@ -633,6 +639,10 @@ public final class StreamingDataflowWorker {
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .setSupportMapViaMultimap(options.isEnableStreamingEngine())
+            .setMaxCachedEntryBytes(options.getMaxWindmillStateCacheEntryBytes())
+            .setEnableHistogram(
+                !ExperimentalOptions.hasExperiment(
+                    options, "disable_windmill_user_state_cache_histogram"))
             .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactoryBuilder =
@@ -650,6 +660,15 @@ public final class StreamingDataflowWorker {
                         workExecutor,
                         windmillStateCache::forComputation,
                         ID_GENERATOR));
+
+    Fetcher configFetcher = configFetcherComputationStateCacheAndWindmillClient.configFetcher();
+    configFetcher
+        .getGlobalConfigHandle()
+        .registerConfigObserver(
+            config -> {
+              windmillStateCache.setMaxCachedEntryBytesOverride(
+                  config.userWorkerJobSettings().getMaxCachedEntryBytes());
+            });
 
     ComputationStateCache computationStateCache =
         configFetcherComputationStateCacheAndWindmillClient.computationStateCache();
@@ -689,7 +708,7 @@ public final class StreamingDataflowWorker {
     return new StreamingDataflowWorker(
         windmillServer,
         clientId,
-        configFetcherComputationStateCacheAndWindmillClient.configFetcher(),
+        configFetcher,
         computationStateCache,
         windmillStateCache,
         workExecutor,
@@ -737,6 +756,8 @@ public final class StreamingDataflowWorker {
                   new WorkHeartbeatResponseProcessor(computationStateCache::get))
               .setHealthCheckIntervalMillis(
                   options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+              .setCommitWorkStreamRetryTimeout(
+                  java.time.Duration.ofMillis(options.getCommitWorkStreamRetryTimeoutMillis()))
               .build();
       return ConfigFetcherComputationStateCacheAndWindmillClient.builder()
           .setWindmillDispatcherClient(dispatcherClient)
@@ -1002,6 +1023,8 @@ public final class StreamingDataflowWorker {
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
+    boolean useKeyGroupWorkQueue =
+        DataflowRunner.hasExperiment(options, UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1009,7 +1032,8 @@ public final class StreamingDataflowWorker {
         chooseMaxBundlesOutstanding(options),
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        useFairMonitor);
+        useFairMonitor,
+        useKeyGroupWorkQueue);
   }
 
   public static void main(String[] args) throws Exception {
@@ -1025,6 +1049,24 @@ public final class StreamingDataflowWorker {
     CoderTranslation.verifyModelCodersRegistered();
     if (DataflowRunner.hasExperiment(options, ELEMENT_METADATA_SUPPORTED_EXPERIMENT)) {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    }
+
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
     }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);

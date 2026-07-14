@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.DATETIME_SPACE_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 
@@ -80,6 +81,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashFunction;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Days;
@@ -89,6 +93,48 @@ import org.joda.time.Days;
  * with the Storage write API.
  */
 public class TableRowToStorageApiProto {
+
+  /**
+   * This class collects errors encountered while attempting to convert a json message into its
+   * matching protocol-buffer message.
+   */
+  public static class ErrorCollector {
+    private final List<SchemaConversionException> exceptions = Lists.newArrayList();
+    private final Predicate<SchemaConversionException> shouldCollect;
+
+    public static final ErrorCollector DONT_COLLECT = new ErrorCollector(Predicates.alwaysFalse());
+
+    public ErrorCollector(Predicate<SchemaConversionException> shouldCollect) {
+      this.shouldCollect = shouldCollect;
+    }
+
+    void collect(SchemaConversionException exception) throws SchemaConversionException {
+      if (shouldCollect.test(exception)) {
+        exceptions.add(exception);
+      } else {
+        throw exception;
+      }
+    }
+
+    public void mergeInto(ErrorCollector other) throws SchemaConversionException {
+      for (SchemaConversionException e : other.exceptions) {
+        collect(e);
+      }
+    }
+
+    List<SchemaConversionException> getExceptions() {
+      return exceptions;
+    }
+
+    void clear() {
+      exceptions.clear();
+    }
+
+    boolean isEmpty() {
+      return exceptions.isEmpty();
+    }
+  }
+
   abstract static class SchemaConversionException extends Exception {
     SchemaConversionException(String msg) {
       super(msg);
@@ -100,8 +146,36 @@ public class TableRowToStorageApiProto {
   }
 
   public static class SchemaTooNarrowException extends SchemaConversionException {
-    SchemaTooNarrowException(String msg) {
+    private final String missingField;
+    private final boolean isRepeated;
+    private final boolean isStruct;
+
+    SchemaTooNarrowException(
+        String missingField, String msg, boolean isRepeated, boolean isStruct) {
       super(msg);
+      this.missingField = missingField;
+      this.isRepeated = isRepeated;
+      this.isStruct = isStruct;
+    }
+
+    SchemaTooNarrowException(
+        String missingField, String msg, Exception e, boolean isRepeated, boolean isStruct) {
+      super(msg, e);
+      this.missingField = missingField;
+      this.isRepeated = isRepeated;
+      this.isStruct = isStruct;
+    }
+
+    public String getMissingField() {
+      return missingField;
+    }
+
+    public boolean isRepeated() {
+      return isRepeated;
+    }
+
+    public boolean isStruct() {
+      return isStruct;
     }
   }
 
@@ -112,6 +186,24 @@ public class TableRowToStorageApiProto {
 
     SchemaDoesntMatchException(String msg, Exception e) {
       super(msg + ". Exception: " + e, e);
+    }
+  }
+
+  public static class SchemaMissingRequiredFieldException extends SchemaConversionException {
+    private final Set<String> missingFields;
+
+    SchemaMissingRequiredFieldException(Set<String> missingFields) {
+      super("Missing required fields: " + missingFields);
+      this.missingFields = missingFields;
+    }
+
+    SchemaMissingRequiredFieldException(Set<String> missingFields, Exception e) {
+      super("Missing required fields: " + missingFields + ". Exception: " + e, e);
+      this.missingFields = missingFields;
+    }
+
+    public Set<String> getMissingFields() {
+      return missingFields;
     }
   }
 
@@ -213,6 +305,11 @@ public class TableRowToStorageApiProto {
     OutputT apply(FirstInputT t, SecondInputT u) throws SchemaConversionException;
   }
 
+  @FunctionalInterface
+  public interface ThrowingBiConsumer<FirstInputT, SecondInputT> {
+    void accept(FirstInputT t, SecondInputT u) throws SchemaConversionException;
+  }
+
   static final DecimalFormat DECIMAL_FORMAT =
       new DecimalFormat("0.0###############", DecimalFormatSymbols.getInstance(Locale.ROOT));
 
@@ -255,7 +352,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.DOUBLE,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return Double.valueOf((String) value);
                     } else if (value instanceof Number) {
@@ -265,7 +362,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.BOOL,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return Boolean.valueOf((String) value);
                     } else if (value instanceof Boolean) {
@@ -275,7 +372,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.BYTES,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return ByteString.copyFrom(BaseEncoding.base64().decode((String) value));
                     } else if (value instanceof byte[]) {
@@ -287,7 +384,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.TIMESTAMP,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       try {
                         // '2011-12-03T10:15:30Z', '2011-12-03 10:15:30+05:00'
@@ -329,7 +426,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.DATE,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return ((Long) LocalDate.parse((String) value).toEpochDay()).intValue();
                     } else if (value instanceof LocalDate) {
@@ -346,7 +443,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.NUMERIC,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return BigDecimalByteStringEncoder.encodeToNumericByteString(
                           new BigDecimal((String) value));
@@ -366,7 +463,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.BIGNUMERIC,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return BigDecimalByteStringEncoder.encodeToBigNumericByteString(
                           new BigDecimal((String) value));
@@ -386,7 +483,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.DATETIME,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       try {
                         // '2011-12-03T10:15:30'
@@ -409,7 +506,7 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.TIME,
-                  (schemaInformation, value) -> {
+                  (fullName, value) -> {
                     if (value instanceof String) {
                       return CivilTimeEncoder.encodePacked64TimeMicros(
                           LocalTime.parse((String) value));
@@ -425,17 +522,38 @@ public class TableRowToStorageApiProto {
                   })
               .put(
                   TableFieldSchema.Type.STRING,
-                  (schemaInformation, value) ->
-                      Preconditions.checkArgumentNotNull(value).toString())
+                  (fullName, value) -> Preconditions.checkArgumentNotNull(value).toString())
               .put(
                   TableFieldSchema.Type.JSON,
-                  (schemaInformation, value) ->
-                      Preconditions.checkArgumentNotNull(value).toString())
+                  (fullName, value) -> Preconditions.checkArgumentNotNull(value).toString())
               .put(
                   TableFieldSchema.Type.GEOGRAPHY,
-                  (schemaInformation, value) ->
-                      Preconditions.checkArgumentNotNull(value).toString())
+                  (fullName, value) -> Preconditions.checkArgumentNotNull(value).toString())
               .build();
+
+  static final HashFunction SCHEMA_HASH_FUNCTION = Hashing.goodFastHash(32);
+
+  public static byte[] tableSchemaHash(TableSchema tableSchema) {
+    return tableSchemaHash("", tableSchema.getFieldsList()).asBytes();
+  }
+
+  public static HashCode tableSchemaHash(String prefix, List<TableFieldSchema> fields) {
+    List<HashCode> hashCodes = Lists.newArrayList();
+    for (TableFieldSchema tableFieldSchema : fields) {
+      String name =
+          prefix.isEmpty()
+              ? tableFieldSchema.getName()
+              : String.join(".", prefix, tableFieldSchema.getName());
+      hashCodes.add(SCHEMA_HASH_FUNCTION.hashString(name.toLowerCase(), StandardCharsets.UTF_8));
+      hashCodes.add(SCHEMA_HASH_FUNCTION.hashInt(tableFieldSchema.getType().getNumber()));
+      hashCodes.add(SCHEMA_HASH_FUNCTION.hashInt(tableFieldSchema.getMode().getNumber()));
+
+      if (tableFieldSchema.getType().equals(TableFieldSchema.Type.STRUCT)) {
+        hashCodes.add(tableSchemaHash(name, tableFieldSchema.getFieldsList()));
+      }
+    }
+    return Hashing.combineOrdered(hashCodes);
+  }
 
   public static TableFieldSchema.Mode modeToProtoMode(
       @Nullable String defaultValueExpression, String mode) {
@@ -585,12 +703,27 @@ public class TableRowToStorageApiProto {
       }
     }
 
+    // Returns a SchemaInformation that descends from this one. Does not modify the current
+    // SchemaInformation -
+    // the new SchemaInformation is traversable upwards only.
+    public SchemaInformation createDescendent(TableFieldSchema tableFieldSchema) {
+      return new SchemaInformation(
+          tableFieldSchema, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
+    }
+
     public String getFullName() {
-      String prefix =
-          StreamSupport.stream(parentSchemas.spliterator(), false)
-              .map(SchemaInformation::getName)
-              .collect(Collectors.joining("."));
-      return prefix.isEmpty() ? getName() : prefix + "." + getName();
+      if (!Iterables.isEmpty(parentSchemas)) {
+        String prefix =
+            StreamSupport.stream(parentSchemas.spliterator(), false)
+                .skip(1)
+                .map(SchemaInformation::getName)
+                .collect(Collectors.joining("."));
+        return prefix.isEmpty() ? getName() : prefix + "." + getName();
+      } else {
+        // We have a sentinal root node with the artificial name "root." Skip it as it's not
+        // actually part of the logical name.
+        return "";
+      }
     }
 
     public String getName() {
@@ -712,24 +845,45 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
-  public static DynamicMessage messageFromMap(
+  public static @Nullable DynamicMessage messageFromMap(
       SchemaInformation schemaInformation,
-      Descriptor descriptor,
+      @Nullable Descriptor descriptor,
       AbstractMap<String, Object> map,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
       @Nullable TableRow unknownFields,
       @Nullable String changeType,
-      @Nullable String changeSequenceNum)
+      @Nullable String changeSequenceNum,
+      ErrorCollector collectedExceptions)
       throws SchemaConversionException {
-    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+    DynamicMessage.@Nullable Builder builder = null;
+    if (descriptor != null) {
+      builder = DynamicMessage.newBuilder(descriptor);
+    }
+
+    @Nullable Set<String> requiredFieldsRemaining = null;
+    if (!allowMissingRequiredFields) {
+      requiredFieldsRemaining =
+          schemaInformation.subFields.stream()
+              .filter(s -> !s.isNullable() && !s.isRepeated())
+              .map(SchemaInformation::getName)
+              .map(String::toLowerCase)
+              .collect(toSet());
+    }
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       String key = entry.getKey().toLowerCase();
+      if (requiredFieldsRemaining != null) {
+        requiredFieldsRemaining.remove(key);
+      }
+
       String protoFieldName =
           BigQuerySchemaUtil.isProtoCompatible(key)
               ? key
               : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
-      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(protoFieldName);
+      @Nullable
+      FieldDescriptor fieldDescriptor =
+          (descriptor == null) ? null : descriptor.findFieldByName(protoFieldName);
+
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
           unknownFields.set(key, entry.getValue());
@@ -737,11 +891,70 @@ public class TableRowToStorageApiProto {
         if (ignoreUnknownValues) {
           continue;
         } else {
-          throw new SchemaTooNarrowException(
-              "TableRow contained unexpected field with name "
-                  + entry.getKey()
-                  + " not found in schema for "
-                  + schemaInformation.getFullName());
+          String prefix = schemaInformation.getFullName();
+          String fieldName = prefix.isEmpty() ? key : String.join(".", prefix, key);
+
+          boolean isRepeated = entry.getValue() instanceof List;
+          Predicate<Object> isStruct =
+              o -> {
+                if (o instanceof AbstractMap) {
+                  return true;
+                }
+                if (o instanceof List) {
+                  List<Object> list = (List<Object>) o;
+                  if (!list.isEmpty()) {
+                    if (list.get(0) instanceof AbstractMap) {
+                      return true;
+                    }
+                  }
+                }
+                return false;
+              };
+
+          SchemaConversionException exception =
+              new SchemaTooNarrowException(
+                  fieldName,
+                  "TableRow contained unexpected field with name "
+                      + entry.getKey()
+                      + " not found in schema for "
+                      + schemaInformation.getFullName(),
+                  isRepeated,
+                  isStruct.test(entry.getValue()));
+          collectedExceptions.collect(exception); // Throws if not collected.
+
+          // Recursively search for missing nested fields.
+          ThrowingBiConsumer<String, Object> possiblyHandleNestedStruct =
+              (name, o) -> {
+                if (o != null && isStruct.test(o)) {
+                  TableFieldSchema recursiveFieldSchema =
+                      TableFieldSchema.newBuilder()
+                          .setType(TableFieldSchema.Type.STRUCT)
+                          .setName(name.toLowerCase())
+                          .build();
+                  messageValueFromFieldValue(
+                      schemaInformation.createDescendent(recursiveFieldSchema),
+                      fieldDescriptor,
+                      o,
+                      ignoreUnknownValues,
+                      allowMissingRequiredFields,
+                      () -> null,
+                      collectedExceptions);
+                }
+              };
+          // If the unknown field is a recursive type, we must continue recursing to see if there
+          // are further
+          // unknown fields added.
+          if (isRepeated) {
+            List<Object> list = (List<Object>) entry.getValue();
+            if (list != null) {
+              for (Object o : list) {
+                possiblyHandleNestedStruct.accept(entry.getKey(), o);
+              }
+            }
+          } else {
+            possiblyHandleNestedStruct.accept(entry.getKey(), entry.getValue());
+          }
+          continue;
         }
       }
 
@@ -771,9 +984,10 @@ public class TableRowToStorageApiProto {
                 entry.getValue(),
                 ignoreUnknownValues,
                 allowMissingRequiredFields,
-                getNestedUnknown);
+                getNestedUnknown,
+                collectedExceptions);
         if (value != null) {
-          builder.setField(fieldDescriptor, value);
+          Preconditions.checkArgumentNotNull(builder).setField(fieldDescriptor, value);
         }
         // For STRUCT fields, we add a placeholder to unknownFields using the getNestedUnknown
         // supplier (in case we encounter unknown nested fields). If the placeholder comes out
@@ -800,18 +1014,34 @@ public class TableRowToStorageApiProto {
       }
     }
     if (changeType != null) {
-      builder.setField(
-          Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
-          changeType);
-      builder.setField(
-          Preconditions.checkStateNotNull(
-              descriptor.findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
-          Preconditions.checkStateNotNull(changeSequenceNum));
+      Preconditions.checkArgumentNotNull(builder)
+          .setField(
+              Preconditions.checkStateNotNull(
+                  Preconditions.checkArgumentNotNull(descriptor)
+                      .findFieldByName(StorageApiCDC.CHANGE_TYPE_COLUMN)),
+              changeType);
+      Preconditions.checkArgumentNotNull(builder)
+          .setField(
+              Preconditions.checkStateNotNull(
+                  Preconditions.checkArgumentNotNull(descriptor)
+                      .findFieldByName(StorageApiCDC.CHANGE_SQN_COLUMN)),
+              Preconditions.checkStateNotNull(changeSequenceNum));
     }
 
+    if (requiredFieldsRemaining != null && !requiredFieldsRemaining.isEmpty()) {
+      String prefix = schemaInformation.getFullName();
+      Set<String> missingFields =
+          requiredFieldsRemaining.stream()
+              .map(key -> prefix.isEmpty() ? key : String.join(".", prefix, key))
+              .collect(Collectors.toSet());
+      SchemaConversionException e = new SchemaMissingRequiredFieldException(missingFields);
+      collectedExceptions.collect(e); // Throws if not collected.
+    }
+    if (!collectedExceptions.isEmpty()) {
+      return null;
+    }
     try {
-      return builder.build();
+      return Preconditions.checkArgumentNotNull(builder).build();
     } catch (Exception e) {
       throw new SchemaDoesntMatchException(
           "Couldn't convert schema for " + schemaInformation.getFullName(), e);
@@ -820,18 +1050,19 @@ public class TableRowToStorageApiProto {
 
   /**
    * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
-   * Descriptor, TableRow, boolean, boolean, TableRow, String, String)} via {@link
+   * Descriptor, TableRow, boolean, boolean, TableRow, String, String, ErrorCollector)} via {@link
    * Long#toHexString}.
    */
-  public static DynamicMessage messageFromTableRow(
+  public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
-      Descriptor descriptor,
+      @Nullable Descriptor descriptor,
       TableRow tableRow,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
       final @Nullable TableRow unknownFields,
       @Nullable String changeType,
-      long changeSequenceNum)
+      long changeSequenceNum,
+      ErrorCollector collectedExceptions)
       throws SchemaConversionException {
     return messageFromTableRow(
         schemaInformation,
@@ -841,7 +1072,8 @@ public class TableRowToStorageApiProto {
         allowMissingRequiredFields,
         unknownFields,
         changeType,
-        Long.toHexString(changeSequenceNum));
+        Long.toHexString(changeSequenceNum),
+        collectedExceptions);
   }
 
   /**
@@ -849,18 +1081,25 @@ public class TableRowToStorageApiProto {
    * using the BigQuery Storage API.
    */
   @SuppressWarnings("nullness")
-  public static DynamicMessage messageFromTableRow(
+  public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
-      Descriptor descriptor,
+      @Nullable Descriptor descriptor,
       TableRow tableRow,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
       final @Nullable TableRow unknownFields,
       @Nullable String changeType,
-      @Nullable String changeSequenceNum)
+      @Nullable String changeSequenceNum,
+      ErrorCollector collectedExceptions)
       throws SchemaConversionException {
     @Nullable Object fValue = tableRow.get("f");
     if (fValue instanceof List) {
+      if (descriptor == null) {
+        // This only happens if we are recursively finding unknwon field names. We don't support
+        // this for list cells
+        // (all we have is field position in that case) so just bail out.
+        return null;
+      }
       List<AbstractMap<String, Object>> cells = (List<AbstractMap<String, Object>>) fValue;
       DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
       int cellsToProcess = cells.size();
@@ -868,9 +1107,17 @@ public class TableRowToStorageApiProto {
         if (ignoreUnknownValues) {
           cellsToProcess = descriptor.getFields().size();
         } else {
-          throw new SchemaTooNarrowException(
-              "TableRow contained too many fields and ignoreUnknownValues not set in "
-                  + schemaInformation.getName());
+          SchemaConversionException exception =
+              new SchemaTooNarrowException(
+                  // In this scenario the row does not contain field names, so we can't record the
+                  // name of the new column.
+                  "",
+                  "TableRow contained too many fields and ignoreUnknownValues not set in "
+                      + schemaInformation.getName(),
+                  false,
+                  false);
+          collectedExceptions.collect(exception); // Throws if not collected.
+          cellsToProcess = descriptor.getFields().size();
         }
       }
 
@@ -911,7 +1158,8 @@ public class TableRowToStorageApiProto {
                   cell.get("v"),
                   ignoreUnknownValues,
                   allowMissingRequiredFields,
-                  getNestedUnknown);
+                  getNestedUnknown,
+                  collectedExceptions);
           if (value != null) {
             builder.setField(fieldDescriptor, value);
           }
@@ -942,6 +1190,9 @@ public class TableRowToStorageApiProto {
         }
       }
 
+      if (!collectedExceptions.isEmpty()) {
+        return null;
+      }
       try {
         return builder.build();
       } catch (Exception e) {
@@ -957,7 +1208,8 @@ public class TableRowToStorageApiProto {
           allowMissingRequiredFields,
           unknownFields,
           changeType,
-          changeSequenceNum);
+          changeSequenceNum,
+          collectedExceptions);
     }
   }
 
@@ -1228,15 +1480,17 @@ public class TableRowToStorageApiProto {
         throw new RuntimeException(e);
       }
       ByteString unknownFieldsProto =
-          messageFromTableRow(
-                  schemaInformation,
-                  descriptorIgnoreRequired,
-                  unknownFields,
-                  ignoreUnknownValues,
-                  true,
-                  null,
-                  null,
-                  null)
+          Preconditions.checkArgumentNotNull(
+                  messageFromTableRow(
+                      schemaInformation,
+                      descriptorIgnoreRequired,
+                      unknownFields,
+                      ignoreUnknownValues,
+                      true,
+                      null,
+                      null,
+                      null,
+                      ErrorCollector.DONT_COLLECT))
               .toByteString();
       return tableRowProto.concat(unknownFieldsProto);
     }
@@ -1277,39 +1531,49 @@ public class TableRowToStorageApiProto {
     }
     TableRow merged = TableRowToStorageApiProto.mergeNewFields(original, unknownFields);
     DynamicMessage dynamicMessage =
-        TableRowToStorageApiProto.messageFromTableRow(
-            schemaInformation,
-            descriptor,
-            merged,
-            ignoreUnknownValues,
-            false,
-            null,
-            cdcType,
-            sequence);
+        Preconditions.checkArgumentNotNull(
+            TableRowToStorageApiProto.messageFromTableRow(
+                schemaInformation,
+                descriptor,
+                merged,
+                ignoreUnknownValues,
+                false,
+                null,
+                cdcType,
+                sequence,
+                ErrorCollector.DONT_COLLECT));
     return dynamicMessage.toByteString();
   }
 
   private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
-      FieldDescriptor fieldDescriptor,
+      @Nullable
+          FieldDescriptor
+              fieldDescriptor, // Null in the case of recursively finding missing fields.
       @Nullable Object bqValue,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      Supplier<@Nullable TableRow> getUnknownNestedFields)
+      Supplier<@Nullable TableRow> getUnknownNestedFields,
+      ErrorCollector collectedExceptions)
       throws SchemaConversionException {
+    boolean isOptional = fieldDescriptor == null || fieldDescriptor.isOptional();
+    boolean isRepeated = fieldDescriptor != null && fieldDescriptor.isRepeated();
     if (bqValue == null) {
-      if (fieldDescriptor.isOptional() || allowMissingRequiredFields) {
+      if (isOptional || allowMissingRequiredFields) {
         return null;
-      } else if (fieldDescriptor.isRepeated()) {
+      } else if (isRepeated) {
         return Collections.emptyList();
       } else {
-        // TODO: Allow expanding this!
-        throw new SchemaDoesntMatchException(
-            "Received null value for non-nullable field " + schemaInformation.getFullName());
+        SchemaConversionException exception =
+            new SchemaMissingRequiredFieldException(
+                ImmutableSet.of(schemaInformation.getFullName()));
+        collectedExceptions.collect(exception); // Throws if not collected.
+        return null;
       }
     }
-    if (fieldDescriptor.isRepeated()) {
-      List<Object> listValue = (List<Object>) bqValue;
+    if (isRepeated) {
+      List<@Nullable Object> listValue =
+          Preconditions.checkArgumentNotNull((List<@Nullable Object>) bqValue);
       List<@Nullable Object> protoList = Lists.newArrayListWithCapacity(listValue.size());
       for (@Nullable Object o : listValue) {
         if (o != null) { // repeated field cannot contain null.
@@ -1320,7 +1584,8 @@ public class TableRowToStorageApiProto {
                   o,
                   ignoreUnknownValues,
                   allowMissingRequiredFields,
-                  getUnknownNestedFields));
+                  getUnknownNestedFields,
+                  collectedExceptions));
         }
       }
       return protoList;
@@ -1331,17 +1596,19 @@ public class TableRowToStorageApiProto {
         Preconditions.checkStateNotNull(bqValue),
         ignoreUnknownValues,
         allowMissingRequiredFields,
-        getUnknownNestedFields);
+        getUnknownNestedFields,
+        collectedExceptions);
   }
 
   @VisibleForTesting
   static @Nullable Object singularFieldToProtoValue(
       SchemaInformation schemaInformation,
-      FieldDescriptor fieldDescriptor,
+      @Nullable FieldDescriptor fieldDescriptor,
       Object value,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
-      Supplier<@Nullable TableRow> getUnknownNestedFields)
+      Supplier<@Nullable TableRow> getUnknownNestedFields,
+      ErrorCollector collectedExceptions)
       throws SchemaConversionException {
     @Nullable Object converted = null;
     if (schemaInformation.getType() == TableFieldSchema.Type.STRUCT) {
@@ -1350,26 +1617,31 @@ public class TableRowToStorageApiProto {
         converted =
             messageFromTableRow(
                 schemaInformation,
-                fieldDescriptor.getMessageType(),
+                fieldDescriptor == null ? null : fieldDescriptor.getMessageType(),
                 tableRow,
                 ignoreUnknownValues,
                 allowMissingRequiredFields,
                 getUnknownNestedFields.get(),
                 null,
-                null);
+                null,
+                collectedExceptions);
       } else if (value instanceof AbstractMap) {
         // This will handle nested rows.
         AbstractMap<String, Object> map = ((AbstractMap<String, Object>) value);
         converted =
             messageFromMap(
                 schemaInformation,
-                fieldDescriptor.getMessageType(),
+                fieldDescriptor == null ? null : fieldDescriptor.getMessageType(),
                 map,
                 ignoreUnknownValues,
                 allowMissingRequiredFields,
                 getUnknownNestedFields.get(),
                 null,
-                null);
+                null,
+                collectedExceptions);
+      }
+      if (!collectedExceptions.isEmpty()) {
+        return null;
       }
     } else if (schemaInformation.getType() == TableFieldSchema.Type.TIMESTAMP
         && schemaInformation.getTimestampPrecision() == PICOSECOND_PRECISION) {
@@ -1394,11 +1666,11 @@ public class TableRowToStorageApiProto {
             "Unsupported timestamp value type: " + value.getClass().getName());
       }
 
+      Descriptor messageType = Preconditions.checkArgumentNotNull(fieldDescriptor).getMessageType();
       converted =
-          DynamicMessage.newBuilder(fieldDescriptor.getMessageType())
-              .setField(fieldDescriptor.getMessageType().findFieldByName("seconds"), seconds)
-              .setField(
-                  fieldDescriptor.getMessageType().findFieldByName("picoseconds"), picoseconds)
+          DynamicMessage.newBuilder(messageType)
+              .setField(messageType.findFieldByName("seconds"), seconds)
+              .setField(messageType.findFieldByName("picoseconds"), picoseconds)
               .build();
 
     } else {

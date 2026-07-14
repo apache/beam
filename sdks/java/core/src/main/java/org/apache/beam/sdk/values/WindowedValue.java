@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import io.opentelemetry.context.Context;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -50,9 +51,16 @@ public interface WindowedValue<T> {
   String getRecordId();
 
   @Nullable
+  Context getOpenTelemetryContext();
+
+  @Nullable
   Long getRecordOffset();
 
   CausedByDrain causedByDrain();
+
+  /** Returns the {@link ValueKind} associated with this WindowedValue. */
+  @Pure
+  ValueKind getValueKind();
 
   /**
    * A representation of each of the actual values represented by this compressed {@link

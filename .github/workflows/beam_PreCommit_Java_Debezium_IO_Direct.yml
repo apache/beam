@@ -76,7 +76,7 @@ jobs:
       github.event.comment.body == 'Run Java_Debezium_IO_Direct PreCommit'
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -86,18 +86,14 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
       - name: run Debezium IO build task
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:debezium:build
           arguments: |
             -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-            -PtestJavaVersion=17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PdisableCheckStyle=true
       - name: run Debezium IO additional tasks
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -106,11 +102,9 @@ jobs:
             :sdks:java:io:debezium:integrationTest \
           arguments: |
             -PdisableSpotlessCheck=true \
-            -PdisableCheckStyle=true \
-            -PtestJavaVersion=17 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PdisableCheckStyle=true
       - name: Archive JUnit Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
           name: JUnit Test Results
@@ -124,7 +118,7 @@ jobs:
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: SpotBugs Results

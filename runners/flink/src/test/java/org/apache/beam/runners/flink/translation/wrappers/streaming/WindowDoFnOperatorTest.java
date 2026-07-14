@@ -156,6 +156,11 @@ public class WindowDoFnOperatorTest {
     // Note that the following is 1 because the state is key-partitioned
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(1));
 
+    // Expected 6 state entries:
+    // - 2 entries for user buffer state ("buf") - one per key
+    // - 2 entries for watermark hold state ("hold") - one per key
+    // - 2 entries for non-empty panes count state ("count") - one per key
+    // - additional 2 entries for "combinedMetadata" state if non default metadata will be added
     assertThat(testHarness.numKeyedStateEntries(), is(6));
     // close bundle
     testHarness.setProcessingTime(
@@ -169,6 +174,11 @@ public class WindowDoFnOperatorTest {
     // Note that the following is zero because we only the first key is active
     assertThat(Iterables.size(timerInternals.pendingTimersById.keys()), is(0));
 
+    // Expected 4 state entries remaining for the second key (which is still active):
+    // - 1 entry for user buffer state ("buf")
+    // - 1 entry for watermark hold state ("hold")
+    // - 1 entry for non-empty panes count state ("count")
+    // - 1 entry for "combinedMetadata" state if non default metadata will be added
     assertThat(testHarness.numKeyedStateEntries(), is(3));
 
     // close bundle

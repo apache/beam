@@ -26,9 +26,7 @@ import importlib
 import logging
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
 from typing import Optional
-from typing import Set
 from typing import Union
 
 import apache_beam as beam
@@ -61,10 +59,10 @@ class SqlNode:
     execution_count: the execution count if in an IPython env.
   """
   output_name: str
-  source: Union[beam.Pipeline, Set[str]]
+  source: Union[beam.Pipeline, set[str]]
   query: str
-  schemas: Set[Any] = None
-  evaluated: Set[beam.Pipeline] = None
+  schemas: set[Any] = None
+  evaluated: set[beam.Pipeline] = None
   next: Optional['SqlNode'] = None
   execution_count: int = 0
 
@@ -193,7 +191,7 @@ class SqlChain:
       Otherwise, at least some of the nodes in chain has queried against
       PCollections.
   """
-  nodes: Dict[str, SqlNode] = None
+  nodes: dict[str, SqlNode] = None
   root: Optional[SqlNode] = None
   current: Optional[SqlNode] = None
   user_pipeline: Optional[beam.Pipeline] = None

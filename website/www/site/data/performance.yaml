@@ -283,3 +283,83 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: P7wKZy6tQFWbbDfm4HzfCJnsQrVgfGsJ
           title: AvgThroughputElementsPerSec by Version
+  mltransformvocab:
+    write:
+      folder: 107
+      cost:
+        - id: CccNCHQ23Js2tmxTDYVnjxwfx2zSFSjY
+          title: RunTime and EstimatedCost
+      date:
+        - id: n7Gn7c7KSW52ZgXCQXndHgWtjVPK8W33
+          title: AvgThroughputBytesPerSec by Date
+        - id: 3tcg6cSh6tBg6FmpTxgzyMtvFqWKkQn3
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: tPYwJngPDBsKjK3DNgGHGsCyTpxdfmTB
+          title: AvgThroughputBytesPerSec by Version
+        - id: cC75NnCbQT3mQmKVHtDxzptXpwPb64qz
+          title: AvgThroughputElementsPerSec by Version
+  mltransformonehot:
+    write:
+      folder: 108
+      cost:
+        - id: 37DYwfbr5y4gt7g7g7RzRSzGTjd4Jjbj
+          title: RunTime and EstimatedCost
+      date:
+        - id: trcXrBCyPjYj2jTGc3px3d72xMXPCmZb
+          title: AvgThroughputBytesPerSec by Date
+        - id: yczZ4G8rYcP3SHjtQXz7p4BdRhGcXydx
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: mHtwwXKndpJVPjnkcHqRZpfPzfzHtT38
+          title: AvgThroughputBytesPerSec by Version
+        - id: Cn5FsXkdy2ZXCxCJshSCxcjsTW3TXf3c
+          title: AvgThroughputElementsPerSec by Version
+  mltransform-text-embedding:
+    write:
+      folder: 109
+      cost:
+        - id: wm4mr82Q6MGcJZbvQF32MQB6vYMh3pBM
+          title: RunTime and EstimatedCost
+      date:
+        - id: dcCym4PGpqg3mTXsTXS5tfmTcJCVNTBD
+          title: AvgThroughputBytesPerSec by Date
+        - id: Q5sKJqB53Jkhy5TKCybfQgXjJnhp7pRQ
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: qdpHqnkzRPb2zqJr8sjCpW84KSQkhDHJ
+          title: AvgThroughputBytesPerSec by Version
+        - id: HcWgFVVct3xq2WjCMmY7Q8KcHGms7KDW
+          title: AvgThroughputElementsPerSec by Version
+  mltransform-image-embedding-gpu:
+    write:
+      folder: 110
+      cost:
+        - id: zQZzvdcy3srprGq5qxqmRRN4GRHpdRDX
+          title: RunTime and EstimatedCost
+      date:
+        - id: X2wdRXcgsFG7sxfSQykhypFDkYtRjN2J
+          title: AvgThroughputBytesPerSec by Date
+        - id: zppHCwdN5qrDpyn2WQpJd8YmfQCPw4dk
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: FZXH7JKyFNWmrkgcFQZYxH7wywZgQpYF
+          title: AvgThroughputBytesPerSec by Version
+        - id: FQ3QYHgZTxvh3zPp3BcsGnmJx7yxfVzc
+          title: AvgThroughputElementsPerSec by Version
+  mltransform-image-embedding-cpu:
+    write:
+      folder: 111
+      cost:
+        - id: dxnGs2xD2vNH4Y6HbFMDd5Hc2d5cqVWc
+          title: RunTime and EstimatedCost
+      date:
+        - id: tkwdB46WT8YDkR4Q37jJ2p7y5fGchmTC
+          title: AvgThroughputBytesPerSec by Date
+        - id: x3f5pRDvjKxVPy5Y6GjghhqSddYxprn3
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: ZPHYbRdBMBSvd7RGS8wF8C8d8hysQmbH
+          title: AvgThroughputBytesPerSec by Version
+        - id: zjMRJssC6tNrtKPBgs8yPW8jHkbk8wjk
+          title: AvgThroughputElementsPerSec by Version

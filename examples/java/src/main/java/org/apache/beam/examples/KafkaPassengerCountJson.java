@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Read NYC Taxi dataset from Kafka server to count passengers for each vendor
 //   multifile: false
 //   default_example: false
-//   context_line: 64
+//   context_line: 81
 //   categories:
 //     - Emulated Data Source
 //     - IO
@@ -55,6 +55,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
@@ -109,10 +111,13 @@ public class KafkaPassengerCountJson {
             ParDo.of(
                 new DoFn<String, KV<Integer, Integer>>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) throws JsonProcessingException {
+                  public void processElement(
+                      @Element String element, OutputReceiver<KV<Integer, Integer>> receiver)
+                      throws JsonProcessingException {
                     final VendorToPassengerDTO result =
-                        om.readValue(c.element(), new TypeReference<VendorToPassengerDTO>() {});
-                    c.output(KV.of(result.getVendorIdField(), result.getPassengerCountField()));
+                        om.readValue(element, new TypeReference<VendorToPassengerDTO>() {});
+                    receiver.output(
+                        KV.of(result.getVendorIdField(), result.getPassengerCountField()));
                   }
                 }))
         .apply(
@@ -124,11 +129,11 @@ public class KafkaPassengerCountJson {
                 new DoFn<KV<Integer, Integer>, KV<Integer, Integer>>() {
                   @ProcessElement
                   public void processElement(
-                      ProcessContext c, OutputReceiver<KV<Integer, Integer>> out) {
+                      OutputReceiver<KV<Integer, Integer>> out,
+                      @Element KV<Integer, Integer> element) {
                     System.out.printf(
-                        "Vendor: %s, Passengers: %s%n",
-                        c.element().getKey(), c.element().getValue());
-                    out.output(c.element());
+                        "Vendor: %s, Passengers: %s%n", element.getKey(), element.getValue());
+                    out.output(element);
                   }
                 }));
     p.run().waitUntilFinish();

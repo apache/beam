@@ -22,7 +22,6 @@ SchemaTransforms)
 import argparse
 import os
 import re
-from typing import Dict
 
 import yaml
 from gen_protos import PROJECT_ROOT
@@ -125,7 +124,7 @@ def generate_managed_doc(output_location):
 
   for gradle_target in expansion_service_jar_targets:
     provider = ExternalTransformProvider(BeamJarExpansionService(gradle_target))
-    discovered: Dict[str, ExternalTransform] = provider.get_all()
+    discovered: dict[str, ExternalTransform] = provider.get_all()
 
     for identifier, transform in discovered.items():
       if identifier in read_names_and_identifiers.values():

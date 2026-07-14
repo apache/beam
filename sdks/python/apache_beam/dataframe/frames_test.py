@@ -37,6 +37,8 @@ from apache_beam.runners.interactive.testing.mock_env import isolated_env
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
+# Get major, minor, patch version
+PD_FULL_VERSION = tuple(int(x) for x in re.findall(r'\d+', pd.__version__)[0:3])
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -1437,7 +1439,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.unstack(level=0), s)
 
   @unittest.skipIf(
-      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      sys.version_info >= (3, 12) and PD_FULL_VERSION < (2, 3, 4),
       'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
@@ -2955,19 +2957,26 @@ class AllowNonParallelTest(unittest.TestCase):
       self._use_non_parallel_operation()
 
 
+_CONSTRUCTION_TIME_TEST_COLUMNS = [
+    'str_col', 'int_col', 'flt_col', 'cat_col', 'datetime_col'
+]
+
+
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
-  DF = pd.DataFrame({
-      'str_col': ['foo', 'bar'] * 3,
-      'int_col': [1, 2] * 3,
-      'flt_col': [1.1, 2.2] * 3,
-      'cat_col': pd.Series(list('aabbca'), dtype="category"),
-      'datetime_col': pd.Series(
-          pd.date_range(
-              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
-  })
-  DEFERRED_DF = frame_base.DeferredFrame.wrap(
-      expressions.PlaceholderExpression(DF.iloc[:0]))
+  @classmethod
+  def setUpClass(cls):
+    cls.DF = pd.DataFrame({
+        'str_col': ['foo', 'bar'] * 3,
+        'int_col': [1, 2] * 3,
+        'flt_col': [1.1, 2.2] * 3,
+        'cat_col': pd.Series(list('aabbca'), dtype="category"),
+        'datetime_col': pd.Series(
+            pd.date_range(
+                '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
+    })
+    cls.DEFERRED_DF = frame_base.DeferredFrame.wrap(
+        expressions.PlaceholderExpression(cls.DF.iloc[:0]))
 
   def _run_test(self, fn):
     expected = fn(self.DF)
@@ -2982,11 +2991,11 @@ class ConstructionTimeTest(unittest.TestCase):
     else:
       self.assertEqual(expected, actual)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_name(self, col_name):
     self._run_test(lambda df: df[col_name].name)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_dtype(self, col_name):
     self._run_test(lambda df: df[col_name].dtype)
     self._run_test(lambda df: df[col_name].dtypes)

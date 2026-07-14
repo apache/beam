@@ -191,10 +191,17 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setMaxStackTraceDepthToReport(int value);
 
   @Description("Necessary duration for a commit to be considered stuck and invalidated.")
-  @Default.Integer(10 * 60 * 1000)
+  @Default.Integer(60 * 60 * 1000)
   int getStuckCommitDurationMillis();
 
   void setStuckCommitDurationMillis(int value);
+
+  @Description(
+      "Retry commits on stream errors until this much time has elapsed since the commit was scheduled. If zero, retry forever.")
+  @Default.InstanceFactory(CommitWorkStreamRetryTimeoutMillisFactory.class)
+  long getCommitWorkStreamRetryTimeoutMillis();
+
+  void setCommitWorkStreamRetryTimeoutMillis(long value);
 
   @Description(
       "Period for sending 'global get config' requests to the service. The duration is "
@@ -248,6 +255,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   boolean getIsWindmillServiceDirectPathEnabled();
 
   void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
+
+  /**
+   * The maximum size of cached entries in bytes. Entries (eg: values, bags) larger than this limit
+   * will not be cached by the windmill state cache
+   */
+  @Description("The maximum size of cached entries in bytes.")
+  @Default.Long(Long.MAX_VALUE)
+  Long getMaxWindmillStateCacheEntryBytes();
+
+  void setMaxWindmillStateCacheEntryBytes(Long value);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
@@ -331,6 +348,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
         return false;
       }
       return ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path");
+    }
+  }
+
+  class CommitWorkStreamRetryTimeoutMillisFactory implements DefaultValueFactory<Long> {
+    @Override
+    public Long create(PipelineOptions options) {
+      if (ExperimentalOptions.hasExperiment(options, "disable_commit_retry_timeout")) {
+        return 0L;
+      }
+      return Duration.standardMinutes(30).getMillis();
     }
   }
 }

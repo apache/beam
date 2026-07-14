@@ -34,6 +34,9 @@ public interface WorkExecutor extends AutoCloseable {
   /** Executes the task. */
   public abstract void execute() throws Exception;
 
+  /** Called when all elements for a specific key have been processed. */
+  void finishKey(@Nullable Object key) throws Exception;
+
   /**
    * Returns the worker's current progress.
    *

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +32,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import javax.annotation.Nullable;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
@@ -72,6 +73,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,9 +94,6 @@ import org.slf4j.LoggerFactory;
  *       for further details.
  * </ul>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class FnHarness {
   private static final String HARNESS_ID = "HARNESS_ID";
   private static final String CONTROL_API_SERVICE_DESCRIPTOR = "CONTROL_API_SERVICE_DESCRIPTOR";
@@ -138,22 +137,31 @@ public class FnHarness {
   }
 
   public static void main(String[] args) throws Exception {
-    main(System::getenv);
+    Function<String, @Nullable String> environmentVarGetter = System::getenv;
+    main(environmentVarGetter);
   }
 
   @VisibleForTesting
-  public static void main(Function<String, String> environmentVarGetter) throws Exception {
+  public static void main(Function<String, @Nullable String> environmentVarGetter)
+      throws Exception {
     JvmInitializers.runOnStartup();
 
     Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor =
-        getApiServiceDescriptor(environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR));
+        getApiServiceDescriptor(
+            checkNotNull(
+                environmentVarGetter.apply(LOGGING_API_SERVICE_DESCRIPTOR),
+                "LOGGING_API_SERVICE_DESCRIPTOR env var must be set."));
     Endpoints.ApiServiceDescriptor controlApiServiceDescriptor =
-        getApiServiceDescriptor(environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR));
-    Endpoints.ApiServiceDescriptor statusApiServiceDescriptor =
-        environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR) == null
-            ? null
-            : getApiServiceDescriptor(environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR));
-    String id = environmentVarGetter.apply(HARNESS_ID);
+        getApiServiceDescriptor(
+            checkNotNull(
+                environmentVarGetter.apply(CONTROL_API_SERVICE_DESCRIPTOR),
+                "CONTROL_API_SERVICE_DESCRIPTOR env var must be set."));
+
+    @Nullable String envVar = environmentVarGetter.apply(STATUS_API_SERVICE_DESCRIPTOR);
+    Endpoints.@Nullable ApiServiceDescriptor statusApiServiceDescriptor =
+        (envVar == null) ? null : getApiServiceDescriptor(envVar);
+    String id =
+        checkNotNull(environmentVarGetter.apply(HARNESS_ID), "HARNESS_ID env var must be set.");
 
     System.out.format("SDK Fn Harness started%n");
     System.out.format("Harness ID %s%n", id);
@@ -161,11 +169,11 @@ public class FnHarness {
     System.out.format("Control location %s%n", controlApiServiceDescriptor);
     System.out.format("Status location %s%n", statusApiServiceDescriptor);
 
-    String pipelineOptionsJson = environmentVarGetter.apply(PIPELINE_OPTIONS);
     // Try looking for a file first. If that exists it should override PIPELINE_OPTIONS to avoid
     // maxing out the kernel's environment space
+    @Nullable String pipelineOptionsJson = null;
     try {
-      String pipelineOptionsPath = environmentVarGetter.apply(PIPELINE_OPTIONS_FILE);
+      @Nullable String pipelineOptionsPath = environmentVarGetter.apply(PIPELINE_OPTIONS_FILE);
       System.out.format("Pipeline Options File %s%n", pipelineOptionsPath);
       if (pipelineOptionsPath != null) {
         Path filePath = Paths.get(pipelineOptionsPath);
@@ -179,11 +187,12 @@ public class FnHarness {
     } catch (Exception e) {
       System.out.format("Problem loading pipeline options from file: %s%n", e.getMessage());
     }
-
+    if (pipelineOptionsJson == null) {
+      pipelineOptionsJson = checkNotNull(environmentVarGetter.apply(PIPELINE_OPTIONS));
+    }
     System.out.format("Pipeline options %s%n", pipelineOptionsJson);
     // TODO: https://github.com/apache/beam/issues/30301
     pipelineOptionsJson = removeNestedKey(pipelineOptionsJson, "impersonateServiceAccount");
-
     PipelineOptions options = PipelineOptionsTranslation.fromJson(pipelineOptionsJson);
 
     String runnerCapabilitesOrNull = environmentVarGetter.apply(RUNNER_CAPABILITIES);
@@ -219,7 +228,7 @@ public class FnHarness {
       Set<String> runnerCapabilities,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
-      @Nullable Endpoints.ApiServiceDescriptor statusApiServiceDescriptor)
+      Endpoints.@Nullable ApiServiceDescriptor statusApiServiceDescriptor)
       throws Exception {
     ManagedChannelFactory channelFactory;
     if (ExperimentalOptions.hasExperiment(options, "beam_fn_api_epoll")) {
@@ -263,7 +272,7 @@ public class FnHarness {
       Set<String> runnerCapabilites,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
-      Endpoints.ApiServiceDescriptor statusApiServiceDescriptor,
+      Endpoints.@Nullable ApiServiceDescriptor statusApiServiceDescriptor,
       ManagedChannelFactory channelFactory,
       OutboundObserverFactory outboundObserverFactory,
       Cache<Object, Object> processWideCache)
@@ -296,6 +305,23 @@ public class FnHarness {
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
+      SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+      Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+      if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+        openTelemetryProperties.forEach(
+            (k, v) -> {
+              if (k != null && v != null) {
+                System.setProperty(k, v);
+              }
+            });
+        LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+      } else {
+        // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+        // JvmInitializer.
+        if (System.getProperty("google.otel.auth.target.signals") == null) {
+          System.setProperty("google.otel.auth.target.signals", "none");
+        }
+      }
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
@@ -307,7 +333,7 @@ public class FnHarness {
           BeamFnControlGrpc.newBlockingStub(channel);
 
       BeamFnDataGrpcClient beamFnDataMultiplexer =
-          new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
+          new BeamFnDataGrpcClient(channelFactory::forDescriptor, outboundObserverFactory);
 
       BeamFnStateGrpcClientCache beamFnStateGrpcClientCache =
           new BeamFnStateGrpcClientCache(idGenerator, channelFactory, outboundObserverFactory);

@@ -63,7 +63,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final Cache</*instructionId=*/ String, /*unused=*/ Boolean> poisonedInstructionIds;
 
   private static class PoisonedException extends RuntimeException {
-    public PoisonedException() {
+    private PoisonedException() {
       super("Instruction poisoned");
     }
   };

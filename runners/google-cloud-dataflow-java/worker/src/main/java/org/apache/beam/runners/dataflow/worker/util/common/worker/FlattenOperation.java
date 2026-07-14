@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.Closeable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A flatten operation. */
 public class FlattenOperation extends ReceivingOperation {
@@ -42,6 +43,9 @@ public class FlattenOperation extends ReceivingOperation {
       }
     }
   }
+
+  @Override
+  public void finishKey(@Nullable Object key) throws Exception {}
 
   @Override
   public boolean supportsRestart() {

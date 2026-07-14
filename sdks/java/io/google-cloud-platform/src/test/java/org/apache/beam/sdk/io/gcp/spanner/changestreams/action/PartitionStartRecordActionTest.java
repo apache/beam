@@ -69,6 +69,7 @@ public class PartitionStartRecordActionTest {
   @Test
   public void testRestrictionClaimed() {
     final String partitionToken = "partitionToken";
+    final String tvfName = "my_tvf";
     final long heartbeat = 30L;
     final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
     final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
@@ -79,8 +80,11 @@ public class PartitionStartRecordActionTest {
     when(partition.getEndTimestamp()).thenReturn(endTimestamp);
     when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
     when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(partition.getTvfName()).thenReturn(tvfName);
     when(tracker.tryClaim(startTimestamp)).thenReturn(true);
-    when(transaction.getPartition(partitionToken)).thenReturn(null);
+    when(transaction.getPartition(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(partitionToken, tvfName)))
+        .thenReturn(null);
 
     final Optional<ProcessContinuation> maybeContinuation =
         action.run(partition, record, tracker, interrupter, watermarkEstimator);
@@ -96,6 +100,7 @@ public class PartitionStartRecordActionTest {
                 .setHeartbeatMillis(heartbeat)
                 .setState(CREATED)
                 .setWatermark(startTimestamp)
+                .setTvfName(tvfName)
                 .build());
   }
 
@@ -115,7 +120,7 @@ public class PartitionStartRecordActionTest {
 
     assertEquals(Optional.of(ProcessContinuation.stop()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
-    verify(dao, never()).insert(any());
+    verify(dao, never()).insert(any(PartitionMetadata.class));
   }
 
   @Test
@@ -135,6 +140,34 @@ public class PartitionStartRecordActionTest {
 
     assertEquals(Optional.of(ProcessContinuation.resume()), maybeContinuation);
     verify(watermarkEstimator, never()).setWatermark(any());
-    verify(dao, never()).insert(any());
+    verify(dao, never()).insert(any(PartitionMetadata.class));
+  }
+
+  @Test
+  public void testRestrictionClaimedWithPartitionAlreadyExists() {
+    final String partitionToken = "partitionToken";
+    final String tvfName = "my_tvf";
+    final long heartbeat = 30L;
+    final Timestamp startTimestamp = Timestamp.ofTimeMicroseconds(10L);
+    final Timestamp endTimestamp = Timestamp.ofTimeMicroseconds(20L);
+    final PartitionMetadata partition = mock(PartitionMetadata.class);
+    final PartitionStartRecord record =
+        new PartitionStartRecord(
+            startTimestamp, "recordSequence", Arrays.asList(partitionToken), null);
+    when(partition.getEndTimestamp()).thenReturn(endTimestamp);
+    when(partition.getHeartbeatMillis()).thenReturn(heartbeat);
+    when(partition.getPartitionToken()).thenReturn(partitionToken);
+    when(partition.getTvfName()).thenReturn(tvfName);
+    when(tracker.tryClaim(startTimestamp)).thenReturn(true);
+    when(transaction.getPartition(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(partitionToken, tvfName)))
+        .thenReturn(com.google.cloud.spanner.Struct.newBuilder().build());
+
+    final Optional<ProcessContinuation> maybeContinuation =
+        action.run(partition, record, tracker, interrupter, watermarkEstimator);
+
+    assertEquals(Optional.empty(), maybeContinuation);
+    verify(watermarkEstimator).setWatermark(new Instant(startTimestamp.toSqlTimestamp().getTime()));
+    verify(transaction, never()).insert(any(PartitionMetadata.class));
   }
 }

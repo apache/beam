@@ -81,6 +81,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -107,6 +108,11 @@ public class StreamingGroupAlsoByWindowFnsTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     stepContext = new TestStepContext(STEP_NAME);
+  }
+
+  @After
+  public void tearDown() {
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
   }
 
   @Test
@@ -747,8 +753,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             NullSideInputReader.empty(),
             outputManager,
             stepContext);
-    return DoFnRunners.lateDataDroppingRunner(
-        doFnRunner, stepContext.timerInternals(), windowingStrategy);
+    return DoFnRunners.lateDataDroppingRunner(doFnRunner, stepContext, windowingStrategy);
   }
 
   private IntervalWindow window(long start, long end) {

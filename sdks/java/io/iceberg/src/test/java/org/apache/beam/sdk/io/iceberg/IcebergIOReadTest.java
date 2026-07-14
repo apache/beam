@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -119,6 +120,14 @@ public class IcebergIOReadTest {
   @Parameter(0)
   public boolean useIncrementalScan;
 
+  private org.apache.iceberg.Schema schemaForMode(
+      org.apache.iceberg.Schema schema, Integer... identifierFieldIds) {
+    if (!useIncrementalScan) {
+      return schema;
+    }
+    return new org.apache.iceberg.Schema(schema.columns(), ImmutableSet.copyOf(identifierFieldIds));
+  }
+
   static class PrintRow extends PTransform<PCollection<Row>, PCollection<Row>> {
 
     @Override
@@ -143,7 +152,7 @@ public class IcebergIOReadTest {
   public void testFailWhenBothStartingSnapshotAndTimestampAreSet() {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
             .from(tableId)
@@ -161,7 +170,7 @@ public class IcebergIOReadTest {
   public void testFailWhenBothEndingSnapshotAndTimestampAreSet() {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
             .withCdc()
@@ -179,7 +188,7 @@ public class IcebergIOReadTest {
   public void testFailWhenStartingPointAndStartingStrategyAreSet() {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
             .withCdc()
@@ -197,7 +206,7 @@ public class IcebergIOReadTest {
   public void testFailWhenPollIntervalIsSetOnBatchRead() {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
     IcebergIO.ReadRows read =
         IcebergIO.readRows(catalogConfig())
             .withCdc()
@@ -207,6 +216,32 @@ public class IcebergIOReadTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid source configuration: 'poll_interval_seconds' can only be set when streaming is true");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testCdcFailsWhenTableHasNoIdentifierFields() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId).withCdc();
+
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("Cannot read CDC records");
+    thrown.expectMessage("primary key fields");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testCdcFailsWhenProjectionDropsIdentifierFields() {
+    assumeTrue(useIncrementalScan);
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig()).from(tableId).withCdc().dropping(singletonList("id"));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("projected schema must not drop primary key fields");
     read.expand(PBegin.in(testPipeline));
   }
 
@@ -306,9 +341,10 @@ public class IcebergIOReadTest {
   @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
-        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+        TableIdentifier.of(
+            "default", "table.with.dots" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
+    final Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -339,8 +375,8 @@ public class IcebergIOReadTest {
   public void testScanSelectedFields() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
+    final Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -368,6 +404,11 @@ public class IcebergIOReadTest {
               return null;
             });
 
+    if (useIncrementalScan) {
+      testPipeline.run();
+      return;
+    }
+
     // test drop fields
     read = read.keeping(null).dropping(singletonList("id"));
     PCollection<Row> outputDrop =
@@ -387,7 +428,7 @@ public class IcebergIOReadTest {
   public void testScanWithFilter() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -440,6 +481,7 @@ public class IcebergIOReadTest {
             required(1, "a", Types.IntegerType.get()),
             required(2, "b", StructType.of(nestedSchema.columns())),
             required(5, "c", StringType.get()));
+    schema = schemaForMode(schema, 1);
 
     // hadoop catalog will re-order by breadth-first ordering
     Table simpleTable = warehouse.createTable(tableId, schema);
@@ -484,7 +526,8 @@ public class IcebergIOReadTest {
   public void testIdentityColumnScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    org.apache.iceberg.Schema baseSchema = schemaForMode(TestFixtures.SCHEMA, 1);
+    Table simpleTable = warehouse.createTable(tableId, baseSchema);
 
     String identityColumnName = "identity";
     String identityColumnValue = "some-value";
@@ -499,11 +542,7 @@ public class IcebergIOReadTest {
         .newFastAppend()
         .appendFile(
             warehouse.writeRecords(
-                "file1s1.parquet",
-                TestFixtures.SCHEMA,
-                spec,
-                partitionKey,
-                TestFixtures.FILE1SNAPSHOT1))
+                "file1s1.parquet", baseSchema, spec, partitionKey, TestFixtures.FILE1SNAPSHOT1))
         .commit();
 
     final Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
@@ -609,9 +648,10 @@ public class IcebergIOReadTest {
 
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    org.apache.iceberg.Schema tableSchema = schemaForMode(TestFixtures.NESTED_SCHEMA, 1);
     Table simpleTable =
         warehouse
-            .buildTable(tableId, TestFixtures.NESTED_SCHEMA)
+            .buildTable(tableId, tableSchema)
             .withProperties(tableProperties)
             .withPartitionSpec(PartitionSpec.unpartitioned())
             .create();
@@ -625,7 +665,7 @@ public class IcebergIOReadTest {
             .withMetrics(metrics)
             .build();
 
-    final Schema beamSchema = icebergSchemaToBeamSchema(TestFixtures.NESTED_SCHEMA);
+    final Schema beamSchema = icebergSchemaToBeamSchema(simpleTable.schema());
 
     simpleTable.newFastAppend().appendFile(dataFile).commit();
 
@@ -637,7 +677,7 @@ public class IcebergIOReadTest {
 
     final Row[] expectedRows =
         recordData.stream()
-            .map(data -> icebergGenericRecord(TestFixtures.NESTED_SCHEMA.asStruct(), data))
+            .map(data -> icebergGenericRecord(simpleTable.schema().asStruct(), data))
             .map(record -> IcebergUtils.icebergRecordToBeamRow(beamSchema, record))
             .toArray(Row[]::new);
 
@@ -695,8 +735,8 @@ public class IcebergIOReadTest {
       throws IOException {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
+    Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
     if ((strategy == StartingStrategy.LATEST) || (streaming && strategy == null)) {
@@ -731,8 +771,8 @@ public class IcebergIOReadTest {
       throws IOException {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Table simpleTable = warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
+    Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
 
     // only read data committed in the second and third snapshots
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable).subList(3, 9);

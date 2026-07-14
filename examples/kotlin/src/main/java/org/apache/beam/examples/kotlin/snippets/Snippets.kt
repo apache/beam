@@ -33,6 +33,8 @@ import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination
 import org.apache.beam.sdk.io.gcp.bigquery.WriteResult
 import org.apache.beam.sdk.transforms.*
+import org.apache.beam.sdk.transforms.DoFn.Element
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver
 import org.apache.beam.sdk.transforms.join.CoGbkResult
 import org.apache.beam.sdk.transforms.join.CoGroupByKey
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple
@@ -360,13 +362,12 @@ object Snippets {
                 ParDo.of(
                         object : DoFn<KV<String, CoGbkResult>, String>() {
                             @ProcessElement
-                            fun processElement(c: ProcessContext) {
-                                val e = c.element()
-                                val name = e.key
-                                val emailsIter = e.value.getAll(emailsTag)
-                                val phonesIter = e.value.getAll(phonesTag)
+                            fun processElement(@Element element: KV<String, CoGbkResult>, receiver: OutputReceiver<String>) {
+                                val name = element.key
+                                val emailsIter = element.value.getAll(emailsTag)
+                                val phonesIter = element.value.getAll(phonesTag)
                                 val formattedResult = formatCoGbkResults(name, emailsIter, phonesIter)
-                                c.output(formattedResult)
+                                receiver.output(formattedResult)
                             }
                         }))
     }

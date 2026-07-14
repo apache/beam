@@ -48,7 +48,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
@@ -98,7 +97,7 @@ public class EncoderHelpers {
   private static final DataType LIST_TYPE = new ObjectType(List.class);
 
   // Collections / maps of these types can be (de)serialized without (de)serializing each member
-  private static final Set<Class<?>> PRIMITIV_TYPES =
+  private static final Set<Class<?>> PRIMITIVE_TYPES =
       ImmutableSet.of(
           Boolean.class,
           Byte.class,
@@ -154,7 +153,7 @@ public class EncoderHelpers {
   public static <T> Encoder<T> encoderOf(Class<? super T> cls) {
     Encoder<T> enc = getOrCreateDefaultEncoder(cls);
     if (enc == null) {
-      throw new IllegalArgumentException("No default coder available for class " + cls);
+      throw new IllegalArgumentException("No default encoder available for class " + cls);
     }
     return enc;
   }
@@ -481,7 +480,7 @@ public class EncoderHelpers {
   }
 
   private static <T> boolean isPrimitiveEnc(Encoder<T> enc) {
-    return PRIMITIV_TYPES.contains(enc.clsTag().runtimeClass());
+    return PRIMITIVE_TYPES.contains(enc.clsTag().runtimeClass());
   }
 
   private static <T> Expression serialize(Expression input, Encoder<T> enc) {
@@ -548,9 +547,17 @@ public class EncoderHelpers {
       return CoderHelpers.toByteArray(paneInfo, PaneInfoCoder.of());
     }
 
-    /** The end of the only window (max timestamp). */
-    public static Instant maxTimestamp(Iterable<BoundedWindow> windows) {
-      return Iterables.getOnlyElement(windows).maxTimestamp();
+    /** The maximum {@code maxTimestamp} across all associated windows. */
+    public static Instant maxTimestamp(Iterable<? extends BoundedWindow> windows) {
+      Instant maxTimestamp = null;
+      for (BoundedWindow window : windows) {
+        Instant timestamp = window.maxTimestamp();
+        if (maxTimestamp == null || timestamp.isAfter(maxTimestamp)) {
+          maxTimestamp = timestamp;
+        }
+      }
+      return Preconditions.checkNotNull(
+          maxTimestamp, "WindowedValue must have at least one window");
     }
 
     public static List<Object> copyToList(ArrayData arrayData, DataType type) {

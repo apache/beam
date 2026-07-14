@@ -25,8 +25,8 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
-  // iceberg requires Java11+
-  requireJavaVersion: JavaVersion.VERSION_11
+  // iceberg requires Java11+ and delta lake requires Java17+
+  requireJavaVersion: JavaVersion.VERSION_17
 )
 
 // We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
@@ -35,8 +35,6 @@ applyJavaNature(
 configurations.runtimeClasspath {
   // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
   resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
-  // iceberg needs avro:1.12.0
-  resolutionStrategy.force 'org.apache.avro:avro:1.12.0'
   // force parquet-avro:1.15.2 to fix CVE-2025-46762
   resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.15.2'
 
@@ -59,6 +57,14 @@ configurations.runtimeClasspath {
 
   // Pin nimbus-jose-jwt to 9.37.4 to fix CVE-2025-53864 (transitive via hadoop-auth)
   resolutionStrategy.force 'com.nimbusds:nimbus-jose-jwt:9.37.4'
+
+  // [iceberg]
+  // TODO(https://github.com/apache/beam/issues/38515):
+  //  Remove below pins when parquet-hadoop upgrades to hadoop-common:3.4.2
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-common:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
 }
 
 shadowJar {
@@ -66,7 +72,6 @@ shadowJar {
     attributes(["Multi-Release": true])
   }
   mergeServiceFiles()
-  outputs.upToDateWhen { false }
 }
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Expansion Service"
@@ -85,13 +90,14 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:extensions:kafka-factories")
   runtimeOnly project(":sdks:java:io:amazon-web-services2") // FileSystem may be used by Iceberg AddFiles
 
-  if (JavaVersion.current().compareTo(JavaVersion.VERSION_11) >= 0 && project.findProperty('testJavaVersion') != '8') {
-    // iceberg ended support for Java 8 in 1.7.0
-    runtimeOnly project(":sdks:java:io:iceberg")
-    runtimeOnly project(":sdks:java:io:iceberg:hive")
-    runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
-  }
+  runtimeOnly project(":sdks:java:io:iceberg")
+  runtimeOnly project(":sdks:java:io:iceberg:hive")
+  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  runtimeOnly library.java.bigdataoss_util_hadoop
 
+  runtimeOnly project(":sdks:java:io:datadog")
+  runtimeOnly project(":sdks:java:io:mongodb")
+  runtimeOnly project(":sdks:java:io:delta")
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 

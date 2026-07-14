@@ -100,6 +100,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
   private final java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter;
   private final Supplier<ScheduledExecutorService> executorServiceSupplier;
+  private final java.time.Duration commitWorkStreamRetryTimeout;
 
   private GrpcWindmillStreamFactory(
       JobHeader jobHeader,
@@ -111,19 +112,20 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
       java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter,
+      java.time.Duration commitWorkStreamRetryTimeout,
       Supplier<ScheduledExecutorService> executorServiceSupplier) {
     this.jobHeader = jobHeader;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.windmillMessagesBetweenIsReadyChecks = windmillMessagesBetweenIsReadyChecks;
     // Configure backoff to retry calls forever, with a maximum sane retry interval.
-    this.grpcBackOff =
+    Supplier<FluentBackoff> backoffConfig =
         Suppliers.memoize(
             () ->
                 FluentBackoff.DEFAULT
                     .withInitialBackoff(MIN_BACKOFF)
-                    .withMaxBackoff(maxBackOffSupplier.get())
-                    .backoff());
+                    .withMaxBackoff(maxBackOffSupplier.get()));
+    this.grpcBackOff = () -> backoffConfig.get().backoff();
     this.streamRegistry = ConcurrentHashMap.newKeySet();
     this.sendKeyedGetDataRequests = sendKeyedGetDataRequests;
     this.requestBatchedGetWorkResponse = requestBatchedGetWorkResponse;
@@ -132,6 +134,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.directStreamingRpcPhysicalStreamHalfCloseAfter =
         directStreamingRpcPhysicalStreamHalfCloseAfter;
     this.executorServiceSupplier = executorServiceSupplier;
+    this.commitWorkStreamRetryTimeout = commitWorkStreamRetryTimeout;
   }
 
   /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
@@ -146,6 +149,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       Supplier<Duration> maxBackOffSupplier,
       int healthCheckIntervalMillis,
       java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter,
+      java.time.Duration commitWorkStreamRetryTimeout,
       Supplier<ScheduledExecutorService> scheduledExecutorServiceSupplier) {
     GrpcWindmillStreamFactory streamFactory =
         new GrpcWindmillStreamFactory(
@@ -158,6 +162,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
             processHeartbeatResponses,
             maxBackOffSupplier,
             directStreamingRpcPhysicalStreamHalfCloseAfter,
+            commitWorkStreamRetryTimeout,
             scheduledExecutorServiceSupplier);
 
     if (healthCheckIntervalMillis >= 0) {
@@ -200,6 +205,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setProcessHeartbeatResponses(ignored -> {})
         .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(
             DEFAULT_DIRECT_STREAMING_RPC_PHYSICAL_STREAM_HALF_CLOSE_AFTER)
+        .setCommitWorkStreamRetryTimeout(java.time.Duration.ZERO)
         .setScheduledExecutorServiceSupplier(() -> null);
   }
 
@@ -347,6 +353,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         java.time.Duration.ZERO,
+        commitWorkStreamRetryTimeout,
         executorForDispatchedStreams("CommitWork"));
   }
 
@@ -363,6 +370,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamIdGenerator,
         streamingRpcBatchLimit,
         directStreamingRpcPhysicalStreamHalfCloseAfter,
+        java.time.Duration.ZERO,
         executorForDirectStreams(connection.backendWorkerToken(), "CommitWork"));
   }
 
@@ -425,6 +433,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     Builder setRequestBatchedGetWorkResponse(boolean enabled);
 
     Builder setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration timeout);
+
+    Builder setCommitWorkStreamRetryTimeout(java.time.Duration timeout);
 
     Builder setScheduledExecutorServiceSupplier(
         Supplier<ScheduledExecutorService> scheduledExecutorServiceSupplier);

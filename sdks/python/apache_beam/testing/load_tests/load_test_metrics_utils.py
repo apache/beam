@@ -34,8 +34,6 @@ import logging
 import time
 import uuid
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import Union
@@ -212,7 +210,7 @@ class MetricsReader(object):
       filters: MetricFilter to query only filtered metrics
     """
     self._namespace = namespace
-    self.publishers: List[MetricsPublisher] = []
+    self.publishers: list[MetricsPublisher] = []
     # publish to console output
     self.publishers.append(ConsoleMetricsPublisher())
 
@@ -275,8 +273,8 @@ class MetricsReader(object):
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
-  def _add_job_id_to_metrics(self, metrics: List[Dict[str, Any]],
-                             job_id) -> List[Dict[str, Any]]:
+  def _add_job_id_to_metrics(self, metrics: list[dict[str, Any]],
+                             job_id) -> list[dict[str, Any]]:
     for metric in metrics:
       metric[JOB_ID_LABEL] = job_id
     return metrics
@@ -547,7 +545,7 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
     self.options = options
 
   def publish(
-      self, results: List[Mapping[str, Union[float, str, int]]]) -> None:
+      self, results: list[Mapping[str, Union[float, str, int]]]) -> None:
     url = '{}/write'.format(self.options.hostname)
     payload = self._build_payload(results)
     query_str = {'db': self.options.db_name, 'precision': 's'}
@@ -569,7 +567,7 @@ class InfluxDBMetricsPublisher(MetricsPublisher):
             (response.status_code, content['error']))
 
   def _build_payload(
-      self, results: List[Mapping[str, Union[float, str, int]]]) -> str:
+      self, results: list[Mapping[str, Union[float, str, int]]]) -> str:
     def build_kv(mapping, key):
       return '{}={}'.format(key, mapping[key])
 

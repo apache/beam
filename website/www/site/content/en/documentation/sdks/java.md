@@ -78,6 +78,6 @@ Apache Beam lets you combine transforms written in any supported SDK language an
 </tr>
 <tr>
   <td>8</td>
-  <td>2.x</td>
+  <td>&le; 2.73.0</td>
 </tr>
 </table>

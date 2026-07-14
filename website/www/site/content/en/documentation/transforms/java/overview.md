@@ -55,6 +55,7 @@ limitations under the License.
   <tr><td><a href="/documentation/transforms/java/aggregation/groupbykey">GroupByKey</a></td><td>Takes a keyed collection of elements and produces a collection where each element
   consists of a key and all values associated with that key.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/groupintobatches">GroupIntoBatches</a></td><td>Batches values associated with keys into <code>Iterable</code> batches of some size. Each batch contains elements associated with a specific key.</td></tr>
+  <tr><td><a href="/documentation/transforms/java/aggregation/batchelements">BatchElements</a></td><td>Groups individual elements into batches to amortize fixed processing costs, using dynamically estimated batch sizes.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/hllcount">HllCount</a></td><td>Estimates the number of distinct elements and creates re-aggregatable sketches using the HyperLogLog++ algorithm.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/latest">Latest</a></td><td>Selects the latest element within each aggregation according to the implicit timestamp.</td></tr>
   <tr><td><a href="/documentation/transforms/java/aggregation/max">Max</a></td><td>Outputs the maximum element within each aggregation.</td></tr>
