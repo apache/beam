@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.spanner.v1.DirectedReadOptions;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.junit.Before;
@@ -250,5 +251,55 @@ public class SpannerAccessorTest {
     assertEquals(host, config1.getHostValue());
     SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
     assertEquals(host, options.getHost());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsWithDirectedReadOptions() {
+    DirectedReadOptions directedReadOptions =
+        DirectedReadOptions.newBuilder()
+            .setIncludeReplicas(
+                DirectedReadOptions.IncludeReplicas.newBuilder()
+                    .addReplicaSelections(
+                        DirectedReadOptions.ReplicaSelection.newBuilder()
+                            .setLocation("us-central1")
+                            .setType(DirectedReadOptions.ReplicaSelection.Type.READ_ONLY)))
+            .build();
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .toBuilder()
+            .setServiceFactory(serviceFactory)
+            .setDirectedReadOptions(StaticValueProvider.of(directedReadOptions))
+            .setProjectId(StaticValueProvider.of("project"))
+            .setInstanceId(StaticValueProvider.of("test1"))
+            .setDatabaseId(StaticValueProvider.of("test1"))
+            .build();
+
+    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    assertEquals(directedReadOptions, options.getDirectedReadOptions());
+  }
+
+  @Test
+  public void testBuildSpannerOptionsWithDirectedReadOptionsJson() {
+    String jsonString =
+        "{\"includeReplicas\":{\"replicaSelections\":[{\"location\":\"us-east1\",\"type\":\"READ_WRITE\"}]}}";
+    SpannerConfig config1 =
+        SpannerConfig.create()
+            .withServiceFactory(serviceFactory)
+            .withProjectId("project")
+            .withInstanceId("test1")
+            .withDatabaseId("test1")
+            .withDirectedReadOptions(jsonString);
+
+    SpannerOptions options = SpannerAccessor.buildSpannerOptions(config1);
+    assertEquals(
+        DirectedReadOptions.ReplicaSelection.Type.READ_WRITE,
+        options.getDirectedReadOptions().getIncludeReplicas().getReplicaSelections(0).getType());
+    assertEquals(
+        "us-east1",
+        options
+            .getDirectedReadOptions()
+            .getIncludeReplicas()
+            .getReplicaSelections(0)
+            .getLocation());
   }
 }
