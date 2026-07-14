@@ -1249,12 +1249,22 @@ class GoogleCloudOptions(PipelineOptions):
   def _handle_temp_and_staging_locations(self, validator):
     temp_errors = validator.validate_gcs_path(self, 'temp_location')
     staging_errors = validator.validate_gcs_path(self, 'staging_location')
+
+    temp_location = getattr(self, 'temp_location', None)
+    staging_location = getattr(self, 'staging_location', None)
+
+    if temp_location is not None and temp_errors:
+      _LOGGER.warning(temp_errors[0])
+
+    if staging_location is not None and staging_errors:
+      _LOGGER.warning(staging_errors[0])
+
     if temp_errors and not staging_errors:
-      setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      setattr(self, 'temp_location', staging_location)
       self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     elif staging_errors and not temp_errors:
-      setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      setattr(self, 'staging_location', temp_location)
       self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:

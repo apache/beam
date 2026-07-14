@@ -67,7 +67,9 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: |
+            21
+            11
       - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
@@ -98,6 +100,7 @@ jobs:
           -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
+          -Pjava21Home=$JAVA_HOME_21_X64 \
           --no-daemon \
           --no-parallel
 

@@ -61,6 +61,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.spanner.v1.DirectedReadOptions;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -638,6 +639,24 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies the directed read options for Cloud Spanner. */
+    public ReadAll withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner. */
+    public ReadAll withDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner from a string representation. */
+    public ReadAll withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
     /**
      * Specifies whether to use plaintext channel.
      *
@@ -925,6 +944,24 @@ public class SpannerIO {
 
     public Read withExperimentalHost(String experimentalHost) {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner. */
+    public Read withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner. */
+    public Read withDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner from a string representation. */
+    public Read withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
     }
 
     /**
@@ -2050,6 +2087,28 @@ public class SpannerIO {
     /** Specifies the experimental host to set on SpannerOptions (setExperimentalHost). */
     public ReadChangeStream withExperimentalHost(String experimentalHost) {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
+    }
+
+    /** Specifies the directed read options for change stream queries. */
+    public ReadChangeStream withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for change stream queries. */
+    public ReadChangeStream withDirectedReadOptions(
+        ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /**
+     * Specifies the directed read options for change stream queries from a string representation
+     * (e.g., JSON string or "us-central1:READ_ONLY").
+     */
+    public ReadChangeStream withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
     }
 
     /**
