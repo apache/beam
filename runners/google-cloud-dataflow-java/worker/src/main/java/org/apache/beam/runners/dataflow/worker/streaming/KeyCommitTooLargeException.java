@@ -17,25 +17,30 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import com.google.protobuf.TextFormat;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class KeyCommitTooLargeException extends Exception {
 
   public static KeyCommitTooLargeException causedBy(
+      String stageName, long byteLimit, Windmill.WorkItemCommitRequest request) {
+    return causedBy(stageName, byteLimit, request, false);
+  }
+
+  public static KeyCommitTooLargeException causedBy(
       String stageName,
       long byteLimit,
       Windmill.WorkItemCommitRequest request,
-      @Nullable Object decodedKey,
       boolean hotKeyLoggingEnabled) {
     StringBuilder message = new StringBuilder();
     message.append("Commit request for stage ");
     message.append(stageName);
     message.append(" and sharding key ");
     message.append(Long.toUnsignedString(request.getShardingKey()));
-    if (decodedKey != null && hotKeyLoggingEnabled) {
+    if (hotKeyLoggingEnabled && !request.getKey().isEmpty()) {
       message.append(" and key ");
-      message.append(decodedKey);
+      message.append(TextFormat.escapeBytes(request.getKey()));
     }
     if (request.getSerializedSize() > 0) {
       message.append(
@@ -57,3 +62,4 @@ public final class KeyCommitTooLargeException extends Exception {
     super(message);
   }
 }
+
