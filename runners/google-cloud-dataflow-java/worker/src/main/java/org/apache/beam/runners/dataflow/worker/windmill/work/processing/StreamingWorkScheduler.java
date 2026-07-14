@@ -17,10 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
@@ -29,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
@@ -61,8 +63,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.WorkFailureProcessor;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.IdGenerator;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.commons.lang3.tuple.Pair;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -89,6 +90,7 @@ public class StreamingWorkScheduler {
   private final DataflowExecutionStateSampler sampler;
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final BoundedQueueExecutor workExecutor;
+  private final boolean hotKeyLoggingEnabled;
 
   public StreamingWorkScheduler(
       Supplier<Instant> clock,
@@ -100,7 +102,8 @@ public class StreamingWorkScheduler {
       StreamingCounters streamingCounters,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      StreamingGlobalConfigHandle globalConfigHandle) {
+      StreamingGlobalConfigHandle globalConfigHandle,
+      boolean hotKeyLoggingEnabled) {
     this.clock = clock;
     this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -111,6 +114,7 @@ public class StreamingWorkScheduler {
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
     this.globalConfigHandle = globalConfigHandle;
+    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
   }
 
   public static StreamingWorkScheduler create(
@@ -145,6 +149,9 @@ public class StreamingWorkScheduler {
             hotKeyLogger,
             sideInputStateFetcherFactory);
 
+    boolean hotKeyLoggingEnabled =
+        options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging");
+
     return new StreamingWorkScheduler(
         clock,
         workExecutor,
@@ -155,7 +162,8 @@ public class StreamingWorkScheduler {
         streamingCounters,
         stageInfoMap,
         sampler,
-        globalConfigHandle);
+        globalConfigHandle,
+        hotKeyLoggingEnabled);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -307,7 +315,7 @@ public class StreamingWorkScheduler {
 
   private Windmill.WorkItemCommitRequest validateCommitRequestSize(
       Windmill.WorkItemCommitRequest commitRequest,
-      String computationId,
+      String stageName,
       Windmill.WorkItem workItem) {
     long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
     int commitSize = commitRequest.getSerializedSize();
@@ -322,8 +330,9 @@ public class StreamingWorkScheduler {
     }
 
     KeyCommitTooLargeException e =
-        KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
-    failureTracker.trackFailure(computationId, workItem, e);
+        KeyCommitTooLargeException.causedBy(
+            stageName, byteLimit, commitRequest, hotKeyLoggingEnabled);
+    failureTracker.trackFailure(stageName, workItem, e);
     LOG.error("{}", e.toString());
 
     // Drop the current request in favor of a new, minimal one requesting truncation.
@@ -451,7 +460,7 @@ public class StreamingWorkScheduler {
     // Validate the commit request, possibly requesting truncation if the commitSize is too large.
     Windmill.WorkItemCommitRequest validatedCommitRequest =
         validateCommitRequestSize(
-            commitRequest, computationState.getComputationId(), work.getWorkItem());
+            commitRequest, computationState.getMapTask().getSystemName(), work.getWorkItem());
     work.setState(Work.State.COMMIT_QUEUED);
     validatedCommitRequest =
         validatedCommitRequest
@@ -509,3 +518,4 @@ public class StreamingWorkScheduler {
     abstract long stateBytesRead();
   }
 }
+

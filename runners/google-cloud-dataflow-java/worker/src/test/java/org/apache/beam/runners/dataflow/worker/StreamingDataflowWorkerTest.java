@@ -58,6 +58,19 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WriteInstruction;
 import com.google.auto.value.AutoValue;
+import com.google.common.cache.CacheStats;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.UnsignedLong;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.common.util.concurrent.Uninterruptibles;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.TextFormat;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.testing.GrpcCleanupRule;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -187,19 +200,6 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ServerBuilder;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheStats;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedLong;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -1290,8 +1290,9 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
-  @Test
-  public void testKeyCommitTooLargeException() throws Exception {
+  private void runKeyCommitTooLargeExceptionTest(
+      StreamingDataflowWorkerTestParams.Builder workerParams, boolean expectKeyInErrorMessage)
+      throws Exception {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
@@ -1304,7 +1305,7 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
+            workerParams
                 .setInstructions(instructions)
                 .setStreamingGlobalConfig(
                     StreamingGlobalConfig.builder()
@@ -1337,18 +1338,14 @@ public class StreamingDataflowWorkerTest {
             .build(),
         removeDynamicFields(largeCommit));
 
-    // Check this explicitly since the estimated commit bytes weren't actually
-    // checked against an expected value in the previous step
     assertTrue(largeCommit.getEstimatedWorkItemCommitBytes() > 1000);
 
-    // Spam worker updates a few times.
     int maxTries = 10;
     while (--maxTries > 0) {
       worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
-    // We should see an exception reported for the large commit but not the small one.
     ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
         ArgumentCaptor.forClass(WorkItemStatus.class);
     verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
@@ -1360,10 +1357,33 @@ public class StreamingDataflowWorkerTest {
         foundErrors = true;
         String errorMessage = status.getErrors().get(0).getMessage();
         assertThat(errorMessage, Matchers.containsString("KeyCommitTooLargeException"));
+        assertThat(errorMessage, Matchers.containsString("Commit request for stage computation"));
+        if (expectKeyInErrorMessage) {
+          assertThat(errorMessage, Matchers.containsString("and key large_key"));
+        } else {
+          assertThat(errorMessage, Matchers.not(Matchers.containsString("and key large_key")));
+        }
       }
     }
     assertTrue(foundErrors);
     worker.stop();
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException() throws Exception {
+    runKeyCommitTooLargeExceptionTest(defaultWorkerParams(), /* expectKeyInErrorMessage= */ false);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_withHotKeyLoggingEnabled() throws Exception {
+    runKeyCommitTooLargeExceptionTest(
+        defaultWorkerParams("--hotKeyLoggingEnabled=true"), /* expectKeyInErrorMessage= */ true);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_withHotKeyLoggingDisabled() throws Exception {
+    runKeyCommitTooLargeExceptionTest(
+        defaultWorkerParams("--hotKeyLoggingEnabled=false"), /* expectKeyInErrorMessage= */ false);
   }
 
   @Test
@@ -5105,3 +5125,4 @@ public class StreamingDataflowWorkerTest {
     }
   }
 }
+
