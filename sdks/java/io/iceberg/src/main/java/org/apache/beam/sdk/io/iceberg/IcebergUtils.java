@@ -46,7 +46,6 @@ import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -109,7 +108,8 @@ public class IcebergUtils {
         if (ts.shouldAdjustToUTC()) {
           // timestamptz. The micros-precision Timestamp logical type preserves microseconds, while
           // the legacy DATETIME (joda) mapping truncates to millis. Gated for update compatibility.
-          if (!Strings.isNullOrEmpty(updateCompatibilityVersion)
+          if (updateCompatibilityVersion != null
+              && !updateCompatibilityVersion.isEmpty()
               && TransformUpgrader.compareVersions(updateCompatibilityVersion, "2.76.0") < 0) {
             return Schema.FieldType.DATETIME;
           }
@@ -640,7 +640,7 @@ public class IcebergUtils {
       } else if (type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
         return LocalDateTime.parse(strValue);
       } else if (type.isLogicalType(Timestamp.IDENTIFIER)) {
-        return java.time.Instant.parse(strValue);
+        return OffsetDateTime.parse(strValue).toInstant();
       }
     } else if (icebergValue instanceof Long) {
       if (type.isLogicalType(SqlTypes.TIME.getIdentifier())) {
