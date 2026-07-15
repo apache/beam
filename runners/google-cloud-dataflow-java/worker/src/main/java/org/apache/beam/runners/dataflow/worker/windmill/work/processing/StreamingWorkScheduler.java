@@ -518,4 +518,3 @@ public class StreamingWorkScheduler {
     abstract long stateBytesRead();
   }
 }
-

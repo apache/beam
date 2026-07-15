@@ -61,4 +61,3 @@ public final class KeyCommitTooLargeException extends Exception {
     super(message);
   }
 }
-
