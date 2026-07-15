@@ -40,10 +40,13 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -81,9 +84,11 @@ public class IcebergUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
           .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
+          .put(Timestamp.IDENTIFIER, Types.TimestampType.withZone())
           .build();
 
-  private static Schema.FieldType icebergTypeToBeamFieldType(final Type type) {
+  private static Schema.FieldType icebergTypeToBeamFieldType(
+      final Type type, @Nullable String updateCompatibilityVersion) {
     switch (type.typeId()) {
       case BOOLEAN:
         return Schema.FieldType.BOOLEAN;
@@ -102,7 +107,13 @@ public class IcebergUtils {
       case TIMESTAMP:
         Types.TimestampType ts = (Types.TimestampType) type.asPrimitiveType();
         if (ts.shouldAdjustToUTC()) {
-          return Schema.FieldType.DATETIME;
+          // timestamptz. The micros-precision Timestamp logical type preserves microseconds, while
+          // the legacy DATETIME (joda) mapping truncates to millis. Gated for update compatibility.
+          if (!Strings.isNullOrEmpty(updateCompatibilityVersion)
+              && TransformUpgrader.compareVersions(updateCompatibilityVersion, "2.76.0") < 0) {
+            return Schema.FieldType.DATETIME;
+          }
+          return Schema.FieldType.logicalType(Timestamp.MICROS);
         }
         return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       case STRING:
@@ -114,36 +125,51 @@ public class IcebergUtils {
       case DECIMAL:
         return Schema.FieldType.DECIMAL;
       case STRUCT:
-        return Schema.FieldType.row(icebergStructTypeToBeamSchema(type.asStructType()));
+        return Schema.FieldType.row(
+            icebergStructTypeToBeamSchema(type.asStructType(), updateCompatibilityVersion));
       case LIST:
-        return Schema.FieldType.array(icebergTypeToBeamFieldType(type.asListType().elementType()));
+        return Schema.FieldType.array(
+            icebergTypeToBeamFieldType(
+                type.asListType().elementType(), updateCompatibilityVersion));
       case MAP:
         return Schema.FieldType.map(
-            icebergTypeToBeamFieldType(type.asMapType().keyType()),
-            icebergTypeToBeamFieldType(type.asMapType().valueType()));
+            icebergTypeToBeamFieldType(type.asMapType().keyType(), updateCompatibilityVersion),
+            icebergTypeToBeamFieldType(type.asMapType().valueType(), updateCompatibilityVersion));
       default:
         throw new RuntimeException("Unrecognized Iceberg Type: " + type.typeId());
     }
   }
 
-  private static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
-    return Schema.Field.of(field.name(), icebergTypeToBeamFieldType(field.type()))
+  private static Schema.Field icebergFieldToBeamField(
+      final Types.NestedField field, @Nullable String updateCompatibilityVersion) {
+    return Schema.Field.of(
+            field.name(), icebergTypeToBeamFieldType(field.type(), updateCompatibilityVersion))
         .withNullable(field.isOptional());
   }
 
   /** Converts an Iceberg {@link org.apache.iceberg.Schema} to a Beam {@link Schema}. */
   public static Schema icebergSchemaToBeamSchema(final org.apache.iceberg.Schema schema) {
+    return icebergSchemaToBeamSchema(schema, null);
+  }
+
+  /**
+   * Converts an Iceberg {@link org.apache.iceberg.Schema} to a Beam {@link Schema}, accounting for
+   * update compatibility.
+   */
+  public static Schema icebergSchemaToBeamSchema(
+      final org.apache.iceberg.Schema schema, @Nullable String updateCompatibilityVersion) {
     Schema.Builder builder = Schema.builder();
     for (Types.NestedField f : schema.columns()) {
-      builder.addField(icebergFieldToBeamField(f));
+      builder.addField(icebergFieldToBeamField(f, updateCompatibilityVersion));
     }
     return builder.build();
   }
 
-  private static Schema icebergStructTypeToBeamSchema(final Types.StructType struct) {
+  private static Schema icebergStructTypeToBeamSchema(
+      final Types.StructType struct, @Nullable String updateCompatibilityVersion) {
     Schema.Builder builder = Schema.builder();
     for (Types.NestedField f : struct.fields()) {
-      builder.addField(icebergFieldToBeamField(f));
+      builder.addField(icebergFieldToBeamField(f, updateCompatibilityVersion));
     }
     return builder.build();
   }
@@ -613,21 +639,28 @@ public class IcebergUtils {
         return LocalTime.parse(strValue);
       } else if (type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
         return LocalDateTime.parse(strValue);
+      } else if (type.isLogicalType(Timestamp.IDENTIFIER)) {
+        return java.time.Instant.parse(strValue);
       }
     } else if (icebergValue instanceof Long) {
       if (type.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return DateTimeUtil.timeFromMicros((Long) icebergValue);
       } else if (type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
         return DateTimeUtil.timestampFromMicros((Long) icebergValue);
+      } else if (type.isLogicalType(Timestamp.IDENTIFIER)) {
+        // timestamptz stored as micros since epoch -> java.time.Instant (micros preserved).
+        return DateTimeUtil.timestamptzFromMicros((Long) icebergValue).toInstant();
       }
     } else if (icebergValue instanceof Integer
         && type.isLogicalType(SqlTypes.DATE.getIdentifier())) {
       return DateTimeUtil.dateFromDays((Integer) icebergValue);
-    } else if (icebergValue instanceof OffsetDateTime
-        && type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
-      return ((OffsetDateTime) icebergValue)
-          .withOffsetSameInstant(ZoneOffset.UTC)
-          .toLocalDateTime();
+    } else if (icebergValue instanceof OffsetDateTime) {
+      OffsetDateTime odt = (OffsetDateTime) icebergValue;
+      if (type.isLogicalType(SqlTypes.DATETIME.getIdentifier())) {
+        return odt.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      } else if (type.isLogicalType(Timestamp.IDENTIFIER)) {
+        return odt.toInstant();
+      }
     }
     // LocalDateTime, LocalDate, LocalTime
     return icebergValue;

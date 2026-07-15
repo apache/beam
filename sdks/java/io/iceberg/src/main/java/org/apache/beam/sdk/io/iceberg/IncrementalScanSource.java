@@ -68,7 +68,9 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
         .setCoder(KvCoder.of(ReadTaskDescriptor.getCoder(), ReadTask.getCoder()))
         .apply(Redistribute.arbitrarily())
         .apply("Read Rows From Tasks", ParDo.of(new ReadFromTasks(scanConfig)))
-        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+        .setRowSchema(
+            IcebergUtils.icebergSchemaToBeamSchema(
+                scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
   }
 
   /** Continuously watches for new snapshots. */

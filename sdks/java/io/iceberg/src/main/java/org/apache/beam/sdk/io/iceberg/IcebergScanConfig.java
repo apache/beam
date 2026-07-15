@@ -164,7 +164,8 @@ public abstract class IcebergScanConfig implements Serializable {
 
   public Schema rowIdBeamSchema() {
     if (cachedRowIdBeamSchema == null) {
-      cachedRowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema());
+      cachedRowIdBeamSchema =
+          icebergSchemaToBeamSchema(recordIdSchema(), getUpdateCompatibilityVersion());
     }
     return cachedRowIdBeamSchema;
   }
@@ -236,6 +237,9 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract boolean getUseCdc();
+
+  @Pure
+  public abstract @Nullable String getUpdateCompatibilityVersion();
 
   @Pure
   public abstract @Nullable Boolean getStreaming();
@@ -334,6 +338,9 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setStartingStrategy(@Nullable StartingStrategy strategy);
 
     public abstract Builder setUseCdc(boolean useCdc);
+
+    public abstract Builder setUpdateCompatibilityVersion(
+        @Nullable String updateCompatibilityVersion);
 
     public abstract Builder setStreaming(@Nullable Boolean streaming);
 
