@@ -22,8 +22,7 @@
  *
  * <p>Arrow Flight is a high-performance RPC framework for fast data transport using the Apache
  * Arrow columnar format over gRPC. This connector enables Beam pipelines to read from and write to
- * any Arrow Flight-compatible data system, including Dremio, ClickHouse, Apache Doris, InfluxDB 3,
- * DataFusion, and custom Flight servers.
+ * Arrow Flight-compatible data systems.
  *
  * @see org.apache.beam.sdk.io.arrowflight.ArrowFlightIO
  */

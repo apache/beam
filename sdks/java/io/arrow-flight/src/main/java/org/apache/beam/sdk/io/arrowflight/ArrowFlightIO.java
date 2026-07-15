@@ -55,11 +55,6 @@ import org.apache.arrow.vector.TinyIntVector;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.types.FloatingPointPrecision;
-import org.apache.arrow.vector.types.TimeUnit;
-import org.apache.arrow.vector.types.pojo.ArrowType;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.arrow.ArrowConversion;
@@ -84,9 +79,7 @@ import org.slf4j.LoggerFactory;
  * IO to read and write data using <a href="https://arrow.apache.org/docs/format/Flight.html">Apache
  * Arrow Flight</a>.
  *
- * <p>Arrow Flight is a high-performance RPC framework for transferring Arrow-formatted data over
- * gRPC. It enables 10-50x faster data transfer compared to JDBC/ODBC by avoiding
- * serialization/deserialization overhead.
+ * <p>Arrow Flight is an RPC framework for transferring Arrow-formatted data over gRPC.
  *
  * <h3>Reading from an Arrow Flight server</h3>
  *
@@ -115,6 +108,14 @@ import org.slf4j.LoggerFactory;
  *         .withDescriptor("my_table")
  *         .withBatchSize(1024));
  * }</pre>
+ *
+ * <h3>Java runtime configuration</h3>
+ *
+ * <p>On Java 17 or later, Arrow memory access requires {@code
+ * --add-opens=java.base/java.nio=ALL-UNNAMED} on JVMs executing this connector. Beam SDK containers
+ * enable it by default. For other environments, add it to the local or runner JVM and pass {@code
+ * --JdkAddOpenModules=java.base/java.nio=ALL-UNNAMED} to configure SDK harness JVMs. See the <a
+ * href="https://arrow.apache.org/docs/java/install.html">Arrow Java installation guide</a>.
  */
 public class ArrowFlightIO {
 
@@ -136,25 +137,10 @@ public class ArrowFlightIO {
   }
 
   private static void validateWriteSchema(Schema schema) {
-    for (Schema.Field field : schema.getFields()) {
-      switch (field.getType().getTypeName()) {
-        case BYTE:
-        case INT16:
-        case INT32:
-        case INT64:
-        case FLOAT:
-        case DOUBLE:
-        case STRING:
-        case BOOLEAN:
-        case BYTES:
-        case DATETIME:
-          break;
-        default:
-          throw new IllegalArgumentException(
-              String.format(
-                  "ArrowFlightIO.write() does not support Beam type '%s' for field '%s'.",
-                  field.getType().getTypeName(), field.getName()));
-      }
+    try {
+      ArrowConversion.ArrowSchemaTranslator.toArrowSchema(schema);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("ArrowFlightIO.write(): " + e.getMessage(), e);
     }
   }
 
@@ -415,9 +401,11 @@ public class ArrowFlightIO {
     private transient FlightStream stream;
     private transient Iterator<Row> currentBatchIterator;
     private transient Row current;
+    private FlightBoundedSource currentSource;
 
     FlightBoundedReader(FlightBoundedSource source) {
       this.source = source;
+      this.currentSource = source;
     }
 
     @Override
@@ -425,26 +413,36 @@ public class ArrowFlightIO {
       allocator = new RootAllocator(Long.MAX_VALUE);
       Read spec = source.spec;
 
-      String hostName = checkNotNull(spec.host(), "host");
-      if (source.endpoint != null) {
-        String host = source.endpoint.getHost(hostName);
-        int port = source.endpoint.getPort(spec.port());
-        client = createClient(allocator, host, port, spec.useTls());
-        stream = client.getStream(source.endpoint.getTicket(), spec.callOptions());
-      } else {
-        client = createClient(allocator, hostName, spec.port(), spec.useTls());
-        FlightInfo info =
-            client.getInfo(
-                FlightDescriptor.command(
-                    checkNotNull(spec.command(), "command").getBytes(StandardCharsets.UTF_8)),
-                spec.callOptions());
-        List<FlightEndpoint> endpoints = info.getEndpoints();
-        if (endpoints.isEmpty()) {
-          return false;
+      String defaultHost = checkNotNull(spec.host(), "host");
+      SerializableEndpoint endpoint = source.endpoint;
+      if (endpoint == null) {
+        try (FlightClient discoveryClient =
+            createClient(allocator, defaultHost, spec.port(), spec.useTls())) {
+          FlightInfo info =
+              discoveryClient.getInfo(
+                  FlightDescriptor.command(
+                      checkNotNull(spec.command(), "command").getBytes(StandardCharsets.UTF_8)),
+                  spec.callOptions());
+          List<FlightEndpoint> endpoints = info.getEndpoints();
+          if (endpoints.isEmpty()) {
+            return false;
+          }
+          endpoint =
+              SerializableEndpoint.fromFlightEndpoint(endpoints.get(0), defaultHost, spec.port());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException("Interrupted while discovering Flight endpoints", e);
         }
-        stream = client.getStream(endpoints.get(0).getTicket(), spec.callOptions());
+        currentSource = new FlightBoundedSource(spec, source.beamSchema, endpoint);
       }
 
+      client =
+          createClient(
+              allocator,
+              endpoint.getHost(defaultHost),
+              endpoint.getPort(spec.port()),
+              spec.useTls());
+      stream = client.getStream(endpoint.getTicket(), spec.callOptions());
       currentBatchIterator = Collections.emptyIterator();
       return advance();
     }
@@ -509,12 +507,13 @@ public class ArrowFlightIO {
 
     @Override
     public BoundedSource<Row> getCurrentSource() {
-      return source;
+      return currentSource;
     }
   }
 
   // ======================== WRITE ========================
 
+  // TODO: Return a write result with failed rows for dead-letter handling instead of PDone.
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Row>, PDone> {
 
@@ -621,7 +620,6 @@ public class ArrowFlightIO {
     private transient @Nullable FlightClient client;
     private transient FlightClient.@Nullable ClientStreamListener listener;
     private transient @Nullable VectorSchemaRoot root;
-    private transient org.apache.arrow.vector.types.pojo.Schema arrowSchema;
     private transient List<Row> batch;
 
     FlightWriteFn(Write spec, Schema beamSchema) {
@@ -687,11 +685,8 @@ public class ArrowFlightIO {
                 currentAllocator, checkNotNull(spec.host(), "host"), spec.port(), spec.useTls());
         client = currentClient;
 
-        List<Field> arrowFields = new ArrayList<>();
-        for (Schema.Field beamField : beamSchema.getFields()) {
-          arrowFields.add(toArrowField(beamField));
-        }
-        arrowSchema = new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
+        org.apache.arrow.vector.types.pojo.Schema arrowSchema =
+            ArrowConversion.ArrowSchemaTranslator.toArrowSchema(beamSchema);
         VectorSchemaRoot currentRoot = VectorSchemaRoot.create(arrowSchema, currentAllocator);
         root = currentRoot;
 
@@ -700,43 +695,6 @@ public class ArrowFlightIO {
         listener =
             currentClient.startPut(
                 descriptor, currentRoot, new AsyncPutListener(), spec.callOptions());
-      }
-    }
-
-    private Field toArrowField(Schema.Field beamField) {
-      ArrowType arrowType = beamTypeToArrowType(beamField.getType());
-      FieldType fieldType =
-          beamField.getType().getNullable()
-              ? FieldType.nullable(arrowType)
-              : FieldType.notNullable(arrowType);
-      return new Field(beamField.getName(), fieldType, Collections.emptyList());
-    }
-
-    private ArrowType beamTypeToArrowType(Schema.FieldType beamType) {
-      switch (beamType.getTypeName()) {
-        case BYTE:
-          return new ArrowType.Int(8, true);
-        case INT16:
-          return new ArrowType.Int(16, true);
-        case INT32:
-          return new ArrowType.Int(32, true);
-        case INT64:
-          return new ArrowType.Int(64, true);
-        case FLOAT:
-          return new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
-        case DOUBLE:
-          return new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
-        case STRING:
-          return ArrowType.Utf8.INSTANCE;
-        case BOOLEAN:
-          return ArrowType.Bool.INSTANCE;
-        case BYTES:
-          return ArrowType.Binary.INSTANCE;
-        case DATETIME:
-          return new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
-        default:
-          throw new IllegalArgumentException(
-              "Unsupported Beam type for ArrowFlightIO.write(): " + beamType.getTypeName());
       }
     }
 

@@ -21,9 +21,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.arrow.flight.Action;
@@ -51,6 +54,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -112,6 +118,22 @@ public class ArrowFlightIOTest {
     PAssert.that(output).containsInAnyOrder(expectedRow1, expectedRow2);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testCurrentSourceDoesNotResplitAfterReadStarts() throws Exception {
+    producer.endpointCount = 2;
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Schema schema = Schema.builder().addStringField("name").build();
+    ArrowFlightIO.Read read =
+        ArrowFlightIO.read().withHost("localhost").withPort(port).withCommand("test_query");
+    ArrowFlightIO.FlightBoundedSource source = new ArrowFlightIO.FlightBoundedSource(read, schema);
+
+    assertEquals(2, source.split(0, options).size());
+    try (BoundedSource.BoundedReader<Row> reader = source.createReader(options)) {
+      assertTrue(reader.start());
+      assertEquals(1, reader.getCurrentSource().split(0, options).size());
+    }
   }
 
   @Test
@@ -207,6 +229,7 @@ public class ArrowFlightIOTest {
     private final BufferAllocator allocator;
     final AtomicInteger writtenRecords = new AtomicInteger();
     final AtomicReference<String> lastAuthorizationHeader = new AtomicReference<>();
+    volatile int endpointCount = 1;
     volatile boolean failWrites;
     volatile String requiredAuthorizationHeader;
 
@@ -252,14 +275,13 @@ public class ArrowFlightIOTest {
               Collections.singletonList(
                   new Field(
                       "name", FieldType.nullable(new ArrowType.Utf8()), Collections.emptyList())));
-      return new FlightInfo(
-          schema,
-          descriptor,
-          Collections.singletonList(
-              new FlightEndpoint(
-                  new Ticket(descriptor.getCommand()), Location.forGrpcInsecure("localhost", 0))),
-          -1,
-          -1);
+      List<FlightEndpoint> endpoints = new ArrayList<>();
+      for (int i = 0; i < endpointCount; i++) {
+        endpoints.add(
+            new FlightEndpoint(
+                new Ticket(descriptor.getCommand()), Location.forGrpcInsecure("localhost", 0)));
+      }
+      return new FlightInfo(schema, descriptor, endpoints, -1, -1);
     }
 
     @Override

@@ -39,5 +39,6 @@ dependencies {
 }
 
 test {
+  // Keep aligned with ArrowFlightIO runtime guidance for Java 17+.
   jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
 }
