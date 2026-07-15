@@ -20,6 +20,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
 import org.apache.kafka.streams.Topology;
@@ -45,6 +46,10 @@ public class KafkaStreamsTranslationContext {
   private final KafkaStreamsPipelineOptions pipelineOptions;
   private final Topology topology;
   private final Map<String, String> pCollectionIdToProcessorName;
+  // Accumulates the Beam metrics reported by the SDK harness, one container per executable stage.
+  // Processors update it as bundles complete (in-JVM reference sharing); the pipeline result
+  // exposes it as MetricResults.
+  private final MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
 
   public static KafkaStreamsTranslationContext create(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
@@ -75,6 +80,16 @@ public class KafkaStreamsTranslationContext {
   /** Returns the {@link Topology} being built by the translation. */
   public Topology getTopology() {
     return topology;
+  }
+
+  /**
+   * Returns the job's metrics accumulator: one {@link
+   * org.apache.beam.runners.core.metrics.MetricsContainerImpl container} per executable stage,
+   * updated by the stage processors as the SDK harness reports bundle metrics, and read by the
+   * pipeline result via {@link MetricsContainerStepMap#asAttemptedOnlyMetricResults}.
+   */
+  public MetricsContainerStepMap getMetricsContainerStepMap() {
+    return metricsContainerStepMap;
   }
 
   /**

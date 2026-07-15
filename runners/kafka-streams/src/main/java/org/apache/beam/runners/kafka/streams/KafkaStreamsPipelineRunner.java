@@ -62,7 +62,8 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
 
     KafkaStreams kafkaStreams = new KafkaStreams(topology, streamsConfig(jobInfo));
     kafkaStreams.start();
-    return new KafkaStreamsPortablePipelineResult(kafkaStreams);
+    return new KafkaStreamsPortablePipelineResult(
+        kafkaStreams, context.getMetricsContainerStepMap());
   }
 
   private Properties streamsConfig(JobInfo jobInfo) {

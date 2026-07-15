@@ -25,10 +25,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTranslator;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
@@ -107,8 +109,12 @@ public final class KafkaStreamsTestRunner {
     return context;
   }
 
-  /** Translates and drives the pipeline to quiescence through a {@link TopologyTestDriver}. */
-  public static void run(Pipeline pipeline) {
+  /**
+   * Translates and drives the pipeline to quiescence through a {@link TopologyTestDriver}. Returns
+   * the metrics the SDK harness reported while running (attempted values), so tests can assert on
+   * user counters — the same surface PAssert uses to verify its assertions ran.
+   */
+  public static MetricResults run(Pipeline pipeline) {
     KafkaStreamsTranslationContext context = translate(pipeline);
     Topology topology = context.getTopology();
     try (TopologyTestDriver driver = new TopologyTestDriver(topology, streamsConfig(pipeline))) {
@@ -117,6 +123,8 @@ public final class KafkaStreamsTestRunner {
       driver.advanceWallClockTime(Duration.ofSeconds(1));
       roundTripInternalTopics(driver, internalTopics(topology));
     }
+    return MetricsContainerStepMap.asAttemptedOnlyMetricResults(
+        context.getMetricsContainerStepMap());
   }
 
   /**

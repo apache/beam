@@ -86,12 +86,17 @@ class ExecutableStageTranslator implements PTransformTranslator {
     Topology topology = context.getTopology();
     // The stage stamps its own transform id on the watermarks it emits, and aggregates its input
     // watermark from the reports of its single upstream transform (the producer of its input
-    // PCollection, whose node name is the upstream transform id).
+    // PCollection, whose node name is the upstream transform id). Harness-reported metrics land in
+    // this stage's container of the job's metrics step map.
     topology.addProcessor(
         transformId,
         () ->
             new ExecutableStageProcessor(
-                stagePayload, context.getJobInfo(), transformId, ImmutableSet.of(parentProcessor)),
+                stagePayload,
+                context.getJobInfo(),
+                transformId,
+                ImmutableSet.of(parentProcessor),
+                context.getMetricsContainerStepMap().getContainer(transformId)),
         parentProcessor);
 
     if (!transform.getOutputsMap().isEmpty()) {
