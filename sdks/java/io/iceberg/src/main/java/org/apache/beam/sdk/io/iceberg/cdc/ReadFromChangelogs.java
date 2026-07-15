@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergRecordToBeamRow;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.structToRow;
+import static org.apache.beam.sdk.io.iceberg.cdc.CdcReadUtils.COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.LARGE_BIDIRECTIONAL_TASKS;
 import static org.apache.beam.sdk.io.iceberg.cdc.ChangelogScanner.UNIDIRECTIONAL_TASKS;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.Type.ADDED_ROWS;
@@ -449,8 +450,6 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
           return "DELETE-DF";
       }
     }
-
-    private static final int COMPRESSED_TO_DECODED_BYTES_ESTIMATE = 4;
 
     @GetSize
     public double getSize(

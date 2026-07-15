@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class CdcReadUtils {
   private static final Logger LOG = LoggerFactory.getLogger(CdcReadUtils.class);
+  static final int COMPRESSED_TO_DECODED_BYTES_ESTIMATE = 4;
 
   /**
    * Maximum size of an equality delete set to push down as a Parquet residual {@code IN}
