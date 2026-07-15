@@ -21,13 +21,20 @@ import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.junit.Test;
@@ -91,10 +98,9 @@ public class FlattenTest {
 
   @Test
   public void pCollectionFeedingTwoFlattensIsSupported() {
-    // je-ik's #39273 case: input2 feeds both flattens. Per-Flatten branch numbering could not
-    // express this (input2 would need two identities); a global producer id per PCollection can —
-    // input2's producer stamps one id, and each flatten still holds until its own two branches
-    // drain. Verify both flattens produce the right union.
+    // input2 feeds both flattens, so its producer's watermark report is consumed by two different
+    // aggregators. The producer stamps its own transform id once, and each flatten holds until its
+    // own two branches drain. Verify both flattens produce the right union.
     try (SharedTestCollector<Integer> left = SharedTestCollector.create();
         SharedTestCollector<Integer> right = SharedTestCollector.create()) {
       Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
@@ -119,6 +125,64 @@ public class FlattenTest {
       assertThat(left.recorded(), hasItems(1, 2, 3, 4));
       assertThat(right.recorded().size(), is(4));
       assertThat(right.recorded(), hasItems(3, 4, 5, 6));
+    }
+  }
+
+  /** Maps each int to {@code KV("k", int)} so a downstream GroupByKey groups all branches. */
+  private static class ToKvFn extends DoFn<Integer, KV<String, Integer>> {
+    @ProcessElement
+    public void processElement(@Element Integer input, OutputReceiver<KV<String, Integer>> out) {
+      out.output(KV.of("k", input));
+    }
+  }
+
+  /** Records each grouped result as {@code "key=[sorted values]"}. */
+  private static class RecordGroupFn extends DoFn<KV<String, Iterable<Integer>>, Void> {
+    private final SharedTestCollector<String> collector;
+
+    RecordGroupFn(SharedTestCollector<String> collector) {
+      this.collector = collector;
+    }
+
+    @ProcessElement
+    public void processElement(@Element KV<String, Iterable<Integer>> group) {
+      List<Integer> values = new ArrayList<>();
+      group.getValue().forEach(values::add);
+      Collections.sort(values);
+      collector.record(group.getKey() + "=" + values);
+    }
+  }
+
+  @Test
+  public void watermarkPropagatesThroughFlattenAndFiresDownstreamGroupByKey() {
+    // GroupByKey fires exactly once, when its input watermark reaches the end of the global
+    // window, and the Flatten forwards its watermark only after every branch has drained. Both
+    // branches share the key, so a single group holding the elements of both branches proves the
+    // watermark propagated through the Flatten at the right time — a premature release would fire
+    // a partial group instead.
+    try (SharedTestCollector<String> collector = SharedTestCollector.create()) {
+      Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
+      PCollection<KV<String, Integer>> a =
+          pipeline
+              .apply("createA", Create.of(1, 2))
+              .apply("kvA", ParDo.of(new ToKvFn()))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+      PCollection<KV<String, Integer>> b =
+          pipeline
+              .apply("createB", Create.of(3, 4))
+              .apply("kvB", ParDo.of(new ToKvFn()))
+              .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+      PCollectionList.of(a)
+          .and(b)
+          .apply("flatten", Flatten.pCollections())
+          .apply("gbk", GroupByKey.create())
+          .apply("record", ParDo.of(new RecordGroupFn(collector)));
+
+      KafkaStreamsTestRunner.run(pipeline);
+
+      List<String> groups = collector.recorded();
+      assertThat(groups.size(), is(1));
+      assertThat(groups, hasItems("k=[1, 2, 3, 4]"));
     }
   }
 
