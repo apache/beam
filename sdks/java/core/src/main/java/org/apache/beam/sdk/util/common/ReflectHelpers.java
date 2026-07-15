@@ -61,6 +61,9 @@ public class ReflectHelpers {
     try {
       return clazz.getSimpleName();
     } catch (Throwable t) {
+      if (clazz.isArray()) {
+        return getSimpleName(clazz.getComponentType()) + "[]";
+      }
       String name = clazz.getName();
       int idx = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
       return idx != -1 ? name.substring(idx + 1) : name;
