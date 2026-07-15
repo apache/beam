@@ -37,7 +37,6 @@ import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -93,7 +92,7 @@ public class IcebergReadSchemaTransformProvider
               .getPipeline()
               .apply(
                   IcebergIO.readRows(configuration.getIcebergCatalog())
-                      .from(TableIdentifier.parse(configuration.getTable()))
+                      .from(IcebergUtils.parseTableIdentifier(configuration.getTable()))
                       .keeping(configuration.getKeep())
                       .dropping(configuration.getDrop())
                       .withFilter(configuration.getFilter()));

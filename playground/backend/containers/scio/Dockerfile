@@ -52,11 +52,21 @@ COPY --from=build /go/src/playground/backend/new_scio_project.sh /opt/playground
 COPY --from=build /go/src/playground/backend/internal/fs_tool/ExampleData.scala /opt/playground/backend/
 RUN chmod +x /opt/playground/backend/new_scio_project.sh
 
-# Install sbt
-RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list &&\
-echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list &&\
-curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" | apt-key add
-RUN apt-get update && apt-get install -y sbt
+# Install sbt 1.x
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL \
+        "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
+      | gpg --dearmor -o /etc/apt/keyrings/scalasbt.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/scalasbt.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+      > /etc/apt/sources.list.d/sbt.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends sbt=1.10.11 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY src/properties.yaml /opt/playground/backend/properties.yaml
 COPY entrypoint.sh /
@@ -83,7 +93,7 @@ RUN chown -R appuser:appgroup /opt/sbt-template
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends unzip \
- && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /var/lib/apt/lists/*
 
 #Download spotify g8 template at specific commit
 #ARG g8_commit=7c1ba7c1651dfd70976028842e721da4107c0d6d

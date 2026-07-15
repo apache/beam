@@ -47,7 +47,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
@@ -75,7 +74,7 @@ class AppendFilesToTables
                 new SerializableFunction<FileWriteResult, String>() {
                   @Override
                   public String apply(FileWriteResult input) {
-                    return input.getTableIdentifier().toString();
+                    return IcebergUtils.tableIdentifierToString(input.getTableIdentifier());
                   }
                 }))
         .apply("Group metadata updates by table", GroupByKey.create())
@@ -128,7 +127,7 @@ class AppendFilesToTables
         BoundedWindow window)
         throws IOException {
       String tableStringIdentifier = element.getKey();
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
+      Table table = getCatalog().loadTable(IcebergUtils.parseTableIdentifier(element.getKey()));
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
       if (shouldSkip(table, fileWriteResults)) {
         return;

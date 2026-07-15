@@ -73,7 +73,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Removed `google-perftools` from the SDK container images. Users who wish to use `--profiler_agent=tcmalloc` should install google-perftools APT package in their custom container images separately ([#39323](https://github.com/apache/beam/issues/39323)).
 
 ## Deprecations
 
@@ -106,6 +106,7 @@
 * Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
 * ClickHouseIO: support writing `DateTime64(precision[, 'timezone'])` columns with sub-second precision (Java) ([#38466](https://github.com/apache/beam/issues/38466)).
 * Upgraded IO Expansion Service to Java 17 ([#38974](https://github.com/apache/beam/issues/38974)).
+* SpannerIO: Added support for Cloud Spanner Directed Reads (Java) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
 

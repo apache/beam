@@ -33,7 +33,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -54,7 +53,8 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   public PCollection<Row> expand(PBegin input) {
     Table table =
         TableCache.get(
-            scanConfig.getCatalogConfig(), TableIdentifier.parse(scanConfig.getTableIdentifier()));
+            scanConfig.getCatalogConfig(),
+            IcebergUtils.parseTableIdentifier(scanConfig.getTableIdentifier()));
 
     PCollection<KV<String, List<SnapshotInfo>>> snapshots =
         MoreObjects.firstNonNull(scanConfig.getStreaming(), false)

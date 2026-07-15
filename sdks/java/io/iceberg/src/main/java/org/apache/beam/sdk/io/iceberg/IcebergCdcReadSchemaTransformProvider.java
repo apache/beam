@@ -41,7 +41,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Enums;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
@@ -109,7 +108,7 @@ public class IcebergCdcReadSchemaTransformProvider
       IcebergIO.ReadRows readRows =
           IcebergIO.readRows(configuration.getIcebergCatalog())
               .withCdc()
-              .from(TableIdentifier.parse(configuration.getTable()))
+              .from(IcebergUtils.parseTableIdentifier(configuration.getTable()))
               .fromSnapshot(configuration.getFromSnapshot())
               .toSnapshot(configuration.getToSnapshot())
               .fromTimestamp(configuration.getFromTimestamp())
