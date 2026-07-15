@@ -316,9 +316,7 @@ public class StreamingWorkScheduler {
   }
 
   private Windmill.WorkItemCommitRequest validateCommitRequestSize(
-      Windmill.WorkItemCommitRequest commitRequest,
-      String stageName,
-      Windmill.WorkItem workItem) {
+      Windmill.WorkItemCommitRequest commitRequest, String stageName, Windmill.WorkItem workItem) {
     long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
     int commitSize = commitRequest.getSerializedSize();
     int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;

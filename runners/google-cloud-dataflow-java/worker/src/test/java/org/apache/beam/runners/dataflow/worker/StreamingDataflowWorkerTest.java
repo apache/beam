@@ -5125,4 +5125,3 @@ public class StreamingDataflowWorkerTest {
     }
   }
 }
-
