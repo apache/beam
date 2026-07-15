@@ -63,7 +63,7 @@ jobs:
         job_name: ["beam_PostCommit_Java_Delta_IO_Dataflow"]
         job_phrase: ["Run PostCommit Java Delta IO Dataflow"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
