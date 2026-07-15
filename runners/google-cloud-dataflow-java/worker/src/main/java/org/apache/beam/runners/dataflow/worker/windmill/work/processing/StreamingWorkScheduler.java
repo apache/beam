@@ -148,11 +148,11 @@ public class StreamingWorkScheduler {
             hotKeyLogger,
             sideInputStateFetcherFactory);
 
+    List<String> experiments = options.getExperiments();
     boolean hotKeyLoggingEnabled =
         options.isHotKeyLoggingEnabled()
-            || (options.getExperiments() != null
-                && options.getExperiments().stream()
-                    .anyMatch("enable_hot_key_logging"::equalsIgnoreCase));
+            || (experiments != null
+                && experiments.stream().anyMatch("enable_hot_key_logging"::equalsIgnoreCase));
 
     return new StreamingWorkScheduler(
         clock,
