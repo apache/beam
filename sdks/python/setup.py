@@ -421,7 +421,7 @@ if __name__ == '__main__':
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
-          'httplib2>=0.8,<0.32.0',
+          'httplib2>=0.8,<1.0.0',
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.

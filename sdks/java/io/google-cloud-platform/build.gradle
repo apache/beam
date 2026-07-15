@@ -30,6 +30,11 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
+tasks.withType(Test).configureEach {
+  // Open java.nio for Apache Arrow direct memory access under Java 17+
+  jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+}
+
 dependencies {
   implementation(enforcedPlatform(library.java.google_cloud_platform_libraries_bom))
   implementation project(path: ":model:pipeline", configuration: "shadow")

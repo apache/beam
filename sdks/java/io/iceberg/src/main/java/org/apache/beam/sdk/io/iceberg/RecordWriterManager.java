@@ -202,7 +202,8 @@ class RecordWriterManager implements AutoCloseable {
                 table,
                 icebergDestination.getFileFormat(),
                 filePrefix + "_" + stateToken + "_" + recordIndex,
-                partitionKey);
+                partitionKey,
+                writeProperties);
         openWriters++;
         return writer;
       } catch (IOException e) {
@@ -253,6 +254,7 @@ class RecordWriterManager implements AutoCloseable {
   private final String filePrefix;
   private final long maxFileSize;
   private final int maxNumWriters;
+  private final @Nullable Map<String, String> writeProperties;
   @VisibleForTesting int openWriters = 0;
 
   @VisibleForTesting
@@ -265,10 +267,20 @@ class RecordWriterManager implements AutoCloseable {
 
   RecordWriterManager(
       IcebergCatalogConfig catalogConfig, String filePrefix, long maxFileSize, int maxNumWriters) {
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null);
+  }
+
+  RecordWriterManager(
+      IcebergCatalogConfig catalogConfig,
+      String filePrefix,
+      long maxFileSize,
+      int maxNumWriters,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
+    this.writeProperties = writeProperties;
   }
 
   /**

@@ -180,6 +180,22 @@ if (use_override) {
   }
 }
 
+def flinkTestJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "-Djava.security.manager=allow",
+    ]
+  } else {
+    return []
+  }
+}
+
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   // Change log level to debug:
@@ -187,6 +203,7 @@ test {
   // Change log level to debug only for the package and nested packages:
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
+  jvmArgs += flinkTestJvmArgs()
   if (JavaVersion.current().isJava9Compatible()) {
     jvmArgs "--add-opens=java.base/java.util=ALL-UNNAMED"
   }

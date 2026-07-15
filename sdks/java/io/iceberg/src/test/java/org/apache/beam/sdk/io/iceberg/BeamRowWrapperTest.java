@@ -85,6 +85,8 @@ public class BeamRowWrapperTest {
                   Types.NestedField.required(1, "nested_int", Types.IntegerType.get()))),
           Types.NestedField.required(14, "pass_through_field", Types.IntegerType.get()));
   private static final UUID TEST_UUID = UUID.randomUUID();
+  private static final Instant TEST_MICROS_INSTANT =
+      Instant.ofEpochSecond(1_609_459_200L, 123_456_000);
   private static final Row NESTED_ROW = Row.withSchema(NESTED_BEAM_SCHEMA).addValue(999).build();
   private static final Row ROW =
       Row.withSchema(BEAM_SCHEMA)
@@ -99,7 +101,7 @@ public class BeamRowWrapperTest {
                   .array(),
               new BigDecimal("123.45"),
               org.joda.time.Instant.now(),
-              Instant.now(),
+              TEST_MICROS_INSTANT,
               LocalDateTime.now(ZoneId.systemDefault()),
               LocalDate.now(ZoneId.systemDefault()),
               LocalTime.now(ZoneId.systemDefault()),
@@ -180,10 +182,7 @@ public class BeamRowWrapperTest {
 
   @Test
   public void testMicrosInstantLogicalTypeConversion() {
-    Instant javaInstant = ROW.getLogicalTypeValue(7, Instant.class);
-    long expectedMicrosInstant =
-        TimeUnit.SECONDS.toMicros(javaInstant.getEpochSecond()) + javaInstant.getNano() / 1000;
-    assertEquals(expectedMicrosInstant, (long) WRAPPER.get(7, Long.class));
+    assertEquals(1_609_459_200_123_456L, (long) WRAPPER.get(7, Long.class));
   }
 
   @Test

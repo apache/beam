@@ -104,6 +104,19 @@ if (isSpark) {
     }
 }
 
+def sparkJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
+}
+
 // Execute the TPC-DS queries or suites via Gradle.
 //
 // Parameters:
@@ -141,6 +154,7 @@ task run(type: JavaExec) {
     // Dataset runner only
     systemProperty "spark.sql.shuffle.partitions", "4"
     systemProperty "spark.sql.adaptive.enabled", "false" // high overhead for complex queries
+    jvmArgs += sparkJvmArgs()
   }
 
     mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"
