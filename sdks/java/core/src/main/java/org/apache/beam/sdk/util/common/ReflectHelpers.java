@@ -52,11 +52,29 @@ public class ReflectHelpers {
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");
 
+  /**
+   * Returns the simple name of the given class, or a fallback simple name derived from the class
+   * name if {@link Class#getSimpleName()} throws an exception (such as an {@link
+   * IllegalAccessError} on Java 17+ for non-public inner classes).
+   */
+  public static String getSimpleName(Class<?> clazz) {
+    try {
+      return clazz.getSimpleName();
+    } catch (Throwable t) {
+      if (clazz.isArray()) {
+        return getSimpleName(clazz.getComponentType()) + "[]";
+      }
+      String name = clazz.getName();
+      int idx = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
+      return idx != -1 ? name.substring(idx + 1) : name;
+    }
+  }
+
   /** Returns a string representation of the signature of a {@link Method}. */
   public static String formatMethod(Method input) {
     String parameterTypes =
         FluentIterable.from(asList(input.getParameterTypes()))
-            .transform(Class::getSimpleName)
+            .transform(ReflectHelpers::getSimpleName)
             .join(COMMA_SEPARATOR);
     return String.format("%s(%s)", input.getName(), parameterTypes);
   }
@@ -100,7 +118,7 @@ public class ReflectHelpers {
   }
 
   private static void formatClass(StringBuilder builder, Class<?> clazz) {
-    builder.append(clazz.getSimpleName());
+    builder.append(getSimpleName(clazz));
   }
 
   private static void formatTypeVariable(StringBuilder builder, TypeVariable<?> t) {
