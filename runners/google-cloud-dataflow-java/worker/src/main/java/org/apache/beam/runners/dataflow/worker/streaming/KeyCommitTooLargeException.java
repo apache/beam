@@ -17,9 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 
 public final class KeyCommitTooLargeException extends Exception {
 
