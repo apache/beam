@@ -48,7 +48,11 @@ public class KafkaStreamsTranslationContext {
   private final Map<String, String> pCollectionIdToProcessorName;
   // Accumulates the Beam metrics reported by the SDK harness, one container per executable stage.
   // Processors update it as bundles complete (in-JVM reference sharing); the pipeline result
-  // exposes it as MetricResults.
+  // exposes it as MetricResults. Sharing one container across a stage's parallel tasks is safe and
+  // correct: the metric cells are thread-safe (atomic cells in concurrent maps) and the updates are
+  // per-bundle final values applied with add semantics, so concurrent tasks accumulate rather than
+  // overwrite. Aggregation across multiple runner JVMs is out of scope until the multi-instance
+  // work.
   private final MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
 
   public static KafkaStreamsTranslationContext create(
