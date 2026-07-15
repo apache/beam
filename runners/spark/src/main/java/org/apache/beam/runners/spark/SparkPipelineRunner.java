@@ -39,6 +39,7 @@ import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator
 import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContext;
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
+import org.apache.beam.runners.spark.translation.streaming.SdfResidualRelay;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -166,8 +167,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
                   jssc.awaitTerminationOrTimeout(timeout);
                 } catch (InterruptedException e) {
                   LOG.warn("Streaming context interrupted, shutting down.", e);
+                } finally {
+                  jssc.stop();
+                  SdfResidualRelay.unregisterJob(jobInfo.jobId());
                 }
-                jssc.stop();
                 LOG.info("Job {} finished.", jobInfo.jobId());
               });
       result = new SparkPipelineResult.PortableStreamingMode(submissionFuture, jssc);

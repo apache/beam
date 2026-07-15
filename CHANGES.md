@@ -69,6 +69,8 @@
 ## New Features / Improvements
 
 * (Python) Removed the `envoy-data-plane` (and transitive `betterproto`) dependency; `EnvoyRateLimiter` now uses a small vendored protobuf definition instead, resolving dependency conflicts for downstream projects ([#37854](https://github.com/apache/beam/issues/37854)).
+* Splittable DoFn self-checkpointing is now supported on the portable Spark runner, including unbounded reads in streaming mode ([#19468](https://github.com/apache/beam/issues/19468)).
+* Bundle finalization is now supported on the portable Spark runner ([#19517](https://github.com/apache/beam/issues/19517)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes

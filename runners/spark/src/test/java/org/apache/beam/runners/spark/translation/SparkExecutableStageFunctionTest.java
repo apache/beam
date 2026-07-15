@@ -20,6 +20,10 @@ package org.apache.beam.runners.spark.translation;
 import static org.apache.beam.sdk.util.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -33,6 +37,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
@@ -59,6 +66,7 @@ import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -102,7 +110,8 @@ public class SparkExecutableStageFunctionTest {
     MockitoAnnotations.initMocks(this);
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+    when(stageBundleFactory.getBundle(
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
         .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
@@ -126,7 +135,8 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any(), any(BundleProgressHandler.class)))
+    when(stageBundleFactory.getBundle(
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
         .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
@@ -247,7 +257,9 @@ public class SparkExecutableStageFunctionTest {
     List<WindowedValue<Integer>> inputs = new ArrayList<>();
     inputs.add(WindowedValues.valueInGlobalWindow(0));
     function.call(inputs.iterator());
-    verify(stageBundleFactory).getBundle(any(), any(), any(), any(BundleProgressHandler.class));
+    verify(stageBundleFactory)
+        .getBundle(any(), any(), any(), any(BundleProgressHandler.class), any(), any());
+    verify(stageBundleFactory).getInstructionRequestHandler();
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
@@ -260,8 +272,72 @@ public class SparkExecutableStageFunctionTest {
     verifyNoInteractions(stageBundleFactory);
   }
 
+  @Test
+  public void sdfResidualsAreEmittedInStreamingMode() throws Exception {
+    DelayedBundleApplication residual =
+        DelayedBundleApplication.newBuilder()
+            .setApplication(
+                BundleApplication.newBuilder()
+                    .setElement(ByteString.copyFromUtf8("residual-element")))
+            .build();
+    when(stageBundleFactory.getBundle(
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              BundleCheckpointHandler handler = invocation.getArgument(5);
+              handler.onCheckpoint(
+                  ProcessBundleResponse.newBuilder().addResidualRoots(residual).build());
+              return remoteBundle;
+            });
+
+    SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap(), true);
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValues.valueInGlobalWindow(0));
+    Iterator<RawUnionValue> outputs = function.call(inputs.iterator());
+
+    RawUnionValue only = outputs.next();
+    assertEquals(SparkExecutableStageFunction.SDF_RESIDUAL_TAG, only.getUnionTag());
+    assertArrayEquals(residual.toByteArray(), (byte[]) only.getValue());
+    assertFalse(outputs.hasNext());
+    // Streaming mode must not drain residuals in place with extra bundles.
+    verify(stageBundleFactory, Mockito.times(1))
+        .getBundle(any(), any(), any(), any(BundleProgressHandler.class), any(), any());
+  }
+
+  @Test
+  public void unboundedResidualIsRejectedInBatchMode() throws Exception {
+    DelayedBundleApplication residual =
+        DelayedBundleApplication.newBuilder()
+            .setApplication(
+                BundleApplication.newBuilder()
+                    .setElement(ByteString.copyFromUtf8("residual-element"))
+                    .setIsBounded(RunnerApi.IsBounded.Enum.UNBOUNDED))
+            .build();
+    when(stageBundleFactory.getBundle(
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
+        .thenAnswer(
+            invocation -> {
+              BundleCheckpointHandler handler = invocation.getArgument(5);
+              handler.onCheckpoint(
+                  ProcessBundleResponse.newBuilder().addResidualRoots(residual).build());
+              return remoteBundle;
+            });
+
+    SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
+    List<WindowedValue<Integer>> inputs = new ArrayList<>();
+    inputs.add(WindowedValues.valueInGlobalWindow(0));
+
+    // Draining an unbounded residual would never terminate, so batch mode must fail fast.
+    assertThrows(UnsupportedOperationException.class, () -> function.call(inputs.iterator()));
+  }
+
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(
       Map<String, Integer> outputMap) {
+    return getFunction(outputMap, false);
+  }
+
+  private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(
+      Map<String, Integer> outputMap, boolean emitSdfResiduals) {
     return new SparkExecutableStageFunction<>(
         pipelineOptions,
         stagePayload,
@@ -270,6 +346,8 @@ public class SparkExecutableStageFunctionTest {
         contextFactory,
         Collections.emptyMap(),
         metricsAccumulator,
-        null);
+        null,
+        null,
+        emitSdfResiduals);
   }
 }
