@@ -23,10 +23,14 @@ apply plugin: 'com.diffplug.spotless'
  * These java sources are included in the subproject's sources in order to compile against the different versions.
  * We configure spotless here once in order to only check these java sources once.
  */
+repositories {
+  mavenCentral()
+}
+
 spotless {
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
-    googleJavaFormat('1.7')
+    googleJavaFormat('1.17.0')
     target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
   }
 }
