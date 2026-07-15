@@ -24,18 +24,26 @@ package org.apache.beam.runners.kafka.streams.translation;
  * {@link KStreamsPayload#isWatermark()} and narrowed the payload, so there is no kind check to do
  * on each accessor.
  *
- * <p>A watermark report is the in-band coordination message a downstream stage's {@link
- * WatermarkManager} consumes: the watermark value plus which source partition reported it and how
- * many source partitions feed the stage in total.
+ * <p>A watermark report is the in-band coordination message a downstream watermark aggregator
+ * consumes: the watermark value, which transform produced it, which of that transform's partitions
+ * reported it, and how many partitions that transform has in total. The producer stamps its own
+ * identity without regard to who consumes the report; a consumer with several upstream transforms
+ * (e.g. Flatten) aggregates per producing transform.
  */
 public interface WatermarkPayload {
 
   /** The reported watermark, in event-time milliseconds. */
   long getWatermarkMillis();
 
-  /** The source partition this report is for, in {@code [0, getTotalSourcePartitions())}. */
+  /** Globally unique id of the transform that produced this report. */
+  String getTransformId();
+
+  /**
+   * Which partition (physical instance) of the producing transform this report is for, in {@code
+   * [0, getTotalSourcePartitions())}.
+   */
   int getSourcePartition();
 
-  /** The total number of source partitions feeding the downstream stage. */
+  /** How many partitions (physical instances) the producing transform has in total. */
   int getTotalSourcePartitions();
 }

@@ -52,6 +52,7 @@ public class KafkaStreamsPipelineTranslator {
             .put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslator())
             .put(PTransformTranslation.READ_TRANSFORM_URN, new ReadTranslator())
             .put(PTransformTranslation.REDISTRIBUTE_ARBITRARILY_URN, new RedistributeTranslator())
+            .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenTranslator())
             .put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslator())
             .put(ExecutableStage.URN, new ExecutableStageTranslator())
             .build());

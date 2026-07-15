@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.Topology;
@@ -110,10 +111,18 @@ class GroupByKeyTranslator implements PTransformTranslator {
         payloadSerde.deserializer(),
         repartitionTopic);
 
-    // Buffer values per key and fire KV<K, Iterable<V>> at the terminal watermark.
+    // Buffer values per key and fire KV<K, Iterable<V>> at the terminal watermark. Watermark
+    // reports cross the repartition topic unchanged, so they still carry the id of the transform
+    // that produced this GroupByKey's input — the parent the shuffle is attached to.
     topology.addProcessor(
         transformId,
-        () -> new GroupByKeyProcessor(stateStoreName, keyCoder, valueCoder),
+        () ->
+            new GroupByKeyProcessor(
+                stateStoreName,
+                transformId,
+                ImmutableSet.of(parentProcessor),
+                keyCoder,
+                valueCoder),
         sourceName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(

@@ -183,17 +183,16 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
   }
 
   /**
-   * Forwards a terminal {@code TIMESTAMP_MAX_VALUE} watermark payload to downstream processors.
-   *
-   * <p>Read is a single-instance source, so the report is stamped as the only source partition:
-   * {@code sourcePartition=0} of {@code totalSourcePartitions=1}. Real per-partition identities
-   * arrive once the topology gains topic-based shuffle.
+   * Forwards a terminal {@code TIMESTAMP_MAX_VALUE} watermark payload to downstream processors,
+   * stamped with this transform's id. Read is a single-instance source, so the report is for its
+   * only partition: {@code sourcePartition=0} of {@code totalSourcePartitions=1}. Real
+   * per-partition identities arrive once the topology gains topic-based shuffle.
    */
-  private static void forwardWatermarkMax(ProcessorContext<byte[], KStreamsPayload<?>> ctx) {
+  private void forwardWatermarkMax(ProcessorContext<byte[], KStreamsPayload<?>> ctx) {
     long maxMillis = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
-            new byte[0], KStreamsPayload.<Object>watermark(maxMillis, 0, 1), 0L));
+            new byte[0], KStreamsPayload.<Object>watermark(maxMillis, transformId, 0, 1), 0L));
   }
 
   /** Cancels the wall-clock punctuator after the read has fired to stop periodic wakeups. */

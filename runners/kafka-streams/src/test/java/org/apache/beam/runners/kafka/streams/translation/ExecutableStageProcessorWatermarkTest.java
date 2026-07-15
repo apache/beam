@@ -25,19 +25,26 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.streams.processor.api.MockProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.junit.Test;
 
 /**
  * Tests the watermark wiring of {@link ExecutableStageProcessor}: how it feeds incoming watermark
- * reports to the {@link WatermarkManager} and forwards the stage's output watermark.
+ * reports to the {@link WatermarkAggregator} and forwards the stage's output watermark.
  *
  * <p>Only the watermark path is exercised, so the SDK harness is never started (it is created
  * lazily on the first data element). A {@link MockProcessorContext} captures what the processor
  * forwards downstream.
  */
 public class ExecutableStageProcessorWatermarkTest {
+
+  /** The stage's own transform id, expected on every watermark it forwards. */
+  private static final String STAGE_ID = "stage";
+
+  /** The single upstream transform whose reports the stage aggregates. */
+  private static final String UPSTREAM_ID = "upstream";
 
   private static ExecutableStageProcessor newProcessor() {
     JobInfo jobInfo =
@@ -47,13 +54,17 @@ public class ExecutableStageProcessorWatermarkTest {
             "",
             PipelineOptionsTranslation.toProto(PipelineOptionsFactory.create()));
     return new ExecutableStageProcessor(
-        RunnerApi.ExecutableStagePayload.getDefaultInstance(), jobInfo);
+        RunnerApi.ExecutableStagePayload.getDefaultInstance(),
+        jobInfo,
+        STAGE_ID,
+        ImmutableSet.of(UPSTREAM_ID));
   }
 
+  /** A report from the upstream transform's given partition. */
   private static Record<byte[], KStreamsPayload<?>> watermark(
       long millis, int sourcePartition, int totalSourcePartitions) {
     KStreamsPayload<?> payload =
-        KStreamsPayload.watermark(millis, sourcePartition, totalSourcePartitions);
+        KStreamsPayload.watermark(millis, UPSTREAM_ID, sourcePartition, totalSourcePartitions);
     return new Record<>(new byte[0], payload, 0L);
   }
 
@@ -75,7 +86,9 @@ public class ExecutableStageProcessorWatermarkTest {
     assertThat(out.isWatermark(), is(true));
     WatermarkPayload report = out.asWatermark();
     assertThat(report.getWatermarkMillis(), is(100L));
-    // The stage forwards as its own single source (0 of 1), not the upstream's identity.
+    // The stage forwards under its own identity — its transform id and its own single partition
+    // (0 of 1) — not the upstream's.
+    assertThat(report.getTransformId(), is(STAGE_ID));
     assertThat(report.getSourcePartition(), is(0));
     assertThat(report.getTotalSourcePartitions(), is(1));
   }

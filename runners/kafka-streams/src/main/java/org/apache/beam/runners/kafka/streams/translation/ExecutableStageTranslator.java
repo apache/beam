@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.Topology;
 
@@ -83,9 +84,14 @@ class ExecutableStageTranslator implements PTransformTranslator {
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
     Topology topology = context.getTopology();
+    // The stage stamps its own transform id on the watermarks it emits, and aggregates its input
+    // watermark from the reports of its single upstream transform (the producer of its input
+    // PCollection, whose node name is the upstream transform id).
     topology.addProcessor(
         transformId,
-        () -> new ExecutableStageProcessor(stagePayload, context.getJobInfo()),
+        () ->
+            new ExecutableStageProcessor(
+                stagePayload, context.getJobInfo(), transformId, ImmutableSet.of(parentProcessor)),
         parentProcessor);
 
     if (!transform.getOutputsMap().isEmpty()) {

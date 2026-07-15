@@ -58,10 +58,11 @@ public class KStreamsPayloadSerdeTest {
 
   @Test
   public void roundTripsWatermarkPayload() {
-    KStreamsPayload<Integer> payload = KStreamsPayload.watermark(12345L, 2, 4);
+    KStreamsPayload<Integer> payload = KStreamsPayload.watermark(12345L, "transform-a", 2, 4);
     KStreamsPayload<Integer> out = roundTrip(payload);
     assertThat(out.isWatermark(), is(true));
     assertThat(out.asWatermark().getWatermarkMillis(), is(12345L));
+    assertThat(out.asWatermark().getTransformId(), is("transform-a"));
     assertThat(out.asWatermark().getSourcePartition(), is(2));
     assertThat(out.asWatermark().getTotalSourcePartitions(), is(4));
     assertThat(out, is(payload));
@@ -70,7 +71,7 @@ public class KStreamsPayloadSerdeTest {
   @Test
   public void roundTripsTerminalMaxWatermark() {
     KStreamsPayload<Integer> payload =
-        KStreamsPayload.watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis(), 0, 1);
+        KStreamsPayload.watermark(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis(), "t", 0, 1);
     assertThat(
         roundTrip(payload).asWatermark().getWatermarkMillis(),
         is(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
@@ -80,7 +81,7 @@ public class KStreamsPayloadSerdeTest {
   public void roundTripsNegativeWatermark() {
     // Beam event times can be negative; sint64 must round-trip them losslessly.
     KStreamsPayload<Integer> payload =
-        KStreamsPayload.watermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(), 0, 1);
+        KStreamsPayload.watermark(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(), "t", 0, 1);
     assertThat(
         roundTrip(payload).asWatermark().getWatermarkMillis(),
         is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));

@@ -27,16 +27,22 @@ option java_outer_classname = "KafkaStreamsPayloadProtos";
 // topic boundary (e.g. the GroupByKey repartition topic and the watermark fan-out). Protobuf is
 // used for compatible schema evolution and compact varint encoding.
 message KafkaStreamsPayload {
-  // A watermark report: the watermark plus the in-band coordination fields the downstream
-  // WatermarkManager needs.
+  // A watermark report: the watermark plus the in-band coordination fields a downstream
+  // watermark aggregator needs to reconstruct its input watermark.
   message WatermarkPayload {
     // Event-time watermark in milliseconds. Signed (sint64, zigzag-encoded) because Beam event
     // times can be negative, e.g. BoundedWindow.TIMESTAMP_MIN_VALUE.
     sint64 millis = 1;
-    // The source partition this report is for.
+    // Which partition (physical instance) of the producing transform this report is for, in
+    // [0, total_partitions).
     uint32 source_partition = 2;
-    // The total number of source partitions feeding the downstream stage.
+    // How many partitions (physical instances) the producing transform has in total.
     uint32 total_partitions = 3;
+    // Globally unique id of the transform that produced this report. A producer stamps its own id
+    // without regard to who consumes the report; a consumer with several upstream transforms
+    // (e.g. Flatten) aggregates per producing transform, holding its output watermark until every
+    // partition of every upstream transform it expects has reported.
+    string transform_id = 4;
   }
 
   // A data element: the Beam WindowedValue encoded with the PCollection's windowed-value coder.

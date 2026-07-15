@@ -25,6 +25,8 @@ import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Re-keys a {@code KV}-valued stream by the Beam key so Kafka Streams shuffles by it.
@@ -38,6 +40,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 class ShuffleByKeyProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ShuffleByKeyProcessor.class);
 
   private final Coder<Object> keyCoder;
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
@@ -55,6 +59,12 @@ class ShuffleByKeyProcessor
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     KStreamsPayload<?> payload = record.value();
+    if (payload == null) {
+      // A topic feeding the runner can always be written to from outside (or carry a tombstone),
+      // so recover from the obvious error instead of crashing the task: warn and drop.
+      LOG.warn("Shuffle dropping record with null payload (external write or tombstone)");
+      return;
+    }
     if (payload.isData()) {
       Object element = payload.getData().getValue();
       if (element == null) {
