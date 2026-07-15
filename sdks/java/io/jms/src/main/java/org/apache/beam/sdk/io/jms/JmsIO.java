@@ -514,8 +514,9 @@ public class JmsIO {
     /**
      * Specify the {@link AcknowledgeMode} used for consuming and acknowledging JMS messages.
      *
-     * <p>To use {@link AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}, providers other than ActiveMQ, Qpid
-     * JMS, ActiveMQ require configuring {@link #withIndividualAcknowledgeModeCode} explicitly.
+     * <p>To use {@link AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}, providers other than ActiveMQ,
+     * ActiveMQ Artemis, Qpid JMS, require configuring {@link #withIndividualAcknowledgeModeCode}
+     * explicitly.
      */
     public Read<T> withAcknowledgeMode(AcknowledgeMode acknowledgeMode) {
       checkArgument(acknowledgeMode != null, "acknowledgeMode can not be null");
