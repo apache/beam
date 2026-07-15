@@ -76,6 +76,7 @@
 * (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
 * (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
   `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
+* Splittable DoFn self-checkpointing is now supported on the portable Spark runner in batch mode, for bounded restrictions ([#19468](https://github.com/apache/beam/issues/19468)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
