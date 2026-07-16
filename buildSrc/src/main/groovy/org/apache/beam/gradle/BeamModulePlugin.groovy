@@ -1483,7 +1483,7 @@ class BeamModulePlugin implements Plugin<Project> {
         enforceCheck !disableSpotlessCheck
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat('1.17.0')
+          googleJavaFormat('1.15.0')
           target project.fileTree(project.projectDir) {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
