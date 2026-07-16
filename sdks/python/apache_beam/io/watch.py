@@ -32,7 +32,8 @@ output carries the event time the poll function first reported it. Dedup
 hashes each output's key: the output itself by default, or
 ``output_key_fn(output)`` when one is given. The key coder is inferred when
 not passed explicitly and converted to its deterministic form, so equal keys
-hash equally across workers and restarts.
+hash equally across workers and restarts. When ``use_timestamp`` is true,
+the output event time is part of the dedup key.
 
 Example::
 
@@ -193,7 +194,7 @@ class TerminationCondition(object):
   def on_seen_new_output(self, now: Timestamp, state: Any) -> Any:
     return state
 
-  def on_poll_complete(self, state: Any) -> Any:
+  def on_poll_complete(self, now: Timestamp, state: Any) -> Any:
     return state
 
   def can_stop_polling(self, now: Timestamp, state: Any) -> bool:
@@ -363,9 +364,21 @@ def _identity(value: Any) -> Any:
   return value
 
 
-def _hash_output(key_coder: Coder, value: Any) -> bytes:
+_HASH_KEY_AND_TIMESTAMP_CODER = TupleCoder(
+    [coders.BytesCoder(), TimestampCoder()])
+
+
+def _hash_output(
+    key_coder: Coder,
+    value: Any,
+    timestamp: Optional[Timestamp] = None,
+    use_timestamp: bool = False) -> bytes:
+  encoded_key = key_coder.encode(value)
+  if use_timestamp:
+    encoded_key = _HASH_KEY_AND_TIMESTAMP_CODER.encode(
+        (encoded_key, Timestamp.of(timestamp)))
   return hashlib.blake2b(
-      key_coder.encode(value), digest_size=_HASH_DIGEST_SIZE).digest()
+      encoded_key, digest_size=_HASH_DIGEST_SIZE).digest()
 
 
 def _max_watermark(left: Optional[Timestamp],
@@ -381,17 +394,20 @@ def _never_seen_before(
     restriction: _PollingGrowthState,
     result: PollResult,
     key_fn: Callable[[Any], Any],
-    key_coder: Coder) -> PollResult:
+    key_coder: Coder,
+    use_timestamp: bool = False) -> PollResult:
   """Filters a poll result down to outputs whose key was never seen before.
 
-  Dedup hashes ``key_fn(output.value)`` against the restriction's completed
-  set, also dropping in-round duplicates. Outputs are sorted by timestamp so
-  the earliest one can serve as the inferred watermark.
+  Dedup hashes ``key_fn(output.value)`` (or that key plus ``output.timestamp``
+  when requested) against the restriction's completed set, also dropping
+  in-round duplicates. Outputs are sorted by timestamp so the earliest one can
+  serve as the inferred watermark.
   """
   new_outputs = []
   seen_this_round = set()
   for output in result.outputs:
-    key_hash = _hash_output(key_coder, key_fn(output.value))
+    key_hash = _hash_output(
+        key_coder, key_fn(output.value), output.timestamp, use_timestamp)
     if key_hash in restriction.completed or key_hash in seen_this_round:
       continue
     seen_this_round.add(key_hash)
@@ -413,17 +429,23 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
       self,
       restriction: _GrowthState,
       key_fn: Callable[[Any], Any],
-      key_coder: Coder):
+      key_coder: Coder,
+      use_timestamp: bool = False):
     self._restriction = restriction
     self._key_fn = key_fn
     self._key_coder = key_coder
+    self._use_timestamp = use_timestamp
     self._claimed_result = None  # type: Optional[PollResult]
     self._claimed_termination_state = None  # type: Any
     self._claimed_hashes = None  # type: Optional[collections.OrderedDict]
     self._should_stop = False
 
-  def _hash(self, value: Any) -> bytes:
-    return _hash_output(self._key_coder, self._key_fn(value))
+  def _hash(self, output: TimestampedValue) -> bytes:
+    return _hash_output(
+        self._key_coder,
+        self._key_fn(output.value),
+        output.timestamp,
+        self._use_timestamp)
 
   def current_restriction(self) -> _GrowthState:
     return self._restriction
@@ -440,14 +462,14 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
     result, termination_state = position
     claimed_hashes = collections.OrderedDict()
     for output in result.outputs:
-      claimed_hashes[self._hash(output.value)] = output.timestamp
+      claimed_hashes[self._hash(output)] = output.timestamp
     if isinstance(self._restriction, _PollingGrowthState):
       if any(key_hash in self._restriction.completed
              for key_hash in claimed_hashes):
         return False
     else:
       expected = set(
-          self._hash(output.value)
+          self._hash(output)
           for output in self._restriction.pending.outputs)
       if expected != set(claimed_hashes):
         return False
@@ -522,6 +544,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       output_coder: Coder,
       key_fn: Callable[[Any], Any],
       key_coder: Coder,
+      use_timestamp: bool = False,
       now_fn: Optional[Callable[[], float]] = None):
     self._poll_fn = poll_fn
     self._termination = termination
@@ -529,6 +552,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     self._output_coder = output_coder
     self._key_fn = key_fn
     self._key_coder = key_coder
+    self._use_timestamp = use_timestamp
     self._now = now_fn or time.time
     self._restriction_coder = _GrowthStateCoder(output_coder, termination)
 
@@ -540,7 +564,8 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
         self._termination.for_new_input(now, element))
 
   def create_tracker(self, restriction) -> _GrowthRestrictionTracker:
-    return _GrowthRestrictionTracker(restriction, self._key_fn, self._key_coder)
+    return _GrowthRestrictionTracker(
+        restriction, self._key_fn, self._key_coder, self._use_timestamp)
 
   def restriction_coder(self) -> Coder:
     return self._restriction_coder
@@ -576,12 +601,17 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     # Read the clock after the poll so a slow poll counts against termination.
     now = Timestamp.of(self._now())
     new_results = _never_seen_before(
-        restriction, result, self._key_fn, self._key_coder)
+        restriction,
+        result,
+        self._key_fn,
+        self._key_coder,
+        self._use_timestamp)
     termination_state = restriction.termination_state
     if new_results.outputs:
       termination_state = self._termination.on_seen_new_output(
           now, termination_state)
-    termination_state = self._termination.on_poll_complete(termination_state)
+    termination_state = self._termination.on_poll_complete(
+        now, termination_state)
     if not tracker.try_claim((new_results, termination_state)):
       # A checkpoint already stopped this invocation; emit nothing.
       return
@@ -663,6 +693,8 @@ class Watch(PTransform):
       inferred like ``output_coder`` when omitted. It is converted with
       ``as_deterministic_coder`` so equal keys always hash equally; a coder
       with no deterministic form is rejected.
+    use_timestamp: whether to include each output timestamp in the dedup key.
+      Defaults to ``False``, so equal output keys are emitted only once.
     now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(
@@ -673,6 +705,7 @@ class Watch(PTransform):
       output_coder: Optional[Coder] = None,
       output_key_fn: Optional[Callable[[Any], Any]] = None,
       output_key_coder: Optional[Coder] = None,
+      use_timestamp: bool = False,
       now_fn: Optional[Callable[[], float]] = None):
     super().__init__()
     if poll_interval is None:
@@ -683,6 +716,7 @@ class Watch(PTransform):
     self._output_coder = output_coder
     self._output_key_fn = output_key_fn
     self._output_key_coder = output_key_coder
+    self._use_timestamp = use_timestamp
     self._now = now_fn
 
   def expand(self, pcoll):
@@ -723,6 +757,7 @@ class Watch(PTransform):
             output_coder,
             key_fn,
             key_coder,
+            self._use_timestamp,
             self._now)).with_output_types(Tuple[input_type, value_type])
 
 

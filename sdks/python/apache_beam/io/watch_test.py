@@ -60,13 +60,14 @@ def _identity(output):
   return output
 
 
-def _new_results(restriction, result, key_fn=None):
+def _new_results(restriction, result, key_fn=None, use_timestamp=False):
   return _never_seen_before(
-      restriction, result, key_fn or _identity, StrUtf8Coder())
+      restriction, result, key_fn or _identity, StrUtf8Coder(), use_timestamp)
 
 
-def _tracker(restriction):
-  return _GrowthRestrictionTracker(restriction, _identity, StrUtf8Coder())
+def _tracker(restriction, use_timestamp=False):
+  return _GrowthRestrictionTracker(
+      restriction, _identity, StrUtf8Coder(), use_timestamp)
 
 
 def _initial_polling(termination=None, now=Timestamp(0)):
@@ -124,6 +125,13 @@ class NeverSeenBeforeTest(unittest.TestCase):
     new_results = _new_results(
         _initial_polling(), result, key_fn=lambda output: output[0])
     self.assertEqual(['a1', 'b1'], [o.value for o in new_results.outputs])
+
+  def test_use_timestamp_dedups_by_key_and_timestamp(self):
+    result = PollResult.incomplete([_ts('a', 1), _ts('a', 2), _ts('a', 1)])
+    new_results = _new_results(
+        _initial_polling(), result, use_timestamp=True)
+    self.assertEqual([('a', Timestamp(1)), ('a', Timestamp(2))],
+                     [(o.value, o.timestamp) for o in new_results.outputs])
 
   def test_preserves_explicit_watermark(self):
     result = PollResult.incomplete([_ts('c', 3)]).with_watermark(5)
