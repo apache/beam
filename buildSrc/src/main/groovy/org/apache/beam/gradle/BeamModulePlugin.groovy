@@ -1459,6 +1459,7 @@ class BeamModulePlugin implements Plugin<Project> {
         classpath = project.files()
         exclude '**/generated-src/**'
         exclude '**/generated-sources/**'
+        mustRunAfter project.tasks.matching { it.name.startsWith('generate') }
       }
       project.checkstyleMain.enabled = !disableCheckStyle
       project.checkstyleTest.enabled = !disableCheckStyle
@@ -1487,6 +1488,7 @@ class BeamModulePlugin implements Plugin<Project> {
           target project.fileTree(project.projectDir) {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
+            exclude '**/module-info.java'
           }
           // For spotless:off and spotless:on
           toggleOffOn()
