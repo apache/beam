@@ -35,6 +35,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -199,10 +200,22 @@ class ExecutableStageProcessor
           @Override
           public void onProgress(ProcessBundleProgressResponse progress) {
             // Deliberately not folded into the container; see comment above.
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "Stage {} bundle progress: {}",
+                  transformId,
+                  TextFormat.printer().printToString(progress));
+            }
           }
 
           @Override
           public void onCompleted(ProcessBundleResponse response) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "Stage {} bundle completed: {}",
+                  transformId,
+                  TextFormat.printer().printToString(response));
+            }
             metricsContainer.update(response.getMonitoringInfosList());
           }
         };
