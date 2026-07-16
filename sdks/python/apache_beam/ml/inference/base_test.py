@@ -1047,7 +1047,7 @@ class RunInferenceBaseTest(unittest.TestCase):
   def test_forwards_batch_args(self):
     examples = list(range(100))
     with TestPipeline('FnApiRunner') as pipeline:
-      pcoll = pipeline | 'start' >> beam.Create(examples)
+      pcoll = pipeline | 'start' >> beam.Create(examples, reshuffle=False)
       actual = pcoll | base.RunInference(FakeModelHandlerNeedsBigBatch())
       assert_that(actual, equal_to(examples), label='assert:inferences')
 

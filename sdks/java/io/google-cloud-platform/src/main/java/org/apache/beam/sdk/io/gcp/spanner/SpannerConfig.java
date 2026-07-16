@@ -28,6 +28,9 @@ import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import com.google.spanner.v1.DirectedReadOptions;
 import java.io.Serializable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -90,6 +93,8 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<Duration> getMaxCommitDelay();
 
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
+
+  public abstract @Nullable ValueProvider<DirectedReadOptions> getDirectedReadOptions();
 
   public abstract @Nullable ValueProvider<Duration> getPartitionQueryTimeout();
 
@@ -184,6 +189,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setMaxCommitDelay(ValueProvider<Duration> maxCommitDelay);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
+
+    abstract Builder setDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions);
 
     abstract Builder setDataBoostEnabled(ValueProvider<Boolean> dataBoostEnabled);
 
@@ -333,6 +340,40 @@ public abstract class SpannerConfig implements Serializable {
   /** Specifies the Cloud Spanner database role. */
   public SpannerConfig withDatabaseRole(ValueProvider<String> databaseRole) {
     return toBuilder().setDatabaseRole(databaseRole).build();
+  }
+
+  /** Specifies the Cloud Spanner directed read options. */
+  public SpannerConfig withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+    return withDirectedReadOptions(ValueProvider.StaticValueProvider.of(directedReadOptions));
+  }
+
+  /** Specifies the Cloud Spanner directed read options. */
+  public SpannerConfig withDirectedReadOptions(
+      ValueProvider<DirectedReadOptions> directedReadOptions) {
+    return toBuilder().setDirectedReadOptions(directedReadOptions).build();
+  }
+
+  /** Specifies the Cloud Spanner directed read options from a string representation. */
+  public SpannerConfig withDirectedReadOptions(String directedReadOptions) {
+    if (directedReadOptions == null || directedReadOptions.isEmpty()) {
+      return this;
+    }
+    return withDirectedReadOptions(parseDirectedReadOptions(directedReadOptions));
+  }
+
+  @VisibleForTesting
+  static DirectedReadOptions parseDirectedReadOptions(String directedReadOptions) {
+    if (directedReadOptions == null || directedReadOptions.isEmpty()) {
+      return DirectedReadOptions.getDefaultInstance();
+    }
+    DirectedReadOptions.Builder builder = DirectedReadOptions.newBuilder();
+    try {
+      JsonFormat.parser().merge(directedReadOptions, builder);
+      return builder.build();
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(
+          "Failed to parse DirectedReadOptions from string: " + directedReadOptions, e);
+    }
   }
 
   /** Specifies if the pipeline has to be run on the independent compute resource. */

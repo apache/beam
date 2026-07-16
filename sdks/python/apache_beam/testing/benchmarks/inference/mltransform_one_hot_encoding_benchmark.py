@@ -24,9 +24,8 @@ Dataflow.
 """
 
 import logging
-
-from google.cloud import monitoring_v3
-from google.protobuf.duration_pb2 import Duration
+from datetime import datetime
+from typing import Optional
 
 from apache_beam.examples.ml_transform import mltransform_one_hot_encoding
 from apache_beam.options.pipeline_options import DebugOptions
@@ -128,68 +127,22 @@ class MLTransformOneHotEncodingBenchmarkTest(DataflowCostBenchmark):
       self,
       project: str,
       job_id: str,
-      start_time: str,
-      end_time: str,
-      pcollection_name: str | None = None,
+      start_time: datetime,
+      end_time: datetime,
+      pcollection_name: Optional[str] = None,
   ) -> dict[str, float]:
     """Get throughput metrics with runner-v2-friendly fallbacks."""
-    candidate_pcollections = []
-    if pcollection_name:
-      candidate_pcollections.append(pcollection_name)
-    candidate_pcollections.extend([
-        self.pcollection,
-        'MLTransform.out0',
-        'FormatOutput.out0',
-    ])
-
-    # Deduplicate while preserving order.
-    seen = set()
-    unique_candidates = []
-    for name in candidate_pcollections:
-      if name and name not in seen:
-        seen.add(name)
-        unique_candidates.append(name)
-
-    for name in unique_candidates:
-      metrics = super()._get_throughput_metrics(
-          project, job_id, start_time, end_time, pcollection_name=name)
-      if (metrics.get('AvgThroughputBytes', 0) > 0 or
-          metrics.get('AvgThroughputElements', 0) > 0):
-        return metrics
-
-    # Final fallback: aggregate job-level throughput without pcollection label.
-    interval = monitoring_v3.TimeInterval(
-        start_time=start_time, end_time=end_time)
-    aggregation = monitoring_v3.Aggregation(
-        alignment_period=Duration(seconds=60),
-        per_series_aligner=monitoring_v3.Aggregation.Aligner.ALIGN_MEAN)
-    requests = {
-        "Bytes": monitoring_v3.ListTimeSeriesRequest(
-            name=f"projects/{project}",
-            filter=(
-                'metric.type="dataflow.googleapis.com/job/estimated_byte_count" '
-                f'AND metric.labels.job_id="{job_id}"'),
-            interval=interval,
-            aggregation=aggregation),
-        "Elements": monitoring_v3.ListTimeSeriesRequest(
-            name=f"projects/{project}",
-            filter=(
-                'metric.type="dataflow.googleapis.com/job/element_count" '
-                f'AND metric.labels.job_id="{job_id}"'),
-            interval=interval,
-            aggregation=aggregation),
-    }
-
-    fallback_metrics = {}
-    for key, req in requests.items():
-      time_series = self.monitoring_client.list_time_series(request=req)
-      values = [
-          point.value.double_value for series in time_series
-          for point in series.points
-      ]
-      fallback_metrics[f"AvgThroughput{key}"] = (
-          sum(values) / len(values) if values else 0.0)
-    return fallback_metrics
+    return self._get_throughput_metrics_with_pcollection_fallback(
+        project,
+        job_id,
+        start_time,
+        end_time,
+        pcollection_candidates=[
+            self.pcollection,
+            'MLTransform.out0',
+            'FormatOutput.out0',
+        ],
+        pcollection_name=pcollection_name)
 
 
 if __name__ == '__main__':

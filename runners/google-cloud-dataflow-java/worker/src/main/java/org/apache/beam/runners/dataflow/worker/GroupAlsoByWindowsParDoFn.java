@@ -216,7 +216,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
       }
       return (DoFnRunner<InputT, KV<K, Iterable<V>>>)
           DoFnRunners.<K, V, Iterable<V>, W>lateDataDroppingRunner(
-              streamingGABWRunner, stepContext.timerInternals(), windowingStrategy);
+              streamingGABWRunner, stepContext, windowingStrategy);
     } else {
       if (hasStreamingSideInput) {
         return new StreamingSideInputDoFnRunner<>(

@@ -42,6 +42,12 @@ def ioXlang = new CrossLanguageTask().tap {
     additionalEnvs = ["KAFKA_BOOTSTRAP_SERVER":project.findProperty('kafkaBootstrapServer')]
 }
 
+def messagingXlang = new CrossLanguageTask().tap {
+    name = "messagingCrossLanguage"
+    expansionProjectPaths = [messagingExpansionPath]
+    collectMarker = "uses_messaging_java_expansion_service"
+}
+
 // This list should include all expansion service targets in sdks/python/standard_expansion_services.yaml
 def servicesToGenerateFrom = [ioExpansionPath, messagingExpansionPath, gcpExpansionPath]
 def xlangWrapperValidation = new CrossLanguageTask().tap {
@@ -54,6 +60,6 @@ def xlangWrapperValidation = new CrossLanguageTask().tap {
 
 // List of task metadata objects to create cross-language tasks from.
 // Each object contains the minimum relevant metadata.
-def xlangTasks = [gcpXlang, ioXlang, xlangWrapperValidation]
+def xlangTasks = [gcpXlang, ioXlang, messagingXlang, xlangWrapperValidation]
 
 ext.xlangTasks = xlangTasks

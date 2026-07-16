@@ -420,6 +420,7 @@ public class StreamingDataflowWorkerTest {
             CloudObjects.asCloudObject(IntervalWindowCoder.of(), /* sdkComponents= */ null)));
 
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -439,6 +440,7 @@ public class StreamingDataflowWorkerTest {
 
   private ParallelInstruction makeSourceInstruction(Coder<?> coder) {
     return new ParallelInstruction()
+        .setName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setSystemName(DEFAULT_SOURCE_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SOURCE_ORIGINAL_NAME)
         .setRead(
@@ -527,6 +529,7 @@ public class StreamingDataflowWorkerTest {
     CloudObject spec = CloudObject.forClass(WindmillSink.class);
     addString(spec, "stream_id", streamId);
     return new ParallelInstruction()
+        .setName(streamId)
         .setSystemName(DEFAULT_SINK_SYSTEM_NAME)
         .setOriginalName(DEFAULT_SINK_ORIGINAL_NAME)
         .setWrite(
@@ -571,11 +574,16 @@ public class StreamingDataflowWorkerTest {
     Windmill.GetWorkResponse.Builder builder = Windmill.GetWorkResponse.newBuilder();
     TextFormat.merge(input, builder);
     if (metadata != null) {
-      Windmill.InputMessageBundle.Builder messageBundleBuilder =
-          builder.getWorkBuilder(0).getWorkBuilder(0).getMessageBundlesBuilder(0);
-      for (Windmill.Message.Builder messageBuilder :
-          messageBundleBuilder.getMessagesBuilderList()) {
-        messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+      for (Windmill.ComputationWorkItems.Builder compBuilder : builder.getWorkBuilderList()) {
+        for (Windmill.WorkItem.Builder workBuilder : compBuilder.getWorkBuilderList()) {
+          for (Windmill.InputMessageBundle.Builder messageBundleBuilder :
+              workBuilder.getMessageBundlesBuilderList()) {
+            for (Windmill.Message.Builder messageBuilder :
+                messageBundleBuilder.getMessagesBuilderList()) {
+              messageBuilder.setMetadata(addPaneTag(PaneInfo.NO_FIRING, metadata));
+            }
+          }
+        }
       }
     }
 
@@ -1327,7 +1335,7 @@ public class StreamingDataflowWorkerTest {
         makeExpectedTruncationRequestOutput(
                 1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
-        largeCommit);
+        removeDynamicFields(largeCommit));
 
     // Check this explicitly since the estimated commit bytes weren't actually
     // checked against an expected value in the previous step
@@ -2495,6 +2503,7 @@ public class StreamingDataflowWorkerTest {
 
     return Arrays.asList(
         new ParallelInstruction()
+            .setName("Read")
             .setSystemName("Read")
             .setOriginalName("OriginalReadName")
             .setRead(
@@ -3954,11 +3963,16 @@ public class StreamingDataflowWorkerTest {
         LatencyAttribution.newBuilder().setState(State.ACTIVE).setTotalDurationMillis(100);
     for (LatencyAttribution la : commit.getPerWorkItemLatencyAttributionsList()) {
       if (la.getState() == State.ACTIVE) {
-        assertThat(la.getActiveLatencyBreakdownCount(), equalTo(1));
-        assertThat(
-            la.getActiveLatencyBreakdown(0).getUserStepName(), equalTo(DEFAULT_PARDO_USER_NAME));
-        Assert.assertTrue(la.getActiveLatencyBreakdown(0).hasProcessingTimesDistribution());
-        Assert.assertFalse(la.getActiveLatencyBreakdown(0).hasActiveMessageMetadata());
+        LatencyAttribution.ActiveLatencyBreakdown pardoBreakdown = null;
+        for (LatencyAttribution.ActiveLatencyBreakdown lb : la.getActiveLatencyBreakdownList()) {
+          if (DEFAULT_PARDO_USER_NAME.equals(lb.getUserStepName())) {
+            pardoBreakdown = lb;
+            break;
+          }
+        }
+        Assert.assertNotNull("Expected breakdown for " + DEFAULT_PARDO_USER_NAME, pardoBreakdown);
+        Assert.assertTrue(pardoBreakdown.hasProcessingTimesDistribution());
+        Assert.assertFalse(pardoBreakdown.hasActiveMessageMetadata());
       }
     }
 

@@ -73,3 +73,6 @@ See the following pages for performance measures recorded when running various B
 - [PyTorch Image Captioning BLIP + CLIP Batch GPU](/performance/pytorchimagecaptioningbatchgpu)
 - [MLTransform Generate Vocab (batch)](/performance/mltransformvocab)
 - [MLTransform One-Hot Encoding](/performance/mltransformonehot)
+- [MLTransform Text Embedding](/performance/mltransform-text-embedding)
+- [MLTransform Image Embedding GPU](/performance/mltransform-image-embedding-gpu)
+- [MLTransform Image Embedding CPU](/performance/mltransform-image-embedding-cpu)

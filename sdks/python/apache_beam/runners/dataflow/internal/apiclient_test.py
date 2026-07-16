@@ -1030,9 +1030,12 @@ class UtilTest(unittest.TestCase):
     self.assertNotIn(
         'use_multiple_sdk_containers', environment.proto.experiments)
 
+  # Note: We mock Python to 3.11 here. Keep this mocked version aligned with a
+  # version in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW to prevent test failures
+  # on release (non-dev) builds.
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 9))
+      (3, 11))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -1051,7 +1054,7 @@ class UtilTest(unittest.TestCase):
                                         '1',
                                         FAKE_PIPELINE_URL)
     self.assertEqual(
-        'Apache Beam Python 3.9 SDK', environment._get_python_sdk_name())
+        'Apache Beam Python 3.11 SDK', environment._get_python_sdk_name())
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',

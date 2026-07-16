@@ -62,8 +62,8 @@ class JavaJarJobServerTest(unittest.TestCase):
         subprocess_cmd,
         [
             '/path/to/java',
-            '-jar',
             '-Dsome.property=value',
+            '-jar',
             '/path/to/jar',
             '--artifacts-dir',
             '/path/to/artifacts/',
