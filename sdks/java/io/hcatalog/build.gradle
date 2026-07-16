@@ -40,6 +40,10 @@ hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
 def hive_version = "4.0.1"
 
+tasks.withType(Test).configureEach {
+   jvmArgs '--add-opens=java.base/java.net=ALL-UNNAMED'
+}
+
 dependencies {
   implementation library.java.vendored_guava_32_1_2_jre
   implementation project(path: ":sdks:java:core", configuration: "shadow")

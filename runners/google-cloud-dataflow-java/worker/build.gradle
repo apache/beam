@@ -154,6 +154,10 @@ applyJavaNature(
 /******************************************************************************/
 // Configure the worker root project
 
+tasks.withType(Test).configureEach {
+  jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED'
+}
+
 configurations {
     sourceFile
 
