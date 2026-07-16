@@ -28,10 +28,10 @@ repositories {
 }
 
 spotless {
-  ratchetFrom 'origin/master'
+  ratchetFrom project.findProperty('spotlessRatchetFrom') ?: 'origin/master'
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
-    googleJavaFormat('1.10.0')
+    googleJavaFormat('1.17.0')
     target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
   }
 }
