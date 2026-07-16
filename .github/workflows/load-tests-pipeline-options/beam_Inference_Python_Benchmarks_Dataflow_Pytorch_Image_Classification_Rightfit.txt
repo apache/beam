@@ -36,6 +36,6 @@
 --model_state_dict_path=gs://apache-beam-ml/models/efficientnet_b0_state_dict.pth
 --image_size=224
 --top_k=5
---inference_batch_size=auto
+--inference_batch_size=16
 --window_sec=60
 --trigger_proc_time_sec=30

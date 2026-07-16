@@ -247,7 +247,7 @@ def parse_known_args(argv):
   parser.add_argument('--top_k', type=int, default=5)
   parser.add_argument(
       '--inference_batch_size',
-      default='auto',
+      default='16',
       help='int or "auto"; auto tries 64→32→16')
 
   # Windows
