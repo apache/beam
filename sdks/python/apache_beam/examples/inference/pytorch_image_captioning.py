@@ -291,22 +291,14 @@ class ClipRankModelHandler(ModelHandler):
       image_inputs = processor(
           images=images,
           return_tensors="pt",
-      )
-      image_inputs = {
-          k: (v.to(self.device) if torch.is_tensor(v) else v)
-          for k, v in image_inputs.items()
-      }
+      ).to(self.device)
 
       text_inputs = processor(
           text=texts,
           return_tensors="pt",
           padding=True,
           truncation=True,
-      )
-      text_inputs = {
-          k: (v.to(self.device) if torch.is_tensor(v) else v)
-          for k, v in text_inputs.items()
-      }
+      ).to(self.device)
 
       image_features = model.get_image_features(
           pixel_values=image_inputs["pixel_values"])
@@ -441,24 +433,17 @@ def ensure_pubsub_resources(
   publisher = pubsub_v1.PublisherClient()
   subscriber = pubsub_v1.SubscriberClient()
 
-  topic_name = topic_path.split("/")[-1]
-  subscription_name = subscription_path.split("/")[-1]
-
-  full_topic_path = publisher.topic_path(project, topic_name)
-  full_subscription_path = subscriber.subscription_path(
-      project, subscription_name)
-
   try:
-    publisher.get_topic(request={"topic": full_topic_path})
+    publisher.get_topic(request={"topic": topic_path})
   except NotFound:
-    publisher.create_topic(name=full_topic_path)
+    publisher.create_topic(name=topic_path)
 
   try:
     subscriber.get_subscription(
-        request={"subscription": full_subscription_path})
+      request={"subscription": subscription_path})
   except NotFound:
     subscriber.create_subscription(
-        name=full_subscription_path, topic=full_topic_path)
+      name=subscription_path, topic=topic_path)
 
 
 def cleanup_pubsub_resources(
@@ -466,12 +451,18 @@ def cleanup_pubsub_resources(
   publisher = pubsub_v1.PublisherClient()
   subscriber = pubsub_v1.SubscriberClient()
 
-  topic_name = topic_path.split("/")[-1]
-  subscription_name = subscription_path.split("/")[-1]
+  try:
+    subscriber.delete_subscription(
+      request={"subscription": subscription_path})
+    logging.info(f"Deleted subscription: {subscription_path}")
+  except NotFound:
+    logging.info(f"Subscription already deleted: {subscription_path}")
 
-  full_topic_path = publisher.topic_path(project, topic_name)
-  full_subscription_path = subscriber.subscription_path(
-      project, subscription_name)
+  try:
+    publisher.delete_topic(request={"topic": topic_path})
+    logging.info(f"Deleted topic: {topic_path}")
+  except NotFound:
+    logging.info(f"Topic already deleted: {topic_path}")
 
   try:
     subscriber.delete_subscription(
@@ -500,6 +491,8 @@ def override_or_add(args, flag, value):
 
 def run_load_pipeline(known_args, pipeline_args):
   """Reads GCS file with URIs and publishes them to Pub/Sub (for streaming)."""
+
+  pipeline_args = list(pipeline_args)
   # enforce smaller/CPU-only defaults for feeder
   override_or_add(pipeline_args, '--device', 'CPU')
   override_or_add(pipeline_args, '--num_workers', '5')

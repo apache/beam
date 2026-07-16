@@ -263,24 +263,17 @@ def ensure_pubsub_resources(
   publisher = pubsub_v1.PublisherClient()
   subscriber = pubsub_v1.SubscriberClient()
 
-  topic_name = topic_path.split("/")[-1]
-  subscription_name = subscription_path.split("/")[-1]
-
-  full_topic_path = publisher.topic_path(project, topic_name)
-  full_subscription_path = subscriber.subscription_path(
-      project, subscription_name)
-
   try:
-    publisher.get_topic(request={"topic": full_topic_path})
+    publisher.get_topic(request={"topic": topic_path})
   except NotFound:
-    publisher.create_topic(name=full_topic_path)
+    publisher.create_topic(name=topic_path)
 
   try:
     subscriber.get_subscription(
-        request={"subscription": full_subscription_path})
+      request={"subscription": subscription_path})
   except NotFound:
     subscriber.create_subscription(
-        name=full_subscription_path, topic=full_topic_path)
+      name=subscription_path, topic=topic_path)
 
 
 def cleanup_pubsub_resources(
@@ -288,25 +281,18 @@ def cleanup_pubsub_resources(
   publisher = pubsub_v1.PublisherClient()
   subscriber = pubsub_v1.SubscriberClient()
 
-  topic_name = topic_path.split("/")[-1]
-  subscription_name = subscription_path.split("/")[-1]
-
-  full_topic_path = publisher.topic_path(project, topic_name)
-  full_subscription_path = subscriber.subscription_path(
-      project, subscription_name)
-
   try:
     subscriber.delete_subscription(
-        request={"subscription": full_subscription_path})
-    logging.info(f"Deleted subscription: {subscription_name}")
+      request={"subscription": subscription_path})
+    logging.info(f"Deleted subscription: {subscription_path}")
   except NotFound:
-    logging.info(f"Subscription already deleted: {subscription_name}")
+    logging.info(f"Subscription already deleted: {subscription_path}")
 
   try:
-    publisher.delete_topic(request={"topic": full_topic_path})
-    logging.info(f"Deleted topic: {topic_name}")
+    publisher.delete_topic(request={"topic": topic_path})
+    logging.info(f"Deleted topic: {topic_path}")
   except NotFound:
-    logging.info(f"Topic already deleted: {topic_name}")
+    logging.info(f"Topic already deleted: {topic_path}")
 
 
 def override_or_add(args, flag, value):
@@ -341,6 +327,7 @@ class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
   def __init__(self, batch_sizes_to_try, image_size, *args, **kwargs):
     self._batch_sizes_to_try = batch_sizes_to_try
     self._rightfit_image_size = image_size
+    self._selected_batch_size = batch_sizes_to_try[0]
     super().__init__(*args, **kwargs)
 
   def load_model(self):
@@ -358,14 +345,14 @@ class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
         with torch.no_grad():
           model(dummy)
 
-        self._batch_size = bs
-        self._inference_batch_size = bs
+        self._selected_batch_size = bs
         logging.info("Selected inference batch size: %s", bs)
         return model
       except RuntimeError as e:
         last_err = e
         logging.warning("Batch size %s failed during worker warmup: %s", bs, e)
 
+        del dummy
         if torch.cuda.is_available():
           torch.cuda.empty_cache()
 
@@ -373,12 +360,28 @@ class RightFittingPytorchModelHandlerTensor(PytorchModelHandlerTensor):
         f"No valid inference batch size found from {self._batch_sizes_to_try}"
     ) from last_err
 
+  def run_inference(self, batch, model, inference_args=None):
+    results = []
+
+    for i in range(0, len(batch), self._selected_batch_size):
+      sub_batch = batch[i:i + self._selected_batch_size]
+      results.extend(
+          super().run_inference(
+              sub_batch,
+              model,
+              inference_args,
+          ))
+
+    return results
+
 
 # ============ Load pipeline ============
 
 
 def run_load_pipeline(known_args, pipeline_args):
   """Reads GCS file with URIs and publishes them to Pub/Sub (for streaming)."""
+
+  pipeline_args = list(pipeline_args)
   # enforce smaller/CPU-only defaults for feeder
   override_or_add(pipeline_args, '--device', 'CPU')
   override_or_add(pipeline_args, '--num_workers', '5')
@@ -484,12 +487,14 @@ def run(
       |
       'ToKeyedTensor' >> beam.Map(lambda kv: (kv[0], kv[1]["tensor"].float())))
 
+  run_inference = RunInference(KeyedModelHandler(model_handler))
+  if known_args.device.upper() == 'GPU':
+    run_inference = run_inference.with_resource_hints(
+        accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver")
   predictions = (
       to_infer
       | 'Reshuffle' >> beam.Reshuffle()
-      | 'RunInference' >> RunInference(
-          KeyedModelHandler(model_handler)).with_resource_hints(
-              accelerator="type:nvidia-tesla-t4;count:1;install-nvidia-driver"))
+      | 'RunInference' >> run_inference)
 
   results = (
       predictions
