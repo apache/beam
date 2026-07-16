@@ -28,6 +28,7 @@ repositories {
 }
 
 spotless {
+  ratchetFrom 'origin/master'
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
     googleJavaFormat('1.10.0')

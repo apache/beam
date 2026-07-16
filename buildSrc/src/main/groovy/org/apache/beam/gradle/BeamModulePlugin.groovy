@@ -1482,6 +1482,7 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
+        ratchetFrom 'origin/master'
         java {
           licenseHeader javaLicenseHeader
           googleJavaFormat('1.10.0')
