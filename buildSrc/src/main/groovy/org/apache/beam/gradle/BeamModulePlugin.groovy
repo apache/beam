@@ -1176,16 +1176,16 @@ class BeamModulePlugin implements Plugin<Project> {
         // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
         // The order is intended here
         if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
-        project.findProperty('java11Home')) {
+            project.findProperty('java11Home')) {
           forkJavaVersion = '11'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
-        project.findProperty('java17Home')) {
+            project.findProperty('java17Home')) {
           forkJavaVersion = '17'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
-        project.findProperty('java21Home')) {
+            project.findProperty('java21Home')) {
           forkJavaVersion = '21'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
-        project.findProperty('java25Home')) {
+            project.findProperty('java25Home')) {
           forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
@@ -2103,7 +2103,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
-                      if (it.version != null) { // bom-managed artifacts do not have their versions
+                      if (it.version != null) {
+                        // bom-managed artifacts do not have their versions
                         dependencyNode.appendNode('version', it.version)
                       }
                       dependencyNode.appendNode('scope', param.scope)
@@ -2470,7 +2471,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:$protobuf_version" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2552,7 +2554,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2593,12 +2596,6 @@ class BeamModulePlugin implements Plugin<Project> {
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
       }
-      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateAvroJava')
-      }
-      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateTestAvroJava')
-      }
     }
 
     project.ext.applyAntlrNature = {
@@ -2620,12 +2617,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def testSourcesJar = project.tasks.findByName('testSourcesJar')
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
-      }
-      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateGrammarSource')
-      }
-      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
-        it.mustRunAfter project.tasks.named('generateTestGrammarSource')
       }
     }
 
@@ -2762,7 +2753,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
@@ -3054,7 +3046,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
