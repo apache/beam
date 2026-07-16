@@ -308,7 +308,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
-              .addValue(DateTimeUtil.timestamptzFromMicros(timestampMillis * 1000 + 123456789).toInstant())
+              .addValue(
+                  DateTimeUtil.timestamptzFromMicros(timestampMillis * 1000 + 123456789)
+                      .toInstant())
               .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000 + 123456789))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
