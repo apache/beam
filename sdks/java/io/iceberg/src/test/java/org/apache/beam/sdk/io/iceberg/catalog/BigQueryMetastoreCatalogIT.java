@@ -58,6 +58,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .put("gcp_project", OPTIONS.getProject())
             .put("gcp_location", "us-central1")
             .put("warehouse", warehouse)
+            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
             .build(),
         new Configuration());
   }
@@ -115,6 +116,8 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .map(tr -> BigQueryUtils.toBeamRow(BEAM_SCHEMA, tr))
             .collect(Collectors.toList());
 
+    System.out.println("returned: " + beamRows);
+    System.out.println("expected: " + inputRows);
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =

@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
@@ -1449,17 +1450,27 @@ public class BigQueryUtilsTest {
 
     // BigQuery format with " UTC" suffix
     String timestamp = "2024-08-10 16:52:07.123456 UTC";
+    String parsableTimestamp = "2024-08-10T16:52:07.123456Z";
+    java.time.Instant instant = OffsetDateTime.parse(parsableTimestamp).toInstant();
+    long seconds = instant.getEpochSecond();
+    long micros = instant.getNano() / 1000; // BQ stores in micros precision
+    String value = seconds + "." + micros;
 
-    Row beamRow = BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", timestamp));
+    List<TableRow> testRows =
+        Arrays.asList(new TableRow().set("ts", timestamp), new TableRow().set("ts", value));
 
-    java.time.Instant actual = (java.time.Instant) beamRow.getValue("ts");
-    assertEquals(2024, actual.atZone(java.time.ZoneOffset.UTC).getYear());
-    assertEquals(8, actual.atZone(java.time.ZoneOffset.UTC).getMonthValue());
-    assertEquals(10, actual.atZone(java.time.ZoneOffset.UTC).getDayOfMonth());
-    assertEquals(16, actual.atZone(java.time.ZoneOffset.UTC).getHour());
-    assertEquals(52, actual.atZone(java.time.ZoneOffset.UTC).getMinute());
-    assertEquals(7, actual.atZone(java.time.ZoneOffset.UTC).getSecond());
-    assertEquals(123456000, actual.getNano());
+    for (TableRow row : testRows) {
+      Row beamRow = BigQueryUtils.toBeamRow(schema, row);
+
+      java.time.Instant actual = (java.time.Instant) beamRow.getValue("ts");
+      assertEquals(2024, actual.atZone(java.time.ZoneOffset.UTC).getYear());
+      assertEquals(8, actual.atZone(java.time.ZoneOffset.UTC).getMonthValue());
+      assertEquals(10, actual.atZone(java.time.ZoneOffset.UTC).getDayOfMonth());
+      assertEquals(16, actual.atZone(java.time.ZoneOffset.UTC).getHour());
+      assertEquals(52, actual.atZone(java.time.ZoneOffset.UTC).getMinute());
+      assertEquals(7, actual.atZone(java.time.ZoneOffset.UTC).getSecond());
+      assertEquals(123456000, actual.getNano());
+    }
   }
 
   @Test
