@@ -1483,7 +1483,7 @@ class BeamModulePlugin implements Plugin<Project> {
       project.spotless {
         enforceCheck !disableSpotlessCheck
         if (project.hasProperty('spotlessRatchet')) {
-          ratchetFrom 'origin/master'
+          ratchetFrom project.findProperty('spotlessRatchetFrom') ?: 'origin/master'
         }
         java {
           licenseHeader javaLicenseHeader
