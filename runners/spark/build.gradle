@@ -30,7 +30,7 @@ repositories {
 spotless {
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
-    googleJavaFormat('1.15.0')
+    googleJavaFormat('1.10.0')
     target project.fileTree(project.projectDir) { include 'src/*/java/**/*.java' }
   }
 }
