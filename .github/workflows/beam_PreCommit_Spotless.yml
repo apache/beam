@@ -91,7 +91,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
-          arguments: -PdisableSpotlessApply
+          arguments: -PdisableSpotlessApply -PspotlessRatchet
       - name: Upload test report
         uses: actions/upload-artifact@v7
         with:

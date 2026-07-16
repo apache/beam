@@ -28,7 +28,9 @@ repositories {
 }
 
 spotless {
-  ratchetFrom project.findProperty('spotlessRatchetFrom') ?: 'origin/master'
+  if (project.hasProperty('spotlessRatchet')) {
+    ratchetFrom 'origin/master'
+  }
   java {
     licenseHeader org.apache.beam.gradle.BeamModulePlugin.javaLicenseHeader
     googleJavaFormat('1.17.0')
