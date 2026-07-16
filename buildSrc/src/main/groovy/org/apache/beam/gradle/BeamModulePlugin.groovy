@@ -1455,6 +1455,11 @@ class BeamModulePlugin implements Plugin<Project> {
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
           project.disableCheckStyle == 'true'
+      project.tasks.withType(org.gradle.api.plugins.quality.Checkstyle).configureEach {
+        classpath = project.files()
+        exclude '**/generated-src/**'
+        exclude '**/generated-sources/**'
+      }
       project.checkstyleMain.enabled = !disableCheckStyle
       project.checkstyleTest.enabled = !disableCheckStyle
 
@@ -2588,6 +2593,12 @@ class BeamModulePlugin implements Plugin<Project> {
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestAvroJava')
       }
+      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateAvroJava')
+      }
+      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateTestAvroJava')
+      }
     }
 
     project.ext.applyAntlrNature = {
@@ -2609,6 +2620,12 @@ class BeamModulePlugin implements Plugin<Project> {
       def testSourcesJar = project.tasks.findByName('testSourcesJar')
       if (testSourcesJar != null) {
         testSourcesJar.dependsOn project.tasks.getByName('generateTestGrammarSource')
+      }
+      project.tasks.matching { it.name == 'checkstyleMain' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateGrammarSource')
+      }
+      project.tasks.matching { it.name == 'checkstyleTest' }.configureEach {
+        it.mustRunAfter project.tasks.named('generateTestGrammarSource')
       }
     }
 
