@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.kafka.streams.KafkaStreams;
@@ -41,11 +42,16 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
       LoggerFactory.getLogger(KafkaStreamsPortablePipelineResult.class);
 
   private final KafkaStreams kafkaStreams;
+  // The job's metrics accumulator, shared by reference with the topology's stage processors, which
+  // update it as the SDK harness reports bundle metrics.
+  private final MetricsContainerStepMap metricsContainerStepMap;
   private final CountDownLatch terminated = new CountDownLatch(1);
   private volatile boolean cancelled = false;
 
-  KafkaStreamsPortablePipelineResult(KafkaStreams kafkaStreams) {
+  KafkaStreamsPortablePipelineResult(
+      KafkaStreams kafkaStreams, MetricsContainerStepMap metricsContainerStepMap) {
     this.kafkaStreams = kafkaStreams;
+    this.metricsContainerStepMap = metricsContainerStepMap;
     kafkaStreams.setStateListener(
         (newState, oldState) -> {
           if (newState == KafkaStreams.State.NOT_RUNNING || newState == KafkaStreams.State.ERROR) {
@@ -104,8 +110,9 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
 
   @Override
   public MetricResults metrics() {
-    throw new UnsupportedOperationException(
-        "Metrics are not yet implemented in the Kafka Streams runner.");
+    // Attempted values only: the runner does not distinguish committed results yet (that needs
+    // metrics to be folded into the exactly-once commit, which lands with the durability work).
+    return MetricsContainerStepMap.asAttemptedOnlyMetricResults(metricsContainerStepMap);
   }
 
   @Override

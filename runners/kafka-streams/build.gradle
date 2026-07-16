@@ -45,6 +45,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":runners:kafka-streams:proto", configuration: "shadow")
   implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
   implementation project(":runners:core-java")
   permitUnusedDeclared project(":runners:core-java")

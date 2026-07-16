@@ -20,7 +20,10 @@ package org.apache.beam.runners.kafka.streams.translation;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -74,6 +78,10 @@ class ExecutableStageProcessor
   // This stage's own transform id, stamped on every watermark it forwards so downstream watermark
   // aggregators know which transform the report came from — regardless of who consumes it.
   private final String transformId;
+  // This stage's Beam metrics container, updated from the final MonitoringInfos the SDK harness
+  // reports as each bundle completes. The pipeline result reads the containing step map as
+  // MetricResults.
+  private final MetricsContainerImpl metricsContainer;
 
   // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
   // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
@@ -98,16 +106,20 @@ class ExecutableStageProcessor
    * @param transformId this stage's own transform id, stamped on the watermarks it emits
    * @param upstreamTransformIds the transform ids feeding this stage (known from the pipeline
    *     graph), whose reports the {@link WatermarkAggregator} waits for
+   * @param metricsContainer this stage's container in the job's metrics step map, updated with the
+   *     harness's per-bundle MonitoringInfos
    */
   ExecutableStageProcessor(
       RunnerApi.ExecutableStagePayload stagePayload,
       JobInfo jobInfo,
       String transformId,
-      Set<String> upstreamTransformIds) {
+      Set<String> upstreamTransformIds,
+      MetricsContainerImpl metricsContainer) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.transformId = transformId;
     this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
+    this.metricsContainer = metricsContainer;
   }
 
   @Override
@@ -179,11 +191,37 @@ class ExecutableStageProcessor
             };
           }
         };
+    // Fold the harness's reported metrics into this stage's container when each bundle completes.
+    // Only the completion response is applied: it carries the bundle's final cumulative values, and
+    // the container's update() adds counter values, so also applying mid-bundle progress snapshots
+    // would double-count them. Live mid-bundle metrics can come later if a use appears.
+    BundleProgressHandler progressHandler =
+        new BundleProgressHandler() {
+          @Override
+          public void onProgress(ProcessBundleProgressResponse progress) {
+            // Deliberately not folded into the container; see comment above.
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "Stage {} bundle progress: {}",
+                  transformId,
+                  TextFormat.printer().printToString(progress));
+            }
+          }
+
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(
+                  "Stage {} bundle completed: {}",
+                  transformId,
+                  TextFormat.printer().printToString(response));
+            }
+            metricsContainer.update(response.getMonitoringInfosList());
+          }
+        };
     currentBundle =
         factory.getBundle(
-            outputReceiverFactory,
-            StateRequestHandler.unsupported(),
-            BundleProgressHandler.ignored());
+            outputReceiverFactory, StateRequestHandler.unsupported(), progressHandler);
   }
 
   private FnDataReceiver<WindowedValue<?>> mainInputReceiver() {

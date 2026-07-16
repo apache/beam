@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -57,7 +58,8 @@ public class ExecutableStageProcessorWatermarkTest {
         RunnerApi.ExecutableStagePayload.getDefaultInstance(),
         jobInfo,
         STAGE_ID,
-        ImmutableSet.of(UPSTREAM_ID));
+        ImmutableSet.of(UPSTREAM_ID),
+        new MetricsContainerImpl(STAGE_ID));
   }
 
   /** A report from the upstream transform's given partition. */
