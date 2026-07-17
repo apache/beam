@@ -51,6 +51,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
+import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorH
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -190,6 +192,13 @@ public class WriteFilesTest {
     }
   }
 
+  private static class ExtractTimestampFn<T> extends DoFn<T, Long> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(c.timestamp().getMillis());
+    }
+  }
+
   private String getBaseOutputFilename() {
     return getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE).toString();
   }
@@ -242,6 +251,45 @@ public class WriteFilesTest {
         });
 
     assertThat(resultViews, Matchers.empty());
+  }
+
+  @Test
+  public void testSortByTempFilename() {
+    FileResult<Void> laterResult =
+        new FileResult<>(
+            getBaseOutputDirectory().resolve("z", StandardResolveOptions.RESOLVE_FILE),
+            WriteFiles.UNKNOWN_SHARDNUM,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null);
+    FileResult<Void> earlierResult =
+        new FileResult<>(
+            getBaseOutputDirectory().resolve("a", StandardResolveOptions.RESOLVE_FILE),
+            WriteFiles.UNKNOWN_SHARDNUM,
+            GlobalWindow.INSTANCE,
+            PaneInfo.NO_FIRING,
+            null);
+    List<FileResult<Void>> results = Lists.newArrayList(laterResult, earlierResult);
+
+    WriteFiles.sortByTempFilename(results);
+
+    assertThat(results, equalTo(Arrays.asList(earlierResult, laterResult)));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnwindowedOutputFilenamesKeepMinimumTimestamp() {
+    WriteFilesResult<Void> result =
+        p.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()).withNumShards(1));
+
+    PCollection<Long> outputTimestamps =
+        result
+            .getPerDestinationOutputFilenames()
+            .apply("Extract output timestamps", ParDo.of(new ExtractTimestampFn<>()));
+
+    PAssert.that(outputTimestamps)
+        .containsInAnyOrder(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    p.run();
   }
 
   /**
