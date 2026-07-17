@@ -40,6 +40,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -223,13 +224,17 @@ public class ArtifactStagingService
     }
 
     synchronized void aquire(int permits) throws Exception {
-      while (usedPermits >= totalPermits) {
-        if (exception != null) {
-          throw exception;
-        }
+      while (exception == null && usedPermits >= totalPermits) {
         this.wait();
       }
+      checkException();
       usedPermits += permits;
+    }
+
+    synchronized void checkException() throws Exception {
+      if (exception != null) {
+        throw exception;
+      }
     }
 
     synchronized void release(int permits) {
@@ -282,13 +287,16 @@ public class ArtifactStagingService
             .setTypeUrn(dest.getTypeUrn())
             .setTypePayload(dest.getTypePayload())
             .build();
-      } catch (IOException | InterruptedException exn) {
+      } catch (Exception exn) {
         // As this thread will no longer be draining the queue, we don't want to get stuck writing
-        // to it.
+        // to it. This must happen for unchecked exceptions as well: getDestination can throw e.g.
+        // InvalidPathException, and leaving the error unset would block the producer forever.
         totalPendingBytes.setException(exn);
         LOG.error("Exception staging artifacts", exn);
         if (exn instanceof IOException) {
           throw (IOException) exn;
+        } else if (exn instanceof RuntimeException) {
+          throw (RuntimeException) exn;
         } else {
           throw new RuntimeException(exn);
         }
@@ -409,10 +417,10 @@ public class ArtifactStagingService
               ByteString chunk = responseWrapper.getGetArtifactResponse().getData();
               if (chunk.size() > 0) { // Make sure we don't accidentally send the EOF value.
                 totalPendingBytes.aquire(chunk.size());
-                currentOutput.put(chunk);
+                putChunk(chunk);
               }
               if (responseWrapper.getIsLast()) {
-                currentOutput.put(ByteString.EMPTY); // The EOF value.
+                putChunk(ByteString.EMPTY); // The EOF value.
                 if (pendingGets.isEmpty()) {
                   resolveNextEnvironment(responseObserver);
                 } else {
@@ -421,8 +429,16 @@ public class ArtifactStagingService
                 }
               }
             } catch (Exception exn) {
-              LOG.error("Error submitting.", exn);
-              onError(exn);
+              // The write of a previous chunk failed; surface the failure to the client rather
+              // than leaving the stream unterminated, which would make the client block forever.
+              LOG.error("Error staging artifacts", exn);
+              state = State.ERROR;
+              stagingExecutor.shutdownNow();
+              responseObserver.onError(
+                  Status.INTERNAL
+                      .withDescription("Error staging artifacts: " + exn)
+                      .withCause(exn)
+                      .asException());
             }
             break;
 
@@ -430,6 +446,14 @@ public class ArtifactStagingService
             responseObserver.onError(
                 new StatusException(
                     Status.INVALID_ARGUMENT.withDescription("Illegal state " + state)));
+        }
+      }
+
+      private void putChunk(ByteString chunk) throws Exception {
+        // The queue is drained by a StoreArtifact task. Don't block forever on a plain put if
+        // that task has died with an error; poll so its exception can interrupt the wait.
+        while (!currentOutput.offer(chunk, 1, TimeUnit.SECONDS)) {
+          totalPendingBytes.checkException();
         }
       }
 
