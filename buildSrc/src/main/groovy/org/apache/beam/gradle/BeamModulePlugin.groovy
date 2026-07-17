@@ -96,6 +96,17 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  // Serializes pipeline options to JSON for the beamTestPipelineOptions system property.
+  // On Windows each option is wrapped in literal quotes so the JSON survives the quote
+  // stripping applied to the forked test JVM's command line.
+  // See https://github.com/apache/beam/issues/39332.
+  static def toBeamTestPipelineOptionsJson(def options) {
+    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+      return JsonOutput.toJson(options.collect { "\"$it\"" })
+    }
+    return JsonOutput.toJson(options)
+  }
+
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   static class JavaNatureConfiguration {
     /** Controls whether the spotbugs plugin is enabled and configured. */
@@ -992,6 +1003,13 @@ class BeamModulePlugin implements Plugin<Project> {
     project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
       if (!project.findProperty("java${ver}Home")) {
         return
+      }
+      // TODO(yathu): remove this once generated code (antlr) no longer trigger "this-escape", see above
+      // Unpin global opts when ver is lower than current
+      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0 && JavaVersion.toVersion(ver) < JavaVersion.VERSION_21) {
+        options.compilerArgs -= [
+          '-Xlint:-this-escape',
+        ]
       }
       if (ver == '8') {
         def java8Home = project.findProperty("java8Home")
@@ -2242,12 +2260,8 @@ class BeamModulePlugin implements Plugin<Project> {
             }
           }
 
-          // Windows handles quotation marks differently
-          if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
-            def allOptionsListFormatted = allOptionsList.collect { "\"$it\"" }
-            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
-          } else if (pipelineOptionsString) {
-            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+          if (pipelineOptionsString) {
+            pipelineOptionsStringFormatted = toBeamTestPipelineOptionsJson(allOptionsList)
           }
 
           systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
@@ -2684,7 +2698,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
-      config.systemProperties.put("beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions))
+      config.systemProperties.put("beamTestPipelineOptions", toBeamTestPipelineOptionsJson(beamTestPipelineOptions))
       project.tasks.register(name, Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
@@ -2850,7 +2864,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def javaTask = project.tasks.register(config.name+"JavaUsing"+sdk, Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
-          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
+          systemProperty "beamTestPipelineOptions", toBeamTestPipelineOptionsJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           systemProperty "semiPersistDir", config.semiPersistDir

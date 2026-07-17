@@ -38,17 +38,25 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
       - name: Tag for Go SDK
         run: |
-          git tag -a sdks/${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
-          git push https://github.com/apache/beam sdks/${{ github.event.inputs.VERSION_TAG }}
+          git tag -a sdks/${GITHUB_EVENT_INPUTS_VERSION_TAG} -m ${GITHUB_EVENT_INPUTS_RC_TAG}
+          git push https://github.com/apache/beam sdks/${GITHUB_EVENT_INPUTS_VERSION_TAG}
+        env:
+          GITHUB_EVENT_INPUTS_VERSION_TAG: ${{ github.event.inputs.VERSION_TAG }}
+          GITHUB_EVENT_INPUTS_RC_TAG: ${{ github.event.inputs.RC_TAG }}
       - name: Tag for repo root
         run: |
-          git tag -a ${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
-          git push https://github.com/apache/beam ${{ github.event.inputs.VERSION_TAG }}
+          git tag -a ${GITHUB_EVENT_INPUTS_VERSION_TAG} -m ${GITHUB_EVENT_INPUTS_RC_TAG}
+          git push https://github.com/apache/beam ${GITHUB_EVENT_INPUTS_VERSION_TAG}
+        env:
+          GITHUB_EVENT_INPUTS_VERSION_TAG: ${{ github.event.inputs.VERSION_TAG }}
+          GITHUB_EVENT_INPUTS_RC_TAG: ${{ github.event.inputs.RC_TAG }}
 
 
