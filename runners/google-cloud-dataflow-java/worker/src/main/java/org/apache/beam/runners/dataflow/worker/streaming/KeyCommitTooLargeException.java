@@ -19,12 +19,13 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class KeyCommitTooLargeException extends Exception {
 
   public static KeyCommitTooLargeException causedBy(
       String stageName, long byteLimit, Windmill.WorkItemCommitRequest request) {
-    return causedBy(stageName, byteLimit, request, false);
+    return causedBy(stageName, byteLimit, request, null, false);
   }
 
   public static KeyCommitTooLargeException causedBy(
@@ -32,14 +33,23 @@ public final class KeyCommitTooLargeException extends Exception {
       long byteLimit,
       Windmill.WorkItemCommitRequest request,
       boolean hotKeyLoggingEnabled) {
+    return causedBy(stageName, byteLimit, request, null, hotKeyLoggingEnabled);
+  }
+
+  public static KeyCommitTooLargeException causedBy(
+      String stageName,
+      long byteLimit,
+      Windmill.WorkItemCommitRequest request,
+      @Nullable Object decodedKey,
+      boolean hotKeyLoggingEnabled) {
     StringBuilder message = new StringBuilder();
     message.append("Commit request for stage ");
     message.append(stageName);
     message.append(" and sharding key ");
     message.append(Long.toUnsignedString(request.getShardingKey()));
-    if (hotKeyLoggingEnabled && !request.getKey().isEmpty()) {
+    if (decodedKey != null && hotKeyLoggingEnabled) {
       message.append(" and key ");
-      message.append(TextFormat.escapeBytes(request.getKey()));
+      message.append(decodedKey);
     }
     if (request.getSerializedSize() > 0) {
       message.append(
