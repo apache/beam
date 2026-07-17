@@ -57,8 +57,6 @@ jobs:
             javascript-typescript:
               - '**/*.js'
               - '**/*.ts'
-              - '**/*.tsx'
-              - '**/*.jsx'
               - '**/package.json'
               - '**/package-lock.json'
               - '**/tsconfig.json'
@@ -68,11 +66,9 @@ jobs:
               - '**/setup.py'
               - '**/setup.cfg'
               - '**/pyproject.toml'
-              - '**/requirements.txt'
+              - '**/*requirements.txt'
             rust:
               - '**/*.rs'
-              - '**/Cargo.toml'
-              - '**/Cargo.lock'
 
       - name: Generate Matrix
         id: set-matrix
