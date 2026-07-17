@@ -73,8 +73,10 @@ public class TestKafkaStreamsRunnerTest {
     // so the guarantee for a portable runner is that a failing PAssert fails the pipeline run (and
     // its message carries the assertion text). A dropped assertion — one that never runs — would
     // instead be caught by TestPipeline.verifyPAssertsSucceeded via the runner's metrics.
+    // Throwable rather than RuntimeException: if the exception chain ever preserves the DoFn's
+    // AssertionError (an Error), the runner unwraps and rethrows it, which is also a pass here.
     PAssert.that(pipeline.apply("create", Create.of(1, 2, 3))).containsInAnyOrder(1, 2, 4);
-    RuntimeException thrown = assertThrows(RuntimeException.class, pipeline::run);
+    Throwable thrown = assertThrows(Throwable.class, pipeline::run);
     assertThat(Throwables.getStackTraceAsString(thrown), containsString("AssertionError"));
   }
 }

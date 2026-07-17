@@ -65,7 +65,7 @@ public final class TestKafkaStreamsRunner extends PipelineRunner<PipelineResult>
     // pipeline's own options are the ones the translation reads.
     KafkaStreamsPipelineOptions options =
         pipeline.getOptions().as(KafkaStreamsPipelineOptions.class);
-    if (options.getApplicationId() == null) {
+    if (options.getApplicationId() == null || options.getApplicationId().isEmpty()) {
       options.setApplicationId("ks-validates-runner-" + UUID.randomUUID());
     }
     options
