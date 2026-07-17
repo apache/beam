@@ -75,7 +75,8 @@ jobs:
 
           # On periodic scheduled runs (cron) or manual dispatches, scan all languages.
           if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "matrix=$ALL_MATRIX" >> $GITHUB_OUTPUT
+            COMPACT_ALL=$(echo "$ALL_MATRIX" | jq -c .)
+            echo "matrix=$COMPACT_ALL" >> $GITHUB_OUTPUT
           else
             # Filter ALL_MATRIX entries keeping only entries for languages with path changes.
             FILTERED=$(echo "$ALL_MATRIX" | jq -c '[.[] | select(
