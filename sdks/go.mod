@@ -30,13 +30,13 @@ require (
 	cloud.google.com/go/datastore v1.25.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.51.0
-	cloud.google.com/go/spanner v1.92.0
+	cloud.google.com/go/spanner v1.93.0
 	cloud.google.com/go/storage v1.63.1
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.30
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.29
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.33
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.1
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.2
 	github.com/aws/smithy-go v1.27.4
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/dustin/go-humanize v1.0.1
