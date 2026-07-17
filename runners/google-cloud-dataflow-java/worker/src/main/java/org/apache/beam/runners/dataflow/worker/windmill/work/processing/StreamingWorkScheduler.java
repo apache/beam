@@ -87,7 +87,6 @@ public class StreamingWorkScheduler {
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final BoundedQueueExecutor workExecutor;
-  private final boolean hotKeyLoggingEnabled;
 
   public StreamingWorkScheduler(
       Supplier<Instant> clock,
@@ -97,9 +96,7 @@ public class StreamingWorkScheduler {
       StreamingCommitFinalizer commitFinalizer,
       StreamingCounters streamingCounters,
       ConcurrentMap<String, StageInfo> stageInfoMap,
-      DataflowExecutionStateSampler sampler,
-      StreamingGlobalConfigHandle globalConfigHandle,
-      boolean hotKeyLoggingEnabled) {
+      DataflowExecutionStateSampler sampler) {
     this.clock = clock;
     this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -108,8 +105,6 @@ public class StreamingWorkScheduler {
     this.streamingCounters = streamingCounters;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.globalConfigHandle = globalConfigHandle;
-    this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
   }
 
   public static StreamingWorkScheduler create(
@@ -147,12 +142,6 @@ public class StreamingWorkScheduler {
             sideInputStateFetcherFactory,
             multiKeyBundleOptions);
 
-    List<String> experiments = options.getExperiments();
-    boolean hotKeyLoggingEnabled =
-        options.isHotKeyLoggingEnabled()
-            || (experiments != null
-                && experiments.stream().anyMatch("enable_hot_key_logging"::equalsIgnoreCase));
-
     return new StreamingWorkScheduler(
         clock,
         workExecutor,
@@ -161,9 +150,7 @@ public class StreamingWorkScheduler {
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
         stageInfoMap,
-        sampler,
-        globalConfigHandle,
-        hotKeyLoggingEnabled);
+        sampler);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -181,6 +168,12 @@ public class StreamingWorkScheduler {
         .setShardingKey(workItem.getShardingKey())
         .setWorkToken(workItem.getWorkToken())
         .setCacheToken(workItem.getCacheToken());
+  }
+
+  /** Sets the stage name and workId of the Thread executing the {@link Work} for logging. */
+  private static void setUpWorkLoggingContext(String workLatencyTrackingId, String computationId) {
+    setLoggingContextWorkId(workLatencyTrackingId);
+    setLoggingContextComputation(computationId);
   }
 
   private static void setLoggingContextComputation(@Nullable String computationId) {
@@ -285,32 +278,6 @@ public class StreamingWorkScheduler {
         w.setProcessingThreadName("");
       }
     }
-  }
-
-  private Windmill.WorkItemCommitRequest validateCommitRequestSize(
-      Windmill.WorkItemCommitRequest commitRequest, String stageName, Windmill.WorkItem workItem) {
-    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
-    int commitSize = commitRequest.getSerializedSize();
-    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
-
-    // Detect overflow of integer serialized size or if the byte limit was exceeded.
-    // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
-    // commit byte limit.
-    streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
-    if (commitSize >= 0 && commitSize < byteLimit) {
-      return commitRequest;
-    }
-
-    KeyCommitTooLargeException e =
-        KeyCommitTooLargeException.causedBy(
-            stageName, byteLimit, commitRequest, hotKeyLoggingEnabled);
-    failureTracker.trackFailure(stageName, workItem, e);
-    LOG.error("{}", e.toString());
-
-    // Drop the current request in favor of a new, minimal one requesting truncation.
-    // Messages, timers, counters, and other commit content will not be used by the service
-    // so, we're purposefully dropping them here
-    return buildWorkItemTruncationRequest(workItem.getKey(), workItem, estimatedCommitSize);
   }
 
   private void recordProcessingStats(
@@ -478,10 +445,6 @@ public class StreamingWorkScheduler {
 
   private void commitSingleKeyWork(
       ComputationState computationState, Work work, Windmill.WorkItemCommitRequest commitRequest) {
-    // Validate the commit request, possibly requesting truncation if the commitSize is too large.
-    Windmill.WorkItemCommitRequest validatedCommitRequest =
-        validateCommitRequestSize(
-            commitRequest, computationState.getMapTask().getSystemName(), work.getWorkItem());
     work.setState(Work.State.COMMIT_QUEUED);
     Windmill.WorkItemCommitRequest commitRequestWithAttributions =
         commitRequest
@@ -489,34 +452,6 @@ public class StreamingWorkScheduler {
             .addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler))
             .build();
     work.queueCommit(commitRequestWithAttributions, computationState);
-  }
-
-  private void handleProcessWorkFailure(
-      ComputationState computationState,
-      List<Work> failedBatch,
-      String computationId,
-      Work primaryWork,
-      Throwable t) {
-    try {
-      List<ExecutableWork> executableWorks = new ArrayList<>();
-      for (Work w : failedBatch) {
-        executableWorks.add(
-            ExecutableWork.create(w, (retry, h) -> processWork(computationState, retry, h)));
-      }
-
-      workFailureProcessor.logAndProcessFailureBatch(
-          computationId,
-          executableWorks,
-          t,
-          invalidWork ->
-              computationState.completeWorkAndScheduleNextWorkForKey(
-                  invalidWork.getShardedKey(), invalidWork.id()));
-    } catch (OutOfMemoryError oom) {
-      throw oom;
-    } catch (Throwable t2) {
-      LOG.warn("Failed to process work failure safely for work {}", primaryWork.id(), t2);
-      throw ExceptionUtils.safeWrapThrowableAsException(t2);
-    }
   }
 
   private void recordProcessingTime(

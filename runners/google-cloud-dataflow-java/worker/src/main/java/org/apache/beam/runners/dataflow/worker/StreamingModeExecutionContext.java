@@ -52,7 +52,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -703,11 +702,11 @@ public class StreamingModeExecutionContext
     long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
     Windmill.WorkItemCommitRequest commitRequest = currentBuilder.build();
     int commitSize = commitRequest.getSerializedSize();
+    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 
     // Detect overflow of integer serialized size or if the byte limit was exceeded.
     // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
     // commit byte limit.
-    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
     streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
     if (commitSize >= 0 && commitSize < byteLimit) {
       return;
@@ -724,13 +723,13 @@ public class StreamingModeExecutionContext
     // so, we're purposefully dropping them here
     Windmill.WorkItemCommitRequest.Builder truncationBuilder =
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
-    currentBuilder.clear();
-    currentBuilder.mergeFrom(truncationBuilder.build());
-
-    // TODO: throw and retry when truncation is not on a single key bundle.
-    checkState(
-        !multiKeyBundleOptions.multiKeyBundleEnabled(),
-        "Commit truncation not implemented for multikey bundles");
+    for (int i = 0; i < outputBuilders.size(); i++) {
+      if (outputBuilders.get(i) == currentBuilder) {
+        outputBuilders.set(i, truncationBuilder);
+        break;
+      }
+    }
+    this.outputBuilder = truncationBuilder;
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(

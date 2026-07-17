@@ -87,7 +87,6 @@ final class ComputationWorkExecutorFactory {
   private final SinkRegistry sinkRegistry;
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final StreamingCounters streamingCounters;
   private final FailureTracker failureTracker;
 
