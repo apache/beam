@@ -51,7 +51,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
-import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.SimpleSink.SimpleWriter;
@@ -86,7 +85,6 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorH
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandlingTestUtils.ErrorSinkTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -97,6 +95,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -254,26 +253,14 @@ public class WriteFilesTest {
   }
 
   @Test
-  public void testSortByTempFilename() {
-    FileResult<Void> laterResult =
-        new FileResult<>(
-            getBaseOutputDirectory().resolve("z", StandardResolveOptions.RESOLVE_FILE),
-            WriteFiles.UNKNOWN_SHARDNUM,
-            GlobalWindow.INSTANCE,
-            PaneInfo.NO_FIRING,
-            null);
-    FileResult<Void> earlierResult =
-        new FileResult<>(
-            getBaseOutputDirectory().resolve("a", StandardResolveOptions.RESOLVE_FILE),
-            WriteFiles.UNKNOWN_SHARDNUM,
-            GlobalWindow.INSTANCE,
-            PaneInfo.NO_FIRING,
-            null);
-    List<FileResult<Void>> results = Lists.newArrayList(laterResult, earlierResult);
+  public void testUnwindowedOutputFilenamesKeepGlobalDefaultWindowingStrategy() {
+    Pipeline pipeline = Pipeline.create();
+    WriteFilesResult<Void> result =
+        pipeline.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()));
 
-    WriteFiles.sortByTempFilename(results);
-
-    assertThat(results, equalTo(Arrays.asList(earlierResult, laterResult)));
+    assertThat(
+        result.getPerDestinationOutputFilenames().getWindowingStrategy(),
+        equalTo(WindowingStrategy.globalDefault()));
   }
 
   @Test

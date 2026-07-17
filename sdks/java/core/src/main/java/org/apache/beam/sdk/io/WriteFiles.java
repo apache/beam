@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -91,7 +90,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -587,7 +586,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                     .withTimestampCombiner(TimestampCombiner.EARLIEST))
             .apply("Gather all results", GroupByKey.create())
             .apply("Extract results", ParDo.of(new ExtractGatheredResultsFn<>()))
-            .setCoder(resultListCoder);
+            .setCoder(resultListCoder)
+            // EARLIEST is internal to gathering. The old side-input path exposed the global
+            // default strategy, so restore it before finalization and filename output.
+            .setWindowingStrategyInternal(WindowingStrategy.globalDefault());
       }
     }
   }
@@ -1376,11 +1378,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           fixedNumShards = null;
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
-        if (!getWindowedWrites() && fixedNumShards == null) {
-          // GroupByKey preserves the set of results across retries, but not their iteration order.
-          // Runner-determined shard numbers are assigned by position, so make that mapping stable.
-          sortByTempFilename(fileResults);
-        }
         LOG.info("Finalizing {} file results", fileResults.size());
         if (fileResults.isEmpty() && getSkipIfEmpty()) {
           return;
@@ -1398,11 +1395,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         }
       }
     }
-  }
-
-  @VisibleForTesting
-  static <DestinationT> void sortByTempFilename(List<FileResult<DestinationT>> fileResults) {
-    fileResults.sort(Comparator.comparing(result -> result.getTempFilename().toString()));
   }
 
   private List<KV<FileResult<DestinationT>, ResourceId>> finalizeAllDestinations(
