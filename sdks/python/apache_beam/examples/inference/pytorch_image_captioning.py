@@ -439,11 +439,9 @@ def ensure_pubsub_resources(
     publisher.create_topic(name=topic_path)
 
   try:
-    subscriber.get_subscription(
-      request={"subscription": subscription_path})
+    subscriber.get_subscription(request={"subscription": subscription_path})
   except NotFound:
-    subscriber.create_subscription(
-      name=subscription_path, topic=topic_path)
+    subscriber.create_subscription(name=subscription_path, topic=topic_path)
 
 
 def cleanup_pubsub_resources(
@@ -452,8 +450,7 @@ def cleanup_pubsub_resources(
   subscriber = pubsub_v1.SubscriberClient()
 
   try:
-    subscriber.delete_subscription(
-      request={"subscription": subscription_path})
+    subscriber.delete_subscription(request={"subscription": subscription_path})
     logging.info(f"Deleted subscription: {subscription_path}")
   except NotFound:
     logging.info(f"Subscription already deleted: {subscription_path}")
