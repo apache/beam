@@ -44,21 +44,35 @@ jobs:
             actions:
               - '.github/**'
             go:
-              - 'sdks/go/**'
-              - 'playground/backend/**'
-              - 'learning/katas/go/**'
-              - 'learning/tour-of-beam/backend/**'
+              - '**/*.go'
+              - '**/go.mod'
+              - '**/go.sum'
             java-kotlin:
-              - 'sdks/java/**'
-              - 'runners/**'
-              - 'examples/java/**'
-              - 'examples/kotlin/**'
+              - '**/*.java'
+              - '**/*.kt'
+              - '**/*.gradle'
+              - '**/gradle.properties'
+              - '**/gradlew'
+              - '**/gradlew.bat'
             javascript-typescript:
-              - 'sdks/typescript/**'
+              - '**/*.js'
+              - '**/*.ts'
+              - '**/*.tsx'
+              - '**/*.jsx'
+              - '**/package.json'
+              - '**/package-lock.json'
+              - '**/tsconfig.json'
             python:
-              - 'sdks/python/**'
+              - '**/*.py'
+              - '**/*.pyx'
+              - '**/setup.py'
+              - '**/setup.cfg'
+              - '**/pyproject.toml'
+              - '**/requirements.txt'
             rust:
               - '**/*.rs'
+              - '**/Cargo.toml'
+              - '**/Cargo.lock'
 
       - name: Generate Matrix
         id: set-matrix
