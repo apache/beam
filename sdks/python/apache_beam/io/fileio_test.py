@@ -28,8 +28,10 @@ import unittest
 import uuid
 import warnings
 
-import apache_beam as beam
 import pytest
+from hamcrest.library.text import stringmatches
+
+import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystem import BeamIOError
@@ -48,7 +50,6 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
-from hamcrest.library.text import stringmatches
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')

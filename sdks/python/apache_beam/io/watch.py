@@ -377,8 +377,7 @@ def _hash_output(
   if use_timestamp:
     encoded_key = _HASH_KEY_AND_TIMESTAMP_CODER.encode(
         (encoded_key, Timestamp.of(timestamp)))
-  return hashlib.blake2b(
-      encoded_key, digest_size=_HASH_DIGEST_SIZE).digest()
+  return hashlib.blake2b(encoded_key, digest_size=_HASH_DIGEST_SIZE).digest()
 
 
 def _max_watermark(left: Optional[Timestamp],
@@ -469,8 +468,7 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
         return False
     else:
       expected = set(
-          self._hash(output)
-          for output in self._restriction.pending.outputs)
+          self._hash(output) for output in self._restriction.pending.outputs)
       if expected != set(claimed_hashes):
         return False
     self._should_stop = True
@@ -601,11 +599,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     # Read the clock after the poll so a slow poll counts against termination.
     now = Timestamp.of(self._now())
     new_results = _never_seen_before(
-        restriction,
-        result,
-        self._key_fn,
-        self._key_coder,
-        self._use_timestamp)
+        restriction, result, self._key_fn, self._key_coder, self._use_timestamp)
     termination_state = restriction.termination_state
     if new_results.outputs:
       termination_state = self._termination.on_seen_new_output(

@@ -128,8 +128,7 @@ class NeverSeenBeforeTest(unittest.TestCase):
 
   def test_use_timestamp_dedups_by_key_and_timestamp(self):
     result = PollResult.incomplete([_ts('a', 1), _ts('a', 2), _ts('a', 1)])
-    new_results = _new_results(
-        _initial_polling(), result, use_timestamp=True)
+    new_results = _new_results(_initial_polling(), result, use_timestamp=True)
     self.assertEqual([('a', Timestamp(1)), ('a', Timestamp(2))],
                      [(o.value, o.timestamp) for o in new_results.outputs])
 
