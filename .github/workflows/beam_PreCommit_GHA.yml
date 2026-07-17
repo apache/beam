@@ -42,7 +42,7 @@ permissions:
   packages: read
   pages: read
   repository-projects: read
-  security-events: read
+  security-events: write
   statuses: read
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -80,6 +80,10 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    - name: Run zizmor
+      uses: zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02 # v0.6.0
+      with:
+        advanced-security: true
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
