@@ -25,6 +25,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
@@ -49,6 +51,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -57,11 +60,9 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
@@ -553,29 +554,44 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
             .apply(Reshuffle.viaRandomKey());
       } else {
-        // Pass results via a side input rather than reshuffle, because we need to get an empty
-        // iterable to finalize if there are no results.
-        return input
-            .getPipeline()
-            .apply(
-                "AsPossiblyEmptyList",
-                Reify.viewInGlobalWindow(
-                    // Insert a reshuffle before taking the view to consolidate the (typically)
-                    // one-output-per-bundle writes.
-                    // This avoids producing a huge number of tiny files in the case that side
-                    // inputs are materialized to disk bundle-by-bundle.
-                    input.apply("Consolidate", Reshuffle.viaRandomKey()).apply(View.asIterable()),
-                    IterableCoder.of(resultCoder)))
-            // View.asIterable() can be (significantly) cheaper than View.asList(), as it does not
-            // create a backing indexable view, but we must return a list to maintain update
-            // compatibility for consumers that are shared between this path and the streaming one.
-            .apply(
-                "IterableToList",
-                MapElements.via(
-                    new SimpleFunction<Iterable<ResultT>, List<ResultT>>(
-                        x -> ImmutableList.copyOf(x)) {}))
-            .setCoder(ListCoder.of(resultCoder));
+        Coder<List<ResultT>> resultListCoder = ListCoder.of(resultCoder);
+        PCollection<List<ResultT>> resultBundles =
+            input
+                .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<>()))
+                .setCoder(resultListCoder);
+
+        // Add an empty list so empty, unwindowed writes still reach finalization. Grouping the
+        // bundle-sized lists on the main-input path also checkpoints the FileResults against
+        // retries without materializing and reading them back as a global side input.
+        PCollection<List<ResultT>> emptyResultList =
+            input
+                .getPipeline()
+                .apply(
+                    "CreateEmptyResultList",
+                    Create.<List<ResultT>>of(Collections.singletonList(Collections.emptyList()))
+                        .withCoder(resultListCoder));
+
+        return PCollectionList.of(resultBundles)
+            .and(emptyResultList)
+            .apply("EnsureNonEmpty", Flatten.pCollections())
+            .apply("Add void key", WithKeys.of((Void) null))
+            .setCoder(KvCoder.of(VoidCoder.of(), resultListCoder))
+            .apply("Gather all results", GroupByKey.create())
+            .apply("Extract results", ParDo.of(new ExtractGatheredResultsFn<>()))
+            .setCoder(resultListCoder);
       }
+    }
+  }
+
+  private static class ExtractGatheredResultsFn<T>
+      extends DoFn<KV<Void, Iterable<List<T>>>, List<T>> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      List<T> results = new ArrayList<>();
+      for (List<T> bundleResults : c.element().getValue()) {
+        results.addAll(bundleResults);
+      }
+      c.output(results);
     }
   }
 
@@ -1350,7 +1366,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         } else {
           fixedNumShards = null;
         }
-        List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
+        List<FileResult<DestinationT>> fileResults = c.element();
         LOG.info("Finalizing {} file results", fileResults.size());
         if (fileResults.isEmpty() && getSkipIfEmpty()) {
           return;

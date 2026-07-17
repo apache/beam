@@ -61,6 +61,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -221,6 +222,26 @@ public class WriteFilesTest {
         Collections.emptyList(),
         Optional.of(1),
         true /* expectRemovedTempDirectory */);
+  }
+
+  @Test
+  public void testUnwindowedGatherDoesNotMaterializeResultsAsSideInput() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()));
+
+    List<String> resultViews = new ArrayList<>();
+    pipeline.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            if (node.getFullName().contains("GatherTempFileResults")
+                && node.getTransform() instanceof View.CreatePCollectionView) {
+              resultViews.add(node.getFullName());
+            }
+          }
+        });
+
+    assertThat(resultViews, Matchers.empty());
   }
 
   /**
