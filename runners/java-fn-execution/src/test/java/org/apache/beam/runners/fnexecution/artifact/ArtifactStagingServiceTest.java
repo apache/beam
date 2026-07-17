@@ -166,6 +166,27 @@ public class ArtifactStagingServiceTest {
     checkArtifacts(contentsList, staged.get("env2"));
   }
 
+  @Test
+  public void testStageArtifactsWithInvalidFilenameCharacters()
+      throws InterruptedException, ExecutionException {
+    String environment = "0:ref_Environment_default";
+    List<String> contentsList = ImmutableList.of("artifact-content");
+
+    stagingService.registerJob(
+        "stagingToken",
+        ImmutableMap.of(
+            environment,
+            Lists.transform(contentsList, FakeArtifactRetrievalService::resolvedArtifact)));
+
+    ArtifactStagingService.offer(new FakeArtifactRetrievalService(), stagingStub, "stagingToken");
+
+    Map<String, List<RunnerApi.ArtifactInformation>> staged =
+        stagingService.getStagedArtifacts("stagingToken");
+
+    assertEquals(1, staged.size());
+    checkArtifacts(contentsList, staged.get(environment));
+  }
+
   private void checkArtifacts(
       List<String> expectedContents, List<RunnerApi.ArtifactInformation> staged) {
     assertEquals(
