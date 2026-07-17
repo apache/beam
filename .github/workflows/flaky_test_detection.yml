@@ -39,6 +39,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with: 
           python-version: 3.11

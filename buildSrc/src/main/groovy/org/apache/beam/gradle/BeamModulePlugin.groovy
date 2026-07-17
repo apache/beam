@@ -993,6 +993,13 @@ class BeamModulePlugin implements Plugin<Project> {
       if (!project.findProperty("java${ver}Home")) {
         return
       }
+      // TODO(yathu): remove this once generated code (antlr) no longer trigger "this-escape", see above
+      // Unpin global opts when ver is lower than current
+      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0 && JavaVersion.toVersion(ver) < JavaVersion.VERSION_21) {
+        options.compilerArgs -= [
+          '-Xlint:-this-escape',
+        ]
+      }
       if (ver == '8') {
         def java8Home = project.findProperty("java8Home")
         options.fork = true

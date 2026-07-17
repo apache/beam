@@ -92,6 +92,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RC_TAG }}
+          persist-credentials: false
 
       - name: Download validate_table.sh from master branch
         run: |
@@ -119,18 +120,18 @@ jobs:
 
       - name: Download RC Artifacts
         run: |
-          echo "Downloading from ${{ env.APACHE_DIST_URL_BASE }}"
-          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}
-          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
-          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}
-          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}.sha512
+          echo "Downloading from ${APACHE_DIST_URL_BASE}"
+          wget ${APACHE_DIST_URL_BASE}/python/${BEAM_PYTHON_SDK_TAR_GZ}
+          wget ${APACHE_DIST_URL_BASE}/python/${BEAM_PYTHON_SDK_TAR_GZ}.sha512
+          wget ${APACHE_DIST_URL_BASE}/${BEAM_SOURCE_ZIP}
+          wget ${APACHE_DIST_URL_BASE}/${BEAM_SOURCE_ZIP}.sha512
         shell: bash
 
       - name: Verify Hashes
         run: |
           echo "Verifying sha512 checksums..."
-          sha512sum -c ${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
-          sha512sum -c ${{ env.BEAM_SOURCE_ZIP }}.sha512
+          sha512sum -c ${BEAM_PYTHON_SDK_TAR_GZ}.sha512
+          sha512sum -c ${BEAM_SOURCE_ZIP}.sha512
         shell: bash
 
       - name: Setup Python Virtual Environment
@@ -146,19 +147,19 @@ jobs:
         run: |
           echo "Building Python SDK sdist..."
           source beam_env/bin/activate
-          unzip ${{ env.BEAM_SOURCE_ZIP }}
-          mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
+          unzip ${BEAM_SOURCE_ZIP}
+          mkdir -p beam-${RELEASE_VERSION}/website/www/site/content/en/documentation/sdks
           sudo mkdir -p /website/www/site/content/en/documentation/sdks
-          cd beam-${{ env.RELEASE_VERSION }}/sdks/python
+          cd beam-${RELEASE_VERSION}/sdks/python
           python -m build --sdist
         shell: bash
 
       - name: Install Python SDK
         run: |
-          echo "Installing built Python SDK: apache_beam-${{ env.RELEASE_VERSION }}.tar.gz"
+          echo "Installing built Python SDK: apache_beam-${RELEASE_VERSION}.tar.gz"
           source beam_env/bin/activate
-          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
-          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
+          pip install beam-${RELEASE_VERSION}/sdks/python/dist/apache_beam-${RELEASE_VERSION}.tar.gz
+          pip install beam-${RELEASE_VERSION}/sdks/python/dist/apache_beam-${RELEASE_VERSION}.tar.gz[gcp]
           echo "SDK installed."
           pip freeze # Log installed packages
         shell: bash
@@ -166,8 +167,8 @@ jobs:
       # ================== GCP Resource Setup ==================
       - name: Create BigQuery Dataset
         run: |
-          echo "Creating BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
-          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.BQ_DATASET }}
+          echo "Creating BigQuery dataset: ${BQ_DATASET} in project ${{ env.GCP_PROJECT_ID }}"
+          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${BQ_DATASET}
         shell: bash
 
       - name: Create GCS Bucket (if needed - reusing input bucket)
@@ -178,8 +179,8 @@ jobs:
 
       - name: Create PubSub Topic
         run: |
-          echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
-          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
+          echo "Creating PubSub topic: ${PUBSUB_TOPIC} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${PUBSUB_TOPIC}
         shell: bash
 
       # ================== Java Data Injector ==================
@@ -196,9 +197,9 @@ jobs:
                 </activation>
                 <repositories>
                   <repository>
-                    <id>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</id>
-                    <name>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</name>
-                    <url>${{ env.APACHE_REPO_URL }}</url>
+                    <id>Release ${RELEASE_VERSION} RC${RC_NUM}</id>
+                    <name>Release ${RELEASE_VERSION} RC${RC_NUM}</name>
+                    <url>${APACHE_REPO_URL}</url>
                   </repository>
                 </repositories>
               </profile>
@@ -215,7 +216,7 @@ jobs:
           mvn archetype:generate \
               -DarchetypeGroupId=org.apache.beam \
               -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-              -DarchetypeVersion=${{ env.RELEASE_VERSION }} \
+              -DarchetypeVersion=${RELEASE_VERSION} \
               -DgroupId=org.example \
               -DartifactId=injector-temp \
               -Dversion="0.1" \
@@ -228,7 +229,7 @@ jobs:
           cd injector-temp
           # Compile and run, redirecting output to avoid polluting workflow logs
           mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
-            -Dexec.args="${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} none" \
+            -Dexec.args="${{ env.GCP_PROJECT_ID }} ${PUBSUB_TOPIC} none" \
             -Dmaven.wagon.http.retryHandler.count=3 \
             -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 > ../injector_run.log 2>&1 &
 
@@ -258,8 +259,8 @@ jobs:
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.leader_board \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
-            --dataset ${{ env.BQ_DATASET }} &
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${PUBSUB_TOPIC} \
+            --dataset ${BQ_DATASET} &
 
           LB_DIRECT_PID=$!
           echo "Leaderboard (Direct Runner) started in background with PID: ${LB_DIRECT_PID}"
@@ -297,11 +298,11 @@ jobs:
           python -m apache_beam.examples.complete.game.leader_board \
             --project=${{ env.GCP_PROJECT_ID }} \
             --region=${{ env.GCE_REGION }} \
-            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
-            --dataset ${{ env.BQ_DATASET }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${PUBSUB_TOPIC} \
+            --dataset ${BQ_DATASET} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/leaderboard/ \
-            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --sdk_location=apache_beam-${RELEASE_VERSION}.tar.gz \
             > leaderboard_dataflow_submit.log 2>&1 &
 
           LB_DF_PID=$!
@@ -379,8 +380,8 @@ jobs:
           source beam_env/bin/activate
           python -m apache_beam.examples.complete.game.game_stats \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
-            --dataset ${{ env.BQ_DATASET }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${PUBSUB_TOPIC} \
+            --dataset ${BQ_DATASET} \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} &
 
           GS_DIRECT_PID=$!
@@ -420,11 +421,11 @@ jobs:
           python -m apache_beam.examples.complete.game.game_stats \
             --project=${{ env.GCP_PROJECT_ID }} \
             --region=${{ env.GCE_REGION }} \
-            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
-            --dataset ${{ env.BQ_DATASET }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${PUBSUB_TOPIC} \
+            --dataset ${BQ_DATASET} \
             --runner DataflowRunner \
             --temp_location=${{ env.GCS_BUCKET }}/temp/gamestats/ \
-            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --sdk_location=apache_beam-${RELEASE_VERSION}.tar.gz \
             --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} \
             > gamestats_dataflow_submit.log 2>&1 &
 
@@ -524,8 +525,8 @@ jobs:
       - name: Cleanup BigQuery Dataset
         if: always() && github.event.inputs.CLEANUP_BQ_RESOURCES == 'true'
         run: |
-          echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
-          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
+          echo "Deleting BigQuery dataset: ${BQ_DATASET} in project ${{ env.GCP_PROJECT_ID }}"
+          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${BQ_DATASET} || echo "Failed to delete BQ dataset ${BQ_DATASET}, continuing..."
         shell: bash
 
       - name: Cleanup GCS Bucket Objects and Logs
@@ -543,6 +544,6 @@ jobs:
       - name: Cleanup PubSub Topic
         if: always()
         run: |
-          echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
-          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
+          echo "Deleting PubSub topic: ${PUBSUB_TOPIC} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${PUBSUB_TOPIC} --quiet || echo "Failed to delete PubSub topic ${PUBSUB_TOPIC}, continuing..."
         shell: bash

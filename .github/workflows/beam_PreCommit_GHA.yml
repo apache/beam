@@ -42,7 +42,7 @@ permissions:
   packages: read
   pages: read
   repository-projects: read
-  security-events: write
+  security-events: read
   statuses: read
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -72,16 +72,14 @@ jobs:
       github.event.comment.body == 'Run GHA PreCommit'
     steps:
     - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    - name: Run zizmor
-      uses: zizmorcore/zizmor-action@192e21d79ab29983730a13d1382995c2307fbcaa # v0.5.7
-      with:
-        advanced-security: true
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:

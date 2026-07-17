@@ -36,7 +36,9 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7        
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false        
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 
@@ -50,9 +52,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Publish github release notes
         run: |
-          POST_PATH="website/www/site/content/en/blog/beam-${{env.RELEASE_VERSION}}.md"
+          POST_PATH="website/www/site/content/en/blog/beam-${RELEASE_VERSION}.md"
           RELEASE_NOTES=$(
           cat ${POST_PATH} |                               # Read post's content
           sed -n '/<!--/,$p' |                             # Remove post's metadata
@@ -73,7 +77,7 @@ jobs:
           echo -e "Below is the request JSON about to be sent to the Github API:\n\n ${REQUEST_JSON}\n\n"
           curl https://api.github.com/repos/apache/beam/releases \
           -X POST \
-          -H "Authorization: token ${{env.GITHUB_TOKEN}}" \
+          -H "Authorization: token ${GITHUB_TOKEN}" \
           -H "Content-Type:application/json" \
           -d "${REQUEST_JSON}"
           echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VERSION}"
