@@ -83,7 +83,6 @@ public class IcebergUtils {
           .put(SqlTypes.DATETIME.getIdentifier(), Types.TimestampType.withoutZone())
           .put(SqlTypes.UUID.getIdentifier(), Types.UUIDType.get())
           .put(MicrosInstant.IDENTIFIER, Types.TimestampType.withZone())
-          .put(Timestamp.IDENTIFIER, Types.TimestampType.withZone())
           .build();
 
   private static Schema.FieldType icebergTypeToBeamFieldType(
@@ -224,7 +223,17 @@ public class IcebergUtils {
       String logicalTypeIdentifier = logicalType.getIdentifier();
       @Nullable Type type = BEAM_LOGICAL_TYPES_TO_ICEBERG_TYPES.get(logicalTypeIdentifier);
       if (type == null) {
-        throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
+        if (beamType.isLogicalType(Timestamp.IDENTIFIER)) {
+          int precision = checkStateNotNull(logicalType.getArgument());
+          if (precision == Timestamp.MICROS.getArgument()) {
+            type = Types.TimestampType.withZone();
+          } else {
+            throw new UnsupportedOperationException(
+                "Unsupported Timestamp precision: " + precision);
+          }
+        } else {
+          throw new RuntimeException("Unsupported Beam logical type " + logicalTypeIdentifier);
+        }
       }
       return new TypeAndMaxId(--nestedFieldId, type);
     } else if (beamType.getTypeName().isCollectionType()) { // ARRAY or ITERABLE
