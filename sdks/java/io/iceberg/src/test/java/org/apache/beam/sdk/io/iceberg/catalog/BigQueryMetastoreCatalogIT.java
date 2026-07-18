@@ -116,8 +116,6 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .map(tr -> BigQueryUtils.toBeamRow(BEAM_SCHEMA, tr))
             .collect(Collectors.toList());
 
-    System.out.println("returned: " + beamRows);
-    System.out.println("expected: " + inputRows);
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =
