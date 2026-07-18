@@ -15,12 +15,15 @@
 # limitations under the License.
 #
 import unittest
+from unittest import mock
 
 from parameterized import parameterized
 
 try:
+  from apache_beam.ml.rag.ingestion import milvus_search as milvus_search_module
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusVectorWriterConfig
   from apache_beam.ml.rag.ingestion.milvus_search import MilvusWriteConfig
+  from apache_beam.ml.rag.ingestion.milvus_search import _MilvusSink
   from apache_beam.ml.rag.utils import MilvusConnectionParameters
 except ImportError as e:
   raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
@@ -117,6 +120,37 @@ class TestMilvusVectorWriterConfig(unittest.TestCase):
           connection_params=connection_params, write_config=write_config)
 
     self.assertIn(expected_error_msg, str(context.exception))
+
+
+class TestMilvusSinkClientReuse(unittest.TestCase):
+  """Unit tests for Milvus sink client reuse.
+
+  Verifies that ``_MilvusSink.write`` reuses the client established in
+  ``__enter__`` instead of constructing (and leaking) a new client on every
+  write.
+  """
+  def _sink(self):
+    connection_params = MilvusConnectionParameters(uri="http://localhost:19530")
+    write_config = MilvusWriteConfig(collection_name="test_collection")
+    return _MilvusSink(connection_params, write_config)
+
+  def test_write_reuses_enter_client(self):
+    """write() must not construct a new MilvusClient per call."""
+    with mock.patch.object(milvus_search_module,
+                           'MilvusClient') as mock_client_cls:
+      with self._sink() as sink:
+        # One client created on __enter__.
+        self.assertEqual(mock_client_cls.call_count, 1)
+
+        sink.write([{"id": 1}])
+        sink.write([{"id": 2}])
+
+        # write() reuses that client; no new construction.
+        self.assertEqual(mock_client_cls.call_count, 1)
+        self.assertEqual(mock_client_cls.return_value.upsert.call_count, 2)
+
+      # Client closed once on __exit__.
+      self.assertEqual(mock_client_cls.return_value.close.call_count, 1)
 
 
 if __name__ == '__main__':
