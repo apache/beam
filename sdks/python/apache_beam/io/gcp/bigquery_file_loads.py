@@ -795,18 +795,18 @@ class TriggerLoadJobs(beam.DoFn):
         if hashed_dest in self.schema_cache:
           schema = self.schema_cache[hashed_dest]
         elif destination_table is not None:
-          try:
-            schema = bigquery_tools.table_schema_to_dict(
-                destination_table.schema)
+          destination_schema = getattr(destination_table, 'schema', None)
+          if isinstance(destination_schema,
+                        bigquery_tools.bigquery.TableSchema):
+            schema = bigquery_tools.table_schema_to_dict(destination_schema)
             self.schema_cache[hashed_dest] = schema
-          except Exception as e:
+          else:
             _LOGGER.warning(
-                "Input schema is absent and could not fetch the final "
-                "destination table's schema [%s]. Creating temp table [%s] "
-                "will likely fail: %s",
+                "Input schema is absent and the final destination table [%s] "
+                "does not have a usable schema. Creating temp table [%s] will "
+                "likely fail.",
                 hashed_dest,
-                job_name,
-                e)
+                job_name)
 
       if (destination_table is not None and
           not _has_partitioning_load_parameters(additional_parameters)):

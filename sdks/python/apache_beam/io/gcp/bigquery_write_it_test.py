@@ -42,6 +42,7 @@ from apache_beam.io.gcp.bigquery import BigQueryWriteFn
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import FileFormat
 from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.tests.bigquery_matcher import BigQueryTableMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
@@ -87,7 +88,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           self.dataset_id,
           self.project)
 
-  def create_table(self, table_name):
+  def create_table(self, table_name, time_partitioning=None):
     table_schema = bigquery.TableSchema()
     table_field = bigquery.TableFieldSchema()
     table_field.name = 'int64'
@@ -112,6 +113,8 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
             datasetId=self.dataset_id,
             tableId=table_name),
         schema=table_schema)
+    if time_partitioning is not None:
+      table.timePartitioning = time_partitioning
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
@@ -375,6 +378,72 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
           | 'write' >> beam.io.WriteToBigQuery(
               table_id,
               write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+              temp_file_format=FileFormat.JSON))
+
+  @pytest.mark.it_postcommit
+  @mock.patch(
+      "apache_beam.io.gcp.bigquery_file_loads._MAXIMUM_SOURCE_URIS", new=1)
+  @retry(reraise=True, stop=stop_after_attempt(3))
+  def test_big_query_file_loads_existing_partitioned_table(self):
+    table_name = 'python_file_loads_partitioned_table'
+    self.create_table(
+        table_name,
+        time_partitioning=bigquery.TimePartitioning(field='date', type='DAY'))
+    table_id = '{}.{}'.format(self.dataset_id, table_name)
+
+    input_data = [{
+        'int64': 1, 'bytes': b'abc', 'date': '2026-01-01', 'time': '00:00:00'
+    },
+                  {
+                      'int64': 2,
+                      'bytes': b'xyz',
+                      'date': '2026-01-02',
+                      'time': '12:34:56'
+                  }]
+    for row in input_data:
+      row['bytes'] = base64.b64encode(row['bytes'])
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(
+            BigqueryFullResultMatcher(
+                project=self.project,
+                query=(
+                    "SELECT int64, bytes, date, time FROM %s ORDER BY int64" %
+                    table_id),
+                data=[
+                    (
+                        1,
+                        b'abc',
+                        datetime.date(2026, 1, 1),
+                        datetime.time(0, 0, 0),
+                    ),
+                    (
+                        2,
+                        b'xyz',
+                        datetime.date(2026, 1, 2),
+                        datetime.time(12, 34, 56),
+                    ),
+                ]),
+            BigQueryTableMatcher(
+                project=self.project,
+                dataset=self.dataset_id,
+                table=table_name,
+                expected_properties={
+                    'timePartitioning': {
+                        'field': 'date',
+                        'type': 'DAY',
+                    }
+                })))
+
+    with beam.Pipeline(argv=args) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p | 'create' >> beam.Create(input_data)
+          | 'write' >> beam.io.WriteToBigQuery(
+              table_id,
+              write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+              max_file_size=1,  # bytes
+              method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               temp_file_format=FileFormat.JSON))
 
   @pytest.mark.it_postcommit
