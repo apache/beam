@@ -64,6 +64,8 @@ jobs:
         job_phrase: ["Run Python_Xlang_IO_Direct PostCommit"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -73,9 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: |
             3.10
             3.14
@@ -84,8 +84,7 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:ioCrossLanguagePostCommit
           arguments: |
-            -PuseWheelDistribution \
-            -Pjava17Home=$JAVA_HOME_17_X64
+            -PuseWheelDistribution
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

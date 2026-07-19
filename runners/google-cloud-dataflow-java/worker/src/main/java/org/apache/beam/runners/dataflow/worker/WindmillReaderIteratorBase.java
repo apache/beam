@@ -35,9 +35,9 @@ import org.slf4j.LoggerFactory;
 public abstract class WindmillReaderIteratorBase<T>
     extends NativeReader.NativeReaderIterator<WindowedValue<T>> {
   private final StreamingModeExecutionContext context;
-  private final Windmill.WorkItem work;
-  private int bundleIndex = 0;
-  private int messageIndex = -1;
+  private Windmill.WorkItem work;
+  private int bundleIndex;
+  private int messageIndex;
   private @Nullable WindowedValue<T> current = null;
   private final ValueProvider<Boolean> skipUndecodableElements;
   private static final Logger LOG = LoggerFactory.getLogger(WindmillReaderIteratorBase.class);
@@ -47,6 +47,8 @@ public abstract class WindmillReaderIteratorBase<T>
     this.context = context;
     this.skipUndecodableElements = skipUndecodableElements;
     this.work = context.getWorkItem();
+    this.bundleIndex = 0;
+    this.messageIndex = -1;
   }
 
   @Override
@@ -57,15 +59,25 @@ public abstract class WindmillReaderIteratorBase<T>
   @Override
   public boolean advance() throws IOException {
     if (context.workIsFailed()) {
-      throw new WorkItemCancelledException(context.getWorkItem().getShardingKey());
+      throw new WorkItemCancelledException(checkNotNull(context.getWorkItem()).getShardingKey());
     }
 
     while (true) {
       if (bundleIndex >= work.getMessageBundlesCount()) {
-        current = null;
+        // If elements are exhausted, try advancing the execution context to the next key in the
+        // group
         context.finishKey();
+        if (context.advance()) {
+          // Transition succeeded! Update iterator references to the new work item
+          resetWorkFromContext();
+          continue;
+        }
+
+        // All work items are exhausted.
+        current = null;
         return false;
       }
+
       Windmill.InputMessageBundle bundle = work.getMessageBundles(bundleIndex);
       ++messageIndex;
       if (messageIndex >= bundle.getMessagesCount()) {
@@ -73,6 +85,7 @@ public abstract class WindmillReaderIteratorBase<T>
         ++bundleIndex;
         continue;
       }
+
       try {
         current = checkNotNull(decodeMessage(bundle.getMessages(messageIndex)));
         return true;
@@ -89,6 +102,12 @@ public abstract class WindmillReaderIteratorBase<T>
         throw e;
       }
     }
+  }
+
+  private void resetWorkFromContext() {
+    this.work = context.getWorkItem();
+    this.bundleIndex = 0;
+    this.messageIndex = -1;
   }
 
   protected abstract WindowedValue<T> decodeMessage(Windmill.Message message) throws IOException;

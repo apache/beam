@@ -64,6 +64,8 @@ jobs:
         job_phrase: ["Run Python_Xlang_IO_Dataflow PostCommit"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -73,9 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: |
             3.10
             3.14
@@ -86,8 +86,7 @@ jobs:
           arguments: |
             -PpythonVersion=3.14 \
             -PuseWheelDistribution \
-            -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094 \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PkafkaBootstrapServer=10.128.0.40:9094,10.128.0.28:9094,10.128.0.165:9094
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

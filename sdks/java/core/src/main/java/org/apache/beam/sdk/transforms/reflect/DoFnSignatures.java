@@ -2421,7 +2421,8 @@ public class DoFnSignatures {
   }
 
   private static String format(Class<?> kls) {
-    return kls.getSimpleName().isEmpty() ? kls.getName() : kls.getSimpleName();
+    String simpleName = ReflectHelpers.getSimpleName(kls);
+    return simpleName.isEmpty() ? kls.getName() : simpleName;
   }
 
   static class ErrorReporter {

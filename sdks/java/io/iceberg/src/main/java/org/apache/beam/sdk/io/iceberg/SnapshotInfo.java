@@ -94,7 +94,8 @@ public abstract class SnapshotInfo {
   @SchemaIgnore
   public TableIdentifier getTableIdentifier() {
     if (cachedTableIdentifier == null) {
-      cachedTableIdentifier = TableIdentifier.parse(checkStateNotNull(getTableIdentifierString()));
+      cachedTableIdentifier =
+          IcebergUtils.parseTableIdentifier(checkStateNotNull(getTableIdentifierString()));
     }
     return cachedTableIdentifier;
   }

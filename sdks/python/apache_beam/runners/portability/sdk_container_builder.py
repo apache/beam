@@ -243,7 +243,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build = cloud_build_types.Build()
     if self._cloud_build_machine_type:
       build.options = cloud_build_types.BuildOptions()
-      build.options.machineType = self._cloud_build_machine_type
+      build.options.machine_type = self._cloud_build_machine_type
     build.steps = []
     step = cloud_build_types.BuildStep()
     step.name = 'quay.io/buildah/stable:latest'

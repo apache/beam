@@ -43,10 +43,32 @@ LOOKS_TO_DOWNLOAD = [
     ("82", ["263", "264", "265", "266", "267"]),  # PyTorch Sentiment Streaming DistilBERT base uncased
     ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
     ("86", ["284", "285", "286", "287", "288"]),  # VLLM Batch Gemma
+
+    # PyTorch Image Classification EfficientNet-B0 Streaming (Right-fit) CPU
+    ("92", ["289", "290", "291", "292", "293"]),
+    ("97", ["306", "307", "308", "309", "310"]),
+    ("98", ["311", "312", "313", "314", "315"]),
+    ("99", ["316", "317", "318", "319", "320"]),
+
+    # PyTorch Image Object Detection Faster R-CNN ResNet-50 Batch CPU
+    ("93", ["294", "295", "296", "298", "299"]),
+    ("100", ["321", "322", "323", "324", "325"]),
+    ("101", ["326", "327", "328", "329", "330"]),
+    ("102", ["331", "332", "333", "334", "335"]),
+
+    # PyTorch Image Captioning BLIP + CLIP Batch CPU
+    ("94", ["297", "300", "301", "302", "303"]),
+    ("103", ["336", "337", "338", "339", "340"]),
+    ("104", ["341", "342", "343", "344", "345"]),
+    ("105", ["346", "347", "348", "349", "350"]),
+
     ("96", ["270", "304", "305", "353", "354"]),   # Table Row Inference Sklearn Batch
     ("106", ["355", "356", "357", "358", "359"]),   # Table Row Inference Sklearn Streaming
     ("107", ["360", "361", "362", "363", "364"]),  # MLTransform Generate Vocab Batch
-    ("108", ["365", "366", "367", "368", "369"])   # MLTransform One-Hot Encoding Batch
+    ("108", ["365", "366", "367", "368", "369"]),  # MLTransform One-Hot Encoding Batch
+    ("109", ["375", "376", "377", "378", "379"]),  # MLTransform Text Embedding Batch
+    ("110", ["380", "381", "382", "383", "385"]),  # MLTransform Image Embedding GPU Batch
+    ("111", ["370", "371", "372", "373", "374"]),  # MLTransform Image Embedding CPU Batch
 ]
 
 def get_look(id: str) -> models.Look:
