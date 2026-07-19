@@ -134,6 +134,11 @@ tasks.register("validatesRunner", Test) {
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
   }
   filter {
+    // The suites enabled so far, extended class by class as runner support grows. An explicit
+    // include list is needed because feature gaps like windowing beyond the global window have no
+    // JUnit category to exclude.
+    includeTestsMatching 'org.apache.beam.sdk.transforms.CreateTest'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest'
     for (String test : sickbayTests) {
       excludeTestsMatching test
     }
