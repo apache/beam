@@ -149,8 +149,9 @@ class TestMilvusSinkClientReuse(unittest.TestCase):
         self.assertEqual(mock_client_cls.call_count, 1)
         self.assertEqual(mock_client_cls.return_value.upsert.call_count, 2)
 
-      # Client closed once on __exit__.
+      # Client closed once on __exit__, and cleared so the sink can be reused.
       self.assertEqual(mock_client_cls.return_value.close.call_count, 1)
+      self.assertIsNone(sink._client)
 
 
 if __name__ == '__main__':

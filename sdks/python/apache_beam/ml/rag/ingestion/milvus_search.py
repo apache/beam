@@ -348,3 +348,4 @@ class _MilvusSink:
     _ = exc_type, exc_val, exc_tb  # Unused parameters
     if self._client:
       self._client.close()
+      self._client = None
