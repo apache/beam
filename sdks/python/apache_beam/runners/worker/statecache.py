@@ -338,6 +338,22 @@ class StateCache(object):
       if weighted_value is not None:
         self._current_weight -= weighted_value.weight()
 
+  def invalidate_if_value(self, key: Any, expected_value: Any) -> None:
+    """Removes the entry for key only if it still holds expected_value.
+
+    Lets callers that discover a previously returned value is unusable drop
+    it without evicting a newer value cached under the same key.
+    """
+    assert self.is_cache_enabled()
+    with self._lock:
+      weighted_value = self._cache.get(key, None)
+      if weighted_value is None or _safe_isinstance(weighted_value,
+                                                    _LoadingValue):
+        return
+      if weighted_value.value() is not expected_value:
+        return
+      self.invalidate(key)
+
   def invalidate_all(self) -> None:
     with self._lock:
       self._cache.clear()

@@ -158,6 +158,42 @@ class StateCacheTest(unittest.TestCase):
             'used/max 2/2 MB, hit 100.00%, lookups 0, '
             'avg load time 0 ns, loads 0, evictions 1'))
 
+  def test_invalidate_if_value(self):
+    cache = StateCache(5 << 20)
+    value = ['value']
+    cache.put("key", WeightedValue(value, 1 << 20))
+    # Equal but not identical: must not be removed.
+    cache.invalidate_if_value("key", ['value'])
+    self.assertEqual(cache.peek("key"), value)
+    cache.invalidate_if_value("key2", value)
+    cache.invalidate_if_value("key", value)
+    self.assertEqual(cache.peek("key"), None)
+    self.assertEqual(cache.size(), 0)
+
+  def test_invalidate_if_value_ignores_in_flight_load(self):
+    cache = StateCache(5 << 20)
+    value = 'value'
+    load_started = threading.Event()
+    finish_load = threading.Event()
+
+    def load(_key):
+      load_started.set()
+      finish_load.wait()
+      return value
+
+    result = []
+    loader = threading.Thread(
+        target=lambda: result.append(cache.get("key", load)))
+    loader.start()
+    load_started.wait()
+    # Must neither block on nor remove the in-flight load.
+    cache.invalidate_if_value("key", value)
+    self.assertEqual(cache.size(), 1)
+    finish_load.set()
+    loader.join()
+    self.assertEqual(result, [value])
+    self.assertEqual(cache.peek("key"), value)
+
   def test_invalidate_all(self):
     cache = StateCache(5 << 20)
     cache.put("key", WeightedValue("value", 1 << 20))

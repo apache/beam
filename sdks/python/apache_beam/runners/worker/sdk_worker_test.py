@@ -558,6 +558,31 @@ class CachingStateHandlerTest(unittest.TestCase):
     def process_instruction_id(self, bundle_id):
       yield
 
+  class RevokableStateHandler(UnderlyingStateHandler):
+    """State handler whose continuation tokens can be permanently revoked,
+    as happens when a runner loses the work item that created them.
+    """
+    def __init__(self):
+      super().__init__()
+      self._token_epoch = 0
+      self.initial_read_count = 0
+
+    def revoke_outstanding_tokens(self):
+      self._token_epoch += 1
+
+    def get_raw(self, _state_key, continuation_token=None):
+      if continuation_token:
+        epoch, token = continuation_token.split(':')
+        if int(epoch) != self._token_epoch:
+          raise RuntimeError('continuation token no longer valid')
+        continuation_token = token
+      else:
+        self.initial_read_count += 1
+      data, next_token = super().get_raw(_state_key, continuation_token)
+      if next_token is not None:
+        next_token = '%d:%s' % (self._token_epoch, next_token)
+      return data, next_token
+
   def test_append_clear_with_preexisting_state(self):
     state = beam_fn_api_pb2.StateKey(
         bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
@@ -648,6 +673,89 @@ class CachingStateHandlerTest(unittest.TestCase):
         append(i)
       self.assertEqual(get_type(), list)
       self.assertEqual(get(), [i for i in range(1000)])
+
+  def _make_revokable_handler(self):
+    underlying_state_handler = self.RevokableStateHandler()
+    state_cache = statecache.StateCache(100 << 20)
+    handler = GlobalCachingStateHandler(state_cache, underlying_state_handler)
+
+    coder = VarIntCoder()
+
+    state = beam_fn_api_pb2.StateKey(
+        bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
+            user_state_id='state1'))
+
+    cache_token = beam_fn_api_pb2.ProcessBundleRequest.CacheToken(
+        token=b'state_token1',
+        user_state=beam_fn_api_pb2.ProcessBundleRequest.CacheToken.UserState())
+
+    underlying_state_handler.set_continuations(True)
+    underlying_state_handler.set_values([45, 46, 47], coder)
+    return underlying_state_handler, handler, coder, state, cache_token
+
+  def test_failed_continuation_invalidates_cached_iterable(self):
+    (underlying_state_handler, handler, coder, state,
+     cache_token) = self._make_revokable_handler()
+
+    with handler.process_instruction_id('bundle1', [cache_token]):
+      iterable = handler.blocking_get(state, coder.get_impl())
+      self.assertIsInstance(
+          iterable, GlobalCachingStateHandler.ContinuationIterable)
+      underlying_state_handler.revoke_outstanding_tokens()
+      with self.assertRaises(RuntimeError):
+        list(iterable)
+
+    with handler.process_instruction_id('bundle2', [cache_token]):
+      self.assertEqual([45, 46, 47],
+                       list(handler.blocking_get(state, coder.get_impl())))
+
+  def test_failed_continuation_invalidates_after_partial_yield(self):
+    (underlying_state_handler, handler, coder, state,
+     cache_token) = self._make_revokable_handler()
+
+    with handler.process_instruction_id('bundle1', [cache_token]):
+      iterator = iter(handler.blocking_get(state, coder.get_impl()))
+      self.assertEqual(45, next(iterator))
+      self.assertEqual(46, next(iterator))
+      underlying_state_handler.revoke_outstanding_tokens()
+      with self.assertRaises(RuntimeError):
+        next(iterator)
+
+    with handler.process_instruction_id('bundle2', [cache_token]):
+      self.assertEqual([45, 46, 47],
+                       list(handler.blocking_get(state, coder.get_impl())))
+
+  def test_stale_failed_iterable_does_not_evict_replacement(self):
+    (underlying_state_handler, handler, coder, state,
+     cache_token) = self._make_revokable_handler()
+
+    with handler.process_instruction_id('bundle1', [cache_token]):
+      stale = handler.blocking_get(state, coder.get_impl())
+      underlying_state_handler.revoke_outstanding_tokens()
+      with self.assertRaises(RuntimeError):
+        list(stale)
+
+    with handler.process_instruction_id('bundle2', [cache_token]):
+      replacement = handler.blocking_get(state, coder.get_impl())
+      self.assertEqual([45, 46, 47], list(replacement))
+      # Failing the stale iterable again must not evict the replacement.
+      with self.assertRaises(RuntimeError):
+        list(stale)
+      self.assertIs(replacement, handler.blocking_get(state, coder.get_impl()))
+      self.assertEqual(2, underlying_state_handler.initial_read_count)
+
+  def test_invalidation_failure_does_not_mask_continuation_error(self):
+    def failing_continuation():
+      raise RuntimeError('continuation token no longer valid')
+
+    def failing_invalidation(_value):
+      raise ValueError('invalidation failed')
+
+    iterable = GlobalCachingStateHandler.ContinuationIterable(
+        [45, 46], failing_continuation, on_failure=failing_invalidation)
+    # The continuation error must propagate despite the failing callback.
+    with self.assertRaises(RuntimeError):
+      list(iterable)
 
 
 class ShortIdCacheTest(unittest.TestCase):
