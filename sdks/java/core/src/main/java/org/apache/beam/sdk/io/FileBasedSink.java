@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -662,8 +663,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       if (numShards != null) {
         resultsWithShardNumbers = Lists.newArrayList(completeResults);
       } else {
+        List<FileResult<DestinationT>> orderedResults = Lists.newArrayList(completeResults);
+        if (!windowedWrites) {
+          // Runner-determined shard numbers are positional. Use a stable order so retries after a
+          // partial rename cannot map the same temporary file to a different final shard.
+          orderedResults.sort(Comparator.comparing(result -> result.getTempFilename().toString()));
+        }
         int i = 0;
-        for (FileResult<DestinationT> res : completeResults) {
+        for (FileResult<DestinationT> res : orderedResults) {
           resultsWithShardNumbers.add(res.withShard(i++));
         }
       }

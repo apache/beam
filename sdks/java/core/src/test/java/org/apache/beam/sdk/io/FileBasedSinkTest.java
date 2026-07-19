@@ -205,6 +205,52 @@ public class FileBasedSinkTest {
     runFinalize(writeOp, files);
   }
 
+  @Test
+  public void testRunnerDeterminedShardAssignmentIsStableAcrossResultOrder() throws Exception {
+    SimpleSink.SimpleWriteOperation<Void> writeOp = buildWriteOperation();
+    ResourceId earlierTempFilename =
+        getBaseTempDirectory().resolve("a", StandardResolveOptions.RESOLVE_FILE);
+    ResourceId laterTempFilename =
+        getBaseTempDirectory().resolve("z", StandardResolveOptions.RESOLVE_FILE);
+    FileResult<Void> earlierResult =
+        new FileResult<>(
+            earlierTempFilename,
+            UNKNOWN_SHARDNUM,
+            GlobalWindow.INSTANCE,
+            PaneInfo.ON_TIME_AND_ONLY_FIRING,
+            null);
+    FileResult<Void> laterResult =
+        new FileResult<>(
+            laterTempFilename,
+            UNKNOWN_SHARDNUM,
+            GlobalWindow.INSTANCE,
+            PaneInfo.ON_TIME_AND_ONLY_FIRING,
+            null);
+
+    List<KV<FileResult<Void>, ResourceId>> forward =
+        writeOp.finalizeDestination(
+            null, GlobalWindow.INSTANCE, null, Arrays.asList(earlierResult, laterResult));
+    List<KV<FileResult<Void>, ResourceId>> reversed =
+        writeOp.finalizeDestination(
+            null, GlobalWindow.INSTANCE, null, Arrays.asList(laterResult, earlierResult));
+
+    assertEquals(tempToFinalFilenameMappings(forward), tempToFinalFilenameMappings(reversed));
+    assertEquals(earlierTempFilename, forward.get(0).getKey().getTempFilename());
+    assertEquals(0, forward.get(0).getKey().getShard());
+    assertEquals(laterTempFilename, forward.get(1).getKey().getTempFilename());
+    assertEquals(1, forward.get(1).getKey().getShard());
+  }
+
+  private static List<String> tempToFinalFilenameMappings(
+      List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames) {
+    List<String> mappings = new ArrayList<>();
+    for (KV<FileResult<Void>, ResourceId> entry : resultsToFinalFilenames) {
+      mappings.add(entry.getKey().getTempFilename() + " -> " + entry.getValue());
+    }
+    Collections.sort(mappings);
+    return mappings;
+  }
+
   /** Generate n temporary files using the temporary file pattern of Writer. */
   private List<File> generateTemporaryFilesForFinalize(int numFiles) throws Exception {
     List<File> temporaryFiles = new ArrayList<>();

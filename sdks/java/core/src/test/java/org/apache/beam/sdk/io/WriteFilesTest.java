@@ -61,6 +61,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -94,6 +95,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -189,6 +191,13 @@ public class WriteFilesTest {
     }
   }
 
+  private static class ExtractTimestampFn<T> extends DoFn<T, Long> {
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(c.timestamp().getMillis());
+    }
+  }
+
   private String getBaseOutputFilename() {
     return getBaseOutputDirectory().resolve("file", StandardResolveOptions.RESOLVE_FILE).toString();
   }
@@ -221,6 +230,53 @@ public class WriteFilesTest {
         Collections.emptyList(),
         Optional.of(1),
         true /* expectRemovedTempDirectory */);
+  }
+
+  @Test
+  public void testUnwindowedGatherDoesNotMaterializeResultsAsSideInput() {
+    Pipeline pipeline = Pipeline.create();
+    pipeline.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()));
+
+    List<String> resultViews = new ArrayList<>();
+    pipeline.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+            if (node.getFullName().contains("GatherTempFileResults")
+                && node.getTransform() instanceof View.CreatePCollectionView) {
+              resultViews.add(node.getFullName());
+            }
+          }
+        });
+
+    assertThat(resultViews, Matchers.empty());
+  }
+
+  @Test
+  public void testUnwindowedOutputFilenamesKeepGlobalDefaultWindowingStrategy() {
+    Pipeline pipeline = Pipeline.create();
+    WriteFilesResult<Void> result =
+        pipeline.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()));
+
+    assertThat(
+        result.getPerDestinationOutputFilenames().getWindowingStrategy(),
+        equalTo(WindowingStrategy.globalDefault()));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnwindowedOutputFilenamesKeepMinimumTimestamp() {
+    WriteFilesResult<Void> result =
+        p.apply(Create.of("foo")).apply(WriteFiles.to(makeSimpleSink()).withNumShards(1));
+
+    PCollection<Long> outputTimestamps =
+        result
+            .getPerDestinationOutputFilenames()
+            .apply("Extract output timestamps", ParDo.of(new ExtractTimestampFn<>()));
+
+    PAssert.that(outputTimestamps)
+        .containsInAnyOrder(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    p.run();
   }
 
   /**

@@ -82,6 +82,7 @@
 ## Bugfixes
 
 * Fixed unbounded checkpoint state growth for splittable DoFns that self-checkpoint on the portable Flink runner (Java) ([#27648](https://github.com/apache/beam/issues/27648)).
+* Fixed bounded, unwindowed Java `WriteFiles` finalization to gather temporary-file results through a main-input shuffle instead of a global side input ([#39370](https://github.com/apache/beam/issues/39370)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
