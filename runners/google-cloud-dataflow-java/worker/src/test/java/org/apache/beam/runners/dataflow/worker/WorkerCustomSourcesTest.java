@@ -83,6 +83,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnlyBoundedSource;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -93,7 +94,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
+import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
@@ -106,6 +107,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -207,6 +209,21 @@ public class WorkerCustomSourcesTest {
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
         Instant::now);
+  }
+
+  private void startContext(StreamingModeExecutionContext context, Work work) {
+    try {
+      context.start(
+          work,
+          mock(WindmillStateReader.class),
+          mock(WorkExecutor.class),
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          /* keyCoder= */ null,
+          /* keyTransitionListener= */ mock(KeyTransitionListener.class));
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static class SourceProducingSubSourcesInSplit extends MockSource {
@@ -620,7 +637,12 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            new HotKeyLogger(),
+            /*hotKeyLoggingEnabled=*/ false,
+            /*stepName=*/ "stepName",
+            "sourceBytesProcessCounterName",
+            SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
     int maxElements = 10;
@@ -631,8 +653,8 @@ public class WorkerCustomSourcesTest {
     for (int i = 0; i < 10 * maxElements;
     /* Incremented in inner loop */ ) {
       // Initialize streaming context with state from previous iteration.
-      context.start(
-          "key",
+      startContext(
+          context,
           createMockWork(
               Windmill.WorkItem.newBuilder()
                   .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
@@ -641,11 +663,7 @@ public class WorkerCustomSourcesTest {
                   .setSourceState(
                       Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
                   .build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()),
-          mock(WindmillStateReader.class),
-          mock(SideInputStateFetcher.class),
-          Windmill.WorkItemCommitRequest.newBuilder(),
-          mock(WorkExecutor.class));
+              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()));
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -992,7 +1010,12 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false);
+            /*throwExceptionOnLargeOutput=*/ false,
+            new HotKeyLogger(),
+            /*hotKeyLoggingEnabled=*/ false,
+            /*stepName=*/ "stepName",
+            "sourceBytesProcessCounterName",
+            SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
     int maxElements = 100;
@@ -1020,13 +1043,7 @@ public class WorkerCustomSourcesTest {
                 mock(HeartbeatSender.class)),
             false,
             Instant::now);
-    context.start(
-        "key",
-        dummyWork,
-        mock(WindmillStateReader.class),
-        mock(SideInputStateFetcher.class),
-        Windmill.WorkItemCommitRequest.newBuilder(),
-        mock(WorkExecutor.class));
+    startContext(context, dummyWork);
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =

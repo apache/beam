@@ -15,15 +15,12 @@
 #    limitations under the License.
 #
 
-# Core TFT dependencies with version bounds.
-# Note: To avoid pip ResolutionTooDeep errors, always install using the constraints file:
-# pip install -c constraints.txt -r requirements.txt
-dill>=0.3,<0.5
-tfx_bsl>=1.15,<1.17
-tensorflow-transform>=1.15,<1.17
-tensorflow>=2.15,<2.16
-numpy>=1.22.0,<2.0
-tensorflow-metadata>=1.15,<1.16
-pyarrow>=10,<11
-tensorflow-serving-api>=2.15,<2.16
-tf-keras>=2.15,<2.16
+dill==0.4.1
+tfx_bsl==1.21.0
+tensorflow-transform==1.21.0
+tensorflow-metadata==1.21.0
+tensorflow
+numpy
+pyarrow
+tensorflow-serving-api
+tf-keras

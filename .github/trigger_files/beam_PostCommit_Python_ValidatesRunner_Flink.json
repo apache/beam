@@ -1,5 +1,6 @@
 {
   "https://github.com/apache/beam/pull/32648": "testing addition of Flink 1.19 support",
   "https://github.com/apache/beam/pull/34830": "testing",
-  "trigger-2026-04-04": "portable_runner expand_sdf opt-in"
+  "trigger-2026-04-04": "portable_runner expand_sdf opt-in",
+  "https://github.com/apache/beam/pull/38892": "UnboundedSource portable VR test"
 }

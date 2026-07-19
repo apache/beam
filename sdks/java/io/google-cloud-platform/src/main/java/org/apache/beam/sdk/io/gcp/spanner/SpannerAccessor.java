@@ -36,6 +36,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
+import com.google.spanner.v1.DirectedReadOptions;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
 import java.util.HashSet;
@@ -278,6 +279,10 @@ public class SpannerAccessor implements AutoCloseable {
     ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
+    }
+    ValueProvider<DirectedReadOptions> directedReadOptions = spannerConfig.getDirectedReadOptions();
+    if (directedReadOptions != null && directedReadOptions.get() != null) {
+      builder.setDirectedReadOptions(directedReadOptions.get());
     }
     ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
     if (credentials != null && credentials.get() != null) {

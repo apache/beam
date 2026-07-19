@@ -32,3 +32,8 @@ dependencies {
     testImplementation library.java.hamcrest
     testRuntimeOnly library.java.slf4j_simple
 }
+
+test {
+    // Open java.nio for Apache Arrow direct memory access under Java 17+
+    jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+}

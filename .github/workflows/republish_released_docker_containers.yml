@@ -32,8 +32,8 @@ on:
   - cron: "0 6 * * 1"
 env:
   docker_registry: gcr.io
-  release: "${{ github.event.inputs.RELEASE || '2.74.0' }}"
-  rc: "${{ github.event.inputs.RC || '3' }}"
+  release: "${{ github.event.inputs.RELEASE || '2.75.0' }}"
+  rc: "${{ github.event.inputs.RC || '1' }}"
 
 jobs:
 
@@ -61,13 +61,16 @@ jobs:
         with:
           ref: "release-${{ env.release }}-postrelease"
           repository: apache/beam
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Install Java 11
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: |
+            21
+            11
       - name: Install Python 3.10
         uses: actions/setup-python@v5
         with:
@@ -80,7 +83,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -97,7 +100,8 @@ jobs:
           -Pdocker-pull-licenses \
           -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
-          -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
+          -Pdocker-tag-list=${release},${{ github.sha }},$(date +'%Y-%m-%d') \
+          -Pjava21Home=$JAVA_HOME_21_X64 \
           --no-daemon \
           --no-parallel
 

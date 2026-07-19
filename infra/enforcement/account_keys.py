@@ -165,14 +165,15 @@ class AccountKeysPolicyComplianceCheck:
         request.name = f"projects/{self.project_id}"
 
         try:
-            accounts = self.service_account_client.list_service_accounts(request=request)
-            self.logger.debug(f"Retrieved {len(accounts.accounts)} service accounts for project {self.project_id}")
+            accounts_pager = self.service_account_client.list_service_accounts(request=request)
+            accounts = list(accounts_pager)
+            self.logger.debug(f"Retrieved {len(accounts)} service accounts for project {self.project_id}")
 
             if not accounts:
                 self.logger.warning(f"No service accounts found in project {self.project_id}.")
                 return []
 
-            return [self._normalize_account_email(account.email) for account in accounts.accounts if not account.disabled]
+            return [self._normalize_account_email(account.email) for account in accounts if not account.disabled]
         except Exception as e:
             self.logger.error(f"Failed to retrieve service accounts for project {self.project_id}: {e}")
             raise

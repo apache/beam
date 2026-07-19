@@ -45,8 +45,6 @@ RUN  \
        ccache \
        # Required for using Beam Python SDK on ARM machines.
        libgeos-dev \
-       # Required for memory profiling with tcmalloc.
-       google-perftools \
        && \
 
     rm -rf /var/lib/apt/lists/* && \

@@ -114,6 +114,19 @@ if (isSparkRunner) {
   }
 }
 
+def sparkJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
+}
+
 def getNexmarkArgs = {
   def nexmarkArgsStr =  project.findProperty(nexmarkArgsProperty) ?: ""
   def nexmarkArgsList = new ArrayList<String>()
@@ -179,6 +192,7 @@ task run(type: JavaExec) {
     systemProperty "spark.ui.showConsoleProgress", "false"
     // Dataset runner only
     systemProperty "spark.sql.shuffle.partitions", "4"
+    jvmArgs += sparkJvmArgs()
   }
 
   mainClass = "org.apache.beam.sdk.nexmark.Main"

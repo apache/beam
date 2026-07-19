@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -122,12 +123,83 @@ public class WindmillReaderIteratorBaseTest {
                     .build())
             .build();
     when(mockContext.getWorkItem()).thenReturn(workItem);
+    when(mockContext.advance()).thenReturn(false);
 
     try (TestWindmillReaderIterator iter =
         new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
       assertTrue(iter.start());
       assertFalse(iter.advance()); // This should trigger finishKey
       verify(mockContext).finishKey();
+    }
+  }
+
+  @Test
+  public void testAdvanceKeyChaining() throws Exception {
+    StreamingModeExecutionContext mockContext = mock(StreamingModeExecutionContext.class);
+    when(mockContext.workIsFailed()).thenReturn(false);
+
+    // Work item A (1 message)
+    Windmill.WorkItem workItemA =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyA"))
+            .setWorkToken(100L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(1000)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+    when(mockContext.getWorkItem()).thenReturn(workItemA);
+
+    // Work item B (1 message)
+    Windmill.WorkItem workItemB =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("keyB"))
+            .setWorkToken(200L)
+            .addMessageBundles(
+                Windmill.InputMessageBundle.newBuilder()
+                    .setSourceComputationId("foo")
+                    .addMessages(
+                        Windmill.Message.newBuilder()
+                            .setTimestamp(2000)
+                            .setData(ByteString.EMPTY)
+                            .build())
+                    .build())
+            .build();
+
+    // Set up context.advance() to mock transition
+    when(mockContext.advance())
+        .thenAnswer(
+            new org.mockito.stubbing.Answer<Boolean>() {
+              private int count = 0;
+
+              @Override
+              public Boolean answer(org.mockito.invocation.InvocationOnMock invocation) {
+                if (count == 0) {
+                  count++;
+                  when(mockContext.getWorkItem()).thenReturn(workItemB);
+                  return true;
+                }
+                return false;
+              }
+            });
+
+    try (TestWindmillReaderIterator iter =
+        new TestWindmillReaderIterator(mockContext, ValueProvider.StaticValueProvider.of(false))) {
+      assertTrue(iter.start());
+      assertEquals(1000L, iter.getCurrent().getValue().longValue());
+
+      // Advance should trigger context.advance(), transition to workItemB, and decode message from
+      // workItemB (timestamp 2000)
+      assertTrue(iter.advance());
+      assertEquals(2000L, iter.getCurrent().getValue().longValue());
+
+      // Next advance should exhaust it and return false
+      assertFalse(iter.advance());
     }
   }
 
@@ -178,5 +250,25 @@ public class WindmillReaderIteratorBaseTest {
       }
       assertEquals(Arrays.toString(messageBundleCounts) + skipErrors, expected, actual);
     }
+  }
+
+  private static Work createMockWork(Windmill.WorkItem workItem) {
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
+        org.apache.beam.runners.dataflow.worker.streaming.Watermarks.builder()
+            .setInputDataWatermark(new org.joda.time.Instant(1000))
+            .build(),
+        Work.createProcessingContext(
+            "computationId",
+            mock(
+                org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient
+                    .class),
+            ignored -> {},
+            mock(
+                org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender
+                    .class)),
+        false,
+        org.joda.time.Instant::now);
   }
 }

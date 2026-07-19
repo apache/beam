@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * Copied over from <a href="https://github.com/apache/iceberg/pull/14264/">Iceberg PR #14264</a>.
  */
 @SuppressWarnings("nullness")
-public class BaseIncrementalChangelogScan
+public class BeamBaseIncrementalChangelogScan
     extends BaseIncrementalScan<
         IncrementalChangelogScan, ChangelogScanTask, ScanTaskGroup<ChangelogScanTask>>
     implements IncrementalChangelogScan {
@@ -80,20 +80,20 @@ public class BaseIncrementalChangelogScan
     }
   }
 
-  private static final Logger LOG = LoggerFactory.getLogger(BaseIncrementalChangelogScan.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BeamBaseIncrementalChangelogScan.class);
 
-  public BaseIncrementalChangelogScan(Table table) {
+  public BeamBaseIncrementalChangelogScan(Table table) {
     this(table, table.schema(), TableScanContext.empty());
   }
 
-  private BaseIncrementalChangelogScan(Table table, Schema schema, TableScanContext context) {
+  private BeamBaseIncrementalChangelogScan(Table table, Schema schema, TableScanContext context) {
     super(table, schema, context);
   }
 
   @Override
   protected IncrementalChangelogScan newRefinedScan(
       Table newTable, Schema newSchema, TableScanContext newContext) {
-    return new BaseIncrementalChangelogScan(newTable, newSchema, newContext);
+    return new BeamBaseIncrementalChangelogScan(newTable, newSchema, newContext);
   }
 
   // Private fields to track build call count and cache (accessed via package-private methods for

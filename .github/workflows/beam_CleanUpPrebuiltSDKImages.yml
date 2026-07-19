@@ -63,6 +63,8 @@ jobs:
       github.event.comment.body == 'Run Clean Prebuilt Images'
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
