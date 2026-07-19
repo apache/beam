@@ -1235,7 +1235,7 @@ class GlobalCachingStateHandler(CachingStateHandler):
     cache_state_key = self._convert_to_cache_key(state_key)
     return self._state_cache.get(
         (cache_state_key, cache_token),
-        lambda key: self._partially_cached_iterable(state_key, coder))
+        lambda key: self._partially_cached_iterable(state_key, coder, key))
 
   def extend(
       self,
@@ -1362,7 +1362,8 @@ class GlobalCachingStateHandler(CachingStateHandler):
   def _partially_cached_iterable(
       self,
       state_key,  # type: beam_fn_api_pb2.StateKey
-      coder  # type: coder_impl.CoderImpl
+      coder,  # type: coder_impl.CoderImpl
+      cache_key  # type: Any
   ):
     # type: (...) -> Iterable[Any]
 
@@ -1380,20 +1381,42 @@ class GlobalCachingStateHandler(CachingStateHandler):
       return self.ContinuationIterable(
           head,
           functools.partial(
-              self._lazy_iterator, state_key, coder, continuation_token))
+              self._lazy_iterator, state_key, coder, continuation_token),
+          on_failure=functools.partial(
+              self._state_cache.invalidate_if_value, cache_key))
 
   class ContinuationIterable(Generic[T], CacheAware):
-    def __init__(self, head, continue_iterator_fn):
-      # type: (Iterable[T], Callable[[], Iterable[T]]) -> None
+    def __init__(
+        self,
+        head,  # type: Iterable[T]
+        continue_iterator_fn,  # type: Callable[[], Iterable[T]]
+        on_failure=None  # type: Optional[Callable[[Any], None]]
+    ):
+      # type: (...) -> None
       self.head = head
       self.continue_iterator_fn = continue_iterator_fn
+      self.on_failure = on_failure
 
     def __iter__(self):
       # type: () -> Iterator[T]
       for item in self.head:
         yield item
-      for item in self.continue_iterator_fn():
-        yield item
+      try:
+        for item in self.continue_iterator_fn():
+          yield item
+      except Exception:
+        # The continuation token bound into this iterable may be permanently
+        # invalid; drop this instance from the cache so the next read
+        # fetches fresh state instead of replaying a dead token forever.
+        if self.on_failure is not None:
+          try:
+            self.on_failure(self)
+          except Exception:
+            _LOGGER.warning(
+                'Failed to invalidate cached state after continuation '
+                'failure.',
+                exc_info=True)
+        raise
 
     def get_referents_for_cache(self):
       # type: () -> List[Any]
