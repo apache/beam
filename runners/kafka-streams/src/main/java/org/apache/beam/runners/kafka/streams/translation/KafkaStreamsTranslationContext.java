@@ -122,9 +122,18 @@ public class KafkaStreamsTranslationContext {
     return name;
   }
 
-  /** Returns the dedicated bootstrap topic name used by Impulse for this application. */
-  public String getImpulseBootstrapTopic() {
-    return IMPULSE_BOOTSTRAP_TOPIC_PREFIX + pipelineOptions.getApplicationId();
+  /**
+   * Returns the dedicated bootstrap topic name for one Impulse transform. Keyed by transform id
+   * (sanitized to Kafka's legal topic-name character set) because a pipeline can contain several
+   * Impulses (e.g. an empty {@code Create} plus the dummy branch {@code PAssert} adds), and Kafka
+   * Streams rejects registering the same topic on two source nodes.
+   */
+  public String getImpulseBootstrapTopic(String transformId) {
+    String sanitizedTransformId = ILLEGAL_TOPIC_CHARS.matcher(transformId).replaceAll("_");
+    return IMPULSE_BOOTSTRAP_TOPIC_PREFIX
+        + pipelineOptions.getApplicationId()
+        + "_"
+        + sanitizedTransformId;
   }
 
   /**

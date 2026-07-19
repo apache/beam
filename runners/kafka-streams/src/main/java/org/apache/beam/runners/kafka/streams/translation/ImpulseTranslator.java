@@ -30,9 +30,9 @@ import org.apache.kafka.streams.state.Stores;
  * <p>Adds three nodes to the Kafka Streams {@link Topology}:
  *
  * <ul>
- *   <li>A {@code byte[]} source bound to a dedicated per-application bootstrap topic (see {@link
- *       KafkaStreamsTranslationContext#getImpulseBootstrapTopic()}). Kafka Streams refuses to start
- *       a topology that has no real source topic, so the bootstrap topic exists purely to satisfy
+ *   <li>A {@code byte[]} source bound to a dedicated per-transform bootstrap topic (see {@link
+ *       KafkaStreamsTranslationContext#getImpulseBootstrapTopic}). Kafka Streams refuses to start a
+ *       topology that has no real source topic, so the bootstrap topic exists purely to satisfy
  *       that requirement — records published to it are ignored by {@link ImpulseProcessor}.
  *   <li>The {@link ImpulseProcessor} itself, which schedules a one-shot wall-clock punctuator on
  *       {@code init} and emits a single empty data {@link KStreamsPayload} followed by a terminal
@@ -71,7 +71,7 @@ class ImpulseTranslator implements PTransformTranslator {
     Topology topology = context.getTopology();
     String sourceNodeName = transformId + SOURCE_SUFFIX;
     String stateStoreName = transformId + STATE_STORE_SUFFIX;
-    String bootstrapTopic = context.getImpulseBootstrapTopic();
+    String bootstrapTopic = context.getImpulseBootstrapTopic(transformId);
 
     topology.addSource(
         sourceNodeName,

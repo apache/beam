@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 plugins { id 'org.apache.beam.module' }
 
 def kafka_version = '3.9.0'
@@ -28,6 +30,10 @@ description = "Apache Beam :: Runners :: Kafka Streams"
 
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":runners:core-java")
+
+configurations {
+  validatesRunner
+}
 
 configurations.configureEach {
   resolutionStrategy.eachDependency { details ->
@@ -68,4 +74,69 @@ dependencies {
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation "org.apache.kafka:kafka-streams-test-utils:$kafka_version"
+
+  // Beam's @ValidatesRunner suite: the test classes come from the SDK core test jar; the runner
+  // (TestKafkaStreamsRunner) and its TopologyTestDriver harness come from this module's test
+  // output and test runtime classpath.
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(project.path)
+  validatesRunner sourceSets.test.output
+  validatesRunner sourceSets.test.runtimeClasspath
+}
+
+
+// Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
+def sickbayTests = [
+  // Needs multi-output executable stages (output-tag dispatch in ExecutableStageProcessor).
+  'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultiplePCollectionsHavingMultipleConsumers',
+]
+
+tasks.register("validatesRunner", Test) {
+  group = "Verification"
+  description = "Runs the subset of Beam's ValidatesRunner suite the Kafka Streams runner supports."
+  // Never consider up-to-date; the suite is the correctness gate.
+  outputs.upToDateWhen { false }
+  systemProperty "beamTestPipelineOptions",
+      JsonOutput.toJson(["--runner=org.apache.beam.runners.kafka.streams.TestKafkaStreamsRunner"])
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  maxParallelForks 2
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Environment / harness features that need a properly configured external environment.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    // Features the runner does not support yet.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesProcessingTimeTimers'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+  }
+  filter {
+    for (String test : sickbayTests) {
+      excludeTestsMatching test
+    }
+    failOnNoMatchingTests = false
+  }
 }
