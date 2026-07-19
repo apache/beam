@@ -23,6 +23,7 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 # ruff: noqa: UP006
+import inspect
 import logging
 import sys
 import threading
@@ -1461,6 +1462,17 @@ class DoFnRunner:
     else:
       per_element_output_counter = None
 
+    # Only validate the output of user class-based DoFns, and only when
+    # process() uses `return` (not `yield`). A generator process() returns a
+    # generator object, which can never be a str/bytes/dict, so the #18712 bug
+    # is impossible there and the check would be pure overhead. Callable-wrapped
+    # DoFns (Map/FlatMap) are also excluded, since flattening a returned
+    # str/bytes/dict is a legitimate use case for them.
+    check_user_dofn_output = (
+        not isinstance(fn, core.CallableWrapperDoFn) and
+        not inspect.isgeneratorfunction(
+            do_fn_signature.process_method.method_value))
+
     output_handler = _OutputHandler(
         windowing.windowfn,
         main_receivers,
@@ -1475,7 +1487,7 @@ class DoFnRunner:
             do_fn_signature.process_batch_method.method_value,
             '_beam_yields_elements',
             False),
-        check_user_dofn_output=not isinstance(fn, core.CallableWrapperDoFn),
+        check_user_dofn_output=check_user_dofn_output,
     )
 
     if do_fn_signature.is_stateful_dofn() and not user_state_context:
@@ -1673,15 +1685,22 @@ class _OutputHandler(OutputHandler):
     A value wrapped in a TaggedOutput object will be unwrapped and
     then dispatched to the appropriate indexed output.
     """
+    if self._check_user_dofn_output:
+      # This bug is deterministic per DoFn: if process() returns a
+      # str/bytes/dict once, it does so for every element. So we only need to
+      # validate the first output and can then disable the check to avoid
+      # per-element overhead (see
+      # https://github.com/apache/beam/issues/18712).
+      self._check_user_dofn_output = False
+      if isinstance(results, (str, bytes, dict)):
+        object_type = type(results).__name__
+        raise TypeError(
+            'Returning a %s from a ParDo or FlatMap is not allowed. '
+            'Please use list(%r) if you really want this behavior.' %
+            (object_type, results))
+
     if results is None:
       results = []
-
-    if self._check_user_dofn_output and isinstance(results, (str, bytes, dict)):
-      object_type = type(results).__name__
-      raise TypeError(
-          'Returning a %s from a ParDo or FlatMap is not allowed. '
-          'Please use list(%r) if you really want this behavior.' %
-          (object_type, results))
 
     # TODO(https://github.com/apache/beam/issues/20404): Verify that the
     #  results object is a valid iterable type if

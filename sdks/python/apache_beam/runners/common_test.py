@@ -195,6 +195,23 @@ class DoFnProcessTest(unittest.TestCase):
       with TestPipeline() as p:
         _ = p | beam.Create([0]) | beam.ParDo(BadDoFn())
 
+  def test_dofn_yielding_str_is_not_flagged(self):
+    """A generator (yield) process() can't hit the #18712 bug.
+
+    Yielding a str emits the whole str as one element and must not be
+    treated as the "returned a str" error case.
+    """
+    class YieldDoFn(DoFn):
+      def process(self, element):
+        yield 'hello'
+
+    with TestPipeline() as p:
+      (
+          p | beam.Create([0]) | beam.ParDo(YieldDoFn())
+          | beam.ParDo(self.record_dofn()))
+
+    self.assertEqual(['hello'], DoFnProcessTest.all_records)
+
   def test_pardo_with_unbounded_per_element_dofn(self):
     class UnboundedDoFn(beam.DoFn):
       @beam.DoFn.unbounded_per_element()
