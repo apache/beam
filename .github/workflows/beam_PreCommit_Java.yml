@@ -182,6 +182,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: 11
           python-version: default
           disable-cache: true
       - name: run Java PreCommit script

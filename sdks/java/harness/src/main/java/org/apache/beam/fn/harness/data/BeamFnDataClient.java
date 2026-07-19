@@ -72,4 +72,23 @@ public interface BeamFnDataClient {
   /** Get the outbound observer for the specified apiServiceDescriptor and dataStreamId. */
   StreamObserver<Elements> getOutboundObserver(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor, String dataStreamId);
+
+  /**
+   * Indicates that an instruction is going to use the specified named data stream.
+   *
+   * <p>Callers must {@link #releaseDataStream release} the data stream once the instruction has
+   * finished using it. Named data streams are kept open for as long as they are retained by at
+   * least one instruction. The default (empty) data stream is kept open for the lifetime of the
+   * client and calls for it are a no-op.
+   */
+  default void retainDataStream(String dataStreamId) {}
+
+  /**
+   * Indicates that an instruction is done using the specified named data stream.
+   *
+   * <p>Once a named data stream is no longer retained by any instruction its underlying resources
+   * may be released. Subsequent usage of the same data stream id will establish a new physical
+   * stream. The default (empty) data stream is never closed and calls for it are a no-op.
+   */
+  default void releaseDataStream(String dataStreamId) {}
 }

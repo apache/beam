@@ -17,7 +17,11 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -79,12 +83,27 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final OutboundObserverFactory outboundObserverFactory;
 
+  /**
+   * Guards creation and removal of entries in {@link #multiplexerCache} as well as all accesses to
+   * {@link #dataStreamRefCounts} so that a named data stream is not concurrently created and
+   * closed.
+   */
+  private final Object dataStreamLifecycleLock = new Object();
+
+  /**
+   * The number of instructions currently retaining each named data stream. Guarded by {@link
+   * #dataStreamLifecycleLock}. The default (empty) data stream is not tracked as it is kept open
+   * for the lifetime of the client.
+   */
+  private final Map<String, Integer> dataStreamRefCounts;
+
   public BeamFnDataGrpcClient(
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
       OutboundObserverFactory outboundObserverFactory) {
     this.channelFactory = channelFactory;
     this.outboundObserverFactory = outboundObserverFactory;
     this.multiplexerCache = new ConcurrentHashMap<>();
+    this.dataStreamRefCounts = new HashMap<>();
   }
 
   @Override
@@ -124,27 +143,88 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     return getMultiplexer(apiServiceDescriptor, dataStreamId).getOutboundObserver();
   }
 
+  @Override
+  public void retainDataStream(String dataStreamId) {
+    if (dataStreamId == null || dataStreamId.isEmpty()) {
+      // The default data stream is kept open for the lifetime of the client.
+      return;
+    }
+    synchronized (dataStreamLifecycleLock) {
+      dataStreamRefCounts.merge(dataStreamId, 1, Integer::sum);
+    }
+  }
+
+  @Override
+  public void releaseDataStream(String dataStreamId) {
+    if (dataStreamId == null || dataStreamId.isEmpty()) {
+      // The default data stream is kept open for the lifetime of the client.
+      return;
+    }
+    List<BeamFnDataGrpcMultiplexer> multiplexersToClose = new ArrayList<>();
+    synchronized (dataStreamLifecycleLock) {
+      Integer refCount = dataStreamRefCounts.get(dataStreamId);
+      if (refCount == null) {
+        LOG.warn("Released data stream {} which was not retained.", dataStreamId);
+        return;
+      }
+      if (refCount > 1) {
+        dataStreamRefCounts.put(dataStreamId, refCount - 1);
+        return;
+      }
+      dataStreamRefCounts.remove(dataStreamId);
+      Iterator<Map.Entry<MultiplexerKey, BeamFnDataGrpcMultiplexer>> iterator =
+          multiplexerCache.entrySet().iterator();
+      while (iterator.hasNext()) {
+        Map.Entry<MultiplexerKey, BeamFnDataGrpcMultiplexer> entry = iterator.next();
+        if (dataStreamId.equals(entry.getKey().dataStreamId)) {
+          multiplexersToClose.add(entry.getValue());
+          iterator.remove();
+        }
+      }
+    }
+    // Close outside of the lock as closing terminates the underlying gRPC stream and may block.
+    for (BeamFnDataGrpcMultiplexer multiplexer : multiplexersToClose) {
+      LOG.debug("Closing multiplexer for released data stream {}", dataStreamId);
+      try {
+        multiplexer.close();
+      } catch (Exception e) {
+        LOG.warn("Failed to close multiplexer for data stream {}", dataStreamId, e);
+      }
+    }
+  }
+
   private BeamFnDataGrpcMultiplexer getMultiplexer(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
     MultiplexerKey key = new MultiplexerKey(apiServiceDescriptor, dataStreamId);
-    return multiplexerCache.computeIfAbsent(
-        key,
-        k -> {
-          OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory =
-              inboundObserver -> {
-                BeamFnDataGrpc.BeamFnDataStub stub =
-                    BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
-                if (dataStreamId != null && !dataStreamId.isEmpty()) {
-                  Metadata headers = new Metadata();
-                  headers.put(
-                      Metadata.Key.of("data_stream_id", Metadata.ASCII_STRING_MARSHALLER),
-                      dataStreamId);
-                  stub = stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
-                }
-                return stub.data(inboundObserver);
-              };
-          return new BeamFnDataGrpcMultiplexer(
-              apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory);
-        });
+    BeamFnDataGrpcMultiplexer existingMultiplexer = multiplexerCache.get(key);
+    if (existingMultiplexer != null) {
+      return existingMultiplexer;
+    }
+    // Create under the lifecycle lock so that a named data stream being concurrently closed by
+    // releaseDataStream is not observed in a partially removed state. Callers are expected to
+    // retain named data streams for the duration of their usage which prevents the returned
+    // multiplexer from being closed while in use.
+    synchronized (dataStreamLifecycleLock) {
+      return multiplexerCache.computeIfAbsent(
+          key,
+          k -> {
+            OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory =
+                inboundObserver -> {
+                  BeamFnDataGrpc.BeamFnDataStub stub =
+                      BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
+                  if (dataStreamId != null && !dataStreamId.isEmpty()) {
+                    Metadata headers = new Metadata();
+                    headers.put(
+                        Metadata.Key.of("data_stream_id", Metadata.ASCII_STRING_MARSHALLER),
+                        dataStreamId);
+                    stub =
+                        stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
+                  }
+                  return stub.data(inboundObserver);
+                };
+            return new BeamFnDataGrpcMultiplexer(
+                apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory);
+          });
+    }
   }
 }

@@ -82,6 +82,7 @@
 ## Bugfixes
 
 * Fixed unbounded checkpoint state growth for splittable DoFns that self-checkpoint on the portable Flink runner (Java) ([#27648](https://github.com/apache/beam/issues/27648)).
+* Fixed named data stream multiplexers and their underlying gRPC streams leaking in the SDK harness by closing them once no bundle is using them (Java) ([#39001](https://github.com/apache/beam/issues/39001)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
