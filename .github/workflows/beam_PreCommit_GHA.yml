@@ -74,6 +74,9 @@ jobs:
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
+    # For details on the ASF GHA allowlist, see: https://github.com/apache/infrastructure-actions/blob/main/allowlist-check/README.md
+    - name: Validate GHA Allowlist
+      uses: apache/infrastructure-actions/allowlist-check@main # zizmor: ignore[unpinned-uses]
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
