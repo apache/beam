@@ -57,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -92,7 +92,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Install python
         uses: actions/setup-python@v7
         with:
@@ -376,7 +376,7 @@ jobs:
       - name: Checkout code on master branch
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
           submodules: recursive
       - name: Branch commit
         run: |
