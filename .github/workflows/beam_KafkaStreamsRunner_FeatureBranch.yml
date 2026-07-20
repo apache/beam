@@ -70,3 +70,5 @@ jobs:
             ${{ runner.os }}-gradle-kafka-streams-
       - name: Build and test Kafka Streams runner
         run: ./gradlew :runners:kafka-streams:build --no-daemon --stacktrace
+      - name: Run ValidatesRunner suite
+        run: ./gradlew :runners:kafka-streams:validatesRunner --no-daemon --stacktrace

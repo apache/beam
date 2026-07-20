@@ -53,6 +53,7 @@ class FlattenTranslator implements PTransformTranslator {
     // Flatten produces exactly one output PCollection, fed by all of its input PCollections.
     String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
 
+    Topology topology = context.getTopology();
     Set<String> seenInputs = new HashSet<>();
     List<String> parentProcessors = new ArrayList<>();
     Set<String> upstreamTransformIds = new HashSet<>();
@@ -71,7 +72,6 @@ class FlattenTranslator implements PTransformTranslator {
       upstreamTransformIds.add(parentProcessor);
     }
 
-    Topology topology = context.getTopology();
     topology.addProcessor(
         transformId,
         () -> new FlattenProcessor(transformId, upstreamTransformIds),

@@ -23,6 +23,7 @@ import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.construction.NativeTransforms;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
@@ -30,8 +31,10 @@ import org.apache.beam.sdk.util.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.util.construction.graph.QueryablePipeline;
 import org.apache.beam.sdk.util.construction.graph.TrivialNativeTransformExpander;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 
 /**
  * Translates a portable Beam pipeline into a Kafka Streams {@link
@@ -75,7 +78,14 @@ public class KafkaStreamsPipelineTranslator {
    * yet (e.g. GroupByKey).
    */
   public Set<String> knownUrns() {
-    return urnToTranslator.keySet();
+    // Flatten is deliberately not exposed: the fuser has its own handling for Flatten (unzipping
+    // it into producer stages and re-introducing a runner Flatten via the OutputDeduplicator), and
+    // declaring it native makes TrivialNativeTransformExpander interact badly with multi-branch
+    // flattens whose inputs come from composite expansions (their producing stages get dropped
+    // from the fused pipeline, failing "consumed but never produced" validation). Mirrors the
+    // Flink runner, which likewise keeps Read out of its known URNs for expander reasons.
+    return Sets.difference(
+        urnToTranslator.keySet(), ImmutableSet.of(PTransformTranslation.FLATTEN_TRANSFORM_URN));
   }
 
   /**
@@ -98,9 +108,59 @@ public class KafkaStreamsPipelineTranslator {
     if (alreadyFused) {
       return pipeline;
     }
-    RunnerApi.Pipeline trimmed = TrivialNativeTransformExpander.forKnownUrns(pipeline, knownUrns());
+    RunnerApi.Pipeline withoutEmptyFlattens = replaceEmptyFlattensWithEmptyReads(pipeline);
+    RunnerApi.Pipeline trimmed =
+        TrivialNativeTransformExpander.forKnownUrns(withoutEmptyFlattens, knownUrns());
     return GreedyPipelineFuser.fuse(trimmed).toPipeline();
   }
+
+  /**
+   * Rewrites every {@code Flatten} of zero PCollections into a primitive Read of an {@link
+   * EmptyBoundedSource}. A zero-input Flatten produces an empty PCollection, but it is also a root
+   * of the pipeline graph, and {@link GreedyPipelineFuser} only accepts Impulse or Read roots. The
+   * Read of an empty source has exactly the right semantics — no elements, then the terminal
+   * watermark — and reuses the existing {@link ReadTranslator} path.
+   */
+  private static RunnerApi.Pipeline replaceEmptyFlattensWithEmptyReads(
+      RunnerApi.Pipeline pipeline) {
+    RunnerApi.Pipeline.Builder pipelineBuilder = null;
+    for (Map.Entry<String, RunnerApi.PTransform> entry :
+        pipeline.getComponents().getTransformsMap().entrySet()) {
+      RunnerApi.PTransform transform = entry.getValue();
+      if (!PTransformTranslation.FLATTEN_TRANSFORM_URN.equals(transform.getSpec().getUrn())
+          || !transform.getInputsMap().isEmpty()) {
+        continue;
+      }
+      if (pipelineBuilder == null) {
+        pipelineBuilder = pipeline.toBuilder();
+      }
+      RunnerApi.ReadPayload emptyReadPayload =
+          RunnerApi.ReadPayload.newBuilder()
+              .setIsBounded(RunnerApi.IsBounded.Enum.BOUNDED)
+              .setSource(
+                  RunnerApi.FunctionSpec.newBuilder()
+                      .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE_URN)
+                      .setPayload(
+                          ByteString.copyFrom(
+                              SerializableUtils.serializeToByteArray(new EmptyBoundedSource()))))
+              .build();
+      pipelineBuilder
+          .getComponentsBuilder()
+          .putTransforms(
+              entry.getKey(),
+              transform
+                  .toBuilder()
+                  .setSpec(
+                      RunnerApi.FunctionSpec.newBuilder()
+                          .setUrn(PTransformTranslation.READ_TRANSFORM_URN)
+                          .setPayload(emptyReadPayload.toByteString()))
+                  .build());
+    }
+    return pipelineBuilder == null ? pipeline : pipelineBuilder.build();
+  }
+
+  /** The URN {@code ReadTranslation} uses for a Java-serialized {@code BoundedSource} payload. */
+  private static final String JAVA_SERIALIZED_BOUNDED_SOURCE_URN = "beam:java:boundedsource:v1";
 
   /**
    * Walks the pipeline in topological order and translates each transform whose URN is supported.
