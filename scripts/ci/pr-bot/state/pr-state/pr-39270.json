@@ -1,6 +1,9 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "build": "liferoad",
+    "website": "kennknowles"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
