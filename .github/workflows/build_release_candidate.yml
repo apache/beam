@@ -305,7 +305,7 @@ jobs:
             21
             11
       - name: Install Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
       - name: Set up Docker Buildx
@@ -356,7 +356,7 @@ jobs:
           ref: release-docs
           persist-credentials: false
       - name: Install Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
       - name: Install node
@@ -603,7 +603,7 @@ jobs:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           persist-credentials: true
       - name: Install Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.10'
       - name: Install Java 17
