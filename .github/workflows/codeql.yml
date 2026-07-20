@@ -27,8 +27,83 @@ on:
     - cron: '25 10 * * 6'
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
+        id: filter
+        with:
+          filters: |
+            actions:
+              - '.github/**'
+            go:
+              - '**/*.go'
+              - '**/go.mod'
+              - '**/go.sum'
+            java-kotlin:
+              - '**/*.java'
+              - '**/*.kt'
+              - '**/*.gradle'
+              - '**/gradle.properties'
+              - '**/gradlew'
+              - '**/gradlew.bat'
+            javascript-typescript:
+              - '**/*.js'
+              - '**/*.ts'
+              - '**/package.json'
+              - '**/package-lock.json'
+              - '**/tsconfig.json'
+            python:
+              - '**/*.py'
+              - '**/*.pyx'
+              - '**/setup.py'
+              - '**/setup.cfg'
+              - '**/pyproject.toml'
+              - '**/*requirements.txt'
+            rust:
+              - '**/*.rs'
+
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          # Full matrix of all CodeQL supported languages and their build modes in Apache Beam.
+          ALL_MATRIX='[
+            {"language": "actions", "build-mode": "none"},
+            {"language": "go", "build-mode": "manual"},
+            {"language": "java-kotlin", "build-mode": "autobuild"},
+            {"language": "javascript-typescript", "build-mode": "none"},
+            {"language": "python", "build-mode": "none"},
+            {"language": "rust", "build-mode": "none"}
+          ]'
+
+          # On periodic scheduled runs (cron) or manual dispatches, scan all languages.
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            COMPACT_ALL=$(echo "$ALL_MATRIX" | jq -c .)
+            echo "matrix=$COMPACT_ALL" >> $GITHUB_OUTPUT
+          else
+            # Filter ALL_MATRIX entries keeping only entries for languages with path changes.
+            FILTERED=$(echo "$ALL_MATRIX" | jq -c '[.[] | select(
+              (.language == "actions" and "${{ steps.filter.outputs.actions }}" == "true") or
+              (.language == "go" and "${{ steps.filter.outputs.go }}" == "true") or
+              (.language == "java-kotlin" and "${{ steps.filter.outputs['java-kotlin'] }}" == "true") or
+              (.language == "javascript-typescript" and "${{ steps.filter.outputs['javascript-typescript'] }}" == "true") or
+              (.language == "python" and "${{ steps.filter.outputs.python }}" == "true") or
+              (.language == "rust" and "${{ steps.filter.outputs.rust }}" == "true")
+            )]')
+            echo "matrix=$FILTERED" >> $GITHUB_OUTPUT
+          fi
+
   analyze:
     name: Analyze (${{ matrix.language }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '[]'
     # Runner size impacts CodeQL analysis time. To learn more, please see:
     #   - https://gh.io/recommended-hardware-resources-for-running-codeql
     #   - https://gh.io/supported-runners-and-hardware-resources
@@ -49,21 +124,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-        - language: actions
-          build-mode: none
-        # - language: c-cpp
-        #   build-mode: autobuild
-        - language: go
-          build-mode: manual
-        - language: java-kotlin
-          build-mode: autobuild
-        - language: javascript-typescript
-          build-mode: none
-        - language: python
-          build-mode: none
-        - language: rust
-          build-mode: none
+        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
         # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
