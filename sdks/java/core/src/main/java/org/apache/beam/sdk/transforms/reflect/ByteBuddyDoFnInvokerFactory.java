@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.field.FieldDescription;
 import net.bytebuddy.description.method.MethodDescription;
@@ -113,6 +114,7 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.MapMaker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Primitives;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -242,6 +244,22 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   private final Map<InvokerCacheKey, Constructor<?>> byteBuddyInvokerConstructorCache =
       new ConcurrentHashMap<>();
 
+  /**
+   * A weak, identity-keyed cache of the constructor selected for each {@link DoFn} instance.
+   *
+   * <p>Selecting a constructor resolves the {@link DoFn}'s input and output type descriptors. Some
+   * runners create a new invoker for the same {@link DoFn} at every bundle boundary, so doing that
+   * work on every invocation can be expensive. A deserialized {@link DoFn} is a new instance, so
+   * its constructor is selected again; later invoker creation for that instance reuses the cached
+   * selection.
+   *
+   * <p>The constructor values do not reference their {@link DoFn} keys, and weak keys allow unused
+   * instances to be collected. {@link MapMaker#weakKeys} also uses identity equality, which is
+   * required because separate instances of the same class may have different generic types.
+   */
+  private final ConcurrentMap<DoFn<?, ?>, Constructor<?>> byteBuddyInvokerConstructorInstanceCache =
+      new MapMaker().weakKeys().makeMap();
+
   private ByteBuddyDoFnInvokerFactory() {}
 
   /** Returns the {@link DoFnInvoker} for the given {@link DoFn}. */
@@ -330,6 +348,43 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         signature.fnClass(),
         fn.getClass());
 
+    Constructor<?> invokerConstructor =
+        byteBuddyInvokerConstructorInstanceCache.computeIfAbsent(
+            fn, unused -> getByteBuddyInvokerConstructor(signature, fn));
+
+    try {
+      @SuppressWarnings("unchecked")
+      DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
+          (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
+              invokerConstructor.newInstance(fn);
+
+      if (signature.onTimerMethods() != null) {
+        for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
+          invoker.addOnTimerInvoker(
+              onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
+        }
+      }
+
+      if (signature.onTimerFamilyMethods() != null) {
+        for (DoFnSignature.OnTimerFamilyMethod onTimerFamilyMethod :
+            signature.onTimerFamilyMethods().values()) {
+          invoker.addOnTimerFamilyInvoker(
+              onTimerFamilyMethod.id(),
+              OnTimerInvokers.forTimerFamily(fn, onTimerFamilyMethod.id()));
+        }
+      }
+      return invoker;
+    } catch (InstantiationException
+        | IllegalAccessException
+        | IllegalArgumentException
+        | InvocationTargetException
+        | SecurityException e) {
+      throw new RuntimeException("Unable to bind invoker for " + fn.getClass(), e);
+    }
+  }
+
+  private <InputT, OutputT> Constructor<?> getByteBuddyInvokerConstructor(
+      DoFnSignature signature, DoFn<InputT, OutputT> fn) {
     // Extract input and output type descriptors to distinguish generic instantiations.
     // Fall back to Object.class if unavailable. When type info is lost, different generic
     // instantiations share an invoker, which is acceptable since the DoFn class in the cache
@@ -358,35 +413,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       outputType = (TypeDescriptor<OutputT>) TypeDescriptor.of(Object.class);
     }
 
-    try {
-      @SuppressWarnings("unchecked")
-      DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>> invoker =
-          (DoFnInvokerBase<InputT, OutputT, DoFn<InputT, OutputT>>)
-              getByteBuddyInvokerConstructor(signature, inputType, outputType).newInstance(fn);
-
-      if (signature.onTimerMethods() != null) {
-        for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
-          invoker.addOnTimerInvoker(
-              onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
-        }
-      }
-
-      if (signature.onTimerFamilyMethods() != null) {
-        for (DoFnSignature.OnTimerFamilyMethod onTimerFamilyMethod :
-            signature.onTimerFamilyMethods().values()) {
-          invoker.addOnTimerFamilyInvoker(
-              onTimerFamilyMethod.id(),
-              OnTimerInvokers.forTimerFamily(fn, onTimerFamilyMethod.id()));
-        }
-      }
-      return invoker;
-    } catch (InstantiationException
-        | IllegalAccessException
-        | IllegalArgumentException
-        | InvocationTargetException
-        | SecurityException e) {
-      throw new RuntimeException("Unable to bind invoker for " + fn.getClass(), e);
-    }
+    return getByteBuddyInvokerConstructor(signature, inputType, outputType);
   }
 
   /**
