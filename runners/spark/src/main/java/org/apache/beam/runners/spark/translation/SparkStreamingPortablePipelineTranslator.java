@@ -37,6 +37,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkGroupAlsoByWindowViaWindowSet;
+import org.apache.beam.runners.spark.translation.streaming.SdfResidualRelay;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -242,6 +244,37 @@ public class SparkStreamingPortablePipelineTranslator
             String, Tuple2<Broadcast<List<byte[]>>, WindowedValues.WindowedValueCoder<SideInputT>>>
         broadcastVariables = ImmutableMap.copyOf(new HashMap<>());
 
+    WindowedValues.WindowedValueCoder<InputT> inputCoder =
+        getWindowedValueCoder(inputPCollectionId, components);
+
+    boolean hasSdf = hasSdfProcess(stagePayload);
+    JavaDStream<WindowedValue<InputT>> stageInput = inputDStream;
+    List<Integer> outputStreamSources = streamSources;
+    String relayId = null;
+    if (hasSdf) {
+      relayId = SdfResidualRelay.relayId(context.jobInfo.jobId(), transformNode.getId());
+      SdfResidualRelay relay =
+          SdfResidualRelay.register(
+              relayId,
+              streamSources,
+              context
+                  .getSerializableOptions()
+                  .get()
+                  .as(SparkPipelineOptions.class)
+                  .getBatchIntervalMillis());
+      SdfResidualRelay.ResidualInputDStream residualInput =
+          new SdfResidualRelay.ResidualInputDStream(context.getStreamingContext().ssc(), relayId);
+      relay.setSourceId(residualInput.id());
+      JavaDStream<byte[]> residualBytes =
+          JavaDStream.fromDStream(residualInput, JavaSparkContext$.MODULE$.fakeClassTag());
+      // Elements travel encoded through the relay; decode on the executors.
+      JavaDStream<WindowedValue<InputT>> residualStream =
+          residualBytes.map(bytes -> CoderUtils.decodeFromByteArray(inputCoder, bytes));
+      stageInput = inputDStream.union(residualStream);
+      // The relay's watermark drives this stage's output from here on.
+      outputStreamSources = Collections.singletonList(residualInput.id());
+    }
+
     SparkExecutableStageFunction<InputT, SideInputT> function =
         new SparkExecutableStageFunction<>(
             context.getSerializableOptions(),
@@ -251,8 +284,25 @@ public class SparkStreamingPortablePipelineTranslator
             SparkExecutableStageContextFactory.getInstance(),
             broadcastVariables,
             MetricsAccumulator.getInstance(),
-            windowCoder);
-    JavaDStream<RawUnionValue> staged = inputDStream.mapPartitions(function);
+            windowCoder,
+            inputCoder,
+            hasSdf);
+    JavaDStream<RawUnionValue> staged = stageInput.mapPartitions(function);
+    if (hasSdf) {
+      // The relay and the output extraction both consume the stage; never execute it twice.
+      staged.persist(StorageLevel.MEMORY_ONLY());
+      final String residualRelayId = relayId;
+      staged.foreachRDD(
+          (rdd, time) -> {
+            List<byte[]> residuals =
+                rdd.filter(
+                        value ->
+                            value.getUnionTag() == SparkExecutableStageFunction.SDF_RESIDUAL_TAG)
+                    .map(value -> (byte[]) value.getValue())
+                    .collect();
+            SdfResidualRelay.onBatchResiduals(residualRelayId, residuals, time.milliseconds());
+          });
+    }
 
     String intermediateId = getExecutableStageIntermediateId(transformNode);
     context.pushDataset(
@@ -281,7 +331,7 @@ public class SparkStreamingPortablePipelineTranslator
     for (String outputId : outputs.values()) {
       JavaDStream<WindowedValue<OutputT>> outStream =
           staged.flatMap(new SparkExecutableStageExtractionFunction<>(outputMap.get(outputId)));
-      context.pushDataset(outputId, new UnboundedDataset<>(outStream, streamSources));
+      context.pushDataset(outputId, new UnboundedDataset<>(outStream, outputStreamSources));
     }
 
     // Add sink to ensure stage is executed
@@ -290,8 +340,20 @@ public class SparkStreamingPortablePipelineTranslator
           staged.flatMap((rawUnionValue) -> Collections.emptyIterator());
       context.pushDataset(
           String.format("EmptyOutputSink_%d", context.nextSinkId()),
-          new UnboundedDataset<>(outStream, streamSources));
+          new UnboundedDataset<>(outStream, outputStreamSources));
     }
+  }
+
+  private static boolean hasSdfProcess(RunnerApi.ExecutableStagePayload stagePayload) {
+    for (String transformId : stagePayload.getTransformsList()) {
+      RunnerApi.PTransform transform =
+          stagePayload.getComponents().getTransformsOrThrow(transformId);
+      if (PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN.equals(
+          transform.getSpec().getUrn())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @SuppressWarnings("unchecked")

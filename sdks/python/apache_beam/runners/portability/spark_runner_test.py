@@ -144,37 +144,11 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports metrics.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19496")
 
-  def test_sdf(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
   def test_unbounded_source_read(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_with_watermark_tracking(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_synthetic_source(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_callbacks_with_exception(self):
-    # Skip until Spark runner supports bundle finalization.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19517")
-
-  def test_register_finalizations(self):
-    # Skip until Spark runner supports bundle finalization.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19517")
-
-  def test_sdf_with_dofn_as_watermark_estimator(self):
-    # Skip until Spark runner supports SDF and self-checkpoint.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
+    # The source self-terminates, but a streaming pipeline on this runner runs
+    # until its streaming timeout elapses, so it never reports completion.
+    raise unittest.SkipTest(
+        "Spark portable streaming pipelines do not self-terminate.")
 
   def test_pardo_dynamic_timer(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20179")

@@ -262,7 +262,9 @@ public class SparkBatchPortablePipelineTranslator
               SparkExecutableStageContextFactory.getInstance(),
               broadcastVariables,
               MetricsAccumulator.getInstance(),
-              windowCoder);
+              windowCoder,
+              getWindowedValueCoder(inputPCollectionId, components),
+              false);
       staged = groupedByKey.flatMap(function.forPair());
     } else {
       JavaRDD<WindowedValue<InputT>> inputRdd2 = ((BoundedDataset<InputT>) inputDataset).getRDD();
@@ -275,7 +277,9 @@ public class SparkBatchPortablePipelineTranslator
               SparkExecutableStageContextFactory.getInstance(),
               broadcastVariables,
               MetricsAccumulator.getInstance(),
-              windowCoder);
+              windowCoder,
+              getWindowedValueCoder(inputPCollectionId, components),
+              false);
       staged = inputRdd2.mapPartitions(function2);
     }
 
