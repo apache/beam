@@ -824,6 +824,7 @@ def write_to_mongodb(
     batch_size: Number of documents per bulk_write to MongoDB.
   """
   def row_to_dict(value):
+
     if value is None:
       return None
     if hasattr(value, '_asdict'):
