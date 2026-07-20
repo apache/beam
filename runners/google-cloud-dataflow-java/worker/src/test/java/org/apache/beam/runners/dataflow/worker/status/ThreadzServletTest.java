@@ -36,13 +36,18 @@ public class ThreadzServletTest {
 
   @Test
   public void testDeduping() throws Exception {
+    // Use Thread.toString() rather than hard-coded strings: JDK 21+ includes the thread id
+    // (e.g. Thread[#42,Thread1,5,main] vs Thread[Thread1,5,main]).
+    Thread thread1 = new Thread("Thread1");
+    Thread thread2 = new Thread("Thread2");
+    Thread thread3 = new Thread("Thread3");
     Map<Thread, StackTraceElement[]> stacks =
         ImmutableMap.of(
-            new Thread("Thread1"),
+            thread1,
             new StackTraceElement[] {new StackTraceElement("Class", "Method1", "File", 11)},
-            new Thread("Thread2"),
+            thread2,
             new StackTraceElement[] {new StackTraceElement("Class", "Method1", "File", 11)},
-            new Thread("Thread3"),
+            thread3,
             new StackTraceElement[] {new StackTraceElement("Class", "Method2", "File", 17)});
 
     Map<Stack, List<String>> deduped = ThreadzServlet.deduplicateThreadStacks(stacks);
@@ -54,13 +59,13 @@ public class ThreadzServletTest {
             new Stack(
                 new StackTraceElement[] {new StackTraceElement("Class", "Method1", "File", 11)},
                 Thread.State.NEW),
-            Arrays.asList("Thread[Thread1,5,main]", "Thread[Thread2,5,main]")));
+            Arrays.asList(thread1.toString(), thread2.toString())));
     assertThat(
         deduped,
         Matchers.hasEntry(
             new Stack(
                 new StackTraceElement[] {new StackTraceElement("Class", "Method2", "File", 17)},
                 Thread.State.NEW),
-            Arrays.asList("Thread[Thread3,5,main]")));
+            Arrays.asList(thread3.toString())));
   }
 }
