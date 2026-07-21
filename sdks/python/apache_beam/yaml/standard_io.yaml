@@ -182,6 +182,27 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Debezium
+- type: renaming
+  transforms:
+    'ReadFromDebezium': 'ReadFromDebezium'
+  config:
+    mappings:
+      'ReadFromDebezium':
+        connector: 'database'
+        username: 'username'
+        password: 'password'
+        host: 'host'
+        port: 'port'
+        table: 'table'
+        connection_properties: 'debezium_connection_properties'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromDebezium': 'beam:schematransform:org.apache.beam:debezium_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:debezium:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:

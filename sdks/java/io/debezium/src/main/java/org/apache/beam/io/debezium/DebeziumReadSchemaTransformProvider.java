@@ -20,12 +20,13 @@ package org.apache.beam.io.debezium;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -73,6 +74,19 @@ public class DebeziumReadSchemaTransformProvider
     this.testLimitMilliseconds = timeLimitMs;
   }
 
+  private static Connectors parseConnector(String value) {
+    try {
+      return Connectors.valueOf(value);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(
+          "Unsupported connector '"
+              + value
+              + "'. Supported connectors are: "
+              + Arrays.toString(Connectors.values()),
+          e);
+    }
+  }
+
   @Override
   protected @NonNull @Initialized Class<DebeziumReadSchemaTransformConfiguration>
       configurationClass() {
@@ -82,21 +96,15 @@ public class DebeziumReadSchemaTransformProvider
   @Override
   protected @NonNull @Initialized SchemaTransform from(
       DebeziumReadSchemaTransformConfiguration configuration) {
-    // TODO(pabloem): Validate configuration parameters to ensure formatting is correct.
+
+    configuration.validate();
+    Connectors connector = parseConnector(configuration.getDatabase());
+
     return new SchemaTransform() {
       @Override
       public PCollectionRowTuple expand(PCollectionRowTuple input) {
         // TODO(pabloem): Test this behavior
-        Collection<String> connectors =
-            Arrays.stream(Connectors.values()).map(Object::toString).collect(Collectors.toSet());
-        if (!connectors.contains(configuration.getDatabase())) {
-          throw new IllegalArgumentException(
-              "Unsupported database "
-                  + configuration.getDatabase()
-                  + ". Unable to select a JDBC driver for it. Supported Databases are: "
-                  + String.join(", ", connectors));
-        }
-        Class<?> connectorClass = Connectors.valueOf(configuration.getDatabase()).getConnector();
+        Class<?> connectorClass = connector.getConnector();
         DebeziumIO.ConnectorConfiguration connectorConfiguration =
             DebeziumIO.ConnectorConfiguration.create()
                 .withUsername(configuration.getUsername())
@@ -123,9 +131,9 @@ public class DebeziumReadSchemaTransformProvider
             configuration.getDebeziumConnectionProperties();
         if (debeziumConnectionProperties != null) {
           for (String connectionProperty : debeziumConnectionProperties) {
-            String[] parts = connectionProperty.split("=", -1);
-            String key = parts[0];
-            String value = parts[1];
+            int separator = connectionProperty.indexOf('=');
+            String key = connectionProperty.substring(0, separator);
+            String value = connectionProperty.substring(separator + 1);
             connectorConfiguration = connectorConfiguration.withConnectionProperty(key, value);
           }
         }
@@ -172,21 +180,57 @@ public class DebeziumReadSchemaTransformProvider
     return Collections.singletonList("output");
   }
 
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class DebeziumReadSchemaTransformConfiguration {
+    @SchemaFieldDescription("Username used to connect to the source database.")
     public abstract String getUsername();
 
+    @SchemaFieldDescription("Password used to connect to the source database.")
     public abstract String getPassword();
 
+    @SchemaFieldDescription("Hostname of the source database.")
     public abstract String getHost();
 
+    @SchemaFieldDescription("Port of the source database.")
     public abstract int getPort();
 
+    @SchemaFieldDescription("Fully qualified table name included in the Debezium change stream.")
     public abstract String getTable();
 
+    @SchemaFieldDescription(
+        "Debezium connector type. Supported values: MYSQL, POSTGRES, SQLSERVER, ORACLE, and DB2.")
     public abstract @NonNull String getDatabase();
 
+    @SchemaFieldDescription("Additional Debezium connection properties in key=value format.")
     public abstract @Nullable List<String> getDebeziumConnectionProperties();
+
+    public void validate() {
+      if (getHost().isEmpty()) {
+        throw new IllegalArgumentException("host must not be empty.");
+      }
+
+      if (getPort() <= 0 || getPort() > 65535) {
+        throw new IllegalArgumentException(
+            "port must be between 1 and 65535, but was " + getPort() + ".");
+      }
+
+      if (getTable().isEmpty()) {
+        throw new IllegalArgumentException("table must not be empty.");
+      }
+
+      List<String> connectionProperties = getDebeziumConnectionProperties();
+      if (connectionProperties != null) {
+        for (String property : connectionProperties) {
+          if (property == null || property.indexOf('=') <= 0) {
+            throw new IllegalArgumentException(
+                "Invalid Debezium connection property '"
+                    + property
+                    + "'. Expected key=value format.");
+          }
+        }
+      }
+    }
 
     public static Builder builder() {
       return new AutoValue_DebeziumReadSchemaTransformProvider_DebeziumReadSchemaTransformConfiguration
