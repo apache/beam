@@ -37,7 +37,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+  # Use github.* context; workflow env is not bash-evaluated.
+  GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${{ github.ref_name }}/${{ github.sha }}-${{ github.run_id }}/"
 
 
 jobs:
