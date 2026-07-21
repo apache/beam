@@ -197,6 +197,43 @@ like these, one can also provide a `schema_side_inputs` parameter, which is
 a tuple of PCollectionViews to be passed to the schema callable (much like
 the `table_side_inputs` parameter).
 
+Dynamic Schemas with Storage Write API
+--------------------------------------
+When writing to dynamic destinations with `method=STORAGE_WRITE_API`, a union schema
+containing all fields across destination tables is required at the PCollection level
+for cross-language type inference and runtime row serialization.
+
+The recommended best-practice is to use the `dynamic_schema` helper:
+
+* **Using a dictionary map**: If schemas are known at pipeline construction time, pass
+  a dictionary mapping destinations to schemas. The helper automatically infers and merges
+  all fields into the required union schema::
+
+    schema_map = {
+        'my_project:dataset.users': 'id:INTEGER,name:STRING',
+        'my_project:dataset.scores': 'id:INTEGER,score:INTEGER,active:BOOLEAN'
+    }
+
+    elements | WriteToBigQuery(
+        table=get_destination,
+        method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+        schema=dynamic_schema(schema_map))
+
+* **Using a callable function or side inputs**: If schemas are determined dynamically
+  via a callable function, wrap the callable with `dynamic_schema` and explicitly pass
+  `union_schema`::
+
+    def get_schema(destination, schema_dict):
+      return schema_dict[destination]
+
+    elements | WriteToBigQuery(
+        table=get_destination,
+        method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+        schema=dynamic_schema(
+            get_schema,
+            union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN'),
+        schema_side_inputs=(schema_dict_side_input,))
+
 Additional Parameters for BigQuery Tables
 -----------------------------------------
 
@@ -1954,6 +1991,120 @@ class _StreamToBigQuery(PTransform):
 
 # Flag to be passed to WriteToBigQuery to force schema autodetection
 SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
+
+
+def dynamic_schema(schema_fn_or_map, union_schema=None):
+  """Helper to construct a dynamic schema callable with a union schema hint.
+
+  When using the BigQuery Storage Write API (`method=STORAGE_WRITE_API`) with
+  dynamic destinations, the cross-language transform requires a PCollection-level
+  union schema containing all fields across all target tables for protobuf
+  serialization and type inference.
+
+  This helper provides the recommended best practice for constructing dynamic
+  schemas:
+
+  1. **Dictionary Map**: If destination table schemas are provided as a dictionary
+     mapping table names/specs to schemas (str, dict, or TableSchema), this helper
+     automatically merges all fields into a single union schema.
+  2. **Callable**: If a callable function is used, this helper attaches the provided
+     `union_schema` to the callable as a schema hint (`_union_schema`).
+
+  Example using a dictionary map (union schema is auto-inferred)::
+
+      schema_map = {
+          'project:dataset.users': 'id:INTEGER,name:STRING',
+          'project:dataset.scores': 'id:INTEGER,score:INTEGER,active:BOOLEAN'
+      }
+
+      def get_destination(record):
+        if 'name' in record:
+          return 'project:dataset.users'
+        return 'project:dataset.scores'
+
+      schema_callable = dynamic_schema(schema_map)
+
+      elements | WriteToBigQuery(
+          table=get_destination,
+          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+          schema=schema_callable)
+
+  Example using a callable with explicit union schema::
+
+      def get_schema(destination, schema_side_input):
+        return schema_side_input[destination]
+
+      schema_callable = dynamic_schema(
+          get_schema,
+          union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN')
+
+      elements | WriteToBigQuery(
+          table=get_destination,
+          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+          schema=schema_callable,
+          schema_side_inputs=(schema_side_input,))
+
+  Args:
+    schema_fn_or_map: A callable `(destination, *side_inputs) -> schema`
+      or a dictionary mapping destination strings to schemas (str, dict, or
+      TableSchema).
+    union_schema: (Optional) The union schema containing all fields across
+      target tables. Can be a string, dict, or TableSchema object. Required if
+      `schema_fn_or_map` is a callable.
+
+  Returns:
+    A callable with the attached `_union_schema` attribute for Storage Write API.
+  """
+  if isinstance(schema_fn_or_map, dict):
+    if union_schema is None:
+      bq_schemas = [
+          bigquery_tools.get_bq_tableschema(s)
+          for s in schema_fn_or_map.values()
+      ]
+
+      def _merge_fields(field_a, field_b):
+        if field_a.type != field_b.type:
+          raise ValueError(
+              f"Conflicting types for field '{field_a.name}': "
+              f"{field_a.type} vs {field_b.type}")
+        if field_a.type in ('RECORD', 'STRUCT'):
+          merged_subfields = {}
+          for f in (field_a.fields or []):
+            merged_subfields[f.name] = f
+          for f in (field_b.fields or []):
+            if f.name in merged_subfields:
+              merged_subfields[f.name] = _merge_fields(
+                  merged_subfields[f.name], f)
+            else:
+              merged_subfields[f.name] = f
+          field_a.fields = list(merged_subfields.values())
+        return field_a
+
+      merged_fields = {}
+      for schema in bq_schemas:
+        for field in schema.fields:
+          name = field.name
+          if name in merged_fields:
+            merged_fields[name] = _merge_fields(merged_fields[name], field)
+          else:
+            merged_fields[name] = field
+      union_schema = bigquery.TableSchema(fields=list(merged_fields.values()))
+
+    def lookup_schema(destination, *args):
+      return schema_fn_or_map[destination]
+
+    schema_callable = lookup_schema
+  elif callable(schema_fn_or_map):
+    if union_schema is None:
+      raise ValueError(
+          "union_schema must be explicitly provided when schema_fn_or_map "
+          "is a callable.")
+    schema_callable = schema_fn_or_map
+  else:
+    raise TypeError("schema_fn_or_map must be a callable or a dictionary.")
+
+  schema_callable._union_schema = union_schema
+  return schema_callable
 
 
 class WriteToBigQuery(PTransform):
