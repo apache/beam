@@ -290,11 +290,11 @@ class BeamDockerPlugin implements Plugin<Project> {
     }
     if (ext.buildx && !ext.cacheFromRefs.isEmpty()) {
       for (String cacheRef : ext.cacheFromRefs) {
-        buildCommandLine.addAll('--cache-from', "type=registry,ref=${cacheRef}" as String)
+        buildCommandLine.addAll(['--cache-from', "type=registry,ref=${cacheRef}" as String])
       }
     }
     if (ext.buildx && ext.cacheToRef != null) {
-      buildCommandLine.addAll('--cache-to', "type=registry,ref=${ext.cacheToRef},mode=max" as String)
+      buildCommandLine.addAll(['--cache-to', "type=registry,ref=${ext.cacheToRef},mode=max" as String])
     }
     if (!ext.tags.isEmpty() && ext.push) {
       String[] repoParts = (ext.name as String).split(':')
