@@ -496,7 +496,8 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       self,
       start_ts: Timestamp,
       end_ts: Timestamp,
-      watermark_estimator: _PollWatermarkEstimator) -> Iterable[_QueryRange]:
+      watermark_estimator: _PollWatermarkEstimator
+  ) -> Iterable[TimestampedValue[_QueryRange]]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(
@@ -524,7 +525,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       restriction_tracker=beam.DoFn.RestrictionParam(),
       watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
           _PollWatermarkEstimatorProvider())
-  ) -> Iterable[_QueryRange]:
+  ) -> Iterable[TimestampedValue[_QueryRange]]:
 
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()
@@ -1031,7 +1032,9 @@ class _DecompressArrowBatchesFn(beam.DoFn):
   def __init__(self, change_timestamp_column: str = 'change_timestamp') -> None:
     self._change_timestamp_column = change_timestamp_column
 
-  def process(self, element: tuple[bytes, bytes]) -> Iterable[dict[str, Any]]:
+  def process(
+      self, element: tuple[bytes,
+                           bytes]) -> Iterable[TimestampedValue[dict[str, Any]]]:
     schema_bytes, batch_bytes = element
     schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
     batch = pyarrow.ipc.read_record_batch(
