@@ -45,57 +45,6 @@ requires = [
 # legacy installation is needed to generate `apache_beam.portability.api` package.
 build-backend = "setuptools.build_meta"
 
-[tool.isort]
-py_version = 310
-line_length = 120
-old_finders = true
-order_by_type = true
-force_single_line = true
-combine_star = true
-src_paths = ["apache_beam"]
-extra_standard_library = ["dataclasses"]
-known_third_party = ["yaml"]
-skip = [
-    "apiclient.py",
-    "avroio_test.py",
-    "cloudpickle.py",
-    "datastore_wordcount.py",
-    "datastoreio_test.py",
-    "doctests_test.py",
-    "fast_coders_test.py",
-    "hadoopfilesystem.py",
-    "iobase_test.py",
-    "main_test.py",
-    "model.py",
-    "preprocess.py",
-    "process_tfma.py",
-    "render_test.py",
-    "slow_coders_test.py",
-    "taxi.py",
-    "tfdv_analyze_and_validate.py",
-    "yaml/main.py",
-    "yaml_testing_test.py",
-    "bigquery_v2_client.py",
-    "bigquery_v2_messages.py",
-    "dataflow_v1b3_client.py",
-    "dataflow_v1b3_messages.py",
-    "storage_v1_client.py",
-    "storage_v1_messages.py",
-    "proto2_coder_test_messages_pb2.py",
-    "rate_limit_pb2.py",
-    "cloudbuild_v1_client.py",
-    "cloudbuild_v1_messages.py",
-    "boto3_client.py",
-]
-skip_glob = [
-    "*.pxd",
-    "*.pyx",
-    "*pb2*.py",
-    "**/examples/**/*.py",
-    "**/portability/api/**/*.py",
-    "**/portability/api/__init__.py",
-]
-
 [tool.ruff]
 exclude = [
     ".bzr",
@@ -127,6 +76,8 @@ exclude = [
     "*.pxd",
     "*.pyx",
     "*pb2*.py",
+    "*.ipynb",
+    "**/*.ipynb",
     "**/examples/**/*.py",
     "**/examples/**/*.ipynb",
     "**/portability/api/**/*.py",
@@ -134,9 +85,10 @@ exclude = [
 ]
 target-version = "py310"
 src = ["apache_beam"]
+line-length = 120
 
 [tool.ruff.lint]
-select = ["E9", "PL", "F821", "F822", "F823", "UP006"]
+select = ["E9", "PL", "F821", "F822", "F823", "UP006", "I"]
 ignore = [
     # Ignored Pylint Checks
     "PLC0415",  # import-outside-toplevel
@@ -174,6 +126,61 @@ unfixable = []
 
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+order-by-type = true
+extra-standard-library = ["dataclasses"]
+known-third-party = ["yaml"]
+known-first-party = ["apache_beam"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/apiclient.py" = ["I"]
+"**/avroio_test.py" = ["I"]
+"**/cloudpickle.py" = ["I"]
+"**/datastore_wordcount.py" = ["I"]
+"**/datastoreio_test.py" = ["I"]
+"**/doctests_test.py" = ["I"]
+"**/fast_coders_test.py" = ["I"]
+"**/hadoopfilesystem.py" = ["I"]
+"**/iobase_test.py" = ["I"]
+"**/main_test.py" = ["I"]
+"**/model.py" = ["I"]
+"**/preprocess.py" = ["I"]
+"**/process_tfma.py" = ["I"]
+"**/render_test.py" = ["I"]
+"**/slow_coders_test.py" = ["I"]
+"**/taxi.py" = ["I"]
+"**/tfdv_analyze_and_validate.py" = ["I"]
+"**/yaml/main.py" = ["I"]
+"**/yaml_testing_test.py" = ["I"]
+"**/bigquery_v2_client.py" = ["I"]
+"**/bigquery_v2_messages.py" = ["I"]
+"**/dataflow_v1b3_client.py" = ["I"]
+"**/dataflow_v1b3_messages.py" = ["I"]
+"**/storage_v1_client.py" = ["I"]
+"**/storage_v1_messages.py" = ["I"]
+"**/proto2_coder_test_messages_pb2.py" = ["I"]
+"**/rate_limit_pb2.py" = ["I"]
+"**/cloudbuild_v1_client.py" = ["I"]
+"**/cloudbuild_v1_messages.py" = ["I"]
+"**/boto3_client.py" = ["I"]
+"**/coders_property_based_test.py" = ["I"]
+"**/filebasedsource_test.py" = ["I"]
+"**/bigtableio_it_test.py" = ["I"]
+"**/bigtableio_test.py" = ["I"]
+"**/mongodbio.py" = ["I"]
+"**/textio_test.py" = ["I"]
+"**/streaming_cache.py" = ["I"]
+"**/pcoll_visualization.py" = ["I"]
+"**/interactive_environment.py" = ["I"]
+"**/pipeline_instrument_test.py" = ["I"]
+"**/worker_handlers.py" = ["I"]
+"**/feast_feature_store_it_test.py" = ["I"]
+"**/vertex_ai_feature_store_it_test.py" = ["I"]
+"**/vertex_ai_feature_store_test.py" = ["I"]
+"setup.py" = ["I"]
+"container/**" = ["I"]
 
 [tool.pyrefly]
 project-includes = ["apache_beam"]
