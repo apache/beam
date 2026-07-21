@@ -1,6 +1,6 @@
 ---
 title: "Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma"
-date: 2026-07-22
+date: 2026-07-22 15:00:00 -0500
 authors:
     - janaom
 categories:
