@@ -393,6 +393,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import collections
+import copy
 import io
 import itertools
 import json
@@ -2058,7 +2059,7 @@ def dynamic_schema(schema_fn_or_map, union_schema=None):
   if isinstance(schema_fn_or_map, dict):
     if union_schema is None:
       bq_schemas = [
-          bigquery_tools.get_bq_tableschema(s)
+          copy.deepcopy(bigquery_tools.get_bq_tableschema(s))
           for s in schema_fn_or_map.values()
       ]
 
@@ -2980,9 +2981,8 @@ class StorageWriteToBigQuery(PTransform):
             getattr(self.schema, 'table_schema', None) or
             getattr(self.schema, 'schema', None))
         if schema_hint is not None:
-          if isinstance(
-              schema_hint,
-              (TableSchema, TableFieldSchema, str, dict)):
+          if isinstance(schema_hint,
+                        (TableSchema, TableFieldSchema, str, dict)):
             row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
                 schema_hint, self.type_overrides)
             return RowTypeConstraint.from_fields(row_type_hints)
@@ -2997,23 +2997,19 @@ class StorageWriteToBigQuery(PTransform):
     def expand(self, input_dicts):
       if self.dynamic_destinations:
         if callable(self.schema):
-          record_hint = self._get_record_type_hint()
-          union_field_names = [
-              name for name, _ in getattr(record_hint, '_fields', ())
-          ]
+          union_schema = getattr(self.schema, '_union_schema', None)
+          union_bq_schema = (
+              bigquery_tools.get_bq_tableschema(union_schema)
+              if union_schema else None)
 
           def convert_dynamic_row(row, *schema_side_inputs):
             dest, dict_row = row[0], row[1]
             record_schema = self.schema(dest, *schema_side_inputs)
             record_row = bigquery_tools.beam_row_from_dict(
                 dict_row, record_schema)
-            if union_field_names:
-              record_dict = record_row._asdict()
-              record_row = beam.Row(
-                  **{
-                      name: record_dict.get(name, None)
-                      for name in union_field_names
-                  })
+            if union_bq_schema:
+              record_row = bigquery_tools.beam_row_from_dict(
+                  record_row._asdict(), union_bq_schema)
             return beam.Row(
                 **{
                     StorageWriteToBigQuery.DESTINATION: dest,
