@@ -67,7 +67,7 @@ var directFilters = []string{
 	// The direct runner does not yet support cross-language.
 	"TestXLang.*",
 	"TestKafkaIO.*",
-	"TestBigQueryIO_[^W].*",
+	"TestBigQueryIO_[^WQ].*",
 	"TestBigtableIO.*",
 	"TestSpannerIO.*",
 	"TestDebeziumIO_BasicRead",

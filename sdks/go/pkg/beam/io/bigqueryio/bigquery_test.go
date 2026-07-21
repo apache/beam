@@ -170,8 +170,16 @@ func TestWithQueryParameters(t *testing.T) {
 			t.Errorf("Expected param1, got %s", queryOpts.parameters[0].Name)
 		}
 
+		if queryOpts.parameters[0].Value != "value1" {
+			t.Errorf("Expected value1, got %s", queryOpts.parameters[0].Value)
+		}
+
 		if queryOpts.parameters[1].Name != "param2" {
 			t.Errorf("Expected param2, got %s", queryOpts.parameters[1].Name)
+		}
+
+		if queryOpts.parameters[1].Value != 42 {
+			t.Errorf("Expected 42, got %v", queryOpts.parameters[1].Value)
 		}
 	})
 }

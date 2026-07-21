@@ -115,7 +115,9 @@ type QueryOptions struct {
 	// UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
 	UseStandardSQL bool
 	// Parameters are the query parameters for parameterized queries.
-	// bigquery.QueryParameter cannot be encoded/decoded by beam coder.
+	// In the current implementation, user-defines types are not supported in Value field.
+	// Use *bigquery.QueryParameterValue to build STRUCT/ARRAY parameters
+	// or use go primitive types explicitly.
 	parameters []bigquery.QueryParameter
 }
 
@@ -128,6 +130,7 @@ func UseStandardSQL() func(qo *QueryOptions) error {
 }
 
 // WithQueryParameters sets the query parameters for parameterized queries.
+// See QueryOptions.parameters for the list of supported Value types.
 func WithQueryParameters(params ...bigquery.QueryParameter) func(qo *QueryOptions) error {
 	return func(qo *QueryOptions) error {
 		qo.parameters = params

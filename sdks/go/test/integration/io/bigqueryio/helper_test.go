@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os/exec"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
@@ -81,5 +82,49 @@ func checkTableExistsAndNonEmpty(ctx context.Context, t *testing.T, project, tab
 	}
 	if count != inputSize {
 		t.Fatalf("row count = %v, want %v", count, inputSize)
+	}
+}
+
+// waitForRows polls until the table has at least wantCount rows visible, or times out.
+func waitForRows(ctx context.Context, t *testing.T, project, dataset, tableID string, wantCount int) {
+	t.Helper()
+
+	client, err := bigquery.NewClient(ctx, project)
+	if err != nil {
+		t.Fatalf("error creating BigQuery client: %v", err)
+	}
+	defer client.Close()
+
+	deadline := time.Now().Add(2 * time.Minute)
+	for time.Now().Before(deadline) {
+		q := client.Query(fmt.Sprintf("SELECT COUNT(*) FROM `%s.%s.%s`", project, dataset, tableID))
+		it, err := q.Read(ctx)
+		if err == nil {
+			var row []bigquery.Value
+			if err := it.Next(&row); err == nil {
+				if count, ok := row[0].(int64); ok && int(count) >= wantCount {
+					return
+				}
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+	t.Fatalf("timed out waiting for %d rows in %s.%s", wantCount, dataset, tableID)
+}
+
+func insertTestRows(ctx context.Context, t *testing.T, project, dataset, tableID string, rows []TestRow) {
+	t.Helper()
+
+	client, err := bigquery.NewClient(ctx, project)
+	if err != nil {
+		t.Fatalf("error creating BigQuery client: %v", err)
+	}
+	defer client.Close()
+	ds := client.Dataset(dataset)
+	tbl := ds.Table(tableID)
+	inserter := tbl.Inserter()
+
+	if err := inserter.Put(ctx, rows); err != nil {
+		t.Fatalf("error inserting test rows: %v", err)
 	}
 }
