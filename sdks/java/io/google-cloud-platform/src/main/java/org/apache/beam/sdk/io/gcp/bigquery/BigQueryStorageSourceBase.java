@@ -152,7 +152,12 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     int streamCount = 0;
     if (!bqOptions.getEnableStorageReadApiV2()) {
       if (desiredBundleSizeBytes > 0) {
-        long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
+        // numBytes is null for tables that don't report storage statistics, e.g. Lakehouse
+        // runtime catalog (BigLake metastore) tables.
+        long tableSizeBytes =
+            (targetTable != null && targetTable.getNumBytes() != null)
+                ? targetTable.getNumBytes()
+                : 0;
         streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
       }
 
