@@ -62,6 +62,8 @@ jobs:
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
     runs-on: ubuntu-22.04
+    # Python 3.14 multiarch container builds compile many deps from source on arm64.
+    timeout-minutes: ${{ matrix.python_version == '3.14' && 300 || 120 }}
     steps:
       - uses: actions/checkout@v7
       - name: Free Disk Space (Ubuntu)
