@@ -62,10 +62,13 @@ class MilvusConnectionParameters:
   token: str = field(default_factory=str)
   timeout: Optional[float] = None
   kwargs: dict[str, Any] = field(default_factory=dict)
+  db_id: Optional[str] = None
 
   def __post_init__(self):
     if not self.uri:
       raise ValueError("URI must be provided for Milvus connection")
+    if self.db_id is not None and self.db_name == "default":
+      self.db_name = self.db_id
 
     # Generate unique alias if not provided. One-to-one mapping between alias
     # and connection - each alias represents exactly one Milvus connection.
