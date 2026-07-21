@@ -559,9 +559,7 @@ class BundleProcessorCache(object):
     """
     processor = None
     with self._lock:
-      tb_str = "".join(
-          traceback.format_exception(
-              type(exception), exception, exception.__traceback__))
+      tb_str = "".join(traceback.format_exception(exception))
       if len(tb_str) > 10240:
         tb_str = (
             tb_str[:5000] + "\n... [traceback truncated] ...\n" +
