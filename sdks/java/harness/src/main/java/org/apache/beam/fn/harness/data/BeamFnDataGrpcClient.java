@@ -124,7 +124,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       try {
         client.close();
       } catch (Exception e) {
-        // proceed to close other clients
+        LOG.warn("Failed to close multiplexer", e);
       }
     }
     multiplexerCache.clear();
