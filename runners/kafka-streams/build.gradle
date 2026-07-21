@@ -87,8 +87,11 @@ dependencies {
 
 // Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
 def sickbayTests = [
-  // Needs multi-output executable stages (output-tag dispatch in ExecutableStageProcessor).
-  'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultiplePCollectionsHavingMultipleConsumers',
+  // Non-global windowing (FixedWindows, merging windows, timestamp combiners) is not supported
+  // yet; these apply a window and assert on window-derived output, hitting a GlobalWindow cast.
+  'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests',
+  'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerLatest',
+  'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerEarliest',
 ]
 
 tasks.register("validatesRunner", Test) {
@@ -139,6 +142,7 @@ tasks.register("validatesRunner", Test) {
     // JUnit category to exclude.
     includeTestsMatching 'org.apache.beam.sdk.transforms.CreateTest'
     includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest*'
     for (String test : sickbayTests) {
       excludeTestsMatching test
     }

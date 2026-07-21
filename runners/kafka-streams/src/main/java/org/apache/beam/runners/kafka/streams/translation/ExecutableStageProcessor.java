@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -85,11 +87,14 @@ class ExecutableStageProcessor
 
   // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
   // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
-  // The element type is intentionally wildcarded: the runner does not need to know the runtime
-  // value type — the bundle factory handles all coder application at the Fn-API boundary using
-  // the PCollection coders from the ExecutableStagePayload. Pretending the type was byte[] was
-  // only safe because the Impulse output coder happens to be ByteArrayCoder.
-  private final Queue<WindowedValue<?>> pendingOutputs = new ConcurrentLinkedQueue<>();
+  // Each entry carries the output PCollection id so it can be routed to that output's downstream on
+  // flush. The element type is intentionally wildcarded: the runner does not need to know the
+  // runtime value type — the bundle factory handles all coder application at the Fn-API boundary
+  // using the PCollection coders from the ExecutableStagePayload.
+  private final Queue<PendingOutput> pendingOutputs = new ConcurrentLinkedQueue<>();
+  // Output PCollection id -> the child node (a StageOutputProcessor relay) to forward that output
+  // to. Empty for a single-output stage, which forwards to its one downstream directly.
+  private final Map<String, String> outputChildByPCollectionId;
 
   // Computes this stage's input watermark from its upstream transform's reports, holding until
   // every partition of the upstream transform has reported (see WatermarkAggregator).
@@ -114,12 +119,25 @@ class ExecutableStageProcessor
       JobInfo jobInfo,
       String transformId,
       Set<String> upstreamTransformIds,
-      MetricsContainerImpl metricsContainer) {
+      MetricsContainerImpl metricsContainer,
+      Map<String, String> outputChildByPCollectionId) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.transformId = transformId;
     this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
     this.metricsContainer = metricsContainer;
+    this.outputChildByPCollectionId = ImmutableMap.copyOf(outputChildByPCollectionId);
+  }
+
+  /** A harness output element together with the id of the output PCollection it belongs to. */
+  private static final class PendingOutput {
+    final String pCollectionId;
+    final WindowedValue<?> value;
+
+    PendingOutput(String pCollectionId, WindowedValue<?> value) {
+      this.pCollectionId = pCollectionId;
+      this.value = value;
+    }
   }
 
   @Override
@@ -182,11 +200,12 @@ class ExecutableStageProcessor
         new OutputReceiverFactory() {
           @Override
           public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-            // Outputs are queued here on harness threads and drained on the processing thread
-            // after the bundle closes.
+            // Outputs are queued here on harness threads, tagged with their output PCollection id,
+            // and drained on the processing thread after the bundle closes.
             return receivedElement -> {
               if (receivedElement != null) {
-                pendingOutputs.add((WindowedValue<?>) receivedElement);
+                pendingOutputs.add(
+                    new PendingOutput(pCollectionId, (WindowedValue<?>) receivedElement));
               }
             };
           }
@@ -249,12 +268,20 @@ class ExecutableStageProcessor
     }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     // The harness has finished the bundle (close() returned) so no further enqueues happen.
-    // Drain via poll() so each element is removed as it is forwarded.
-    WindowedValue<?> output;
+    // Drain via poll() so each element is removed as it is forwarded. Each output is routed to its
+    // own output's relay child for a multi-output stage; a single-output stage forwards directly to
+    // its one downstream (empty routing map).
+    PendingOutput output;
     while ((output = pendingOutputs.poll()) != null) {
-      ctx.forward(
+      Record<byte[], KStreamsPayload<?>> outputRecord =
           new Record<byte[], KStreamsPayload<?>>(
-              record.key(), KStreamsPayload.data(output), record.timestamp()));
+              record.key(), KStreamsPayload.data(output.value), record.timestamp());
+      String childNode = outputChildByPCollectionId.get(output.pCollectionId);
+      if (childNode == null) {
+        ctx.forward(outputRecord);
+      } else {
+        ctx.forward(outputRecord, childNode);
+      }
     }
   }
 

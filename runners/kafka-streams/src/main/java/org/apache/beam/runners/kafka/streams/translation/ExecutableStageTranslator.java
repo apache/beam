@@ -18,9 +18,13 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.streams.Topology;
 
 /**
@@ -66,22 +70,27 @@ class ExecutableStageTranslator implements PTransformTranslator {
               + " uses user state or timers; stateful ParDo is not yet supported by the Kafka"
               + " Streams runner.");
     }
-    if (transform.getOutputsMap().size() > 1) {
-      // Multi-output stages (DoFns with side outputs, etc.) are a planned follow-up — they need
-      // an output-tag dispatch in the processor + per-output PCollection routing. The current
-      // rejection just fails loudly until that's wired in.
-      throw new UnsupportedOperationException(
-          "ExecutableStage "
-              + transformId
-              + " has "
-              + transform.getOutputsMap().size()
-              + " outputs; multi-output stages are not yet supported by the Kafka Streams runner.");
-    }
-
     // The payload distinguishes the main input from side inputs, so reading it from the payload
     // is unambiguous even before we add side-input support.
     String inputPCollectionId = stagePayload.getInput();
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
+
+    // A multi-output stage (a DoFn with side outputs, or a Read whose SDF wrapper produces several
+    // outputs) needs each output routed to the right downstream. Since downstream transforms are
+    // wired to a producer node by PCollection id, and that node must exist when the stage is
+    // translated, give each output its own relay node (StageOutputProcessor) and route to it by
+    // name. A single-output stage needs none of this — it forwards to its one downstream directly
+    // and registers itself as that output's producer. Outputs are sorted so the routing is
+    // deterministic across topology builds.
+    List<String> outputPCollectionIds = new ArrayList<>(transform.getOutputsMap().values());
+    Collections.sort(outputPCollectionIds);
+    boolean multiOutput = outputPCollectionIds.size() > 1;
+    Map<String, String> outputChildByPCollectionId = new LinkedHashMap<>();
+    if (multiOutput) {
+      for (int i = 0; i < outputPCollectionIds.size(); i++) {
+        outputChildByPCollectionId.put(outputPCollectionIds.get(i), transformId + "-output-" + i);
+      }
+    }
 
     Topology topology = context.getTopology();
     // The stage stamps its own transform id on the watermarks it emits, and aggregates its input
@@ -96,12 +105,21 @@ class ExecutableStageTranslator implements PTransformTranslator {
                 context.getJobInfo(),
                 transformId,
                 ImmutableSet.of(parentProcessor),
-                context.getMetricsContainerStepMap().getContainer(transformId)),
+                context.getMetricsContainerStepMap().getContainer(transformId),
+                outputChildByPCollectionId),
         parentProcessor);
 
-    if (!transform.getOutputsMap().isEmpty()) {
-      String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
-      context.registerPCollectionProducer(outputPCollectionId, transformId);
+    if (multiOutput) {
+      // One relay per output; downstream transforms wire to the relay, which re-stamps the stage's
+      // watermark with the relay's own id so their watermark aggregation stays consistent.
+      outputChildByPCollectionId.forEach(
+          (outputPCollectionId, relayName) -> {
+            topology.addProcessor(
+                relayName, () -> new StageOutputProcessor(relayName), transformId);
+            context.registerPCollectionProducer(outputPCollectionId, relayName);
+          });
+    } else if (!outputPCollectionIds.isEmpty()) {
+      context.registerPCollectionProducer(outputPCollectionIds.get(0), transformId);
     }
   }
 }
