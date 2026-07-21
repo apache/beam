@@ -284,7 +284,8 @@ def _windowed_group(kv, window=beam.DoFn.WindowParam):
 
 
 class WatchDoFnProcessTest(unittest.TestCase):
-  def _process(self, poll_fn, element, timestamp):
+  def _process(
+      self, poll_fn, element, timestamp, restriction=None, watermark=None):
     dofn = _WatchGrowthDoFn(
         poll_fn,
         never(),
@@ -292,9 +293,11 @@ class WatchDoFnProcessTest(unittest.TestCase):
         StrUtf8Coder(),
         _identity,
         StrUtf8Coder())
-    threadsafe = ThreadsafeRestrictionTracker(
-        dofn.create_tracker(dofn.initial_restriction(element)))
-    estimator = ThreadsafeWatermarkEstimator(ManualWatermarkEstimator(None))
+    if restriction is None:
+      restriction = dofn.initial_restriction(element)
+    threadsafe = ThreadsafeRestrictionTracker(dofn.create_tracker(restriction))
+    estimator = ThreadsafeWatermarkEstimator(
+        ManualWatermarkEstimator(watermark))
     outputs = list(
         dofn.process(
             element,
@@ -317,6 +320,50 @@ class WatchDoFnProcessTest(unittest.TestCase):
     outputs, threadsafe, _ = self._process(_complete_poll, 'k:', Timestamp(0))
     self.assertEqual([('k:', 'k:a'), ('k:', 'k:b')],
                      [value.value for value in outputs])
+    self.assertIsNone(threadsafe.deferred_status())
+    self.assertTrue(threadsafe.check_done())
+
+  def test_replay_round_leaves_the_watermark_alone(self):
+    pending = PollResult((_ts('k:a', 1), _ts('k:b', 2)), MAX_TIMESTAMP)
+    outputs, threadsafe, estimator = self._process(
+        _empty_poll,
+        'k:',
+        Timestamp(7),
+        restriction=_NonPollingGrowthState(pending))
+    self.assertEqual([('k:', 'k:a'), ('k:', 'k:b')],
+                     [value.value for value in outputs])
+    # The replay branch holds the watermark at the seed, so it never runs ahead
+    # of the replayed outputs and never releases to MAX_TIMESTAMP itself.
+    self.assertEqual(Timestamp(7), estimator.current_watermark())
+    self.assertIsNone(threadsafe.deferred_status())
+    self.assertTrue(threadsafe.check_done())
+
+  def test_terminal_round_after_deferring_leaves_no_residual(self):
+    _POLL_CALLS.clear()
+    # Round one defers and parks the watermark on the new output's time.
+    _, threadsafe, estimator = self._process(_growing_poll, 'd:', Timestamp(0))
+    residual, _ = threadsafe.deferred_status()
+    self.assertIsInstance(residual, _PollingGrowthState)
+    self.assertEqual(Timestamp(1), estimator.current_watermark())
+    # Round two resumes from that residual, carrying the watermark forward.
+    _, threadsafe, estimator = self._process(
+        _growing_poll,
+        'd:',
+        Timestamp(0),
+        restriction=residual,
+        watermark=estimator.current_watermark())
+    residual, _ = threadsafe.deferred_status()
+    self.assertEqual(Timestamp(2), estimator.current_watermark())
+    # Round three completes. The watermark stays where round two left it and
+    # the round reports no residual, so nothing carries that hold forward.
+    outputs, threadsafe, estimator = self._process(
+        _growing_poll,
+        'd:',
+        Timestamp(0),
+        restriction=residual,
+        watermark=estimator.current_watermark())
+    self.assertEqual([('d:', 'd:2')], [value.value for value in outputs])
+    self.assertEqual(Timestamp(2), estimator.current_watermark())
     self.assertIsNone(threadsafe.deferred_status())
     self.assertTrue(threadsafe.check_done())
 
