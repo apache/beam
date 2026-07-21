@@ -21,7 +21,6 @@ plugins {
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.ml.inference.gemini',
-  requireJavaVersion: JavaVersion.VERSION_11
 )
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
@@ -32,9 +31,7 @@ ext.summary = "Gemini model handler for remote inference"
 dependencies {
   implementation project(":sdks:java:ml:inference:remote")
   implementation "com.google.genai:google-genai:1.59.0"
-  implementation library.java.jackson_databind
-  implementation library.java.jackson_annotations
-  implementation library.java.jackson_core
+
 
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")

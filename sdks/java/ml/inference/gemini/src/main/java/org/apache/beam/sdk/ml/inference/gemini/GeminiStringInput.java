@@ -17,15 +17,17 @@
  */
 package org.apache.beam.sdk.ml.inference.gemini;
 
-import com.google.genai.Client;
-import java.io.Serializable;
-import java.util.List;
 import org.apache.beam.sdk.ml.inference.remote.BaseInput;
-import org.apache.beam.sdk.ml.inference.remote.BaseResponse;
 
-/** Functional interface for custom request functions to the Gemini API. */
-@FunctionalInterface
-public interface GeminiRequestFunction<InputT extends BaseInput, OutputT extends BaseResponse>
-    extends Serializable {
-  List<OutputT> apply(String modelName, List<InputT> batch, Client client) throws Exception;
+/** Wrapper for string inputs to Gemini. */
+public class GeminiStringInput implements BaseInput {
+  public final String text;
+
+  public GeminiStringInput(String text) {
+    this.text = text;
+  }
+
+  public String getText() {
+    return text;
+  }
 }

@@ -18,11 +18,14 @@
 package org.apache.beam.sdk.ml.inference.gemini;
 
 import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.ml.inference.remote.BaseInput;
 import org.apache.beam.sdk.ml.inference.remote.BaseModelParameters;
+import org.apache.beam.sdk.ml.inference.remote.BaseResponse;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoValue
-public abstract class GeminiModelParameters<InputT, OutputT> implements BaseModelParameters {
+public abstract class GeminiModelParameters<InputT extends BaseInput, OutputT extends BaseResponse>
+    implements BaseModelParameters {
 
   public abstract @Nullable String getApiKey();
 
@@ -34,12 +37,13 @@ public abstract class GeminiModelParameters<InputT, OutputT> implements BaseMode
 
   public abstract GeminiRequestFunction<InputT, OutputT> getRequestFn();
 
-  public static <InputT, OutputT> Builder<InputT, OutputT> builder() {
+  public static <InputT extends BaseInput, OutputT extends BaseResponse>
+      Builder<InputT, OutputT> builder() {
     return new AutoValue_GeminiModelParameters.Builder<InputT, OutputT>();
   }
 
   @AutoValue.Builder
-  public abstract static class Builder<InputT, OutputT> {
+  public abstract static class Builder<InputT extends BaseInput, OutputT extends BaseResponse> {
     public abstract Builder<InputT, OutputT> setApiKey(String apiKey);
 
     public abstract Builder<InputT, OutputT> setProject(String project);

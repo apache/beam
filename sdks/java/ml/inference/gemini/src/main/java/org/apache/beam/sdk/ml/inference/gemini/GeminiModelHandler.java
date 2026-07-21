@@ -20,7 +20,9 @@ package org.apache.beam.sdk.ml.inference.gemini;
 import com.google.genai.Client;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.ml.inference.remote.BaseInput;
 import org.apache.beam.sdk.ml.inference.remote.BaseModelHandler;
+import org.apache.beam.sdk.ml.inference.remote.BaseResponse;
 import org.apache.beam.sdk.ml.inference.remote.PredictionResult;
 
 /**
@@ -31,7 +33,7 @@ import org.apache.beam.sdk.ml.inference.remote.PredictionResult;
  * GeminiRequestFunction} against a batch of inputs.
  */
 @SuppressWarnings("nullness")
-public class GeminiModelHandler<InputT, OutputT>
+public class GeminiModelHandler<InputT extends BaseInput, OutputT extends BaseResponse>
     implements BaseModelHandler<GeminiModelParameters<InputT, OutputT>, InputT, OutputT> {
 
   private transient Client client;

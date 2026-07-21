@@ -28,34 +28,37 @@ import java.util.List;
 public class GeminiInferenceFunctions {
 
   /** Generates content from string prompts using the standard generateContent API. */
-  public static GeminiRequestFunction<String, String> generateFromString() {
+  public static GeminiRequestFunction<GeminiStringInput, GeminiStringResponse>
+      generateFromString() {
     return (modelName, batch, client) -> {
-      List<String> results = new ArrayList<>();
-      for (String input : batch) {
+      List<GeminiStringResponse> results = new ArrayList<>();
+      for (GeminiStringInput input : batch) {
         GenerateContentResponse response =
             client.models.generateContent(
-                modelName, input, GenerateContentConfig.builder().build());
+                modelName, input.getText(), GenerateContentConfig.builder().build());
         String text = response.text();
-        results.add(text != null ? text : "");
+        results.add(new GeminiStringResponse(text != null ? text : ""));
       }
       return results;
     };
   }
 
   /** Generates images from string prompts using the generateImages API. */
-  public static GeminiRequestFunction<String, byte[]> generateImageFromString() {
+  public static GeminiRequestFunction<GeminiStringInput, GeminiImageResponse>
+      generateImageFromString() {
     return (modelName, batch, client) -> {
-      List<byte[]> results = new ArrayList<>();
-      for (String input : batch) {
+      List<GeminiImageResponse> results = new ArrayList<>();
+      for (GeminiStringInput input : batch) {
         GenerateImagesResponse response =
-            client.models.generateImages(modelName, input, GenerateImagesConfig.builder().build());
+            client.models.generateImages(
+                modelName, input.getText(), GenerateImagesConfig.builder().build());
         // Retrieve the base64 string or bytes from the first generated image
         List<com.google.genai.types.Image> images = response.images();
         if (images != null && !images.isEmpty()) {
           byte[] imageBytes = images.get(0).imageBytes().orElse(new byte[0]);
-          results.add(imageBytes);
+          results.add(new GeminiImageResponse(imageBytes));
         } else {
-          results.add(new byte[0]);
+          results.add(new GeminiImageResponse(new byte[0]));
         }
       }
       return results;

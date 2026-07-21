@@ -32,70 +32,81 @@ public class GeminiModelHandlerTest {
 
   @Test
   public void testAllParamsSet() {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
+    GeminiModelParameters<GeminiStringInput, GeminiStringResponse> parameters =
+        GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
             .setApiKey("test-key")
             .setProject("test-project")
             .setLocation("us-central1")
             .setModelName("gemini-model-123")
             .setRequestFn(GeminiInferenceFunctions.generateFromString())
             .build();
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     assertThrows(IllegalArgumentException.class, () -> handler.createClient(parameters));
   }
 
   @Test
   public void testMissingVertexLocationParam() {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
+    GeminiModelParameters<GeminiStringInput, GeminiStringResponse> parameters =
+        GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
             .setProject("test-project")
             .setModelName("gemini-model-123")
             .setRequestFn(GeminiInferenceFunctions.generateFromString())
             .build();
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     assertThrows(IllegalArgumentException.class, () -> handler.createClient(parameters));
   }
 
   @Test
   public void testMissingVertexProjectParam() {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
+    GeminiModelParameters<GeminiStringInput, GeminiStringResponse> parameters =
+        GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
             .setLocation("us-central1")
             .setModelName("gemini-model-123")
             .setRequestFn(GeminiInferenceFunctions.generateFromString())
             .build();
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     assertThrows(IllegalArgumentException.class, () -> handler.createClient(parameters));
   }
 
   @Test
   public void testNullParameters() {
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     assertThrows(NullPointerException.class, () -> handler.createClient(null));
   }
 
   @Test
   public void testRequest() throws Exception {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
+    GeminiModelParameters<GeminiStringInput, GeminiStringResponse> parameters =
+        GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
             .setApiKey("test-key")
             .setModelName("gemini-model-123")
-            .setRequestFn((modelName, batch, client) -> Arrays.asList("response1", "response2"))
+            .setRequestFn(
+                (modelName, batch, client) ->
+                    Arrays.asList(
+                        new GeminiStringResponse("response1"),
+                        new GeminiStringResponse("response2")))
             .build();
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     handler.createClient(parameters);
 
-    List<String> input = Arrays.asList("input1", "input2");
-    Iterable<PredictionResult<String, String>> results = handler.request(input);
+    List<GeminiStringInput> input =
+        Arrays.asList(new GeminiStringInput("input1"), new GeminiStringInput("input2"));
+    Iterable<PredictionResult<GeminiStringInput, GeminiStringResponse>> results =
+        handler.request(input);
 
     int count = 0;
-    for (PredictionResult<String, String> result : results) {
+    for (PredictionResult<GeminiStringInput, GeminiStringResponse> result : results) {
       if (count == 0) {
-        assertEquals("input1", result.getInput());
-        assertEquals("response1", result.getOutput());
+        assertEquals("input1", result.getInput().getText());
+        assertEquals("response1", result.getOutput().getText());
       } else {
-        assertEquals("input2", result.getInput());
-        assertEquals("response2", result.getOutput());
+        assertEquals("input2", result.getInput().getText());
+        assertEquals("response2", result.getOutput().getText());
       }
       count++;
     }
@@ -104,16 +115,19 @@ public class GeminiModelHandlerTest {
 
   @Test
   public void testRequestMismatchedResponseSize() throws Exception {
-    GeminiModelParameters<String, String> parameters =
-        GeminiModelParameters.<String, String>builder()
+    GeminiModelParameters<GeminiStringInput, GeminiStringResponse> parameters =
+        GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
             .setApiKey("test-key")
             .setModelName("gemini-model-123")
-            .setRequestFn((modelName, batch, client) -> Arrays.asList("response1"))
+            .setRequestFn(
+                (modelName, batch, client) -> Arrays.asList(new GeminiStringResponse("response1")))
             .build();
-    GeminiModelHandler<String, String> handler = new GeminiModelHandler<>();
+    GeminiModelHandler<GeminiStringInput, GeminiStringResponse> handler =
+        new GeminiModelHandler<>();
     handler.createClient(parameters);
 
-    List<String> input = Arrays.asList("input1", "input2");
+    List<GeminiStringInput> input =
+        Arrays.asList(new GeminiStringInput("input1"), new GeminiStringInput("input2"));
     assertThrows(RuntimeException.class, () -> handler.request(input));
   }
 }

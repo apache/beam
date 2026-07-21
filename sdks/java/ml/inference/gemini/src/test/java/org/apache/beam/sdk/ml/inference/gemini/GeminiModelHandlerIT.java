@@ -44,9 +44,11 @@ import org.junit.Test;
  */
 public class GeminiModelHandlerIT {
 
-  public static class GeminiStringContentHandler extends GeminiModelHandler<String, String> {}
+  public static class GeminiStringContentHandler
+      extends GeminiModelHandler<GeminiStringInput, GeminiStringResponse> {}
 
-  public static class GeminiStringImageHandler extends GeminiModelHandler<String, byte[]> {}
+  public static class GeminiStringImageHandler
+      extends GeminiModelHandler<GeminiStringInput, GeminiImageResponse> {}
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
@@ -77,15 +79,16 @@ public class GeminiModelHandlerIT {
     String input =
         "Classify the sentiment of the following text as either positive or negative: This product is absolutely amazing! I love it!";
 
-    PCollection<String> inputs = pipeline.apply("CreateSingleInput", Create.of(input));
+    PCollection<GeminiStringInput> inputs =
+        pipeline.apply("CreateSingleInput", Create.of(new GeminiStringInput(input)));
 
-    PCollection<Iterable<PredictionResult<String, String>>> results =
+    PCollection<Iterable<PredictionResult<GeminiStringInput, GeminiStringResponse>>> results =
         inputs.apply(
             "SentimentInference",
-            RemoteInference.<String, String>invoke()
+            RemoteInference.<GeminiStringInput, GeminiStringResponse>invoke()
                 .handler(GeminiStringContentHandler.class)
                 .withParameters(
-                    GeminiModelParameters.<String, String>builder()
+                    GeminiModelParameters.<GeminiStringInput, GeminiStringResponse>builder()
                         .setApiKey(apiKey)
                         .setModelName(DEFAULT_MODEL)
                         .setRequestFn(GeminiInferenceFunctions.generateFromString())
@@ -96,13 +99,14 @@ public class GeminiModelHandlerIT {
         .satisfies(
             batches -> {
               int count = 0;
-              for (Iterable<PredictionResult<String, String>> batch : batches) {
-                for (PredictionResult<String, String> result : batch) {
+              for (Iterable<PredictionResult<GeminiStringInput, GeminiStringResponse>> batch :
+                  batches) {
+                for (PredictionResult<GeminiStringInput, GeminiStringResponse> result : batch) {
                   count++;
                   assertNotNull("Input should not be null", result.getInput());
                   assertNotNull("Output should not be null", result.getOutput());
 
-                  String sentiment = result.getOutput().toLowerCase();
+                  String sentiment = result.getOutput().getText().toLowerCase();
                   assertTrue(
                       "Sentiment should be positive or negative, got: " + sentiment,
                       sentiment.contains("positive") || sentiment.contains("negative"));
@@ -119,15 +123,16 @@ public class GeminiModelHandlerIT {
   public void testGenerateImageFromString() {
     String input = "A beautiful sunset over the mountains, digital art style.";
 
-    PCollection<String> inputs = pipeline.apply("CreateImageInput", Create.of(input));
+    PCollection<GeminiStringInput> inputs =
+        pipeline.apply("CreateImageInput", Create.of(new GeminiStringInput(input)));
 
-    PCollection<Iterable<PredictionResult<String, byte[]>>> results =
+    PCollection<Iterable<PredictionResult<GeminiStringInput, GeminiImageResponse>>> results =
         inputs.apply(
             "ImageInference",
-            RemoteInference.<String, byte[]>invoke()
+            RemoteInference.<GeminiStringInput, GeminiImageResponse>invoke()
                 .handler(GeminiStringImageHandler.class)
                 .withParameters(
-                    GeminiModelParameters.<String, byte[]>builder()
+                    GeminiModelParameters.<GeminiStringInput, GeminiImageResponse>builder()
                         .setApiKey(apiKey)
                         .setModelName("imagen-4.0-generate-001")
                         .setRequestFn(GeminiInferenceFunctions.generateImageFromString())
@@ -138,12 +143,15 @@ public class GeminiModelHandlerIT {
         .satisfies(
             batches -> {
               int count = 0;
-              for (Iterable<PredictionResult<String, byte[]>> batch : batches) {
-                for (PredictionResult<String, byte[]> result : batch) {
+              for (Iterable<PredictionResult<GeminiStringInput, GeminiImageResponse>> batch :
+                  batches) {
+                for (PredictionResult<GeminiStringInput, GeminiImageResponse> result : batch) {
                   count++;
                   assertNotNull("Input should not be null", result.getInput());
                   assertNotNull("Output should not be null", result.getOutput());
-                  assertTrue("Output should have generated images", result.getOutput().length > 0);
+                  assertTrue(
+                      "Output should have generated images",
+                      result.getOutput().getImageBytes().length > 0);
                 }
               }
               assertEquals("Should have exactly 1 result", 1, count);

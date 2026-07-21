@@ -62,7 +62,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class RemoteInference {
 
   /** Invoke the model handler with model parameters. */
-  public static <InputT, OutputT> Invoke<InputT, OutputT> invoke() {
+  public static <InputT extends BaseInput, OutputT extends BaseResponse>
+      Invoke<InputT, OutputT> invoke() {
     return new AutoValue_RemoteInference_Invoke.Builder<InputT, OutputT>() // .setParameters(null)
         .build();
   }
@@ -70,7 +71,7 @@ public class RemoteInference {
   private RemoteInference() {}
 
   @AutoValue
-  public abstract static class Invoke<InputT, OutputT>
+  public abstract static class Invoke<InputT extends BaseInput, OutputT extends BaseResponse>
       extends PTransform<
           PCollection<InputT>, PCollection<Iterable<PredictionResult<InputT, OutputT>>>> {
 
@@ -93,7 +94,7 @@ public class RemoteInference {
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
-    abstract static class Builder<InputT, OutputT> {
+    abstract static class Builder<InputT extends BaseInput, OutputT extends BaseResponse> {
 
       abstract Builder<InputT, OutputT> setHandler(
           Class<? extends BaseModelHandler<?, InputT, OutputT>> modelHandler);
@@ -221,7 +222,7 @@ public class RemoteInference {
      * </ul>
      */
     @SuppressWarnings("nullness")
-    static class RemoteInferenceFn<InputT, OutputT>
+    static class RemoteInferenceFn<InputT extends BaseInput, OutputT extends BaseResponse>
         extends DoFn<List<InputT>, Iterable<PredictionResult<InputT, OutputT>>> {
 
       private final Class<? extends BaseModelHandler<?, InputT, OutputT>> handlerClass;
