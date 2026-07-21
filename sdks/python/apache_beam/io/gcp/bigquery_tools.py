@@ -451,8 +451,8 @@ class BigQueryWrapper(object):
       return fallback_project_id
 
   def _get_temp_dataset(self):
-    if self.temp_dataset_id:
-      return self.temp_dataset_id
+    if self.temp_table_ref:
+      return self.temp_table_ref.dataset_id
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
