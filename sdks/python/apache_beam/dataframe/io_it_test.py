@@ -34,7 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 try:
   from google.api_core.exceptions import GoogleAPICallError
 
-  import apache_beam.io.gcp.bigquery
+  import apache_beam.io.gcp.bigquery as bigquery
 except ImportError:
   GoogleAPICallError = None
   bigquery = None

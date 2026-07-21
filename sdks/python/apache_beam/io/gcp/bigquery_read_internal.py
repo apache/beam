@@ -476,14 +476,21 @@ class _JsonToDictCoder(coders.Coder):
     if not table_field_schemas:
       return []
 
-    return [
-        FieldSchema(
-            cls._convert_to_tuple(x.fields),
-            x.mode,
-            x.name,
-            getattr(x, "field_type", getattr(x, "type", None)))
-        for x in table_field_schemas
-    ]
+    res = []
+    for x in table_field_schemas:
+      if isinstance(x, dict):
+        fields = x.get('fields', [])
+        mode = x.get('mode', 'NULLABLE')
+        name = x.get('name')
+        field_type = x.get('type')
+      else:
+        fields = getattr(x, 'fields', [])
+        mode = getattr(x, 'mode', 'NULLABLE')
+        name = getattr(x, 'name')
+        field_type = getattr(x, 'field_type', getattr(x, 'type', None))
+      res.append(
+          FieldSchema(cls._convert_to_tuple(fields), mode, name, field_type))
+    return res
 
   def decode(self, value):
     value = json.loads(value.decode('utf-8'))

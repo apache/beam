@@ -451,8 +451,8 @@ class BigQueryWrapper(object):
       return fallback_project_id
 
   def _get_temp_dataset(self):
-    if self.temp_table_ref:
-      return self.temp_table_ref.dataset_id
+    if self.temp_dataset_id:
+      return self.temp_dataset_id
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
@@ -684,7 +684,7 @@ class BigQueryWrapper(object):
       if state == 'DONE' and error_result:
         raise RuntimeError(
             'BigQuery job {} failed. Error Result: {}'.format(
-                job_reference.jobId, error_result))
+                job_id, error_result))
       elif state == 'DONE':
         return True
       else:
@@ -1080,11 +1080,13 @@ class BigQueryWrapper(object):
           job_id=job_id,
           project=job_project,
           job_config=job_config)
-      return job
+      return BeamJobReference(
+          projectId=job.project, jobId=job.job_id, location=job.location)
     except google_api_core_exceptions.Conflict as exn:
       _LOGGER.info("BigQuery job %s already exists", job_id)
       job_location = self._parse_location_from_exc(exn.message, job_id)
-      return self.get_job(job_project, job_id, job_location)
+      return BeamJobReference(
+          projectId=job_project, jobId=job_id, location=job_location)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,

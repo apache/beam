@@ -398,12 +398,11 @@ class UpdateDestinationSchema(beam.DoFn):
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.project is None or table_reference.project == bigquery_tools.FALLBACK_PROJECT:
-      from google.cloud.bigquery import DatasetReference
-      from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
-      table_reference = TableReference(
-          DatasetReference(new_project, table_reference.dataset_id),
+      table_reference = bigquery_tools.TableReference(
+          bigquery_tools.DatasetReference(
+              new_project, table_reference.dataset_id),
           table_reference.table_id)
 
     try:
@@ -543,24 +542,21 @@ class TriggerCopyJobs(beam.DoFn):
 
     copy_to_reference = bigquery_tools.parse_table_reference(destination)
     if copy_to_reference.project is None or copy_to_reference.project == bigquery_tools.FALLBACK_PROJECT:
-      from google.cloud.bigquery import DatasetReference
-      from google.cloud.bigquery import TableReference
       new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
-      copy_to_reference = TableReference(
-          DatasetReference(new_project, copy_to_reference.dataset_id),
+      copy_to_reference = bigquery_tools.TableReference(
+          bigquery_tools.DatasetReference(
+              new_project, copy_to_reference.dataset_id),
           copy_to_reference.table_id)
-
     copy_from_reference = bigquery_tools.parse_table_reference(destination)
     new_table_id = job_reference.jobId
     new_project = copy_from_reference.project
     if new_project is None or new_project == bigquery_tools.FALLBACK_PROJECT:
       new_project = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
-    from google.cloud.bigquery import DatasetReference
-    from google.cloud.bigquery import TableReference
-    copy_from_reference = TableReference(
-        DatasetReference(new_project, copy_from_reference.dataset_id),
+    copy_from_reference = bigquery_tools.TableReference(
+        bigquery_tools.DatasetReference(
+            new_project, copy_from_reference.dataset_id),
         new_table_id)
 
     _LOGGER.info(
