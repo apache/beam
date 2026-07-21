@@ -138,7 +138,7 @@
 ## Known Issues
 
 * (Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring `org.lz4:lz4-java` (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships `at.yawk.lz4:lz4-java` which declares the same capability. To resolve, add a `capabilitiesResolution` rule to your `build.gradle` that selects `at.yawk.lz4:lz4-java` ([#38947](https://github.com/apache/beam/issues/38947)).
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.74.0] - 2026-06-02
 
@@ -182,7 +182,7 @@
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.73.0] - 2026-04-29
 
@@ -222,7 +222,7 @@
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.72.0] - 2026-03-30
 
@@ -259,7 +259,7 @@
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.71.0] - 2026-01-22
 
@@ -282,7 +282,7 @@
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.70.0] - 2025-12-16
 
@@ -307,7 +307,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.69.0] - 2025-10-28
 
@@ -370,7 +370,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 
 ## Known Issues
 
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.68.0] - 2025-09-22
 
@@ -426,7 +426,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 ## Known Issues
 
 * ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.67.0] - 2025-08-12
 
@@ -475,7 +475,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 
 * ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
 * ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
-* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs: [#39406](https://github.com/apache/beam/issues/39406).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.66.0] - 2025-07-01
 
