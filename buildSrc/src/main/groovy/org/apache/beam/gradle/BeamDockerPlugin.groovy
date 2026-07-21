@@ -246,7 +246,7 @@ class BeamDockerPlugin implements Plugin<Project> {
         if (ext.push) {
           buildCommandLine.add "--output=type=registry,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
         } else if (ext.load) {
-          buildCommandLine.add "--output=type=docker,compression=${ext.compression},force-compression=true"
+          buildCommandLine.add '--load'
         } else {
           buildCommandLine.add "--output=type=image,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
         }
