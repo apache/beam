@@ -2088,7 +2088,7 @@ def dynamic_schema(schema_fn_or_map, union_schema=None):
             merged_fields[name] = _merge_fields(merged_fields[name], field)
           else:
             merged_fields[name] = field
-      union_schema = bigquery.TableSchema(fields=list(merged_fields.values()))
+      union_schema = TableSchema(fields=list(merged_fields.values()))
 
     def lookup_schema(destination, *args):
       return schema_fn_or_map[destination]
@@ -2982,7 +2982,7 @@ class StorageWriteToBigQuery(PTransform):
         if schema_hint is not None:
           if isinstance(
               schema_hint,
-              (bigquery.TableSchema, bigquery.TableFieldSchema, str, dict)):
+              (TableSchema, TableFieldSchema, str, dict)):
             row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
                 schema_hint, self.type_overrides)
             return RowTypeConstraint.from_fields(row_type_hints)
