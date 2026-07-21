@@ -31,6 +31,7 @@ from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -531,11 +532,12 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
         return spec_with_project + 'users'
       return spec_with_project + 'scores'
 
-    def get_schema(dest, side_map):
+    def get_schema_raw(dest, side_map):
       return side_map[dest]
 
-    get_schema._union_schema = (
-        "id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN")
+    get_schema = bigquery.dynamic_schema(
+        get_schema_raw,
+        union_schema="id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN")
 
     with beam.Pipeline(argv=self.args) as p:
       schema_pc = p | "CreateSchema" >> beam.Create([schema_map])

@@ -292,6 +292,52 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
       _, kwargs = mock_storage_write.call_args
       self.assertEqual(len(kwargs['schema_side_inputs']), 1)
 
+  def test_dynamic_schema_helper_with_dictionary(self, mock_expansion_service):
+    """Test dynamic_schema auto-merges fields from a dictionary map."""
+    schema_map = {
+        'table_a': 'id:INTEGER,name:STRING',
+        'table_b': 'id:INTEGER,score:INTEGER,active:BOOLEAN'
+    }
+    schema_callable = bigquery.dynamic_schema(schema_map)
+
+    # 1. Verify it returns the correct schema per destination
+    self.assertEqual(schema_callable('table_a'), 'id:INTEGER,name:STRING')
+    self.assertEqual(
+        schema_callable('table_b'), 'id:INTEGER,score:INTEGER,active:BOOLEAN')
+
+    # 2. Verify it auto-merged all unique fields into _union_schema
+    expected_union = bigquery_tools.get_bq_tableschema(
+        'id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN')
+    self.assertEqual(schema_callable._union_schema, expected_union)
+
+  def test_dynamic_schema_helper_with_callable_and_explicit_union(
+      self, mock_expansion_service):
+    """Test dynamic_schema attaches union_schema explicitly to a callable."""
+    def get_schema(dest):
+      return 'id:INTEGER,name:STRING'
+
+    union_schema = 'id:INTEGER,name:STRING,score:INTEGER'
+    schema_callable = bigquery.dynamic_schema(
+        get_schema, union_schema=union_schema)
+
+    self.assertEqual(schema_callable('table_a'), 'id:INTEGER,name:STRING')
+    self.assertEqual(schema_callable._union_schema, union_schema)
+
+  def test_dynamic_schema_helper_missing_union_on_callable_raises_error(
+      self, mock_expansion_service):
+    """Test dynamic_schema raises ValueError if union_schema is missing on callable."""
+    def get_schema(dest):
+      return 'id:INTEGER'
+
+    with self.assertRaises(ValueError):
+      bigquery.dynamic_schema(get_schema)
+
+  def test_dynamic_schema_helper_with_invalid_type_raises_error(
+      self, mock_expansion_service):
+    """Test dynamic_schema raises TypeError if passed an invalid type."""
+    with self.assertRaises(TypeError):
+      bigquery.dynamic_schema('id:INTEGER')
+
 
 if __name__ == '__main__':
   unittest.main()
