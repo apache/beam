@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -668,12 +669,23 @@ public class IcebergIO {
 
       Table table = TableCache.get(getCatalogConfig(), tableId);
 
+      @Nullable
+      String updateCompatibilityVersion =
+          input
+              .getPipeline()
+              .getOptions()
+              .as(StreamingOptions.class)
+              .getUpdateCompatibilityVersion();
+
       IcebergScanConfig scanConfig =
           IcebergScanConfig.builder()
               .setCatalogConfig(getCatalogConfig())
               .setScanType(IcebergScanConfig.ScanType.TABLE)
               .setTableIdentifier(tableId)
-              .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+              .setSchema(
+                  IcebergUtils.icebergSchemaToBeamSchema(
+                      table.schema(), updateCompatibilityVersion))
+              .setUpdateCompatibilityVersion(updateCompatibilityVersion)
               .setFromSnapshotInclusive(getFromSnapshot())
               .setToSnapshot(getToSnapshot())
               .setFromTimestamp(getFromTimestamp())

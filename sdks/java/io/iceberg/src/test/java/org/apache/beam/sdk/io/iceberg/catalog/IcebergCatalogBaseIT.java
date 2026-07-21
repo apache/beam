@@ -59,6 +59,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -106,8 +107,6 @@ import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.LocalDate;
@@ -272,7 +271,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           .addArrayField("arr_long", Schema.FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
-          .addDateTimeField("datetime_tz")
+          .addLogicalTypeField("datetime_tz", Timestamp.MICROS)
           .addLogicalTypeField("datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
@@ -309,8 +308,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
-              .addValue(new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHours(4)))
-              .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000))
+              .addValue(
+                  DateTimeUtil.timestamptzFromMicros(timestampMillis * 1000 + 123456789)
+                      .toInstant())
+              .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000 + 123456789))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
               .build();

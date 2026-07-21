@@ -75,6 +75,10 @@
 ## Breaking Changes
 
 * (Python) Removed `google-perftools` from the SDK container images. Users who wish to use `--profiler_agent=tcmalloc` should install google-perftools APT package in their custom container images separately ([#39323](https://github.com/apache/beam/issues/39323)).
+* [IcebergIO] Reading a `timestamptz` column will now return a `Timestamp.MICROS` Beam logical type, equivalent to a
+ `java.time.Instant` object, in order to preserve microseconds (the old Beam `Schema.FieldType#DATETIME` primitive type
+ truncates past milliseconds). Use pipeline option `--updateCompatibilityVersion=2.75.0` (or any older version) to
+ keep the old behavior ([#39344](https://github.com/apache/beam/issues/39344)).
 
 ## Deprecations
 
