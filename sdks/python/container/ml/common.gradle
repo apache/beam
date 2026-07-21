@@ -84,15 +84,18 @@ def copyLauncherDependencies = tasks.register("copyLauncherDependencies", Copy) 
 }
 
 def pushContainers = project.rootProject.hasProperty(["isRelease"]) || project.rootProject.hasProperty("push-containers")
+def imageName = containerImageName(
+        name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk_ml",
+        root: project.rootProject.hasProperty(["docker-repository-root"]) ?
+                project.rootProject["docker-repository-root"] :
+                project.docker_image_default_repo_root,
+        tag: project.rootProject.hasProperty(["docker-tag"]) ?
+                project.rootProject["docker-tag"] : project.sdk_version)
+def registryBuildCacheRef = project.rootProject.hasProperty("docker-registry-cache") ?
+        containerRegistryBuildCacheRef(imageName) : null
 
 docker {
-  name containerImageName(
-          name: project.docker_image_default_repo_prefix + "python${project.ext.pythonVersion}_sdk_ml",
-          root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] :
-                  project.docker_image_default_repo_root,
-          tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project.sdk_version)
+  name imageName
   // tags used by dockerTag task
   tags containerImageTags()
   files "../../Dockerfile", "./build"
@@ -103,6 +106,12 @@ docker {
   platform(*project.containerPlatforms())
   load project.useBuildx() && !pushContainers
   push pushContainers
+  if (registryBuildCacheRef != null) {
+    cacheFrom registryBuildCacheRef
+    if (pushContainers) {
+      cacheTo registryBuildCacheRef
+    }
+  }
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies

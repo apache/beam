@@ -33,12 +33,15 @@ def base = containerImageName(
             name: base_name,
             root: root,
             tag: tag)
-
-docker {
-    name containerImageName(
+def distrolessImageName = containerImageName(
         name: "${base_name}_distroless",
         root: root,
         tag: tag)
+def registryBuildCacheRef = project.rootProject.hasProperty("docker-registry-cache") ?
+        containerRegistryBuildCacheRef(distrolessImageName) : null
+
+docker {
+    name distrolessImageName
     // tags used by dockerTag task
     tags containerImageTags()
     files "../Dockerfile", "./build"
@@ -47,6 +50,12 @@ docker {
     platform(*project.containerPlatforms())
     load project.useBuildx() && !pushContainers
     push pushContainers
+    if (registryBuildCacheRef != null) {
+      cacheFrom registryBuildCacheRef
+      if (pushContainers) {
+        cacheTo registryBuildCacheRef
+      }
+    }
 }
 
 dockerPrepare.dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"

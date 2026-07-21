@@ -108,6 +108,7 @@ jobs:
             -Pcontainer-architecture-list=arm64,amd64 \
             -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
             -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
+            -Pdocker-registry-cache \
             -Ppush-containers \
         env:
           MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}

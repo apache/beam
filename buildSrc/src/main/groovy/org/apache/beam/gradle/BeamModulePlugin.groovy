@@ -2456,6 +2456,15 @@ class BeamModulePlugin implements Plugin<Project> {
       return tags
     }
 
+    // Registry ref for Docker BuildKit layer cache (tag is always buildcache).
+    project.ext.containerRegistryBuildCacheRef = { String imageName ->
+      int lastColon = imageName.lastIndexOf(':')
+      if (lastColon < 0) {
+        return "${imageName}:buildcache"
+      }
+      return "${imageName.substring(0, lastColon)}:buildcache"
+    }
+
     /** ***********************************************************************************************/
 
     // applyGrpcNature should only be applied to projects who wish to use
