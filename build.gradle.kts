@@ -299,6 +299,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:join-library:build")
   dependsOn(":sdks:java:extensions:kryo:build")
   dependsOn(":sdks:java:extensions:ml:build")
+  dependsOn(":sdks:java:extensions:openlineage:build")
   dependsOn(":sdks:java:extensions:protobuf:build")
   dependsOn(":sdks:java:extensions:python:build")
   dependsOn(":sdks:java:extensions:sbe:build")

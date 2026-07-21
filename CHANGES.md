@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * (Python) Removed the `envoy-data-plane` (and transitive `betterproto`) dependency; `EnvoyRateLimiter` now uses a small vendored protobuf definition instead, resolving dependency conflicts for downstream projects ([#37854](https://github.com/apache/beam/issues/37854)).
+* Added an OpenLineage extension (`sdks/java/extensions/openlineage`) that emits OpenLineage events describing the datasets a pipeline reads and writes, via a wrapper runner (`--runner=OpenLineageRunner`) and a pluggable lineage backend (`--lineageType`) (Java) ([#39427](https://github.com/apache/beam/issues/39427)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
