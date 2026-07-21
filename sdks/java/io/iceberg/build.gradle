@@ -169,6 +169,10 @@ task integrationTest(type: Test) {
         "--project=${gcpProject}",
         "--tempLocation=${gcpTempLocation}",
     ])
+    // Warehouse (= catalog) used by the BigLake REST catalog tests; overridable for runs
+    // against a non-default project's catalog.
+    systemProperty "beam.iceberg.biglake.warehouse",
+        project.findProperty('biglakeWarehouse') ?: 'gs://managed-iceberg-biglake-its'
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
     outputs.upToDateWhen { false }
