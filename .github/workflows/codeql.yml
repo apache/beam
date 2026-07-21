@@ -36,8 +36,8 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
+        uses: actions/checkout@v7
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
         id: filter
         with:
           filters: |
