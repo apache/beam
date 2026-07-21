@@ -1,6 +1,6 @@
 ---
 title: "Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma"
-date: 2026-07-21
+date: 2026-07-22
 authors:
     - janaom
 categories:
@@ -27,7 +27,7 @@ Apache Beam and Google Cloud Dataflow are usually known for ETL and batch/stream
 
 Here is my interview with **Raj Katakam**, Staff Machine Learning Engineer at Intuit Credit Karma. We talked about how they built a unified ML platform on Apache Beam and Dataflow to serve 140 million users, why being active in the Apache Beam community matters to him, and what advice he would give anyone just getting started with Beam and ML.
 
----------------------
+--------------
 
 **Jana: Intuit Credit Karma’s tech stack looks like a dream! You are on Google Cloud and using services like Dataflow, BigQuery, and Managed Airflow (previously, Cloud Composer). What were the main reasons for choosing this stack, and what trade-offs did you have to consider when selecting GCP and Apache Beam/Dataflow?**
 
@@ -75,7 +75,7 @@ My advice to anyone pursuing a career in ML would be to focus on first-principle
 
 **Raj**: Thank you for having me, Jana, this was a great conversation!
 
-------------------------
+------------
 
 🌐 To learn more about **Intuit Credit Karma**, visit their [website](https://www.creditkarma.com/) or check out their [LinkedIn](https://www.linkedin.com/company/intuitcreditkarma/). You can also connect with **Raj** directly on [LinkedIn](https://www.linkedin.com/in/rajkiran2190).
 
