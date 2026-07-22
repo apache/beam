@@ -25,6 +25,8 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -62,6 +64,9 @@ public class KafkaCommitOffset<K, V>
 
   static class CommitOffsetDoFn extends DoFn<KV<KafkaSourceDescriptor, Long>, Void> {
     private static final Logger LOG = LoggerFactory.getLogger(CommitOffsetDoFn.class);
+    private static final Counter COMMIT_FAILURES =
+        Metrics.counter(CommitOffsetDoFn.class, "commit-failures");
+
     private final Map<String, Object> consumerConfig;
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         consumerFactoryFn;
@@ -85,6 +90,7 @@ public class KafkaCommitOffset<K, V>
                   element.getKey().getTopicPartition(),
                   new OffsetAndMetadata(element.getValue() + 1)));
         } catch (Exception e) {
+          COMMIT_FAILURES.inc();
           // TODO: consider retrying.
           LOG.warn("Getting exception when committing offset: {}", e.getMessage());
         }
