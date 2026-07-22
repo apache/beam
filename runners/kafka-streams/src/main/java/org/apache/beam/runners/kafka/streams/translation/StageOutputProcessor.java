@@ -35,11 +35,12 @@ import org.slf4j.LoggerFactory;
  * routes each harness output to the matching relay by name, and downstream transforms wire to the
  * relay. (A single-output stage needs none of this and forwards directly.)
  *
- * <p>The relay forwards data records unchanged, and re-stamps the watermark with its own transform
- * id so a downstream watermark aggregator, which expects to hear from this relay, sees a consistent
- * source. The stage is a single instance and its watermark is already the monotonic aggregate over
- * its input, so the relay only relabels it — there is exactly one upstream partition to relay, no
- * aggregation to do.
+ * <p>The relay forwards data records unchanged, and on the watermark it relabels <em>only</em> the
+ * transform id — keeping the stage instance's source partition and total partition count intact.
+ * This is a 1:1 pass-through of one stage task's watermark (relay task {@code i} sees stage task
+ * {@code i}), so preserving the partition identity is what lets a downstream aggregator both know
+ * the report comes from this output (the relay's id) and still infer how many parallel instances of
+ * the stage produced it. The relay does no aggregation of its own.
  */
 class StageOutputProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
@@ -76,13 +77,17 @@ class StageOutputProcessor
       ctx.forward(record);
       return;
     }
-    // Re-stamp the stage's watermark with this output port's own id. Single upstream instance, so
-    // its value is already monotonic; just relabel it as source 0 of 1.
+    // Relabel the transform id to this output port's, but keep the reporting stage instance's
+    // partition and partition count so downstream can still infer the stage's parallelism.
     WatermarkPayload report = payload.asWatermark();
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
             record.key(),
-            KStreamsPayload.watermark(report.getWatermarkMillis(), transformId, 0, 1),
+            KStreamsPayload.watermark(
+                report.getWatermarkMillis(),
+                transformId,
+                report.getSourcePartition(),
+                report.getTotalSourcePartitions()),
             record.timestamp()));
   }
 }
