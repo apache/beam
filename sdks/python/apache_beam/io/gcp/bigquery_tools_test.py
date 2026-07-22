@@ -239,11 +239,8 @@ class TestBigQueryWrapper(unittest.TestCase):
       beam.io.gcp.bigquery_tools.gcp_bigquery is None,
       "bigquery library not available in this env")
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch(
-      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
   @mock.patch('google.cloud._http.JSONConnection.http')
-  def test_user_agent_insert_all(
-      self, http_mock, patched_skip_get_credentials, patched_sleep):
+  def test_user_agent_insert_all(self, http_mock, patched_sleep):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     try:
       wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
@@ -261,11 +258,8 @@ class TestBigQueryWrapper(unittest.TestCase):
       beam.io.gcp.bigquery_tools.gcp_bigquery is None,
       "bigquery library not available in this env")
   @mock.patch('google.cloud._http.JSONConnection.http')
-  @mock.patch(
-      'apitools.base.py.base_api._SkipGetCredentials', return_value=True)
   @mock.patch('time.sleep', return_value=None)
-  def test_user_agent_create_temporary_dataset(
-      self, sleep_mock, skip_get_credentials_mock, http_mock):
+  def test_user_agent_create_temporary_dataset(self, sleep_mock, http_mock):
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
     try:
       wrapper.create_temporary_dataset('project-id', 'location')

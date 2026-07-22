@@ -32,7 +32,7 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud import bigquery as gcp_bigquery
   from testcontainers.redis import RedisContainer
 
@@ -77,7 +77,7 @@ class BigQueryEnrichmentIT(unittest.TestCase):
           gcp_bigquery.DatasetReference(cls.project, cls.dataset_id),
           delete_contents=True,
           not_found_ok=True)
-    except HttpError:
+    except GoogleAPICallError:
       _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
           cls.dataset_id,

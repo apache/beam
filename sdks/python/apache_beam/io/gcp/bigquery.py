@@ -335,8 +335,7 @@ TableRow: Holds all values in a table row. Has one attribute, 'f', which is a
   list of TableCell instances.
 
 TableCell: Holds the value for one cell (or field).  Has one attribute,
-  'v', which is a JsonValue instance. This class is defined in
-  apitools.base.py.extra_types.py module.
+  'v', which represents the cell value.
 
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
