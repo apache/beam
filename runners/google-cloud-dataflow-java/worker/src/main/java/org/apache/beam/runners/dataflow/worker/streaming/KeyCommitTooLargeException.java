@@ -23,19 +23,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class KeyCommitTooLargeException extends Exception {
 
   public static KeyCommitTooLargeException causedBy(
-      String stageName, long byteLimit, Windmill.WorkItemCommitRequest request) {
-    return causedBy(stageName, byteLimit, request, null, false);
-  }
-
-  public static KeyCommitTooLargeException causedBy(
-      String stageName,
-      long byteLimit,
-      Windmill.WorkItemCommitRequest request,
-      boolean hotKeyLoggingEnabled) {
-    return causedBy(stageName, byteLimit, request, null, hotKeyLoggingEnabled);
-  }
-
-  public static KeyCommitTooLargeException causedBy(
       String stageName,
       long byteLimit,
       Windmill.WorkItemCommitRequest request,

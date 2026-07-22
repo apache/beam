@@ -1337,15 +1337,18 @@ public class StreamingDataflowWorkerTest {
                 1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
         removeDynamicFields(largeCommit));
-
+    // Check this explicitly since the estimated commit bytes weren't actuallyExpand commentComment on line L1340
+    // checked against an expected value in the previous step
     assertTrue(largeCommit.getEstimatedWorkItemCommitBytes() > 1000);
 
+    // Spam worker updates a few times.
     int maxTries = 10;
     while (--maxTries > 0) {
       worker.reportPeriodicWorkerUpdatesForTest();
       Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
 
+    // We should see an exception reported for the large commit but not the small one.
     ArgumentCaptor<WorkItemStatus> workItemStatusCaptor =
         ArgumentCaptor.forClass(WorkItemStatus.class);
     verify(mockWorkUnitClient, atLeast(2)).reportWorkItemStatus(workItemStatusCaptor.capture());
