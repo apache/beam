@@ -29,6 +29,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import equal_to_approx
 from apache_beam.testing.util import equal_to_per_window
 from apache_beam.testing.util import is_empty
 from apache_beam.testing.util import is_not_empty
@@ -92,6 +93,50 @@ class UtilTest(unittest.TestCase):
       assert_that(
           p | Create([1, 2, 3]),
           equal_to(['1', '2', '3'], equals_fn=lambda e, a: int(e) == int(a)))
+
+  def test_equal_to_approx(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([1.0, 2.0, 3.0]),
+          equal_to_approx([3.0000000001, 2.0, 1.0]))
+
+  def test_equal_to_approx_nested(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([('a', 1.0), ('b', 2.0)]),
+          equal_to_approx([('b', 2.0000000001), ('a', 1.0)]))
+
+  def test_equal_to_approx_with_abs_tol(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([0.0]), equal_to_approx([1e-10], abs_tol=1e-9))
+
+  def test_equal_to_approx_fails_outside_tolerance(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([1.0]), equal_to_approx([1.1]))
+
+  def test_equal_to_approx_nested_list(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([[1.0, 2.0]]), equal_to_approx([[1.0000000001, 2.0]]))
+
+  def test_equal_to_approx_non_numeric(self):
+    with TestPipeline() as p:
+      assert_that(p | Create(['a', 'b']), equal_to_approx(['b', 'a']))
+
+  def test_equal_to_approx_empty(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([]), equal_to_approx([]))
+
+  def test_equal_to_approx_with_rel_tol(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([100.0]), equal_to_approx([100.00001], rel_tol=1e-6))
+
+  def test_equal_to_approx_nested_fails_outside_tolerance(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([('a', 1.0)]), equal_to_approx([('a', 1.2)]))
 
   def test_reified_value_passes(self):
     expected = [
