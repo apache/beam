@@ -61,8 +61,6 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean push = false
     String builder = null
     String target = null
-    Set<String> cacheFromRefs = [] as Set
-    String cacheToRef = null
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -116,14 +114,6 @@ class BeamDockerPlugin implements Plugin<Project> {
 
     void platform(String... args) {
       this.platform = args as Set
-    }
-
-    void cacheFrom(String... args) {
-      this.cacheFromRefs = args as Set
-    }
-
-    void cacheTo(String ref) {
-      this.cacheToRef = ref
     }
   }
 
@@ -287,14 +277,6 @@ class BeamDockerPlugin implements Plugin<Project> {
     }
     if (ext.pull) {
       buildCommandLine.add '--pull'
-    }
-    if (ext.buildx && !ext.cacheFromRefs.isEmpty()) {
-      for (String cacheRef : ext.cacheFromRefs) {
-        buildCommandLine.addAll(['--cache-from', "type=registry,ref=${cacheRef}" as String])
-      }
-    }
-    if (ext.buildx && ext.cacheToRef != null) {
-      buildCommandLine.addAll(['--cache-to', "type=registry,ref=${ext.cacheToRef},mode=max" as String])
     }
     if (!ext.tags.isEmpty() && ext.push) {
       String[] repoParts = (ext.name as String).split(':')

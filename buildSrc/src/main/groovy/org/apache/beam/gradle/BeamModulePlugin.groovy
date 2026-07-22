@@ -2456,21 +2456,6 @@ class BeamModulePlugin implements Plugin<Project> {
       return tags
     }
 
-    // Registry ref for Docker BuildKit layer cache (tag is always buildcache).
-    // Only treat ':' as a tag separator when it appears after the last '/', so
-    // registries with ports (e.g. localhost:5000/...) are handled correctly.
-    project.ext.containerRegistryBuildCacheRef = { String imageName ->
-      if (!imageName) {
-        return null
-      }
-      int lastSlash = imageName.lastIndexOf('/')
-      int lastColon = imageName.lastIndexOf(':')
-      if (lastColon < 0 || lastColon < lastSlash) {
-        return "${imageName}:buildcache"
-      }
-      return "${imageName.substring(0, lastColon)}:buildcache"
-    }
-
     /** ***********************************************************************************************/
 
     // applyGrpcNature should only be applied to projects who wish to use
