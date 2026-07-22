@@ -50,11 +50,15 @@ message TestStreamFileRecord {
   org.apache.beam.model.pipeline.v1.TestStreamPayload.Event recorded_event = 1;
 }
 
+// A gRPC service that serves cached TestStream events to a TestStream source.
+// Used by Interactive Beam to replay recorded pipeline elements from a streaming cache.
 service TestStreamService {
   // A TestStream will request for events using this RPC.
   rpc Events(EventsRequest) returns (stream org.apache.beam.model.pipeline.v1.TestStreamPayload.Event) {}
 }
 
+// A request for TestStream events from a streaming cache.
+// The client specifies which PCollection output tags to read events for.
 message EventsRequest {
   // The set of PCollections to read from. These are the PTransform outputs
   // local names. These are a subset of the TestStream's outputs. This allows
