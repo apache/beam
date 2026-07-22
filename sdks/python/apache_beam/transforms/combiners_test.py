@@ -253,6 +253,7 @@ class CombineTest(unittest.TestCase):
 
     individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
     individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
+    individual_test_per_key_dd(combine.Sample.Any, 5)
 
   def test_combine_globally_display_data(self):
     transform = beam.CombineGlobally(combine.Smallest(5))
@@ -358,6 +359,55 @@ class CombineTest(unittest.TestCase):
         return match
 
       assert_that(result, matcher())
+
+  def test_sample_any(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2, 3, 4, 5])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(3)
+
+      def check(actual):
+        assert len(actual) == 3, actual
+        for element in actual:
+          assert element in [1, 2, 3, 4, 5], element
+
+      assert_that(result, check)
+
+  def test_sample_any_at_most_input_size(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(5)
+      assert_that(result, equal_to([1, 2]))
+
+  def test_sample_any_windowed(self):
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | 'start' >> Create([1, 2, 3, 4])
+          | 'timestamp' >> Map(lambda x: TimestampedValue(x, x * 10))
+          | 'window' >> WindowInto(FixedWindows(15)))
+      result = pcoll | 'sample-any' >> combine.Sample.Any(1)
+
+      def check(actual):
+        # Timestamps 10, 20, 30, 40 fall into fixed windows [0, 15), [15, 30)
+        # and [30, 45), holding {1}, {2} and {3, 4}. One element is sampled from
+        # each window that has elements.
+        assert len(actual) == 3, actual
+        for element in actual:
+          assert element in [1, 2, 3, 4], element
+
+      assert_that(result, check)
+
+  def test_sample_any_empty(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(3)
+      assert_that(result, equal_to([]))
+
+  def test_sample_any_zero(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2, 3])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(0)
+      assert_that(result, equal_to([]))
 
   def test_tuple_combine_fn(self):
     with TestPipeline() as p:

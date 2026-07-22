@@ -597,6 +597,32 @@ class Sample(object):
     def default_label(self):
       return 'FixedSizePerKey(%d)' % self._n
 
+  @with_input_types(T)
+  @with_output_types(T)
+  class Any(ptransform.PTransform):
+    """Returns up to n arbitrary elements from the input PCollection.
+
+    This is the Python equivalent of Java's ``Sample.any``. Unlike
+    ``FixedSizeGlobally`` it does not sample uniformly at random, and it returns
+    the selected elements rather than a single list. If the input has fewer than
+    n elements, all of them are returned.
+    """
+    def __init__(self, n):
+      self._n = n
+
+    def expand(self, pcoll):
+      return (
+          pcoll
+          | core.CombineGlobally(_SampleAnyCombineFn(
+              self._n)).without_defaults()
+          | core.FlatMap(lambda elements: elements))
+
+    def display_data(self):
+      return {'n': self._n}
+
+    def default_label(self):
+      return 'Any(%d)' % self._n
+
 
 @with_input_types(T)
 @with_output_types(list[T])
@@ -634,6 +660,35 @@ class SampleCombineFn(core.CombineFn):
 
   def teardown(self):
     self._top_combiner.teardown()
+
+
+@with_input_types(T)
+@with_output_types(list[T])
+class _SampleAnyCombineFn(core.CombineFn):
+  """CombineFn that keeps up to n arbitrary elements (no random sampling)."""
+  def __init__(self, n):
+    super().__init__()
+    self._n = n
+
+  def create_accumulator(self):
+    return []
+
+  def add_input(self, accumulator, element):
+    if len(accumulator) < self._n:
+      accumulator.append(element)
+    return accumulator
+
+  def merge_accumulators(self, accumulators):
+    result = []
+    for accumulator in accumulators:
+      for element in accumulator:
+        if len(result) >= self._n:
+          return result
+        result.append(element)
+    return result
+
+  def extract_output(self, accumulator):
+    return accumulator
 
 
 class _TupleCombineFnBase(core.CombineFn):
