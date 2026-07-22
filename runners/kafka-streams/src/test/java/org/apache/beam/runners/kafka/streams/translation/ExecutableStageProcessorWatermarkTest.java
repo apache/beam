@@ -26,6 +26,7 @@ import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.streams.processor.api.MockProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
@@ -59,7 +60,9 @@ public class ExecutableStageProcessorWatermarkTest {
         jobInfo,
         STAGE_ID,
         ImmutableSet.of(UPSTREAM_ID),
-        new MetricsContainerImpl(STAGE_ID));
+        new MetricsContainerImpl(STAGE_ID),
+        // Single-output: no per-output routing (this test drives the watermark path directly).
+        ImmutableMap.of());
   }
 
   /** A report from the upstream transform's given partition. */
