@@ -409,6 +409,10 @@ public class IcebergIO {
 
     abstract @Nullable Map<String, String> getWriteProperties();
 
+    abstract @Nullable List<String> getPartitionFields();
+
+    abstract @Nullable List<String> getSortFields();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -428,6 +432,10 @@ public class IcebergIO {
       abstract Builder setAutoSharding(boolean autoSharding);
 
       abstract Builder setWriteProperties(Map<String, String> writeProperties);
+
+      abstract Builder setPartitionFields(List<String> partitionFields);
+
+      abstract Builder setSortFields(List<String> sortFields);
 
       abstract WriteRows build();
     }
@@ -483,6 +491,26 @@ public class IcebergIO {
       return toBuilder().setWriteProperties(writeProperties).build();
     }
 
+    /**
+     * Defines the desired Partition Spec to be applied when the Iceberg table must be dynamically
+     * created, e.g. `bucket(id_field, 32)` or `day(timestamp_field)`
+     *
+     * <p>See: https://iceberg.apache.org/spec/#partitioning
+     */
+    public WriteRows withPartitionSpec(List<String> partitionFields) {
+      return toBuilder().setPartitionFields(partitionFields).build();
+    }
+
+    /**
+     * Defines the desired Sort Order to be applied when the Iceberg table must be dynamically
+     * created, e.g. `int_field desc` or `bucket(modulo_5, 4) asc nulls last`
+     *
+     * <p>See: https://iceberg.apache.org/spec/#sorting
+     */
+    public WriteRows withSortOrder(List<String> sortFields) {
+      return toBuilder().setSortFields(sortFields).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -494,7 +522,10 @@ public class IcebergIO {
       if (destinations == null) {
         destinations =
             DynamicDestinations.singleTable(
-                Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
+                Preconditions.checkNotNull(getTableIdentifier()),
+                input.getSchema(),
+                getPartitionFields(),
+                getSortFields());
       }
 
       // Assign destinations before re-windowing to global in WriteToDestinations because

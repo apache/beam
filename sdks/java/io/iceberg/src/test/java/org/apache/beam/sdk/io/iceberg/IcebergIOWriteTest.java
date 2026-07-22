@@ -76,7 +76,10 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortDirection;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
@@ -774,5 +777,56 @@ public class IcebergIOWriteTest implements Serializable {
             .next()
             .getCommitted();
     assertEquals(5L, numWaves);
+  }
+
+  @Test
+  public void testCreateTableWithPartitionSpecAndSortOrder() {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "sorted_partitioned_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    testPipeline
+        .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+        .setRowSchema(beamSchema)
+        .apply(
+            "Append To Table",
+            writeTransform(catalog, tableId)
+                .withPartitionSpec(ImmutableList.of("bucket(id, 2)"))
+                .withSortOrder(ImmutableList.of("data asc nulls first")));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+
+    // verify partition spec
+    PartitionSpec spec = table.spec();
+    assertTrue(spec.isPartitioned());
+    assertEquals(1, spec.fields().size());
+    assertEquals("id_bucket", spec.fields().get(0).name());
+
+    // verify sort order
+    SortOrder sortOrder = table.sortOrder();
+    assertTrue(sortOrder.isSorted());
+    assertEquals(1, sortOrder.fields().size());
+    assertEquals(SortDirection.ASC, sortOrder.fields().get(0).direction());
+    assertEquals(NullOrder.NULLS_FIRST, sortOrder.fields().get(0).nullOrder());
+
+    // verify data was written correctly
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
   }
 }
