@@ -60,7 +60,13 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   class GcsReadOptionsFactory implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
     @Override
     public GoogleCloudStorageReadOptions create(PipelineOptions options) {
-      return GoogleCloudStorageReadOptions.DEFAULT;
+      // In gcs-connector v3, GoogleCloudStorageReadOptions.DEFAULT changed fadvise from SEQUENTIAL
+      // to AUTO. Beam workloads default to SEQUENTIAL to preserve expected sequential read
+      // throughput and caching behavior.
+      return GoogleCloudStorageReadOptions.DEFAULT
+          .toBuilder()
+          .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
+          .build();
     }
   }
 

@@ -86,7 +86,7 @@ public class GcsOptionsTest {
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder()
-            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.RANDOM)
             .setFastFailOnNotFoundEnabled(false)
             .setMinRangeRequestSize(12345L)
             .build();
@@ -102,7 +102,7 @@ public class GcsOptionsTest {
 
     assertNotNull(deserializedReadOptions);
     assertEquals(
-        GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL, deserializedReadOptions.getFadvise());
+        GoogleCloudStorageReadOptions.Fadvise.RANDOM, deserializedReadOptions.getFadvise());
     assertFalse(deserializedReadOptions.isFastFailOnNotFoundEnabled());
     assertEquals(12345L, deserializedReadOptions.getMinRangeRequestSize());
   }
