@@ -18,8 +18,19 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -53,8 +64,48 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
     }
   }
 
+  class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
+    @Override
+    public void serialize(
+        GoogleCloudStorageReadOptions value, JsonGenerator gen, SerializerProvider serializers)
+        throws java.io.IOException {
+      serializers.defaultSerializeValue(value, gen);
+    }
+  }
+
+  class GcsReadOptionsDeserializer extends JsonDeserializer<GoogleCloudStorageReadOptions> {
+    @Override
+    public GoogleCloudStorageReadOptions deserialize(JsonParser p, DeserializationContext ctxt)
+        throws java.io.IOException {
+      ObjectMapper mapper = (ObjectMapper) p.getCodec();
+      JsonNode root = mapper.readTree(p);
+      GoogleCloudStorageReadOptions.Builder builder = GoogleCloudStorageReadOptions.builder();
+
+      for (Method method : GoogleCloudStorageReadOptions.Builder.class.getMethods()) {
+        if (method.getName().startsWith("set") && method.getParameterCount() == 1) {
+          String propName =
+              Character.toLowerCase(method.getName().charAt(3)) + method.getName().substring(4);
+          JsonNode node = root.get(propName);
+          if (node != null && !node.isNull()) {
+            try {
+              Class<?> paramType = method.getParameterTypes()[0];
+              Object val = mapper.treeToValue(node, paramType);
+              if (val != null) {
+                method.invoke(builder, java.util.Objects.requireNonNull(val));
+              }
+            } catch (Exception ignored) {
+              // Ignore incompatible or unmappable properties
+            }
+          }
+        }
+      }
+      return builder.build();
+    }
+  }
+
   /** @deprecated This option will be removed in a future release. */
-  @JsonIgnore
+  @JsonSerialize(using = GcsReadOptionsSerializer.class)
+  @JsonDeserialize(using = GcsReadOptionsDeserializer.class)
   @Description(
       "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
   @Default.InstanceFactory(GcsReadOptionsFactory.class)
