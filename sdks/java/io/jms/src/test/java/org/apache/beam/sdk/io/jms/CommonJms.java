@@ -26,7 +26,6 @@ import java.util.function.Supplier;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
-import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
@@ -91,12 +90,16 @@ public class CommonJms implements Serializable {
     this.connectionFactoryClass = connectionFactoryClass;
   }
 
+  private boolean shouldAppendPort() {
+    return brokerPort != null && brokerPort != 0;
+  }
+
   void startBroker() throws Exception {
     broker = new BrokerService();
     broker.setUseJmx(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
     TransportFactory.registerTransportFactory("amqp", new AmqpTransportFactory());
-    if (connectionFactoryClass != ActiveMQConnectionFactory.class) {
+    if (shouldAppendPort()) {
       broker.addConnector(String.format("%s:%d?transport.transformer=jms", brokerUrl, brokerPort));
     } else {
       broker.addConnector(brokerUrl);
@@ -119,10 +122,18 @@ public class CommonJms implements Serializable {
     broker.waitUntilStarted();
   }
 
+  private String getBrokerUrlWithPort() {
+    if (shouldAppendPort()) {
+      return String.format("%s:%d", brokerUrl, brokerPort);
+    } else {
+      return brokerUrl;
+    }
+  }
+
   ConnectionFactory createConnectionFactory()
       throws NoSuchMethodException, InvocationTargetException, InstantiationException,
           IllegalAccessException {
-    return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
+    return connectionFactoryClass.getConstructor(String.class).newInstance(getBrokerUrlWithPort());
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
@@ -130,13 +141,15 @@ public class CommonJms implements Serializable {
           IllegalAccessException {
     return connectionFactoryClass
         .getConstructor(String.class)
-        .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+        .newInstance(getBrokerUrlWithPort() + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
   }
 
   void stopBroker() throws Exception {
-    broker.stop();
-    broker.waitUntilStopped();
-    broker = null;
+    if (broker != null) {
+      broker.stop();
+      broker.waitUntilStopped();
+      broker = null;
+    }
   }
 
   Class<? extends ConnectionFactory> getConnectionFactoryClass() {

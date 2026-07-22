@@ -154,6 +154,22 @@ applyJavaNature(
 /******************************************************************************/
 // Configure the worker root project
 
+tasks.withType(Test).configureEach {
+  // WindmillStateTestUtils.assertNoReference walks every object reachable from the Windmill
+  // state cache (Guava Cache / ConcurrentHashMap) to ensure no per-work-item WindmillStateReader
+  // leaks into the global cache. It uses reflection (Field.setAccessible) into JDK internals
+  // (e.g. Integer.value, AtomicReferenceArray.array, ReentrantLock.sync, ReferenceQueue.head),
+  // which requires --add-opens on Java 17+.
+  jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.ref=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+          '--add-opens=java.base/java.io=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED'
+}
+
 configurations {
     sourceFile
 
