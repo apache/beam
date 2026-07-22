@@ -27,7 +27,7 @@ public class LocalKafka {
 
   LocalKafka(int kafkaPort, int zookeeperPort) throws Exception {
     Properties kafkaProperties = new Properties();
-    kafkaProperties.setProperty("port", String.valueOf(kafkaPort));
+    kafkaProperties.setProperty("listeners", String.format("PLAINTEXT://localhost:%s", kafkaPort));
     kafkaProperties.setProperty("zookeeper.connect", String.format("localhost:%s", zookeeperPort));
     kafkaProperties.setProperty("offsets.topic.replication.factor", "1");
     kafkaProperties.setProperty("log.dir", Files.createTempDirectory("kafka-log-").toString());
