@@ -88,8 +88,16 @@ jobs:
         # This is needed to run pipelines that use the default environment at HEAD, for example, when a
         # pipeline uses an expansion service built from HEAD.
         run: |
-          BEAM_VERSION_LINE=$(cat gradle.properties | grep "sdk_version")
-          echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
+          BEAM_VERSION=$(grep -E '^sdk_version=' gradle.properties | cut -d= -f2-)
+          if [[ ! "${BEAM_VERSION}" =~ ^[0-9A-Za-z._-]+$ ]]; then
+            echo "Invalid sdk_version in gradle.properties: ${BEAM_VERSION}"
+            exit 1
+          fi
+          {
+            echo "BEAM_VERSION<<EOF"
+            echo "${BEAM_VERSION}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
       - name: Set latest tag only on master branch
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
@@ -158,8 +166,16 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
       - name: Find Beam Version
         run: |
-          BEAM_VERSION_LINE=$(cat gradle.properties | grep "sdk_version")
-          echo "BEAM_VERSION=${BEAM_VERSION_LINE#*sdk_version=}" >> $GITHUB_ENV
+          BEAM_VERSION=$(grep -E '^sdk_version=' gradle.properties | cut -d= -f2-)
+          if [[ ! "${BEAM_VERSION}" =~ ^[0-9A-Za-z._-]+$ ]]; then
+            echo "Invalid sdk_version in gradle.properties: ${BEAM_VERSION}"
+            exit 1
+          fi
+          {
+            echo "BEAM_VERSION<<EOF"
+            echo "${BEAM_VERSION}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
       - name: Set latest tag only on master branch
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
