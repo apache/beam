@@ -283,12 +283,7 @@ public class DeltaIO {
       if (deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
       }
-      Schema beamSchema =
-          ReadRows.convertToBeamSchema(
-              deltaSchema
-                  .add("_change_type", StringType.STRING, false)
-                  .add("_commit_version", LongType.LONG, false)
-                  .add("_commit_timestamp", TimestampType.TIMESTAMP, false));
+      Schema beamSchema = ReadRows.convertToBeamSchema(deltaSchema);
 
       return input
           .apply("Create Path", Create.of(path))

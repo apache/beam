@@ -45,9 +45,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.hadoop.conf.Configuration;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A DoFn that reads the Delta log and plans read tasks for Change Data Feed.
- */
+/** A DoFn that reads the Delta log and plans read tasks for Change Data Feed. */
 class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
   private static final long MAX_TASK_SIZE_BYTES = 1024L * 1024L * 1024L; // 1 GB
   private final @Nullable Map<String, String> hadoopConfig;
@@ -122,8 +120,9 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
     // 3. Load snapshot at resolvedStartVersion to initialize the CommitRange
     Snapshot startSnapshot = table.getSnapshotAsOfVersion(engine, resolvedStartVersion);
 
-    CommitRangeBuilder rangeBuilder = TableManager.loadCommitRange(
-        tablePath, CommitRangeBuilder.CommitBoundary.atVersion(resolvedStartVersion));
+    CommitRangeBuilder rangeBuilder =
+        TableManager.loadCommitRange(
+            tablePath, CommitRangeBuilder.CommitBoundary.atVersion(resolvedStartVersion));
     rangeBuilder.withEndBoundary(CommitRangeBuilder.CommitBoundary.atVersion(resolvedEndVersion));
     CommitRange range = rangeBuilder.build(engine);
 
@@ -135,7 +134,8 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
     actionSet.add(DeltaAction.ADD);
 
     // 4. Iterate over commits in the range and group actions by version
-    try (CloseableIterator<ColumnarBatch> batchIter = range.getActions(engine, startSnapshot, actionSet)) {
+    try (CloseableIterator<ColumnarBatch> batchIter =
+        range.getActions(engine, startSnapshot, actionSet)) {
       Map<Long, CommitActionsInfo> commitActionsMap = new HashMap<>();
 
       while (batchIter.hasNext()) {
@@ -149,21 +149,26 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
           long version = batch.getColumnVector(versionIdx).getLong(i);
           long timestamp = batch.getColumnVector(timestampIdx).getLong(i);
 
-          CommitActionsInfo info = commitActionsMap.computeIfAbsent(
-              version, k -> new CommitActionsInfo(version, timestamp));
+          CommitActionsInfo info =
+              commitActionsMap.computeIfAbsent(
+                  version, k -> new CommitActionsInfo(version, timestamp));
 
           if (cdcIdx >= 0 && !batch.getColumnVector(cdcIdx).isNullAt(i)) {
-            Row cdcRow = (Row) VectorUtils.getValueAsObject(
-                batch.getColumnVector(cdcIdx),
-                batch.getSchema().at(cdcIdx).getDataType(),
-                i);
+            Row cdcRow =
+                (Row)
+                    VectorUtils.getValueAsObject(
+                        batch.getColumnVector(cdcIdx),
+                        batch.getSchema().at(cdcIdx).getDataType(),
+                        i);
             info.cdcRows.add(cdcRow);
           }
           if (addIdx >= 0 && !batch.getColumnVector(addIdx).isNullAt(i)) {
-            Row addRow = (Row) VectorUtils.getValueAsObject(
-                batch.getColumnVector(addIdx),
-                batch.getSchema().at(addIdx).getDataType(),
-                i);
+            Row addRow =
+                (Row)
+                    VectorUtils.getValueAsObject(
+                        batch.getColumnVector(addIdx),
+                        batch.getSchema().at(addIdx).getDataType(),
+                        i);
             AddFile addFile = new AddFile(addRow);
             // Only consider add files that change data (ignore OPTIMIZE etc.)
             if (addFile.getDataChange()) {
@@ -199,8 +204,9 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
           if (isCDC) {
             relPath = fileRow.getString(AddCDCFile.FULL_SCHEMA.indexOf("path"));
             size = fileRow.getLong(AddCDCFile.FULL_SCHEMA.indexOf("size"));
-            partitionValues = VectorUtils.toJavaMap(
-                fileRow.getMap(AddCDCFile.FULL_SCHEMA.indexOf("partitionValues")));
+            partitionValues =
+                VectorUtils.toJavaMap(
+                    fileRow.getMap(AddCDCFile.FULL_SCHEMA.indexOf("partitionValues")));
           } else {
             AddFile addFile = new AddFile(fileRow);
             relPath = addFile.getPath();
@@ -211,15 +217,16 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
           String fullPath = new org.apache.hadoop.fs.Path(tablePath, relPath).toString();
           List<Long> rowGroupSizes = getRowGroupSizes(fullPath, conf);
 
-          DeltaCDCReadTask task = new DeltaCDCReadTask(
-              fullPath,
-              size,
-              partitionValues,
-              info.version,
-              info.timestamp,
-              isCDC,
-              rowGroupSizes,
-              serializableScanState);
+          DeltaCDCReadTask task =
+              new DeltaCDCReadTask(
+                  fullPath,
+                  size,
+                  partitionValues,
+                  info.version,
+                  info.timestamp,
+                  isCDC,
+                  rowGroupSizes,
+                  serializableScanState);
 
           if (size >= MAX_TASK_SIZE_BYTES) {
             if (!currentGroup.isEmpty()) {
@@ -258,8 +265,8 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
     List<Long> sizes = new ArrayList<>();
     try {
       org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(pathStr);
-      org.apache.parquet.hadoop.metadata.ParquetMetadata metadata = org.apache.parquet.hadoop.ParquetFileReader
-          .readFooter(
+      org.apache.parquet.hadoop.metadata.ParquetMetadata metadata =
+          org.apache.parquet.hadoop.ParquetFileReader.readFooter(
               conf,
               hadoopPath,
               org.apache.parquet.format.converter.ParquetMetadataConverter.NO_FILTER);
