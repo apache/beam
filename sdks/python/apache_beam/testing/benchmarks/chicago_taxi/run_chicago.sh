@@ -148,10 +148,10 @@ MODEL_DIR=${TRAIN_OUTPUT_PATH}/model_dir
 # Inputs
 TRAIN_FILE=${TFT_OUTPUT_PATH}/train_transformed-*
 TF_VERSION=1.14
-#workaround for boto in virtualenv, required for the gsutil commands to work:
+#workaround for boto in virtualenv, required for the gcloud storage commands to work:
 export BOTO_CONFIG=/dev/null
 # Start clean, but don't fail if the path does not exist yet.
-gsutil rm ${TRAIN_OUTPUT_PATH} || true
+gcloud storage rm -r ${TRAIN_OUTPUT_PATH} || true
 # Options
 TRAIN_STEPS=10000
 EVAL_STEPS=1000
@@ -177,7 +177,7 @@ gcloud ml-engine jobs submit training ${TRAINER_JOB_ID} \
 
 # We evaluate with the last eval model written (hence tail -n1)
 EVAL_MODEL_DIR=${TRAIN_OUTPUT_PATH}/working_dir/eval_model_dir
-LAST_EVAL_MODEL_DIR=$(gsutil ls ${EVAL_MODEL_DIR} | tail -n1)
+LAST_EVAL_MODEL_DIR=$(gcloud storage ls ${EVAL_MODEL_DIR} | tail -n1)
 
 echo Eval model dir: ${EVAL_MODEL_DIR}
 

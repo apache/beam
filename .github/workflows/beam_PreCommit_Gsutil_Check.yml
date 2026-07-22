@@ -1,0 +1,96 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: PreCommit Gsutil Check
+
+on:
+  push:
+    tags: ['v*']
+    branches: ['master', 'release-*']
+  pull_request_target:
+    branches: ['master', 'release-*']
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '15 3/6 * * *'
+  workflow_dispatch:
+
+# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+permissions:
+  actions: write
+  pull-requests: read
+  checks: read
+  contents: read
+  deployments: read
+  id-token: none
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  cancel-in-progress: true
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+
+jobs:
+  beam_PreCommit_Gsutil_Check:
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    runs-on: [self-hosted, ubuntu-24.04, small]
+    strategy:
+      matrix:
+        job_name: [beam_PreCommit_Gsutil_Check]
+        job_phrase: [Run Gsutil Check PreCommit]
+    timeout-minutes: 10
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event.comment.body == 'Run Gsutil Check PreCommit'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Check for gsutil references
+        run: |
+          echo "Checking codebase for gsutil..."
+          # Search for 'gsutil', excluding this workflow file itself to avoid false positives.
+          if git grep -n "gsutil" -- ':!.github/workflows/beam_PreCommit_Gsutil_Check.yml'; then
+            echo "ERROR: Found references to gsutil in the codebase. Please use gcloud storage instead."
+            exit 1
+          elif [ "$(date +%Y%m)" -ge 202704 ]; then
+            echo "ERROR: Current date is April 2027 or later."
+            echo "Please verify gsutil deprecation date is still March 2027 (Reference: https://docs.cloud.google.com/storage/docs/gsutil)."
+            echo "If so, then delete this workflow."
+            exit 1
+          else
+            echo "SUCCESS: No references to gsutil found."
+          fi
+        shell: bash

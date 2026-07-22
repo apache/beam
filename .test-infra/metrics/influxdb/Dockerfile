@@ -16,13 +16,11 @@
 # limitations under the License.
 ################################################################################
 
-FROM python:3.10-slim
-
-RUN pip install --no-cache-dir gsutil
+FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:stable-slim
 
 WORKDIR /
 
-RUN gsutil cp gs://apache-beam-testing-metrics/influxdb-backup.tar.gz . && \
+RUN gcloud storage cp gs://apache-beam-testing-metrics/influxdb-backup.tar.gz . && \
 tar xzf influxdb-backup.tar.gz
 
 

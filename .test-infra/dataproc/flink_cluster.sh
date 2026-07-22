@@ -91,7 +91,7 @@ YARN_APPLICATION_MASTER=""
 
 function upload_init_actions() {
   echo "Uploading initialization actions to GCS bucket: $GCS_BUCKET"
-  gsutil cp -r $INIT_ACTIONS_FOLDER_NAME/* $GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME
+  gcloud storage cp -r $INIT_ACTIONS_FOLDER_NAME/* $GCS_BUCKET/$INIT_ACTIONS_FOLDER_NAME
 }
 
 function get_leader() {
