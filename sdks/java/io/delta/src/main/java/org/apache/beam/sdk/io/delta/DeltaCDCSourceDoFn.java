@@ -117,6 +117,7 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
 
     SerializableRow originalScanStateRow = task.getScanStateRow();
     StructType logicalTableSchema = ScanStateRow.getLogicalSchema(originalScanStateRow);
+    Schema publicBeamSchema = DeltaIO.ReadRows.convertToBeamSchema(logicalTableSchema);
     StructType physicalTableSchema = ScanStateRow.getPhysicalDataReadSchema(originalScanStateRow);
 
     StructType scanStateSchema = originalScanStateRow.getSchema();
@@ -224,7 +225,8 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
                 throw new IllegalStateException("Field _change_type must not be null.");
               }
               ValueKind kind = getValueKind(changeType);
-              out.builder(beamRow).setValueKind(kind).output();
+              Row publicRow = projectRow(beamRow, publicBeamSchema);
+              out.builder(publicRow).setValueKind(kind).output();
             }
           }
         }
@@ -234,7 +236,17 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
     return ProcessContinuation.stop();
   }
 
+  private static Row projectRow(Row row, Schema targetSchema) {
+    Row.Builder builder = Row.withSchema(targetSchema);
+    for (Schema.Field field : targetSchema.getFields()) {
+      builder.addValue(row.getValue(field.getName()));
+    }
+    return builder.build();
+  }
+
   private static ValueKind getValueKind(String changeType) {
+    // Maps Delta CDC change types to Beam's ValueKind enum.
+    // https://docs.delta.io/delta-change-data-feed/#what-is-the-schema-for-the-change-data-feed
     switch (changeType) {
       case "insert":
         return ValueKind.INSERT;
