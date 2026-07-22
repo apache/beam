@@ -51,9 +51,37 @@ public class JdbcConnection extends CalciteConnectionWrapper {
   private Map<String, String> pipelineOptionsMap;
   private @Nullable PipelineOptions pipelineOptions;
 
+  /**
+   * A mutable, session-scoped operator table that callers can populate with custom {@link
+   * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator}s after the
+   * connection (and its planner) is built. {@link CalciteQueryPlanner#defaultConfig} chains this
+   * table at the front of the validator/converter operator table, so operators added here resolve
+   * in subsequent SQL. This is the channel for functions that must declare a non-fixed (e.g. {@code
+   * VARIADIC}) operand checker, which the schema-function auto-wrapping in {@code
+   * CalciteCatalogReader.toOp} (always fixed-parameter {@code OperandMetadataImpl}) cannot express.
+   * The list is held by reference in the planner config, so additions made after the planner is
+   * built are visible.
+   */
+  private final org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util
+          .ListSqlOperatorTable
+      extraOperatorTable =
+          new org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util
+              .ListSqlOperatorTable();
+
   private JdbcConnection(CalciteConnection connection) throws SQLException {
     super(connection);
     this.pipelineOptionsMap = Collections.emptyMap();
+  }
+
+  /**
+   * The session-scoped, mutable operator table chained at the front of the planner's operator
+   * table. Add custom {@link
+   * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator}s here to make them
+   * resolvable in subsequent SQL.
+   */
+  public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util.ListSqlOperatorTable
+      getExtraOperatorTable() {
+    return extraOperatorTable;
   }
 
   /**

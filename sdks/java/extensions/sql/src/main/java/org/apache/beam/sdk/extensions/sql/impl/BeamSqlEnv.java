@@ -132,6 +132,20 @@ public class BeamSqlEnv {
     return connection.getPipelineOptionsMap();
   }
 
+  /**
+   * Registers a pre-built {@link
+   * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator} into the
+   * session-scoped operator table chained at the front of the planner's operator table. Use this
+   * (instead of the schema-function registration path) when the operator must declare a non-fixed
+   * operand checker (e.g. {@code VARIADIC}) — the schema auto-wrapping path always produces a
+   * fixed-parameter checker, which breaks SQL routine overload resolution for {@code ANY}-typed
+   * parameters (the precedence comparison asserts on {@code ANY}).
+   */
+  public void registerSqlOperator(
+      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator operator) {
+    connection.getExtraOperatorTable().add(operator);
+  }
+
   public String explain(String sqlString) throws ParseException {
     try {
       return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
