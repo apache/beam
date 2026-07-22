@@ -691,11 +691,11 @@ public class StreamingModeExecutionContext
     long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
     Windmill.WorkItemCommitRequest commitRequest = currentBuilder.build();
     int commitSize = commitRequest.getSerializedSize();
-    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
 
     // Detect overflow of integer serialized size or if the byte limit was exceeded.
     // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
     // commit byte limit.
+    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
     streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
     if (commitSize >= 0 && commitSize < byteLimit) {
       return;
