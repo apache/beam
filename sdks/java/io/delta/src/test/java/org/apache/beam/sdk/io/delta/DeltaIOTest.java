@@ -48,12 +48,15 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -809,5 +812,154 @@ public class DeltaIOTest {
         // expected
       }
     }
+  }
+
+  @Test
+  public void testReadChanges() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes");
+    File logDir = new File(tableDir, "_delta_log");
+    logDir.mkdirs();
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+
+    File partFile = new File(tableDir, "part-00000.parquet");
+    byte[] partBytes =
+        writeParquetFile(partFile, tableSchema, java.util.Arrays.asList(tableRow1, tableRow2));
+
+    File commitFile0 = new File(logDir, "00000000000000000000.json");
+    String commitContent0 =
+        "{\"protocol\":{\"minReaderVersion\":1,\"minWriterVersion\":2}}\n"
+            + "{\"metaData\":{\"id\":\"test-id\",\"format\":{\"provider\":\"parquet\",\"options\":{}},\"schemaString\":\"{\\\"type\\\":\\\"struct\\\",\\\"fields\\\":[{\\\"name\\\":\\\"name\\\",\\\"type\\\":\\\"string\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}}]}\",\"partitionColumns\":[],\"configuration\":{},\"createdAt\":123456789}}\n"
+            + "{\"add\":{\"path\":\"part-00000.parquet\",\"partitionValues\":{},\"size\":"
+            + partBytes.length
+            + ",\"modificationTime\":100000000000,\"dataChange\":true}}";
+    Files.write(commitFile0.toPath(), commitContent0.getBytes(StandardCharsets.UTF_8));
+    commitFile0.setLastModified(100000000000L);
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField("_change_type", Schema.FieldType.STRING)
+            .addField("_commit_version", Schema.FieldType.INT64)
+            .addField("_commit_timestamp", Schema.FieldType.DATETIME)
+            .build();
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    File changeFile = new File(tableDir, "change-00000.parquet");
+    byte[] changeBytes =
+        writeParquetFile(
+            changeFile, cdcWriteSchema, java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3));
+
+    File commitFile1 = new File(logDir, "00000000000000000001.json");
+    String commitContent1 =
+        "{\"cdc\":{\"path\":\"change-00000.parquet\",\"partitionValues\":{},\"size\":"
+            + changeBytes.length
+            + ",\"dataChange\":true}}";
+    Files.write(commitFile1.toPath(), commitContent1.getBytes(StandardCharsets.UTF_8));
+    commitFile1.setLastModified(200000000000L);
+
+    // 3. Read CDF data from table using ReadChanges
+    PCollection<Row> output =
+        readPipeline.apply(
+            DeltaIO.readChanges().from(tableDir.getAbsolutePath()).withStartVersion(0L));
+
+    // Construct expected rows
+    Schema expectedSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField("_change_type", Schema.FieldType.STRING)
+            .addField("_commit_version", Schema.FieldType.INT64)
+            .addField("_commit_timestamp", Schema.FieldType.DATETIME)
+            .build();
+
+    Row expRow1 =
+        Row.withSchema(expectedSchema)
+            .addValues("row-1", "insert", 0L, new Instant(100000000000L))
+            .build();
+    Row expRow2 =
+        Row.withSchema(expectedSchema)
+            .addValues("row-2", "insert", 0L, new Instant(100000000000L))
+            .build();
+    Row expRow3 =
+        Row.withSchema(expectedSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row expRow4 =
+        Row.withSchema(expectedSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row expRow5 =
+        Row.withSchema(expectedSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind and Row", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "INSERT:row-1:insert:0",
+            "INSERT:row-2:insert:0",
+            "UPDATE_BEFORE:row-1:update_preimage:1",
+            "UPDATE_AFTER:row-1-updated:update_postimage:1",
+            "DELETE:row-2:delete:1");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  private static final class FormatValueKindAndRow extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(
+          valueKind.name()
+              + ":"
+              + row.getString("name")
+              + ":"
+              + row.getString("_change_type")
+              + ":"
+              + row.getInt64("_commit_version"));
+    }
+  }
+
+  private byte[] writeParquetFile(File file, Schema schema, java.util.List<Row> rows)
+      throws Exception {
+    org.apache.avro.Schema avroSchema =
+        org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.toAvroSchema(schema);
+    org.apache.avro.generic.GenericRecord[] records =
+        new org.apache.avro.generic.GenericRecord[rows.size()];
+    for (int i = 0; i < rows.size(); i++) {
+      records[i] =
+          org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.toGenericRecord(
+              rows.get(i), avroSchema);
+    }
+    org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(file.getAbsolutePath());
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.avro.generic.GenericRecord> writer =
+        org.apache.parquet.avro.AvroParquetWriter.<org.apache.avro.generic.GenericRecord>builder(
+                path)
+            .withSchema(avroSchema)
+            .withConf(new org.apache.hadoop.conf.Configuration())
+            .build()) {
+      for (org.apache.avro.generic.GenericRecord record : records) {
+        writer.write(record);
+      }
+    }
+    return java.nio.file.Files.readAllBytes(file.toPath());
   }
 }
