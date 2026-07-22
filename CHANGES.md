@@ -74,8 +74,8 @@
 
 ## Breaking Changes
 
-* (Python) Removed `google-perftools` from the SDK container images. Users who wish to use `--profiler_agent=tcmalloc` should install google-perftools APT package in their custom container images separately ([#39323](https://github.com/apache/beam/issues/39323)).
-* (Java) Added `DRAINING` and `DRAINED` states to `PipelineResult`, including runner state mappings and Dataflow update handling ([#39020](https://github.com/apache/beam/issues/39020)).
+* (Java) IcebergIO now requires Java 17 at runtime. This raises the floor in preparation for the Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
 
