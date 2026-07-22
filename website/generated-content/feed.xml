@@ -1,4 +1,51 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.75.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma</title><description>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements. See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="beam-summit-2026--interview-with-raj-katakam-intuit-credit-karma">Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma&lt;/h1>
+&lt;p>Apache Beam and Google Cloud Dataflow are usually known for ETL and batch/streaming processing. &lt;a href="https://www.creditkarma.com/">Intuit Credit Karma&lt;/a> said, why stop there, and built an entire ML platform on top of them.&lt;/p>
+&lt;p>Here is my interview with &lt;strong>Raj Katakam&lt;/strong>, Staff Machine Learning Engineer at Intuit Credit Karma. We talked about how they built a unified ML platform on Apache Beam and Dataflow to serve 140 million users, why being active in the Apache Beam community matters to him, and what advice he would give anyone just getting started with Beam and ML.&lt;/p>
+&lt;hr>
+&lt;p>&lt;strong>Jana: Intuit Credit Karma’s tech stack looks like a dream! You are on Google Cloud and using services like Dataflow, BigQuery, and Managed Airflow (previously, Cloud Composer). What were the main reasons for choosing this stack, and what trade-offs did you have to consider when selecting GCP and Apache Beam/Dataflow?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: The selection of Google Cloud, utilizing BigQuery, Dataflow, and Managed Airflow, was a strategic decision to standardize the ML lifecycle and enable high-velocity development at scale. By leveraging these technologies, we established a unified architectural standard that allows for elastic scalability and reliability across petabyte-scale workloads. This approach ensures that the entire ML lifecycle, from initial experimentation to global production execution, is governed by a consistent framework, providing the necessary infrastructure to manage complex data movements and distributed computing requirements without sacrificing architectural integrity.&lt;/p>
+&lt;p>Our goal was to create a unified abstraction layer that could bridge various data processing tools like Spark and BigQuery with ML libraries such as scikit-learn and TensorFlow. GCP provided the deep, native integrations we required to smoothly transition from local prototypes to massive, distributed cloud execution.&lt;/p>
+&lt;p>Talking about trade-offs, the biggest hurdle was simplifying the inherent complexity of a multi-framework environment. Even with powerful connectors for GCS and BigQuery, we still had to develop Vega (Intuit Credit Karma’s internal ML platform) to shield our data scientists from manual orchestration and resource management, allowing them to remain focused on a clean, unified Python API.&lt;/p>
+&lt;p>&lt;strong>Jana: Dataflow is widely known for ETL and batch/streaming processing, but you took it a step further by using it for ML. You built Vega, a full ML explainability platform on Apache Beam and Dataflow. What motivated that choice, and what advantages did these technologies bring to the project?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: We utilized Dataflow as the distributed execution engine to power the broader Vega ecosystem, which serves as our comprehensive ML platform. It is important to emphasize that explainability is a foundational pillar of this ecosystem, integrated directly into the core architecture rather than treated as a standalone task. By building on Apache Beam, we ensure that every model, whether focused on feature engineering, scoring, or interpretability, benefits from a unified processing model. This integration allows us to maintain rigorous standards for model transparency and governance as a native component of our large-scale distributed ML operations.&lt;/p>
+&lt;p>The main motivation was to eliminate the experimentation-to-production gap. Traditional platforms forced data scientists to manually rewrite code for production frameworks, but by using Dataflow and Apache Beam as the core engine, we were able to support both batch and streaming processing alongside ML scoring within a single workflow.&lt;/p>
+&lt;p>The primary advantage that came out of this was the unified Python API. It allowed data scientists to build complex, end-to-end data and ML pipelines that transition seamlessly from local development on sampled data to cloud-scale production execution, without architectural changes or manual re-engineering.&lt;/p>
+&lt;p>&lt;strong>Jana: Looking back at building Vega, what were the biggest challenges you faced, and what would you do differently today?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: The primary challenges centered on managing the inherent complexities of distributed systems and maintaining architectural coherence across a diverse ML lifecycle. Operating at the scale of over 140 million members requires solving for high-concurrency data access, managing complex dependency graphs in distributed environments, and ensuring that performance remains consistent as workloads transition from sampled data to massive production clusters. Balancing the need for developer flexibility with the strict latency and reliability constraints of a globally distributed platform represents the most significant architectural hurdle in modern ML engineering.&lt;/p>
+&lt;p>Reflecting on the evolution of Vega, the biggest challenge was navigating the trade-offs of building critical infrastructure while scaling to support massive business growth with limited resources. We prioritized speed-to-market and immediate utility to enable the business, which was necessary but created technical debt in terms of documentation and onboarding. If I were starting today, I would prioritize earlier investments in developer tooling and standardized templates. We are now shifting our focus from that initial fast-and-lean build phase to long-term sustainability, refining the developer experience, automating maintenance even further, and broadening support for modern ML paradigms. This ensures that the platform remains a scalable, durable asset as it evolves to meet the next generation of business needs.&lt;/p>
+&lt;p>&lt;strong>Jana: Are there any features or improvements you would love to see in Apache Beam or Dataflow in the future?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: While Vega has successfully leveraged Beam for our core workflows, there are a few areas where future improvements could make a real difference. One would be enhanced data engineering primitives. We would value deeper native support for large-scale data manipulation, specifically generalized tiling operations for distributed datasets and built-in capabilities for saving and managing partial processing states. This would significantly reduce the complexity of checkpointing and state recovery in our pipelines.&lt;/p>
+&lt;p>The other area is real-time inference. While we have strong batch capabilities, we need more streamlined primitives in Beam to better integrate our data pipelines with real-time serving infrastructure. Reducing the complexity of the hand-off between processing and prediction would be a major win for our personalization engines.&lt;/p>
+&lt;p>&lt;strong>Jana: You are a Staff Machine Learning Engineer at Intuit Credit Karma — could you tell us a bit about your background and journey to this role? And for readers who are interested in pursuing a career in ML, what advice would you give them?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: As a Staff Machine Learning Engineer, my career has been defined by the practice of platform-scale engineering. I have focused on architecting ecosystems that provide high-velocity developer experiences, allowing engineering teams to move from conceptual design to production-scale deployment within a unified framework. By treating the ML lifecycle as a first-class engineering problem, we build systems that automate the complexities of infrastructure management, enabling data scientists to focus on model innovation while the platform handles the rigorous demands of distributed execution and governance.&lt;/p>
+&lt;p>My advice to anyone pursuing a career in ML would be to focus on first-principles thinking. Don’t just learn a specific library, understand the underlying data infrastructure, including data movement, latency constraints, and caching. The most impactful engineers I have worked with, including those I have collaborated with at Google and beyond, are the ones who can reason across domains, from low-level feature serving latency to high-level platform architecture.&lt;/p>
+&lt;p>&lt;strong>Jana: You are an active member of the Apache Beam community. This is your third Beam Summit. How important do you think community involvement is for engineers, and how has it shaped your career?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Community involvement is critical. Participating in initiatives like the Apache Beam Summit has allowed me to stay at the frontier of distributed computing and directly influence the evolution of the tools we depend on. It transforms engineering from a siloed task into a collaborative effort; seeing how other engineers solve (or struggle with) similar problems helps refine your own architectural decisions and often provides the reference architectures that we would otherwise have taken years to develop independently.&lt;/p>
+&lt;p>&lt;strong>Jana: If you could give one piece of advice to someone just starting with Apache Beam, what would it be?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Focus on the abstraction. Do not treat Beam as just another processing framework; treat it as the “universal language” for your data pipeline. Start by leveraging the high-level transforms and built-in IO connectors rather than trying to optimize low-level custom code immediately. Understanding how to structure your pipeline to take advantage of Beam’s windowing and triggering capabilities is what will eventually separate a good engineer from a great one when you hit the scale of millions of users.&lt;/p>
+&lt;p>&lt;strong>Jana: Thank you so much, Raj, for sharing these insights!&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Thank you for having me, Jana, this was a great conversation!&lt;/p>
+&lt;hr>
+&lt;p>🌐 To learn more about &lt;strong>Intuit Credit Karma&lt;/strong>, visit their &lt;a href="https://www.creditkarma.com/">website&lt;/a> or check out their &lt;a href="https://www.linkedin.com/company/intuitcreditkarma/">LinkedIn&lt;/a>. You can also connect with &lt;strong>Raj&lt;/strong> directly on &lt;a href="https://www.linkedin.com/in/rajkiran2190">LinkedIn&lt;/a>.&lt;/p>
+&lt;p>📌 Raj and Pallav Anand presented at Beam Summit 2026. Check out their talk, &lt;a href="https://beamsummit.org/sessions/2026/beyond-the-black-box-how-intuit-credit-karma-runs-ml-explainability-for-140m-members-with-beam/">‘Beyond the Black Box: How Intuit Credit Karma Runs ML Explainability for 140M Members with Beam’&lt;/a>, and explore the full program at &lt;a href="https://beamsummit.org/sessions/2026/">beamsummit.org&lt;/a>.&lt;/p>
+&lt;p>📺 Session recording will be available on the &lt;a href="https://www.youtube.com/@ApacheBeamYT">Apache Beam YouTube channel&lt;/a>.&lt;/p>
+&lt;p>📰 Missed the Beam Summit 2026? Read my recap: &lt;a href="https://medium.com/google-cloud/beam-summit-2026-apache-beam-just-got-even-more-interesting-7c6c9967ffb9">Beam Summit 2026: Apache Beam Just Got Even More Interesting 🐝&lt;/a>&lt;/p>
+&lt;p>– &lt;a href="https://www.linkedin.com/in/jana-polianskaja/">Jana Polianskaja&lt;/a>&lt;/p></description><link>/blog/beam-summit-2026-interview-with-raj-katakam/</link><pubDate>Wed, 22 Jul 2026 15:00:00 -0500</pubDate><guid>/blog/beam-summit-2026-interview-with-raj-katakam/</guid><category>blog</category></item><item><title>Apache Beam 2.75.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -723,96 +770,4 @@ also love to connect with you all on my
 &lt;li>&lt;a href="https://summerofcode.withgoogle.com/programs/2025/projects/X32yGjqz">Google Summer of Code Project Listing&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.google.com/document/d/1YOeK3jb94kSOUxucfqeZL0pkRI08dYljV_4v5SH5i5U/edit?usp=sharing">Original GSoC Proposal&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/apache/beam/issues/35046">GSoC 2025 Tracking Issue&lt;/a>&lt;/li>
-&lt;/ul></description><link>/blog/gsoc-25-ml-connectors/</link><pubDate>Fri, 26 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-ml-connectors/</guid><category>blog</category><category>gsoc</category></item><item><title>Google Summer of Code 2025 - Beam YAML, Kafka and Iceberg User Accessibility</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>The relatively new Beam YAML SDK was introduced in the spirit of making data processing easy,
-but it has gained little adoption for complex ML tasks and hasn’t been widely used with
-&lt;a href="https://beam.apache.org/documentation/io/managed-io/">Managed I/O&lt;/a> such as Kafka and Iceberg.
-As part of Google Summer of Code 2025, new illustrative, production-ready pipeline examples
-of ML use cases with Kafka and Iceberg data sources using the YAML SDK have been developed
-to address this adoption gap.&lt;/p>
-&lt;h2 id="context">Context&lt;/h2>
-&lt;p>The YAML SDK was introduced in Spring 2024 as Beam’s first no-code SDK. It follows a declarative approach
-of defining a data processing pipeline using a YAML DSL, as opposed to other programming language specific SDKs.
-At the time, it had few meaningful examples and documentation to go along with it. Key missing examples
-were ML workflows and integration with the Kafka and Iceberg Managed I/O. Foundational work had already been done
-to add support for ML capabilities as well as Kafka and Iceberg IO connectors in the YAML SDK, but there were no
-end-to-end examples demonstrating their usage.&lt;/p>
-&lt;p>Beam, as well as Kafka and Iceberg, are mainstream big data technologies but they also have a learning curve.
-The overall theme of the project is to help democratize data processing for scientists and analysts who traditionally
-don’t have a strong background in software engineering. They can now refer to these meaningful examples as the starting point,
-helping them onboard faster and be more productive when authoring ML/data pipelines to their use cases with Beam and its YAML DSL.&lt;/p>
-&lt;h2 id="contributions">Contributions&lt;/h2>
-&lt;p>The data pipelines/workflows developed are production-ready: Kafka and Iceberg data sources are set up on GCP,
-and the data used are raw public datasets. The pipelines are tested end-to-end on Google Cloud Dataflow and
-are also unit tested to ensure correct transformation logic.&lt;/p>
-&lt;p>Delivered pipelines/workflows, each with documentation as README.md, address 4 main ML use cases below:&lt;/p>
-&lt;ol>
-&lt;li>
-&lt;p>&lt;strong>Streaming Classification Inference&lt;/strong>: A streaming ML pipeline that demonstrates Beam YAML capability to perform
-classification inference on a stream of incoming data from Kafka. The overall workflow also includes
-DistilBERT model deployment and serving on Google Cloud Vertex AI where the pipeline can access for remote inferences.
-The pipeline is applied to a sentiment analysis task on a stream of YouTube comments, preprocessing data and classifying
-whether a comment is positive or negative. See &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml">pipeline&lt;/a> and &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/sentiment_analysis">documentation&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Streaming Regression Inference&lt;/strong>: A streaming ML pipeline that demonstrates Beam YAML capability to perform
-regression inference on a stream of incoming data from Kafka. The overall workflow also includes
-custom model training, deployment and serving on Google Cloud Vertex AI where the pipeline can access for remote inferences.
-The pipeline is applied to a regression task on a stream of taxi rides, preprocessing data and predicting the fare amount
-for every ride. See &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml">pipeline&lt;/a> and &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/taxi_fare">documentation&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Batch Anomaly Detection&lt;/strong>: A ML workflow that demonstrates ML-specific transformations
-and reading from/writing to Iceberg IO. The workflow contains unsupervised model training and several pipelines that leverage
-Iceberg for storing results, BigQuery for storing vector embeddings and MLTransform for computing embeddings to demonstrate
-an end-to-end anomaly detection workflow on a dataset of system logs. See &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis/batch_log_analysis.sh">workflow&lt;/a> and &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/log_analysis">documentation&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>&lt;strong>Feature Engineering &amp;amp; Model Evaluation&lt;/strong>: A ML workflow that demonstrates Beam YAML capability to do feature engineering
-which is subsequently used for model evaluation, and its integration with Iceberg IO. The workflow contains model training
-and several pipelines, showcasing an end-to-end Fraud Detection MLOps solution that generates features and evaluates models
-to detect credit card transaction frauds. See &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection/fraud_detection_mlops_beam_yaml_sdk.ipynb">workflow&lt;/a> and &lt;a href="https://github.com/apache/beam/tree/master/sdks/python/apache_beam/yaml/examples/transforms/ml/fraud_detection">documentation&lt;/a>.&lt;/p>
-&lt;/li>
-&lt;/ol>
-&lt;h2 id="challenges">Challenges&lt;/h2>
-&lt;p>The main challenge of the project was a lack of previous YAML pipeline examples and good documentation to rely on.
-Unlike the Python or Java SDKs where there are already many notebooks and end-to-end examples demonstrating various use cases,
-the examples for YAML SDK only involved simple transformations such as filter, group by, etc. More complex transforms like
-&lt;code>MLTransform&lt;/code> and &lt;code>ReadFromIceberg&lt;/code> had no examples and requires configurations that didn&amp;rsquo;t have clear API reference at the time.
-As a result, there were a lot of deep dives into the actual implementation of the PTransforms across YAML, Python and Java SDKs to
-understand the error messages and how to correctly use the transforms.&lt;/p>
-&lt;p>Another challenge was writing unit tests for the pipeline to ensure that the pipeline’s logic is correct.
-It was a learning curve to understand how the existing test suite is set up and how it can be used to write unit tests for
-the data pipelines. A lot of time was spent on properly writing mocks for the pipeline&amp;rsquo;s sources and sinks, as well as for the
-transforms that require external services such as Vertex AI.&lt;/p>
-&lt;h2 id="conclusion--personal-thoughts">Conclusion &amp;amp; Personal Thoughts&lt;/h2>
-&lt;p>These production-ready pipelines demonstrate the potential of Beam YAML SDK to author complex ML workflows
-that interact with Iceberg and Kafka. The examples are a nice addition to Beam, especially with Beam 3.0.0 milestones
-coming up where low-code/no-code, ML capabilities and Managed I/O are focused on.&lt;/p>
-&lt;p>I had an amazing time working with the big data technologies Beam, Iceberg, and Kafka as well as many Google Cloud services
-(Dataflow, Vertex AI and Google Kubernetes Engine, to name a few). I’ve always wanted to work more in the ML space, and this
-experience has been a great growth opportunity for me. Google Summer of Code this year has been selective, and the project&amp;rsquo;s success
-would not have been possible without the support of my mentor, Chamikara Jayalath. It&amp;rsquo;s been a pleasure working closely
-with him and the broader Beam community to contribute to this open-source project that has a meaningful impact on the
-data engineering community.&lt;/p>
-&lt;p>My advice for future Google Summer of Code participants is to first and foremost research and choose a project that aligns closely
-with your interest. Most importantly, spend a lot of time making yourself visible and writing a good proposal when the program
-is opened for applications. Being visible (e.g. by sharing your proposal, or generally any ideas and questions on the project&amp;rsquo;s
-communication channel early on) makes it more likely for you to be selected; and a good proposal not only will make you even
-more likely to be in the program, but also give you a lot of confidence when contributing to and completing the project.&lt;/p>
-&lt;h2 id="references">References&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://summerofcode.withgoogle.com/programs/2025/projects/f4kiDdus">Google Summer of Code Project Listing&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://docs.google.com/document/d/1MSAVF6X9ggtVZbqz8YJGmMgkolR_dve0Lr930cByyac/edit?usp=sharing">Google Summer of Code Final Report&lt;/a>&lt;/li>
-&lt;/ul></description><link>/blog/gsoc-25-yaml-user-accessibility/</link><pubDate>Tue, 23 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-yaml-user-accessibility/</guid><category>blog</category><category>gsoc</category></item></channel></rss>
+&lt;/ul></description><link>/blog/gsoc-25-ml-connectors/</link><pubDate>Fri, 26 Sep 2025 00:00:00 -0400</pubDate><guid>/blog/gsoc-25-ml-connectors/</guid><category>blog</category><category>gsoc</category></item></channel></rss>

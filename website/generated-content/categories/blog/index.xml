@@ -1,4 +1,51 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 08 Jul 2026 14:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.75.0</title><link>/blog/beam-2.75.0/</link><pubDate>Wed, 08 Jul 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.75.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 22 Jul 2026 15:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma</title><link>/blog/beam-summit-2026-interview-with-raj-katakam/</link><pubDate>Wed, 22 Jul 2026 15:00:00 -0500</pubDate><guid>/blog/beam-summit-2026-interview-with-raj-katakam/</guid><description>
+&lt;!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements. See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License. You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="beam-summit-2026--interview-with-raj-katakam-intuit-credit-karma">Beam Summit 2026 | Interview with Raj Katakam, Intuit Credit Karma&lt;/h1>
+&lt;p>Apache Beam and Google Cloud Dataflow are usually known for ETL and batch/streaming processing. &lt;a href="https://www.creditkarma.com/">Intuit Credit Karma&lt;/a> said, why stop there, and built an entire ML platform on top of them.&lt;/p>
+&lt;p>Here is my interview with &lt;strong>Raj Katakam&lt;/strong>, Staff Machine Learning Engineer at Intuit Credit Karma. We talked about how they built a unified ML platform on Apache Beam and Dataflow to serve 140 million users, why being active in the Apache Beam community matters to him, and what advice he would give anyone just getting started with Beam and ML.&lt;/p>
+&lt;hr>
+&lt;p>&lt;strong>Jana: Intuit Credit Karma’s tech stack looks like a dream! You are on Google Cloud and using services like Dataflow, BigQuery, and Managed Airflow (previously, Cloud Composer). What were the main reasons for choosing this stack, and what trade-offs did you have to consider when selecting GCP and Apache Beam/Dataflow?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: The selection of Google Cloud, utilizing BigQuery, Dataflow, and Managed Airflow, was a strategic decision to standardize the ML lifecycle and enable high-velocity development at scale. By leveraging these technologies, we established a unified architectural standard that allows for elastic scalability and reliability across petabyte-scale workloads. This approach ensures that the entire ML lifecycle, from initial experimentation to global production execution, is governed by a consistent framework, providing the necessary infrastructure to manage complex data movements and distributed computing requirements without sacrificing architectural integrity.&lt;/p>
+&lt;p>Our goal was to create a unified abstraction layer that could bridge various data processing tools like Spark and BigQuery with ML libraries such as scikit-learn and TensorFlow. GCP provided the deep, native integrations we required to smoothly transition from local prototypes to massive, distributed cloud execution.&lt;/p>
+&lt;p>Talking about trade-offs, the biggest hurdle was simplifying the inherent complexity of a multi-framework environment. Even with powerful connectors for GCS and BigQuery, we still had to develop Vega (Intuit Credit Karma’s internal ML platform) to shield our data scientists from manual orchestration and resource management, allowing them to remain focused on a clean, unified Python API.&lt;/p>
+&lt;p>&lt;strong>Jana: Dataflow is widely known for ETL and batch/streaming processing, but you took it a step further by using it for ML. You built Vega, a full ML explainability platform on Apache Beam and Dataflow. What motivated that choice, and what advantages did these technologies bring to the project?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: We utilized Dataflow as the distributed execution engine to power the broader Vega ecosystem, which serves as our comprehensive ML platform. It is important to emphasize that explainability is a foundational pillar of this ecosystem, integrated directly into the core architecture rather than treated as a standalone task. By building on Apache Beam, we ensure that every model, whether focused on feature engineering, scoring, or interpretability, benefits from a unified processing model. This integration allows us to maintain rigorous standards for model transparency and governance as a native component of our large-scale distributed ML operations.&lt;/p>
+&lt;p>The main motivation was to eliminate the experimentation-to-production gap. Traditional platforms forced data scientists to manually rewrite code for production frameworks, but by using Dataflow and Apache Beam as the core engine, we were able to support both batch and streaming processing alongside ML scoring within a single workflow.&lt;/p>
+&lt;p>The primary advantage that came out of this was the unified Python API. It allowed data scientists to build complex, end-to-end data and ML pipelines that transition seamlessly from local development on sampled data to cloud-scale production execution, without architectural changes or manual re-engineering.&lt;/p>
+&lt;p>&lt;strong>Jana: Looking back at building Vega, what were the biggest challenges you faced, and what would you do differently today?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: The primary challenges centered on managing the inherent complexities of distributed systems and maintaining architectural coherence across a diverse ML lifecycle. Operating at the scale of over 140 million members requires solving for high-concurrency data access, managing complex dependency graphs in distributed environments, and ensuring that performance remains consistent as workloads transition from sampled data to massive production clusters. Balancing the need for developer flexibility with the strict latency and reliability constraints of a globally distributed platform represents the most significant architectural hurdle in modern ML engineering.&lt;/p>
+&lt;p>Reflecting on the evolution of Vega, the biggest challenge was navigating the trade-offs of building critical infrastructure while scaling to support massive business growth with limited resources. We prioritized speed-to-market and immediate utility to enable the business, which was necessary but created technical debt in terms of documentation and onboarding. If I were starting today, I would prioritize earlier investments in developer tooling and standardized templates. We are now shifting our focus from that initial fast-and-lean build phase to long-term sustainability, refining the developer experience, automating maintenance even further, and broadening support for modern ML paradigms. This ensures that the platform remains a scalable, durable asset as it evolves to meet the next generation of business needs.&lt;/p>
+&lt;p>&lt;strong>Jana: Are there any features or improvements you would love to see in Apache Beam or Dataflow in the future?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: While Vega has successfully leveraged Beam for our core workflows, there are a few areas where future improvements could make a real difference. One would be enhanced data engineering primitives. We would value deeper native support for large-scale data manipulation, specifically generalized tiling operations for distributed datasets and built-in capabilities for saving and managing partial processing states. This would significantly reduce the complexity of checkpointing and state recovery in our pipelines.&lt;/p>
+&lt;p>The other area is real-time inference. While we have strong batch capabilities, we need more streamlined primitives in Beam to better integrate our data pipelines with real-time serving infrastructure. Reducing the complexity of the hand-off between processing and prediction would be a major win for our personalization engines.&lt;/p>
+&lt;p>&lt;strong>Jana: You are a Staff Machine Learning Engineer at Intuit Credit Karma — could you tell us a bit about your background and journey to this role? And for readers who are interested in pursuing a career in ML, what advice would you give them?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: As a Staff Machine Learning Engineer, my career has been defined by the practice of platform-scale engineering. I have focused on architecting ecosystems that provide high-velocity developer experiences, allowing engineering teams to move from conceptual design to production-scale deployment within a unified framework. By treating the ML lifecycle as a first-class engineering problem, we build systems that automate the complexities of infrastructure management, enabling data scientists to focus on model innovation while the platform handles the rigorous demands of distributed execution and governance.&lt;/p>
+&lt;p>My advice to anyone pursuing a career in ML would be to focus on first-principles thinking. Don’t just learn a specific library, understand the underlying data infrastructure, including data movement, latency constraints, and caching. The most impactful engineers I have worked with, including those I have collaborated with at Google and beyond, are the ones who can reason across domains, from low-level feature serving latency to high-level platform architecture.&lt;/p>
+&lt;p>&lt;strong>Jana: You are an active member of the Apache Beam community. This is your third Beam Summit. How important do you think community involvement is for engineers, and how has it shaped your career?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Community involvement is critical. Participating in initiatives like the Apache Beam Summit has allowed me to stay at the frontier of distributed computing and directly influence the evolution of the tools we depend on. It transforms engineering from a siloed task into a collaborative effort; seeing how other engineers solve (or struggle with) similar problems helps refine your own architectural decisions and often provides the reference architectures that we would otherwise have taken years to develop independently.&lt;/p>
+&lt;p>&lt;strong>Jana: If you could give one piece of advice to someone just starting with Apache Beam, what would it be?&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Focus on the abstraction. Do not treat Beam as just another processing framework; treat it as the “universal language” for your data pipeline. Start by leveraging the high-level transforms and built-in IO connectors rather than trying to optimize low-level custom code immediately. Understanding how to structure your pipeline to take advantage of Beam’s windowing and triggering capabilities is what will eventually separate a good engineer from a great one when you hit the scale of millions of users.&lt;/p>
+&lt;p>&lt;strong>Jana: Thank you so much, Raj, for sharing these insights!&lt;/strong>&lt;/p>
+&lt;p>&lt;strong>Raj&lt;/strong>: Thank you for having me, Jana, this was a great conversation!&lt;/p>
+&lt;hr>
+&lt;p>🌐 To learn more about &lt;strong>Intuit Credit Karma&lt;/strong>, visit their &lt;a href="https://www.creditkarma.com/">website&lt;/a> or check out their &lt;a href="https://www.linkedin.com/company/intuitcreditkarma/">LinkedIn&lt;/a>. You can also connect with &lt;strong>Raj&lt;/strong> directly on &lt;a href="https://www.linkedin.com/in/rajkiran2190">LinkedIn&lt;/a>.&lt;/p>
+&lt;p>📌 Raj and Pallav Anand presented at Beam Summit 2026. Check out their talk, &lt;a href="https://beamsummit.org/sessions/2026/beyond-the-black-box-how-intuit-credit-karma-runs-ml-explainability-for-140m-members-with-beam/">‘Beyond the Black Box: How Intuit Credit Karma Runs ML Explainability for 140M Members with Beam’&lt;/a>, and explore the full program at &lt;a href="https://beamsummit.org/sessions/2026/">beamsummit.org&lt;/a>.&lt;/p>
+&lt;p>📺 Session recording will be available on the &lt;a href="https://www.youtube.com/@ApacheBeamYT">Apache Beam YouTube channel&lt;/a>.&lt;/p>
+&lt;p>📰 Missed the Beam Summit 2026? Read my recap: &lt;a href="https://medium.com/google-cloud/beam-summit-2026-apache-beam-just-got-even-more-interesting-7c6c9967ffb9">Beam Summit 2026: Apache Beam Just Got Even More Interesting 🐝&lt;/a>&lt;/p>
+&lt;p>– &lt;a href="https://www.linkedin.com/in/jana-polianskaja/">Jana Polianskaja&lt;/a>&lt;/p></description></item><item><title>Blog: Apache Beam 2.75.0</title><link>/blog/beam-2.75.0/</link><pubDate>Wed, 08 Jul 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.75.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5871,144 +5918,4 @@ in response to the Google Cloud Debugger service &lt;a href="https://cloud.googl
 &lt;p>liferoad&lt;/p>
 &lt;p>tvalentyn&lt;/p>
 &lt;p>xianhualiu&lt;/p>
-&lt;p>zhangskz&lt;/p></description></item><item><title>Blog: Apache Beam 2.46.0</title><link>/blog/beam-2.46.0/</link><pubDate>Fri, 10 Mar 2023 13:00:00 -0500</pubDate><guid>/blog/beam-2.46.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.46.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2460-2023-03-10">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.46.0, check out the &lt;a href="https://github.com/apache/beam/milestone/9?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Java SDK containers migrated to &lt;a href="https://hub.docker.com/_/eclipse-temurin">Eclipse Temurin&lt;/a>
-as a base. This change migrates away from the deprecated &lt;a href="https://hub.docker.com/_/openjdk">OpenJDK&lt;/a>
-container. Eclipse Temurin is currently based upon Ubuntu 22.04 while the OpenJDK
-container was based upon Debian 11.&lt;/li>
-&lt;li>RunInference PTransform will accept model paths as SideInputs in Python SDK. (&lt;a href="https://github.com/apache/beam/issues/24042">#24042&lt;/a>)&lt;/li>
-&lt;li>RunInference supports ONNX runtime in Python SDK (&lt;a href="https://github.com/apache/beam/issues/22972">#22972&lt;/a>)&lt;/li>
-&lt;li>Tensorflow Model Handler for RunInference in Python SDK (&lt;a href="https://github.com/apache/beam/issues/25366">#25366&lt;/a>)&lt;/li>
-&lt;li>Java SDK modules migrated to use &lt;code>:sdks:java:extensions:avro&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/24748">#24748&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Added in JmsIO a retry policy for failed publications (Java) (&lt;a href="https://github.com/apache/beam/issues/24971">#24971&lt;/a>).&lt;/li>
-&lt;li>Support for &lt;code>LZMA&lt;/code> compression/decompression of text files added to the Python SDK (&lt;a href="https://github.com/apache/beam/issues/25316">#25316&lt;/a>)&lt;/li>
-&lt;li>Added ReadFrom/WriteTo Csv/Json as top-level transforms to the Python SDK.&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Add UDF metrics support for Samza portable mode.&lt;/li>
-&lt;li>Option for SparkRunner to avoid the need of SDF output to fit in memory (&lt;a href="https://github.com/apache/beam/issues/23852">#23852&lt;/a>).
-This helps e.g. with ParquetIO reads. Turn the feature on by adding experiment &lt;code>use_bounded_concurrent_output_for_sdf&lt;/code>.&lt;/li>
-&lt;li>Add &lt;code>WatchFilePattern&lt;/code> transform, which can be used as a side input to the RunInference PTransfrom to watch for model updates using a file pattern. (&lt;a href="https://github.com/apache/beam/issues/24042">#24042&lt;/a>)&lt;/li>
-&lt;li>Add support for loading TorchScript models with &lt;code>PytorchModelHandler&lt;/code>. The TorchScript model path can be
-passed to PytorchModelHandler using &lt;code>torch_script_model_path=&amp;lt;path_to_model&amp;gt;&lt;/code>. (&lt;a href="https://github.com/apache/beam/pull/25321">#25321&lt;/a>)&lt;/li>
-&lt;li>The Go SDK now requires Go 1.19 to build. (&lt;a href="https://github.com/apache/beam/pull/25545">#25545&lt;/a>)&lt;/li>
-&lt;li>The Go SDK now has an initial native Go implementation of a portable Beam Runner called Prism. (&lt;a href="https://github.com/apache/beam/pull/24789">#24789&lt;/a>)
-&lt;ul>
-&lt;li>For more details and current state see &lt;a href="https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism">https://github.com/apache/beam/tree/master/sdks/go/pkg/beam/runners/prism&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>The deprecated SparkRunner for Spark 2 (see &lt;a href="#2410---2022-08-23">2.41.0&lt;/a>) was removed (&lt;a href="https://github.com/apache/beam/pull/25263">#25263&lt;/a>).&lt;/li>
-&lt;li>Python&amp;rsquo;s BatchElements performs more aggressive batching in some cases,
-capping at 10 second rather than 1 second batches by default and excluding
-fixed cost in this computation to better handle cases where the fixed cost
-is larger than a single second. To get the old behavior, one can pass
-&lt;code>target_batch_duration_secs_including_fixed_cost=1&lt;/code> to BatchElements.&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Avro related classes are deprecated in module &lt;code>beam-sdks-java-core&lt;/code> and will be eventually removed. Please, migrate to a new module &lt;code>beam-sdks-java-extensions-avro&lt;/code> instead by importing the classes from &lt;code>org.apache.beam.sdk.extensions.avro&lt;/code> package.
-For the sake of migration simplicity, the relative package path and the whole class hierarchy of Avro related classes in new module is preserved the same as it was before.
-For example, import &lt;code>org.apache.beam.sdk.extensions.avro.coders.AvroCoder&lt;/code> class instead of&lt;code>org.apache.beam.sdk.coders.AvroCoder&lt;/code>. (&lt;a href="https://github.com/apache/beam/issues/24749">#24749&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.46.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay&lt;/p>
-&lt;p>Alan Zhang&lt;/p>
-&lt;p>Alexey Romanenko&lt;/p>
-&lt;p>Amrane Ait Zeouay&lt;/p>
-&lt;p>Anand Inguva&lt;/p>
-&lt;p>Andrew Pilloud&lt;/p>
-&lt;p>Brian Hulette&lt;/p>
-&lt;p>Bruno Volpato&lt;/p>
-&lt;p>Byron Ellis&lt;/p>
-&lt;p>Chamikara Jayalath&lt;/p>
-&lt;p>Damon&lt;/p>
-&lt;p>Danny McCormick&lt;/p>
-&lt;p>Darkhan Nausharipov&lt;/p>
-&lt;p>David Katz&lt;/p>
-&lt;p>Dmitry Repin&lt;/p>
-&lt;p>Doug Judd&lt;/p>
-&lt;p>Egbert van der Wal&lt;/p>
-&lt;p>Elizaveta Lomteva&lt;/p>
-&lt;p>Evan Galpin&lt;/p>
-&lt;p>Herman Mak&lt;/p>
-&lt;p>Jack McCluskey&lt;/p>
-&lt;p>Jan Lukavský&lt;/p>
-&lt;p>Johanna Öjeling&lt;/p>
-&lt;p>John Casey&lt;/p>
-&lt;p>Jozef Vilcek&lt;/p>
-&lt;p>Junhao Liu&lt;/p>
-&lt;p>Juta Staes&lt;/p>
-&lt;p>Katie Liu&lt;/p>
-&lt;p>Kiley Sok&lt;/p>
-&lt;p>Liam Miller-Cushon&lt;/p>
-&lt;p>Luke Cwik&lt;/p>
-&lt;p>Moritz Mack&lt;/p>
-&lt;p>Ning Kang&lt;/p>
-&lt;p>Oleh Borysevych&lt;/p>
-&lt;p>Pablo E&lt;/p>
-&lt;p>Pablo Estrada&lt;/p>
-&lt;p>Reuven Lax&lt;/p>
-&lt;p>Ritesh Ghorse&lt;/p>
-&lt;p>Robert Bradshaw&lt;/p>
-&lt;p>Robert Burke&lt;/p>
-&lt;p>Ruslan Altynnikov&lt;/p>
-&lt;p>Ryan Zhang&lt;/p>
-&lt;p>Sam Rohde&lt;/p>
-&lt;p>Sam Whittle&lt;/p>
-&lt;p>Sam sam&lt;/p>
-&lt;p>Sergei Lilichenko&lt;/p>
-&lt;p>Shivam&lt;/p>
-&lt;p>Shubham Krishna&lt;/p>
-&lt;p>Theodore Ni&lt;/p>
-&lt;p>Timur Sultanov&lt;/p>
-&lt;p>Tony Tang&lt;/p>
-&lt;p>Vachan&lt;/p>
-&lt;p>Veronica Wasson&lt;/p>
-&lt;p>Vincent Devillers&lt;/p>
-&lt;p>Vitaly Terentyev&lt;/p>
-&lt;p>William Ross Morrow&lt;/p>
-&lt;p>Xinyu Liu&lt;/p>
-&lt;p>Yi Hu&lt;/p>
-&lt;p>ZhengLin Li&lt;/p>
-&lt;p>Ziqi Ma&lt;/p>
-&lt;p>ahmedabu98&lt;/p>
-&lt;p>alexeyinkin&lt;/p>
-&lt;p>aliftadvantage&lt;/p>
-&lt;p>bullet03&lt;/p>
-&lt;p>dannikay&lt;/p>
-&lt;p>darshan-sj&lt;/p>
-&lt;p>dependabot[bot]&lt;/p>
-&lt;p>johnjcasey&lt;/p>
-&lt;p>kamrankoupayi&lt;/p>
-&lt;p>kileys&lt;/p>
-&lt;p>liferoad&lt;/p>
-&lt;p>nancyxu123&lt;/p>
-&lt;p>nickuncaged1201&lt;/p>
-&lt;p>pablo rodriguez defino&lt;/p>
-&lt;p>tvalentyn&lt;/p>
-&lt;p>xqhu&lt;/p></description></item></channel></rss>
+&lt;p>zhangskz&lt;/p></description></item></channel></rss>
