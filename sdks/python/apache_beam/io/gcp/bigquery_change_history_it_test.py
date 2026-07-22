@@ -36,16 +36,17 @@ from apache_beam.io.gcp.bigquery_change_history import _QueryResult
 from apache_beam.io.gcp.bigquery_change_history import _ReadStorageStreamsSDF
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 
-try:
-  from google.cloud import bigquery as gcp_bigquery
-except ImportError:
-  import unittest
-  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  import unittest
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 

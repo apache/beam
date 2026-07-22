@@ -186,7 +186,6 @@ class ComputeRangesTest(unittest.TestCase):
     self.assertEqual(len(ranges), 2)
 
 
-@unittest.skipIf(exceptions is None, 'GCP dependencies are not installed')
 class ValidationTest(unittest.TestCase):
   """Tests for ReadBigQueryChangeHistory validation."""
   def test_invalid_change_function(self):

@@ -55,11 +55,6 @@ from typing import Iterable
 from typing import Optional
 
 import apache_beam as beam
-
-try:
-  from google.cloud import bigquery as gcp_bigquery
-except ImportError:
-  gcp_bigquery = None
 from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -74,8 +69,10 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 try:
+  from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
 except ImportError:
+  gcp_bigquery = None # type: ignore
   bq_storage = None  # type: ignore
 
 try:

@@ -368,45 +368,37 @@ class TestReadFromBigQuery(unittest.TestCase):
   @parameterized.expand([
       # read without exception
       param(responses=[], expected_retries=0),
-      #       # first attempt returns a Http 500 blank error and retries
-      #       # second attempt returns a Http 408 blank error and retries,
-      #       # third attempt passes
-      #       param(
-      #           responses=[
-      #               HttpForbiddenError(
-      #                   response={'status': 500}, content="something", url="")
-      #               if HttpForbiddenError else None,
-      #               HttpForbiddenError(
-      #                   response={'status': 408}, content="blank", url="")
-      #               if HttpForbiddenError else None
-      #           ],
-      #           expected_retries=2),
-      #       # first attempts returns a 403 rateLimitExceeded error
-      #       # second attempt returns a 429 blank error
-      #       # third attempt returns a Http 403 rateLimitExceeded error
-      #       # fourth attempt passes
-      #       param(
-      #           responses=[
-      #               exceptions.Forbidden(
-      #                   "some message",
-      #                   errors=({
-      #                       "message": "transient", "reason": "rateLimitExceeded"
-      #                   }, )) if exceptions else None,
-      #               exceptions.ResourceExhausted("some message")
-      #               if exceptions else None,
-      #               HttpForbiddenError(
-      #                   response={'status': 403},
-      #                   content={
-      #                       "error": {
-      #                           "errors": [{
-      #                               "message": "transient",
-      #                               "reason": "rateLimitExceeded"
-      #                           }]
-      #                       }
-      #                   },
-      #                   url="") if HttpForbiddenError else None,
-      #           ],
-      #           expected_retries=3),
+      # first attempt returns a 500 InternalServerError and retries
+      # second attempt returns a 503 ServiceUnavailable and retries,
+      # third attempt passes
+      param(
+          responses=[
+              exceptions.InternalServerError("something")
+              if exceptions else None,
+              exceptions.ServiceUnavailable("blank")
+              if exceptions else None
+          ],
+          expected_retries=2),
+      # first attempt returns a 403 rateLimitExceeded error and retries
+      # second attempt returns a 429 ResourceExhausted error and retries
+      # third attempt returns a 403 rateLimitExceeded error and retries
+      # fourth attempt passes
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some message",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )) if exceptions else None,
+              exceptions.ResourceExhausted("some message")
+              if exceptions else None,
+              exceptions.Forbidden(
+                  "some message",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )) if exceptions else None,
+          ],
+          expected_retries=3),
   ])
   def test_get_table_transient_exception(self, responses, expected_retries):
     class DummyTable:
@@ -456,53 +448,31 @@ class TestReadFromBigQuery(unittest.TestCase):
         set(["bigquery:project.dataset.table"]))
 
   @parameterized.expand([
-      #       # first attempt returns a Http 429 with transient reason and retries
-      #       # second attempt returns a Http 403 with non-transient reason and fails
-      #       param(
-      #           responses=[
-      #               HttpForbiddenError(
-      #                   response={'status': 429},
-      #                   content={
-      #                       "error": {
-      #                           "errors": [{
-      #                               "message": "transient",
-      #                               "reason": "rateLimitExceeded"
-      #                           }]
-      #                       }
-      #                   },
-      #                   url="") if HttpForbiddenError else None,
-      #               HttpForbiddenError(
-      #                   response={'status': 403},
-      #                   content={
-      #                       "error": {
-      #                           "errors": [{
-      #                               "message": "transient", "reason": "accessDenied"
-      #                           }]
-      #                       }
-      #                   },
-      #                   url="") if HttpForbiddenError else None
-      #           ],
-      #           expected_retries=1),
-      #       # first attempt returns a transient 403 error and retries
-      #       # second attempt returns a 403 error with bad contents and fails
-      #       param(
-      #           responses=[
-      #               HttpForbiddenError(
-      #                   response={'status': 403},
-      #                   content={
-      #                       "error": {
-      #                           "errors": [{
-      #                               "message": "transient",
-      #                               "reason": "rateLimitExceeded"
-      #                           }]
-      #                       }
-      #                   },
-      #                   url="") if HttpForbiddenError else None,
-      #               HttpError(
-      #                   response={'status': 403}, content="bad contents", url="")
-      #               if HttpError else None
-      #           ],
-      #           expected_retries=1),
+      # first attempt returns a 429 ResourceExhausted error and retries
+      # second attempt returns a 403 accessDenied error and fails
+      param(
+          responses=[
+              exceptions.ResourceExhausted("some error")
+              if exceptions else None,
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "non-transient", "reason": "accessDenied"
+                  }, )) if exceptions else None,
+          ],
+          expected_retries=1),
+      # first attempt returns a transient 403 rateLimitExceeded error and retries
+      # second attempt returns a generic 403 error without transient details and fails
+      param(
+          responses=[
+              exceptions.Forbidden(
+                  "some error",
+                  errors=({
+                      "message": "transient", "reason": "rateLimitExceeded"
+                  }, )) if exceptions else None,
+              exceptions.Forbidden("bad contents") if exceptions else None,
+          ],
+          expected_retries=1),
       # first attempt returns a transient 403 error and retries
       # second attempt returns a 429 error and retries
       # third attempt returns a 403 with non-transient reason and fails
@@ -677,7 +647,7 @@ class TestReadFromBigQuery(unittest.TestCase):
         ]))
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):
   def test_table_spec_display_data(self):
     sink = beam.io.BigQuerySink('dataset.table')
@@ -708,7 +678,7 @@ class TestBigQuerySink(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class TestWriteToBigQuery(unittest.TestCase):
   def _cleanup_files(self):
     if os.path.exists('insert_calls1'):
@@ -1974,7 +1944,7 @@ def test_with_batched_input_splits_large_batch(self):
   self.assertEqual(second_call['json_rows'][0], {'data': 'z' * 10})
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
   def test_dofn_client_process_performs_batching(self):
     client = mock.Mock()
@@ -2115,7 +2085,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     self.assertTrue(client.insert_rows_json.called)
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
   @mock.patch('time.sleep')
   def test_failure_has_same_insert_ids(self, unused_mock_sleep):
@@ -2353,7 +2323,7 @@ class PipelineBasedStreamingInsertTest(_TestCaseWithTempDirCleanUp):
       self.assertEqual(len(out2), 1)
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_streaming_inserts_'
 
@@ -2560,7 +2530,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
           self.project)
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class PubSubBigQueryIT(unittest.TestCase):
 
   INPUT_TOPIC = 'psit_topic_output'
@@ -2651,7 +2621,7 @@ class PubSubBigQueryIT(unittest.TestCase):
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
 
 
-# @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_bigquery is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
   BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
 
