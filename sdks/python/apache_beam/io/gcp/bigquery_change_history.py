@@ -1033,8 +1033,9 @@ class _DecompressArrowBatchesFn(beam.DoFn):
     self._change_timestamp_column = change_timestamp_column
 
   def process(
-      self, element: tuple[bytes,
-                           bytes]) -> Iterable[TimestampedValue[dict[str, Any]]]:
+      self,
+      element: tuple[bytes,
+                     bytes]) -> Iterable[TimestampedValue[dict[str, Any]]]:
     schema_bytes, batch_bytes = element
     schema = pyarrow.ipc.read_schema(pyarrow.py_buffer(schema_bytes))
     batch = pyarrow.ipc.read_record_batch(
