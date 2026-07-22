@@ -712,8 +712,8 @@ public class StreamingModeExecutionContext
     // so, we're purposefully dropping them here
     Windmill.WorkItemCommitRequest.Builder truncationBuilder =
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
-    this.outputBuilder.clear();
-    this.outputBuilder.mergeFrom(truncationBuilder);
+    currentBuilder.clear();
+    currentBuilder.mergeFrom(truncationBuilder.build());
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(

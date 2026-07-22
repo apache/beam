@@ -1337,7 +1337,8 @@ public class StreamingDataflowWorkerTest {
                 1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
         removeDynamicFields(largeCommit));
-    // Check this explicitly since the estimated commit bytes weren't actuallyExpand commentComment on line L1340
+    // Check this explicitly since the estimated commit bytes weren't actuallyExpand commentComment
+    // on line L1340
     // checked against an expected value in the previous step
     assertTrue(largeCommit.getEstimatedWorkItemCommitBytes() > 1000);
 
