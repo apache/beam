@@ -13,6 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This PreCommit Gsutil Check is to ensure no new code enters the repo, since
+# `gsutil` is being replaced by `gcloud storage` officially no later than 
+# March 2027 (Reference: https://docs.cloud.google.com/storage/docs/gsutil).
+# Beginning in April 2027, this workflow will start erroring out and will need
+# to be deleted if `gsutil` was officially deprecated in March 2027 still.
+
 name: PreCommit Gsutil Check
 
 on:
