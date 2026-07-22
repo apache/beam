@@ -25,11 +25,6 @@ import hamcrest as hc
 import pytest
 
 import apache_beam as beam
-
-try:
-  from google.cloud import bigquery as gcp_bigquery
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.ml.rag.ingestion.bigquery import BigQueryVectorWriterConfig
@@ -40,6 +35,10 @@ from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(

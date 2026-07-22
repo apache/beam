@@ -22,10 +22,6 @@ import unittest
 
 import apache_beam as beam
 
-try:
-  from google.cloud import bigquery as gcp_bigquery
-except ImportError:
-  raise unittest.SkipTest('GCP dependencies are not installed')
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
@@ -36,6 +32,8 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.cloud import bigquery as gcp_bigquery
+
   from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchEnrichmentHandler
   from apache_beam.ml.rag.enrichment.bigquery_vector_search import BigQueryVectorSearchParameters
   from apache_beam.transforms.enrichment import Enrichment
