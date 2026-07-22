@@ -105,7 +105,7 @@ class AsyncComputationResult:
     self.cancel()
 
   def update_display(self, msg: str, progress: Optional[float] = None):
-    if not IS_IPYTHON:
+    if not IS_IPYTHON or self._output_widget is None:
       print(f'AsyncCompute: {msg}')
       return
 
