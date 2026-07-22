@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -96,9 +98,6 @@ import org.joda.time.Instant;
  *       dedup messages.
  * </ul>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, PDone> {
   /** Default maximum number of messages per publish. */
   static final int DEFAULT_PUBLISH_BATCH_SIZE = 1000;
@@ -109,7 +108,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Default longest delay between receiving a message and pushing it to Pubsub. */
   private static final Duration DEFAULT_MAX_LATENCY = Duration.standardSeconds(2);
 
-  /** Coder for conveying outgoing messages between internal stages. */
   /** Coder for conveying outgoing messages between internal stages. */
   private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
@@ -198,7 +196,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
           recordId = Hashing.murmur3_128().hashBytes(elementBytes).toString();
           break;
         case RANDOM:
-          // Since these elements go through a GroupByKey, any  failures while sending to
+          // Since these elements go through a GroupByKey, any failures while sending to
           // Pubsub will be retried without falling back and generating a new record id.
           // Thus even though we may send the same message to Pubsub twice, it is guaranteed
           // to have the same record id.
@@ -246,11 +244,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
     private final PubsubClientFactory pubsubFactory;
     private final @Nullable ValueProvider<TopicPath> topic;
-    private final String timestampAttribute;
-    private final String idAttribute;
+    private final @Nullable String timestampAttribute;
+    private final @Nullable String idAttribute;
     private final int publishBatchBytes;
 
-    private final String pubsubRootUrl;
+    private final @Nullable String pubsubRootUrl;
 
     /** Client on which to talk to Pubsub. Null until created by {@link #startBundle}. */
     private transient @Nullable PubsubClient pubsubClient;
@@ -262,8 +260,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     WriterFn(
         PubsubClientFactory pubsubFactory,
         @Nullable ValueProvider<TopicPath> topic,
-        String timestampAttribute,
-        String idAttribute,
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
         int publishBatchSize,
         int publishBatchBytes) {
       this.pubsubFactory = pubsubFactory;
@@ -277,10 +275,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     WriterFn(
         PubsubClientFactory pubsubFactory,
         @Nullable ValueProvider<TopicPath> topic,
-        String timestampAttribute,
-        String idAttribute,
+        @Nullable String timestampAttribute,
+        @Nullable String idAttribute,
         int publishBatchBytes,
-        String pubsubRootUrl) {
+        @Nullable String pubsubRootUrl) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
@@ -290,11 +288,13 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @VisibleForTesting
+    @Nullable
     String getIdAttribute() {
       return idAttribute;
     }
 
     @VisibleForTesting
+    @Nullable
     ValueProvider<TopicPath> getTopic() {
       return topic;
     }
@@ -308,11 +308,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       } else {
         // This is the dynamic topic destinations case. Since we first group by topic, we can assume
         // that all messages in the batch have the same topic.
-        topicPath =
-            PubsubClient.topicPathFromPath(
-                org.apache.beam.sdk.util.Preconditions.checkStateNotNull(messages.get(0).topic()));
+        topicPath = PubsubClient.topicPathFromPath(checkStateNotNull(messages.get(0).topic()));
       }
-      int n = pubsubClient.publish(topicPath, messages);
+      int n = checkStateNotNull(pubsubClient).publish(topicPath, messages);
       checkState(
           n == messages.size(),
           "Attempted to publish %s messages but %s were successful",
@@ -380,8 +378,11 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
     @FinishBundle
     public void finishBundle() throws Exception {
-      pubsubClient.close();
-      pubsubClient = null;
+      final PubsubClient pubsubClient = this.pubsubClient;
+      if (pubsubClient != null) {
+        pubsubClient.close();
+      }
+      this.pubsubClient = null;
     }
 
     @Override
@@ -448,21 +449,21 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    */
   private final RecordIdMethod recordIdMethod;
 
-  private final String pubsubRootUrl;
+  private final @Nullable String pubsubRootUrl;
 
   @VisibleForTesting
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<TopicPath> topic,
-      String timestampAttribute,
-      String idAttribute,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       int numShards,
       boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
       Duration maxLatency,
       RecordIdMethod recordIdMethod,
-      String pubsubRootUrl) {
+      @Nullable String pubsubRootUrl) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
     this.timestampAttribute = timestampAttribute;
@@ -544,14 +545,14 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
   public PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
-      ValueProvider<TopicPath> topic,
-      String timestampAttribute,
-      String idAttribute,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
       int numShards,
       boolean publishBatchWithOrderingKey,
       int publishBatchSize,
       int publishBatchBytes,
-      String pubsubRootUrl) {
+      @Nullable String pubsubRootUrl) {
     this(
         pubsubFactory,
         topic,
@@ -604,7 +605,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       return input
           .apply(
               "WithDynamicTopics",
-              WithKeys.of(PubsubMessage::getTopic).withKeyType(TypeDescriptors.strings()))
+              WithKeys.of(
+                      (PubsubMessage msg) ->
+                          checkArgumentNotNull(
+                              msg.getTopic(),
+                              "Topic must be set on PubsubMessage when writing to dynamic topics."))
+                  .withKeyType(TypeDescriptors.strings()))
           .apply(
               MapValues.into(new TypeDescriptor<byte[]>() {})
                   .via(new PubsubMessages.ParsePayloadAsPubsubMessageProto()))

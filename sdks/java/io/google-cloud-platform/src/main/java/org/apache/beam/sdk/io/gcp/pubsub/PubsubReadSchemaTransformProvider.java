@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.api.client.util.Clock;
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
@@ -247,17 +249,23 @@ public class PubsubReadSchemaTransformProvider
       this.clock = clock;
     }
 
-    @SuppressWarnings("nullness")
     PubsubIO.Read<PubsubMessage> buildPubsubRead() {
       PubsubIO.Read<PubsubMessage> pubsubRead =
           (configuration.getAttributes() == null && configuration.getAttributesMap() == null)
               ? PubsubIO.readMessages()
               : PubsubIO.readMessagesWithAttributes();
-      if (!Strings.isNullOrEmpty(configuration.getTopic())) {
-        pubsubRead = pubsubRead.fromTopic(configuration.getTopic());
+      String topic = configuration.getTopic();
+      if (topic != null && !topic.isEmpty()) {
+        pubsubRead = pubsubRead.fromTopic(topic);
       } else {
-        pubsubRead = pubsubRead.fromSubscription(configuration.getSubscription());
+        String subscription = configuration.getSubscription();
+        pubsubRead =
+            pubsubRead.fromSubscription(
+                checkArgumentNotNull(
+                    subscription, "Either topic or subscription must be specified"));
       }
+      final PubsubTestClientFactory clientFactory = this.clientFactory;
+      final Clock clock = this.clock;
       if (clientFactory != null && clock != null) {
         pubsubRead = pubsubRead.withClientFactory(clientFactory);
         pubsubRead = clientFactory.setClock(pubsubRead, clock);
@@ -265,11 +273,13 @@ public class PubsubReadSchemaTransformProvider
         throw new IllegalArgumentException(
             "Both PubsubTestClientFactory and Clock need to be specified for testing, but only one is provided");
       }
-      if (!Strings.isNullOrEmpty(configuration.getIdAttribute())) {
-        pubsubRead = pubsubRead.withIdAttribute(configuration.getIdAttribute());
+      String idAttribute = configuration.getIdAttribute();
+      if (idAttribute != null && !idAttribute.isEmpty()) {
+        pubsubRead = pubsubRead.withIdAttribute(idAttribute);
       }
-      if (!Strings.isNullOrEmpty(configuration.getTimestampAttribute())) {
-        pubsubRead = pubsubRead.withTimestampAttribute(configuration.getTimestampAttribute());
+      String timestampAttribute = configuration.getTimestampAttribute();
+      if (timestampAttribute != null && !timestampAttribute.isEmpty()) {
+        pubsubRead = pubsubRead.withTimestampAttribute(timestampAttribute);
       }
       return pubsubRead;
     }
@@ -277,11 +287,9 @@ public class PubsubReadSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PubsubIO.Read<PubsubMessage> pubsubRead = buildPubsubRead();
-      @SuppressWarnings("nullness")
-      String errorOutput =
-          configuration.getErrorHandling() == null
-              ? null
-              : configuration.getErrorHandling().getOutput();
+      PubsubReadSchemaTransformConfiguration.ErrorHandling errorHandling =
+          configuration.getErrorHandling();
+      String errorOutput = errorHandling == null ? null : errorHandling.getOutput();
 
       PCollectionTuple outputTuple =
           input
