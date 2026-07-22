@@ -1863,6 +1863,7 @@ class SetupOptions(PipelineOptions):
             'workers will install them in same order they were specified on '
             'the command line.'))
     parser.add_argument(
+        '--file_to_stage',
         '--files_to_stage',
         dest='files_to_stage',
         action='append',

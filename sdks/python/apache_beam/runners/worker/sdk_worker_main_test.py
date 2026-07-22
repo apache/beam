@@ -129,6 +129,55 @@ class SdkWorkerMainTest(unittest.TestCase):
   def test_import_beam_plugins(self):
     sdk_worker_main._import_beam_plugins(BeamPlugin.get_all_plugin_paths())
 
+  def test_create_harness_adds_staged_dir_to_sys_path(self):
+    import sys
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      staged_dir = os.path.join(temp_dir, sdk_worker_main._STAGED_DIRECTORY)
+      os.mkdir(staged_dir)
+
+      env = {
+          'CONTROL_API_SERVICE_DESCRIPTOR': '',
+          'SEMI_PERSISTENT_DIRECTORY': temp_dir,
+      }
+
+      if staged_dir in sys.path:
+        sys.path.remove(staged_dir)
+
+      sdk_worker_main.create_harness(env, dry_run=True)
+
+      try:
+        self.assertIn(staged_dir, sys.path)
+      finally:
+        if staged_dir in sys.path:
+          sys.path.remove(staged_dir)
+
+  def test_create_harness_does_not_add_staged_dir_with_experiment(self):
+    import sys
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+      staged_dir = os.path.join(temp_dir, sdk_worker_main._STAGED_DIRECTORY)
+      os.mkdir(staged_dir)
+
+      env = {
+          'CONTROL_API_SERVICE_DESCRIPTOR': '',
+          'SEMI_PERSISTENT_DIRECTORY': temp_dir,
+          'PIPELINE_OPTIONS': '{"experiments":["no_staged_dir_in_sys_path"]}',
+      }
+
+      if staged_dir in sys.path:
+        sys.path.remove(staged_dir)
+
+      sdk_worker_main.create_harness(env, dry_run=True)
+
+      try:
+        self.assertNotIn(staged_dir, sys.path)
+      finally:
+        if staged_dir in sys.path:
+          sys.path.remove(staged_dir)
+
   @staticmethod
   def _overrides_case_to_option_dict(case):
     """

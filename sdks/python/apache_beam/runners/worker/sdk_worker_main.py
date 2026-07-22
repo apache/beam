@@ -50,6 +50,7 @@ from apache_beam.utils import profiler
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 _FN_LOG_HANDLER = None
+_STAGED_DIRECTORY = 'staged'
 
 
 def _import_beam_plugins(plugins):
@@ -131,6 +132,12 @@ def create_harness(environment, dry_run=False):
       environment.get('RUNNER_CAPABILITIES', '').split())
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'no_staged_dir_in_sys_path' not in experiments and semi_persistent_directory:
+    staged_dir = os.path.join(semi_persistent_directory, _STAGED_DIRECTORY)
+    if os.path.isdir(staged_dir) and staged_dir not in sys.path:
+      sys.path.append(staged_dir)
+
   _worker_id = environment.get('WORKER_ID', None)
 
   try:
