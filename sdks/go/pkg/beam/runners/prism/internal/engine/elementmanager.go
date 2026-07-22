@@ -922,6 +922,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 	// ProcessingTime timers need to be scheduled into the processing time based queue.
 	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage)
 
+	// TODO(https://github.com/apache/beam/issues/39446)
 	// Return unprocessed to this stage's pending
 	// TODO sort out pending element watermark holds for process continuation residuals.
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
