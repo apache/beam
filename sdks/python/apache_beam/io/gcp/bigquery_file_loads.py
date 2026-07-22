@@ -51,9 +51,9 @@ from apache_beam.transforms.window import GlobalWindows
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.api_core.exceptions import GoogleAPICallError
+  from google.api_core import exceptions
 except ImportError:
-  pass
+  exceptions = None
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -411,13 +411,14 @@ class UpdateDestinationSchema(beam.DoFn):
           project_id=table_reference.project,
           dataset_id=table_reference.dataset_id,
           table_id=table_reference.table_id)
-    except Exception as exn:
-      if exn.status_code == 404:
-        # Destination table does not exist, so no need to modify its schema
-        # ahead of the copy jobs.
+    except exceptions.NotFound:
+      # Destination table does not exist, so no need to modify its schema
+      # ahead of the copy jobs.
+      return
+    except exceptions.GoogleAPICallError as exn:
+      if getattr(exn, 'code', None) == 404 or getattr(exn, 'status_code', None) == 404:
         return
-      else:
-        raise
+      raise
 
     temp_table_load_job = self.bq_wrapper.get_job(
         project=temp_table_load_job_reference.projectId,
