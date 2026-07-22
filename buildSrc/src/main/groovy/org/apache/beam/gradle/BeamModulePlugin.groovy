@@ -96,6 +96,17 @@ class BeamModulePlugin implements Plugin<Project> {
     }
   }
 
+  // Serializes pipeline options to JSON for the beamTestPipelineOptions system property.
+  // On Windows each option is wrapped in literal quotes so the JSON survives the quote
+  // stripping applied to the forked test JVM's command line.
+  // See https://github.com/apache/beam/issues/39332.
+  static def toBeamTestPipelineOptionsJson(def options) {
+    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+      return JsonOutput.toJson(options.collect { "\"$it\"" })
+    }
+    return JsonOutput.toJson(options)
+  }
+
   /** A class defining the set of configurable properties accepted by applyJavaNature. */
   static class JavaNatureConfiguration {
     /** Controls whether the spotbugs plugin is enabled and configured. */
@@ -602,7 +613,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
     def cassandra_driver_version = "3.10.2"
-    def cdap_version = "6.5.1"
+    def cdap_version = "6.11.4"
     def checkerframework_version = "3.42.0"
     def classgraph_version = "4.8.162"
     def delta_lake_version = "4.2.0"
@@ -628,7 +639,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
     def everit_json_version = "1.14.2"
-    def kafka_version = "2.4.1"
+    def kafka_version = "3.9.2"
     def log4j2_version = "2.25.4"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
@@ -839,8 +850,10 @@ class BeamModulePlugin implements Plugin<Project> {
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
         jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
         jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
-        kafka                                       : "org.apache.kafka:kafka_2.11:$kafka_version",
+        kafka_scala_2_12                            : "org.apache.kafka:kafka_2.12:$kafka_version",
+        kafka_scala_2_13                            : "org.apache.kafka:kafka_2.13:$kafka_version",
         kafka_clients                               : "org.apache.kafka:kafka-clients:$kafka_version",
+        kafka_server                                : "org.apache.kafka:kafka-server:$kafka_version",
         log4j                                       : "log4j:log4j:1.2.17",
         log4j_over_slf4j                            : "org.slf4j:log4j-over-slf4j:$slf4j_version",
         log4j2_api                                  : "org.apache.logging.log4j:log4j-api:$log4j2_version",
@@ -2255,12 +2268,8 @@ class BeamModulePlugin implements Plugin<Project> {
             }
           }
 
-          // Windows handles quotation marks differently
-          if (pipelineOptionsString && System.properties['os.name'].toLowerCase().contains('windows')) {
-            def allOptionsListFormatted = allOptionsList.collect { "\"$it\"" }
-            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsListFormatted)
-          } else if (pipelineOptionsString) {
-            pipelineOptionsStringFormatted = JsonOutput.toJson(allOptionsList)
+          if (pipelineOptionsString) {
+            pipelineOptionsStringFormatted = toBeamTestPipelineOptionsJson(allOptionsList)
           }
 
           systemProperties.beamTestPipelineOptions = pipelineOptionsStringFormatted ?: pipelineOptionsString
@@ -2697,7 +2706,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (config.jobServerConfig) {
         beamTestPipelineOptions.add("--jobServerConfig=${config.jobServerConfig}")
       }
-      config.systemProperties.put("beamTestPipelineOptions", JsonOutput.toJson(beamTestPipelineOptions))
+      config.systemProperties.put("beamTestPipelineOptions", toBeamTestPipelineOptionsJson(beamTestPipelineOptions))
       project.tasks.register(name, Test) {
         group = "Verification"
         description = "Validates the PortableRunner with JobServer ${config.jobServerDriver}"
@@ -2863,7 +2872,7 @@ class BeamModulePlugin implements Plugin<Project> {
         def javaTask = project.tasks.register(config.name+"JavaUsing"+sdk, Test) {
           group = "Verification"
           description = "Validates runner for cross-language capability of using ${sdk} transforms from Java SDK"
-          systemProperty "beamTestPipelineOptions", JsonOutput.toJson(config.javaPipelineOptions)
+          systemProperty "beamTestPipelineOptions", toBeamTestPipelineOptionsJson(config.javaPipelineOptions)
           systemProperty "expansionJar", expansionJar
           systemProperty "expansionPort", port
           systemProperty "semiPersistDir", config.semiPersistDir

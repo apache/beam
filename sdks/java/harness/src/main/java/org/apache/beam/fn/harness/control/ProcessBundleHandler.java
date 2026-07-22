@@ -767,6 +767,7 @@ public class ProcessBundleHandler {
   /** Shutdown the bundles, running the tearDown() functions. */
   public void shutdown() throws Exception {
     bundleProcessorCache.shutdown();
+    beamFnDataClient.close();
   }
 
   @VisibleForTesting

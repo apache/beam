@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

@@ -54,7 +54,8 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    timeout-minutes: 480
+    # Python 3.14 multiarch container builds take much longer than other versions.
+    timeout-minutes: ${{ matrix.python_version == '3.14' && 600 || 480 }}
     strategy:
       fail-fast: false
       matrix:

@@ -37,7 +37,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${GITHUB_REF##*/}/${GITHUB_SHA}-${GITHUB_RUN_ID}/"
+  # Use github.* context; workflow env is not bash-evaluated.
+  GCP_PATH: "gs://${{ secrets.GCP_PYTHON_WHEELS_BUCKET }}/${{ github.ref_name }}/${{ github.sha }}-${{ github.run_id }}/"
 
 
 jobs:
@@ -57,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: "Check are GCP variables set"
         run: "./scripts/ci/ci_check_are_gcp_variables_set.sh"
         id: check_gcp_variables
@@ -92,9 +93,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Get tag
@@ -251,7 +252,7 @@ jobs:
         name: source_rc${{ needs.build_source.outputs.rc_num }}
         path: apache-beam-source-rc
     - name: Install Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.11'
     - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
@@ -376,7 +377,7 @@ jobs:
       - name: Checkout code on master branch
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
           submodules: recursive
       - name: Branch commit
         run: |

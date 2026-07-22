@@ -2535,8 +2535,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         listResult = dataflowClient.listJobs(token);
         token = listResult.getNextPageToken();
         for (Job job : listResult.getJobs()) {
+          State state = MonitoringUtil.toState(job.getCurrentState());
           if (job.getName().equals(jobName)
-              && MonitoringUtil.toState(job.getCurrentState()).equals(State.RUNNING)) {
+              && (state.equals(State.RUNNING) || state.equals(State.DRAINING))) {
             return job.getId();
           }
         }

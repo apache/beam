@@ -38,6 +38,7 @@ writing to various Beam IOs.
 - [BigQuery](/performance/bigquery)
 - [BigTable](/performance/bigtable)
 - [TextIO](/performance/textio)
+- [IcebergIO](/performance/icebergio)
 
 # Measured Beam Python ML Pipelines
 
