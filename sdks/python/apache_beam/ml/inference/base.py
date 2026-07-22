@@ -361,8 +361,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_no_batching(
       self
-  ) -> """ModelHandler[Union[
-    ExampleT, Iterable[ExampleT]], PostProcessT, ModelT, PostProcessT]""":
+  ) -> 'ModelHandler[Union[ExampleT, Iterable[ExampleT]], PredictionT, ModelT]':
     """Returns a new ModelHandler which does not require batching
     of inputs so that RunInference will skip this step.  RunInference will
     expect the input to be pre-batched and passed in as an Iterable of records.
