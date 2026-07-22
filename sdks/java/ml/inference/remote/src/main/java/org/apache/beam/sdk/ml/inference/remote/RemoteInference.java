@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.components.throttling.ReactiveThrottler;
 import org.apache.beam.sdk.transforms.BatchElements;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -88,6 +89,8 @@ public class RemoteInference {
 
     abstract @Nullable Double overloadRatio();
 
+    abstract @Nullable Coder<OutputT> outputCoder();
+
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
@@ -107,6 +110,8 @@ public class RemoteInference {
       abstract Builder<InputT, OutputT> setSampleUpdateMs(Long sampleUpdateMs);
 
       abstract Builder<InputT, OutputT> setOverloadRatio(Double overloadRatio);
+
+      abstract Builder<InputT, OutputT> setOutputCoder(Coder<OutputT> outputCoder);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -163,6 +168,14 @@ public class RemoteInference {
       return builder().setOverloadRatio(overloadRatio).build();
     }
 
+    /**
+     * Configures the coder for the output of the model. If not provided, it will fallback to using
+     * standard Java serialization for the output element.
+     */
+    public Invoke<InputT, OutputT> withOutputCoder(Coder<OutputT> outputCoder) {
+      return builder().setOutputCoder(outputCoder).build();
+    }
+
     @Override
     public PCollection<Iterable<PredictionResult<InputT, OutputT>>> expand(
         PCollection<InputT> input) {
@@ -177,9 +190,24 @@ public class RemoteInference {
         batchedInput = input.apply("BatchElements", BatchElements.withDefaults());
       }
 
-      return batchedInput
-          // Pass the list to the inference function
-          .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
+      PCollection<Iterable<PredictionResult<InputT, OutputT>>> result =
+          batchedInput
+              // Pass the list to the inference function
+              .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
+
+      Coder<OutputT> outCoder = outputCoder();
+      if (outCoder != null) {
+        result.setCoder(
+            org.apache.beam.sdk.coders.IterableCoder.of(
+                PredictionResultCoder.of(input.getCoder(), outCoder)));
+      } else {
+        result.setCoder(
+            (org.apache.beam.sdk.coders.Coder)
+                org.apache.beam.sdk.coders.IterableCoder.of(
+                    org.apache.beam.sdk.coders.SerializableCoder.of(PredictionResult.class)));
+      }
+
+      return result;
     }
 
     /**
