@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2026-06-11
+# Last updated on: 2026-07-22
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
@@ -214,6 +214,107 @@
     type: str
   identifier: beam:schematransform:org.apache.beam:tfrecord_write:v1
   name: TfrecordWrite
+- default_service: sdks:java:io:messaging-expansion-service:shadowJar
+  description: 'Reads messages from a JMS broker and outputs each message as a single
+    `payload` (string) field.
+
+
+    By default the read is unbounded (streaming): it keeps consuming messages from
+    the specified queue or topic until the pipeline is stopped. Setting `maxNumRecords`
+    and/or `maxReadTimeSeconds` bounds the read, producing a bounded (batch) PCollection.'
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: 'The JMS acknowledge mode: CLIENT_ACKNOWLEDGE, CLIENT_ACKNOWLEDGE_UNSAFE,
+      or INDIVIDUAL_ACKNOWLEDGE.'
+    name: acknowledge_mode
+    nullable: true
+    type: str
+  - description: Close timeout for the JMS connection in seconds.
+    name: close_timeout_seconds
+    nullable: true
+    type: int64
+  - description: 'Configuration options to set up the JMS connection.
+
+      Note: if connection factory class name is set, spin up a persistent expansion
+      service with the provider client JAR on the classpath:
+
+      java -cp <expansion-service-jar>:<provider-client-jar>
+
+      org.apache.beam.sdk.expansion.service.ExpansionService <port>
+
+      and pass expansion_service=''localhost:<port>'' to the transform. Currently,
+      only ActiveMQ (org.apache.activemq.ActiveMQConnectionFactory) is embedded into
+      the expansion service'
+    name: connection_configuration
+    nullable: false
+    type: Row(connection_factory_class_name=typing.Optional[str], password=typing.Optional[str],
+      server_uri=<class 'str'>, username=typing.Optional[str])
+  - description: The proprietary integer code for individual message acknowledgment
+      when using INDIVIDUAL_ACKNOWLEDGE.
+    name: individual_acknowledge_mode_code
+    nullable: true
+    type: int32
+  - description: The max number of records to receive. Setting this will result in
+      a bounded PCollection.
+    name: max_num_records
+    nullable: true
+    type: int64
+  - description: The maximum time for this source to read messages. Setting this will
+      result in a bounded PCollection.
+    name: max_read_time_seconds
+    nullable: true
+    type: int64
+  - description: The JMS queue to read from. Exclusively one of queue or topic must
+      be specified.
+    name: queue
+    nullable: true
+    type: str
+  - description: The JMS topic to read from. Exclusively one of queue or topic must
+      be specified.
+    name: topic
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:jms_read:v1
+  name: ReadFromJms
+- default_service: sdks:java:io:messaging-expansion-service:shadowJar
+  description: 'Publishes messages to a JMS broker. Expects an input PCollection of
+    rows with a `payload` (string) or `bytes` field, each of which is published as
+    one JMS TextMessage.
+
+
+    Works with both bounded (batch) and unbounded (streaming) input PCollections.'
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: 'Configuration options to set up the JMS connection.
+
+      Note: if connection factory class name is set, spin up a persistent expansion
+      service with the provider client JAR on the classpath:
+
+      java -cp <expansion-service-jar>:<provider-client-jar>
+
+      org.apache.beam.sdk.expansion.service.ExpansionService <port>
+
+      and pass expansion_service=''localhost:<port>'' to the transform. Currently,
+      only ActiveMQ (org.apache.activemq.ActiveMQConnectionFactory) is embedded into
+      the expansion service'
+    name: connection_configuration
+    nullable: false
+    type: Row(connection_factory_class_name=typing.Optional[str], password=typing.Optional[str],
+      server_uri=<class 'str'>, username=typing.Optional[str])
+  - description: The JMS queue to write to. Exclusively one of queue or topic must
+      be specified.
+    name: queue
+    nullable: true
+    type: str
+  - description: The JMS topic to write to. Exclusively one of queue or topic must
+      be specified.
+    name: topic
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:jms_write:v1
+  name: WriteToJms
 - default_service: sdks:java:io:messaging-expansion-service:shadowJar
   description: 'Reads messages from an MQTT broker and outputs each payload as a single
     `bytes` field.
