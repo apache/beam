@@ -62,6 +62,8 @@ dependencies {
   }
   testImplementation library.java.kafka_clients
   testImplementation project(path: ":runners:core-java")
+  implementation library.java.opentelemetry_api
+  implementation library.java.opentelemetry_context
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation library.java.jackson_annotations
