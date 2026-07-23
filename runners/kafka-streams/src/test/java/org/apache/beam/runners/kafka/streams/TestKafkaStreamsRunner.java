@@ -20,6 +20,7 @@ package org.apache.beam.runners.kafka.streams;
 import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -46,6 +47,10 @@ import org.joda.time.Duration;
  * when one is present in the exception chain (e.g. assertions thrown runner-side). A {@code
  * PAssert} that silently never runs is caught by {@code TestPipeline.verifyPAssertsSucceeded}
  * comparing the success-counter metric against the number of assertions in the pipeline.
+ *
+ * <p>Any other failed run is restated as a {@link PipelineExecutionException} carrying the
+ * exception the user's code threw, which is the failure Beam's contract for {@link #run} — and the
+ * tests that assert on a DoFn throwing — expect to see.
  *
  * <p>Select it with {@code --runner=org.apache.beam.runners.kafka.streams.TestKafkaStreamsRunner}
  * in {@code beamTestPipelineOptions}.
@@ -84,9 +89,29 @@ public final class TestKafkaStreamsRunner extends PipelineRunner<PipelineResult>
           throw (AssertionError) current;
         }
       }
-      throw t;
+      throw pipelineExecutionExceptionFor(t);
     }
     return new TestKafkaStreamsPipelineResult(metrics);
+  }
+
+  /**
+   * Restates a failed run as the {@link PipelineExecutionException} Beam's contract for {@link
+   * #run} expects, carrying the exception the user's code threw.
+   *
+   * <p>What surfaces from the run is the outermost layer of runner plumbing — a Kafka Streams
+   * {@code StreamsException} naming the processor node that failed — wrapping several layers of
+   * bundle- and Fn-API-level wrappers, with the user's exception at the bottom. Callers assert on
+   * the user's failure, so the root cause is what {@link PipelineExecutionException} is given:
+   * because {@code RuntimeException(Throwable)} derives its message from the cause, the user's
+   * message ends up on the exception that {@link #run} throws. Other runners restate failures the
+   * same way (e.g. {@code SparkPipelineResult}, {@code DirectRunner}).
+   */
+  private static PipelineExecutionException pipelineExecutionExceptionFor(Throwable t) {
+    Throwable rootCause = t;
+    while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+      rootCause = rootCause.getCause();
+    }
+    return new PipelineExecutionException(rootCause);
   }
 
   /** Terminal result of a test run: state {@code DONE} with the harness-reported metrics. */
