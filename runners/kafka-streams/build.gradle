@@ -92,6 +92,15 @@ def sickbayTests = [
   'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests',
   'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerLatest',
   'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerEarliest',
+  // A DoFn whose @StartBundle throws never gets to report its error: SdkHarnessClient.newBundle
+  // sends the ProcessBundleRequest and then blocks in GrpcDataService.createOutboundAggregator
+  // waiting for the SDK harness to open its data stream, which a bundle that failed during setup
+  // never does — so the run blocks for the data service's three-minute timeout instead of
+  // surfacing the user's exception. This is shared java-fn-execution behaviour rather than
+  // anything specific to this runner; the Flink runner sickbays all of LifecycleTests and the
+  // Prism runner sickbays each of its three error tests. The @ProcessElement and @FinishBundle
+  // variants do pass here, because by then the data stream is established.
+  'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInStartBatch',
 ]
 
 tasks.register("validatesRunner", Test) {
@@ -143,6 +152,7 @@ tasks.register("validatesRunner", Test) {
     includeTestsMatching 'org.apache.beam.sdk.transforms.CreateTest'
     includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest'
     includeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest*'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest*'
     for (String test : sickbayTests) {
       excludeTestsMatching test
     }
