@@ -365,6 +365,7 @@ func launchSDKProcess() error {
 
 				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
 				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
+				logger.Printf(ctx, "Started worker %s with PID %d", workerId, cmd.Process.Pid)
 				activePids = append(activePids, cmd.Process.Pid)
 				workerMu.Unlock()
 

@@ -148,6 +148,11 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 	if pcfg.Agent == "memray" {
 		go postProcessProfilesLoop(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
 	}
+
+	if pcfg.Agent == "pystack_coredump" {
+		go monitorCoredumpsLoop(ctx, logger, pcfg)
+	}
+
 }
 
 // maybeWithProfiler builds the execution arguments and environment variables if profiling is enabled and active.
@@ -192,6 +197,9 @@ func maybeWithProfiler(
 		}
 		env["HEAPPROFILE"] = tcmallocHeapPath
 		args = currentArgs
+	} else if pcfg.Agent == "pystack_coredump" {
+		// No wrapping is needed for pystack_coredump.
+		args = currentArgs
 	} else {
 		prog = pcfg.Agent
 		args = append(append([]string{}, pcfg.ExtraArgs...), currentProg)
@@ -221,6 +229,14 @@ func stopProfiling(ctx context.Context) error {
 		f.Close()
 	}
 	return err
+}
+
+// isProfilerDisengaged checks if the stop sentinel file exists.
+func isProfilerDisengaged(pcfg *ProfilerConfig) bool {
+	if _, err := os.Stat(pcfg.StopSentinelPath); err == nil {
+		return true
+	}
+	return false
 }
 
 // syncProfilesToGCS uploads newly created local memory profiles to the designated GCS target path using gcloud storage.
@@ -333,4 +349,96 @@ func needsProcessing(binInfo os.FileInfo, path string) bool {
 	}
 	// Don't regenerate when there were no updates to the profile.
 	return binInfo.ModTime().After(info.ModTime())
+}
+
+
+func monitorCoredumpsLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
+	// We require the core file pattern to be configured as "/tmp/core.%e.%p" via pipeline
+	// options experiments (which is automatically set by the Python SDK). This ensures
+	// that core dumps are written in /tmp/ with a prefix matching "core.".
+	coreDir := "/tmp"
+	interval := 5 * time.Second
+	if pcfg.PostprocessIntervalSec > 0 {
+		interval = time.Duration(pcfg.PostprocessIntervalSec) * time.Second
+	}
+	logger.Printf(ctx, "Monitoring directory %s for core dumps matching prefix core. every %v", coreDir, interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			processNewCoredumps(ctx, logger, pcfg, coreDir)
+			if isProfilerDisengaged(pcfg) {
+				return
+			}
+		}
+	}
+}
+
+func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig, coreDir string) {
+	files, err := os.ReadDir(coreDir)
+	if err != nil {
+		return
+	}
+
+	prefix := "core."
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		corePath := filepath.Join(coreDir, name)
+		info, err := os.Stat(corePath)
+		if err != nil {
+			continue
+		}
+
+		fileAge := time.Since(info.ModTime())
+
+		// Skip if the file was modified very recently (might still be writing)
+		if fileAge < 2*time.Second {
+			continue
+		}
+
+		logger.Printf(ctx, "Found core dump file: %s (%d bytes)", name, info.Size())
+
+		// Find python executable. Since the worker might be running in a venv,
+		// we look for "python" in the PATH.
+		pythonProg := "python"
+		if path, err := exec.LookPath("python"); err == nil {
+			pythonProg = path
+		}
+
+		args := []string{"core"}
+		args = append(args, pcfg.ExtraArgs...)
+		args = append(args, corePath, pythonProg)
+
+		logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
+		cmd := exec.CommandContext(ctx, "pystack", args...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			logger.Warnf(ctx, "pystack failed on %s: %v. Output:\n%s", name, err, string(output))
+			// Give up and delete if the file has been around for over 60 seconds
+			if fileAge > 60*time.Second {
+				logger.Printf(ctx, "Giving up on %s after 60s and deleting.", corePath)
+				if err := os.Remove(corePath); err != nil {
+					logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
+				}
+			}
+		} else {
+			logger.Errorf(ctx, "Pystack coredump analysis for %s:\n%s", name, string(output))
+			if err := os.Remove(corePath); err != nil {
+				logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
+			}
+		}
+	}
 }
