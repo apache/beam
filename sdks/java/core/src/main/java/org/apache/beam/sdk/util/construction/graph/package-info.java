@@ -17,8 +17,4 @@
  */
 
 /** Graph-manipulation utilities. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.util.construction.graph;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

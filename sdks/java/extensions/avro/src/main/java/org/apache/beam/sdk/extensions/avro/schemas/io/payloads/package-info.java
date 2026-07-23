@@ -17,8 +17,4 @@
  */
 
 /** Provides abstractions for schema-aware AvroIO. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.avro.schemas.io.payloads;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

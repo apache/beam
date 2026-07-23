@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 /** Defines transforms for reading and writing Avro storage format. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.avro.io;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

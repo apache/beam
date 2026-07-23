@@ -16,8 +16,4 @@
  * limitations under the License.
  */
 /** Contains classes needed to expose transforms to other SDKs. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.expansion;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

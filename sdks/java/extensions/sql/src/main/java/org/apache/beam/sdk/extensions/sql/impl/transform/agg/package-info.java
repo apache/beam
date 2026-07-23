@@ -17,8 +17,4 @@
  */
 
 /** Implementation of standard SQL aggregation functions, e.g. VAR_POP, VAR_SAMP. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;
