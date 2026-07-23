@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -913,7 +914,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private @Nullable ResourceId outputFile;
 
     /** The channel to write to. */
-    private @Nullable WritableByteChannel channel;
+    private volatile @Nullable WritableByteChannel channel;
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
@@ -925,11 +926,17 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      */
     private final @Nullable String mimeType;
 
+    private final AtomicBoolean readyToClose = new AtomicBoolean(false);
+
     /** Construct a new {@link Writer} that will produce files of the given MIME type. */
     public Writer(WriteOperation<DestinationT, OutputT> writeOperation, String mimeType) {
       checkNotNull(writeOperation);
       this.writeOperation = writeOperation;
       this.mimeType = mimeType;
+    }
+
+    void releaseForBackgroundClose() {
+      readyToClose.set(true);
     }
 
     /**
@@ -1037,6 +1044,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     public final void cleanup() throws Exception {
+      readyToClose.get();
       if (outputFile != null) {
         LOG.info("Deleting temporary file {}", outputFile);
         // outputFile may be null if open() was not called or failed.
@@ -1047,28 +1055,30 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     /** Closes the channel and returns the bundle result. */
     public final void close() throws Exception {
+      readyToClose.get();
+      WritableByteChannel channelToClose = channel;
       checkState(outputFile != null, "FileResult.close cannot be called with a null outputFile");
       LOG.debug("Closing {}", outputFile);
 
       try {
         writeFooter();
       } catch (Exception e) {
-        closeChannelAndThrow(channel, outputFile, e);
+        closeChannelAndThrow(channelToClose, outputFile, e);
       }
 
       try {
         finishWrite();
       } catch (Exception e) {
-        closeChannelAndThrow(channel, outputFile, e);
+        closeChannelAndThrow(channelToClose, outputFile, e);
       }
 
       // It is valid for a subclass to either close the channel or not.
       // They would typically close the channel e.g. if they are wrapping it in another channel
       // and the wrapper needs to be closed.
-      if (channel.isOpen()) {
+      if (channelToClose.isOpen()) {
         LOG.debug("Closing channel to {}.", outputFile);
         try {
-          channel.close();
+          channelToClose.close();
         } catch (Exception e) {
           throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
         }

@@ -434,9 +434,10 @@ public class TFRecordSchemaTransformProviderTest {
     assertTrue("File should exist", tmpFile.exists());
     assertTrue("File should have content", tmpFile.length() > 0);
 
-    FileInputStream fis = new FileInputStream(tmpFile);
-    String written = BaseEncoding.base64().encode(ByteStreams.toByteArray(fis));
-    assertThat(written, is(in(base64)));
+    try (FileInputStream fis = new FileInputStream(tmpFile)) {
+      String written = BaseEncoding.base64().encode(ByteStreams.toByteArray(fis));
+      assertThat(written, is(in(base64)));
+    }
   }
 
   @Test

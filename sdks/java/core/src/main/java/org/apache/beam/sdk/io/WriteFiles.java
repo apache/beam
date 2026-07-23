@@ -1272,6 +1272,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     private void closeWriterInBackground(Writer<DestinationT, OutputT> writer) {
+      // Release memory barrier so background thread acquires all prior writes on Writer and
+      // channels.
+      writer.releaseForBackgroundClose();
       // Close in parallel so flushing of buffered writes to files for many windows happens in
       // parallel.
       closeFutures.add(
