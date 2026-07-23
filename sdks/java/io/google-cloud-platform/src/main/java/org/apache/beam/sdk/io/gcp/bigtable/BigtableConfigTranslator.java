@@ -234,16 +234,16 @@ class BigtableConfigTranslator {
     // with the old behavior.
     long initialRpcTimeout =
         writeOptions.getAttemptTimeout() != null
-            ? writeOptions.getAttemptTimeout().getMillis()
+            ? writeOptions.getAttemptTimeout().get().getMillis()
             : (fromBigtableOptions != null && fromBigtableOptions.getAttemptTimeout() != null
-                ? fromBigtableOptions.getAttemptTimeout().getMillis()
+                ? fromBigtableOptions.getAttemptTimeout().get().getMillis()
                 : Duration.ofMinutes(6).toMillis());
 
     long totalTimeout =
         writeOptions.getOperationTimeout() != null
-            ? writeOptions.getOperationTimeout().getMillis()
+            ? writeOptions.getOperationTimeout().get().getMillis()
             : (fromBigtableOptions != null && fromBigtableOptions.getOperationTimeout() != null
-                ? fromBigtableOptions.getOperationTimeout().getMillis()
+                ? fromBigtableOptions.getOperationTimeout().get().getMillis()
                 : retrySettings.getTotalTimeout().toMillis());
 
     retrySettings
@@ -334,26 +334,26 @@ class BigtableConfigTranslator {
     // Options set directly on readOptions overrides Options set in BigtableOptions
     long initialRpcTimeout =
         readOptions.getAttemptTimeout() != null
-            ? readOptions.getAttemptTimeout().getMillis()
+            ? readOptions.getAttemptTimeout().get().getMillis()
             : (optionsFromBigtableOptions != null
                     && optionsFromBigtableOptions.getAttemptTimeout() != null
-                ? optionsFromBigtableOptions.getAttemptTimeout().getMillis()
+                ? optionsFromBigtableOptions.getAttemptTimeout().get().getMillis()
                 : retrySettings.getInitialRpcTimeout().toMillis());
 
     long totalTimeout =
         readOptions.getOperationTimeout() != null
-            ? readOptions.getOperationTimeout().getMillis()
+            ? readOptions.getOperationTimeout().get().getMillis()
             : (optionsFromBigtableOptions != null
                     && optionsFromBigtableOptions.getOperationTimeout() != null
-                ? optionsFromBigtableOptions.getOperationTimeout().getMillis()
+                ? optionsFromBigtableOptions.getOperationTimeout().get().getMillis()
                 : retrySettings.getTotalTimeout().toMillis());
 
     long waitTimeout =
         readOptions.getWaitTimeout() != null
-            ? readOptions.getWaitTimeout().getMillis()
+            ? readOptions.getWaitTimeout().get().getMillis()
             : (optionsFromBigtableOptions != null
                     && optionsFromBigtableOptions.getWaitTimeout() != null
-                ? optionsFromBigtableOptions.getWaitTimeout().getMillis()
+                ? optionsFromBigtableOptions.getWaitTimeout().get().getMillis()
                 : settings.stubSettings().readRowsSettings().getWaitTimeout().toMillis());
 
     retrySettings
@@ -464,14 +464,19 @@ class BigtableConfigTranslator {
       BigtableReadOptions readOptions, BigtableOptions options) {
     BigtableReadOptions.Builder builder = readOptions.toBuilder();
     builder.setWaitTimeout(
-        org.joda.time.Duration.millis(options.getRetryOptions().getReadPartialRowTimeoutMillis()));
+        ValueProvider.StaticValueProvider.of(
+            org.joda.time.Duration.millis(
+                options.getRetryOptions().getReadPartialRowTimeoutMillis())));
     if (options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
-          org.joda.time.Duration.millis(
-              options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get()));
+          ValueProvider.StaticValueProvider.of(
+              org.joda.time.Duration.millis(
+                  options.getCallOptionsConfig().getReadStreamRpcAttemptTimeoutMs().get())));
     }
     builder.setOperationTimeout(
-        org.joda.time.Duration.millis(options.getCallOptionsConfig().getReadStreamRpcTimeoutMs()));
+        ValueProvider.StaticValueProvider.of(
+            org.joda.time.Duration.millis(
+                options.getCallOptionsConfig().getReadStreamRpcTimeoutMs())));
     return builder.build();
   }
 
@@ -482,14 +487,16 @@ class BigtableConfigTranslator {
     // configure timeouts
     if (options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().isPresent()) {
       builder.setAttemptTimeout(
-          org.joda.time.Duration.millis(
-              options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get()));
+          ValueProvider.StaticValueProvider.of(
+              org.joda.time.Duration.millis(
+                  options.getCallOptionsConfig().getMutateRpcAttemptTimeoutMs().get())));
     }
     if (options.getBulkOptions().isEnableBulkMutationThrottling()) {
       builder.setThrottlingTargetMs(options.getBulkOptions().getBulkMutationRpcTargetMs());
     }
     builder.setOperationTimeout(
-        org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs()));
+        ValueProvider.StaticValueProvider.of(
+            org.joda.time.Duration.millis(options.getCallOptionsConfig().getMutateRpcTimeoutMs())));
     // configure batch size
     builder.setMaxElementsPerBatch(options.getBulkOptions().getBulkMaxRowKeyCount());
     builder.setMaxBytesPerBatch(options.getBulkOptions().getBulkMaxRequestSize());
