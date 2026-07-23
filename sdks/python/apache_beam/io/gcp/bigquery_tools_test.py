@@ -23,6 +23,7 @@ import io
 import json
 import logging
 import math
+import os
 import re
 import unittest
 from typing import Optional
@@ -39,6 +40,7 @@ from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
@@ -236,14 +238,16 @@ class TestBigQueryWrapper(unittest.TestCase):
   @mock.patch('google.cloud._http.JSONConnection.http')
   def test_user_agent_insert_all(
       self, http_mock, patched_skip_get_credentials, patched_sleep):
-    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
-    try:
-      wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
-    except:  # pylint: disable=bare-except
-      # Ignore errors. The errors come from the fact that we did not mock
-      # the response from the API, so the overall insert_all_rows call fails
-      # soon after the BQ API is called.
-      pass
+    # Set GOOGLE_CLOUD_PROJECT to ensure Client creation succeeds in test env
+    with mock.patch.dict(os.environ, {'GOOGLE_CLOUD_PROJECT': 'test-project'}):
+      wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper()
+      try:
+        wrapper._insert_all_rows('p', 'd', 't', [{'name': 'any'}], None)
+      except:  # pylint: disable=bare-except
+        # Ignore errors. The errors come from the fact that we did not mock
+        # the response from the API, so the overall insert_all_rows call fails
+        # soon after the BQ API is called.
+        pass
     call = http_mock.request.mock_calls[-2]
     self.assertIn('apache-beam-', call[2]['headers']['User-Agent'])
 
@@ -1106,8 +1110,6 @@ class TestGeographyTypeSupport(unittest.TestCase):
 
   def test_geography_field_conversion(self):
     """Test that GEOGRAPHY fields are converted correctly."""
-    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-
     # Create a mock field with GEOGRAPHY type
     field = bigquery.TableFieldSchema()
     field.type = 'GEOGRAPHY'
@@ -1229,8 +1231,6 @@ class TestGeographyTypeSupport(unittest.TestCase):
 
   def test_geography_with_special_characters(self):
     """Test GEOGRAPHY values with special characters and geometries."""
-    from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-
     field = bigquery.TableFieldSchema()
     field.type = 'GEOGRAPHY'
     field.name = 'complex_geo'
@@ -1407,6 +1407,57 @@ class TestTypeOverrides(unittest.TestCase):
     # Or map to dict
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryWrapperQuotaProject(unittest.TestCase):
+  """Tests for quota_project_id in BigQueryWrapper."""
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_quota_project_id_stored(self, mock_gcp_client, mock_bq_client):
+    """Test that quota_project_id is stored in BigQueryWrapper."""
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    wrapper = BigQueryWrapper(quota_project_id='my-billing-project')
+    self.assertEqual(wrapper.quota_project_id, 'my-billing-project')
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_from_pipeline_options_reads_quota_from_options(
+      self, mock_gcp_client, mock_bq_client):
+    """Test from_pipeline_options reads quota_project_id from
+    GoogleCloudOptions."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    options = PipelineOptions(['--quota_project_id=my-billing-project'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+
+    self.assertEqual(wrapper.quota_project_id, 'my-billing-project')
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._bigquery_client')
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery_tools.BigQueryWrapper._gcp_bigquery_client')
+  def test_from_pipeline_options_none_when_not_set(
+      self, mock_gcp_client, mock_bq_client):
+    """Test from_pipeline_options returns None when quota_project_id not set."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    mock_bq_client.return_value = mock.Mock()
+    mock_gcp_client.return_value = mock.Mock()
+
+    options = PipelineOptions([])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+
+    self.assertIsNone(wrapper.quota_project_id)
 
 
 if __name__ == '__main__':

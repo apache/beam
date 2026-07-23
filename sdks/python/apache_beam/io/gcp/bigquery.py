@@ -375,6 +375,7 @@ from objsize import get_deep_size
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io import range_trackers
@@ -659,7 +660,8 @@ class _CustomBigQuerySource(BoundedSource):
       step_name=None,
       unique_id=None,
       temp_dataset=None,
-      query_priority=BigQueryQueryPriority.BATCH):
+      query_priority=BigQueryQueryPriority.BATCH,
+      quota_project_id=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -693,6 +695,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.use_json_exports = use_json_exports
     self.temp_dataset = temp_dataset
     self.query_priority = query_priority
+    self.quota_project_id = quota_project_id
     self._job_name = job_name or 'BQ_EXPORT_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -712,6 +715,7 @@ class _CustomBigQuerySource(BoundedSource):
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
         'export_file_format': export_format,
+        'quota_project_id': self._get_quota_project_id() or '',
         'launchesBigQueryJobs': DisplayDataItem(
             True, label="This Dataflow job launches bigquery jobs."),
     }
@@ -779,6 +783,18 @@ class _CustomBigQuerySource(BoundedSource):
       project = self.project
     return project
 
+  def _get_quota_project_id(self):
+    """Returns the quota project ID for API calls.
+
+    Prefers the explicit quota_project_id parameter, falls back to
+    quota_project_id from GoogleCloudOptions.
+    """
+    if self.quota_project_id:
+      return self.quota_project_id
+    if self.options is not None:
+      return self.options.view_as(GoogleCloudOptions).quota_project_id
+    return None
+
   def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path, validate=self.validate)
@@ -796,7 +812,9 @@ class _CustomBigQuerySource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper(
           temp_dataset_id=(
               self.temp_dataset.datasetId if self.temp_dataset else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
+          client=bigquery_tools.BigQueryWrapper._bigquery_client(
+              self.options, quota_project_id=self._get_quota_project_id()),
+          quota_project_id=self._get_quota_project_id())
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -929,6 +947,30 @@ class _CustomBigQuerySource(BoundedSource):
     return table.schema, metadata_list
 
 
+def _create_bq_storage_client(quota_project_id=None):
+  """Create a BigQueryReadClient with optional quota project.
+
+  Args:
+    quota_project_id: Optional GCP project ID to use for quota and billing.
+
+  Returns:
+    A BigQueryReadClient instance.
+  """
+  if quota_project_id:
+    try:
+      import google.auth
+      credentials, _ = google.auth.default()
+      credentials = auth.with_quota_project(credentials, quota_project_id)
+      return bq_storage.BigQueryReadClient(credentials=credentials)
+    except Exception as e:
+      _LOGGER.warning(
+          'Failed to apply quota project %s to BigQuery Storage client: %s. '
+          'Falling back to default client.',
+          quota_project_id,
+          e)
+  return bq_storage.BigQueryReadClient()
+
+
 class _CustomBigQueryStorageSource(BoundedSource):
   """A base class for BoundedSource implementations which read from BigQuery
   using the BigQuery Storage API.
@@ -986,7 +1028,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
       use_native_datetime: Optional[bool] = False,
-      timeout: Optional[float] = None):
+      timeout: Optional[float] = None,
+      quota_project_id: Optional[str] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1025,6 +1068,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
+    self.quota_project_id = quota_project_id
 
   def _get_project(self):
     """Returns the project that queries and exports will be billed to."""
@@ -1035,6 +1079,18 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if project:
         return project
     return self.project
+
+  def _get_quota_project_id(self):
+    """Returns the quota project ID for API calls.
+
+    Prefers the explicit quota_project_id parameter, falls back to
+    quota_project_id from GoogleCloudOptions.
+    """
+    if self.quota_project_id:
+      return self.quota_project_id
+    if self.pipeline_options is not None:
+      return self.pipeline_options.view_as(GoogleCloudOptions).quota_project_id
+    return None
 
   def _get_parent_project(self):
     """Returns the project that will be billed."""
@@ -1165,7 +1221,9 @@ class _CustomBigQueryStorageSource(BoundedSource):
       bq = bigquery_tools.BigQueryWrapper(
           temp_table_ref=(self.temp_table if self.temp_table else None),
           client=bigquery_tools.BigQueryWrapper._bigquery_client(
-              self.pipeline_options))
+              self.pipeline_options,
+              quota_project_id=self._get_quota_project_id()),
+          quota_project_id=self._get_quota_project_id())
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -1198,7 +1256,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       if self.row_restriction is not None:
         requested_session.read_options.row_restriction = self.row_restriction
 
-      storage_client = bq_storage.BigQueryReadClient()
+      storage_client = _create_bq_storage_client(self._get_quota_project_id())
       stream_count = 0
       if desired_bundle_size > 0:
         table_size = self._get_table_size(bq, self.table_reference)
@@ -1229,8 +1287,10 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       self.split_result = [
           _CustomBigQueryStorageStreamSource(
-              stream.name, self.use_native_datetime, self.timeout)
-          for stream in read_session.streams
+              stream.name,
+              self.use_native_datetime,
+              self.timeout,
+              self._get_quota_project_id()) for stream in read_session.streams
       ]
 
     for source in self.split_result:
@@ -1264,10 +1324,12 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
       self,
       read_stream_name: str,
       use_native_datetime: Optional[bool] = True,
-      timeout: Optional[float] = None):
+      timeout: Optional[float] = None,
+      quota_project_id: Optional[str] = None):
     self.read_stream_name = read_stream_name
     self.use_native_datetime = use_native_datetime
     self.timeout = timeout
+    self.quota_project_id = quota_project_id
 
   def display_data(self):
     return {
@@ -1290,7 +1352,10 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
     return SourceBundle(
         weight=1.0,
         source=_CustomBigQueryStorageStreamSource(
-            self.read_stream_name, self.use_native_datetime),
+            self.read_stream_name,
+            self.use_native_datetime,
+            self.timeout,
+            self.quota_project_id),
         start_position=None,
         stop_position=None)
 
@@ -1326,7 +1391,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_arrow(self):
 
-    storage_client = bq_storage.BigQueryReadClient()
+    storage_client = _create_bq_storage_client(self.quota_project_id)
     read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
     if self.timeout is not None:
       read_rows_kwargs['timeout'] = self.timeout
@@ -1345,7 +1410,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
       yield py_row
 
   def read_avro(self):
-    storage_client = bq_storage.BigQueryReadClient()
+    storage_client = _create_bq_storage_client(self.quota_project_id)
     read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
     if self.timeout is not None:
       read_rows_kwargs['timeout'] = self.timeout
@@ -2937,6 +3002,12 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    quota_project_id (str): The GCP project ID to use for quota and billing
+      of BigQuery API requests issued by this transform, if different from
+      the project the data resides in. Falls back to the
+      ``--quota_project_id`` pipeline option if not set. The credentials
+      used must have the ``serviceusage.services.use`` permission on that
+      project.
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
