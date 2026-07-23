@@ -158,7 +158,15 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .ruleSets(ruleSets.toArray(new RuleSet[0]))
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
-        .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
+        .operatorTable(
+            SqlOperatorTables.chain(
+                // Session-scoped custom operators (e.g. registered scalar Python UDFs that must
+                // declare a non-fixed VARIADIC operand checker). Chained first and held by
+                // reference, so operators added to the connection's table after the planner is
+                // built
+                // still resolve. Placing it ahead of the catalogReader avoids the duplicate
+                // fixed-parameter overload that schema auto-wrapping would otherwise create.
+                connection.getExtraOperatorTable(), opTab0, catalogReader))
         .sqlToRelConverterConfig(sqlToRelConfig)
         .build();
   }
