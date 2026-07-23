@@ -41,9 +41,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class JmsWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<WriteConfiguration> {
