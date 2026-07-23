@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -187,10 +188,11 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, 5);
 
     for (Commit commit : commits) {
+      assertThat(commit.workBatch()).hasSize(1);
       WorkItemCommitRequest request =
           committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.singleKeyRequest().get());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
       assertThat(completeCommits)
           .contains(
               asCompleteCommit(
@@ -229,7 +231,8 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, 10);
 
     for (Commit commit : commits) {
-      if (commit.isFailed()) {
+      assertThat(commit.workBatch()).hasSize(1);
+      if (commit.workBatch().get(0).isFailed()) {
         assertThat(completeCommits)
             .contains(
                 asCompleteCommit(
@@ -245,8 +248,7 @@ public class StreamingEngineWorkCommitterTest {
                     commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
         assertThat(committed)
             .containsEntry(
-                commit.workBatch().get(0).getWorkItem().getWorkToken(),
-                commit.singleKeyRequest().get());
+                commit.workBatch().get(0).getWorkItem().getWorkToken(), commit.singleKeyRequest());
       }
     }
 
@@ -297,10 +299,11 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
+      assertThat(commit.workBatch()).hasSize(1);
       WorkItemCommitRequest request =
           committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.singleKeyRequest().get());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
       assertThat(completeCommits)
           .contains(
               asCompleteCommit(
@@ -399,7 +402,8 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     for (Commit commit : commits) {
-      assertTrue(commit.isFailed());
+      assertThat(commit.workBatch()).hasSize(1);
+      assertTrue(commit.workBatch().get(0).isFailed());
     }
   }
 
@@ -438,10 +442,11 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
+      assertThat(commit.workBatch()).hasSize(1);
       WorkItemCommitRequest request =
           committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.singleKeyRequest().get());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
       assertThat(completeCommits)
           .contains(
               asCompleteCommit(
@@ -662,6 +667,8 @@ public class StreamingEngineWorkCommitterTest {
                 CommitStatus.OK,
                 /* retryableFailure= */ false));
 
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
     workCommitter.stop();
   }
 
@@ -705,8 +712,8 @@ public class StreamingEngineWorkCommitterTest {
             createComputationState("computationId"),
             ImmutableList.of(workA, workB, workC));
 
-    // Offer NOT_FOUND status for one of the works.
-    fakeWindmillServer.whenCommitWorkStreamCalled().put(workB.id(), CommitStatus.NOT_FOUND);
+    // Respond to multi key commit with NOT_FOUND status.
+    fakeWindmillServer.setMultiKeyCommitStatus(CommitStatus.NOT_FOUND);
 
     workCommitter.start();
     workCommitter.commit(commit);
@@ -743,6 +750,8 @@ public class StreamingEngineWorkCommitterTest {
                 CommitStatus.NOT_FOUND,
                 /* retryableFailure= */ false));
 
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
     workCommitter.stop();
   }
 }

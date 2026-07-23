@@ -544,10 +544,10 @@ final class GrpcCommitWorkStream
         String computation,
         Windmill.MultiKeyWorkItemCommitRequest commitRequest,
         Consumer<CommitStatus> onDone) {
+      Preconditions.checkArgument(commitRequest.getRequestsCount() > 0);
       if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
         return false;
       }
-      Preconditions.checkArgument(commitRequest.getRequestsCount() > 0);
       PendingRequest request =
           new PendingRequest(
               computation,
