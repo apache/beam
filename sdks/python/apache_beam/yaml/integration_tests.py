@@ -48,7 +48,7 @@ from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_ser
 
 class BigEndianIntegerCoderImpl(CoderImpl):
   """Coder implementation for big-endian integers used in cross-language tests.
-  
+
   This is needed because Java's BigEndianIntegerCoder falls back to the generic
   'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
   Python's FnApiRunner needs to know how to decode it.
@@ -392,6 +392,74 @@ def temp_mysql_database():
         f"password={mysql_container.password}")
 
     yield jdbc_url
+
+
+@contextlib.contextmanager
+def temp_debezium_postgres_database():
+  """Provides a temporary PostgreSQL database configured for Debezium CDC."""
+
+  container = (
+    DockerContainer('quay.io/debezium/example-postgres:latest')
+    .with_env('POSTGRES_USER', 'debezium')
+    .with_env('POSTGRES_PASSWORD', 'dbz')
+    .with_env('POSTGRES_DB', 'inventory')
+    .with_exposed_ports(5432))
+
+  try:
+    container.start()
+    wait_for_logs(container, 'database system is ready to accept connections')
+
+    host = container.get_container_host_ip()
+    port = int(container.get_exposed_port(5432))
+
+    connection = None
+    for _ in range(30):
+      try:
+        connection = psycopg2.connect(
+          host=host,
+          port=port,
+          user='debezium',
+          password='dbz',
+          dbname='inventory')
+        break
+      except psycopg2.OperationalError:
+        time.sleep(1)
+
+    if connection is None:
+      raise RuntimeError('Debezium PostgreSQL container failed to become ready.')
+
+    try:
+      with connection.cursor() as cursor:
+        cursor.execute(
+          """
+          CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(255)
+          )
+          """)
+        cursor.execute(
+          """
+          INSERT INTO customers (id, name)
+          VALUES
+            (1, 'Alice'),
+            (2, 'Bob')
+          ON CONFLICT (id) DO NOTHING
+          """)
+      connection.commit()
+    finally:
+      connection.close()
+
+    yield {
+      'HOST': host,
+      'PORT': port,
+      'USERNAME': 'debezium',
+      'PASSWORD': 'dbz',
+      'DATABASE': 'inventory',
+      'TABLE': 'public.customers',
+    }
+
+  finally:
+    container.stop()
 
 
 @contextlib.contextmanager
