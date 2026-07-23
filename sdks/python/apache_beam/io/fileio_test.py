@@ -34,6 +34,7 @@ from hamcrest.library.text import stringmatches
 import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -419,6 +420,65 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
           | beam.Map(_create_extra_file))
 
       assert_that(match_continiously, equal_to(files))
+
+  def test_poll_fn_gates_on_start_timestamp(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    self._create_temp_file(dir=tempdir)
+    pattern = FileSystems.join(tempdir, '*')
+
+    future_start = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() + 3600)
+    self.assertEqual((), future_start(pattern).outputs)
+
+    past_start = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() - 3600)
+    self.assertEqual(1, len(past_start(pattern).outputs))
+
+  def test_poll_fn_disallows_empty_match(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.DISALLOW, Timestamp.now() - 3600)
+    with self.assertRaises(BeamIOError):
+      poll_fn(FileSystems.join(tempdir, 'no-such-file'))
+
+  def test_poll_fn_can_timestamp_outputs_with_file_mtime(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    self._create_temp_file(dir=tempdir)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        use_metadata_timestamp=True)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual(1, len(result.outputs))
+    output = result.outputs[0]
+    self.assertEqual(
+        Timestamp.of(output.value.last_updated_in_seconds), output.timestamp)
+
+  def test_watch_window_termination_ignores_pre_start_polls(self):
+    # Polls before start_timestamp are deferred waits and must not consume the
+    # budget, otherwise a future start_timestamp silently drops all output.
+    start_micros = Timestamp.of(1000).micros
+    term = fileio._WatchWindowTermination(start_micros, max_polls=2)
+    before = Timestamp.of(999)
+    after = Timestamp.of(1000)
+    state = term.for_new_input(before, 'pattern')
+    state = term.on_poll_complete(before, state)
+    state = term.on_poll_complete(before, state)
+    self.assertFalse(term.can_stop_polling(before, state))
+    state = term.on_poll_complete(after, state)
+    self.assertFalse(term.can_stop_polling(after, state))
+    state = term.on_poll_complete(after, state)
+    self.assertTrue(term.can_stop_polling(after, state))
+
+  def test_poll_fn_advances_watermark_on_empty_match(self):
+    # An empty (but allowed) match still carries a watermark so downstream
+    # event-time windows keep progressing when no new files appear.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() - 3600)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual((), result.outputs)
+    self.assertIsNotNone(result.watermark)
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
