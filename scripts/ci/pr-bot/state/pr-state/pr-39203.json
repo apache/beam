@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "claudevdm",
-    "java": "ahmedabu98",
-    "go": "lostluck"
+    "python": "jrmccluskey",
+    "java": "kennknowles",
+    "go": "shunping"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
