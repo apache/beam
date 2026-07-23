@@ -24,13 +24,11 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
@@ -67,45 +65,6 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           .toBuilder()
           .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
           .build();
-    }
-  }
-
-  class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
-    @Override
-    public void serialize(
-        GoogleCloudStorageReadOptions value, JsonGenerator gen, SerializerProvider serializers)
-        throws java.io.IOException {
-      serializers.defaultSerializeValue(value, gen);
-    }
-  }
-
-  class GcsReadOptionsDeserializer extends JsonDeserializer<GoogleCloudStorageReadOptions> {
-    @Override
-    public GoogleCloudStorageReadOptions deserialize(JsonParser p, DeserializationContext ctxt)
-        throws java.io.IOException {
-      ObjectMapper mapper = (ObjectMapper) p.getCodec();
-      JsonNode root = mapper.readTree(p);
-      GoogleCloudStorageReadOptions.Builder builder = GoogleCloudStorageReadOptions.builder();
-
-      for (Method method : GoogleCloudStorageReadOptions.Builder.class.getMethods()) {
-        if (method.getName().startsWith("set") && method.getParameterCount() == 1) {
-          String propName =
-              Character.toLowerCase(method.getName().charAt(3)) + method.getName().substring(4);
-          JsonNode node = root.get(propName);
-          if (node != null && !node.isNull()) {
-            try {
-              Class<?> paramType = method.getParameterTypes()[0];
-              Object val = mapper.treeToValue(node, paramType);
-              if (val != null) {
-                method.invoke(builder, java.util.Objects.requireNonNull(val));
-              }
-            } catch (Exception ignored) {
-              // Ignore incompatible or unmappable properties
-            }
-          }
-        }
-      }
-      return builder.build();
     }
   }
 
@@ -341,5 +300,75 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
       return oldValue;
     }
+  }
+}
+
+class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
+  private static final GoogleCloudStorageReadOptions DEFAULT_OPTIONS =
+      GoogleCloudStorageReadOptions.DEFAULT
+          .toBuilder()
+          .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
+          .build();
+
+  @Override
+  public void serialize(
+      GoogleCloudStorageReadOptions value, JsonGenerator gen, SerializerProvider serializers)
+      throws java.io.IOException {
+    // Note: We only support a partial set of options to propagate to remote
+    // workers. Setting the unsupported ones will not have any effect and will fall
+    // back to default in remote workers. Support for additional options can be
+    // added on a need basis. The full list of options can be seen in
+    // com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.
+    gen.writeStartObject();
+    if (value.getFadvise() != null && value.getFadvise() != DEFAULT_OPTIONS.getFadvise()) {
+      gen.writeStringField("fadvise", value.getFadvise().name());
+    }
+    if (value.isFastFailOnNotFoundEnabled() != DEFAULT_OPTIONS.isFastFailOnNotFoundEnabled()) {
+      gen.writeBooleanField("fastFailOnNotFoundEnabled", value.isFastFailOnNotFoundEnabled());
+    }
+    if (value.getMinRangeRequestSize() != DEFAULT_OPTIONS.getMinRangeRequestSize()) {
+      gen.writeNumberField("minRangeRequestSize", value.getMinRangeRequestSize());
+    }
+    if (value.getInplaceSeekLimit() != DEFAULT_OPTIONS.getInplaceSeekLimit()) {
+      gen.writeNumberField("inplaceSeekLimit", value.getInplaceSeekLimit());
+    }
+    if (value.isGrpcReadZeroCopyEnabled() != DEFAULT_OPTIONS.isGrpcReadZeroCopyEnabled()) {
+      gen.writeBooleanField("grpcReadZeroCopyEnabled", value.isGrpcReadZeroCopyEnabled());
+    }
+    gen.writeEndObject();
+  }
+}
+
+class GcsReadOptionsDeserializer extends JsonDeserializer<GoogleCloudStorageReadOptions> {
+  @Override
+  public GoogleCloudStorageReadOptions deserialize(JsonParser p, DeserializationContext ctxt)
+      throws java.io.IOException {
+    JsonNode root = p.readValueAsTree();
+    GoogleCloudStorageReadOptions.Builder builder =
+        GoogleCloudStorageReadOptions.DEFAULT
+            .toBuilder()
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL);
+
+    if (root != null && root.isObject()) {
+      if (root.hasNonNull("fadvise")) {
+        builder.setFadvise(
+            GoogleCloudStorageReadOptions.Fadvise.valueOf(root.get("fadvise").asText()));
+      }
+      if (root.hasNonNull("fastFailOnNotFoundEnabled")) {
+        builder.setFastFailOnNotFoundEnabled(root.get("fastFailOnNotFoundEnabled").asBoolean());
+      } else if (root.hasNonNull("fastFailOnNotFound")) {
+        builder.setFastFailOnNotFoundEnabled(root.get("fastFailOnNotFound").asBoolean());
+      }
+      if (root.hasNonNull("minRangeRequestSize")) {
+        builder.setMinRangeRequestSize(root.get("minRangeRequestSize").asLong());
+      }
+      if (root.hasNonNull("inplaceSeekLimit")) {
+        builder.setInplaceSeekLimit(root.get("inplaceSeekLimit").asLong());
+      }
+      if (root.hasNonNull("grpcReadZeroCopyEnabled")) {
+        builder.setGrpcReadZeroCopyEnabled(root.get("grpcReadZeroCopyEnabled").asBoolean());
+      }
+    }
+    return builder.build();
   }
 }

@@ -106,4 +106,20 @@ public class GcsOptionsTest {
     assertFalse(deserializedReadOptions.isFastFailOnNotFoundEnabled());
     assertEquals(12345L, deserializedReadOptions.getMinRangeRequestSize());
   }
+
+  @Test
+  public void testDefaultGoogleCloudStorageReadOptionsSerialization() throws Exception {
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
+    ObjectMapper mapper = new ObjectMapper();
+    String serialized = mapper.writeValueAsString(options);
+    GcsOptions deserialized =
+        mapper.readValue(serialized, PipelineOptions.class).as(GcsOptions.class);
+
+    GoogleCloudStorageReadOptions deserializedReadOptions =
+        deserialized.getGoogleCloudStorageReadOptions();
+
+    assertNotNull(deserializedReadOptions);
+    assertEquals(
+        GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL, deserializedReadOptions.getFadvise());
+  }
 }
