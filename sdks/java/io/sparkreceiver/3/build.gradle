@@ -39,6 +39,12 @@ configurations.all {
     exclude group: "org.slf4j", module: "jul-to-slf4j"
 }
 
+configurations.configureEach {
+  resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
+    select("at.yawk.lz4:lz4-java:1.10.2")
+  }
+}
+
 dependencies {
     implementation library.java.commons_lang3
     implementation library.java.joda_time

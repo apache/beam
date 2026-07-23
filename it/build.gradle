@@ -37,5 +37,5 @@ tasks.register('BigQueryStorageApiStreamingPerformanceTest') {
 }
 
 tasks.register('IcebergPerformanceTest') {
-  dependsOn(":it:iceberg:IcebergPerformanceTest")
+    dependsOn(":it:iceberg:IcebergPerformanceTest")
 }
