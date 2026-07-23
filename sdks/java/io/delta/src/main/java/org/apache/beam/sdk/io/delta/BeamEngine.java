@@ -23,14 +23,25 @@ import io.delta.kernel.engine.FileSystemClient;
 import io.delta.kernel.engine.JsonHandler;
 import io.delta.kernel.engine.ParquetHandler;
 
-/** A Beam specific {@link Engine} wrapper that provides a custom {@link ParquetHandler}. */
+/** A Beam specific {@link Engine} wrapper that provides custom engine handlers. */
 public class BeamEngine implements Engine {
   private final Engine delegate;
   private final ParquetHandler parquetHandler;
+  private final FileSystemClient fileSystemClient;
 
   public BeamEngine(Engine delegate, ParquetHandler parquetHandler) {
+    this(delegate, parquetHandler, new BeamFileSystemClient());
+  }
+
+  public BeamEngine(
+      Engine delegate, ParquetHandler parquetHandler, FileSystemClient fileSystemClient) {
     this.delegate = delegate;
     this.parquetHandler = parquetHandler;
+    this.fileSystemClient = fileSystemClient;
+  }
+
+  public static BeamEngine withBeamFileSystemClient(Engine delegate) {
+    return new BeamEngine(delegate, delegate.getParquetHandler(), new BeamFileSystemClient());
   }
 
   @Override
@@ -45,7 +56,7 @@ public class BeamEngine implements Engine {
 
   @Override
   public FileSystemClient getFileSystemClient() {
-    return delegate.getFileSystemClient();
+    return fileSystemClient;
   }
 
   @Override

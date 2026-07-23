@@ -114,7 +114,7 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
 
   @Setup
   public void setUp() {
-    engine = DefaultEngine.create(getConfiguration());
+    engine = BeamEngine.withBeamFileSystemClient(DefaultEngine.create(getConfiguration()));
   }
 
   @ProcessElement
@@ -139,7 +139,8 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
     // of row groups that map to the current restriction.
     BeamParquetHandler parquetHandler =
         new BeamParquetHandler(getConfiguration(), currentEngine.getParquetHandler(), tracker);
-    BeamEngine beamEngine = new BeamEngine(currentEngine, parquetHandler);
+    BeamEngine beamEngine =
+        new BeamEngine(currentEngine, parquetHandler, currentEngine.getFileSystemClient());
 
     long currentStartRgIndex = 0L;
 
