@@ -177,10 +177,20 @@ class BeamDockerPlugin implements Plugin<Project> {
 
       exec.with {
         workingDir dockerDir
-        commandLine buildCommandLine(ext)
         dependsOn ext.getDependencies()
         logging.captureStandardOutput LogLevel.INFO
         logging.captureStandardError LogLevel.ERROR
+        if (useSequentialPlatforms(ext)) {
+          // Fail fast on amd64 before paying for slower architectures (e.g. arm64
+          // under QEMU), then assemble a multi-arch manifest with imagetools.
+          commandLine 'sh', '-e', 'sequential-build.sh'
+          doFirst {
+            File script = new File(dockerDir, 'sequential-build.sh')
+            script.text = buildSequentialPlatformScript(ext)
+          }
+        } else {
+          commandLine buildCommandLine(ext)
+        }
       }
 
       Map<String, Object> tags = ext.namedTags.collectEntries { taskName, tagName ->
@@ -230,6 +240,145 @@ class BeamDockerPlugin implements Plugin<Project> {
         pushAllTags.dependsOn pushSubTask
       }
     }
+  }
+
+  /**
+   * When enabled via -Pdocker-sequential-platforms, a multi-arch push builds each
+   * platform separately (amd64 first) and pushes it anonymously by digest only
+   * (no tag). Once every platform has succeeded, a single multi-arch manifest is
+   * assembled from those digests with `docker buildx imagetools create` and the
+   * real tags are published atomically.
+   *
+   * This fails fast on the usually-quicker amd64 build before paying for slower
+   * architectures (e.g. arm64 under QEMU emulation), and never publishes a
+   * partial (single-arch) image under a shared tag while the rest are still
+   * building.
+   */
+  private boolean useSequentialPlatforms(DockerExtension ext) {
+    return ext.buildx && ext.push && ext.platform.size() > 1 &&
+        ext.project.rootProject.hasProperty('docker-sequential-platforms')
+  }
+
+  private List<String> orderedPlatforms(DockerExtension ext) {
+    List<String> platforms = new ArrayList<>(ext.platform)
+    platforms.sort { String a, String b ->
+      boolean aAmd64 = a.contains('amd64')
+      boolean bAmd64 = b.contains('amd64')
+      if (aAmd64 == bAmd64) {
+        return a <=> b
+      }
+      return aAmd64 ? -1 : 1
+    }
+    return platforms
+  }
+
+  private String imageRepository(DockerExtension ext) {
+    String[] repoParts = (ext.name as String).split(':')
+    String repo = repoParts[0]
+    for (int i = 1; i < repoParts.length - 1; i++) {
+      repo += ':' + repoParts[i]
+    }
+    return repo
+  }
+
+  // Tags that should be published on the final multi-arch manifest. Mirrors the
+  // tagging logic in buildCommandLine() for the non-sequential push path.
+  private List<String> targetImageRefs(DockerExtension ext) {
+    if (ext.tags.isEmpty()) {
+      return [ext.name as String]
+    }
+    String repo = imageRepository(ext)
+    return ext.getTags().collect { tag -> repo + ':' + tag }
+  }
+
+  private static String shellQuote(String value) {
+    return "'" + value.replace("'", "'\\''") + "'"
+  }
+
+  // Builds a single-platform `docker buildx build` command that pushes the
+  // result anonymously by digest, without applying any human-readable tag.
+  private List<String> digestBuildCommandLine(DockerExtension ext, String platform, String metadataFile) {
+    List<String> cmd = ['docker', 'buildx', 'build']
+    cmd.addAll('--platform', platform)
+    if (ext.builder != null) {
+      cmd.addAll('--builder', ext.builder)
+    }
+    cmd.addAll('--provenance=false')
+    cmd.addAll('--metadata-file', metadataFile)
+    if (ext.noCache) {
+      cmd.add '--no-cache'
+    }
+    if (ext.getNetwork() != null) {
+      cmd.addAll('--network', ext.network)
+    }
+    if (!ext.buildArgs.isEmpty()) {
+      for (Map.Entry<String, String> buildArg : ext.buildArgs.entrySet()) {
+        cmd.addAll('--build-arg', "${buildArg.getKey()}=${buildArg.getValue()}" as String)
+      }
+    }
+    if (!ext.labels.isEmpty()) {
+      for (Map.Entry<String, String> label : ext.labels.entrySet()) {
+        if (!label.getKey().matches(LABEL_KEY_PATTERN)) {
+          throw new GradleException(String.format("Docker label '%s' contains illegal characters. " +
+          "Label keys must only contain lowercase alphanumberic, `.`, or `-` characters (must match %s).",
+          label.getKey(), LABEL_KEY_PATTERN.pattern()))
+        }
+        cmd.addAll('--label', "${label.getKey()}=${label.getValue()}" as String)
+      }
+    }
+    if (ext.pull) {
+      cmd.add '--pull'
+    }
+    if (ext.target != null && ext.target != "") {
+      cmd.addAll('--target', ext.target)
+    }
+    String repo = imageRepository(ext)
+    String output = "type=image,name=${repo},push=true,push-by-digest=true,name-canonical=true"
+    if (ext.compression != null && !ext.compression.isEmpty()) {
+      output += ",compression=${ext.compression},force-compression=true,oci-mediatypes=true"
+    }
+    cmd.addAll('--output', output)
+    cmd.add '.'
+    logger.debug("${cmd}" as String)
+    return cmd
+  }
+
+  private String buildSequentialPlatformScript(DockerExtension ext) {
+    List<String> platforms = orderedPlatforms(ext)
+    List<String> imageRefs = targetImageRefs(ext)
+    String repo = imageRepository(ext)
+
+    StringBuilder script = new StringBuilder()
+    script.append('#!/bin/sh\n')
+    script.append('set -eu\n')
+    script.append('DIGEST_REFS=""\n')
+
+    platforms.eachWithIndex { String platform, int idx ->
+      String safeName = platform.replaceAll('[^a-zA-Z0-9]+', '_')
+      String metadataFile = 'buildx-meta-' + safeName + '.json'
+      List<String> cmd = digestBuildCommandLine(ext, platform, metadataFile)
+      String progress = 'Building platform ' + platform + ' (' + (idx + 1) + '/' + platforms.size() + ') by digest'
+
+      script.append('rm -f ').append(shellQuote(metadataFile)).append('\n')
+      script.append('echo ').append(shellQuote(progress)).append('\n')
+      script.append(cmd.collect { shellQuote(it as String) }.join(' ')).append('\n')
+      script.append('DIGEST=$(sed -n \'s/.*"containerimage.digest": *"\\([^"]*\\)".*/\\1/p\' ')
+      script.append(shellQuote(metadataFile)).append(' | head -n 1)\n')
+      script.append('if [ -z "$DIGEST" ]; then\n')
+      script.append('  echo ').append(shellQuote('Failed to read containerimage.digest from ' + metadataFile)).append(' >&2\n')
+      script.append('  exit 1\n')
+      script.append('fi\n')
+      script.append('DIGEST_REFS="$DIGEST_REFS ').append(shellQuote(repo)).append('@$DIGEST"\n')
+    }
+
+    String manifestMessage = 'Creating multi-arch manifest: ' + imageRefs.join(', ')
+    script.append('echo ').append(shellQuote(manifestMessage)).append('\n')
+    script.append('docker buildx imagetools create')
+    imageRefs.each { String imageRef ->
+      script.append(' -t ').append(shellQuote(imageRef))
+    }
+    script.append(' $DIGEST_REFS\n')
+    return script.toString()
   }
 
   private List<String> buildCommandLine(DockerExtension ext) {
@@ -293,11 +442,7 @@ class BeamDockerPlugin implements Plugin<Project> {
       buildCommandLine.add '--pull'
     }
     if (!ext.tags.isEmpty() && ext.push) {
-      String[] repoParts = (ext.name as String).split(':')
-      String repo = repoParts[0]
-      for (int i = 1; i < repoParts.length - 1; i++) {
-        repo += ':' + repoParts[i]
-      }
+      String repo = imageRepository(ext)
       for (tag in ext.getTags()) {
         buildCommandLine.addAll(['-t', repo + ':' + tag])
       }
