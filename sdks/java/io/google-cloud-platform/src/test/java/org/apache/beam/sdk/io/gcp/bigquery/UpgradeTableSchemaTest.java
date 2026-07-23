@@ -22,6 +22,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.services.bigquery.model.TableCell;
+import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
@@ -29,6 +31,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.UnknownFieldSet;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
@@ -325,14 +328,19 @@ public class UpgradeTableSchemaTest {
 
     // 1. Missing hash in payload
     StorageApiWritePayload payloadNoHash = StorageApiWritePayload.of(new byte[0], null, null);
-    assertFalse(UpgradeTableSchema.isPayloadSchemaOutOfDate(payloadNoHash, () -> hash1, null));
+    assertFalse(
+        UpgradeTableSchema.isPayloadSchemaOutOfDate(
+            payloadNoHash.getSchemaHash(), payloadNoHash::getPayload, () -> hash1, null));
 
     // 2. Equal hash
-    assertFalse(UpgradeTableSchema.isPayloadSchemaOutOfDate(payload, () -> hash1, null));
+    assertFalse(
+        UpgradeTableSchema.isPayloadSchemaOutOfDate(
+            payload.getSchemaHash(), payload::getPayload, () -> hash1, null));
 
     // 3. Different hash, but message doesn't have unknown fields (initialized and empty)
     assertFalse(
-        UpgradeTableSchema.isPayloadSchemaOutOfDate(payload, () -> hash2, () -> descriptor));
+        UpgradeTableSchema.isPayloadSchemaOutOfDate(
+            payload.getSchemaHash(), payload::getPayload, () -> hash2, () -> descriptor));
 
     // 4. Different hash with unknown fields.
     DynamicMessage unknownFieldSet =
@@ -348,7 +356,10 @@ public class UpgradeTableSchemaTest {
         StorageApiWritePayload.of(unknownFieldSet.toByteArray(), null, null).withSchemaHash(hash1);
     assertTrue(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(
-            payloadWithUnknown, () -> hash2, () -> descriptor));
+            payloadWithUnknown.getSchemaHash(),
+            payloadWithUnknown::getPayload,
+            () -> hash2,
+            () -> descriptor));
 
     // 5. Different hash with missing required fields.
     DynamicMessage missingField = DynamicMessage.newBuilder(descriptor).buildPartial();
@@ -356,6 +367,110 @@ public class UpgradeTableSchemaTest {
         StorageApiWritePayload.of(missingField.toByteArray(), null, null).withSchemaHash(hash1);
     assertTrue(
         UpgradeTableSchema.isPayloadSchemaOutOfDate(
-            payloadMissingField, () -> hash2, () -> descriptor));
+            payloadMissingField.getSchemaHash(),
+            payloadMissingField::getPayload,
+            () -> hash2,
+            () -> descriptor));
+  }
+
+  @Test
+  public void testMissingUnknownField_TableRowWithF() throws Exception {
+    DescriptorProtos.DescriptorProto descriptorProto =
+        DescriptorProtos.DescriptorProto.newBuilder()
+            .setName("TestMessage")
+            .addField(
+                DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("field1")
+                    .setNumber(1)
+                    .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .build())
+            .build();
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto);
+
+    TableRow row = new TableRow();
+    TableCell cell1 = new TableCell();
+    cell1.setV("value1");
+    row.set("f", Arrays.asList(cell1));
+
+    assertFalse(UpgradeTableSchema.missingUnknownField(row, () -> descriptor));
+
+    TableCell cell2 = new TableCell();
+    cell2.setV("value2");
+    row.set("f", Arrays.asList(cell1, cell2));
+
+    assertTrue(UpgradeTableSchema.missingUnknownField(row, () -> descriptor));
+  }
+
+  @Test
+  public void testMissingUnknownField_TableRow() throws Exception {
+    DescriptorProtos.DescriptorProto descriptorProto =
+        DescriptorProtos.DescriptorProto.newBuilder()
+            .setName("TestMessage")
+            .addField(
+                DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("field1")
+                    .setNumber(1)
+                    .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .build())
+            .build();
+    Descriptors.Descriptor descriptor =
+        TableRowToStorageApiProto.wrapDescriptorProto(descriptorProto);
+
+    TableRow row = new TableRow();
+    row.set("field1", "value1");
+
+    assertFalse(UpgradeTableSchema.missingUnknownField(row, () -> descriptor));
+
+    row.set("field2", "value2");
+
+    assertTrue(UpgradeTableSchema.missingUnknownField(row, () -> descriptor));
+  }
+
+  @Test
+  public void testMissingUnknownField_NestedObject() throws Exception {
+    DescriptorProtos.DescriptorProto nestedProto =
+        DescriptorProtos.DescriptorProto.newBuilder()
+            .setName("NestedMessage")
+            .addField(
+                DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("nested1")
+                    .setNumber(1)
+                    .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING)
+                    .build())
+            .build();
+
+    DescriptorProtos.DescriptorProto parentProto =
+        DescriptorProtos.DescriptorProto.newBuilder()
+            .setName("TestMessage")
+            .addField(
+                DescriptorProtos.FieldDescriptorProto.newBuilder()
+                    .setName("field1")
+                    .setNumber(1)
+                    .setType(DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE)
+                    .setTypeName("NestedMessage")
+                    .build())
+            .build();
+
+    DescriptorProtos.FileDescriptorProto fileProto =
+        DescriptorProtos.FileDescriptorProto.newBuilder()
+            .addMessageType(nestedProto)
+            .addMessageType(parentProto)
+            .build();
+
+    Descriptors.FileDescriptor fileDescriptor =
+        Descriptors.FileDescriptor.buildFrom(fileProto, new Descriptors.FileDescriptor[0]);
+    Descriptors.Descriptor descriptor = fileDescriptor.findMessageTypeByName("TestMessage");
+
+    TableRow nestedRow = new TableRow();
+    nestedRow.set("nested1", "value1");
+
+    TableRow parentRow = new TableRow();
+    parentRow.set("field1", nestedRow);
+
+    assertFalse(UpgradeTableSchema.missingUnknownField(parentRow, () -> descriptor));
+
+    nestedRow.set("nested2", "value2");
+    assertTrue(UpgradeTableSchema.missingUnknownField(parentRow, () -> descriptor));
   }
 }

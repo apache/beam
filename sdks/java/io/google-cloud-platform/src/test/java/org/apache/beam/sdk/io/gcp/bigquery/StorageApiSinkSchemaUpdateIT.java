@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -358,7 +359,10 @@ public class StorageApiSinkSchemaUpdateIT {
   }
 
   private void runStreamingPipelineWithSchemaChange(
-      Write.Method method, boolean useAutoSchemaUpdate, boolean useIgnoreUnknownValues)
+      Write.Method method,
+      boolean useAutoSchemaUpdate,
+      boolean consistentAutoUpdate,
+      boolean useIgnoreUnknownValues)
       throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     // Set threshold bytes to 0 so that the stream attempts to fetch an updated schema after each
@@ -367,6 +371,8 @@ public class StorageApiSinkSchemaUpdateIT {
     // Limit parallelism so that all streams recognize the new schema in an expected short amount
     // of time (before we start writing rows with updated schema)
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(TOTAL_NUM_STREAMS);
+    p.getOptions().as(StreamingOptions.class).setStreaming(true);
+
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
@@ -374,7 +380,11 @@ public class StorageApiSinkSchemaUpdateIT {
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue(
           "Skipping in favor of more relevant test case and to avoid timing issues",
-          !changeTableSchema && useInputSchema && useAutoSchemaUpdate);
+          consistentAutoUpdate || (!changeTableSchema && useInputSchema && useAutoSchemaUpdate));
+    }
+    if (consistentAutoUpdate) {
+      assumeTrue(changeTableSchema);
+      assumeFalse(useAutoSchemaUpdate);
     }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
@@ -402,6 +412,7 @@ public class StorageApiSinkSchemaUpdateIT {
         BigQueryIO.writeTableRows()
             .to(tableSpec)
             .withAutoSchemaUpdate(useAutoSchemaUpdate)
+            .withAutoSchemaUpdateConsistent(consistentAutoUpdate, Duration.standardMinutes(5))
             .withMethod(method)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
@@ -413,7 +424,8 @@ public class StorageApiSinkSchemaUpdateIT {
     }
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
-    boolean waitLonger = changeTableSchema && (useAutoSchemaUpdate || !useInputSchema);
+    boolean waitLonger =
+        changeTableSchema && (useAutoSchemaUpdate || !useInputSchema) && !consistentAutoUpdate;
     if (method == Write.Method.STORAGE_WRITE_API) {
       write =
           write.withTriggeringFrequency(
@@ -465,7 +477,7 @@ public class StorageApiSinkSchemaUpdateIT {
                           PROJECT, BIG_QUERY_DATASET_ID, ImmutableMap.of(tableId, updatedSchema))));
     }
     WriteResult result = rows.apply("Stream to BigQuery", write);
-    if (useIgnoreUnknownValues) {
+    if (useIgnoreUnknownValues || consistentAutoUpdate) {
       // We ignore the extra fields, so no rows should have been sent to DLQ
       PAssert.that("Check DLQ is empty", result.getFailedStorageApiInserts()).empty();
     } else {
@@ -478,11 +490,12 @@ public class StorageApiSinkSchemaUpdateIT {
     p.run().waitUntilFinish();
 
     // Check row completeness, non-duplication, and that schema update works as intended.
-    int expectedCount = useIgnoreUnknownValues ? TOTAL_N : ORIGINAL_N;
-    boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API) ? true : false;
+    int expectedCount = (useIgnoreUnknownValues || consistentAutoUpdate) ? TOTAL_N : ORIGINAL_N;
+    boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API);
     checkRowCompleteness(tableSpec, expectedCount, checkNoDuplication);
-    if (useIgnoreUnknownValues) {
-      checkRowsWithUpdatedSchema(tableSpec, extraField, useAutoSchemaUpdate);
+    if (useIgnoreUnknownValues || consistentAutoUpdate) {
+      checkRowsWithUpdatedSchema(
+          tableSpec, extraField, useAutoSchemaUpdate || consistentAutoUpdate);
     }
   }
 
@@ -553,7 +566,6 @@ public class StorageApiSinkSchemaUpdateIT {
     List<TableRow> actualRows =
         BQ_CLIENT.queryUnflattened(
             String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false, bigQueryLocation);
-
     for (TableRow row : actualRows) {
       // Rows written to the table should not have the extra field if
       // 1. The row has original schema
@@ -579,39 +591,53 @@ public class StorageApiSinkSchemaUpdateIT {
         Write.Method.STORAGE_WRITE_API,
         /** autoSchemaUpdate */
         false,
+        false,
         /** ignoreUnknownvalues */
         false);
   }
 
   @Test
   public void testExactlyOnceWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, false, true);
   }
 
   @Test
   public void testExactlyOnceWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, false, true);
+  }
+
+  @Test
+  public void testExactlyOnceWithAutoSchemaUpdateConsistent() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, true, true);
   }
 
   @Test
   public void testAtLeastOnce() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false, false);
   }
 
   @Test
   public void testAtLeastOnceWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, true);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false, true);
   }
 
   @Test
   public void testAtLeastOnceWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, false, true);
+  }
+
+  @Test
+  public void testAtLeastOnceWithAutoSchemaUpdateConsistent() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, true, true);
   }
 
   public void runDynamicDestinationsWithAutoSchemaUpdate(boolean useAtLeastOnce) throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     // 0 threshold so that the stream tries fetching an updated schema after each append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchRetryTimeMilliSec(20);
     // Total streams per destination
     p.getOptions()
         .as(BigQueryOptions.class)

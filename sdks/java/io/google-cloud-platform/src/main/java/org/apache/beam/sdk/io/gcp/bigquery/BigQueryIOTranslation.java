@@ -438,6 +438,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("row_mutation_information_fn")
             .addNullableByteArrayField("bad_record_error_handler")
             .addNullableByteArrayField("bad_record_router")
+            .addNullableInt64Field("auto_schema_update_strict_timeout_ms")
             .build();
 
     public static final String BIGQUERY_WRITE_TRANSFORM_URN =
@@ -582,6 +583,11 @@ public class BigQueryIOTranslation {
       fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
+      if (transform.getAutoSchemaUpdateStrictTimeout() != null) {
+        fieldValues.put(
+            "auto_schema_update_strict_timeout_ms",
+            transform.getAutoSchemaUpdateStrictTimeout().getMillis());
+      }
       if (transform.getWriteProtosClass() != null) {
         fieldValues.put("write_protos_class", toByteArray(transform.getWriteProtosClass()));
       }
@@ -869,6 +875,15 @@ public class BigQueryIOTranslation {
         Boolean autoSchemaUpdate = configRow.getBoolean("auto_schema_update");
         if (autoSchemaUpdate != null) {
           builder = builder.setAutoSchemaUpdate(autoSchemaUpdate);
+        }
+        Long autoSchemaUpdateStrictTimeoutMillis =
+            configRow.getInt64("auto_schema_update_strict_timeout_ms");
+        if (autoSchemaUpdateStrictTimeoutMillis != null) {
+          builder =
+              builder
+                  .setAutoSchemaUpdate(true)
+                  .setAutoSchemaUpdateStrictTimeout(
+                      org.joda.time.Duration.millis(autoSchemaUpdateStrictTimeoutMillis));
         }
         byte[] writeProtosClasses = configRow.getBytes("write_protos_class");
         if (writeProtosClasses != null) {

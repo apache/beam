@@ -108,6 +108,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.CleanupOperati
 import org.apache.beam.sdk.io.gcp.bigquery.PassThroughThenCleanup.ContextContainer;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.OutputType;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -2496,6 +2497,7 @@ public class BigQueryIO {
         .setAutoSharding(false)
         .setPropagateSuccessful(true)
         .setAutoSchemaUpdate(false)
+        .setAutoSchemaUpdateStrictTimeout(null)
         .setDeterministicRecordIdFn(null)
         .setMaxRetryJobs(1000)
         .setPropagateSuccessfulStorageApiWrites(false)
@@ -2777,6 +2779,8 @@ public class BigQueryIO {
 
     abstract boolean getAutoSchemaUpdate();
 
+    abstract @Nullable Duration getAutoSchemaUpdateStrictTimeout();
+
     abstract @Nullable Class<T> getWriteProtosClass();
 
     abstract boolean getDirectWriteProtos();
@@ -2896,6 +2900,8 @@ public class BigQueryIO {
       abstract Builder<T> setPropagateSuccessful(boolean propagateSuccessful);
 
       abstract Builder<T> setAutoSchemaUpdate(boolean autoSchemaUpdate);
+
+      abstract Builder<T> setAutoSchemaUpdateStrictTimeout(@Nullable Duration timeout);
 
       abstract Builder<T> setWriteProtosClass(@Nullable Class<T> clazz);
 
@@ -3562,9 +3568,44 @@ public class BigQueryIO {
      * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
      * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
      * insert methods.
+     *
+     * <p>Rows that contain new columns will only have the new columns sent to BigQuery after the
+     * new table schema has been observed. Until then, only the known columns will be sent to
+     * BigQuery.
+     *
+     * <p>Note that this option detects table schema updates performed on the table, usually by an
+     * external process. If you want Beam to update the table schema for you, please see {@link
+     * #withSchemaUpdateOptions}.
      */
     public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
       return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+    }
+
+    /**
+     * If true, enables automatically detecting BigQuery table schema updates. Table schema updates
+     * are usually noticed within several minutes. Only supported when using one of the STORAGE_API
+     * insert methods.
+     *
+     * <p>This mode ensures consistent writes - rows with new schemas will not be sent to BigQuery
+     * until we have observed the new table schema. This comes with a few caveats: - Detecting
+     * unknown columns requires extra parsing. Some increase in CPU usage may be noticed. - Rows
+     * with unknown columns will be retried until a new schema is observed. This may temporarily
+     * block inserts of rows into BigQuery whenever a schema update happens.
+     *
+     * <p>The timeout parameter specifies how long to wait until we see the new table schema. If
+     * more than the specified time goes by before a matching table schema is seen, the row will be
+     * sent to the failedRows output collection.
+     *
+     * <p>Note that this option detects table schema updates performed on the table, usually by an
+     * external process. If you want Beam to update the table schema for you, please see {@link
+     * #withSchemaUpdateOptions}.
+     */
+    public Write<T> withAutoSchemaUpdateConsistent(
+        boolean autoSchemaUpdate, Duration waitForSchemaTimeout) {
+      return toBuilder()
+          .setAutoSchemaUpdate(autoSchemaUpdate)
+          .setAutoSchemaUpdateStrictTimeout(waitForSchemaTimeout)
+          .build();
     }
 
     /*
@@ -4090,6 +4131,14 @@ public class BigQueryIO {
         DynamicDestinations<T, DestinationT> dynamicDestinations,
         RowWriterFactory<T, DestinationT> rowWriterFactory,
         Write.Method method) {
+      if (getAutoSchemaUpdateStrictTimeout() != null) {
+        checkArgument(
+            method == Method.STORAGE_API_AT_LEAST_ONCE || method == Method.STORAGE_WRITE_API,
+            "Auto update schema only supported when using storage write API");
+        checkArgument(
+            input.getPipeline().getOptions().as(StreamingOptions.class).isStreaming(),
+            "auto update schema only supported on streaming pipelines");
+      }
       if (method == Write.Method.STREAMING_INSERTS) {
         checkArgument(
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
@@ -4294,6 +4343,10 @@ public class BigQueryIO {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
+          @Nullable Set<SchemaUpdateOption> schemaUpdateOptions = getSchemaUpdateOptions();
+          boolean useSchemaUpdatingTableRow =
+              (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty())
+                  || (getAutoSchemaUpdate() && getAutoSchemaUpdateStrictTimeout() != null);
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsTableRow<>(
                   dynamicDestinations,
@@ -4303,9 +4356,7 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate(),
-                  getSchemaUpdateOptions() == null
-                      ? Collections.emptySet()
-                      : getSchemaUpdateOptions());
+                  useSchemaUpdatingTableRow);
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
@@ -4328,6 +4379,7 @@ public class BigQueryIO {
                 method == Method.STORAGE_API_AT_LEAST_ONCE,
                 enableAutoSharding,
                 getAutoSchemaUpdate(),
+                getAutoSchemaUpdateStrictTimeout(),
                 getIgnoreUnknownValues(),
                 getPropagateSuccessfulStorageApiWrites(),
                 getPropagateSuccessfulStorageApiWritesPredicate(),
