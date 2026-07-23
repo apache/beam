@@ -142,6 +142,9 @@ public class StreamingEngineWorkCommitterTest {
     Windmill.CommitStatus finalStatus = work.isFailed() ? Windmill.CommitStatus.ABORTED : status;
     return CompleteCommit.create(
         computationId, work.getShardedKey(), work.id(), finalStatus, /* retryableFailure= */ false);
+=======
+    return CompleteCommit.create(computationId, work.getShardedKey(), work.id(), finalStatus);
+>>>>>>> beam/master
   }
 
   @Before
@@ -514,85 +517,6 @@ public class StreamingEngineWorkCommitterTest {
   }
 
   @Test
-  public void testCommit_multiKeyCommitFailedWork() {
-    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    workCommitter = createWorkCommitter(completeCommits::add);
-
-    Work workA = createMockWork(101L);
-    Work workB = createMockWork(102L);
-    Work workC = createMockWork(103L);
-
-    // Mark non-primary key B as failed
-    workB.setFailed();
-
-    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
-        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
-            .addRequests(
-                Windmill.WorkItemCommitRequest.newBuilder()
-                    .setKey(workA.getWorkItem().getKey())
-                    .setShardingKey(workA.getWorkItem().getShardingKey())
-                    .setWorkToken(workA.getWorkItem().getWorkToken())
-                    .setCacheToken(workA.getWorkItem().getCacheToken())
-                    .build())
-            .addRequests(
-                Windmill.WorkItemCommitRequest.newBuilder()
-                    .setKey(workB.getWorkItem().getKey())
-                    .setShardingKey(workB.getWorkItem().getShardingKey())
-                    .setWorkToken(workB.getWorkItem().getWorkToken())
-                    .setCacheToken(workB.getWorkItem().getCacheToken())
-                    .build())
-            .addRequests(
-                Windmill.WorkItemCommitRequest.newBuilder()
-                    .setKey(workC.getWorkItem().getKey())
-                    .setShardingKey(workC.getWorkItem().getShardingKey())
-                    .setWorkToken(workC.getWorkItem().getWorkToken())
-                    .setCacheToken(workC.getWorkItem().getCacheToken())
-                    .build())
-            .build();
-
-    Commit commit =
-        Commit.createMultiKey(
-            multiKeyRequest,
-            createComputationState("computationId"),
-            ImmutableList.of(workA, workB, workC));
-
-    workCommitter.start();
-    workCommitter.commit(commit);
-
-    // The entire batch must be aborted immediately without making network calls
-    waitForExpectedSetSize(completeCommits, 3);
-
-    // Verify all three works are aborted individually
-    assertThat(completeCommits)
-        .containsExactly(
-            CompleteCommit.create(
-                "computationId",
-                workA.getShardedKey(),
-                workA.id(),
-                CommitStatus.ABORTED,
-                /* retryableFailure= */ true),
-            CompleteCommit.create(
-                "computationId",
-                workB.getShardedKey(),
-                workB.id(),
-                CommitStatus.ABORTED,
-                /* retryableFailure= */ false),
-            CompleteCommit.create(
-                "computationId",
-                workC.getShardedKey(),
-                workC.id(),
-                CommitStatus.ABORTED,
-                /* retryableFailure= */ true));
-
-    // Verify that valid work was not marked failed
-    assertThat(workA.isFailed()).isFalse();
-    assertThat(workC.isFailed()).isFalse();
-    assertThat(workB.isFailed()).isTrue();
-
-    workCommitter.stop();
-  }
-
-  @Test
   public void testCommit_multiKeyCommitSuccess() {
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter = createWorkCommitter(completeCommits::add);
@@ -666,6 +590,75 @@ public class StreamingEngineWorkCommitterTest {
                 workC.id(),
                 CommitStatus.OK,
                 /* retryableFailure= */ false));
+                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.OK),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.OK),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.OK));
+
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
+    workCommitter.stop();
+  }
+
+  @Test
+  public void testCommit_multiKeyCommitFailedWork() {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    Work workA = createMockWork(101L);
+    Work workB = createMockWork(102L);
+    Work workC = createMockWork(103L);
+
+    // Mark non-primary key B as failed
+    workB.setFailed();
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workA.getWorkItem().getKey())
+                    .setShardingKey(workA.getWorkItem().getShardingKey())
+                    .setWorkToken(workA.getWorkItem().getWorkToken())
+                    .setCacheToken(workA.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workB.getWorkItem().getKey())
+                    .setShardingKey(workB.getWorkItem().getShardingKey())
+                    .setWorkToken(workB.getWorkItem().getWorkToken())
+                    .setCacheToken(workB.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workC.getWorkItem().getKey())
+                    .setShardingKey(workC.getWorkItem().getShardingKey())
+                    .setWorkToken(workC.getWorkItem().getWorkToken())
+                    .setCacheToken(workC.getWorkItem().getCacheToken())
+                    .build())
+            .build();
+
+    Commit commit =
+        Commit.createMultiKey(
+            multiKeyRequest,
+            createComputationState("computationId"),
+            ImmutableList.of(workA, workB, workC));
+
+    workCommitter.start();
+    workCommitter.commit(commit);
+
+    // The entire batch must be aborted immediately without making network calls
+    waitForExpectedSetSize(completeCommits, 3);
+
+    // Verify all three works are aborted individually
+    assertThat(completeCommits)
+        .containsExactly(
+            CompleteCommit.create(
+                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.ABORTED));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());

@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import kafka.server.KafkaConfig;
-import kafka.server.KafkaServerStartable;
+import kafka.server.KafkaServer;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
@@ -47,7 +47,7 @@ public class EmbeddedKafkaCluster {
 
   private final String brokerList;
 
-  private final List<KafkaServerStartable> brokers;
+  private final List<KafkaServer> brokers;
   private final List<File> logDirs;
 
   private EmbeddedKafkaCluster(String zkConnection) {
@@ -114,15 +114,20 @@ public class EmbeddedKafkaCluster {
       properties.setProperty("offsets.topic.replication.factor", "1");
       properties.setProperty("log.flush.interval.messages", String.valueOf(1));
 
-      KafkaServerStartable broker = startBroker(properties);
+      KafkaServer broker = startBroker(properties);
 
       brokers.add(broker);
       logDirs.add(logDir);
     }
   }
 
-  private static KafkaServerStartable startBroker(Properties props) {
-    KafkaServerStartable server = new KafkaServerStartable(new KafkaConfig(props));
+  private static KafkaServer startBroker(Properties props) {
+    KafkaServer server =
+        new KafkaServer(
+            new KafkaConfig(props),
+            KafkaServer.$lessinit$greater$default$2(),
+            KafkaServer.$lessinit$greater$default$3(),
+            KafkaServer.$lessinit$greater$default$4());
     server.startup();
     return server;
   }
@@ -148,7 +153,7 @@ public class EmbeddedKafkaCluster {
 
   @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
   public void shutdown() {
-    for (KafkaServerStartable broker : brokers) {
+    for (KafkaServer broker : brokers) {
       try {
         broker.shutdown();
       } catch (Exception e) {

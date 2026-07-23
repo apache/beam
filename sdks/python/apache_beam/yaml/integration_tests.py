@@ -73,6 +73,8 @@ Coder.register_urn(
     None, lambda payload, components, context: BigEndianIntegerCoder())
 
 import psycopg2
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytds
 import sqlalchemy
 import yaml
@@ -690,6 +692,26 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
       f"projects/{pubsub_container.project}/topics/{topic_id}"
     created_topic_object = publisher.create_topic(name=topic_name_to_create)
     yield created_topic_object.name
+
+
+@contextlib.contextmanager
+def temp_delta_table():
+  with tempfile.TemporaryDirectory() as temp_dir:
+    log_dir = os.path.join(temp_dir, "_delta_log")
+    os.makedirs(log_dir, exist_ok=True)
+    table_data = pa.table({"name": ["a", "b", "c"]})
+    parquet_path = os.path.join(temp_dir, "part-00000.parquet")
+    pq.write_table(table_data, parquet_path)
+    file_size = os.path.getsize(parquet_path)
+    commit_content = (
+        '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}\n'
+        '{"metaData":{"id":"test-id","format":{"provider":"parquet","options":{}},"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[{\\"name\\":\\"name\\",\\"type\\":\\"string\\",\\"nullable\\":true,\\"metadata\\":{}}]}","partitionColumns":[],"configuration":{},"createdAt":123456789}}\n'
+        f'{{"add":{{"path":"part-00000.parquet","partitionValues":{{}},"size":{file_size},"modificationTime":123456789,"dataChange":true}}}}\n'
+    )
+    commit_file = os.path.join(log_dir, "00000000000000000000.json")
+    with open(commit_file, "w") as f:
+      f.write(commit_content)
+    yield temp_dir
 
 
 def replace_recursive(spec, vars):

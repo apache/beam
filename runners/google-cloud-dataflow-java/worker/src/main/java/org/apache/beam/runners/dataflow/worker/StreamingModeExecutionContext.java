@@ -54,10 +54,12 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInput;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputState;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcher;
@@ -79,6 +81,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -187,6 +190,9 @@ public class StreamingModeExecutionContext
   private final HotKeyLogger hotKeyLogger;
   private final boolean hotKeyLoggingEnabled;
   private final String stepName;
+  private final String systemName;
+  private final StreamingCounters streamingCounters;
+  private final FailureTracker failureTracker;
   private @Nullable Coder<?> keyCoder;
 
   // Key switch listener to delegate MDC logging context and thread name updates
@@ -229,6 +235,9 @@ public class StreamingModeExecutionContext
       HotKeyLogger hotKeyLogger,
       boolean hotKeyLoggingEnabled,
       String stepName,
+      String systemName,
+      StreamingCounters streamingCounters,
+      FailureTracker failureTracker,
       String sourceBytesProcessCounterName,
       PipelineOptions options,
       SideInputStateFetcherFactory sideInputStateFetcherFactory) {
@@ -249,6 +258,9 @@ public class StreamingModeExecutionContext
     this.hotKeyLogger = checkNotNull(hotKeyLogger);
     this.hotKeyLoggingEnabled = hotKeyLoggingEnabled;
     this.stepName = checkNotNull(stepName);
+    this.systemName = checkNotNull(systemName);
+    this.streamingCounters = checkNotNull(streamingCounters);
+    this.failureTracker = checkNotNull(failureTracker);
     this.sourceBytesProcessCounterName = checkNotNull(sourceBytesProcessCounterName);
     this.sideInputStateFetcherFactory = checkNotNull(sideInputStateFetcherFactory);
 
@@ -750,6 +762,47 @@ public class StreamingModeExecutionContext
 
     getOutputBuilder()
         .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
+
+    validateCommitRequestSize();
+  }
+
+  private void validateCommitRequestSize() {
+    Windmill.WorkItemCommitRequest.Builder currentBuilder = getOutputBuilder();
+    Work currentWork = getWork();
+    long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
+    Windmill.WorkItemCommitRequest commitRequest = currentBuilder.build();
+    int commitSize = commitRequest.getSerializedSize();
+
+    // Detect overflow of integer serialized size or if the byte limit was exceeded.
+    // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
+    // commit byte limit.
+    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
+    streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
+    if (commitSize >= 0 && commitSize < byteLimit) {
+      return;
+    }
+
+    KeyCommitTooLargeException e =
+        KeyCommitTooLargeException.causedBy(
+            systemName, byteLimit, commitRequest, key, hotKeyLoggingEnabled);
+    failureTracker.trackFailure(systemName, currentWork.getWorkItem(), e);
+    LOG.error("{}", e.toString());
+
+    // Drop the current request in favor of a new, minimal one requesting truncation.
+    // Messages, timers, counters, and other commit content will not be used by the service
+    // so, we're purposefully dropping them here
+    Windmill.WorkItemCommitRequest.Builder truncationBuilder =
+        buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
+    currentBuilder.clear();
+    currentBuilder.mergeFrom(truncationBuilder.build());
+  }
+
+  private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
+      Work work, int estimatedCommitSize) {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder = createOutputBuilder(work);
+    outputBuilder.setExceedsMaxWorkItemCommitBytes(true);
+    outputBuilder.setEstimatedWorkItemCommitBytes(estimatedCommitSize);
+    return outputBuilder;
   }
 
   private final long computeSourceBytesProcessed(String sourceBytesCounterName) {

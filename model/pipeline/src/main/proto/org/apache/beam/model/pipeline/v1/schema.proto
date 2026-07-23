@@ -37,6 +37,8 @@ message Schema {
   repeated Field fields = 1;
   // REQUIRED. An RFC 4122 UUID.
   string id = 2;
+  // (Optional) Schema-level options that provide additional metadata
+  // or configuration for this schema.
   repeated Option options = 3;
   // Indicates that encoding positions have been overridden.
   bool encoding_positions_set = 4;
@@ -47,8 +49,11 @@ message Field {
   string name = 1;
   // OPTIONAL. Human readable description of this field, such as the query that generated it.
   string description = 2;
+  // (Required) The type of this field.
   FieldType type = 3;
 
+  // (Optional) An integer identifier for this field. Used for schema evolution
+  // to track fields across schema changes even when field names or positions change.
   int32 id = 4;
    // OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
    // Either no fields in a given row are have encoding position populated,
@@ -58,56 +63,104 @@ message Field {
   // If this Field is part of a Schema where encoding_positions_set is True then encoding_position must be
   // defined, otherwise this field is ignored.
   int32 encoding_position = 5;
+  // (Optional) Field-level options that provide additional metadata
+  // or configuration for this field.
   repeated Option options = 6;
 }
 
+// Represents the type of a field in a Beam Schema. A field type can be one of
+// several categories: atomic types (primitives like INT32, STRING, etc.),
+// collection types (arrays, iterables, maps), row types (nested schemas),
+// or logical types (custom types with a URN-based representation).
 message FieldType {
+  // Whether this field can hold null values.
   bool nullable = 1;
   oneof type_info {
+    // A primitive (atomic) type such as INT32, STRING, BYTES, etc.
     AtomicType atomic_type = 2;
+    // An ordered array of elements of a uniform element type.
     ArrayType array_type = 3;
+    // An unordered iterable of elements of a uniform element type.
     IterableType iterable_type = 4;
+    // A map with typed keys and typed values.
     MapType map_type = 5;
+    // A nested row with its own schema.
     RowType row_type = 6;
+    // A user-defined logical type, identified by URN.
     LogicalType logical_type = 7;
   }
 }
 
+// The set of primitive (atomic) types supported by Beam Schemas.
 enum AtomicType {
+  // Unspecified type; used as the default/placeholder value.
   UNSPECIFIED = 0;
+  // A single signed byte (8-bit integer).
   BYTE = 1;
+  // A 16-bit signed integer.
   INT16 = 2;
+  // A 32-bit signed integer.
   INT32 = 3;
+  // A 64-bit signed integer.
   INT64 = 4;
+  // A single-precision (32-bit) IEEE 754 floating-point number.
   FLOAT = 5;
+  // A double-precision (64-bit) IEEE 754 floating-point number.
   DOUBLE = 6;
+  // A UTF-8 encoded string.
   STRING = 7;
+  // A boolean (true/false) value.
   BOOLEAN = 8;
+  // A sequence of bytes.
   BYTES = 9;
 }
 
+// Represents an ordered, variable-length array type. All elements share
+// the same element type.
 message ArrayType {
+  // The type of elements in this array.
   FieldType element_type = 1;
 }
 
+// Represents an unordered, variable-length iterable type. Similar to ArrayType
+// but without guaranteed ordering of elements.
 message IterableType {
+  // The type of elements in this iterable.
   FieldType element_type = 1;
 }
 
+// Represents a map (key-value association) type. Keys and values may each
+// have their own distinct types.
 message MapType {
+  // The type of the map keys.
   FieldType key_type = 1;
+  // The type of the map values.
   FieldType value_type = 2;
 }
 
+// Represents a nested row type, which contains its own Schema. This enables
+// hierarchical/structured data within a single schema field.
 message RowType {
+  // The schema describing the structure of nested rows.
   Schema schema = 1;
 }
 
+// Represents a user-defined logical type. Logical types extend the type system
+// by mapping a URN-identified type to an underlying representation type.
+// This allows SDKs to define custom types (e.g. Decimal, Date) while encoding
+// them using one of the built-in atomic or collection types.
 message LogicalType {
+  // (Required) URN uniquely identifying this logical type.
   string urn = 1;
+  // (Optional) Payload providing additional configuration for this logical type.
   bytes payload = 2;
+  // (Required) The underlying FieldType used to encode/decode values of this
+  // logical type on the wire.
   FieldType representation = 3;
+  // (Optional) The type of the argument passed when constructing an instance
+  // of this logical type (e.g. the length argument for FixedBytes).
   FieldType argument_type = 4;
+  // (Optional) The actual argument value for this logical type instance.
   FieldValue argument = 5;
 }
 
@@ -184,6 +237,9 @@ message LogicalTypes {
   }
 }
 
+// Represents a schema option, which is a named, typed value attached to a
+// Schema or Field. Options provide additional metadata or configuration
+// that is not part of the core type system.
 message Option {
   // REQUIRED. Identifier for the option.
   string name = 1;
@@ -191,57 +247,93 @@ message Option {
   // Conventionally, options that don't require additional configuration should
   // use a boolean type, with the value set to true.
   FieldType type = 2;
+  // The typed value of this option.
   FieldValue value = 3;
 }
 
+// A concrete instance of a row, containing the values for each field as defined
+// by the associated Schema. The order of values matches the field order in the
+// Schema.
 message Row {
+  // The values for each field in the row, in schema field order.
   repeated FieldValue values = 1;
 }
 
+// Represents the value of a single field within a Row. The oneof corresponds
+// to the FieldType categories: atomic, array, iterable, map, row, or logical.
 message FieldValue {
   // If none of these are set, value is considered null.
   oneof field_value {
+    // The value for an atomic (primitive) field type.
     AtomicTypeValue atomic_value = 1;
+    // The value for an array field type.
     ArrayTypeValue array_value = 2;
+    // The value for an iterable field type.
     IterableTypeValue iterable_value = 3;
+    // The value for a map field type.
     MapTypeValue map_value = 4;
+    // The value for a nested row field type.
     Row row_value = 5;
+    // The value for a logical type field.
     LogicalTypeValue logical_type_value = 6;
   }
 }
 
+// The concrete value of an atomic (primitive) field. The oneof member must
+// correspond to the AtomicType of the field's FieldType.
 message AtomicTypeValue {
   oneof value {
+    // Value for AtomicType.BYTE.
     int32 byte = 1;
+    // Value for AtomicType.INT16.
     int32 int16 = 2;
+    // Value for AtomicType.INT32.
     int32 int32 = 3;
+    // Value for AtomicType.INT64.
     int64 int64 = 4;
+    // Value for AtomicType.FLOAT.
     float float = 5;
+    // Value for AtomicType.DOUBLE.
     double double = 6;
+    // Value for AtomicType.STRING.
     string string = 7;
+    // Value for AtomicType.BOOLEAN.
     bool boolean = 8;
+    // Value for AtomicType.BYTES.
     bytes bytes = 9;
   }
 }
 
+// The concrete value of an array field, containing a list of element values.
 message ArrayTypeValue {
+  // The element values in this array, in order.
   repeated FieldValue element = 1;
 }
 
+// The concrete value of an iterable field, containing a list of element values.
 message IterableTypeValue {
+  // The element values in this iterable.
   repeated FieldValue element = 1;
 }
 
+// The concrete value of a map field, represented as a list of key-value entries.
 message MapTypeValue {
+  // The key-value entries in this map.
   repeated MapTypeEntry entries = 1;
 }
 
+// A single key-value entry within a MapTypeValue.
 message MapTypeEntry {
+  // The key of this map entry.
   FieldValue key = 1;
+  // The value of this map entry.
   FieldValue value = 2;
 }
 
+// The concrete value of a logical type field. Contains the underlying
+// representation value that encodes the logical type's data.
 message LogicalTypeValue {
+  // The underlying representation value for this logical type.
   FieldValue value = 1;
 }
 
@@ -260,7 +352,9 @@ message SchemaCoderPayload {
   repeated AdditionalCoderInfo additional_coder_infos = 4;
 
   message AdditionalCoderInfo {
+    // URN identifying the additional coder information.
     string urn = 1;
+    // Payload for the additional coder information.
     bytes payload = 2;
   }
 }

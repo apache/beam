@@ -44,7 +44,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
-      uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee
+      uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -99,6 +99,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -129,12 +131,13 @@ jobs:
     - name: Deploy to Pypi
       env:
         RELEASE: "${{ github.event.inputs.RELEASE }}"
+        GITHUB_EVENT_INPUTS_PYPI_API_TOKEN: ${{ github.event.inputs.PYPI_API_TOKEN }}
       run: |
         wget -e robots=off -r --no-parent -A tar.gz,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
         cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
         echo "Will upload the following files to PyPI:"
         ls
-        twine upload * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
+        twine upload * -u __token__ -p "${GITHUB_EVENT_INPUTS_PYPI_API_TOKEN}"
 
   push_git_tags:
     if: ${{github.event.inputs.TAG_RELEASE == 'yes'}}
@@ -160,6 +163,7 @@ jobs:
         VERSION_TAG: "v${{ github.event.inputs.RELEASE }}"
         RC_TAG: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
         POST_RELEASE_BRANCH: "release-${{ github.event.inputs.RELEASE }}-postrelease"
+        STEPS_IMPORT_GPG_OUTPUTS_NAME: ${{steps.import_gpg.outputs.name}}
       run: |
         # Ensure local tags are in sync. If there's a mismatch, it will tell you.
         git fetch --all --tags --prune
@@ -168,11 +172,11 @@ jobs:
         git rev-list $RC_TAG -n 1
 
         # Tag for Go SDK
-        git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "sdks/$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${STEPS_IMPORT_GPG_OUTPUTS_NAME}"
         git push origin "sdks/$VERSION_TAG"
 
         # Tag for repo root.
-        git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${{steps.import_gpg.outputs.name}}"
+        git tag "$VERSION_TAG" "$RC_TAG"^{} -m "Tagging release" --local-user="${STEPS_IMPORT_GPG_OUTPUTS_NAME}"
         git push origin "$VERSION_TAG"
 
         git checkout -b "$POST_RELEASE_BRANCH" "$VERSION_TAG"
@@ -189,6 +193,7 @@ jobs:
         with:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: master
+          persist-credentials: false
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

@@ -44,7 +44,6 @@ import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWor
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
-import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -81,13 +80,11 @@ public class StreamingWorkScheduler {
 
   private final Supplier<Instant> clock;
   private final ComputationWorkExecutorFactory computationWorkExecutorFactory;
-  private final FailureTracker failureTracker;
   private final WorkFailureProcessor workFailureProcessor;
   private final StreamingCommitFinalizer commitFinalizer;
   private final StreamingCounters streamingCounters;
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
-  private final StreamingGlobalConfigHandle globalConfigHandle;
   private final BoundedQueueExecutor workExecutor;
   private final boolean multiKeyExperimentEnabled;
 
@@ -95,7 +92,6 @@ public class StreamingWorkScheduler {
       Supplier<Instant> clock,
       BoundedQueueExecutor workExecutor,
       ComputationWorkExecutorFactory computationWorkExecutorFactory,
-      FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCommitFinalizer commitFinalizer,
       StreamingCounters streamingCounters,
@@ -106,7 +102,6 @@ public class StreamingWorkScheduler {
     this.clock = clock;
     this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
-    this.failureTracker = failureTracker;
     this.workFailureProcessor = workFailureProcessor;
     this.commitFinalizer = commitFinalizer;
     this.streamingCounters = streamingCounters;
@@ -143,7 +138,8 @@ public class StreamingWorkScheduler {
             readerCache,
             stateCacheFactory,
             sampler,
-            streamingCounters.pendingDeltaCounters(),
+            streamingCounters,
+            failureTracker,
             idGenerator,
             globalConfigHandle,
             hotKeyLogger,
@@ -153,7 +149,6 @@ public class StreamingWorkScheduler {
         clock,
         workExecutor,
         computationWorkExecutorFactory,
-        failureTracker,
         workFailureProcessor,
         StreamingCommitFinalizer.create(workExecutor, commitFinalizerCleanupExecutor),
         streamingCounters,
@@ -178,14 +173,6 @@ public class StreamingWorkScheduler {
         .setShardingKey(workItem.getShardingKey())
         .setWorkToken(workItem.getWorkToken())
         .setCacheToken(workItem.getCacheToken());
-  }
-
-  private static Windmill.WorkItemCommitRequest buildWorkItemTruncationRequest(
-      ByteString key, Windmill.WorkItem workItem, int estimatedCommitSize) {
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = initializeOutputBuilder(key, workItem);
-    outputBuilder.setExceedsMaxWorkItemCommitBytes(true);
-    outputBuilder.setEstimatedWorkItemCommitBytes(estimatedCommitSize);
-    return outputBuilder.build();
   }
 
   private static void setLoggingContextComputation(@Nullable String computationId) {
@@ -290,33 +277,6 @@ public class StreamingWorkScheduler {
         w.setProcessingThreadName("");
       }
     }
-  }
-
-  private Windmill.WorkItemCommitRequest validateCommitRequestSize(
-      Windmill.WorkItemCommitRequest commitRequest,
-      String computationId,
-      Windmill.WorkItem workItem) {
-    long byteLimit = globalConfigHandle.getConfig().operationalLimits().getMaxWorkItemCommitBytes();
-    int commitSize = commitRequest.getSerializedSize();
-    int estimatedCommitSize = commitSize < 0 ? Integer.MAX_VALUE : commitSize;
-
-    // Detect overflow of integer serialized size or if the byte limit was exceeded.
-    // Commit is too large if overflow has occurred or the commitSize has exceeded the allowed
-    // commit byte limit.
-    streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
-    if (commitSize >= 0 && commitSize < byteLimit) {
-      return commitRequest;
-    }
-
-    KeyCommitTooLargeException e =
-        KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
-    failureTracker.trackFailure(computationId, workItem, e);
-    LOG.error("{}", e.toString());
-
-    // Drop the current request in favor of a new, minimal one requesting truncation.
-    // Messages, timers, counters, and other commit content will not be used by the service
-    // so, we're purposefully dropping them here
-    return buildWorkItemTruncationRequest(workItem.getKey(), workItem, estimatedCommitSize);
   }
 
   private void recordProcessingStats(
@@ -449,7 +409,7 @@ public class StreamingWorkScheduler {
         Windmill.Uint128Proto.newBuilder().setHigh(keyGroup.high()).setLow(keyGroup.low()).build());
 
     for (int i = 0; i < workBatch.size(); i++) {
-      // TODO: Add commit size validation
+      // TODO: Retry on commit truncations
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
       Work w = workBatch.get(i);
       multiKeyBuilder.addRequests(
@@ -474,17 +434,13 @@ public class StreamingWorkScheduler {
 
   private void commitSingleKeyWork(
       ComputationState computationState, Work work, Windmill.WorkItemCommitRequest commitRequest) {
-    // Validate the commit request, possibly requesting truncation if the commitSize is too large.
-    Windmill.WorkItemCommitRequest validatedCommitRequest =
-        validateCommitRequestSize(
-            commitRequest, computationState.getComputationId(), work.getWorkItem());
     work.setState(Work.State.COMMIT_QUEUED);
-    validatedCommitRequest =
-        validatedCommitRequest
+    Windmill.WorkItemCommitRequest commitRequestWithAttributions =
+        commitRequest
             .toBuilder()
             .addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler))
             .build();
-    work.queueCommit(validatedCommitRequest, computationState);
+    work.queueCommit(commitRequestWithAttributions, computationState);
   }
 
   private void handleProcessWorkFailure(

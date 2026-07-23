@@ -54,6 +54,8 @@ jobs:
     name: beam_Publish_Website
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: true
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -70,3 +72,5 @@ jobs:
           gradle-command: :website:clean :website:publishWebsite
           arguments: -PgitPublishRemote="https://github.com/apache/beam.git" -PgcpCredsFile="${{ steps.auth-gcp.outputs.credentials_file_path }}"
       - uses: actions/checkout@v7 # Extra checkout to make sure we're on master for post steps.
+        with:
+          persist-credentials: false

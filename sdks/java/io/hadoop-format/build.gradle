@@ -49,6 +49,7 @@ configurations.testRuntimeClasspath {
   resolutionStrategy.force 'com.github.jbellis:jamm:0.3.0'
   // Pin snakeyaml version due to cassandra-all does not support 2.x
   resolutionStrategy.force 'org.yaml:snakeyaml:1.33'
+  exclude group: "at.yawk.lz4", module: "lz4-java"
 }
 
 dependencies {
@@ -201,4 +202,25 @@ static def createTaskNames(Map<String, String> hadoopVersions, String suffix) {
   return hadoopVersions.keySet().stream()
       .map{num -> "runHadoopFormatIO$num$suffix"}
       .collect(Collectors.toList())
+}
+
+def testJavaVer = project.findProperty('testJavaVersion') ?: JavaVersion.current().getMajorVersion()
+def isJava17OrHigher = testJavaVer.toInteger() >= 17
+
+tasks.withType(Test).configureEach {
+  if (isJava17OrHigher) {
+    systemProperty 'java.security.manager', 'allow'
+  }
+  // Open and export modules for embedded Cassandra and Elasticsearch under Java 17+
+  jvmArgs '--add-exports=java.base/sun.nio.ch=ALL-UNNAMED',
+          '--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED',
+          '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED',
+          '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+          '--add-opens=java.base/java.io=ALL-UNNAMED',
+          '--add-opens=java.base/java.net=ALL-UNNAMED',
+          '--add-opens=java.base/java.nio=ALL-UNNAMED'
 }

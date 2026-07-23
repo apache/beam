@@ -417,15 +417,11 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0,<48.0.0',
-          'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
-          # Newer version only work on Python 3.11. Versions 0.3 <= ver < 1.x
-          # conflict with other GCP dependencies.
-          'envoy-data-plane<0.3.0; python_version < "3.11"',
+          'cryptography>=39.0.0,<49.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
-          'httplib2>=0.8,<0.32.0',
+          'httplib2>=0.8,<1.0.0',
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
@@ -465,7 +461,6 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'isort==7.0.0',
             'pyrefly==0.54.0',
             'ruff==0.15.7',
             'yapf==0.43.0',

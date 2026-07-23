@@ -77,9 +77,8 @@ def sparkTestProperties(overrides = [:]) {
 
 
 def sparkTestJvmArgs() {
-  // run tests with Java 17 using -PtestJavaVersion=17 -Pjava17Home=???
-  if (project.hasProperty('testJavaVersion') &&
-          project.getProperty('testJavaVersion') in ['17', '21']) {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
     return [
       "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
       // add-opens below required for Kryo FieldSerializer / SparkRunnerKryoRegistratorTest
@@ -288,10 +287,9 @@ dependencies {
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
   testImplementation project(":sdks:java:harness")
   testImplementation library.java.avro
-  // kafka_2.13 artifacts were first published in 2.5.0; use a later version for Scala 2.13
-  def kafka_version = (spark_scala_version == '2.13') ? '2.8.0' : '2.4.1'
-  testImplementation "org.apache.kafka:kafka_$spark_scala_version:$kafka_version"
+  testImplementation (spark_scala_version == '2.13' ? library.java.kafka_scala_2_13 : library.java.kafka_scala_2_12)
   testImplementation library.java.kafka_clients
+  testImplementation library.java.kafka_server
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"

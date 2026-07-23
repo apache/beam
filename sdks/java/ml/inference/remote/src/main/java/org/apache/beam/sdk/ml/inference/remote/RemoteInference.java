@@ -20,13 +20,13 @@ package org.apache.beam.sdk.ml.inference.remote;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.components.throttling.ReactiveThrottler;
+import org.apache.beam.sdk.transforms.BatchElements;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -50,15 +50,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * // Apply remote inference transform
  * PCollection<OpenAIModelInput> inputs = pipeline.apply(Create.of(
  *     OpenAIModelInput.create("An excellent B2B SaaS solution that streamlines business processes efficiently."),
- *     OpenAIModelInput.create("Really impressed with the innovative features!")
- * ));
+ *     OpenAIModelInput.create("Really impressed with the innovative features!")));
  *
- * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results =
- *     inputs.apply(
- *         RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
- *             .handler(OpenAIModelHandler.class)
- *             .withParameters(params)
- *     );
+ * PCollection<Iterable<PredictionResult<OpenAIModelInput, OpenAIModelResponse>>> results = inputs.apply(
+ *     RemoteInference.<OpenAIModelInput, OpenAIModelResponse>invoke()
+ *         .handler(OpenAIModelHandler.class)
+ *         .withParameters(params));
  * }</pre>
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -82,6 +79,18 @@ public class RemoteInference {
 
     abstract @Nullable BaseModelParameters parameters();
 
+    abstract BatchElements.@Nullable BatchConfig batchConfig();
+
+    abstract @Nullable Integer throttleDelaySecs();
+
+    abstract @Nullable Long samplePeriodMs();
+
+    abstract @Nullable Long sampleUpdateMs();
+
+    abstract @Nullable Double overloadRatio();
+
+    abstract @Nullable Coder<OutputT> outputCoder();
+
     abstract Builder<InputT, OutputT> builder();
 
     @AutoValue.Builder
@@ -91,6 +100,18 @@ public class RemoteInference {
           Class<? extends BaseModelHandler<?, InputT, OutputT>> modelHandler);
 
       abstract Builder<InputT, OutputT> setParameters(BaseModelParameters modelParameters);
+
+      abstract Builder<InputT, OutputT> setBatchConfig(BatchElements.BatchConfig batchConfig);
+
+      abstract Builder<InputT, OutputT> setThrottleDelaySecs(Integer throttleDelaySecs);
+
+      abstract Builder<InputT, OutputT> setSamplePeriodMs(Long samplePeriodMs);
+
+      abstract Builder<InputT, OutputT> setSampleUpdateMs(Long sampleUpdateMs);
+
+      abstract Builder<InputT, OutputT> setOverloadRatio(Double overloadRatio);
+
+      abstract Builder<InputT, OutputT> setOutputCoder(Coder<OutputT> outputCoder);
 
       abstract Invoke<InputT, OutputT> build();
     }
@@ -106,23 +127,87 @@ public class RemoteInference {
       return builder().setParameters(modelParameters).build();
     }
 
+    /** Configures the batching behavior for the inputs. */
+    public Invoke<InputT, OutputT> withBatchConfig(BatchElements.BatchConfig batchConfig) {
+      return builder().setBatchConfig(batchConfig).build();
+    }
+
+    /**
+     * Configures the throttling delay when the client is preemptively throttled. Defaults to 5
+     * seconds. A value of 0 disables throttling. For more context, see {@link ReactiveThrottler}
+     */
+    public Invoke<InputT, OutputT> withThrottleDelaySecs(int throttleDelaySecs) {
+      checkArgument(throttleDelaySecs >= 0, "throttleDelaySecs must be non-negative");
+      return builder().setThrottleDelaySecs(throttleDelaySecs).build();
+    }
+
+    /**
+     * Configures the length of history to consider when setting throttling probability. Defaults to
+     * a sample period of 1000ms. For more context, see {@link AdaptiveThrottler}
+     */
+    public Invoke<InputT, OutputT> withSamplePeriodMs(long samplePeriodMs) {
+      checkArgument(samplePeriodMs > 0, "samplePeriodMs must be positive");
+      return builder().setSamplePeriodMs(samplePeriodMs).build();
+    }
+
+    /**
+     * Configures the granularity of time buckets that we store data in for throttling. Defaults to
+     * a sample period of 1000ms. For more context, see {@link AdaptiveThrottler}
+     */
+    public Invoke<InputT, OutputT> withSampleUpdateMs(long sampleUpdateMs) {
+      checkArgument(sampleUpdateMs > 0, "sampleUpdateMs must be positive");
+      return builder().setSampleUpdateMs(sampleUpdateMs).build();
+    }
+
+    /**
+     * Configures the target ratio between requests sent and successful requests. Defaults to an
+     * overload ratio of 2.0. For more context, see {@link AdaptiveThrottler}
+     */
+    public Invoke<InputT, OutputT> withOverloadRatio(double overloadRatio) {
+      checkArgument(overloadRatio > 0, "overloadRatio must be positive");
+      return builder().setOverloadRatio(overloadRatio).build();
+    }
+
+    /**
+     * Configures the coder for the output of the model. If not provided, it will fallback to using
+     * standard Java serialization for the output element.
+     */
+    public Invoke<InputT, OutputT> withOutputCoder(Coder<OutputT> outputCoder) {
+      return builder().setOutputCoder(outputCoder).build();
+    }
+
     @Override
     public PCollection<Iterable<PredictionResult<InputT, OutputT>>> expand(
         PCollection<InputT> input) {
       checkArgument(handler() != null, "handler() is required");
       checkArgument(parameters() != null, "withParameters() is required");
-      return input
-          .apply(
-              "WrapInputInList",
-              MapElements.via(
-                  new SimpleFunction<InputT, List<InputT>>() {
-                    @Override
-                    public List<InputT> apply(InputT element) {
-                      return Collections.singletonList(element);
-                    }
-                  }))
-          // Pass the list to the inference function
-          .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
+
+      BatchElements.BatchConfig config = batchConfig();
+      PCollection<List<InputT>> batchedInput;
+      if (config != null) {
+        batchedInput = input.apply("BatchElements", BatchElements.withConfig(config));
+      } else {
+        batchedInput = input.apply("BatchElements", BatchElements.withDefaults());
+      }
+
+      PCollection<Iterable<PredictionResult<InputT, OutputT>>> result =
+          batchedInput
+              // Pass the list to the inference function
+              .apply("RemoteInference", ParDo.of(new RemoteInferenceFn<InputT, OutputT>(this)));
+
+      Coder<OutputT> outCoder = outputCoder();
+      if (outCoder != null) {
+        result.setCoder(
+            org.apache.beam.sdk.coders.IterableCoder.of(
+                PredictionResultCoder.of(input.getCoder(), outCoder)));
+      } else {
+        result.setCoder(
+            (org.apache.beam.sdk.coders.Coder)
+                org.apache.beam.sdk.coders.IterableCoder.of(
+                    org.apache.beam.sdk.coders.SerializableCoder.of(PredictionResult.class)));
+      }
+
+      return result;
     }
 
     /**
@@ -144,10 +229,19 @@ public class RemoteInference {
       private final BaseModelParameters parameters;
       private transient @Nullable BaseModelHandler modelHandler;
       private final RetryHandler retryHandler;
+      private final int throttleDelaySecs;
+      private final long samplePeriodMs;
+      private final long sampleUpdateMs;
+      private final double overloadRatio;
+      private transient @Nullable ReactiveThrottler throttler;
 
       RemoteInferenceFn(Invoke<InputT, OutputT> spec) {
         this.handlerClass = spec.handler();
         this.parameters = spec.parameters();
+        this.throttleDelaySecs = spec.throttleDelaySecs() != null ? spec.throttleDelaySecs() : 5;
+        this.samplePeriodMs = spec.samplePeriodMs() != null ? spec.samplePeriodMs() : 1000L;
+        this.sampleUpdateMs = spec.sampleUpdateMs() != null ? spec.sampleUpdateMs() : 1000L;
+        this.overloadRatio = spec.overloadRatio() != null ? spec.overloadRatio() : 2.0;
         retryHandler = RetryHandler.withDefaults();
       }
 
@@ -157,15 +251,40 @@ public class RemoteInference {
         try {
           this.modelHandler = handlerClass.getDeclaredConstructor().newInstance();
           this.modelHandler.createClient(parameters);
+          if (throttleDelaySecs > 0) {
+            this.throttler =
+                new ReactiveThrottler(
+                    samplePeriodMs,
+                    sampleUpdateMs,
+                    overloadRatio,
+                    "RemoteInference",
+                    throttleDelaySecs);
+          }
         } catch (Exception e) {
           throw new RuntimeException("Failed to instantiate handler: " + handlerClass.getName(), e);
         }
       }
+
       /** Perform Inference. */
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         Iterable<PredictionResult<InputT, OutputT>> response =
-            retryHandler.execute(() -> modelHandler.request(c.element()));
+            retryHandler.execute(
+                () -> {
+                  if (throttler != null) {
+                    throttler.throttle();
+                  }
+                  long reqTime = System.currentTimeMillis();
+                  if (modelHandler == null) {
+                    throw new IllegalStateException("modelHandler is not initialized");
+                  }
+                  Iterable<PredictionResult<InputT, OutputT>> result =
+                      modelHandler.request(c.element());
+                  if (throttler != null) {
+                    throttler.successfulRequest(reqTime);
+                  }
+                  return result;
+                });
         c.output(response);
       }
     }

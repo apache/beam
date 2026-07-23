@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -26,6 +28,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,12 +40,15 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.types.Comparators;
 import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.util.SnapshotUtil;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -54,6 +60,8 @@ public abstract class IcebergScanConfig implements Serializable {
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
   private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
   private transient @MonotonicNonNull Expression cachedFilter;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRecordIdSchema;
+  private transient @MonotonicNonNull Schema cachedRowIdBeamSchema;
 
   public enum ScanType {
     TABLE,
@@ -72,7 +80,9 @@ public abstract class IcebergScanConfig implements Serializable {
   @Pure
   public Table getTable() {
     if (cachedTable == null) {
-      cachedTable = TableCache.get(getCatalogConfig(), TableIdentifier.parse(getTableIdentifier()));
+      cachedTable =
+          TableCache.get(
+              getCatalogConfig(), IcebergUtils.parseTableIdentifier(getTableIdentifier()));
     }
     return cachedTable;
   }
@@ -142,6 +152,25 @@ public abstract class IcebergScanConfig implements Serializable {
               FilterUtils.getReferencedFieldNames(getFilterString()));
     }
     return cachedRequiredSchema;
+  }
+
+  public org.apache.iceberg.Schema recordIdSchema() {
+    if (cachedRecordIdSchema == null) {
+      org.apache.iceberg.Schema fullSchema = getTable().schema();
+      cachedRecordIdSchema = TypeUtil.select(fullSchema, fullSchema.identifierFieldIds());
+    }
+    return cachedRecordIdSchema;
+  }
+
+  public Schema rowIdBeamSchema() {
+    if (cachedRowIdBeamSchema == null) {
+      cachedRowIdBeamSchema = icebergSchemaToBeamSchema(recordIdSchema());
+    }
+    return cachedRowIdBeamSchema;
+  }
+
+  public Comparator<StructLike> recordIdComparator() {
+    return Comparators.forType(recordIdSchema().asStruct());
   }
 
   @Pure
@@ -227,6 +256,9 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable List<String> getDropFields();
 
   @Pure
+  public abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
+
+  @Pure
   public abstract List<String> getMetadataColumns();
 
   @Pure
@@ -264,7 +296,7 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setTableIdentifier(String tableIdentifier);
 
     public Builder setTableIdentifier(TableIdentifier tableIdentifier) {
-      return this.setTableIdentifier(tableIdentifier.toString());
+      return this.setTableIdentifier(IcebergUtils.tableIdentifierToString(tableIdentifier));
     }
 
     public Builder setTableIdentifier(String... names) {
@@ -314,6 +346,8 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setKeepFields(@Nullable List<String> fields);
 
     public abstract Builder setDropFields(@Nullable List<String> fields);
+
+    public abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
     public abstract Builder setMetadataColumns(List<String> metadataColumns);
 
@@ -407,6 +441,28 @@ public abstract class IcebergScanConfig implements Serializable {
     checkArgument(
         getToTimestamp() == null || getToSnapshot() == null,
         error("only one of 'to_timestamp' or 'to_snapshot' can be set"));
+
+    @Nullable Long fromSnapshotId = ReadUtils.getFromSnapshotInclusive(table, this);
+    @Nullable Long toSnapshotId = ReadUtils.getToSnapshot(table, this);
+    if (fromSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(fromSnapshotId),
+          error("configured starting snapshot does not exist: '%s'"),
+          fromSnapshotId);
+    }
+    if (toSnapshotId != null) {
+      checkArgumentNotNull(
+          table.snapshot(toSnapshotId),
+          error("configured end snapshot does not exist: '%s'"),
+          toSnapshotId);
+    }
+    if (fromSnapshotId != null && toSnapshotId != null) {
+      checkArgument(
+          SnapshotUtil.isAncestorOf(table, toSnapshotId, fromSnapshotId),
+          error("fromSnapshot '%s' is not an ancestor of toSnapshot '%s'"),
+          fromSnapshotId,
+          toSnapshotId);
+    }
 
     if (getPollInterval() != null) {
       checkArgument(

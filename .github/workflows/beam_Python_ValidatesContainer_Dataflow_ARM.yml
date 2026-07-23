@@ -62,8 +62,12 @@ jobs:
       startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
 
     runs-on: ubuntu-22.04
+    # Python 3.14 multiarch container builds compile many deps from source on arm64.
+    timeout-minutes: ${{ matrix.python_version == '3.14' && 300 || 120 }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
@@ -84,7 +88,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io

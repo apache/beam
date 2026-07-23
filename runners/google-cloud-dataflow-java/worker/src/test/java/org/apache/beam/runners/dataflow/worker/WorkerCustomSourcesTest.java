@@ -94,6 +94,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -102,6 +103,8 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -639,6 +642,9 @@ public class WorkerCustomSourcesTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
+            /*systemName=*/ "systemName",
+            StreamingCounters.create(),
+            mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
             options,
             SideInputStateFetcherFactory.fromOptions(options));
@@ -1013,6 +1019,9 @@ public class WorkerCustomSourcesTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
+            /*systemName=*/ "systemName",
+            StreamingCounters.create(),
+            mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
             options,
             SideInputStateFetcherFactory.fromOptions(options));

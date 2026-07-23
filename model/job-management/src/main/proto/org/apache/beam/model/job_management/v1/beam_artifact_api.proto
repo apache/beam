@@ -78,18 +78,23 @@ message ResolveArtifactsResponse {
 
 // A request to get an artifact.
 message GetArtifactRequest {
+  // (Required) The artifact to retrieve, typically a resolved artifact from ResolveArtifacts.
   org.apache.beam.model.pipeline.v1.ArtifactInformation artifact = 1;
 }
 
 // Part of a response to getting an artifact.
 message GetArtifactResponse {
+  // A chunk of the artifact's binary content.
   bytes data = 1;
 }
 
 // Wraps an ArtifactRetrievalService request for use in ReverseArtifactRetrievalService.
+// The server sends these requests to the client during the reverse staging flow.
 message ArtifactRequestWrapper {
   oneof request {
+    // Request to resolve a set of artifacts into concrete artifact references.
     ResolveArtifactsRequest resolve_artifact = 1000;
+    // Request to retrieve the bytes of a specific artifact.
     GetArtifactRequest get_artifact = 1001;
   }
 }
@@ -151,16 +156,22 @@ message ArtifactMetadata {
 
 // A collection of artifacts.
 message Manifest {
+  // (Required) The list of artifacts staged for a job.
   repeated ArtifactMetadata artifact = 1;
 }
 
 // A manifest with location information.
 message ProxyManifest {
+  // (Required) The manifest of staged artifacts.
   Manifest manifest = 1;
+  // A location (name + URI) at which a staged artifact can be retrieved.
   message Location {
-     string name = 1;
-     string uri = 2;
+    // (Required) The name of the artifact, matching the name in the Manifest.
+    string name = 1;
+    // (Required) The URI at which the artifact content can be retrieved.
+    string uri = 2;
   }
+  // (Required) The list of artifact locations for retrieval.
   repeated Location location = 2;
 }
 
@@ -173,6 +184,7 @@ message GetManifestRequest {
 
 // A response containing a job manifest.
 message GetManifestResponse {
+  // (Required) The manifest of staged artifacts for the job.
   Manifest manifest = 1;
 }
 
@@ -187,9 +199,11 @@ message LegacyGetArtifactRequest {
 
 // Part of an artifact.
 message ArtifactChunk {
+  // A chunk of the artifact's binary content.
   bytes data = 1;
 }
 
+// Metadata for an artifact being staged, sent as the first message in a PutArtifact stream.
 message PutArtifactMetadata {
   // (Required) A token for artifact staging session. This token can be obtained
   // from PrepareJob request in JobService
@@ -211,6 +225,7 @@ message PutArtifactRequest {
   }
 }
 
+// A response to staging an artifact. An empty response indicating the artifact was staged successfully.
 message PutArtifactResponse {
 }
 

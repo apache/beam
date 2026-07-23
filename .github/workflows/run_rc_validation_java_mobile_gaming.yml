@@ -75,12 +75,15 @@ jobs:
     timeout-minutes: 120 # Adjust timeout as needed
     steps:
       - name: Extract GCS Bucket Name
-        run: echo "GCS_BUCKET_NAME=$(echo ${{ github.event.inputs.GCS_BUCKET }} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
+        run: echo "GCS_BUCKET_NAME=$(echo ${GITHUB_EVENT_INPUTS_GCS_BUCKET} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
+        env:
+          GITHUB_EVENT_INPUTS_GCS_BUCKET: ${{ github.event.inputs.GCS_BUCKET }}
       
       - name: Checkout code at RC tag
         uses: actions/checkout@v7
         with:
           ref: v${{ github.event.inputs.RELEASE_VER }}-RC${{ github.event.inputs.RC_NUM }}
+          persist-credentials: false
 
       # Standard setup actions (consider if setup-action is needed or if manual setup is sufficient)
       - name: Setup environment
@@ -91,13 +94,13 @@ jobs:
       # Setup GCP resources
       - name: Create BigQuery Dataset
         run: |
-          echo "Creating BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
-          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.BQ_DATASET }}
+          echo "Creating BigQuery dataset: ${BQ_DATASET} in project ${{ env.GCP_PROJECT_ID }}"
+          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${BQ_DATASET}
         shell: bash
       - name: Create PubSub Topic
         run: |
-          echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
-          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
+          echo "Creating PubSub topic: ${PUBSUB_TOPIC} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${PUBSUB_TOPIC}
         shell: bash
   
       # Run the Mobile Gaming example test using Gradle
@@ -117,14 +120,14 @@ jobs:
       - name: Cleanup BigQuery Dataset
         if: always()
         run: |
-          echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
-          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
+          echo "Deleting BigQuery dataset: ${BQ_DATASET} in project ${{ env.GCP_PROJECT_ID }}"
+          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${BQ_DATASET} || echo "Failed to delete BQ dataset ${BQ_DATASET}, continuing..."
         shell: bash
       - name: Cleanup PubSub Topic
         if: always()
         run: |
-          echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
-          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
+          echo "Deleting PubSub topic: ${PUBSUB_TOPIC} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${PUBSUB_TOPIC} --quiet || echo "Failed to delete PubSub topic ${PUBSUB_TOPIC}, continuing..."
         shell: bash
 
       # Reporting (Optional: Keep if test results are generated)
