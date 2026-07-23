@@ -2109,7 +2109,8 @@ public class BigQueryIO {
       boolean hasCurrent = false;
       try {
         if (reader.start()) {
-          current = java.util.Objects.requireNonNull(reader.getCurrent(), "Reader returned null element");
+          current =
+              java.util.Objects.requireNonNull(reader.getCurrent(), "Reader returned null element");
           hasCurrent = true;
         } else {
           return;
