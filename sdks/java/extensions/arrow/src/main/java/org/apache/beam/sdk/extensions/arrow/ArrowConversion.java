@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ReadChannel;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 import org.apache.arrow.vector.ipc.message.MessageSerializer;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.util.Text;
@@ -56,6 +58,57 @@ import org.joda.time.DateTimeZone;
  * batches.
  */
 public class ArrowConversion {
+
+  /** Get Arrow Field from Beam Field. */
+  private static org.apache.arrow.vector.types.pojo.Field toArrowField(Field field) {
+    FieldType beamFieldType = field.getType();
+    ArrowType arrowType;
+    // TODO: Support aggregate and logical Beam field types.
+    switch (beamFieldType.getTypeName()) {
+      case BYTE:
+        arrowType = new ArrowType.Int(8, true);
+        break;
+      case INT16:
+        arrowType = new ArrowType.Int(16, true);
+        break;
+      case INT32:
+        arrowType = new ArrowType.Int(32, true);
+        break;
+      case INT64:
+        arrowType = new ArrowType.Int(64, true);
+        break;
+      case FLOAT:
+        arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE);
+        break;
+      case DOUBLE:
+        arrowType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE);
+        break;
+      case STRING:
+        arrowType = ArrowType.Utf8.INSTANCE;
+        break;
+      case BOOLEAN:
+        arrowType = ArrowType.Bool.INSTANCE;
+        break;
+      case BYTES:
+        arrowType = ArrowType.Binary.INSTANCE;
+        break;
+      case DATETIME:
+        arrowType = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC");
+        break;
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Arrow schema conversion does not support Beam type '%s' for field '%s'.",
+                beamFieldType.getTypeName(), field.getName()));
+    }
+
+    org.apache.arrow.vector.types.pojo.FieldType arrowFieldType =
+        beamFieldType.getNullable()
+            ? org.apache.arrow.vector.types.pojo.FieldType.nullable(arrowType)
+            : org.apache.arrow.vector.types.pojo.FieldType.notNullable(arrowType);
+    return new org.apache.arrow.vector.types.pojo.Field(
+        field.getName(), arrowFieldType, Collections.emptyList());
+  }
 
   /** Get Beam Field from Arrow Field. */
   private static Field toBeamField(org.apache.arrow.vector.types.pojo.Field field) {
@@ -545,6 +598,14 @@ public class ArrowConversion {
 
   /** Converts Arrow schema to Beam row schema. */
   public static class ArrowSchemaTranslator {
+
+    /** Converts a supported Beam row schema to an Arrow schema. */
+    public static org.apache.arrow.vector.types.pojo.Schema toArrowSchema(Schema schema) {
+      return new org.apache.arrow.vector.types.pojo.Schema(
+          schema.getFields().stream()
+              .map(ArrowConversion::toArrowField)
+              .collect(Collectors.toList()));
+    }
 
     public static Schema toBeamSchema(org.apache.arrow.vector.types.pojo.Schema schema) {
       return toBeamSchema(schema.getFields());
