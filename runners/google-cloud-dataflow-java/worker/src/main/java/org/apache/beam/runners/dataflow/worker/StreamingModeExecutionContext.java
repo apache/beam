@@ -795,6 +795,8 @@ public class StreamingModeExecutionContext
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
     currentBuilder.clear();
     currentBuilder.mergeFrom(truncationBuilder.build());
+
+    // TODO: throw and retry when truncation is not on a single key bundle.
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
@@ -852,6 +854,7 @@ public class StreamingModeExecutionContext
   }
 
   private boolean shouldStopBatching() {
+    // TODO: stop batching if the previous work item requested truncation
     if (workItemsPolled >= maxKeyGroupBatchSize) {
       return true;
     }

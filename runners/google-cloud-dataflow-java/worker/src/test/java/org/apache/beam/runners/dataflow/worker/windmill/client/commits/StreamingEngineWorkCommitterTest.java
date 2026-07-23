@@ -142,9 +142,6 @@ public class StreamingEngineWorkCommitterTest {
     Windmill.CommitStatus finalStatus = work.isFailed() ? Windmill.CommitStatus.ABORTED : status;
     return CompleteCommit.create(
         computationId, work.getShardedKey(), work.id(), finalStatus, /* retryableFailure= */ false);
-=======
-    return CompleteCommit.create(computationId, work.getShardedKey(), work.id(), finalStatus);
->>>>>>> beam/master
   }
 
   @Before
@@ -590,11 +587,6 @@ public class StreamingEngineWorkCommitterTest {
                 workC.id(),
                 CommitStatus.OK,
                 /* retryableFailure= */ false));
-                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.OK),
-            CompleteCommit.create(
-                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.OK),
-            CompleteCommit.create(
-                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.OK));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());
@@ -654,11 +646,23 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(completeCommits)
         .containsExactly(
             CompleteCommit.create(
-                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.ABORTED),
+                "computationId",
+                workA.getShardedKey(),
+                workA.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ true),
             CompleteCommit.create(
-                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.ABORTED),
+                "computationId",
+                workB.getShardedKey(),
+                workB.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.ABORTED));
+                "computationId",
+                workC.getShardedKey(),
+                workC.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ true));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());
