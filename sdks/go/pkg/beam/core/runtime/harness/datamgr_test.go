@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -554,6 +555,198 @@ func (*noopDataClient) Send(*fnpb.Elements) error {
 	return nil
 }
 
+	func TestScopedDataManager_Open_Closed(t *testing.T) {
+	mgr := &DataChannelManager{}
+	s := NewScopedDataManager(mgr, "inst")
+	s.closed = true
+
+	port := exec.Port{URL: "test:1234"}
+	_, err := s.open(context.Background(), port)
+	if err == nil {
+		t.Error("expected error when opening closed ScopedDataManager")
+	}
+}
+
+func TestScopedDataManager_CloseEmpty(t *testing.T) {
+	mgr := &DataChannelManager{}
+	s := NewScopedDataManager(mgr, "inst")
+
+	err := s.Close()
+	if err != nil {
+		t.Errorf("Close on empty ScopedDataManager returned error: %v", err)
+	}
+	if s.mgr != nil {
+		t.Error("expected mgr to be nil after Close")
+	}
+}
+
+func TestElementsChan_InstructionEnded(t *testing.T) {
+	ec := &elementsChan{
+		ch:   make(chan exec.Elements, 1),
+		done: make(chan struct{}),
+	}
+	ec.InstructionEnded()
+
+	select {
+	case <-ec.done:
+		// ok, channel was closed
+	default:
+		t.Error("InstructionEnded did not close done channel")
+	}
+}
+
+func TestElementsChan_Closed(t *testing.T) {
+	ec := &elementsChan{}
+	if ec.Closed() {
+		t.Error("Closed returned true for zero-value elementsChan")
+	}
+	ec.ch = make(chan exec.Elements, 1)
+	close(ec.ch)
+	atomic.StoreUint32(&ec.closed, 1)
+	if !ec.Closed() {
+		t.Error("Closed returned false after setting closed flag")
+	}
+}
+
+func TestElementsChan_PTransformDone(t *testing.T) {
+	t.Run("singleTransform", func(t *testing.T) {
+		ec := &elementsChan{
+			ch:   make(chan exec.Elements, 1),
+			want: 1,
+		}
+		ec.PTransformDone()
+		if !ec.Closed() {
+			t.Error("expected channel to be closed after all transforms done")
+		}
+	})
+	t.Run("multipleTransforms_notYetDone", func(t *testing.T) {
+		ec := &elementsChan{
+			ch:   make(chan exec.Elements, 1),
+			want: 2,
+		}
+		ec.PTransformDone()
+		if ec.Closed() {
+			t.Error("expected channel to stay open before all transforms done")
+		}
+	})
+	t.Run("multipleTransforms_allDone", func(t *testing.T) {
+		ec := &elementsChan{
+			ch:   make(chan exec.Elements, 1),
+			want: 2,
+		}
+		ec.PTransformDone()
+		ec.PTransformDone()
+		if !ec.Closed() {
+			t.Error("expected channel to be closed after all transforms done")
+		}
+	})
+}
+
+func TestDataChannel_terminateStreamOnError(t *testing.T) {
+	ctx, cancelFn := context.WithCancel(context.Background())
+	recreated := false
+	expectedErr := fmt.Errorf("test error")
+	// Use a noopDataClient as the underlying client to avoid nil pointer panics
+	c := makeDataChannel(ctx, "id", &noopDataClient{}, cancelFn)
+	c.forceRecreate = func(id string, err error) {
+		recreated = true
+	}
+	c.terminateStreamOnError(expectedErr)
+
+	// The cancelFn should have been called, so the context should be cancelled.
+	select {
+	case <-ctx.Done():
+		// expected
+	case <-time.After(time.Second):
+		t.Error("context not cancelled after terminateStreamOnError")
+	}
+	if !recreated {
+		t.Error("forceRecreate was not called")
+	}
+}
+
+func TestScopedDataManager_OpenWrite_CachedPort(t *testing.T) {
+	dc := &DataChannel{
+		id:      "test:1234",
+		writers: map[instructionID]map[string]*dataWriter{},
+	}
+	mgr := &DataChannelManager{
+		ports: map[string]*DataChannel{"test:1234": dc},
+	}
+	s := NewScopedDataManager(mgr, "inst")
+	w, err := s.OpenWrite(context.Background(), exec.StreamID{
+		Port:         exec.Port{URL: "test:1234"},
+		PtransformID: "ptr",
+	})
+	if err != nil {
+		t.Errorf("OpenWrite returned error: %v", err)
+	}
+	if w == nil {
+		t.Error("OpenWrite returned nil writer")
+	}
+}
+
+func TestScopedDataManager_OpenElementChan_CachedPort(t *testing.T) {
+	dc := &DataChannel{
+		id:                "test:1234",
+		channels:          map[instructionID]*elementsChan{},
+		endedInstructions: map[instructionID]struct{}{},
+	}
+	mgr := &DataChannelManager{
+		ports: map[string]*DataChannel{"test:1234": dc},
+	}
+	s := NewScopedDataManager(mgr, "inst")
+	ch, err := s.OpenElementChan(context.Background(), exec.StreamID{
+		Port:         exec.Port{URL: "test:1234"},
+		PtransformID: "ptr",
+	}, nil)
+	if err != nil {
+		t.Errorf("OpenElementChan returned error: %v", err)
+	}
+	if ch == nil {
+		t.Error("OpenElementChan returned nil channel")
+	}
+}
+
+func TestScopedDataManager_OpenTimerWrite_CachedPort(t *testing.T) {
+	dc := &DataChannel{
+		id:           "test:1234",
+		timerWriters: map[instructionID]map[timerKey]*timerWriter{},
+	}
+	mgr := &DataChannelManager{
+		ports: map[string]*DataChannel{"test:1234": dc},
+	}
+	s := NewScopedDataManager(mgr, "inst")
+	w, err := s.OpenTimerWrite(context.Background(), exec.StreamID{
+		Port:         exec.Port{URL: "test:1234"},
+		PtransformID: "ptr",
+	}, "family1")
+	if err != nil {
+		t.Errorf("OpenTimerWrite returned error: %v", err)
+	}
+	if w == nil {
+		t.Error("OpenTimerWrite returned nil writer")
+	}
+}
+
+func TestDataChannelManager_CloseInstruction(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		mgr := &DataChannelManager{}
+		err := mgr.closeInstruction("inst", nil)
+		if err != nil {
+			t.Errorf("CloseInstruction on empty returned error: %v", err)
+		}
+	})
+	t.Run("unknownPort", func(t *testing.T) {
+		mgr := &DataChannelManager{
+			ports: map[string]*DataChannel{},
+		}
+		err := mgr.closeInstruction("inst", []exec.Port{{URL: "unknown"}})
+		if err != nil {
+			t.Errorf("CloseInstruction on unknown port returned error: %v", err)
+		}
+	})
+}
 func BenchmarkDataWriter(b *testing.B) {
 	fourB := []byte{42, 23, 78, 159}
 	sixteenB := bytes.Repeat(fourB, 4)
