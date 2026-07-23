@@ -22,7 +22,9 @@ import (
 	"io"
 	"log/slog"
 	"runtime/debug"
+	"runtime/pprof"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -391,6 +393,19 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 		// Log a heartbeat every 60 seconds
 		case <-ticker.C:
 			j.Logger.Info("pipeline is running", slog.String("job", j.String()))
+			j.Logger.Info("pipeline stages state", slog.String("stages", em.DumpStages()))
+			var buf strings.Builder
+			goroutineDump(&buf)
+			j.Logger.Info("goroutines", slog.String("dump", buf.String()))
+			for envID, wk := range wks {
+				if wk != nil && wk.Connected() && !wk.Stopped() {
+					j.Logger.Info("worker status",
+						slog.String("workerID", wk.ID),
+						slog.String("envID", envID),
+						slog.Duration("uptime", wk.Uptime()),
+						slog.Any("active_bundles", wk.ActiveBundles()))
+				}
+			}
 		}
 	}
 }
@@ -499,5 +514,12 @@ func buildTrigger(tpb *pipepb.Trigger) engine.Trigger {
 		return &engine.TriggerAfterSynchronizedProcessingTime{}
 	default:
 		return &engine.TriggerDefault{}
+	}
+}
+
+func goroutineDump(statusInfo *strings.Builder) {
+	profile := pprof.Lookup("goroutine")
+	if profile != nil {
+		profile.WriteTo(statusInfo, 1)
 	}
 }

@@ -240,8 +240,10 @@ type ElementManager struct {
 }
 
 func (em *ElementManager) addPending(v int) {
+	prev := em.livePending.Load()
 	em.livePending.Add(int64(v))
 	em.pendingElements.Add(v)
+	slog.Info("em.addPending", "delta", v, "prev", prev, "current", em.livePending.Load())
 }
 
 // LinkID represents a fully qualified input or output.
@@ -533,7 +535,7 @@ func (em *ElementManager) DumpStages() string {
 		stageState = append(stageState, fmt.Sprintf("TestStreamHandler: completed %v, curIndex %v of %v events: %+v, processingTime %v, %v, ptEvents %v \n",
 			em.testStreamHandler.completed, em.testStreamHandler.nextEventIndex, len(em.testStreamHandler.events), em.testStreamHandler.events, em.testStreamHandler.processingTime, mtime.FromTime(em.testStreamHandler.processingTime), em.processTimeEvents))
 	} else {
-		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v\n", em.processingTimeNow(), em.processTimeEvents.events, em.injectedBundles))
+		stageState = append(stageState, fmt.Sprintf("ElementManager Now: %v processingTimeEvents: %v injectedBundles: %v livePending: %v\n", em.processingTimeNow(), em.processTimeEvents.events, em.injectedBundles, em.livePending.Load()))
 	}
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -1094,9 +1096,8 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 	em.markChangedAndClearBundle(rb.StageID, rb.BundleID, nil)
 }
 
-// ReturnResiduals is called after a successful split, so the remaining work
-// can be re-assigned to a new bundle.
 func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
+	slog.Info("ElementManager.ReturnResiduals start", "bundle", rb, "firstRsIndex", firstRsIndex)
 	stage := em.stages[rb.StageID]
 
 	stage.splitBundle(rb, firstRsIndex, em)
@@ -1106,6 +1107,7 @@ func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputI
 		count := stage.AddPending(em, unprocessedElements)
 		em.addPending(count)
 	}
+	slog.Info("ElementManager.ReturnResiduals end", "bundle", rb, "unprocessedCount", len(unprocessedElements), "livePending", em.livePending.Load())
 	em.markStagesAsChanged(singleSet(rb.StageID))
 }
 
@@ -2190,7 +2192,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 	defer ss.mu.Unlock()
 
 	es := ss.inprogress[rb.BundleID]
-	slog.Debug("split elements", "bundle", rb, "elem count", len(es.es), "res", firstResidual)
+	slog.Info("splitBundle start", "bundle", rb, "elem count", len(es.es), "firstResidual", firstResidual, "livePending", em.livePending.Load())
 
 	prim := es.es[:firstResidual]
 	res := es.es[firstResidual:]
@@ -2210,6 +2212,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 	// we don't need to increment pending count in em, since it is already pending
 	ss.kind.addPending(ss, em, res)
 	ss.inprogress[rb.BundleID] = es
+	slog.Info("splitBundle completed", "bundle", rb, "primaryCount", len(prim), "residualCount", len(res), "livePending", em.livePending.Load())
 }
 
 // minimumPendingTimestamp returns the minimum pending timestamp from all pending elements,
