@@ -39,7 +39,10 @@ import org.joda.time.Duration;
 abstract class BigtableReadOptions implements Serializable {
 
   /** Returns the table id. */
-  abstract ValueProvider<String> getTableId();
+  abstract @Nullable ValueProvider<String> getTableId();
+
+  /** Returns the materialized view name. */
+  abstract @Nullable ValueProvider<String> getMaterializedViewName();
 
   /** Returns the row filter to use. */
   abstract @Nullable ValueProvider<RowFilter> getRowFilter();
@@ -72,7 +75,9 @@ abstract class BigtableReadOptions implements Serializable {
   @AutoValue.Builder
   abstract static class Builder {
 
-    abstract Builder setTableId(ValueProvider<String> tableId);
+    abstract Builder setTableId(@Nullable ValueProvider<String> tableId);
+
+    abstract Builder setMaterializedViewName(@Nullable ValueProvider<String> materializedViewName);
 
     abstract Builder setRowFilter(ValueProvider<RowFilter> rowFilter);
 
@@ -108,12 +113,18 @@ abstract class BigtableReadOptions implements Serializable {
   }
 
   boolean isDataAccessible() {
+    if (getMaterializedViewName() != null) {
+      return getMaterializedViewName().isAccessible();
+    }
     return getTableId() != null && getTableId().isAccessible();
   }
 
   void populateDisplayData(DisplayData.Builder builder) {
     builder
         .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
+        .addIfNotNull(
+            DisplayData.item("materializedViewName", getMaterializedViewName())
+                .withLabel("Bigtable Materialized View Name"))
         .addIfNotNull(DisplayData.item("rowFilter", getRowFilter()).withLabel("Row Filter"))
         .addIfNotNull(
             DisplayData.item("rowFilterTextProto", getRowFilterTextProto()).withLabel("Row Filter"))
@@ -127,9 +138,19 @@ abstract class BigtableReadOptions implements Serializable {
   }
 
   void validate() {
+    boolean hasTableId =
+        getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty());
+    boolean hasMaterializedViewName =
+        getMaterializedViewName() != null
+            && (!getMaterializedViewName().isAccessible()
+                || !getMaterializedViewName().get().isEmpty());
+
     checkArgument(
-        getTableId() != null && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
-        "Could not obtain Bigtable table id");
+        hasTableId || hasMaterializedViewName,
+        "Either a Bigtable table id or a materialized view name must be set");
+    checkArgument(
+        !(hasTableId && hasMaterializedViewName),
+        "Only one of Bigtable table id or materialized view name can be set, not both");
 
     if (getRowFilter() != null && getRowFilter().isAccessible()) {
       checkArgument(getRowFilter().get() != null, "rowFilter can not be null");
