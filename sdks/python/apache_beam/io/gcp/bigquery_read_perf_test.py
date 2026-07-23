@@ -72,9 +72,9 @@ from apache_beam.transforms.combiners import Count
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions
 except ImportError:
-  HttpError = None
+  exceptions = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -90,7 +90,7 @@ class BigQueryReadPerfTest(LoadTest):
     wrapper = BigQueryWrapper()
     try:
       wrapper.get_table(self.project_id, self.input_dataset, self.input_table)
-    except HttpError as exn:
+    except exceptions.GoogleAPICallError as exn:
       if exn.status_code == 404:
         self._create_input_data()
 

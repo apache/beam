@@ -26,6 +26,7 @@ changed rows as an unbounded PCollection.
 Usage::
 
     import apache_beam as beam
+    from google.cloud import bigquery as gcp_bigquery
     from apache_beam.io.gcp.bigquery_change_history import ReadBigQueryChangeHistory
 
     with beam.Pipeline(options=pipeline_options) as p:
@@ -55,7 +56,6 @@ from typing import Optional
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
@@ -69,8 +69,10 @@ from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
 try:
+  from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
 except ImportError:
+  gcp_bigquery = None  # type: ignore
   bq_storage = None  # type: ignore
 
 try:
@@ -113,7 +115,7 @@ class _QueryResult:
   to set an initial watermark hold so the runner doesn't advance the
   watermark past the data's timestamps.
   """
-  temp_table_ref: 'bigquery.TableReference'
+  temp_table_ref: 'gcp_bigquery.TableReference'
   range_start: Timestamp
   range_end: Timestamp
 
@@ -432,7 +434,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       table_ref = bigquery_tools.parse_table_reference(
           self._table, project=self._project)
       self._location = self._bq_wrapper.get_table_location(
-          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+          table_ref.project, table_ref.dataset_id, table_ref.table_id)
       _LOGGER.info(
           '[Poll] Inferred location=%s from source table %s',
           self._location,
@@ -448,14 +450,12 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     Uses BQ's CURRENT_TIMESTAMP instead of the local clock to avoid
     data loss from clock skew between the worker VM and BigQuery.
     """
-    request = bigquery.BigqueryJobsQueryRequest(
-        projectId=self._project,
-        queryRequest=bigquery.QueryRequest(
-            query='SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts',
-            useLegacySql=False,
-            location=self._location))
-    response = self._bq_wrapper.client.jobs.Query(request)
-    return Timestamp(micros=int(response.rows[0].f[0].v.string_value))
+    query_job = self._bq_wrapper.client.query(
+        'SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts',
+        project=self._project,
+        location=self._location)
+    response = list(query_job.result())
+    return Timestamp(micros=int(response[0]['ts']))
 
   def initial_restriction(self, element: _PollConfig) -> OffsetRange:
     return OffsetRange(0, sys.maxsize)
@@ -587,7 +587,7 @@ class _ExecuteQueryFn(beam.DoFn):
       table_ref = bigquery_tools.parse_table_reference(
           self._table, project=self._project)
       self._location = self._bq_wrapper.get_table_location(
-          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+          table_ref.project, table_ref.dataset_id, table_ref.table_id)
       _LOGGER.info(
           '[Query] Inferred location=%s from source table %s',
           self._location,
@@ -622,32 +622,24 @@ class _ExecuteQueryFn(beam.DoFn):
         _utc(qr.chunk_start),
         _utc(qr.chunk_end))
 
-    temp_table_ref = bigquery.TableReference(
-        projectId=self._project,
-        datasetId=self._temp_dataset,
-        tableId=temp_table_id)
+    temp_table_ref = gcp_bigquery.TableReference(
+        gcp_bigquery.DatasetReference(self._project, self._temp_dataset),
+        temp_table_id)
 
-    reference = bigquery.JobReference(
-        jobId=job_id, projectId=self._project, location=self._location)
-
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=self._project,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                query=bigquery.JobConfigurationQuery(
-                    query=sql,
-                    useLegacySql=False,
-                    destinationTable=temp_table_ref,
-                    writeDisposition='WRITE_TRUNCATE',
-                ),
-            ),
-            jobReference=reference))
+    job_config = gcp_bigquery.QueryJobConfig(
+        use_legacy_sql=False,
+        destination=temp_table_ref,
+        write_disposition='WRITE_TRUNCATE')
 
     _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
-    response = self._bq_wrapper._start_job(request)
+    query_job = self._bq_wrapper.client.query(
+        sql,
+        job_config=job_config,
+        job_id=job_id,
+        project=self._project,
+        location=self._location)
     _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
-    self._bq_wrapper.wait_for_bq_job(
-        response.jobReference, sleep_duration_sec=2)
+    query_job.result()  # Wait for completion
     _LOGGER.info(
         '[Query] BQ job %s DONE. Results in %s.%s',
         job_id,
@@ -926,12 +918,13 @@ class _ReadStorageStreamsSDF(beam.DoFn,
       yield beam.pvalue.TaggedOutput(
           _CLEANUP_TAG, (table_key, (streams_read, total_streams)))
 
-  def _create_read_session(self, table_ref: 'bigquery.TableReference') -> Any:
+  def _create_read_session(
+      self, table_ref: 'gcp_bigquery.TableReference') -> Any:
     """Create a BigQuery Storage ReadSession for the given table."""
     table_path = (
-        f'projects/{table_ref.projectId}/'
-        f'datasets/{table_ref.datasetId}/'
-        f'tables/{table_ref.tableId}')
+        f'projects/{table_ref.project}/'
+        f'datasets/{table_ref.dataset_id}/'
+        f'tables/{table_ref.table_id}')
 
     requested_session = bq_storage.types.ReadSession()
     requested_session.table = table_path
@@ -941,7 +934,7 @@ class _ReadStorageStreamsSDF(beam.DoFn,
         bq_storage.types.ArrowSerializationOptions.CompressionCodec.ZSTD)
 
     session = self._storage_client.create_read_session(
-        parent=f'projects/{table_ref.projectId}',
+        parent=f'projects/{table_ref.project}',
         read_session=requested_session,
         max_stream_count=_DEFAULT_MAX_STREAMS)
     _LOGGER.info(
@@ -1106,7 +1099,7 @@ class _CleanupTempTablesFn(beam.DoFn):
       _LOGGER.info(
           '[Cleanup] All streams read: DELETING temp table %s', table_key)
       self._bq_wrapper._delete_table(
-          parsed.projectId, parsed.datasetId, parsed.tableId)
+          parsed.project, parsed.dataset_id, parsed.table_id)
       _LOGGER.info('[Cleanup] Deleted temp table %s', table_key)
       Metrics.counter('BigQueryChangeHistory', 'temp_tables_deleted').inc()
       streams_read.clear()
@@ -1236,7 +1229,7 @@ class ReadBigQueryChangeHistory(beam.PTransform):
     self._max_split_rounds = max_split_rounds
     self._reshuffle_decompress = reshuffle_decompress
 
-  def expand(self, pbegin: beam.pvalue.PBegin) -> beam.PCollection:
+  def expand(self, pbegin: "beam.pvalue.PBegin") -> beam.PCollection:
     project = self._project
     if project is None:
       project = pbegin.pipeline.options.view_as(

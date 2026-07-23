@@ -35,7 +35,6 @@ from tenacity import stop_after_attempt
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryMatcher
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
@@ -43,9 +42,11 @@ from apache_beam.testing.test_pipeline import TestPipeline
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions
+  from google.cloud import bigquery
 except ImportError:
-  pass
+  import unittest
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,36 +102,24 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.output_table = "%s.output_table" % (self.dataset_id)
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
+      self.bigquery_client.client.delete_dataset(
+          f"{self.project}.{self.dataset_id}",
+          delete_contents=True,
+          not_found_ok=True)
+    except exceptions.GoogleAPIError:
       _LOGGER.debug('Failed to clean up dataset %s' % self.dataset_id)
 
   def _setup_new_types_env(self):
-    table_schema = bigquery.TableSchema()
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'bytes'
-    table_field.type = 'BYTES'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'date'
-    table_field.type = 'DATE'
-    table_schema.fields.append(table_field)
-    table_field = bigquery.TableFieldSchema()
-    table_field.name = 'time'
-    table_field.type = 'TIME'
-    table_schema.fields.append(table_field)
+    table_schema = [
+        bigquery.SchemaField('bytes', 'BYTES'),
+        bigquery.SchemaField('date', 'DATE'),
+        bigquery.SchemaField('time', 'TIME'),
+    ]
     table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=NEW_TYPES_INPUT_TABLE),
+        f"{self.project}.{self.dataset_id}.{NEW_TYPES_INPUT_TABLE}",
         schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
+    self.bigquery_client.client.create_table(table)
 
     # Call get_table so that we wait until the table is visible.
     _ = self.bigquery_client.get_table(
@@ -151,12 +140,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
                       'date': '2000-01-01',
                       'time': '00:00:00'
                   }]
-    # the API Tools bigquery client expects byte values to be base-64 encoded
-    # TODO https://github.com/apache/beam/issues/19073: upgrade to
-    # google-cloud-bigquery which does not require handling the encoding in
-    # beam
+
+    import base64
     for row in table_data:
       row['bytes'] = base64.b64encode(row['bytes']).decode('utf-8')
+
     passed, errors = self.bigquery_client.insert_rows(
         self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE, table_data)
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)

@@ -49,9 +49,9 @@ except ImportError:
   GcsIO = None
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
 except ImportError:
-  HttpError = None
+  GoogleAPICallError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 _LOGGER = logging.getLogger(__name__)
@@ -130,7 +130,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           project_id=self.project,
           dataset_id=self.dataset_id,
           delete_contents=True)
-    except HttpError:
+    except GoogleAPICallError:
       _LOGGER.debug(
           'Failed to clean up dataset %s in project %s',
           self.dataset_id,

@@ -35,12 +35,17 @@ from apache_beam.io.gcp.bigquery_change_history import _QueryRange
 from apache_beam.io.gcp.bigquery_change_history import _QueryResult
 from apache_beam.io.gcp.bigquery_change_history import _ReadStorageStreamsSDF
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  from google.cloud import bigquery as gcp_bigquery
+except ImportError:
+  import unittest
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,9 +69,7 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     cls.dataset = f'beam_ch_src_{suffix}'
     cls.temp_dataset = f'beam_ch_tmp_{suffix}'
     cls.bq_wrapper.get_or_create_dataset(cls.project, cls.dataset)
-    ds = cls.bq_wrapper.client.datasets.Get(
-        bigquery.BigqueryDatasetsGetRequest(
-            projectId=cls.project, datasetId=cls.dataset))
+    ds = cls.bq_wrapper.client.get_dataset(f"{cls.project}.{cls.dataset}")
     cls.location = ds.location
     cls.bq_wrapper.get_or_create_dataset(
         cls.project, cls.temp_dataset, location=cls.location)
@@ -80,9 +83,8 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
   def tearDownClass(cls):
     for dataset in (cls.dataset, cls.temp_dataset):
       try:
-        cls.bq_wrapper.client.datasets.Delete(
-            bigquery.BigqueryDatasetsDeleteRequest(
-                projectId=cls.project, datasetId=dataset, deleteContents=True))
+        cls.bq_wrapper.client.delete_dataset(
+            f"{cls.project}.{dataset}", delete_contents=True, not_found_ok=True)
         _LOGGER.info('Deleted dataset %s', dataset)
       except Exception as e:
         _LOGGER.warning('Failed to clean up dataset %s: %s', dataset, e)
@@ -92,21 +94,16 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     """Create a table in the temp dataset and insert rows via streaming."""
     if schema is None:
       schema = [('id', 'INTEGER'), ('name', 'STRING'), ('value', 'FLOAT')]
-    table_schema = bigquery.TableSchema()
-    for field_name, field_type in schema:
-      field = bigquery.TableFieldSchema()
-      field.name = field_name
-      field.type = field_type
-      table_schema.fields.append(field)
 
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=cls.project, datasetId=cls.temp_dataset,
-            tableId=table_id),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=cls.project, datasetId=cls.temp_dataset, table=table)
-    cls.bq_wrapper.client.tables.Insert(request)
+    table_schema = [
+        gcp_bigquery.SchemaField(field_name, field_type)
+        for field_name, field_type in schema
+    ]
+
+    table_ref = gcp_bigquery.TableReference(
+        gcp_bigquery.DatasetReference(cls.project, cls.temp_dataset), table_id)
+    table = gcp_bigquery.Table(table_ref, schema=table_schema)
+    cls.bq_wrapper.client.create_table(table)
 
     # Wait for table to be visible
     cls.bq_wrapper.get_table(cls.project, cls.temp_dataset, table_id)
@@ -116,8 +113,7 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
       # Give streaming buffer time to flush
       time.sleep(5)
 
-    return bigquery.TableReference(
-        projectId=cls.project, datasetId=cls.temp_dataset, tableId=table_id)
+    return table_ref
 
   @classmethod
   def _create_change_history_table(cls, table_id, rows=None):
@@ -129,16 +125,10 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
         f'OPTIONS (enable_change_history = true)')
 
     job_id = f'beam_ch_ddl_{uuid.uuid4().hex[:8]}'
-    reference = bigquery.JobReference(jobId=job_id, projectId=cls.project)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=cls.project,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                query=bigquery.JobConfigurationQuery(
-                    query=ddl, useLegacySql=False)),
-            jobReference=reference))
-    response = cls.bq_wrapper._start_job(request)
-    cls.bq_wrapper.wait_for_bq_job(response.jobReference, sleep_duration_sec=2)
+    job_config = gcp_bigquery.QueryJobConfig(use_legacy_sql=False)
+    response = cls.bq_wrapper.client.query(
+        ddl, job_id=job_id, project=cls.project, job_config=job_config)
+    cls.bq_wrapper.wait_for_bq_job(response, sleep_duration_sec=2)
 
     # Wait for table to be visible
     cls.bq_wrapper.get_table(cls.project, cls.dataset, table_id)
@@ -147,23 +137,17 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
       cls.bq_wrapper.insert_rows(cls.project, cls.dataset, table_id, rows)
       time.sleep(5)
 
-    return bigquery.TableReference(
-        projectId=cls.project, datasetId=cls.dataset, tableId=table_id)
+    return gcp_bigquery.TableReference(
+        gcp_bigquery.DatasetReference(cls.project, cls.dataset), table_id)
 
   @classmethod
   def _run_dml(cls, sql):
     """Run a DML statement (INSERT/UPDATE/DELETE) and wait for completion."""
     job_id = f'beam_ch_dml_{uuid.uuid4().hex[:8]}'
-    reference = bigquery.JobReference(jobId=job_id, projectId=cls.project)
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=cls.project,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                query=bigquery.JobConfigurationQuery(
-                    query=sql, useLegacySql=False)),
-            jobReference=reference))
-    response = cls.bq_wrapper._start_job(request)
-    cls.bq_wrapper.wait_for_bq_job(response.jobReference, sleep_duration_sec=2)
+    job_config = gcp_bigquery.QueryJobConfig(use_legacy_sql=False)
+    response = cls.bq_wrapper.client.query(
+        sql, job_id=job_id, project=cls.project, job_config=job_config)
+    cls.bq_wrapper.wait_for_bq_job(response, sleep_duration_sec=2)
 
 
 class CleanupTempTablesFnTest(BigQueryChangeHistoryIntegrationBase):

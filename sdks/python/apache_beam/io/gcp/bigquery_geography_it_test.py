@@ -32,21 +32,22 @@ import apache_beam as beam
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core import exceptions as gcp_exceptions
+  from google.cloud import bigquery as gcp_bigquery
 except ImportError:
-  HttpError = None
+  gcp_exceptions = None
+  gcp_bigquery = None
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+@unittest.skipIf(gcp_exceptions is None, 'GCP dependencies are not installed')
 class BigQueryGeographyIntegrationTests(unittest.TestCase):
   """Integration tests for BigQuery GEOGRAPHY data type."""
 
@@ -65,60 +66,36 @@ class BigQueryGeographyIntegrationTests(unittest.TestCase):
         "Created dataset %s in project %s", self.dataset_id, self.project)
 
   def tearDown(self):
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
     try:
       _LOGGER.info(
           "Deleting dataset %s in project %s", self.dataset_id, self.project)
-      self.bigquery_client.client.datasets.Delete(request)
-    except HttpError:
+      self.bigquery_client.client.delete_dataset(
+          f"{self.project}.{self.dataset_id}",
+          delete_contents=True,
+          not_found_ok=True)
+    except Exception as e:
       _LOGGER.debug(
-          'Failed to clean up dataset %s in project %s',
+          'Failed to clean up dataset %s in project %s: %s',
           self.dataset_id,
-          self.project)
+          self.project,
+          e)
 
   def create_geography_table(self, table_name, include_repeated=False):
     """Create a table with various GEOGRAPHY field configurations."""
-    table_schema = bigquery.TableSchema()
-
-    # ID field
-    id_field = bigquery.TableFieldSchema()
-    id_field.name = 'id'
-    id_field.type = 'INTEGER'
-    id_field.mode = 'REQUIRED'
-    table_schema.fields.append(id_field)
-
-    # Required GEOGRAPHY field
-    geo_required = bigquery.TableFieldSchema()
-    geo_required.name = 'location'
-    geo_required.type = 'GEOGRAPHY'
-    geo_required.mode = 'REQUIRED'
-    table_schema.fields.append(geo_required)
-
-    # Nullable GEOGRAPHY field
-    geo_nullable = bigquery.TableFieldSchema()
-    geo_nullable.name = 'optional_location'
-    geo_nullable.type = 'GEOGRAPHY'
-    geo_nullable.mode = 'NULLABLE'
-    table_schema.fields.append(geo_nullable)
+    schema = [
+        gcp_bigquery.SchemaField('id', 'INTEGER', mode='REQUIRED'),
+        gcp_bigquery.SchemaField('location', 'GEOGRAPHY', mode='REQUIRED'),
+        gcp_bigquery.SchemaField(
+            'optional_location', 'GEOGRAPHY', mode='NULLABLE'),
+    ]
 
     if include_repeated:
-      # Repeated GEOGRAPHY field
-      geo_repeated = bigquery.TableFieldSchema()
-      geo_repeated.name = 'path'
-      geo_repeated.type = 'GEOGRAPHY'
-      geo_repeated.mode = 'REPEATED'
-      table_schema.fields.append(geo_repeated)
+      schema.append(
+          gcp_bigquery.SchemaField('path', 'GEOGRAPHY', mode='REPEATED'))
 
-    table = bigquery.Table(
-        tableReference=bigquery.TableReference(
-            projectId=self.project,
-            datasetId=self.dataset_id,
-            tableId=table_name),
-        schema=table_schema)
-    request = bigquery.BigqueryTablesInsertRequest(
-        projectId=self.project, datasetId=self.dataset_id, table=table)
-    self.bigquery_client.client.tables.Insert(request)
+    table_ref = f"{self.project}.{self.dataset_id}.{table_name}"
+    table = gcp_bigquery.Table(table_ref, schema=schema)
+    self.bigquery_client.client.create_table(table)
 
     # Wait for table to be available
     _ = self.bigquery_client.get_table(
