@@ -16,12 +16,13 @@
 # limitations under the License.
 ################################################################################
 
-FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:stable-slim
+FROM alpine:latest
 
 WORKDIR /
 
-RUN gcloud storage cp gs://apache-beam-testing-metrics/influxdb-backup.tar.gz . && \
-tar xzf influxdb-backup.tar.gz
+RUN apk add --no-cache curl tar && \
+    curl -sS https://storage.googleapis.com/apache-beam-testing-metrics/influxdb-backup.tar.gz -o influxdb-backup.tar.gz && \
+    tar xzf influxdb-backup.tar.gz
 
 
 FROM influxdb:1.8.0
