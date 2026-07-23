@@ -61,10 +61,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
       // In gcs-connector v3, GoogleCloudStorageReadOptions.DEFAULT changed fadvise from SEQUENTIAL
       // to AUTO. Beam workloads default to SEQUENTIAL to preserve expected sequential read
       // throughput and caching behavior.
-      return GoogleCloudStorageReadOptions.DEFAULT
-          .toBuilder()
-          .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
-          .build();
+      return GcsReadOptionsSerializer.DEFAULT_OPTIONS;
     }
   }
 
@@ -304,7 +301,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 }
 
 class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
-  private static final GoogleCloudStorageReadOptions DEFAULT_OPTIONS =
+  static final GoogleCloudStorageReadOptions DEFAULT_OPTIONS =
       GoogleCloudStorageReadOptions.DEFAULT
           .toBuilder()
           .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
@@ -345,9 +342,7 @@ class GcsReadOptionsDeserializer extends JsonDeserializer<GoogleCloudStorageRead
       throws java.io.IOException {
     JsonNode root = p.readValueAsTree();
     GoogleCloudStorageReadOptions.Builder builder =
-        GoogleCloudStorageReadOptions.DEFAULT
-            .toBuilder()
-            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL);
+        GcsReadOptionsSerializer.DEFAULT_OPTIONS.toBuilder();
 
     if (root != null && root.isObject()) {
       if (root.hasNonNull("fadvise")) {
