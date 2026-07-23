@@ -38,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
-  from apitools.base.py.exceptions import HttpError
+  from google.api_core.exceptions import GoogleAPICallError
   from google.cloud.bigtable import client
   from google.cloud.bigtable.row import Cell
   from google.cloud.bigtable.row import DirectRow
@@ -48,7 +48,7 @@ try:
   from google.cloud.bigtable_admin_v2.types import instance
 except ImportError as e:
   client = None
-  HttpError = None
+  GoogleAPICallError = None
 
 
 def instance_prefix(instance):
@@ -109,7 +109,7 @@ class TestReadFromBigTableIT(unittest.TestCase):
           self.instance.instance_id)
       self.table.delete()
       self.instance.delete()
-    except HttpError:
+    except GoogleAPICallError:
       _LOGGER.warning(
           "Failed to clean up table [%s] and instance [%s]",
           self.table.table_id,
@@ -208,7 +208,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     try:
       _LOGGER.info("Deleting table [%s]", self.table.table_id)
       self.table.delete()
-    except HttpError:
+    except GoogleAPICallError:
       _LOGGER.warning("Failed to clean up table [%s]", self.table.table_id)
 
   @classmethod
@@ -216,7 +216,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     try:
       _LOGGER.info("Deleting instance [%s]", cls.instance.instance_id)
       cls.instance.delete()
-    except HttpError:
+    except GoogleAPICallError:
       _LOGGER.warning(
           "Failed to clean up instance [%s]", cls.instance.instance_id)
 
