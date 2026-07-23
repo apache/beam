@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -112,7 +115,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
       }
       while (commit != null) {
         ComputationState computationState = commit.computationState();
-        commit.work().setState(Work.State.COMMITTING);
+        checkState(commit.workBatch().size() == 1);
+        commit.workBatch().get(0).setState(Work.State.COMMITTING);
         Windmill.ComputationCommitWorkRequest.Builder computationRequestBuilder =
             computationRequestMap.get(computationState);
         if (computationRequestBuilder == null) {
@@ -120,10 +124,10 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
           computationRequestBuilder.setComputationId(computationState.getComputationId());
           computationRequestMap.put(computationState, computationRequestBuilder);
         }
-        computationRequestBuilder.addRequests(commit.request());
+        computationRequestBuilder.addRequests(checkStateNotNull(commit.singleKeyRequest()));
         // Send the request if we've exceeded the bytes or there is no more
         // pending work.  commitBytes is a long, so this cannot overflow.
-        commitBytes += commit.getSize();
+        commitBytes += commit.getSerializedByteSize();
         if (commitBytes >= TARGET_COMMIT_BUNDLE_BYTES) {
           break;
         }
