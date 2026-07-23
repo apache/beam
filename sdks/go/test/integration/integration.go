@@ -273,6 +273,9 @@ var dataflowFilters = []string{
 	"TestBigQueryIO_BasicWriteQueryRead",
 	// Can't handle the test spanner container or access a local spanner.
 	"TestSpannerIO.*",
+	// Change stream tests use a local Spanner emulator container that is
+	// unreachable from remote Dataflow workers.
+	"TestReadChangeStream_.*",
 	// Dataflow does not drain jobs by itself.
 	"TestDrain",
 	// Timers
