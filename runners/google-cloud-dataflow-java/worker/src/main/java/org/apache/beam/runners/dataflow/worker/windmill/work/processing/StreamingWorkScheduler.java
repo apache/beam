@@ -97,7 +97,6 @@ public class StreamingWorkScheduler {
       StreamingCounters streamingCounters,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      StreamingGlobalConfigHandle globalConfigHandle,
       boolean multiKeyExperimentEnabled) {
     this.clock = clock;
     this.workExecutor = workExecutor;
@@ -107,7 +106,6 @@ public class StreamingWorkScheduler {
     this.streamingCounters = streamingCounters;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.globalConfigHandle = globalConfigHandle;
     this.multiKeyExperimentEnabled = multiKeyExperimentEnabled;
   }
 
@@ -154,7 +152,6 @@ public class StreamingWorkScheduler {
         streamingCounters,
         stageInfoMap,
         sampler,
-        globalConfigHandle,
         multiKeyExperimentEnabled);
   }
 
