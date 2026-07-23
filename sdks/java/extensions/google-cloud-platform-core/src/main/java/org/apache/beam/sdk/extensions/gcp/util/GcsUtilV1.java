@@ -261,12 +261,18 @@ class GcsUtilV1 {
     this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    googleCloudStorageOptions =
+    GoogleCloudStorageOptions.Builder optionsBuilder =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setReadChannelOptions(gcsReadOptions)
-            .setGrpcEnabled(shouldUseGrpc)
-            .build();
+            .setGrpcEnabled(shouldUseGrpc);
+    if (storageClient.getRootUrl() != null) {
+      optionsBuilder.setStorageRootUrl(storageClient.getRootUrl());
+    }
+    if (storageClient.getServicePath() != null) {
+      optionsBuilder.setStorageServicePath(storageClient.getServicePath());
+    }
+    googleCloudStorageOptions = optionsBuilder.build();
     try {
       googleCloudStorage =
           createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
@@ -493,6 +499,11 @@ class GcsUtilV1 {
     } else {
       return storageObjectOrIOException.storageObject().getSize().longValue();
     }
+  }
+
+  @VisibleForTesting
+  GoogleCloudStorage getGoogleCloudStorage() {
+    return googleCloudStorage;
   }
 
   @VisibleForTesting
