@@ -17,31 +17,32 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Class representing a Pub/Sub message. Each message contains a single message payload, a map of
  * attached attributes, a message id and an ordering key.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubMessage {
   @AutoValue
   abstract static class Impl {
+    @Pure
     abstract @Nullable String getTopic();
 
+    @Pure
     @SuppressWarnings("mutable")
     abstract byte[] getPayload();
 
+    @Pure
     abstract @Nullable Map<String, String> getAttributeMap();
 
+    @Pure
     abstract @Nullable String getMessageId();
 
+    @Pure
     abstract @Nullable String getOrderingKey();
 
     static Impl create(
@@ -87,27 +88,32 @@ public class PubsubMessage {
             impl.getOrderingKey()));
   }
 
+  @Pure
   public @Nullable String getTopic() {
     return impl.getTopic();
   }
 
   /** Returns the main PubSub message. */
+  @Pure
   public byte[] getPayload() {
     return impl.getPayload();
   }
 
   /** Returns the given attribute value. If not such attribute exists, returns null. */
+  @Pure
   public @Nullable String getAttribute(String attribute) {
-    checkNotNull(attribute, "attribute");
-    return impl.getAttributeMap().get(attribute);
+    Map<String, String> attributeMap = impl.getAttributeMap();
+    return attributeMap == null ? null : attributeMap.get(attribute);
   }
 
   /** Returns the full map of attributes. This is an unmodifiable map. */
+  @Pure
   public @Nullable Map<String, String> getAttributeMap() {
     return impl.getAttributeMap();
   }
 
   /** Returns the messageId of the message populated by Cloud Pub/Sub. */
+  @Pure
   public @Nullable String getMessageId() {
     return impl.getMessageId();
   }
@@ -123,6 +129,7 @@ public class PubsubMessage {
   }
 
   /** Returns the ordering key of the message. */
+  @Pure
   public @Nullable String getOrderingKey() {
     return impl.getOrderingKey();
   }
@@ -133,7 +140,7 @@ public class PubsubMessage {
   }
 
   @Override
-  public boolean equals(Object other) {
+  public boolean equals(@Nullable Object other) {
     if (!(other instanceof PubsubMessage)) {
       return false;
     }

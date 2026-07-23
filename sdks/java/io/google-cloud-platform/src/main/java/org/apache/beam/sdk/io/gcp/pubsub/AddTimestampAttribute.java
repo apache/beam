@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
 import org.apache.beam.sdk.schemas.transforms.DropFields;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -31,9 +32,6 @@ import org.slf4j.LoggerFactory;
  * Adds a timestamp attribute if desired and filters it out of the underlying row if no timestamp
  * attribute exists.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class AddTimestampAttribute extends PTransform<PCollection<Row>, PCollection<Row>> {
   private static final Logger LOG = LoggerFactory.getLogger(AddTimestampAttribute.class);
   private final boolean useTimestampAttribute;
@@ -48,7 +46,14 @@ class AddTimestampAttribute extends PTransform<PCollection<Row>, PCollection<Row
     // element's event time. PubSubIO will populate the attribute from there.
     PCollection<Row> withTimestamp =
         useTimestampAttribute
-            ? input.apply(WithTimestamps.of((row) -> row.getDateTime(TIMESTAMP_FIELD).toInstant()))
+            ? input.apply(
+                WithTimestamps.of(
+                    (row) ->
+                        checkArgumentNotNull(
+                                row.getDateTime(TIMESTAMP_FIELD),
+                                "Field '%s' must be present and non-null in the input row when writing to PubSub with a timestamp attribute.",
+                                TIMESTAMP_FIELD)
+                            .toInstant()))
             : input;
 
     PCollection<Row> rows;
