@@ -142,6 +142,7 @@ service BeamFnControl {
 
 // Requests the ProcessBundleDescriptor with the given id.
 message GetProcessBundleDescriptorRequest {
+  // (Required) The id of the ProcessBundleDescriptor to retrieve.
   string process_bundle_descriptor_id = 1;
 }
 
@@ -440,6 +441,8 @@ message ProcessBundleRequest {
   string data_stream_id = 6;
 }
 
+// The response to a ProcessBundleRequest, returned by the SDK harness after
+// bundle processing completes (or is partially completed with residual roots).
 message ProcessBundleResponse {
   // (Optional) Specifies that the bundle has not been completed and the
   // following applications need to be scheduled and executed in the future.
@@ -509,6 +512,8 @@ message MonitoringInfosMetadataRequest {
   repeated string monitoring_info_id = 1;
 }
 
+// A response containing progress information for a currently active bundle.
+// This is returned in response to a ProcessBundleProgressRequest.
 message ProcessBundleProgressResponse {
   // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
@@ -719,12 +724,17 @@ message ProcessBundleSplitResponse {
 }
 
 
+// A request sent by the runner to finalize a bundle that previously indicated
+// it requires finalization (via requires_finalization in ProcessBundleResponse).
+// This is sent after the runner has committed the output of the bundle, allowing
+// the SDK to perform any post-commit cleanup.
 message FinalizeBundleRequest {
   // (Required) A reference to a completed process bundle request with the given
   // instruction id.
   string instruction_id = 1;
 }
 
+// A response to a FinalizeBundleRequest, indicating that finalization is complete.
 message FinalizeBundleResponse {
   // Empty
 }
@@ -763,10 +773,16 @@ message Elements {
     bool is_last = 4;
   }
 
+  // Indicates whether the bundle is being drained. When draining, sources
+  // should stop producing new data and the SDK should finish processing
+  // in-flight elements.
   message DrainMode {
     enum Enum {
+      // Drain mode has not been specified.
       UNSPECIFIED = 0;
+      // The bundle is not being drained; normal processing continues.
       NOT_DRAINING = 1;
+      // The bundle is being drained; sources should stop producing new data.
       DRAINING = 2;
     }
   }
@@ -797,6 +813,8 @@ message Elements {
   // Element metadata passed as part of WindowedValue to make WindowedValue
   // extensible and backward compatible
   message ElementMetadata {
+    // (Optional) Indicates whether the bundle is being drained, allowing the
+    // SDK to handle drain semantics for this element.
     optional DrainMode.Enum drain = 1;
     // (Optional) As part of https://www.w3.org/TR/trace-context/ we are forwarding a trace and participating in it.
     // Traceparent header represents the incoming request in a tracing system in a common format.
@@ -869,6 +887,9 @@ service BeamFnData {
  * State API
  */
 
+// A request sent by the SDK harness to the runner to manipulated
+// state associated with a particular StateKey. State requests are scoped to
+// the instruction (bundle) that is currently being processed.
 message StateRequest {
   // (Required) A unique identifier provided by the SDK which represents this
   // requests execution. The StateResponse corresponding with this request
@@ -896,6 +917,8 @@ message StateRequest {
   }
 }
 
+// A response from the runner to a StateRequest, containing the result of
+// the requested state operation.
 message StateResponse {
   // (Required) A reference provided by the SDK which represents a requests
   // execution. The StateResponse must have the matching id when responding
@@ -920,6 +943,10 @@ message StateResponse {
   }
 }
 
+// An API for the SDK harness to access state stored by the runner on behalf
+// of the SDK. State is scoped to the currently processing bundle and can be
+// used for user state, side inputs, and runner-managed references.
+// Stable
 service BeamFnState {
   // Used to get/append/clear state stored by the runner on behalf of the SDK.
   //
@@ -934,6 +961,9 @@ service BeamFnState {
           stream StateResponse) {}
 }
 
+// A key identifying which state to access. Exactly one of the oneof type
+// fields must be set, determining the kind of state being requested
+// (e.g. side input data, user state, or runner-managed references).
 message StateKey {
   message Runner {
     // (Required) Opaque information supplied by the runner. Used to support
@@ -1209,18 +1239,24 @@ message StateAppendRequest {
   bytes data = 1;
 }
 
-// A response to append state.
+// A response to a StateAppendRequest. Currently empty as append operations
+// do not return data.
 message StateAppendResponse {}
 
-// A request to clear state.
+// A request to clear all state associated with the given StateKey.
 message StateClearRequest {}
 
-// A response to clear state.
+// A response to a StateClearRequest. Currently empty as clear operations
+// do not return data.
 message StateClearResponse {}
 
-// A message describes a sort key range [start, end).
+// A message describing a sort key range [start, end) for ordered list state.
+// Used in OrderedListUserState to specify which portion of the ordered list
+// to retrieve.
 message OrderedListRange {
+  // (Required) The inclusive start of the sort key range.
   int64 start = 1;
+  // (Required) The exclusive end of the sort key range.
   int64 end = 2;
 }
 
@@ -1314,6 +1350,8 @@ message LogEntry {
   google.protobuf.Struct custom_data = 9;
 }
 
+// A control message sent from the runner to the SDK harness to configure
+// logging behavior. Currently empty, reserved for future log-level control.
 message LogControl {}
 
 // Stable
@@ -1331,27 +1369,44 @@ service BeamFnLogging {
           stream LogControl) {}
 }
 
+// A request from the runner to start a new SDK worker process with the given
+// configuration, including endpoint addresses and parameters.
 message StartWorkerRequest {
+  // (Required) A unique identifier for the worker to start.
   string worker_id = 1;
+  // (Required) The control endpoint the worker should connect to.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 2;
+  // (Optional) The logging endpoint the worker should use.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 3;
+  // (Optional) The artifact retrieval endpoint the worker should use.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 4;
+  // (Optional) The provisioning endpoint the worker should use.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor provision_endpoint = 5;
+  // (Optional) Additional runner-specific parameters to pass to the worker.
   map<string, string> params = 10;
 }
 
+// A response from a StartWorkerRequest. If the worker failed to start,
+// the error field will contain a human-readable error message.
 message StartWorkerResponse {
+  // (Optional) Error message if the worker failed to start.
   string error = 1;
 }
 
+// A request from the runner to stop a running SDK worker process.
 message StopWorkerRequest {
+  // (Required) The unique identifier of the worker to stop.
   string worker_id = 1;
 }
 
 message StopWorkerResponse {
+  // (Optional) Human-readable error message if the worker failed to stop cleanly.
   string error = 1;
 }
 
+// An API for the runner to manage external SDK worker processes.
+// Allows the runner to start and stop SDK worker instances, typically used
+// for containerized or process-based execution environments.
 service BeamFnExternalWorkerPool {
   // Start the SDK worker with the given ID.
   rpc StartWorker (StartWorkerRequest) returns (StartWorkerResponse) {}
