@@ -686,6 +686,14 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertTrue(
         any('--profiler_agent is mutually exclusive' in err for err in errors))
 
+  def test_profiling_agent_pystack_coredump_adds_core_pattern(self):
+    options = PipelineOptions(['--profiler_agent=pystack_coredump'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    debug_options = options.view_as(DebugOptions)
+    self.assertEqual(
+        debug_options.lookup_experiment('core_pattern'), '/tmp/core.%e.%p')
+
   def test_profile_location_defaulting_and_opt_out(self):
     options = PipelineOptions(
         ['--profiler_agent=memray', '--temp_location=gs://bucket/temp'])

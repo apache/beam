@@ -42,6 +42,7 @@ guppy3
 memray==1.19.3
 mmh3  # Optimizes execution of some Beam codepaths. TODO: Make it Beam's dependency.
 nltk  # Commonly used for natural language processing.
+pystack
 google-crc32c
 scipy
 scikit-learn
