@@ -81,6 +81,9 @@ public abstract class JobServerDriver implements Runnable {
         usage = "The job service port. 0 to use a dynamic port. (Default: 8099)")
     private int port = 8099;
 
+    @Option(name = "--artifact-host", usage = "The artifact service host name")
+    private String artifactHost = "localhost";
+
     @Option(
         name = "--artifact-port",
         usage = "The artifact service port. 0 to use a dynamic port. (Default: 8098)")
@@ -264,7 +267,7 @@ public abstract class JobServerDriver implements Runnable {
     } else {
       Endpoints.ApiServiceDescriptor descriptor =
           Endpoints.ApiServiceDescriptor.newBuilder()
-              .setUrl(configuration.host + ":" + configuration.artifactPort)
+              .setUrl(configuration.artifactHost + ":" + configuration.artifactPort)
               .build();
       server = GrpcFnServer.create(service, descriptor, artifactServerFactory);
     }
