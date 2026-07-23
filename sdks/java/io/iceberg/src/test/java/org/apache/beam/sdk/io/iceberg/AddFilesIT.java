@@ -101,7 +101,8 @@ import org.slf4j.LoggerFactory;
 public class AddFilesIT {
   private static final Logger LOG = LoggerFactory.getLogger(AddFilesIT.class);
 
-  private static final String WAREHOUSE = "gs://managed-iceberg-biglake-its";
+  private static final String CATALOG_NAME = "managed-iceberg-biglake-its";
+  private static final String WAREHOUSE = "gs://" + CATALOG_NAME;
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -130,7 +131,7 @@ public class AddFilesIT {
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
-  private final String namespace = getClass().getSimpleName();
+  private final String namespace = getClass().getSimpleName() + "_" + System.currentTimeMillis();
   private String srcTableName;
   private String destTableName;
   private TableIdentifier srcTableId;
@@ -299,7 +300,7 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(false);
   }
 
   /**
@@ -400,13 +401,21 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(false);
   }
 
   @Test
-  public void testBatchParquetImport() throws IOException {
-    // start with a table that does not exist
+  public void testBatchParquetImport() throws Exception {
+    testBatchParquetImport(false);
+  }
 
+  @Test
+  public void testBatchParquetImportToUIT() throws Exception {
+    testBatchParquetImport(true);
+  }
+
+  public void testBatchParquetImport(boolean isUIT) throws IOException {
+    // start with a table that does not exist
     String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
     String tempDir = format("%s/%s-tmp/", WAREHOUSE, dirName);
 
@@ -445,6 +454,11 @@ public class AddFilesIT {
     // before adding, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
 
+    Map<String, String> tableProps = new HashMap<>(TABLE_PROPS);
+    if (isUIT) {
+      tableProps.put("gcp.biglake.bigquery-dml.enabled", "true");
+    }
+
     // run batch AddFiles
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
@@ -454,9 +468,9 @@ public class AddFilesIT {
                     IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
-                    PARTITION_FIELDS,
+                    isUIT ? null : PARTITION_FIELDS,
                     null,
-                    TABLE_PROPS,
+                    tableProps,
                     null,
                     null));
     PAssert.that(tuple.get("errors")).empty();
@@ -472,10 +486,10 @@ public class AddFilesIT {
         "Destination table has registered all source files ({} files).", writtenFilePaths.size());
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(isUIT);
   }
 
-  private void checkRecordsInDestinationTable() {
+  private void checkRecordsInDestinationTable(boolean alsoCheckWithBqIO) {
     Pipeline s = Pipeline.create();
     PCollection<Row> destRows =
         s.apply(
@@ -485,6 +499,18 @@ public class AddFilesIT {
                             "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
             .getSinglePCollection();
     PAssert.that(destRows).containsInAnyOrder(TEST_ROWS);
+
+    if (alsoCheckWithBqIO) {
+      PCollection<Row> destRowsWithBqIO =
+          s.apply(
+                  Managed.read(Managed.BIGQUERY)
+                      .withConfig(
+                          ImmutableMap.of(
+                              "table",
+                              format("%s.%s.%s", PROJECT, CATALOG_NAME, destTableId.toString()))))
+              .getSinglePCollection();
+      PAssert.that(destRowsWithBqIO).containsInAnyOrder(TEST_ROWS);
+    }
     s.run().waitUntilFinish();
   }
 
