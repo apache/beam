@@ -366,6 +366,7 @@ import time
 import uuid
 import warnings
 from dataclasses import dataclass
+from enum import Enum
 from typing import Optional
 from typing import Union
 
@@ -610,8 +611,8 @@ class BigQueryDisposition(object):
     return disposition
 
 
-class BigQuerySchemaUpdateOption(object):
-  """Class holding standard strings used for schema update options."""
+class BigQuerySchemaUpdateOption(str, Enum):
+  """Enum holding standard strings used for schema update options."""
 
   ALLOW_FIELD_ADDITION = 'ALLOW_FIELD_ADDITION'
   ALLOW_FIELD_RELAXATION = 'ALLOW_FIELD_RELAXATION'
@@ -624,14 +625,16 @@ class BigQuerySchemaUpdateOption(object):
       raise ValueError(
           'schema_update_options must be a list. Received %s.' %
           type(options).__name__)
-    values = (
-        BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION,
-        BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION)
+    values = tuple(option.value for option in BigQuerySchemaUpdateOption)
+    validated_options = []
     for option in options:
-      if option not in values:
+      try:
+        validated_options.append(BigQuerySchemaUpdateOption(option).value)
+      except ValueError:
         raise ValueError(
-            'Invalid schema update option %s. Expecting %s' % (option, values))
-    return options
+            'Invalid schema update option %s. Expecting %s' %
+            (option, values)) from None
+    return validated_options
 
 
 class BigQueryQueryPriority(object):
@@ -2164,8 +2167,10 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         directly to the job load configuration. See
         https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfigurationload
       schema_update_options (list): Allows the schema of the destination
-        table to be updated as a side effect of the load job. Supported values
-        are :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION` and
+        table to be updated as a side effect of the load job. Each item may be
+        a :class:`BigQuerySchemaUpdateOption` member or its string value.
+        Supported values are
+        :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_ADDITION` and
         :attr:`BigQuerySchemaUpdateOption.ALLOW_FIELD_RELAXATION`. This option
         is only valid for ``FILE_LOADS`` and cannot be specified together with
         ``schemaUpdateOptions`` in ``additional_bq_parameters``.
