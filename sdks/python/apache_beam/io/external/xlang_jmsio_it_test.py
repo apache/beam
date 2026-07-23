@@ -197,8 +197,8 @@ class CrossLanguageJmsIOTest(unittest.TestCase):
               connection_configuration=self._connection_configuration(
                   connection_param),
               queue=sink_queue))
-      result = p.run()
       publisher.start()
+      result = p.run()
       subscriber.start()
       try:
         subscriber.join(timeout=90)  # 1.5 min
