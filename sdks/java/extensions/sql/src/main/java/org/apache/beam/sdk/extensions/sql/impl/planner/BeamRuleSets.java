@@ -79,14 +79,15 @@ public class BeamRuleSets {
           CoreRules.FILTER_AGGREGATE_TRANSPOSE,
           // push filter through set operation
           CoreRules.FILTER_SET_OP_TRANSPOSE,
-          // NOTE: CoreRules.PROJECT_SET_OP_TRANSPOSE is intentionally NOT enabled. Pushing a
-          // projection through a set operation (UNION/INTERSECT/EXCEPT) transposes the projection
-          // into each branch, where PROJECT_MERGE then fuses it with an adjacent branch projection.
-          // That fusion cancels the deterministic IEEE-754 FP surrogate wrapped around FLOAT/DOUBLE
-          // set-operation columns (it collapses from_bits(bits(x)) back to the raw DOUBLE),
-          // reintroducing the non-deterministic Double/Float key coder that Beam's CoGroup-based
-          // set operators reject ("the keyCoder of a GroupByKey must be deterministic"). The rule is
-          // a pure optimization, so omitting it is correctness-preserving.
+          // NOTE: CoreRules.PROJECT_SET_OP_TRANSPOSE is intentionally NOT enabled.
+          // Pushing a projection through a set operation (UNION/INTERSECT/EXCEPT) transposes
+          // it into each branch, where PROJECT_MERGE fuses it with an adjacent projection.
+          // That fusion cancels the deterministic IEEE-754 FP surrogate wrapped around
+          // FLOAT/DOUBLE set-operation columns (collapsing from_bits(bits(x)) back to the
+          // raw DOUBLE), reintroducing the non-deterministic Double/Float key coder that
+          // Beam's CoGroup-based set operators reject ("the keyCoder of a GroupByKey must
+          // be deterministic"). The rule is a pure optimization, so omitting it is
+          // correctness-preserving.
 
           // aggregation and projection rules
           // BeamAggregateProjectMergeRule.INSTANCE,
