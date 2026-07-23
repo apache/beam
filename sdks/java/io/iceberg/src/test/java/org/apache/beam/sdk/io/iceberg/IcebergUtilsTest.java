@@ -262,7 +262,10 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testFixed() {}
+    public void testFixed() {
+      byte[] bytes = new byte[] {1, 2, 3, 4};
+      checkRowValueToRecordValue(Schema.FieldType.BYTES, bytes, Types.FixedType.ofLength(4), bytes);
+    }
 
     @Test
     public void testBinary() {
@@ -459,7 +462,10 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testFixed() {}
+    public void testFixed() {
+      byte[] bytes = new byte[] {1, 2, 3, 4};
+      checkRecordValueToRowValue(Types.FixedType.ofLength(4), bytes, Schema.FieldType.BYTES, bytes);
+    }
 
     @Test
     public void testBinary() {
