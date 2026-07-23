@@ -37,7 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.dataflow.worker.WindmillStateTestUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
-import org.apache.beam.runners.dataflow.worker.WorkCancelingException;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.SortedListEntry;
@@ -1574,14 +1574,14 @@ public class WindmillStateReaderTest {
       watermarkFuture.get();
       fail("Expected WorkCancelingException");
     } catch (Exception e) {
-      assertTrue(WorkCancelingException.isWorkCancelingException(e));
+      assertTrue(WorkCancellingException.isWorkCancellingException(e));
     }
 
     try {
       bagFuture.get();
       fail("Expected WorkCancelingException");
     } catch (Exception e) {
-      assertTrue(WorkCancelingException.isWorkCancelingException(e));
+      assertTrue(WorkCancellingException.isWorkCancellingException(e));
     }
   }
 

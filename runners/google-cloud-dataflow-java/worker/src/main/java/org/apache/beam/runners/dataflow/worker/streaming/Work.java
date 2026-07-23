@@ -36,7 +36,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
-import org.apache.beam.runners.dataflow.worker.WorkCancelingException;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -45,7 +45,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -126,23 +125,6 @@ public final class Work implements RefreshableWork {
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
     this.getWorkStreamLatencies = getWorkStreamLatencies;
-  }
-
-  public static Work create(
-      WorkItem workItem,
-      long serializedWorkItemSize,
-      Watermarks watermarks,
-      ProcessingContext processingContext,
-      boolean drainMode,
-      Supplier<Instant> clock) {
-    return new Work(
-        workItem,
-        serializedWorkItemSize,
-        watermarks,
-        processingContext,
-        drainMode,
-        clock,
-        ImmutableList.of());
   }
 
   public static Work create(
@@ -246,7 +228,7 @@ public final class Work implements RefreshableWork {
       }
       return response;
     } catch (RuntimeException e) {
-      if (WorkCancelingException.isWorkCancelingException(e)) {
+      if (WorkCancellingException.isWorkCancellingException(e)) {
         this.setFailed();
       }
       throw e;
@@ -257,7 +239,7 @@ public final class Work implements RefreshableWork {
     try {
       return processingContext.getDataClient().getSideInputData(request);
     } catch (RuntimeException e) {
-      if (WorkCancelingException.isWorkCancelingException(e)) {
+      if (WorkCancellingException.isWorkCancellingException(e)) {
         this.setFailed();
       }
       throw e;
@@ -352,10 +334,6 @@ public final class Work implements RefreshableWork {
   @Override
   public WorkId id() {
     return id;
-  }
-
-  public ImmutableList<LatencyAttribution> getWorkStreamLatencies() {
-    return getWorkStreamLatencies;
   }
 
   public void recordGetWorkStreamLatencies() {

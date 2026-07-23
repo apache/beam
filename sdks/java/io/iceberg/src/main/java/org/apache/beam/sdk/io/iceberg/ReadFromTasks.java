@@ -51,11 +51,6 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
     this.scanConfig = scanConfig;
   }
 
-  @Setup
-  public void setup() {
-    TableCache.setup(scanConfig);
-  }
-
   @ProcessElement
   public void process(
       @Element KV<ReadTaskDescriptor, ReadTask> element,
@@ -63,7 +58,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       OutputReceiver<Row> out)
       throws IOException, ExecutionException, InterruptedException {
     ReadTask readTask = element.getValue();
-    Table table = TableCache.get(scanConfig.getTableIdentifier());
+    Table table = TableCache.get(scanConfig.getCatalogConfig(), scanConfig.getTableIdentifier());
 
     List<FileScanTask> fileScanTasks = readTask.getFileScanTasks();
 
@@ -75,9 +70,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       }
       FileScanTask task = fileScanTasks.get((int) l);
       Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
-      try (CloseableIterable<Record> fullIterable =
-          ReadUtils.createReader(task, table, scanConfig.getRequiredSchema())) {
-        CloseableIterable<Record> reader = ReadUtils.maybeApplyFilter(fullIterable, scanConfig);
+      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, scanConfig)) {
 
         for (Record record : reader) {
           Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);

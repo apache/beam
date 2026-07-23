@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.HashMap;
@@ -123,11 +124,10 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
           computationRequestBuilder.setComputationId(computationState.getComputationId());
           computationRequestMap.put(computationState, computationRequestBuilder);
         }
-        checkState(commit.singleKeyRequest().isPresent());
-        computationRequestBuilder.addRequests(commit.singleKeyRequest().get());
+        computationRequestBuilder.addRequests(checkStateNotNull(commit.singleKeyRequest()));
         // Send the request if we've exceeded the bytes or there is no more
         // pending work.  commitBytes is a long, so this cannot overflow.
-        commitBytes += commit.getSize();
+        commitBytes += commit.getSerializedByteSize();
         if (commitBytes >= TARGET_COMMIT_BUNDLE_BYTES) {
           break;
         }

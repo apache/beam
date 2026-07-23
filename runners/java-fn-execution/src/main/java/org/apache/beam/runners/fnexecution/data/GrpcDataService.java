@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
@@ -175,13 +174,13 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   @Override
   public BeamFnDataOutboundAggregator createOutboundAggregator(
-      Supplier<String> processBundleRequestIdSupplier, boolean collectElementsIfNoFlushes) {
+      String instructionId, boolean collectElementsIfNoFlushes) {
     try {
-      return new BeamFnDataOutboundAggregator(
-          options,
-          processBundleRequestIdSupplier,
-          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver(),
-          collectElementsIfNoFlushes);
+      BeamFnDataOutboundAggregator aggregator =
+          new BeamFnDataOutboundAggregator(options, collectElementsIfNoFlushes);
+      aggregator.prepareForInstruction(
+          instructionId, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
+      return aggregator;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

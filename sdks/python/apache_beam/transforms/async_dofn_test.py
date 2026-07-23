@@ -522,6 +522,53 @@ class AsyncTest(unittest.TestCase):
     else:
       self.assertEqual(p.exitcode, 0)
 
+  def test_transient_rpc_failure_retry(self):
+    # Verify DoFn exceptions wipe local active state so retries reschedule work.
+    class FlakyDoFn(beam.DoFn):
+      def __init__(self):
+        self.attempts = 0
+        self.lock = Lock()
+
+      def process(self, element):
+        with self.lock:
+          self.attempts += 1
+          current_attempt = self.attempts
+        if current_attempt == 1:
+          raise RuntimeError("Transient RPC Error")
+        yield element
+
+    dofn = FlakyDoFn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+    msg = ('key1', 1)
+
+    async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
+    self.wait_for_empty(async_dofn)
+
+    # Attempt 1 should raise the RuntimeError stored in the future
+    with self.assertRaises(RuntimeError):
+      async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    # Verify the failed future was popped from local processing_elements
+    with async_lib.AsyncWrapper._lock:
+      self.assertNotIn(
+          async_dofn._id_fn(msg[1]),
+          async_lib.AsyncWrapper._processing_elements[async_dofn._uuid],
+      )
+
+    # Simulate runner bundle retry: commit_finished_items runs again with msg still in state.
+    # Because the dead future was popped, it will reschedule msg and succeed on Attempt 2.
+    self.wait_for_empty(async_dofn)
+    result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+    if not result:
+      self.wait_for_empty(async_dofn)
+      result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    self.check_output(result, [msg])
+    self.assertEqual(fake_bag_state.items, [])
+
 
 if __name__ == '__main__':
   unittest.main()

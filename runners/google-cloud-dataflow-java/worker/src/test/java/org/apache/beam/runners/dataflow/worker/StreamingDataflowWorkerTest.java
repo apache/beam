@@ -378,7 +378,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
-            Instant::now),
+            Instant::now,
+            ImmutableList.of()),
         (work, handle) -> {
           processWorkFn.accept(work);
         });
@@ -1711,8 +1712,9 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
-  @Test
-  public void testKeyCommitTooLargeException() throws Exception {
+  private void runKeyCommitTooLargeExceptionTest(
+      StreamingDataflowWorkerTestParams.Builder workerParams, boolean expectKeyInErrorMessage)
+      throws Exception {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
@@ -1725,7 +1727,7 @@ public class StreamingDataflowWorkerTest {
 
     StreamingDataflowWorker worker =
         makeWorker(
-            defaultWorkerParams()
+            workerParams
                 .setInstructions(instructions)
                 .setStreamingGlobalConfig(
                     StreamingGlobalConfig.builder()
@@ -1757,7 +1759,6 @@ public class StreamingDataflowWorkerTest {
                 1, "large_key", DEFAULT_SHARDING_KEY, largeCommit.getEstimatedWorkItemCommitBytes())
             .build(),
         removeDynamicFields(largeCommit));
-
     // Check this explicitly since the estimated commit bytes weren't actually
     // checked against an expected value in the previous step
     assertTrue(largeCommit.getEstimatedWorkItemCommitBytes() > 1000);
@@ -1781,10 +1782,33 @@ public class StreamingDataflowWorkerTest {
         foundErrors = true;
         String errorMessage = status.getErrors().get(0).getMessage();
         assertThat(errorMessage, Matchers.containsString("KeyCommitTooLargeException"));
+        assertThat(errorMessage, Matchers.containsString("Commit request for stage computation"));
+        if (expectKeyInErrorMessage) {
+          assertThat(errorMessage, Matchers.containsString("and key large_key"));
+        } else {
+          assertThat(errorMessage, Matchers.not(Matchers.containsString("and key large_key")));
+        }
       }
     }
     assertTrue(foundErrors);
     worker.stop();
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException() throws Exception {
+    runKeyCommitTooLargeExceptionTest(defaultWorkerParams(), /* expectKeyInErrorMessage= */ false);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_withHotKeyLoggingEnabled() throws Exception {
+    runKeyCommitTooLargeExceptionTest(
+        defaultWorkerParams("--hotKeyLoggingEnabled=true"), /* expectKeyInErrorMessage= */ true);
+  }
+
+  @Test
+  public void testKeyCommitTooLargeException_withHotKeyLoggingDisabled() throws Exception {
+    runKeyCommitTooLargeExceptionTest(
+        defaultWorkerParams("--hotKeyLoggingEnabled=false"), /* expectKeyInErrorMessage= */ false);
   }
 
   @Test
@@ -3941,8 +3965,8 @@ public class StreamingDataflowWorkerTest {
     }
 
     // Ensure that the invalidated dofn had tearDown called on them.
-    assertEquals(2, TestExceptionInvalidatesCacheFn.tearDownCallCount.get());
-    assertEquals(3, TestExceptionInvalidatesCacheFn.setupCallCount.get());
+    assertEquals(1, TestExceptionInvalidatesCacheFn.tearDownCallCount.get());
+    assertEquals(2, TestExceptionInvalidatesCacheFn.setupCallCount.get());
 
     worker.stop();
   }
@@ -4115,7 +4139,8 @@ public class StreamingDataflowWorkerTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            clock);
+            clock,
+            ImmutableList.of());
 
     clock.sleep(Duration.millis(10));
     work.setState(Work.State.PROCESSING);

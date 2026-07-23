@@ -61,7 +61,7 @@ public abstract class ComputationWorkExecutor {
   /**
    * Executes DoFns for the Work. Blocks the calling thread until DoFn(s) have completed execution.
    */
-  public final void executeWork(
+  public final StreamingModeExecutionContext executeWork(
       Work work,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
@@ -76,6 +76,7 @@ public abstract class ComputationWorkExecutor {
             keyCoder().orElse(null),
             keyTransitionListener);
     workExecutor().execute();
+    return context();
   }
 
   /**
@@ -84,7 +85,7 @@ public abstract class ComputationWorkExecutor {
    */
   public final void invalidate() {
     context().invalidateCache();
-    context().clear();
+    context().reset();
     try {
       workExecutor().close();
     } catch (Exception e) {

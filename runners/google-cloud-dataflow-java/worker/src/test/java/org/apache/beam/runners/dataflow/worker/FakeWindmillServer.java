@@ -41,6 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -49,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponsePr
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -87,6 +89,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
   private final Map<WorkId, Windmill.CommitStatus> streamingCommitsToOffer;
+  private final AtomicReference<Windmill.CommitStatus> multiKeyCommitStatusToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
   private final List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommitsReceived =
@@ -121,6 +124,8 @@ public final class FakeWindmillServer extends WindmillServerStub {
         new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
             .returnByDefault(CommitWorkResponse.getDefaultInstance());
     streamingCommitsToOffer = new ConcurrentHashMap<>();
+    // Respond multikey commits with ok, unless overridden.
+    multiKeyCommitStatusToOffer = new AtomicReference<>(CommitStatus.OK);
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -153,6 +158,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public Map<WorkId, Windmill.CommitStatus> whenCommitWorkStreamCalled() {
     return streamingCommitsToOffer;
+  }
+
+  /** @param commitStatus status to return to multiKeyCommits */
+  public void setMultiKeyCommitStatus(CommitStatus commitStatus) {
+    this.multiKeyCommitStatusToOffer.set(commitStatus);
   }
 
   @Override
@@ -432,7 +442,6 @@ public final class FakeWindmillServer extends WindmillServerStub {
               Windmill.MultiKeyWorkItemCommitRequest request,
               Consumer<Windmill.CommitStatus> onDone) {
             LOG.debug("commitWorkStream::commitMultiKeyWorkItem: {}", request);
-            if (multiKeyRequests.size() > 5) return false;
             multiKeyRequests.add(new MultiKeyRequestAndDone(request, onDone));
             flush();
             return true;
@@ -474,20 +483,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
                 commitsReceived.put(workRequest.getWorkToken(), workRequest);
               }
 
-              // Determine status for the batch.
-              // Default to OK, but if any of the works in the batch has an offered status, use it.
-              Windmill.CommitStatus status = Windmill.CommitStatus.OK;
-              for (WorkItemCommitRequest workRequest : elem.request.getRequestsList()) {
-                Windmill.CommitStatus offeredStatus =
-                    streamingCommitsToOffer.remove(
-                        WorkId.builder()
-                            .setWorkToken(workRequest.getWorkToken())
-                            .setCacheToken(workRequest.getCacheToken())
-                            .build());
-                if (offeredStatus != null) {
-                  status = offeredStatus;
-                }
-              }
+              Windmill.CommitStatus status = multiKeyCommitStatusToOffer.get();
               elem.onDone.accept(status);
             }
             multiKeyRequests.clear();

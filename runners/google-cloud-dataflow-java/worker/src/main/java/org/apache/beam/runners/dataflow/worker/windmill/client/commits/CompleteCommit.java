@@ -55,5 +55,9 @@ public abstract class CompleteCommit {
 
   public abstract CommitStatus status();
 
+  /**
+   * If retryableFailure true, the workitem will be retried locally. Used to retry partial work
+   * failures in multi key bundles.
+   */
   public abstract boolean retryableFailure();
 }

@@ -30,6 +30,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -59,7 +60,8 @@ public class ComputationStateTest {
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, mockHeartbeatSender),
             false,
-            Instant::now),
+            Instant::now,
+            ImmutableList.of()),
         (work, handle) -> {});
   }
 
@@ -84,17 +86,17 @@ public class ComputationStateTest {
   }
 
   @Test
-  public void testReExecuteActiveWork_workNotActive() {
+  public void testReexecuteActiveWork_workNotActive() {
     ShardedKey shardedKey = shardedKey("key", 1L);
     WorkId workId = WorkId.builder().setWorkToken(1L).setCacheToken(1L).build();
 
-    computationState.reExecuteActiveWork(shardedKey, workId);
+    computationState.reexecuteActiveWork(shardedKey, workId);
 
     verifyNoInteractions(mockExecutor);
   }
 
   @Test
-  public void testReExecuteActiveWork_workActive() {
+  public void testReexecuteActiveWork_workActive() {
     ShardedKey shardedKey = shardedKey("key", 1L);
     Windmill.WorkItem workItem = createWorkItem(1L, 1L, shardedKey);
     ExecutableWork work = createWork(workItem);
@@ -104,7 +106,7 @@ public class ComputationStateTest {
     verify(mockExecutor).execute(work, work.work().getSerializedWorkItemSize());
 
     // Now re-execute
-    computationState.reExecuteActiveWork(shardedKey, work.id());
+    computationState.reexecuteActiveWork(shardedKey, work.id());
     verify(mockExecutor).forceExecute(work, work.work().getSerializedWorkItemSize());
 
     verifyNoMoreInteractions(mockExecutor);

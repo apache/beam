@@ -88,9 +88,9 @@ public final class ActiveWorkState {
     return new ActiveWorkState(new HashMap<>(), computationStateCache);
   }
 
-  synchronized Optional<ExecutableWork> getActiveWork(ShardedKey shardedKey, WorkId workId) {
+  synchronized @Nullable ExecutableWork getActiveWork(ShardedKey shardedKey, WorkId workId) {
     LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey.shardingKey());
-    return workQueue == null ? Optional.empty() : Optional.ofNullable(workQueue.get(workId));
+    return workQueue == null ? null : workQueue.get(workId);
   }
 
   @VisibleForTesting

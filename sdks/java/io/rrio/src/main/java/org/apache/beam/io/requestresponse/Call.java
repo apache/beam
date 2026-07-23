@@ -535,6 +535,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         return future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException | InterruptedException e) {
+        future.cancel(true);
         throw new UserCodeTimeoutException(e);
       } catch (ExecutionException e) {
         parseAndThrow(future, e);

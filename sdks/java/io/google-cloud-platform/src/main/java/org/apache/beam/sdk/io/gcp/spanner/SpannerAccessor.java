@@ -36,6 +36,7 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
+import com.google.spanner.v1.DirectedReadOptions;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
 import java.util.HashSet;
@@ -247,7 +248,16 @@ public class SpannerAccessor implements AutoCloseable {
       }
       if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
         builder.setChannelConfigurator(b -> b.usePlaintext());
-        builder.setCredentials(NoCredentials.getInstance());
+      }
+      ValueProvider<String> clientCert = spannerConfig.getClientCertPath();
+      ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
+      if (clientCert != null
+          && clientKey != null
+          && clientCert.isAccessible()
+          && clientKey.isAccessible()
+          && !Strings.isNullOrEmpty(clientCert.get())
+          && !Strings.isNullOrEmpty(clientKey.get())) {
+        builder.useClientCert(clientCert.get(), clientKey.get());
       }
     }
 
@@ -270,9 +280,15 @@ public class SpannerAccessor implements AutoCloseable {
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
+    ValueProvider<DirectedReadOptions> directedReadOptions = spannerConfig.getDirectedReadOptions();
+    if (directedReadOptions != null && directedReadOptions.get() != null) {
+      builder.setDirectedReadOptions(directedReadOptions.get());
+    }
     ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
+    } else if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+      builder.setCredentials(NoCredentials.getInstance());
     }
 
     ValueProvider<java.time.Duration> waitForSessionCreationDuration =

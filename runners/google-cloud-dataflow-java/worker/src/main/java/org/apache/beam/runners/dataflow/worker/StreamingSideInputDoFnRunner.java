@@ -24,6 +24,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -78,6 +79,11 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
       CausedByDrain causedByDrain) {
     throw new UnsupportedOperationException(
         "Attempt to deliver a timer to a DoFn, but timers are not supported in Dataflow.");
+  }
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    simpleDoFnRunner.finishKey(key);
   }
 
   @Override

@@ -19,11 +19,15 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.TypeAndMaxId;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamFieldTypeToIcebergFieldType;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.parseTableIdentifier;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.tableIdentifierToString;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -44,6 +48,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -59,6 +64,65 @@ import org.junit.runners.JUnit4;
 /** Test class for {@link IcebergUtils}. */
 @RunWith(Enclosed.class)
 public class IcebergUtilsTest {
+
+  @RunWith(JUnit4.class)
+  public static class TableIdentifierTests {
+
+    @Test
+    public void parseTableIdentifierParsesJson() {
+      TableIdentifier identifier =
+          parseTableIdentifier(
+              " {\"namespace\": [\"dogs\", \"owners.and.handlers\"],"
+                  + " \"name\": \"food.with.dots\"}");
+
+      assertArrayEquals(
+          new String[] {"dogs", "owners.and.handlers"}, identifier.namespace().levels());
+      assertEquals("food.with.dots", identifier.name());
+    }
+
+    @Test
+    public void parseTableIdentifierParsesLegacyDottedString() {
+      TableIdentifier identifier = parseTableIdentifier("dogs.owners.and.handlers.food");
+
+      assertArrayEquals(
+          new String[] {"dogs", "owners", "and", "handlers"}, identifier.namespace().levels());
+      assertEquals("food", identifier.name());
+    }
+
+    @Test
+    public void tableIdentifierToStringRoundTripsSpecialCharacters() {
+      TableIdentifier expected =
+          TableIdentifier.of("dogs", "owners.and.handlers", "food.with.dots");
+
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void tableIdentifierToStringUsesLegacyFormWhenUnambiguous() {
+      assertEquals("dogs.food", tableIdentifierToString(TableIdentifier.of("dogs", "food")));
+    }
+
+    @Test
+    public void tableIdentifierToStringUsesJsonForLegacyStringsThatLookLikeJson() {
+      TableIdentifier expected = TableIdentifier.of("{dogs}", "{food}");
+
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void tableIdentifierToStringDoesNotUseJsonForPartialJsonLikeStrings() {
+      TableIdentifier expected = TableIdentifier.of("{dogs}", "food");
+
+      assertEquals("{dogs}.food", tableIdentifierToString(expected));
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void parseTableIdentifierRejectsInvalidJsonIdentifier() {
+      assertThrows(
+          IllegalArgumentException.class, () -> parseTableIdentifier("{\"table_name\":\"food\"}"));
+    }
+  }
 
   @RunWith(JUnit4.class)
   public static class RowToRecordTests {

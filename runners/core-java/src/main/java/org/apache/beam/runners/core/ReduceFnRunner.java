@@ -1056,7 +1056,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     paneInfoTracker.prefetchPaneInfo(directContext);
     watermarkHold.prefetchExtract(renamedContext);
     nonEmptyPanes.isEmpty(renamedContext.state()).readLater();
-    reduceFn.prefetchOnTrigger(directContext.state());
+    directContext.state().access(METADATA_TAG).readLater();
+    reduceFn.prefetchOnTrigger(renamedContext.state());
   }
 
   /**

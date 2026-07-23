@@ -87,7 +87,6 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
   private static class SnapshotPollFn extends Watch.Growth.PollFn<String, List<SnapshotInfo>> {
     private final IcebergScanConfig scanConfig;
     private @Nullable Long fromSnapshotId;
-    boolean isCacheSetup = false;
 
     SnapshotPollFn(IcebergScanConfig scanConfig) {
       this.scanConfig = scanConfig;
@@ -95,11 +94,7 @@ class WatchForSnapshots extends PTransform<PBegin, PCollection<KV<String, List<S
 
     @Override
     public PollResult<List<SnapshotInfo>> apply(String tableIdentifier, Context c) {
-      if (!isCacheSetup) {
-        TableCache.setup(scanConfig);
-        isCacheSetup = true;
-      }
-      Table table = TableCache.getRefreshed(tableIdentifier);
+      Table table = TableCache.getRefreshed(scanConfig.getCatalogConfig(), tableIdentifier);
 
       @Nullable Long userSpecifiedToSnapshot = ReadUtils.getToSnapshot(table, scanConfig);
       boolean isComplete = userSpecifiedToSnapshot != null;

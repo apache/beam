@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
@@ -118,6 +119,22 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  *
+ * <h4>Acknowledgment Modes and Client Prefetch Configuration</h4>
+ *
+ * <p>By default, {@link JmsIO} consumes messages using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}
+ * where a new {@link javax.jms.Session} is created for each checkpoint to prevent premature
+ * acknowledgments across bundles. When using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}, if your
+ * JMS broker or client library utilizes client-side message prefetch buffers (such as Apache
+ * ActiveMQ), you should configure {@code prefetch=0} on your {@link javax.jms.ConnectionFactory}
+ * (e.g., via {@code ?jms.prefetchPolicy.all=0} in the broker URL or {@code
+ * ActiveMQPrefetchPolicy.setAll(0)}). Otherwise, unconsumed messages could be held inside old
+ * consumers in low throughput scenario and could lead to message backlog.
+ *
+ * <p>Alternatively, if your JMS broker supports individual message acknowledgment (such as ActiveMQ
+ * or Amazon MQ {@code ActiveMQSession.INDIVIDUAL_ACKNOWLEDGE = 4}), you can specify {@link
+ * Read#withAcknowledgeMode(AcknowledgeMode)} with {@link AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}.
+ * In this mode, a single shared session and consumer are reused across all checkpoints.
+ *
  * <h3>Writing to a JMS destination</h3>
  *
  * <p>JmsIO sink supports writing text messages to a JMS destination on a broker. To configure a JMS
@@ -146,10 +163,11 @@ public class JmsIO {
         .setCoder(SerializableCoder.of(JmsRecord.class))
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
         .setRequiresDeduping(false)
+        .setAcknowledgeMode(AcknowledgeMode.CLIENT_ACKNOWLEDGE)
         .setMessageMapper(
             new MessageMapper<JmsRecord>() {
               @Override
-              public JmsRecord mapMessage(Message message) throws Exception {
+              public JmsRecord mapMessage(Message message) throws JMSException {
                 TextMessage textMessage = (TextMessage) message;
                 Map<String, Object> properties = new HashMap<>();
                 @SuppressWarnings("rawtypes")
@@ -182,6 +200,7 @@ public class JmsIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCloseTimeout(DEFAULT_CLOSE_TIMEOUT)
         .setRequiresDeduping(false)
+        .setAcknowledgeMode(AcknowledgeMode.CLIENT_ACKNOWLEDGE)
         .build();
   }
 
@@ -261,6 +280,10 @@ public class JmsIO {
 
     abstract boolean isRequiresDeduping();
 
+    abstract AcknowledgeMode getAcknowledgeMode();
+
+    abstract @Nullable Integer getIndividualAcknowledgeModeCode();
+
     abstract Builder<T> builder();
 
     @AutoValue.Builder
@@ -291,6 +314,10 @@ public class JmsIO {
       abstract Builder<T> setReceiveTimeout(Duration receiveTimeout);
 
       abstract Builder<T> setRequiresDeduping(boolean requiresDeduping);
+
+      abstract Builder<T> setAcknowledgeMode(AcknowledgeMode acknowledgeMode);
+
+      abstract Builder<T> setIndividualAcknowledgeModeCode(Integer individualAcknowledgeModeCode);
 
       abstract Read<T> build();
     }
@@ -484,6 +511,29 @@ public class JmsIO {
       return builder().setRequiresDeduping(true).build();
     }
 
+    /**
+     * Specify the {@link AcknowledgeMode} used for consuming and acknowledging JMS messages.
+     *
+     * <p>To use {@link AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}, providers other than ActiveMQ,
+     * ActiveMQ Artemis, Qpid JMS, require configuring {@link #withIndividualAcknowledgeModeCode}
+     * explicitly.
+     */
+    public Read<T> withAcknowledgeMode(AcknowledgeMode acknowledgeMode) {
+      checkArgument(acknowledgeMode != null, "acknowledgeMode can not be null");
+      return builder().setAcknowledgeMode(acknowledgeMode).build();
+    }
+
+    /**
+     * Specify the custom integer code for individual message acknowledgment when using {@link
+     * AcknowledgeMode#INDIVIDUAL_ACKNOWLEDGE}.
+     *
+     * <p>Different JMS providers use different proprietary integer constants for individual
+     * acknowledgment (e.g., ActiveMQ uses 4, Qpid JMS / ActiveMQ Artemis use 101).
+     */
+    public Read<T> withIndividualAcknowledgeModeCode(int individualAcknowledgeModeCode) {
+      return builder().setIndividualAcknowledgeModeCode(individualAcknowledgeModeCode).build();
+    }
+
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArgument(
@@ -515,6 +565,7 @@ public class JmsIO {
       super.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("queue", getQueue()));
       builder.addIfNotNull(DisplayData.item("topic", getTopic()));
+      builder.add(DisplayData.item("acknowledgeMode", getAcknowledgeMode().name()));
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -529,6 +580,35 @@ public class JmsIO {
   }
 
   private JmsIO() {}
+
+  public enum AcknowledgeMode {
+    /**
+     * Acknowledge on checkpoint finalization with session isolation across checkpoints. Due to that
+     * runners may or may not finalize checkpoint in timely minor, unacked messages in unclosed
+     * consumer could be stuck when source throughput is zero. When using this mode in low
+     * throughput use cases, client-side prefetch buffers should be disabled (e.g. set {@code
+     * prefetch=0} for ActiveMQ) in connection factory properties.
+     */
+    CLIENT_ACKNOWLEDGE,
+
+    /**
+     * CLIENT_ACKNOWLEDGE but without session isolation across checkpoints. Acknowledging a message
+     * implicitly acknowledge all messages received up to that point per JMS spec. Best for
+     * performance but not safe on worker crash or scaling down. Good when best effort delivery is
+     * acceptable.
+     */
+    CLIENT_ACKNOWLEDGE_UNSAFE,
+
+    /**
+     * Acknowledge messages individually on checkpoint finalization. Recommended for JMS providers
+     * that support individual message acknowledgment (e.g., ActiveMQ, Amazon MQ, Artemis, Qpid
+     * JMS).
+     */
+    INDIVIDUAL_ACKNOWLEDGE
+
+    // When adding new AcknowledgeMode enum, update getAckModeCode(AcknowledgeMode mode) to handle
+    // the new mode.
+  }
 
   /**
    * An interface used by {@link JmsIO.Read} for converting each jms {@link Message} into an element
@@ -601,10 +681,13 @@ public class JmsIO {
     private byte[] currentID;
     private long receiveTimeoutMillis;
     private PipelineOptions options;
+    // Acknowlging messages need open consumer. Tracking active checkpoints allows delayed close of
+    // session and consumer.
+    private final AtomicInteger activeCheckpoints = new AtomicInteger(0);
 
     public UnboundedJmsReader(UnboundedJmsSource<T> source, PipelineOptions options) {
       this.source = source;
-      this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer();
+      this.checkpointMarkPreparer = JmsCheckpointMark.newPreparer(source.spec.getAcknowledgeMode());
       this.currentMessage = null;
       this.currentID = EMPTY;
       this.options = options;
@@ -613,7 +696,8 @@ public class JmsIO {
     /** recreate session and consumer. */
     private synchronized void recreateSession() throws IOException {
       try {
-        this.session = this.connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
+        int ackMode = getAckModeCode(source.spec.getAcknowledgeMode());
+        this.session = this.connection.createSession(false, ackMode);
       } catch (Exception e) {
         throw new IOException("Error creating JMS session", e);
       }
@@ -631,6 +715,34 @@ public class JmsIO {
         }
       } catch (Exception e) {
         throw new IOException("Error creating JMS consumer", e);
+      }
+    }
+
+    private int getAckModeCode(AcknowledgeMode mode) {
+      if (mode == AcknowledgeMode.CLIENT_ACKNOWLEDGE
+          || mode == AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE) {
+        return Session.CLIENT_ACKNOWLEDGE;
+      } else if (mode == AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE) {
+        Integer configuredCode = source.spec.getIndividualAcknowledgeModeCode();
+        if (configuredCode != null) {
+          return configuredCode;
+        }
+        String connectionClassName = this.connection.getClass().getName();
+        if (connectionClassName.contains("org.apache.activemq.ActiveMQConnection")) {
+          return 4;
+        } else if (connectionClassName.contains("org.apache.qpid.jms")) {
+          return 101;
+        } else if (connectionClassName.contains("org.apache.activemq.artemis")) {
+          return 101;
+        } else {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unknown JMS provider '%s' for INDIVIDUAL_ACKNOWLEDGE. "
+                      + "Please specify the code explicitly via Read#withIndividualAcknowledgeModeCode(int).",
+                  connectionClassName));
+        }
+      } else {
+        throw new IllegalArgumentException(String.format("Unknown AcknowledgeMode: %s", mode));
       }
     }
 
@@ -752,16 +864,23 @@ public class JmsIO {
 
       MessageConsumer consumerToClose;
       Session sessionTofinalize;
+      AcknowledgeMode mode = source.spec.getAcknowledgeMode();
       synchronized (this) {
-        consumerToClose = consumer;
-        sessionTofinalize = session;
+        if (mode == AcknowledgeMode.CLIENT_ACKNOWLEDGE) {
+          consumerToClose = consumer;
+          sessionTofinalize = session;
+          try {
+            recreateSession();
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        } else {
+          consumerToClose = null;
+          sessionTofinalize = null;
+        }
       }
-      try {
-        recreateSession();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      return checkpointMarkPreparer.newCheckpoint(consumerToClose, sessionTofinalize);
+      return checkpointMarkPreparer.newCheckpoint(
+          consumerToClose, sessionTofinalize, mode, activeCheckpoints);
     }
 
     @Override
@@ -783,21 +902,44 @@ public class JmsIO {
     private void doClose() {
       try {
         closeAutoscaler();
-        closeConsumer();
-        ScheduledExecutorService executorService =
-            options.as(ExecutorOptions.class).getScheduledExecutorService();
-        executorService.schedule(
-            () -> {
-              LOG.debug("Closing connection after delay {}", source.spec.getCloseTimeout());
-              // Discard the checkpoints and set the reader as inactive
-              checkpointMarkPreparer.discard();
-              closeSession();
-              closeConnection();
-            },
-            source.spec.getCloseTimeout().getMillis(),
-            TimeUnit.MILLISECONDS);
+        // Discard the checkpoints and set the reader as inactive
+        checkpointMarkPreparer.discard();
+        if (source.spec.getAcknowledgeMode() == AcknowledgeMode.CLIENT_ACKNOWLEDGE) {
+          // checkpointMark holds session in CLIENT_ACKNOWLEDGE mode. Therefore
+          // we can close consumer and session immediately.
+          closeConsumer();
+          closeSession();
+        }
+        if (activeCheckpoints.get() == 0) {
+          closeConsumer();
+          closeSession();
+          closeConnection();
+        } else {
+          ScheduledExecutorService executorService =
+              options.as(ExecutorOptions.class).getScheduledExecutorService();
+          long deadline = System.currentTimeMillis() + source.spec.getCloseTimeout().getMillis();
+          long pollInterval = 1L;
+          executorService.schedule(
+              new Runnable() {
+                @Override
+                public void run() {
+                  if (activeCheckpoints.get() == 0 || System.currentTimeMillis() >= deadline) {
+                    LOG.debug(
+                        "Closing connection after checkpoints finalized or timeout: {}",
+                        source.spec.getCloseTimeout());
+                    closeConsumer();
+                    closeSession();
+                    closeConnection();
+                  } else {
+                    executorService.schedule(this, pollInterval, TimeUnit.SECONDS);
+                  }
+                }
+              },
+              pollInterval,
+              TimeUnit.SECONDS);
+        }
       } catch (Exception e) {
-        LOG.error("Error closing reader", e);
+        LOG.warn("Error closing reader", e);
       }
     }
 
@@ -809,7 +951,7 @@ public class JmsIO {
           connection = null;
         }
       } catch (Exception e) {
-        LOG.error("Error closing connection", e);
+        LOG.warn("Error closing connection", e);
       }
     }
 

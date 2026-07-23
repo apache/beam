@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.delta.DeltaIO.ReadRows;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,6 +53,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -385,6 +387,45 @@ public class DeltaIOTest {
       writer.write(record);
     }
     return java.nio.file.Files.readAllBytes(file.toPath());
+  }
+
+  @Test
+  public void testManagedDeltaRead() throws Exception {
+    File tableDir = tempFolder.newFolder("managed-delta-table");
+
+    // 1. Write a Parquet file to simulate a Delta table
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row = Row.withSchema(schema).addValues("test-name").build();
+    writeParquetFile(new File(tableDir, "part-00000.parquet"), row);
+
+    // 2. Create the Delta log
+    File logDir = new File(tableDir, "_delta_log");
+    logDir.mkdirs();
+    File commitFile = new File(logDir, "00000000000000000000.json");
+
+    File parquetFile = new File(tableDir, "part-00000.parquet");
+    byte[] fileBytes = Files.readAllBytes(parquetFile.toPath());
+
+    String commitContent =
+        "{\"protocol\":{\"minReaderVersion\":1,\"minWriterVersion\":2}}\n"
+            + "{\"metaData\":{\"id\":\"test-id\",\"format\":{\"provider\":\"parquet\",\"options\":{}},\"schemaString\":\"{\\\"type\\\":\\\"struct\\\",\\\"fields\\\":[{\\\"name\\\":\\\"name\\\",\\\"type\\\":\\\"string\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}}]}\",\"partitionColumns\":[],\"configuration\":{},\"createdAt\":123456789}}\n"
+            + "{\"add\":{\"path\":\"part-00000.parquet\",\"partitionValues\":{},\"size\":"
+            + fileBytes.length
+            + ",\"modificationTime\":123456789,\"dataChange\":true}}";
+
+    Files.write(commitFile.toPath(), commitContent.getBytes(StandardCharsets.UTF_8));
+
+    // 3. Read it using Managed
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(ImmutableMap.of("table", tableDir.getAbsolutePath())))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(row);
+
+    readPipeline.run().waitUntilFinish();
   }
 
   @Test

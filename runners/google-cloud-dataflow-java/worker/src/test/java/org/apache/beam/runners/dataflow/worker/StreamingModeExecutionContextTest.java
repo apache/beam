@@ -43,6 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaceForTest;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -65,6 +66,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
@@ -73,9 +75,11 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -86,6 +90,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
@@ -144,8 +149,11 @@ public class StreamingModeExecutionContextTest {
         new HotKeyLogger(),
         /*hotKeyLoggingEnabled=*/ false,
         /*stepName=*/ "stepName",
+        /*systemName=*/ "systemName",
+        StreamingCounters.create(),
+        mock(FailureTracker.class),
         "sourceBytesProcessCounterName",
-        options,
+        MultiKeyBundleOptions.fromOptions(options),
         SideInputStateFetcherFactory.fromOptions(options));
   }
 
@@ -153,6 +161,9 @@ public class StreamingModeExecutionContextTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    options
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     executionContext = createExecutionContext(options, globalConfigHandle);
   }
@@ -165,7 +176,8 @@ public class StreamingModeExecutionContextTest {
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private void start(Work work) {
@@ -181,13 +193,17 @@ public class StreamingModeExecutionContextTest {
   }
 
   private void start(StreamingModeExecutionContext context, Work work, Coder<?> keyCoder) {
-    context.start(
-        work,
-        workExecutor,
-        /* workQueueExecutor= */ null,
-        /* budgetHandle= */ null,
-        keyCoder,
-        /* keyTransitionListener= */ (k, c) -> {});
+    try {
+      context.start(
+          work,
+          workExecutor,
+          /* workQueueExecutor= */ null,
+          /* budgetHandle= */ null,
+          keyCoder,
+          /* keyTransitionListener= */ (k, c) -> {});
+    } catch (CoderException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Test
@@ -579,7 +595,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchSize
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("max_key_group_batch_size=1"));
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_size=1"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchSize, globalConfigHandle);
 
@@ -610,7 +626,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchTime
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("max_key_group_batch_time_ms=0"));
+        .setExperiments(Arrays.asList("windmill_max_key_group_batch_time_ms=0"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchTime, globalConfigHandle);
 
@@ -705,5 +721,145 @@ public class StreamingModeExecutionContextTest {
 
     assertFalse(executionContext.advance());
     org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_experimentDisabled() throws Exception {
+    DataflowWorkerHarnessOptions optionsDisabled =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsDisabled, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testAdvance_respectsMaxBatchSinkBytes() throws Exception {
+    DataflowWorkerHarnessOptions optionsWithSinkBytes =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsWithSinkBytes
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "unstable_enable_multi_key_bundle", "windmill_max_key_group_batch_sink_bytes=100"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsWithSinkBytes, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+    Windmill.WorkItem workItem1 =
+        Windmill.WorkItem.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1L)
+            .setKeyGroup(keyGroup)
+            .build();
+    Work work1 =
+        createMockWork(
+            workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+
+    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+
+    context.reportBytesSinked(50);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verify(mockExecutor)
+        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+
+    org.mockito.Mockito.reset(mockExecutor);
+
+    context.reportBytesSinked(60);
+    assertFalse(context.advance());
+    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+  }
+
+  @Test
+  public void testExperimentParsingWithInvalidValues() {
+    DataflowWorkerHarnessOptions optionsInvalid =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsInvalid
+        .as(ExperimentalOptions.class)
+        .setExperiments(
+            Arrays.asList(
+                "windmill_max_key_group_batch_size=invalid_size",
+                "windmill_max_key_group_batch_time_ms=invalid_time",
+                "windmill_max_key_group_batch_sink_bytes=invalid_bytes"));
+
+    // This should not throw NumberFormatException
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsInvalid, globalConfigHandle);
+
+    org.junit.Assert.assertNotNull(context);
+  }
+
+  @Test
+  public void testInternalsPoisonedAfterFlushState() throws Exception {
+    NameContext nameContext = NameContextsForTests.nameContextForTest();
+    DataflowOperationContext operationContext =
+        executionContext.createOperationContext(nameContext);
+    StreamingModeExecutionContext.StepContext stepContext =
+        executionContext.getStepContext(operationContext);
+
+    start(
+        createMockWork(
+            Windmill.WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(17L).build(),
+            Watermarks.builder().setInputDataWatermark(new Instant(1000)).build()));
+
+    TimerInternals timerInternals = stepContext.timerInternals();
+    StateInternals stateInternals = stepContext.stateInternals();
+
+    executionContext.finishKey();
+    executionContext.flushState();
+
+    // Verify timerInternals is poisoned
+    try {
+      timerInternals.currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stateInternals is poisoned
+    try {
+      stateInternals.getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.stateInternals() returns poisoned instance
+    try {
+      stepContext.stateInternals().getKey();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
+
+    // Verify stepContext.timerInternals() returns poisoned instance
+    try {
+      stepContext.timerInternals().currentProcessingTime();
+      org.junit.Assert.fail("Expected IllegalStateException");
+    } catch (IllegalStateException e) {
+      assertThat(e.getMessage(), Matchers.containsString("poisoned"));
+    }
   }
 }
