@@ -49,6 +49,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   private final SerializableFunction<T, Instant> timestampFn;
   private final Duration watermarkIdleDurationThreshold;
   private final SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn;
+  private final Duration ackDeadline;
 
   public Queue getQueue() {
     return queue;
@@ -74,6 +75,10 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     return parseFn;
   }
 
+  public Duration getAckDeadline() {
+    return ackDeadline;
+  }
+
   public UnboundedSolaceSource(
       Queue queue,
       SempClientFactory sempClientFactory,
@@ -83,7 +88,8 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       Coder<T> coder,
       SerializableFunction<T, Instant> timestampFn,
       Duration watermarkIdleDurationThreshold,
-      SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn) {
+      SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn,
+      Duration ackDeadline) {
     this.queue = queue;
     this.sempClientFactory = sempClientFactory;
     this.sessionServiceFactory = sessionServiceFactory;
@@ -93,6 +99,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     this.timestampFn = timestampFn;
     this.watermarkIdleDurationThreshold = watermarkIdleDurationThreshold;
     this.parseFn = parseFn;
+    this.ackDeadline = ackDeadline;
   }
 
   @Override
@@ -100,7 +107,9 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       PipelineOptions options, @Nullable SolaceCheckpointMark checkpointMark) {
     // it makes no sense to resume a Solace Session with the previous checkpoint
     // so don't need the pass a checkpoint to new a Solace Reader
-    return new UnboundedSolaceReader<>(this);
+    UnboundedSolaceReader<T> reader = new UnboundedSolaceReader<>(this);
+    ActiveReadersRegistry.register(reader.readerUuid, reader);
+    return reader;
   }
 
   @Override
@@ -134,7 +143,8 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
               coder,
               timestampFn,
               watermarkIdleDurationThreshold,
-              parseFn);
+              parseFn,
+              ackDeadline);
       sourceList.add(source);
     }
     return sourceList;
