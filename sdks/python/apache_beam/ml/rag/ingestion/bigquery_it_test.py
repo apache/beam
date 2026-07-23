@@ -40,6 +40,7 @@ try:
 except ImportError:
   raise unittest.SkipTest('GCP dependencies are not installed')
 
+
 @pytest.mark.uses_gcp_java_expansion_service
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JARS'),

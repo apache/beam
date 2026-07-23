@@ -59,13 +59,16 @@ try:
 except ImportError:
 
   class DatasetReference(object):
-    pass
+    def __init__(self, project, dataset_id):
+      pass
 
   class TableReference(object):
-    pass
+    def __init__(self, project, dataset_id, table_id):
+      pass
 
   class SchemaField(object):
-    pass
+    def __init__(self, fields, mode, name, field_type):
+      pass
 
 
 _LOGGER = logging.getLogger(__name__)
