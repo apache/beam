@@ -128,10 +128,11 @@ public class StreamingApplianceWorkCommitterTest {
         fakeWindmillServer.waitForAndGetCommits(commits.size());
 
     for (Commit commit : commits) {
+      assertThat(commit.workBatch()).hasSize(1);
       Windmill.WorkItemCommitRequest request =
           committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.singleKeyRequest().get());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
     }
 
     assertThat(completeCommits).hasSize(commits.size());
@@ -141,13 +142,14 @@ public class StreamingApplianceWorkCommitterTest {
                 (CompleteCommit completeCommit, Commit commit) ->
                     completeCommit.computationId().equals(commit.computationId())
                         && completeCommit.status() == Windmill.CommitStatus.OK
+                        && commit.workBatch().size() == 1
                         && completeCommit.workId().equals(commit.workBatch().get(0).id())
                         && completeCommit
                             .shardedKey()
                             .equals(
                                 ShardedKey.create(
-                                    commit.singleKeyRequest().get().getKey(),
-                                    commit.singleKeyRequest().get().getShardingKey())),
+                                    commit.singleKeyRequest().getKey(),
+                                    commit.singleKeyRequest().getShardingKey())),
                 "expected to equal"))
         .containsExactlyElementsIn(commits);
   }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.value.AutoBuilder;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,8 +103,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
 
   @Override
   public void commit(Commit commit) {
-    if (commit.isFailed()) {
-      failCommit(commit);
+    if (shouldFailCommit(commit)) {
+      failQueuedCommit(commit);
     } else {
       commitQueue.put(commit);
     }
@@ -110,12 +112,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     // Do this check after adding to commitQueue, else commitQueue.put() can race with
     // drainCommitQueue() in stop() and leave commits orphaned in the queue.
     if (!this.isRunning.get()) {
-      LOG.debug(
-          "Trying to queue commit on shutdown, failing commit=[computationId={}, shardingKey={},"
-              + " workId={} ].",
-          commit.computationId(),
-          commit.workBatch().get(0).getShardedKey(),
-          commit.workBatch().get(0).id());
+      LOG.debug("Trying to queue commit on shutdown, failing commit={}", commit);
       drainCommitQueue();
     }
   }
@@ -142,12 +139,12 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   private void drainCommitQueue() {
     Commit queuedCommit = commitQueue.poll();
     while (queuedCommit != null) {
-      failCommit(queuedCommit);
+      failQueuedCommit(queuedCommit);
       queuedCommit = commitQueue.poll();
     }
   }
 
-  private void failCommit(Commit commit) {
+  private void failQueuedCommit(Commit commit) {
     for (Work w : commit.workBatch()) {
       w.setFailed();
       onCommitComplete.accept(
@@ -178,8 +175,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
         // take() blocks until a value is available in the commitQueue.
         Preconditions.checkNotNull(initialCommit);
 
-        if (initialCommit.isFailed()) {
-          failCommit(initialCommit);
+        if (shouldFailCommit(initialCommit)) {
+          failQueuedCommit(initialCommit);
           initialCommit = null;
           continue;
         }
@@ -199,9 +196,18 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       }
     } finally {
       if (initialCommit != null) {
-        failCommit(initialCommit);
+        failQueuedCommit(initialCommit);
       }
     }
+  }
+
+  boolean shouldFailCommit(Commit commit) {
+    for (Work w : commit.workBatch()) {
+      if (w.isFailed()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Adds the commit to the batch if it fits, returning true if it is consumed. */
@@ -210,32 +216,32 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     for (Work w : commit.workBatch()) {
       w.setState(Work.State.COMMITTING);
     }
-    activeCommitBytes.addAndGet(commit.getSize());
+    activeCommitBytes.addAndGet(commit.getSerializedByteSize());
     boolean isCommitAccepted;
-    if (commit.multiKeyRequest().isPresent()) {
+    if (commit.multiKeyRequest() != null) {
       isCommitAccepted =
           batcher.commitMultiKeyWorkItem(
               commit.computationId(),
-              commit.multiKeyRequest().get(),
+              checkStateNotNull(commit.multiKeyRequest()),
               commitStatus -> {
                 for (Work w : commit.workBatch()) {
                   onCommitComplete.accept(
                       CompleteCommit.create(
                           commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
                 }
-                activeCommitBytes.addAndGet(-commit.getSize());
+                activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
     } else {
       isCommitAccepted =
           batcher.commitWorkItem(
               commit.computationId(),
-              commit.singleKeyRequest().get(),
+              checkStateNotNull(commit.singleKeyRequest()),
               commitStatus -> {
                 Work w = commit.workBatch().get(0);
                 onCommitComplete.accept(
                     CompleteCommit.create(
                         commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
-                activeCommitBytes.addAndGet(-commit.getSize());
+                activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
     }
 
@@ -244,7 +250,7 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       for (Work w : commit.workBatch()) {
         w.setState(Work.State.COMMIT_QUEUED);
       }
-      activeCommitBytes.addAndGet(-commit.getSize());
+      activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
     }
 
     return isCommitAccepted;
@@ -274,8 +280,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       }
 
       // Drop commits for failed work. Such commits will be dropped by Windmill anyway.
-      if (commit.isFailed()) {
-        failCommit(commit);
+      if (shouldFailCommit(commit)) {
+        failQueuedCommit(commit);
         continue;
       }
 
