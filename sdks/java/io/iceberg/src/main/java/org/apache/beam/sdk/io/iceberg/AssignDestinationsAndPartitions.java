@@ -83,6 +83,7 @@ class AssignDestinationsAndPartitions
     private transient @MonotonicNonNull Map<String, PartitionKey> partitionKeys;
     private transient @MonotonicNonNull Map<String, BeamRowWrapper> wrappers;
     private transient @MonotonicNonNull Map<String, Instant> lastRefreshTimes;
+    private transient @MonotonicNonNull Map<String, Row> keyCache;
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
@@ -97,6 +98,7 @@ class AssignDestinationsAndPartitions
       this.wrappers = new HashMap<>();
       this.partitionKeys = new HashMap<>();
       this.lastRefreshTimes = new HashMap<>();
+      this.keyCache = new HashMap<>();
     }
 
     @ProcessElement
@@ -174,8 +176,13 @@ class AssignDestinationsAndPartitions
 
       String partitionPath = partitionKey.toPath();
 
-      Row destAndPartition =
-          Row.withSchema(OUTPUT_SCHEMA).addValues(tableIdentifier, partitionPath).build();
+      String cacheKey = tableIdentifier + "|" + partitionPath;
+      Row destAndPartition = checkStateNotNull(keyCache).get(cacheKey);
+      if (destAndPartition == null) {
+        destAndPartition =
+            Row.withSchema(OUTPUT_SCHEMA).addValues(tableIdentifier, partitionPath).build();
+        keyCache.put(cacheKey, destAndPartition);
+      }
 
       out.output(KV.of(destAndPartition, data));
     }
