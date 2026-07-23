@@ -237,11 +237,24 @@ def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
 def equal_to_approx(expected, rel_tol=1e-09, abs_tol=0.0):
   """Matcher used by assert_that that compares numeric elements approximately.
 
-  Behaves like equal_to for ordering and membership, but real number elements,
-  including numbers nested in tuples or lists, are compared with math.isclose
-  using the given rel_tol and abs_tol rather than exact equality. All other
-  elements are compared with == (equal_to's Row and NamedTuple handling is not
-  applied). Useful for pipelines that produce floating point results.
+  Behaves similarly to `equal_to` for sequence ordering and membership, but any
+  real number elements (integers and floats) are compared using `math.isclose`
+  instead of exact equality.
+
+  Approximate comparisons are also applied to real numbers nested within lists
+  and tuples. Note that `equal_to`'s advanced handling for Beam `Row` and
+  `NamedTuple` is not supported here. All other elements are compared using
+  standard `==` equality.
+
+  Args:
+    expected: The expected output or sequence to compare against.
+    rel_tol: The relative tolerance used by `math.isclose` (default: 1e-09).
+    abs_tol: The absolute tolerance used by `math.isclose` (default: 0.0).
+
+  Example:
+    assert_that(
+        pipeline | beam.Create([1.000000001, 2.0]),
+        equal_to_approx([1.0, 2.0]))
   """
   def _approx_equals(expected_element, actual_element):
     return _elements_approx_equal(

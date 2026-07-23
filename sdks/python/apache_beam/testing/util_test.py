@@ -97,14 +97,13 @@ class UtilTest(unittest.TestCase):
   def test_equal_to_approx(self):
     with TestPipeline() as p:
       assert_that(
-          p | Create([1.0, 2.0, 3.0]),
-          equal_to_approx([3.0000000001, 2.0, 1.0]))
+          p | Create([1.0, 2, 3.0]), equal_to_approx([3.0000000001, 2.0, 1.0]))
 
   def test_equal_to_approx_nested(self):
     with TestPipeline() as p:
       assert_that(
           p | Create([('a', 1.0), ('b', 2.0)]),
-          equal_to_approx([('b', 2.0000000001), ('a', 1.0)]))
+          equal_to_approx([('b', 2.0000000001), ('a', 1)]))
 
   def test_equal_to_approx_with_abs_tol(self):
     with TestPipeline() as p:
