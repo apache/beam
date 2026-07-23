@@ -88,6 +88,11 @@ public final class ActiveWorkState {
     return new ActiveWorkState(new HashMap<>(), computationStateCache);
   }
 
+  synchronized @Nullable ExecutableWork getActiveWork(ShardedKey shardedKey, WorkId workId) {
+    LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey.shardingKey());
+    return workQueue == null ? null : workQueue.get(workId);
+  }
+
   @VisibleForTesting
   static ActiveWorkState forTesting(
       Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,

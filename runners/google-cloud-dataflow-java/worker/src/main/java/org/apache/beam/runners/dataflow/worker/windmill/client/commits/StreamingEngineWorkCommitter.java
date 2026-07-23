@@ -145,11 +145,41 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void failQueuedCommit(Commit commit) {
+    if (!isRunning.get()) {
+      // Shutting down, fail everything unconditionally to prevent infinite loops
+      for (Work w : commit.workBatch()) {
+        w.setFailed();
+        onCommitComplete.accept(
+            CompleteCommit.create(
+                commit.computationId(),
+                w.getShardedKey(),
+                w.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ false));
+      }
+      return;
+    }
+
+    // Still running, only fail actually failed work, and request re-execution for valid ones
     for (Work w : commit.workBatch()) {
-      w.setFailed();
-      onCommitComplete.accept(
-          CompleteCommit.create(
-              commit.computationId(), w.getShardedKey(), w.id(), CommitStatus.ABORTED));
+      if (w.isFailed()) {
+        onCommitComplete.accept(
+            CompleteCommit.create(
+                commit.computationId(),
+                w.getShardedKey(),
+                w.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ false));
+      } else {
+        LOG.debug("Requesting re-execution for valid work {} from failed commit", w.id());
+        onCommitComplete.accept(
+            CompleteCommit.create(
+                commit.computationId(),
+                w.getShardedKey(),
+                w.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ true));
+      }
     }
   }
 
@@ -227,7 +257,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 for (Work w : commit.workBatch()) {
                   onCommitComplete.accept(
                       CompleteCommit.create(
-                          commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
+                          commit.computationId(),
+                          w.getShardedKey(),
+                          w.id(),
+                          commitStatus,
+                          /* retryableFailure= */ false));
                 }
                 activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
@@ -240,7 +274,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 Work w = commit.workBatch().get(0);
                 onCommitComplete.accept(
                     CompleteCommit.create(
-                        commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
+                        commit.computationId(),
+                        w.getShardedKey(),
+                        w.id(),
+                        commitStatus,
+                        /* retryableFailure= */ false));
                 activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
     }

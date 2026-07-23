@@ -93,7 +93,8 @@ public class WindowingWindmillReaderTest {
         Work.createProcessingContext(
             "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private static ByteString encodeMetadata(List<IntervalWindow> windows) throws IOException {

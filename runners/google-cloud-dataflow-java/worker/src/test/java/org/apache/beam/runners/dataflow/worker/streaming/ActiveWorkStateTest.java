@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -72,7 +74,8 @@ public class ActiveWorkStateTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
             false,
-            Instant::now),
+            Instant::now,
+            ImmutableList.of()),
         (work, handle) -> {});
   }
 
@@ -84,7 +87,8 @@ public class ActiveWorkStateTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
             false,
-            () -> Instant.EPOCH),
+            () -> Instant.EPOCH,
+            ImmutableList.of()),
         (work, handle) -> {});
   }
 
@@ -563,6 +567,31 @@ public class ActiveWorkStateTest {
               .work()
               .isFailed());
     }
+  }
+
+  @Test
+  public void testGetActiveWork() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    ExecutableWork work = createWork(createWorkItem(1L, 1L, shardedKey));
+
+    // Initially empty
+    assertNull(activeWorkState.getActiveWork(shardedKey, work.id()));
+
+    // Activate work
+    activeWorkState.activateWorkForKey(work);
+
+    // Should find it now
+    ExecutableWork activeWork = activeWorkState.getActiveWork(shardedKey, work.id());
+    assertNotNull(activeWork);
+    assertSame(work, activeWork);
+
+    // Should not find it with different workId
+    assertNull(activeWorkState.getActiveWork(shardedKey, workId(2L, 1L)));
+    assertNull(activeWorkState.getActiveWork(shardedKey, workId(1L, 2L)));
+
+    // Should not find it with different shardedKey
+    ShardedKey otherShardedKey = shardedKey("otherKey", 2L);
+    assertNull(activeWorkState.getActiveWork(otherShardedKey, work.id()));
   }
 
   private static ExecutableWork firstValue(Map<WorkId, ExecutableWork> map) {

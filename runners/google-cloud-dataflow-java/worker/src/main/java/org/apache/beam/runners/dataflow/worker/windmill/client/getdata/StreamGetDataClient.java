@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.getdata;
 
 import java.io.PrintWriter;
 import java.util.function.Function;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
@@ -62,7 +63,7 @@ public final class StreamGetDataClient implements GetDataClient {
     try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling()) {
       return getDataStream.requestKeyedData(computationId, request);
     } catch (WindmillStreamShutdownException e) {
-      throw new WorkItemCancelledException(request.getShardingKey());
+      throw new WorkCancellingException(request.getShardingKey());
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching state for computation="
@@ -87,7 +88,7 @@ public final class StreamGetDataClient implements GetDataClient {
     try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling()) {
       return sideInputGetDataStream.requestGlobalData(request);
     } catch (WindmillStreamShutdownException e) {
-      throw new WorkItemCancelledException(e);
+      throw new WorkCancellingException(e);
     } catch (Exception e) {
       throw new GetDataException(
           "Error occurred fetching side input for tag=" + request.getDataId(), e);

@@ -125,7 +125,8 @@ public class StreamingEngineWorkCommitterTest {
             },
             mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -140,7 +141,8 @@ public class StreamingEngineWorkCommitterTest {
   private static CompleteCommit asCompleteCommit(
       String computationId, Work work, Windmill.CommitStatus status) {
     Windmill.CommitStatus finalStatus = work.isFailed() ? Windmill.CommitStatus.ABORTED : status;
-    return CompleteCommit.create(computationId, work.getShardedKey(), work.id(), finalStatus);
+    return CompleteCommit.create(
+        computationId, work.getShardedKey(), work.id(), finalStatus, /* retryableFailure= */ false);
   }
 
   @Before
@@ -397,6 +399,7 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(commits.size()).isEqualTo(completeCommits.size());
     for (CompleteCommit completeCommit : completeCommits) {
       assertThat(completeCommit.status()).isEqualTo(Windmill.CommitStatus.ABORTED);
+      assertThat(completeCommit.retryableFailure()).isFalse();
     }
 
     for (Commit commit : commits) {
@@ -568,11 +571,23 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(completeCommits)
         .containsExactly(
             CompleteCommit.create(
-                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.OK),
+                "computationId",
+                workA.getShardedKey(),
+                workA.id(),
+                CommitStatus.OK,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.OK),
+                "computationId",
+                workB.getShardedKey(),
+                workB.id(),
+                CommitStatus.OK,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.OK));
+                "computationId",
+                workC.getShardedKey(),
+                workC.id(),
+                CommitStatus.OK,
+                /* retryableFailure= */ false));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());
@@ -632,11 +647,23 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(completeCommits)
         .containsExactly(
             CompleteCommit.create(
-                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.ABORTED),
+                "computationId",
+                workA.getShardedKey(),
+                workA.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ true),
             CompleteCommit.create(
-                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.ABORTED),
+                "computationId",
+                workB.getShardedKey(),
+                workB.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.ABORTED));
+                "computationId",
+                workC.getShardedKey(),
+                workC.id(),
+                CommitStatus.ABORTED,
+                /* retryableFailure= */ true));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());
@@ -703,11 +730,23 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(completeCommits)
         .containsExactly(
             CompleteCommit.create(
-                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.NOT_FOUND),
+                "computationId",
+                workA.getShardedKey(),
+                workA.id(),
+                CommitStatus.NOT_FOUND,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.NOT_FOUND),
+                "computationId",
+                workB.getShardedKey(),
+                workB.id(),
+                CommitStatus.NOT_FOUND,
+                /* retryableFailure= */ false),
             CompleteCommit.create(
-                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.NOT_FOUND));
+                "computationId",
+                workC.getShardedKey(),
+                workC.id(),
+                CommitStatus.NOT_FOUND,
+                /* retryableFailure= */ false));
 
     // There should be no more commits in the queue
     assertEquals(0, workCommitter.currentActiveCommitBytes());

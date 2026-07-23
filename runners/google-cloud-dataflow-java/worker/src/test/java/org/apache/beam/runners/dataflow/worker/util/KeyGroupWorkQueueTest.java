@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -63,7 +64,6 @@ public class KeyGroupWorkQueueTest {
   }
 
   @Parameterized.Parameter public boolean fairQueue;
-
   private BoundedQueueExecutor executor;
 
   @Before
@@ -114,9 +114,10 @@ public class KeyGroupWorkQueueTest {
                     ignored -> {},
                     mock(HeartbeatSender.class)),
                 false,
-                Instant::now),
+                Instant::now,
+                ImmutableList.of()),
             (w, h) -> {});
-    return new QueuedWork(work, executor.createBudgetHandle(1, workBytes));
+    return new QueuedWork(work, executor.createBudgetHandle(work.work(), workBytes));
   }
 
   private static class NoOpRunnable implements Runnable {
@@ -312,7 +313,6 @@ public class KeyGroupWorkQueueTest {
                 }
               }));
     }
-
     // Start producers
     for (int i = 0; i < producerThreads; i++) {
       futures.add(
@@ -470,7 +470,6 @@ public class KeyGroupWorkQueueTest {
     QueuedWork polledNotExist = queue.pollWork("compA", keyGroupNotExist);
     assertNull(polledNotExist);
     assertEquals(2, queue.size());
-
     // Poll with keyGroup2 first - should return workA2
     QueuedWork polledA2 = queue.pollWork("compA", keyGroup2);
     assertNotNull(polledA2);
@@ -485,7 +484,6 @@ public class KeyGroupWorkQueueTest {
     assertNotNull(polledA1);
     assertEquals(workA1, polledA1);
     assertTrue(queue.isEmpty());
-
     polledNotExist = queue.pollWork("compA", keyGroupNotExist);
     assertNull(polledNotExist);
     assertTrue(queue.isEmpty());

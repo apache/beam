@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -99,28 +98,41 @@ public final class WorkFailureProcessor {
     return false;
   }
 
-  /**
-   * Processes failures caused by thrown exceptions that occur during execution of {@link Work}. May
-   * attempt to retry execution of the {@link Work} or drop it if it is invalid.
-   */
-  public void logAndProcessFailure(
+  public void logAndProcessFailureBatch(
       String computationId,
-      ExecutableWork executableWork,
+      List<ExecutableWork> executableWorks,
       Throwable t,
       Consumer<Work> onInvalidWork)
       throws Throwable {
-    switch (evaluateRetry(computationId, executableWork.work(), t)) {
-      case DO_NOT_RETRY:
-        // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
-        // be processed.
-        onInvalidWork.accept(executableWork.work());
-        break;
-      case RETRY_LOCALLY:
-        // Try again after some delay and at the end of the queue to avoid a tight loop.
-        executeWithDelay(retryLocallyDelayMs, executableWork);
-        break;
-      case RETHROW_THROWABLE:
-        throw t;
+    List<ExecutableWork> worksToRetryLocally = new java.util.ArrayList<>();
+
+    for (ExecutableWork executableWork : executableWorks) {
+      switch (evaluateRetry(computationId, executableWork.work(), t)) {
+        case DO_NOT_RETRY:
+          // Consider the item invalid. It will eventually be retried by Windmill if it still needs
+          // to
+          // be processed.
+          onInvalidWork.accept(executableWork.work());
+          break;
+        case RETRY_LOCALLY:
+          // Try again after some delay and at the end of the queue to avoid a tight loop.
+          worksToRetryLocally.add(executableWork);
+          break;
+        case RETHROW_THROWABLE:
+          throw t;
+      }
+    }
+
+    executeWithDelay(worksToRetryLocally);
+  }
+
+  private void executeWithDelay(List<ExecutableWork> worksToRetryLocally) {
+    if (!worksToRetryLocally.isEmpty()) {
+      // Sleep ONCE for the entire batch delay to avoid sequential thread blocks
+      Uninterruptibles.sleepUninterruptibly(retryLocallyDelayMs, TimeUnit.MILLISECONDS);
+      for (ExecutableWork ew : worksToRetryLocally) {
+        workUnitExecutor.forceExecute(ew, ew.work().getSerializedWorkItemSize());
+      }
     }
   }
 
@@ -131,12 +143,6 @@ public final class WorkFailureProcessor {
         .orElseGet(() -> "not written");
   }
 
-  private void executeWithDelay(long delayMs, ExecutableWork executableWork) {
-    Uninterruptibles.sleepUninterruptibly(delayMs, TimeUnit.MILLISECONDS);
-    workUnitExecutor.forceExecute(
-        executableWork, executableWork.work().getSerializedWorkItemSize());
-  }
-
   private enum RetryEvaluation {
     DO_NOT_RETRY,
     RETRY_LOCALLY,
@@ -144,24 +150,16 @@ public final class WorkFailureProcessor {
   }
 
   private RetryEvaluation evaluateRetry(String computationId, Work work, Throwable t) {
-    @Nullable final Throwable cause = t.getCause();
-    Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
-    if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
-      LOG.debug(
-          "Execution of work for computation '{}' on sharding key '{}' failed due to token expiration. "
-              + "Work will not be retried locally.",
-          computationId,
-          work.getWorkItem().getShardingKey());
-      return RetryEvaluation.DO_NOT_RETRY;
-    }
-    if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
+    if (work.isFailed()) {
       LOG.debug(
           "Execution of work for computation '{}' on sharding key '{}' failed. "
-              + "Work will not be retried locally.",
+              + "Work is already marked as failed, not retrying locally.",
           computationId,
           work.getWorkItem().getShardingKey());
       return RetryEvaluation.DO_NOT_RETRY;
     }
+    @Nullable final Throwable cause = t.getCause();
+    Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
 
     LastExceptionDataProvider.reportException(parsedException);
     LOG.debug("Failed work: {}", work);

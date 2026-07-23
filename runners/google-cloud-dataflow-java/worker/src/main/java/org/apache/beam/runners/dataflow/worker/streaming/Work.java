@@ -36,6 +36,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.ActiveMessageMetadata;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.KeyedGetDataRequest;
@@ -44,7 +45,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribut
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.ActiveElementMetadata;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.ActiveLatencyBreakdown.Distribution;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution.State;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.Commit;
@@ -87,6 +87,7 @@ public final class Work implements RefreshableWork {
   private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
       new AtomicReference<>(null);
   private final boolean drainMode;
+  private ImmutableList<LatencyAttribution> getWorkStreamLatencies;
 
   private Work(
       WorkItem workItem,
@@ -94,7 +95,8 @@ public final class Work implements RefreshableWork {
       Watermarks watermarks,
       ProcessingContext processingContext,
       boolean drainMode,
-      Supplier<Instant> clock) {
+      Supplier<Instant> clock,
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     this.shardedKey = ShardedKey.create(workItem.getKey(), workItem.getShardingKey());
     this.workItem = workItem;
     this.serializedWorkItemSize = serializedWorkItemSize;
@@ -118,6 +120,7 @@ public final class Work implements RefreshableWork {
             + Long.toHexString(workItem.getWorkToken());
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
+    this.getWorkStreamLatencies = getWorkStreamLatencies;
   }
 
   public static Work create(
@@ -126,9 +129,16 @@ public final class Work implements RefreshableWork {
       Watermarks watermarks,
       ProcessingContext processingContext,
       boolean drainMode,
-      Supplier<Instant> clock) {
+      Supplier<Instant> clock,
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
     return new Work(
-        workItem, serializedWorkItemSize, watermarks, processingContext, drainMode, clock);
+        workItem,
+        serializedWorkItemSize,
+        watermarks,
+        processingContext,
+        drainMode,
+        clock,
+        getWorkStreamLatencies);
   }
 
   public static ProcessingContext createProcessingContext(
@@ -205,11 +215,31 @@ public final class Work implements RefreshableWork {
   }
 
   public Optional<KeyedGetDataResponse> fetchKeyedState(KeyedGetDataRequest keyedGetDataRequest) {
-    return processingContext.fetchKeyedState(keyedGetDataRequest);
+    try {
+      Optional<KeyedGetDataResponse> response =
+          processingContext.fetchKeyedState(keyedGetDataRequest);
+      if (response.isPresent() && response.get().getFailed()) {
+        // Work is not valid in backend anymore.
+        this.setFailed();
+      }
+      return response;
+    } catch (RuntimeException e) {
+      if (WorkCancellingException.isWorkCancellingException(e)) {
+        this.setFailed();
+      }
+      throw e;
+    }
   }
 
   public GlobalData fetchSideInput(GlobalDataRequest request) {
-    return processingContext.getDataClient().getSideInputData(request);
+    try {
+      return processingContext.getDataClient().getSideInputData(request);
+    } catch (RuntimeException e) {
+      if (WorkCancellingException.isWorkCancellingException(e)) {
+        this.setFailed();
+      }
+      throw e;
+    }
   }
 
   public String backendWorkerToken() {
@@ -293,8 +323,8 @@ public final class Work implements RefreshableWork {
     return processingContext.workCommitter();
   }
 
-  public WindmillStateReader createWindmillStateReader() {
-    return WindmillStateReader.forWork(this);
+  public WindmillStateReader createWindmillStateReader(Supplier<Boolean> workIsFailed) {
+    return WindmillStateReader.forWork(this, workIsFailed);
   }
 
   @Override
@@ -302,11 +332,13 @@ public final class Work implements RefreshableWork {
     return id;
   }
 
-  public void recordGetWorkStreamLatencies(
-      ImmutableList<LatencyAttribution> getWorkStreamLatencies) {
-    for (LatencyAttribution latency : getWorkStreamLatencies) {
-      totalDurationPerState.put(
-          latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
+  public void recordGetWorkStreamLatencies() {
+    if (!getWorkStreamLatencies.isEmpty()) {
+      for (LatencyAttribution latency : getWorkStreamLatencies) {
+        totalDurationPerState.put(
+            latency.getState(), Duration.millis(latency.getTotalDurationMillis()));
+      }
+      this.getWorkStreamLatencies = ImmutableList.of();
     }
   }
 

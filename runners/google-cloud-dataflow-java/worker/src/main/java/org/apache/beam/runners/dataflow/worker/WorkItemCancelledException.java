@@ -17,31 +17,14 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-/** Indicates that the work item was cancelled and should not be retried. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
+/**
+ * Indicates that the work item was canceled. When this is thrown, the work is already marked as
+ * failed. This is different from WorkItemCancellingException which is thrown before marking work as
+ * failed.
+ */
 public class WorkItemCancelledException extends RuntimeException {
+
   public WorkItemCancelledException(long sharding_key) {
     super("Work item cancelled for key " + sharding_key);
-  }
-
-  public WorkItemCancelledException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public WorkItemCancelledException(Throwable cause) {
-    super(cause);
-  }
-
-  /** Returns whether an exception was caused by a {@link WorkItemCancelledException}. */
-  public static boolean isWorkItemCancelledException(Throwable t) {
-    while (t != null) {
-      if (t instanceof WorkItemCancelledException) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
   }
 }

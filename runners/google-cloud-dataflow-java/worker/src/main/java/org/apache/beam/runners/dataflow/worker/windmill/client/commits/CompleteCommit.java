@@ -38,8 +38,13 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 public abstract class CompleteCommit {
 
   public static CompleteCommit create(
-      String computationId, ShardedKey shardedKey, WorkId workId, CommitStatus status) {
-    return new AutoValue_CompleteCommit(computationId, shardedKey, workId, status);
+      String computationId,
+      ShardedKey shardedKey,
+      WorkId workId,
+      CommitStatus status,
+      boolean retryableFailure) {
+    return new AutoValue_CompleteCommit(
+        computationId, shardedKey, workId, status, retryableFailure);
   }
 
   public abstract String computationId();
@@ -49,4 +54,10 @@ public abstract class CompleteCommit {
   public abstract WorkId workId();
 
   public abstract CommitStatus status();
+
+  /**
+   * If retryableFailure true, the workitem will be retried locally. Used to retry partial work
+   * failures in multi key bundles.
+   */
+  public abstract boolean retryableFailure();
 }

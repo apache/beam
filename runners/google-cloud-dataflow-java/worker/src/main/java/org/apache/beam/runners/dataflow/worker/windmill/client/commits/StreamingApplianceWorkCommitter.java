@@ -159,7 +159,8 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
                     .setCacheToken(workRequest.getCacheToken())
                     .setWorkToken(workRequest.getWorkToken())
                     .build(),
-                Windmill.CommitStatus.OK));
+                Windmill.CommitStatus.OK,
+                /* retryableFailure= */ false));
       }
     }
   }

@@ -31,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
+import org.apache.beam.runners.dataflow.worker.MultiKeyBundleOptions;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
 import org.apache.beam.runners.dataflow.worker.SinkRegistry;
@@ -86,6 +87,7 @@ final class ComputationWorkExecutorFactory {
   private final SinkRegistry sinkRegistry;
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final StreamingCounters streamingCounters;
   private final FailureTracker failureTracker;
 
@@ -104,7 +106,7 @@ final class ComputationWorkExecutorFactory {
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private final HotKeyLogger hotKeyLogger;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
+  private final MultiKeyBundleOptions multiKeyBundleOptions;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -117,7 +119,8 @@ final class ComputationWorkExecutorFactory {
       IdGenerator idGenerator,
       StreamingGlobalConfigHandle globalConfigHandle,
       HotKeyLogger hotKeyLogger,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
+      SideInputStateFetcherFactory sideInputStateFetcherFactory,
+      MultiKeyBundleOptions multiKeyBundleOptions) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
@@ -139,6 +142,7 @@ final class ComputationWorkExecutorFactory {
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
     this.hotKeyLogger = hotKeyLogger;
     this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
+    this.multiKeyBundleOptions = multiKeyBundleOptions;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -297,6 +301,7 @@ final class ComputationWorkExecutorFactory {
         streamingCounters,
         failureTracker,
         computationState.sourceBytesProcessCounterName(),
+        multiKeyBundleOptions,
         sideInputStateFetcherFactory);
   }
 
