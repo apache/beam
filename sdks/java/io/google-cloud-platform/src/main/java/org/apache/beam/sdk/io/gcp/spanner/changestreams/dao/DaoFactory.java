@@ -20,11 +20,13 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Options.RpcPriority;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerAccessor;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Factory class to create data access objects to perform change stream queries and access the
@@ -41,6 +43,7 @@ public class DaoFactory implements Serializable {
   private transient PartitionMetadataAdminDao partitionMetadataAdminDao;
   private transient PartitionMetadataDao partitionMetadataDaoInstance;
   private transient ChangeStreamDao changeStreamDaoInstance;
+  private transient @Nullable OpenTelemetry openTelemetry;
 
   private final SpannerConfig changeStreamSpannerConfig;
   private final SpannerConfig metadataSpannerConfig;
@@ -100,6 +103,10 @@ public class DaoFactory implements Serializable {
     return this.tvfNameList;
   }
 
+  public void setOpenTelemetry(@Nullable OpenTelemetry openTelemetry) {
+    this.openTelemetry = openTelemetry;
+  }
+
   /**
    * Creates and returns a singleton DAO instance for admin operations over the partition metadata
    * table.
@@ -111,7 +118,8 @@ public class DaoFactory implements Serializable {
   public synchronized PartitionMetadataAdminDao getPartitionMetadataAdminDao() {
     if (partitionMetadataAdminDao == null) {
       DatabaseAdminClient databaseAdminClient =
-          SpannerAccessor.getOrCreate(metadataSpannerConfig).getDatabaseAdminClient();
+          SpannerAccessor.getOrCreate(metadataSpannerConfig, this.openTelemetry)
+              .getDatabaseAdminClient();
       partitionMetadataAdminDao =
           new PartitionMetadataAdminDao(
               databaseAdminClient,
@@ -131,7 +139,8 @@ public class DaoFactory implements Serializable {
    * @return singleton instance of the {@link PartitionMetadataDao}
    */
   public synchronized PartitionMetadataDao getPartitionMetadataDao() {
-    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(metadataSpannerConfig);
+    final SpannerAccessor spannerAccessor =
+        SpannerAccessor.getOrCreate(metadataSpannerConfig, this.openTelemetry);
     if (partitionMetadataDaoInstance == null) {
       partitionMetadataDaoInstance =
           new PartitionMetadataDao(
@@ -150,7 +159,8 @@ public class DaoFactory implements Serializable {
    * @return singleton instance of the {@link ChangeStreamDao}
    */
   public synchronized ChangeStreamDao getChangeStreamDao() {
-    final SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
+    final SpannerAccessor spannerAccessor =
+        SpannerAccessor.getOrCreate(changeStreamSpannerConfig, this.openTelemetry);
     if (changeStreamDaoInstance == null) {
       changeStreamDaoInstance =
           new ChangeStreamDao(

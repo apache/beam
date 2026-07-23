@@ -1569,9 +1569,9 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerIO.WriteToSpannerFn test3Fn =
         new SpannerIO.WriteToSpannerFn(config1, FailureMode.REPORT_FAILURES, null /* failedTag */);
 
-    test1Fn.setup();
-    test2Fn.setup();
-    test3Fn.setup();
+    test1Fn.setup(pipeline.getOptions());
+    test2Fn.setup(pipeline.getOptions());
+    test3Fn.setup(pipeline.getOptions());
 
     test2Fn.teardown();
     test3Fn.teardown();
@@ -1611,10 +1611,10 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerIO.WriteToSpannerFn test4Fn =
         new SpannerIO.WriteToSpannerFn(config2, FailureMode.REPORT_FAILURES, null /* failedTag */);
 
-    test1Fn.setup();
-    test2Fn.setup();
-    test3Fn.setup();
-    test4Fn.setup();
+    test1Fn.setup(pipeline.getOptions());
+    test2Fn.setup(pipeline.getOptions());
+    test3Fn.setup(pipeline.getOptions());
+    test4Fn.setup(pipeline.getOptions());
 
     test2Fn.teardown();
     test3Fn.teardown();
