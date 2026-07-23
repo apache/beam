@@ -905,15 +905,15 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final WriteOperation<DestinationT, OutputT> writeOperation;
 
     /** Unique id for this output bundle. */
-    private @Nullable String id;
+    private volatile @Nullable String id;
 
-    private @Nullable DestinationT destination;
+    private volatile @Nullable DestinationT destination;
 
     /** The output file for this bundle. May be null if opening failed. */
-    private @Nullable ResourceId outputFile;
+    private volatile @Nullable ResourceId outputFile;
 
     /** The channel to write to. */
-    private @Nullable WritableByteChannel channel;
+    private volatile @Nullable WritableByteChannel channel;
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
