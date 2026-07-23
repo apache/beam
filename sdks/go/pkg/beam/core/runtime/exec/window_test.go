@@ -113,10 +113,32 @@ func TestAssignWindow(t *testing.T) {
 				window.IntervalWindow{Start: 60000, End: 120000},
 			},
 		},
+		{
+			// Custom window that mimics 3-second fixed windows.
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			0,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			2999,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			3000,
+			[]typex.Window{
+				window.IntervalWindow{Start: 3000, End: 6000},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		out := assignWindows(test.fn, test.in)
+		out := assignWindows(test.fn, test.in, nil)
 		if !window.IsEqualList(out, test.out) {
 			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
 		}
@@ -217,6 +239,29 @@ func TestMapWindows(t *testing.T) {
 			}
 		})
 	}
+}
+
+func init() {
+	window.RegisterWindowFn[*fixedCustomWindowFn]()
+}
+
+// fixedCustomWindowFn is a test custom WindowFn that mimics fixed windows.
+type fixedCustomWindowFn struct {
+	SizeMs int64
+}
+
+func (f *fixedCustomWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	size := typex.EventTime(f.SizeMs)
+	start := ts - (ts % size)
+	if ts < 0 {
+		// Go's % truncates toward zero, so for negative dividends
+		// ts%size is non-positive and ts-(ts%size) rounds toward
+		// zero instead of toward -inf. The double-mod expression
+		// computes the Euclidean (non-negative) remainder, giving
+		// a correct floor to the window boundary.
+		start = ts - (ts%size+size)%size
+	}
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 
 func makeNoncedWindowValues(in []typex.Window, expect []typex.Window) ([]MainInput, []FullValue) {

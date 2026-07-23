@@ -21,7 +21,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 )
@@ -88,4 +90,37 @@ func TestEncodeType(t *testing.T) {
 			t.Errorf("expected error about wrapping in a struct, got %q", err.Error())
 		}
 	})
+}
+
+func TestWindowFnRoundTrip(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   *window.Fn
+	}{
+		{"global", window.NewGlobalWindows()},
+		{"fixed", window.NewFixedWindows(5 * time.Second)},
+		{"sliding", window.NewSlidingWindows(1*time.Second, 3*time.Second)},
+		{"sessions", window.NewSessions(10 * time.Second)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pb := encodeWindowFn(tc.fn)
+			got := decodeWindowFn(pb)
+			if !tc.fn.Equals(got) {
+				t.Errorf("roundtrip mismatch: got %v, want %v", got, tc.fn)
+			}
+		})
+	}
+}
+
+func TestWindowFnRoundTrip_CustomKind(t *testing.T) {
+	// Custom WindowFns are serialized via the Beam model proto
+	// (FunctionSpec), not the internal v1 proto. The v1 path only
+	// preserves the Kind so that EncodeMultiEdge does not fail.
+	fn := &window.Fn{Kind: window.CustomWindows}
+	pb := encodeWindowFn(fn)
+	got := decodeWindowFn(pb)
+	if got.Kind != window.CustomWindows {
+		t.Errorf("kind mismatch: got %v, want %v", got.Kind, window.CustomWindows)
+	}
 }

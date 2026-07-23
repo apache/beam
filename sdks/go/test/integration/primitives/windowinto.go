@@ -16,12 +16,14 @@
 package primitives
 
 import (
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/teststream"
@@ -36,6 +38,13 @@ func init() {
 	register.Emitter3[beam.EventTime, string, int]()
 	register.Emitter1[int]()
 	register.Iter1[int]()
+
+	window.RegisterWindowFn[*customFixedWindowFn]()
+	window.RegisterWindowFn[*elemAwareWindowFn]()
+
+	register.DoFn2x0[[]byte, func(beam.EventTime, elemWithSize)](&createElemAwareData{})
+	register.Emitter2[beam.EventTime, elemWithSize]()
+	register.Function1x1(extractValue)
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
@@ -412,4 +421,131 @@ func TriggerOrFinally(s beam.Scope) {
 		[]beam.WindowIntoOption{
 			beam.Trigger(trigger),
 		}, 4)
+}
+
+// customFixedWindowFn is a user-defined custom WindowFn that replicates
+// 3-second fixed windows, used to validate the custom WindowFn path
+// end-to-end against the known-correct output from WindowSums_GBK.
+type customFixedWindowFn struct {
+	SizeMs int64
+}
+
+func (f *customFixedWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	size := typex.EventTime(f.SizeMs)
+	start := ts - (ts.Add(time.Duration(f.SizeMs)*time.Millisecond) % mtime.FromDuration(time.Duration(f.SizeMs)*time.Millisecond))
+	end := start + size
+	return []typex.Window{window.IntervalWindow{Start: start, End: end}}
+}
+
+// ValidateCustomWindowedSideInputs checks that side inputs windowed with
+// a custom WindowFn produce the same results as the equivalent fixed windows.
+// Uses 1s custom fixed windows for the side input, same as "Fixed-Same" in
+// ValidateWindowedSideInputs, expecting output 2, 4, 6.
+func ValidateCustomWindowedSideInputs(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{1, 2, 3}}, beam.Impulse(s))
+	timestampedData = beam.DropKey(s, timestampedData)
+
+	windowSize := 1 * time.Second
+	customSideFn := window.NewCustom(&customFixedWindowFn{SizeMs: 1000})
+
+	// Main in standard 1s fixed windows, side in custom 1s fixed windows.
+	// Each window has one element; the side input in the same window adds
+	// the element to itself: 1+1=2, 2+2=4, 3+3=6.
+	wData := beam.WindowInto(s.Scope("MainWindow"), window.NewFixedWindows(windowSize), timestampedData)
+	wSide := beam.WindowInto(s.Scope("SideWindow"), customSideFn, timestampedData)
+	sums := beam.ParDo(s.Scope("Combine"), sumSideInputs, wData, beam.SideInput{Input: wSide})
+	sums = beam.WindowInto(s.Scope("Rewindow"), window.NewGlobalWindows(), sums)
+	passert.Equals(s, sums, 2, 4, 6)
+}
+
+// WindowSums_Custom validates that a custom WindowFn produces the same
+// results as a 3-second fixed window. The magic square rows sum to 15
+// in each window, same as WindowSums_GBK.
+func WindowSums_Custom(s beam.Scope) {
+	timestampedData := beam.ParDo(s, &createTimestampedData{Data: []int{4, 9, 2, 3, 5, 7, 8, 1, 6}}, beam.Impulse(s))
+
+	wfn := window.NewCustom(&customFixedWindowFn{SizeMs: 3000})
+	windowed := beam.WindowInto(s.Scope("Custom"), wfn, timestampedData)
+	sums := gbkSumPerKey(s.Scope("Sum"), windowed)
+	sums = beam.WindowInto(s.Scope("Rewindow"), window.NewGlobalWindows(), sums)
+	sums = beam.DropKey(s, sums)
+	passert.Equals(s, sums, 15, 15, 15)
+}
+
+// elemWithSize carries a value and a window size in milliseconds.
+// Each element dictates which window it belongs to.
+type elemWithSize struct {
+	Value  int
+	SizeMs int64
+}
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*elemWithSize)(nil)).Elem())
+}
+
+// elemAwareWindowFn uses the element's SizeMs field to determine the
+// window size, demonstrating data-driven window assignment.
+type elemAwareWindowFn struct{}
+
+func (f *elemAwareWindowFn) AssignWindows(ts typex.EventTime, elem elemWithSize) []typex.Window {
+	size := typex.EventTime(elem.SizeMs)
+	if size <= 0 {
+		size = 1000 // fallback: 1s
+	}
+	start := ts - (ts % size)
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
+}
+
+// createElemAwareData produces elemWithSize values with timestamps.
+// The PCollection is single-valued (not KV) so that WindowInto sees
+// the elemWithSize directly via elm.Elm.
+type createElemAwareData struct {
+	Data []elemWithSize
+}
+
+func (f *createElemAwareData) ProcessElement(_ []byte, emit func(beam.EventTime, elemWithSize)) {
+	for i, v := range f.Data {
+		timestamp := mtime.FromMilliseconds(int64((i + 1) * 1000)).Subtract(10 * time.Millisecond)
+		emit(timestamp, v)
+	}
+}
+
+// WindowSums_ElementAware validates that an element-aware custom WindowFn
+// correctly routes elements into different windows based on their content.
+//
+// We emit 6 elements at timestamps 990ms, 1990ms, ..., 5990ms.
+// The first 3 elements carry SizeMs=3000 (3s windows) and values 4, 9, 2.
+// The last  3 elements carry SizeMs=6000 (6s windows) and values 3, 5, 7.
+//
+// With 3s windows: ts 990->[0,3000), ts 1990->[0,3000), ts 2990->[0,3000)
+//
+//	-> sum = 4+9+2 = 15
+//
+// With 6s windows: ts 3990->[0,6000), ts 4990->[0,6000), ts 5990->[0,6000)
+//
+//	-> sum = 3+5+7 = 15
+//
+// After windowing, we extract values, add a fixed key, GBK, and sum.
+func WindowSums_ElementAware(s beam.Scope) {
+	data := []elemWithSize{
+		{Value: 4, SizeMs: 3000},
+		{Value: 9, SizeMs: 3000},
+		{Value: 2, SizeMs: 3000},
+		{Value: 3, SizeMs: 6000},
+		{Value: 5, SizeMs: 6000},
+		{Value: 7, SizeMs: 6000},
+	}
+	timestampedData := beam.ParDo(s, &createElemAwareData{Data: data}, beam.Impulse(s))
+
+	wfn := window.NewCustom(&elemAwareWindowFn{})
+	windowed := beam.WindowInto(s.Scope("ElemAware"), wfn, timestampedData)
+	// Extract the Value field for summation.
+	values := beam.ParDo(s.Scope("ExtractValue"), extractValue, windowed)
+	sums := stats.Sum(s.Scope("Sum"), values)
+	sums = beam.WindowInto(s.Scope("Rewindow"), window.NewGlobalWindows(), sums)
+	passert.Equals(s, sums, 15, 15)
+}
+
+func extractValue(e elemWithSize) int {
+	return e.Value
 }
