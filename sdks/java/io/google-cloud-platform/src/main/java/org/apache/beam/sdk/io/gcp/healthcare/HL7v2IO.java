@@ -365,10 +365,14 @@ public class HL7v2IO {
         @ProcessElement
         public void processElement(ProcessContext context) {
           String msgId = context.element();
+          HL7v2Message message = null;
           try {
-            context.output(client.fetchMessage(msgId));
+            message = java.util.Objects.requireNonNull(client.fetchMessage(msgId));
           } catch (Exception e) {
             context.output(HL7v2IO.Read.DEAD_LETTER, HealthcareIOError.of(msgId, e));
+          }
+          if (message != null) {
+            context.output(message);
           }
         }
       }
@@ -487,14 +491,19 @@ public class HL7v2IO {
         @ProcessElement
         public void processElement(ProcessContext context) {
           String msgId = context.element().getHl7v2MessageId();
+          HL7v2ReadResponse response = null;
           try {
-            HL7v2ReadResponse response =
-                HL7v2ReadResponse.of(context.element().getMetadata(), client.fetchMessage(msgId));
-            context.output(response);
+            response =
+                java.util.Objects.requireNonNull(
+                    HL7v2ReadResponse.of(
+                        context.element().getMetadata(), client.fetchMessage(msgId)));
           } catch (Exception e) {
             HealthcareIOError<HL7v2ReadParameter> error =
                 HealthcareIOError.of(context.element(), e);
             context.output(HL7v2IO.HL7v2Read.DEAD_LETTER, error);
+          }
+          if (response != null) {
+            context.output(response);
           }
         }
       }
