@@ -34,6 +34,7 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.yaml import yaml_io
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
@@ -762,6 +763,104 @@ class YamlMatchAllTest(unittest.TestCase):
                     size_in_bytes=100,
                     last_updated_in_seconds=None)
             ]))
+
+  def test_bigquery_coverage(self):
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery'):
+      _ = yaml_io.read_from_bigquery(query='SELECT 1')
+      _ = yaml_io.read_from_bigquery(table='project:dataset.table')
+
+    class MockWriteToBQ(beam.PTransform):
+      Method = mock.MagicMock()
+
+      def __init__(self, *args, method=None, **kwargs):
+        super().__init__()
+        self._method = method
+
+      def expand(self, pcoll):
+        res = mock.MagicMock()
+        res._method = self._method or self.Method.FILE_LOADS
+        return res
+
+    p1 = beam.Pipeline()
+    pcoll1 = p1 | 'C1' >> beam.Create([beam.Row(a=1)])
+    p2 = beam.Pipeline()
+    pcoll2 = p2 | 'C2' >> beam.Create([beam.Row(a=1)])
+    with mock.patch('apache_beam.yaml.yaml_io.WriteToBigQuery', MockWriteToBQ):
+      _ = yaml_io.write_to_bigquery('p:d.t').expand(pcoll1)
+      _ = yaml_io.write_to_bigquery(
+          'p:d.t', error_handling={
+              'output': 'err'
+          }).expand(pcoll2)
+
+  def test_pubsub_coverage(self):
+    # Both topic and subscription are specified (only one is allowed)
+    with self.assertRaises(TypeError):
+      _ = beam.Pipeline() | 'Read1' >> yaml_io.read_from_pubsub(
+          topic='t', subscription='s', format='RAW')
+    # Neither topic nor subscription is specified (one is required)
+    with self.assertRaises(TypeError):
+      _ = beam.Pipeline() | 'Read2' >> yaml_io.read_from_pubsub(format='RAW')
+    # RAW format does not take a schema
+    with self.assertRaises(ValueError):
+      _ = beam.Pipeline() | 'Read3' >> yaml_io.read_from_pubsub(
+          topic='t', format='RAW', schema='s')
+    # STRING format does not take a schema
+    with self.assertRaises(ValueError):
+      _ = beam.Pipeline() | 'Read4' >> yaml_io.read_from_pubsub(
+          topic='t', format='STRING', schema='s')
+    # Format is unknown
+    with self.assertRaises(ValueError):
+      _ = beam.Pipeline() | 'Read5' >> yaml_io.read_from_pubsub(
+          topic='t', format='UNKNOWN')
+
+    # Attributes is not a list of strings
+    pcoll = beam.Pipeline() | 'CreatePcoll' >> beam.Create([beam.Row(a=1)])
+    with self.assertRaises(ValueError):
+      _ = pcoll | yaml_io.write_to_pubsub(
+          topic='t', format='RAW', attributes='missing_attr')
+
+    class MockReadFromPubSub(beam.PTransform):
+      def __init__(self, *args, **kwargs):
+        super().__init__()
+
+      def expand(self, pcoll):
+        return pcoll | beam.Create([beam.Row(payload=b'data')])
+
+    with mock.patch('apache_beam.io.ReadFromPubSub', MockReadFromPubSub):
+      _ = beam.Pipeline() | 'ReadRaw' >> yaml_io.read_from_pubsub(
+          topic='projects/p/topics/t', format='RAW')
+      _ = beam.Pipeline() | 'ReadStr' >> yaml_io.read_from_pubsub(
+          topic='projects/p/topics/t', format='STRING')
+
+  def test_tfrecord_coverage(self):
+    class MockReadFromTFRecord(beam.PTransform):
+      def __init__(self, *args, **kwargs):
+        super().__init__()
+
+      def expand(self, pcoll):
+        return pcoll | beam.Create([b'record_bytes'])
+
+    class MockWriteToTFRecord(beam.PTransform):
+      def __init__(self, *args, **kwargs):
+        super().__init__()
+
+      def expand(self, pcoll):
+        return mock.MagicMock()
+
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromTFRecord',
+                    MockReadFromTFRecord):
+      _ = beam.Pipeline(
+      ) | 'ReadTFR' >> yaml_io.read_from_tfrecord('file_pattern*')
+
+    p = beam.Pipeline()
+    pcoll1 = p | 'C1' >> beam.Create([beam.Row(a=b'1')])
+    with mock.patch('apache_beam.yaml.yaml_io.WriteToTFRecord',
+                    MockWriteToTFRecord):
+      _ = pcoll1 | 'W1' >> yaml_io.write_to_tfrecord('prefix')
+
+    with self.assertRaises(ValueError):
+      pcoll2 = p | 'C2' >> beam.Create([beam.Row(a=1, b=2)])
+      _ = pcoll2 | 'W2' >> yaml_io.write_to_tfrecord('prefix2')
 
 
 if __name__ == '__main__':
