@@ -865,7 +865,7 @@ service BeamFnData {
  * State API
  */
 
-// A request sent by the SDK harness to the runner to get, append, or clear
+// A request sent by the SDK harness to the runner to manipulated
 // state associated with a particular StateKey. State requests are scoped to
 // the instruction (bundle) that is currently being processed.
 message StateRequest {
@@ -1371,10 +1371,8 @@ message StopWorkerRequest {
   string worker_id = 1;
 }
 
-// A response from a StopWorkerRequest. If the worker failed to stop
-// cleanly, the error field will contain a human-readable error message.
 message StopWorkerResponse {
-  // (Optional) Error message if the worker failed to stop.
+  // (Optional) Human-readable error message if the worker failed to stop cleanly.
   string error = 1;
 }
 
