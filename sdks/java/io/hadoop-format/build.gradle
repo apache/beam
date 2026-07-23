@@ -89,7 +89,9 @@ dependencies {
   testImplementation library.java.cassandra_driver_core
   testImplementation library.java.cassandra_driver_mapping
   // TODO(yathu) bump to cassandra-5.x which uses newer jamm when released & beam runs test on Java11
-  testImplementation "org.apache.cassandra:cassandra-all:3.11.10"
+  testImplementation ("org.apache.cassandra:cassandra-all:3.11.10") {
+    exclude group: "net.jpountz.lz4", module: "lz4"
+  }
   testImplementation library.java.hadoop_common
   testImplementation library.java.hadoop_hdfs
   testImplementation library.java.hadoop_mapreduce_client_core
