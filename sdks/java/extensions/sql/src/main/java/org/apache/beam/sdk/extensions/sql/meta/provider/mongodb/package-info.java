@@ -17,8 +17,4 @@
  */
 
 /** Table schema for MongoDb. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.meta.provider.mongodb;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

@@ -17,10 +17,7 @@
  */
 
 /** Utilities for configuring worker environment. */
-@DefaultAnnotation(NonNull.class)
 @Internal
 package org.apache.beam.sdk.harness;
 
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import org.apache.beam.sdk.annotations.Internal;
-import org.checkerframework.checker.nullness.qual.NonNull;

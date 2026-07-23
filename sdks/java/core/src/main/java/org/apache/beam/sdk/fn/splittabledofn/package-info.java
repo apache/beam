@@ -21,8 +21,4 @@
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link
  * org.apache.beam.sdk.transforms.DoFn}.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.fn.splittabledofn;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

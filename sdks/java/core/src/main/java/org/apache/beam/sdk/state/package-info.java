@@ -17,8 +17,4 @@
  */
 
 /** Classes and interfaces for interacting with state. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.state;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

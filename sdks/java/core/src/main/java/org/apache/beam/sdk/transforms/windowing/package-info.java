@@ -42,8 +42,4 @@
  * the system watermark passes the end of the window. See {@link
  * org.apache.beam.sdk.transforms.windowing.AfterWatermark} for details on the watermark.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.windowing;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;
