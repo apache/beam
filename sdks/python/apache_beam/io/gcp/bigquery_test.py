@@ -1038,11 +1038,13 @@ class TestWriteToBigQuery(unittest.TestCase):
         additional_bq_parameters=additional_bq_parameters,
         schema_update_options=schema_update_options)
 
+    self.assertEqual(['ALLOW_FIELD_ADDITION'], transform.schema_update_options)
+    self.assertIs(type(transform.schema_update_options[0]), str)
     self.assertEqual({
         'timePartitioning': {
             'type': 'DAY'
         },
-        'schemaUpdateOptions': schema_update_options,
+        'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION'],
     },
                      transform._additional_bq_parameters_for_file_loads())
     self.assertNotIn('schemaUpdateOptions', additional_bq_parameters)
@@ -1093,6 +1095,15 @@ class TestWriteToBigQuery(unittest.TestCase):
           table='dataset.table',
           method=WriteToBigQuery.Method.FILE_LOADS,
           schema_update_options=['INVALID_SCHEMA_UPDATE_OPTION'])
+
+  def test_schema_update_options_accepts_valid_string(self):
+    transform = WriteToBigQuery(
+        table='dataset.table',
+        method=WriteToBigQuery.Method.FILE_LOADS,
+        schema_update_options=['ALLOW_FIELD_RELAXATION'])
+
+    self.assertEqual(['ALLOW_FIELD_RELAXATION'],
+                     transform.schema_update_options)
 
   def test_schema_update_options_with_callable_additional_bq_parameters(self):
     schema_update_options = [
