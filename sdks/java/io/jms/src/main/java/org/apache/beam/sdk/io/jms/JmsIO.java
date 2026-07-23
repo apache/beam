@@ -56,9 +56,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -76,7 +73,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -212,114 +208,18 @@ public class JmsIO {
     return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
-  /** A POJO describing a JMS connection. */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class ConnectionConfiguration implements Serializable {
-    public static Builder builder() {
-      return new AutoValue_JmsIO_ConnectionConfiguration.Builder();
-    }
-
-    public static ConnectionConfiguration create(
+  /** @deprecated Use {@link org.apache.beam.sdk.io.jms.ConnectionConfiguration}. */
+  @Deprecated
+  public abstract static class ConnectionConfiguration
+      extends org.apache.beam.sdk.io.jms.ConnectionConfiguration {
+    public static org.apache.beam.sdk.io.jms.ConnectionConfiguration create(
         String serverUri, @Nullable String connectionFactoryClassName) {
-      checkArgument(serverUri != null, "serverUri can not be null");
-      return builder()
-          .setServerUri(serverUri)
-          .setConnectionFactoryClassName(connectionFactoryClassName)
-          .build();
+      return org.apache.beam.sdk.io.jms.ConnectionConfiguration.create(
+          serverUri, connectionFactoryClassName);
     }
 
-    public static ConnectionConfiguration create(String serverUri) {
-      return create(serverUri, null);
-    }
-
-    @SchemaFieldDescription("The JMS broker URI.")
-    public abstract String getServerUri();
-
-    @SchemaFieldDescription("The JMS ConnectionFactory class name.")
-    public abstract @Nullable String getConnectionFactoryClassName();
-
-    @SchemaFieldDescription("The username to connect to the JMS broker.")
-    public abstract @Nullable String getUsername();
-
-    @SchemaFieldDescription("The password to connect to the JMS broker.")
-    public abstract @Nullable String getPassword();
-
-    public ConnectionConfiguration withUsername(String username) {
-      return toBuilder().setUsername(username).build();
-    }
-
-    public ConnectionConfiguration withPassword(String password) {
-      return toBuilder().setPassword(password).build();
-    }
-
-    public ConnectionConfiguration withConnectionFactoryClassName(
-        String connectionFactoryClassName) {
-      return toBuilder().setConnectionFactoryClassName(connectionFactoryClassName).build();
-    }
-
-    abstract Builder toBuilder();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setServerUri(String serverUri);
-
-      public abstract Builder setConnectionFactoryClassName(
-          @Nullable String connectionFactoryClassName);
-
-      public abstract Builder setUsername(@Nullable String username);
-
-      public abstract Builder setPassword(@Nullable String password);
-
-      public abstract ConnectionConfiguration build();
-    }
-
-    public ConnectionFactory createConnectionFactory() {
-      String className = getConnectionFactoryClassName();
-      // Default to ActiveMQ
-      if (Strings.isNullOrEmpty(className)) {
-        className = "org.apache.activemq.ActiveMQConnectionFactory";
-      }
-      try {
-        Class<?> clazz = Class.forName(className);
-        String uri = getServerUri();
-        String username = getUsername();
-        String password = getPassword();
-
-        if (username != null && password != null) {
-          try {
-            return (ConnectionFactory)
-                clazz
-                    .getConstructor(String.class, String.class, String.class)
-                    .newInstance(username, password, uri);
-          } catch (NoSuchMethodException e) {
-            // fall through to 1-arg constructor + setters
-          }
-        }
-        try {
-          ConnectionFactory cf =
-              (ConnectionFactory) clazz.getConstructor(String.class).newInstance(uri);
-          if (username != null && password != null) {
-            try {
-              clazz.getMethod("setUserName", String.class).invoke(cf, username);
-              clazz.getMethod("setPassword", String.class).invoke(cf, password);
-            } catch (NoSuchMethodException e) {
-              try {
-                clazz.getMethod("setUsername", String.class).invoke(cf, username);
-                clazz.getMethod("setPassword", String.class).invoke(cf, password);
-              } catch (NoSuchMethodException e2) {
-                // ignore if setters not found
-              }
-            }
-          }
-          return cf;
-        } catch (NoSuchMethodException e) {
-          return (ConnectionFactory) clazz.getConstructor().newInstance();
-        }
-      } catch (Exception e) {
-        throw new IllegalArgumentException(
-            "Unable to instantiate JMS ConnectionFactory of class " + className, e);
-      }
+    public static org.apache.beam.sdk.io.jms.ConnectionConfiguration create(String serverUri) {
+      return org.apache.beam.sdk.io.jms.ConnectionConfiguration.create(serverUri);
     }
   }
 
@@ -482,7 +382,8 @@ public class JmsIO {
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
-    public Read<T> withConnectionConfiguration(ConnectionConfiguration configuration) {
+    public Read<T> withConnectionConfiguration(
+        org.apache.beam.sdk.io.jms.ConnectionConfiguration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       Read<T> read =
           this.withConnectionFactoryProviderFn(
@@ -1236,7 +1137,8 @@ public class JmsIO {
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
-    public Write<EventT> withConnectionConfiguration(ConnectionConfiguration configuration) {
+    public Write<EventT> withConnectionConfiguration(
+        org.apache.beam.sdk.io.jms.ConnectionConfiguration configuration) {
       checkArgument(configuration != null, "configuration can not be null");
       Write<EventT> write =
           this.withConnectionFactoryProviderFn(
