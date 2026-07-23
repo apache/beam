@@ -106,6 +106,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
 @Internal
@@ -114,6 +116,8 @@ import org.joda.time.Instant;
   "rawtypes"
 })
 public class DoFnSignatures {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnSignatures.class);
 
   private DoFnSignatures() {}
 
@@ -2368,10 +2372,55 @@ public class DoFnSignatures {
           (TypeDescriptor<? extends State>)
               TypeDescriptor.of(fnClazz).resolveType(unresolvedStateType);
 
+      // Warn if ValueState contains a collection type that could benefit from specialized state
+      warnIfValueStateContainsCollection(fnClazz, id, stateType);
+
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
 
     return ImmutableMap.copyOf(declarations);
+  }
+
+  /**
+   * Warns if a ValueState is declared with a collection type (Map, List, Set) that could benefit
+   * from using specialized state types (MapState, BagState, SetState) for better performance.
+   */
+  private static void warnIfValueStateContainsCollection(
+      Class<?> fnClazz, String stateId, TypeDescriptor<? extends State> stateType) {
+    if (!stateType.isSubtypeOf(TypeDescriptor.of(ValueState.class))) {
+      return;
+    }
+
+    // Use TypeDescriptor.resolveType() to extract ValueState's type parameter
+    // This preserves generic type information better than raw Type manipulation
+    TypeDescriptor<?> valueTypeDescriptor =
+        stateType.resolveType(ValueState.class.getTypeParameters()[0]);
+
+    // Match on the collection's raw type. We intentionally do not skip types with unresolved
+    // parameters: for a parameterized collection such as ValueState<Set<T>> the collection's own
+    // raw type (Set) is known even though the element type T is a type variable, so we can still
+    // recommend SetState. A payload that is itself a bare type variable (e.g. ValueState<T>) simply
+    // matches none of the branches below and produces no recommendation.
+    String recommendation = null;
+    if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      recommendation = "MapState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(List.class))) {
+      recommendation = "BagState or OrderedListState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(java.util.Set.class))) {
+      recommendation = "SetState";
+    }
+
+    if (recommendation != null) {
+      LOG.warn(
+          "DoFn {} declares ValueState '{}' with collection type {}. "
+              + "ValueState reads/writes the entire collection on each access. "
+              + "For large or frequently-updated collections, consider using {} instead "
+              + "(if supported by your runner).",
+          fnClazz.getSimpleName(),
+          stateId,
+          valueTypeDescriptor.getRawType().getSimpleName(),
+          recommendation);
+    }
   }
 
   private static @Nullable Method findAnnotatedMethod(
