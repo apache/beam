@@ -21,7 +21,6 @@ import time
 import unittest
 
 import apache_beam as beam
-
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content

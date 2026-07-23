@@ -72,7 +72,7 @@ try:
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud import bigquery_storage_v1 as bq_storage
 except ImportError:
-  gcp_bigquery = None # type: ignore
+  gcp_bigquery = None  # type: ignore
   bq_storage = None  # type: ignore
 
 try:

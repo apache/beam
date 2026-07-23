@@ -416,7 +416,8 @@ class UpdateDestinationSchema(beam.DoFn):
       # ahead of the copy jobs.
       return
     except exceptions.GoogleAPICallError as exn:
-      if getattr(exn, 'code', None) == 404 or getattr(exn, 'status_code', None) == 404:
+      if getattr(exn, 'code', None) == 404 or getattr(exn, 'status_code',
+                                                      None) == 404:
         return
       raise
 

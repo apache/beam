@@ -375,8 +375,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           responses=[
               exceptions.InternalServerError("something")
               if exceptions else None,
-              exceptions.ServiceUnavailable("blank")
-              if exceptions else None
+              exceptions.ServiceUnavailable("blank") if exceptions else None
           ],
           expected_retries=2),
       # first attempt returns a 403 rateLimitExceeded error and retries
