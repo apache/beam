@@ -57,17 +57,22 @@ def _import_beam_plugins(plugins):
     try:
       importlib.import_module(plugin)
       _LOGGER.debug('Imported beam-plugin %s', plugin)
-    except ImportError:
+    except ImportError as exc:
+      if '.' not in plugin:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+        continue
+
       try:
         _LOGGER.debug((
             "Looks like %s is not a module. "
-            "Trying to import it assuming it's a class"),
+            "Trying to import it assuming it's a class."),
                       plugin)
         module, _ = plugin.rsplit('.', 1)
         importlib.import_module(module)
         _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
-      except ImportError as exc:
-        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+      except ImportError as fallback_exc:
+        _LOGGER.warning(
+            'Failed to import beam-plugin %s', plugin, exc_info=fallback_exc)
 
 
 def create_harness(environment, dry_run=False):
