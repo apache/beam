@@ -22,6 +22,8 @@
 import collections
 import glob
 import io
+import math
+import numbers
 import tempfile
 from typing import Any
 from typing import Iterable
@@ -44,6 +46,7 @@ from apache_beam.utils.windowed_value import PaneInfo
 __all__ = [
     'assert_that',
     'equal_to',
+    'equal_to_approx',
     'equal_to_per_window',
     'has_at_least_one',
     'is_empty',
@@ -229,6 +232,46 @@ def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
       return False
 
   return True
+
+
+def equal_to_approx(expected, rel_tol=1e-09, abs_tol=0.0):
+  """Matcher used by assert_that that compares numeric elements approximately.
+
+  Behaves similarly to `equal_to` for sequence ordering and membership, but any
+  real number elements (integers and floats) are compared using `math.isclose`
+  instead of exact equality.
+
+  Approximate comparisons are also applied to real numbers nested within lists
+  and tuples. Note that `equal_to`'s advanced handling for Beam `Row` and
+  `NamedTuple` is not supported here. All other elements are compared using
+  standard `==` equality.
+
+  Args:
+    expected: The expected output or sequence to compare against.
+    rel_tol: The relative tolerance used by `math.isclose` (default: 1e-09).
+    abs_tol: The absolute tolerance used by `math.isclose` (default: 0.0).
+
+  Example:
+    assert_that(
+        pipeline | beam.Create([1.000000001, 2.0]),
+        equal_to_approx([1.0, 2.0]))
+  """
+  def _approx_equals(expected_element, actual_element):
+    return _elements_approx_equal(
+        expected_element, actual_element, rel_tol, abs_tol)
+
+  return equal_to(expected, equals_fn=_approx_equals)
+
+
+def _elements_approx_equal(expected, actual, rel_tol, abs_tol):
+  if all(isinstance(x, numbers.Real) for x in (expected, actual)):
+    return math.isclose(expected, actual, rel_tol=rel_tol, abs_tol=abs_tol)
+  if (isinstance(expected, (list, tuple)) and type(actual) is type(expected) and
+      len(expected) == len(actual)):
+    return all(
+        _elements_approx_equal(e, a, rel_tol, abs_tol)
+        for e, a in zip(expected, actual))
+  return expected == actual
 
 
 def matches_all(expected):
