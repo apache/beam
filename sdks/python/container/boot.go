@@ -18,6 +18,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -580,10 +581,13 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 	}
 	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
 	args = []string{"-m", "pip", "freeze", "--all"}
-	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
+
+	var stdout bytes.Buffer
+	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, &stdout, bufLogger, pythonVersion, args...); err != nil {
 		bufLogger.FlushAtError(ctx)
 	} else {
 		bufLogger.FlushAtDebug(ctx)
+		bufLogger.Printf(ctx, "%s", stdout.String())
 	}
 	return nil
 }
@@ -602,5 +606,3 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	bufLogger.Printf(ctx, "%s", string(content))
 	return nil
 }
-
-
