@@ -344,7 +344,7 @@ ls /tmp/counts*
 ls counts*
    {{< /runner >}}
    {{< runner dataflow >}}
-gsutil ls gs://<your-gcs-bucket>/counts*
+gcloud storage ls gs://<your-gcs-bucket>/counts*
    {{< /runner >}}
    {{< runner nemo >}}
 ls counts*
@@ -368,7 +368,7 @@ more /tmp/counts*
 more counts*
    {{< /runner >}}
    {{< runner dataflow >}}
-gsutil cat gs://<your-gcs-bucket>/counts*
+gcloud storage cat gs://<your-gcs-bucket>/counts*
    {{< /runner >}}
    {{< runner nemo >}}
 more counts*

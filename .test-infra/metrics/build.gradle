@@ -54,6 +54,7 @@ composeUp {
   dependsOn "createEmptyConfig"
 }
 dockerCompose {
+  projectName = 'beammetrics'
   environment.put 'DOCKER_CONFIG', project.rootProject.buildDir
 }
 

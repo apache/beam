@@ -226,7 +226,7 @@ For this example, I will use the region europe-west1 of GCP. Let's create a regi
 
 
 ```
-gsutil mb -c regional -l europe-west1 gs://ihr-apache-hop-blog
+gcloud storage buckets create gs://ihr-apache-hop-blog --location=europe-west1 --default-storage-class=standard
 ```
 
 
@@ -234,7 +234,7 @@ Now let's upload the sample data to the GCS bucket, to test how the pipeline wou
 
 
 ```
- gsutil cp config/projects/samples/beam/input/customers-noheader-1k.txt gs://ihr-apache-hop-blog/data/
+ gcloud storage cp config/projects/samples/beam/input/customers-noheader-1k.txt gs://ihr-apache-hop-blog/data/
 ```
 
 
@@ -244,7 +244,7 @@ To make sure that you have uploaded the data correctly, check the contents of th
 
 
 ```
-gsutil ls gs://ihr-apache-hop-blog/data/
+gcloud storage ls gs://ihr-apache-hop-blog/data/
 ```
 
 
@@ -411,11 +411,11 @@ When the pipeline starts running, you should see the graph of the pipeline in th
     alt="Dataflow pipeline graph">
 
 
-When the job finishes, there should be a file in the output location. You can check it out with `gsutil`
+When the job finishes, there should be a file in the output location. You can check it out with `gcloud storage`
 
 
 ```
-% gsutil ls gs://ihr-apache-hop-blog/output
+% gcloud storage ls gs://ihr-apache-hop-blog/output
 gs://ihr-apache-hop-blog/output/input-process-output-00000-of-00003.csv
 gs://ihr-apache-hop-blog/output/input-process-output-00001-of-00003.csv
 gs://ihr-apache-hop-blog/output/input-process-output-00002-of-00003.csv
@@ -428,7 +428,7 @@ Let's explore the first lines of those files:
 
 
 ```
-gsutil cat "gs://ihr-apache-hop-blog/output/*csv"| head
+gcloud storage cat "gs://ihr-apache-hop-blog/output/*csv"| head
  12,wha-firstname,vnaov-name,egm-city,CALIFORNIA
  25,ayl-firstname,bwkoe-name,rtw-city,CALIFORNIA
  26,zio-firstname,rezku-name,nvt-city,CALIFORNIA

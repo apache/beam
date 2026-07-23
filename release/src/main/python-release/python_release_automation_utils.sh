@@ -160,7 +160,7 @@ function get_asc_name() {
 function install_sdk() {
   sdk_file=$(get_sdk_name $1)
   print_separator "Creating new virtualenv with $2 interpreter and installing the SDK from $sdk_file."
-  gsutil version -l
+  gcloud version
   rm -rf ./temp_virtualenv_${2}
   $2 -m venv temp_virtualenv_${2}
   . ./temp_virtualenv_${2}/bin/activate
@@ -269,7 +269,7 @@ function verify_user_score() {
   expected_output_file_name="$USERSCORE_OUTPUT_PREFIX-$1-runner.txt"
   actual_output_files=$(ls)
   if [[ $1 = *"dataflow"* ]]; then
-    actual_output_files=$(gsutil ls gs://$BUCKET_NAME)
+    actual_output_files=$(gcloud storage ls gs://$BUCKET_NAME)
     expected_output_file_name="gs://$BUCKET_NAME/$expected_output_file_name"
   fi
   echo $actual_output_files
@@ -281,7 +281,7 @@ function verify_user_score() {
   fi
 
   if [[ $1 = *"dataflow"* ]]; then
-    gsutil rm $expected_output_file_name*
+    gcloud storage rm $expected_output_file_name*
   fi
   echo "SUCCEED: user_score successfully run on $1-runner."
 }

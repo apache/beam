@@ -124,7 +124,7 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.multilanguage.Sk
 the digit. The second item is the predicted label of the digit.
 
 ```
-gsutil cat gs://$GCP_BUCKET/multi-language-beam/output*
+gcloud storage cat gs://$GCP_BUCKET/multi-language-beam/output*
 ```
 
 #### Instructions for running the Java pipeline at HEAD (Beam 2.41.0 and 2.42.0).
@@ -171,7 +171,7 @@ export GCP_REGION=<GCP region>
 export EXPANSION_SERVICE_PORT=<PORT>
 
 # This removes any existing output.
-gsutil rm gs://$GCP_BUCKET/multi-language-beam/output*
+gcloud storage rm gs://$GCP_BUCKET/multi-language-beam/output*
 
 ./gradlew :examples:multi-language:sklearnMinstClassification --args=" \
 --runner=DataflowRunner \
@@ -188,7 +188,7 @@ gsutil rm gs://$GCP_BUCKET/multi-language-beam/output*
 of the digit. The second item is the predicted label of the digit.
 
 ```
-gsutil cat gs://$GCP_BUCKET/multi-language-beam/output*
+gcloud storage cat gs://$GCP_BUCKET/multi-language-beam/output*
 ```
 
 ### Python Dataframe Wordcount
