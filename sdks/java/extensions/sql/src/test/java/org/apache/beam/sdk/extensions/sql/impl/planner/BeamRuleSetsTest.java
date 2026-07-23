@@ -21,7 +21,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collection;
-import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelRule;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.junit.Test;
 
