@@ -21,23 +21,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Indicates that the work is no longer valid and should be canceled. It is thrown as a signal for
- * upper layers to mark the work as failed.
+ * upper layers to mark the work as failed. This is different from WorkItemCancelledException, which
+ * is thrown after marking the work as failed.
  */
-public class WorkCancelingException extends RuntimeException {
+public class WorkCancellingException extends RuntimeException {
 
-  public WorkCancelingException(long sharding_key) {
-    super("Work canceling exception for key " + sharding_key);
+  public WorkCancellingException(long sharding_key) {
+    super("Work cancelling exception for key " + sharding_key);
   }
 
-  public WorkCancelingException(Throwable cause) {
+  public WorkCancellingException(Throwable cause) {
     super(cause);
   }
 
-  /** Returns whether an exception was caused by a {@link WorkCancelingException}. */
-  public static boolean isWorkCancelingException(Throwable t) {
+  /** Returns whether an exception was caused by a {@link WorkCancellingException}. */
+  public static boolean isWorkCancellingException(Throwable t) {
     @Nullable Throwable throwable = t;
     while (throwable != null) {
-      if (throwable instanceof WorkCancelingException) {
+      if (throwable instanceof WorkCancellingException) {
         return true;
       }
       throwable = throwable.getCause();

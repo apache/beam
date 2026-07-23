@@ -125,7 +125,8 @@ public class StreamingEngineWorkCommitterTest {
             },
             mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private static ComputationState createComputationState(String computationId) {

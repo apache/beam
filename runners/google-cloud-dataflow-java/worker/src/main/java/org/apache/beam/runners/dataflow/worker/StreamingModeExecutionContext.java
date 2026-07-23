@@ -35,7 +35,6 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -88,8 +87,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.beam.sdk.options.ExperimentalOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -128,12 +125,6 @@ public class StreamingModeExecutionContext
     extends DataflowExecutionContext<StreamingModeExecutionContext.StepContext> {
 
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
-  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_SIZE =
-      "windmill_max_key_group_batch_size";
-  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS =
-      "windmill_max_key_group_batch_time_ms";
-  private static final String WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES =
-      "windmill_max_key_group_batch_sink_bytes";
 
   private final String computationId;
   private final ImmutableMap<String, String> stateNameMap;
@@ -213,10 +204,7 @@ public class StreamingModeExecutionContext
   private long stateBytesRead = 0;
   private final String sourceBytesProcessCounterName;
 
-  private final int maxKeyGroupBatchSize;
-  private final long maxKeyGroupBatchTimeNanos;
-  private final boolean multiKeyBundleEnabled;
-  private final long maxKeyGroupBatchSinkBytes;
+  private final MultiKeyBundleOptions multiKeyBundleOptions;
   private int workItemsPolled = 0;
   private long bundleStartTimeNanos = 0;
 
@@ -239,7 +227,7 @@ public class StreamingModeExecutionContext
       StreamingCounters streamingCounters,
       FailureTracker failureTracker,
       String sourceBytesProcessCounterName,
-      PipelineOptions options,
+      MultiKeyBundleOptions multiKeyBundleOptions,
       SideInputStateFetcherFactory sideInputStateFetcherFactory) {
     super(
         counterFactory,
@@ -264,30 +252,7 @@ public class StreamingModeExecutionContext
     this.sourceBytesProcessCounterName = checkNotNull(sourceBytesProcessCounterName);
     this.sideInputStateFetcherFactory = checkNotNull(sideInputStateFetcherFactory);
 
-    // Initialize batch limits from pipeline options
-    this.maxKeyGroupBatchSize =
-        tryParseInt(
-            ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_SIZE),
-            100,
-            WINDMILL_MAX_KEY_GROUP_BATCH_SIZE);
-
-    long batchTimeMs =
-        tryParseLong(
-            ExperimentalOptions.getExperimentValue(options, WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS),
-            100,
-            WINDMILL_MAX_KEY_GROUP_BATCH_TIME_MS);
-    this.maxKeyGroupBatchTimeNanos = TimeUnit.MILLISECONDS.toNanos(batchTimeMs);
-
-    this.multiKeyBundleEnabled =
-        ExperimentalOptions.hasExperiment(
-            options, StreamingDataflowWorker.UNSTABLE_ENABLE_MULTI_KEY_BUNDLE);
-
-    this.maxKeyGroupBatchSinkBytes =
-        tryParseLong(
-            ExperimentalOptions.getExperimentValue(
-                options, WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES),
-            StreamingDataflowWorker.MAX_SINK_BYTES,
-            WINDMILL_MAX_KEY_GROUP_BATCH_SINK_BYTES);
+    this.multiKeyBundleOptions = checkNotNull(multiKeyBundleOptions);
 
     StreamingGlobalConfig config = globalConfigHandle.getConfig();
     this.operationalLimits = config.operationalLimits();
@@ -295,41 +260,6 @@ public class StreamingModeExecutionContext
         config.enableStateTagEncodingV2()
             ? WindmillTagEncodingV2.instance()
             : WindmillTagEncodingV1.instance();
-  }
-
-  private static int tryParseInt(@Nullable String value, int defaultValue, String experimentName) {
-    if (value == null) {
-      return defaultValue;
-    }
-    try {
-      return Integer.parseInt(value);
-    } catch (NumberFormatException e) {
-      LOG.warn(
-          "Failed to parse experiment {} value '{}' as integer, falling back to default: {}",
-          experimentName,
-          value,
-          defaultValue,
-          e);
-      return defaultValue;
-    }
-  }
-
-  private static long tryParseLong(
-      @Nullable String value, long defaultValue, String experimentName) {
-    if (value == null) {
-      return defaultValue;
-    }
-    try {
-      return Long.parseLong(value);
-    } catch (NumberFormatException e) {
-      LOG.warn(
-          "Failed to parse experiment {} value '{}' as long, falling back to default: {}",
-          experimentName,
-          value,
-          defaultValue,
-          e);
-      return defaultValue;
-    }
   }
 
   @VisibleForTesting
@@ -823,16 +753,17 @@ public class StreamingModeExecutionContext
   }
 
   public boolean advance() throws CoderException {
-    if (!multiKeyBundleEnabled) {
+    if (!multiKeyBundleOptions.multiKeyBundleEnabled()) {
       return false;
     }
-    if (workIsFailed()) {
-      throw new WorkItemCancelledException(checkStateNotNull(work).getWorkItem().getShardingKey());
-    }
 
+    Work activeWork = checkStateNotNull(work);
     BoundedQueueExecutor executor = checkStateNotNull(workQueueExecutor);
     BoundedQueueExecutorWorkHandle handle = checkStateNotNull(budgetHandle);
-    Work activeWork = checkStateNotNull(work);
+
+    if (workIsFailed()) {
+      throw new WorkItemCancelledException(activeWork.getWorkItem().getShardingKey());
+    }
 
     if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
       return false;
@@ -855,14 +786,14 @@ public class StreamingModeExecutionContext
 
   private boolean shouldStopBatching() {
     // TODO: stop batching if the previous work item requested truncation
-    if (workItemsPolled >= maxKeyGroupBatchSize) {
+    if (workItemsPolled >= multiKeyBundleOptions.maxKeyGroupBatchSize()) {
       return true;
     }
     long elapsedNanos = System.nanoTime() - bundleStartTimeNanos;
-    if (elapsedNanos >= maxKeyGroupBatchTimeNanos) {
+    if (elapsedNanos >= multiKeyBundleOptions.maxKeyGroupBatchTimeNanos()) {
       return true;
     }
-    return getBytesSinked() >= maxKeyGroupBatchSinkBytes;
+    return getBytesSinked() >= multiKeyBundleOptions.maxKeyGroupBatchSinkBytes();
   }
 
   private void startForNewKey(Work newWork) throws CoderException {

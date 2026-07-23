@@ -209,7 +209,8 @@ public class WorkerCustomSourcesTest {
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private void startContext(StreamingModeExecutionContext context, Work work) {
@@ -645,7 +646,7 @@ public class WorkerCustomSourcesTest {
             StreamingCounters.create(),
             mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
-            options,
+            MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
@@ -1022,7 +1023,7 @@ public class WorkerCustomSourcesTest {
             StreamingCounters.create(),
             mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
-            options,
+            MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
@@ -1050,7 +1051,8 @@ public class WorkerCustomSourcesTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            Instant::now);
+            Instant::now,
+            ImmutableList.of());
     startContext(context, dummyWork);
 
     @SuppressWarnings({"unchecked", "rawtypes"})

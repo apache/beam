@@ -372,7 +372,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
-            Instant::now),
+            Instant::now,
+            ImmutableList.of()),
         (work, handle) -> {
           processWorkFn.accept(work);
         });
@@ -4045,7 +4046,8 @@ public class StreamingDataflowWorkerTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            clock);
+            clock,
+            ImmutableList.of());
 
     clock.sleep(Duration.millis(10));
     work.setState(Work.State.PROCESSING);

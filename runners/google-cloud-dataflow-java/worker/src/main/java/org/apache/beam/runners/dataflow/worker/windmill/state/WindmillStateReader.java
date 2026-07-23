@@ -37,7 +37,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
-import org.apache.beam.runners.dataflow.worker.WorkCancelingException;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -589,7 +589,7 @@ public class WindmillStateReader {
     bytesRead += response.getSerializedSize();
     if (response.getFailed()) {
       // upper layers will fail the work on seeing this exception.
-      throw new WorkCancelingException(shardingKey);
+      throw new WorkCancellingException(shardingKey);
     }
 
     if (!key.equals(response.getKey())) {

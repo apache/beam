@@ -17,7 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-/** Indicates that the work item was canceled. */
+/**
+ * Indicates that the work item was canceled. When this is thrown, the work is already marked as
+ * failed. This is different from WorkItemCancellingException which is thrown before marking work as
+ * failed.
+ */
 public class WorkItemCancelledException extends RuntimeException {
 
   public WorkItemCancelledException(long sharding_key) {

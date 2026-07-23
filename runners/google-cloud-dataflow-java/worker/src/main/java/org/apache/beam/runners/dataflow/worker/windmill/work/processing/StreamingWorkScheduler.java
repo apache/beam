@@ -35,6 +35,7 @@ import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
+import org.apache.beam.runners.dataflow.worker.MultiKeyBundleOptions;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
@@ -61,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -86,7 +88,7 @@ public class StreamingWorkScheduler {
   private final ConcurrentMap<String, StageInfo> stageInfoMap;
   private final DataflowExecutionStateSampler sampler;
   private final BoundedQueueExecutor workExecutor;
-  private final boolean multiKeyExperimentEnabled;
+  private final MultiKeyBundleOptions multiKeyBundleOptions;
 
   public StreamingWorkScheduler(
       Supplier<Instant> clock,
@@ -97,7 +99,7 @@ public class StreamingWorkScheduler {
       StreamingCounters streamingCounters,
       ConcurrentMap<String, StageInfo> stageInfoMap,
       DataflowExecutionStateSampler sampler,
-      boolean multiKeyExperimentEnabled) {
+      MultiKeyBundleOptions multiKeyBundleOptions) {
     this.clock = clock;
     this.workExecutor = workExecutor;
     this.computationWorkExecutorFactory = computationWorkExecutorFactory;
@@ -106,12 +108,12 @@ public class StreamingWorkScheduler {
     this.streamingCounters = streamingCounters;
     this.stageInfoMap = stageInfoMap;
     this.sampler = sampler;
-    this.multiKeyExperimentEnabled = multiKeyExperimentEnabled;
+    this.multiKeyBundleOptions = multiKeyBundleOptions;
   }
 
   public static StreamingWorkScheduler create(
       DataflowWorkerHarnessOptions options,
-      boolean multiKeyExperimentEnabled,
+      MultiKeyBundleOptions multiKeyBundleOptions,
       Supplier<Instant> clock,
       ReaderCache readerCache,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
@@ -141,7 +143,8 @@ public class StreamingWorkScheduler {
             idGenerator,
             globalConfigHandle,
             hotKeyLogger,
-            sideInputStateFetcherFactory);
+            sideInputStateFetcherFactory,
+            multiKeyBundleOptions);
 
     return new StreamingWorkScheduler(
         clock,
@@ -152,7 +155,7 @@ public class StreamingWorkScheduler {
         streamingCounters,
         stageInfoMap,
         sampler,
-        multiKeyExperimentEnabled);
+        multiKeyBundleOptions);
   }
 
   private static long computeShuffleBytesRead(Windmill.WorkItem workItem) {
@@ -386,7 +389,7 @@ public class StreamingWorkScheduler {
     if (workBatch.isEmpty()) {
       return;
     }
-    if (workBatch.size() > 1 || multiKeyExperimentEnabled) {
+    if (workBatch.size() > 1 || multiKeyBundleOptions.multiKeyBundleEnabled()) {
       commitMultiKeyWorkBatch(computationState, workBatch, workItemCommits);
     } else {
       commitSingleKeyWork(computationState, workBatch.get(0), workItemCommits.get(0));
@@ -397,6 +400,8 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> workBatch,
       List<Windmill.WorkItemCommitRequest> workItemCommits) {
+    Preconditions.checkState(!workBatch.isEmpty());
+    Preconditions.checkState(workBatch.size() == workItemCommits.size());
     Windmill.MultiKeyWorkItemCommitRequest.Builder multiKeyBuilder =
         Windmill.MultiKeyWorkItemCommitRequest.newBuilder();
 
