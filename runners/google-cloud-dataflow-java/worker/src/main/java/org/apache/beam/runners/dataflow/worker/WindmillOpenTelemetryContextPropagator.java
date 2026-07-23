@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values;
+package org.apache.beam.runners.dataflow.worker;
 
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
@@ -27,16 +27,18 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @Internal
-public class OpenTelemetryContextPropagator {
+public class WindmillOpenTelemetryContextPropagator {
 
+  public static final String TRACEPARENT = "traceparent";
+  public static final String TRACESTATE = "tracestate";
   private static final TextMapSetter<BeamFnApi.Elements.ElementMetadata.Builder> SETTER =
       (carrier, key, value) -> {
         if (carrier == null) {
           return;
         }
-        if ("traceparent".equals(key)) {
+        if (TRACEPARENT.equals(key)) {
           carrier.setTraceparent(value);
-        } else if ("tracestate".equals(key)) {
+        } else if (TRACESTATE.equals(key)) {
           carrier.setTracestate(value);
         }
       };
@@ -45,7 +47,7 @@ public class OpenTelemetryContextPropagator {
       new TextMapGetter<BeamFnApi.Elements.ElementMetadata>() {
         @Override
         public Iterable<String> keys(BeamFnApi.Elements.ElementMetadata carrier) {
-          return Lists.newArrayList("traceparent", "tracestate");
+          return Lists.newArrayList(TRACEPARENT, TRACESTATE);
         }
 
         @Override
@@ -54,9 +56,9 @@ public class OpenTelemetryContextPropagator {
           if (carrier == null) {
             return null;
           }
-          if ("traceparent".equals(key)) {
+          if (TRACEPARENT.equalsIgnoreCase(key)) {
             return carrier.getTraceparent();
-          } else if ("tracestate".equals(key)) {
+          } else if (TRACESTATE.equalsIgnoreCase(key)) {
             return carrier.getTracestate();
           }
           return null;
