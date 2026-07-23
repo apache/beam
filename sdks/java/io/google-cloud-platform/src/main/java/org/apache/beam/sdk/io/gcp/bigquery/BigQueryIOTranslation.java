@@ -396,6 +396,7 @@ public class BigQueryIOTranslation {
             .addNullableBooleanField("use_avro_logical_types")
             .addNullableByteArrayField("dynamic_destinations")
             .addNullableStringField("json_schema")
+            .addNullableStringField("json_clone_source_table_ref")
             .addNullableStringField("json_time_partitioning")
             .addNullableStringField("clustering")
             .addNullableByteArrayField("create_disposition")
@@ -495,6 +496,10 @@ public class BigQueryIOTranslation {
       }
       if (transform.getJsonSchema() != null) {
         fieldValues.put("json_schema", transform.getJsonSchema().get());
+      }
+      if (transform.getJsonCloneSourceTableRef() != null) {
+        fieldValues.put(
+            "json_clone_source_table_ref", transform.getJsonCloneSourceTableRef().get());
       }
       if (transform.getJsonTimePartitioning() != null) {
         fieldValues.put(
@@ -667,6 +672,11 @@ public class BigQueryIOTranslation {
         String jsonSchema = configRow.getString("json_schema");
         if (jsonSchema != null) {
           builder = builder.setJsonSchema(StaticValueProvider.of(jsonSchema));
+        }
+        String jsonCloneSourceTableRef = configRow.getString("json_clone_source_table_ref");
+        if (jsonCloneSourceTableRef != null) {
+          builder =
+              builder.setJsonCloneSourceTableRef(StaticValueProvider.of(jsonCloneSourceTableRef));
         }
         String jsonTimePartitioning = configRow.getString("json_time_partitioning");
         if (jsonTimePartitioning != null) {
