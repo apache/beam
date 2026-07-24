@@ -1,0 +1,48 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: DEBEZIUM_DB
+    type: "apache_beam.yaml.integration_tests.temp_debezium_postgres_database"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromDebezium
+          config:
+            connector: POSTGRES
+            username: "{DEBEZIUM_DB[USERNAME]}"
+            password: "{DEBEZIUM_DB[PASSWORD]}"
+            host: "{DEBEZIUM_DB[HOST]}"
+            port: "{DEBEZIUM_DB[PORT]}"
+            table: "{DEBEZIUM_DB[TABLE]}"
+            connection_properties:
+              - "database.dbname={DEBEZIUM_DB[DATABASE]}"
+              - "plugin.name=pgoutput"
+              - "snapshot.mode=initial_only"
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              id: "after.id"
+              name: "after.name"
+        - type: AssertEqual
+          config:
+            elements:
+              - {id: 1, name: Alice}
+              - {id: 2, name: Bob}

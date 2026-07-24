@@ -151,6 +151,7 @@ tasks.register("yamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
 
   doLast {
     exec {
@@ -170,6 +171,7 @@ tasks.register("postCommitYamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
 
   doLast {
     def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging'
@@ -188,7 +190,7 @@ tasks.register("postCommitYamlIntegrationTests") {
           test_files_dir = 'extended_tests/messaging'
           break
         default:
-          throw StopExecutionException("Unknown yamlTestSet: ${testSet}. Must be one of 'data', 'databases', or 'messaging'.")
+          throw StopExecutionException("Unknown yamlTestSet: ${currentTestSet}. Must be one of 'data', 'databases', or 'messaging'.")
       }
       exec {
         executable 'sh'
