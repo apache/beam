@@ -153,6 +153,9 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 		go monitorCoredumpsLoop(ctx, logger, pcfg)
 	}
 
+	if pcfg.Agent == "pystack" {
+		go monitorActiveProcessesLoop(ctx, logger, pcfg)
+	}
 }
 
 // maybeWithProfiler builds the execution arguments and environment variables if profiling is enabled and active.
@@ -197,8 +200,8 @@ func maybeWithProfiler(
 		}
 		env["HEAPPROFILE"] = tcmallocHeapPath
 		args = currentArgs
-	} else if pcfg.Agent == "pystack_coredump" {
-		// No wrapping is needed for pystack_coredump.
+	} else if pcfg.Agent == "pystack_coredump" || pcfg.Agent == "pystack" {
+		// No wrapping is needed for pystack / pystack_coredump.
 		args = currentArgs
 	} else {
 		prog = pcfg.Agent
@@ -442,6 +445,48 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 			logger.Errorf(ctx, "Pystack coredump analysis for %s:\n%s", name, string(output))
 			if err := os.Remove(corePath); err != nil {
 				logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
+			}
+		}
+	}
+}
+
+func monitorActiveProcessesLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
+	interval := 60 * time.Second
+	if pcfg.PostprocessIntervalSec > 0 {
+		interval = time.Duration(pcfg.PostprocessIntervalSec) * time.Second
+	}
+
+	logger.Printf(ctx, "Starting pystack remote monitoring loop every %v", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if isProfilerDisengaged(pcfg) {
+				return
+			}
+			pids := getActivePids()
+			if len(pids) == 0 {
+				continue
+			}
+
+			for _, pid := range pids {
+				args := []string{"remote"}
+				args = append(args, pcfg.ExtraArgs...)
+				args = append(args, fmt.Sprintf("%d", pid))
+
+				logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
+				cmd := exec.CommandContext(ctx, "pystack", args...)
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					logger.Warnf(ctx, "pystack remote failed on PID %d: %v. Output:\n%s", pid, err, string(output))
+				} else {
+					logger.Printf(ctx, "Pystack thread dump for PID %d:\n%s", pid, string(output))
+				}
 			}
 		}
 	}
