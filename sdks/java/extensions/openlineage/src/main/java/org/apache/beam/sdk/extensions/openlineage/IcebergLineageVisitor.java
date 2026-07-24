@@ -76,8 +76,14 @@ class IcebergLineageVisitor extends PipelineLineageVisitor {
     try {
       Object catalogConfig = invokeDeclared(transform, "getCatalogConfig");
       Object tid = invokeDeclared(transform, "getTableIdentifier");
+      if (tid == null) {
+        // Managed.write(ICEBERG) wraps even a constant table name in dynamic destinations;
+        // recover it when the destination template has no per-record placeholders.
+        tid =
+            staticTableFromDynamicDestinations(invokeDeclared(transform, "getDynamicDestinations"));
+      }
       if (catalogConfig == null || tid == null) {
-        // Dynamic destinations: the table is not known until runtime.
+        // Truly dynamic destinations: the table is not known until runtime.
         LOG.info("IcebergIO transform without a static table identifier; skipping");
         return Collections.emptyList();
       }
@@ -109,6 +115,55 @@ class IcebergLineageVisitor extends PipelineLineageVisitor {
       LOG.warn("Unable to extract lineage from IcebergIO transform", e);
       return Collections.emptyList();
     }
+  }
+
+  /**
+   * Recovers the table identifier from IcebergIO's {@code PortableIcebergDestinations} (used by
+   * {@code Managed.write(ICEBERG)}) when the destination template is a constant — i.e. its {@code
+   * RowStringInterpolator} has no fields to replace. Returns null for genuinely per-record
+   * destinations, which are only knowable at runtime.
+   */
+  private static @Nullable String staticTableFromDynamicDestinations(
+      @Nullable Object dynamicDestinations) {
+    if (dynamicDestinations == null
+        || !dynamicDestinations
+            .getClass()
+            .getName()
+            .equals("org.apache.beam.sdk.io.iceberg.PortableIcebergDestinations")) {
+      return null;
+    }
+    try {
+      Object interpolator = readField(dynamicDestinations, "interpolator");
+      if (interpolator == null) {
+        return null;
+      }
+      Object fieldsToReplace = readField(interpolator, "fieldsToReplace");
+      if (!(fieldsToReplace instanceof java.util.Collection)
+          || !((java.util.Collection<?>) fieldsToReplace).isEmpty()) {
+        return null;
+      }
+      Object template = readField(interpolator, "template");
+      return template == null ? null : template.toString();
+    } catch (ReflectiveOperationException | RuntimeException e) {
+      LOG.debug("Could not recover static table from dynamic destinations", e);
+      return null;
+    }
+  }
+
+  /** Reads a (possibly private) field found anywhere in the class hierarchy. */
+  private static @Nullable Object readField(Object target, String fieldName)
+      throws ReflectiveOperationException {
+    Class<?> cls = target.getClass();
+    while (cls != null) {
+      try {
+        java.lang.reflect.Field field = cls.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(target);
+      } catch (NoSuchFieldException e) {
+        cls = cls.getSuperclass();
+      }
+    }
+    return null;
   }
 
   /** Loads the table's physical location from the catalog; null when unreachable. */

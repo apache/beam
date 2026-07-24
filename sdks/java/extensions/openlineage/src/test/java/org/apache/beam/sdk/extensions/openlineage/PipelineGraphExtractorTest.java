@@ -118,6 +118,67 @@ public class PipelineGraphExtractorTest {
   }
 
   @Test
+  public void testManagedIcebergWriteExtraction() throws Exception {
+    String warehouse = "file://" + temporaryFolder.newFolder("managed-warehouse").getAbsolutePath();
+    TableIdentifier tableId = TableIdentifier.parse("demo.orders");
+    try (HadoopCatalog catalog = new HadoopCatalog(new Configuration(), warehouse)) {
+      catalog.createTable(
+          tableId,
+          new org.apache.iceberg.Schema(
+              Types.NestedField.required(1, "id", Types.LongType.get()),
+              Types.NestedField.required(2, "name", Types.StringType.get())));
+    }
+    Map<String, Object> config = new HashMap<>();
+    config.put("table", "demo.orders");
+    config.put("catalog_name", "local");
+    Map<String, String> catalogProps = new HashMap<>();
+    catalogProps.put("type", "hadoop");
+    catalogProps.put("warehouse", warehouse);
+    config.put("catalog_properties", catalogProps);
+
+    Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
+    pipeline
+        .apply(
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(BEAM_SCHEMA).addValues(1L, "a").build())
+                .withRowSchema(BEAM_SCHEMA))
+        .apply(
+            org.apache.beam.sdk.managed.Managed.write(org.apache.beam.sdk.managed.Managed.ICEBERG)
+                .withConfig(config));
+
+    // Managed wraps the constant table name in dynamic destinations; the visitor must still
+    // recover it and resolve the physical location.
+    List<DatasetIdentifier> outputs = extract(pipeline, false);
+    assertEquals(1, outputs.size());
+    assertEquals("file", outputs.get(0).getNamespace());
+    assertTrue(outputs.get(0).getName().endsWith("/managed-warehouse/demo/orders"));
+    assertEquals("demo.orders", outputs.get(0).getSymlinks().get(0).getName());
+  }
+
+  @Test
+  public void testManagedIcebergWriteWithPerRecordTemplateIsSkipped() {
+    Map<String, Object> config = new HashMap<>();
+    config.put("table", "demo.orders_{name}"); // per-record destination, unknowable at submit
+    config.put("catalog_name", "local");
+    Map<String, String> catalogProps = new HashMap<>();
+    catalogProps.put("type", "hadoop");
+    catalogProps.put("warehouse", "file:///tmp/never-used");
+    config.put("catalog_properties", catalogProps);
+
+    Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
+    pipeline
+        .apply(
+            org.apache.beam.sdk.transforms.Create.of(
+                    Row.withSchema(BEAM_SCHEMA).addValues(1L, "a").build())
+                .withRowSchema(BEAM_SCHEMA))
+        .apply(
+            org.apache.beam.sdk.managed.Managed.write(org.apache.beam.sdk.managed.Managed.ICEBERG)
+                .withConfig(config));
+
+    assertEquals(0, extract(pipeline, false).size());
+  }
+
+  @Test
   public void testPubsubWriteTopicExtraction() {
     Pipeline pipeline = Pipeline.create(PipelineOptionsFactory.create());
     pipeline

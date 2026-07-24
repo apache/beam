@@ -45,6 +45,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:io:iceberg")
+  testImplementation project(path: ":sdks:java:managed")
   testImplementation "org.apache.iceberg:iceberg-api:1.10.0"
   testImplementation "org.apache.iceberg:iceberg-core:1.10.0"
   testImplementation library.java.hadoop_common
