@@ -33,15 +33,16 @@ dependencies {
   implementation "io.openlineage:openlineage-java:$openlineage_version"
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
+  implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_guava_32_1_2_jre
   // IO modules are compile-only: transform-specific lineage visitors activate at runtime only
   // when the corresponding IO is already on the user's classpath.
   compileOnly project(path: ":sdks:java:io:google-cloud-platform")
   compileOnly project(path: ":sdks:java:io:iceberg")
+  // keep in sync with iceberg_version in sdks/java/io/iceberg/build.gradle
   compileOnly "org.apache.iceberg:iceberg-api:1.10.0"
   testImplementation library.java.junit
-  testImplementation library.java.hamcrest
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:io:iceberg")

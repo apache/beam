@@ -18,8 +18,8 @@
 
 /**
  * Emits <a href="https://openlineage.io">OpenLineage</a> events describing the datasets a Beam
- * pipeline reads and writes, so lineage backends (Marquez, Atlan, and other OpenLineage consumers)
- * can build a lineage graph for Beam jobs on any runner.
+ * pipeline reads and writes, so OpenLineage-compatible backends (such as Marquez) can build a
+ * lineage graph for Beam jobs on any runner.
  */
 @DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.openlineage;

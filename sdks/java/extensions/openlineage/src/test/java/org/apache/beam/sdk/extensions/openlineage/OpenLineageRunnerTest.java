@@ -128,6 +128,57 @@ public class OpenLineageRunnerTest {
   }
 
   @Test
+  public void testMalformedRunIdFallsBackWithoutFailing() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(OpenLineageRunner.class);
+    options.as(OpenLineagePipelineOptions.class).setOpenLineageRunId("not-a-uuid");
+    options
+        .as(org.apache.beam.sdk.lineage.LineageOptions.class)
+        .setLineageType(OpenLineageLineage.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new ReportingFn()));
+    // Must not throw anywhere — not at submission and not in worker initialization.
+    pipeline.run().waitUntilFinish();
+
+    List<OpenLineage.RunEvent> events = awaitTerminalEvent();
+    // A valid (deterministic fallback) UUID was used instead.
+    java.util.UUID.fromString(events.get(0).getRun().getRunId().toString());
+  }
+
+  @Test
+  public void testMintedRunIdSharedAcrossRunnerAndPluginWithoutTrackerTiming() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(OpenLineageRunner.class);
+    // Interval so large the tracker cannot fire: the terminal event must come from the
+    // returned PipelineResult, deterministically.
+    options.as(OpenLineagePipelineOptions.class).setOpenLineageTrackingIntervalInSeconds(3600);
+    options
+        .as(org.apache.beam.sdk.lineage.LineageOptions.class)
+        .setLineageType(OpenLineageLineage.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new ReportingFn()));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    List<OpenLineage.RunEvent> events = awaitTerminalEvent();
+    assertEquals(
+        OpenLineage.RunEvent.EventType.COMPLETE, events.get(events.size() - 1).getEventType());
+    // Every event — the runner's START/COMPLETE and the plugin's live RUNNING — must carry the
+    // run id minted at submission.
+    String minted =
+        pipeline.getOptions().as(OpenLineagePipelineOptions.class).getOpenLineageRunId();
+    assertEquals(1, events.stream().map(e -> e.getRun().getRunId().toString()).distinct().count());
+    assertEquals(minted, events.get(0).getRun().getRunId().toString());
+    // The plugin's live capture reached the events.
+    assertTrue(
+        events.stream()
+            .flatMap(e -> e.getInputs().stream())
+            .anyMatch(d -> d.getName().equals("topic:acme-prod:orders-events")));
+  }
+
+  @Test
   public void testParentRunFacetAttachedWhenFullyConfigured() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setRunner(OpenLineageRunner.class);

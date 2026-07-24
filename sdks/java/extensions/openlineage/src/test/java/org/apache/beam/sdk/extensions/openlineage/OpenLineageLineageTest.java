@@ -93,6 +93,12 @@ public class OpenLineageLineageTest {
     options.as(LineageOptions.class).setLineageType(OpenLineageLineage.class);
     options.as(OpenLineagePipelineOptions.class).setOpenLineageJobName("plugin_job");
 
+    // Pin the per-JVM context to this test's options before running: in a shared test JVM an
+    // earlier test may have installed the plugin bound to its own options (Beam's Lineage
+    // plugin registration is static and cannot be reset); production worker JVMs initialize
+    // exactly once per job.
+    OpenLineageContext.getOrCreate(options);
+
     Pipeline pipeline = Pipeline.create(options);
     pipeline.apply(Create.of(1, 2, 3)).apply(ParDo.of(new ReportingFn()));
     PipelineResult result = pipeline.run();

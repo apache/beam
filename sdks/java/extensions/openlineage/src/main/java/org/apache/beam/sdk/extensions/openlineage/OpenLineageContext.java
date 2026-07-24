@@ -27,9 +27,12 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -40,8 +43,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Holds the OpenLineage state of one pipeline execution in this JVM — run identity, discovered
  * datasets, and event lifecycle — mirroring the {@code OpenLineageContext} classes of the Spark and
- * Flink integrations. One instance exists per JVM (driver or worker); every JVM of the same
- * pipeline execution resolves the identical run id so events merge into one run downstream.
+ * Flink integrations. One pipeline execution is tracked per JVM (driver or worker); every JVM of
+ * the same execution resolves the identical run id so events merge into one run downstream. When a
+ * JVM is reused for a new execution after the previous one finished (e.g. a Flink session cluster),
+ * a fresh context replaces the finished one.
+ *
+ * <p>Construction never throws: invalid run ids fall back to the deterministic id and transport
+ * failures degrade to a non-emitting client, so lineage can never fail the pipeline.
  */
 class OpenLineageContext {
 
@@ -51,12 +59,33 @@ class OpenLineageContext {
   private static @Nullable OpenLineageContext instance;
   private static @Nullable BeamOpenLineageConfig configOverride;
 
-  /** Returns the per-JVM context, creating it from the given options on first use. */
+  /**
+   * Returns the per-JVM context, creating it from the given options on first use. If the current
+   * context already finished its run, a fresh context is created so a reused worker JVM tracks the
+   * new execution instead of staying silent.
+   */
   static synchronized OpenLineageContext getOrCreate(PipelineOptions options) {
-    if (instance == null) {
-      instance = new OpenLineageContext(options);
+    OpenLineageContext local = instance;
+    if (local == null || local.finished.get()) {
+      local = new OpenLineageContext(options);
+      instance = local;
     }
-    return instance;
+    return local;
+  }
+
+  /**
+   * Re-resolves the context at submission time, after {@link OpenLineageRunner} has minted the run
+   * id. The {@code LineageBase} plugin may already have been constructed while the runner was being
+   * resolved (before the id existed); as long as nothing has been emitted yet, the context is
+   * rebuilt so driver and workers agree on one run id.
+   */
+  static synchronized OpenLineageContext refreshForRunner(PipelineOptions options) {
+    OpenLineageContext local = instance;
+    if (local == null || local.finished.get() || !local.started.get()) {
+      local = new OpenLineageContext(options);
+      instance = local;
+    }
+    return local;
   }
 
   /** Test seam, mirroring the Spark listener's overrideDefaultFactoryForTests. */
@@ -84,6 +113,8 @@ class OpenLineageContext {
   private final Map<String, DatasetIdentifier> outputs = new ConcurrentHashMap<>();
   private final AtomicBoolean started = new AtomicBoolean(false);
   private final AtomicBoolean finished = new AtomicBoolean(false);
+  // Guarded by the synchronized emit path; guarantees START precedes every other event.
+  private boolean startEmitted;
   private volatile boolean streaming;
 
   private OpenLineageContext(PipelineOptions options) {
@@ -122,19 +153,26 @@ class OpenLineageContext {
   /**
    * Resolves the run id. An explicit id (minted by {@link OpenLineageRunner} at submission and
    * propagated through serialized options, like the Spark integration's driver-minted application
-   * run id) wins. Otherwise a deterministic UUID is derived from the job identity with the same
-   * helper the Airflow provider uses, so independent worker JVMs agree.
+   * run id) wins. Otherwise — or when the explicit id is malformed — a deterministic UUID is
+   * derived from the job identity with the same helper the Airflow provider uses, so independent
+   * worker JVMs still agree. Never throws.
    */
   private static UUID resolveRunId(OpenLineagePipelineOptions olOptions, PipelineOptions options) {
     String explicit = olOptions.getOpenLineageRunId();
     if (explicit != null) {
-      return UUID.fromString(explicit);
+      try {
+        return UUID.fromString(explicit);
+      } catch (IllegalArgumentException e) {
+        LOG.warn(
+            "Malformed openLineageRunId '{}'; falling back to a deterministic run id", explicit);
+      }
     }
     byte[] identity =
         (options.getJobName() + "/" + options.getOptionsId()).getBytes(StandardCharsets.UTF_8);
     return UUIDUtils.generateStaticUUID(Instant.EPOCH, identity);
   }
 
+  /** Builds the parent run facet when fully configured; never throws on malformed input. */
   private static OpenLineage.@Nullable ParentRunFacet buildParentRunFacet(
       OpenLineage openLineage, OpenLineagePipelineOptions options) {
     String parentRunId = options.getOpenLineageParentRunId();
@@ -143,15 +181,21 @@ class OpenLineageContext {
     if (parentRunId == null || parentJobName == null || parentJobNamespace == null) {
       return null;
     }
-    return openLineage
-        .newParentRunFacetBuilder()
-        .run(openLineage.newParentRunFacetRun(UUID.fromString(parentRunId)))
-        .job(openLineage.newParentRunFacetJob(parentJobNamespace, parentJobName))
-        .root(
-            openLineage.newParentRunFacetRoot(
-                openLineage.newRootRun(UUID.fromString(parentRunId)),
-                openLineage.newRootJob(parentJobNamespace, parentJobName)))
-        .build();
+    try {
+      UUID parentUuid = UUID.fromString(parentRunId);
+      return openLineage
+          .newParentRunFacetBuilder()
+          .run(openLineage.newParentRunFacetRun(parentUuid))
+          .job(openLineage.newParentRunFacetJob(parentJobNamespace, parentJobName))
+          .root(
+              openLineage.newParentRunFacetRoot(
+                  openLineage.newRootRun(parentUuid),
+                  openLineage.newRootJob(parentJobNamespace, parentJobName)))
+          .build();
+    } catch (IllegalArgumentException e) {
+      LOG.warn("Malformed openLineageParentRunId '{}'; omitting the parent run facet", parentRunId);
+      return null;
+    }
   }
 
   BeamOpenLineageConfig getConfig() {
@@ -186,7 +230,8 @@ class OpenLineageContext {
       return false;
     }
     Map<String, DatasetIdentifier> target = direction == LineageDirection.INPUT ? inputs : outputs;
-    boolean added = target.putIfAbsent(dataset.getNamespace() + dataset.getName(), dataset) == null;
+    String key = dataset.getNamespace() + "\n" + dataset.getName();
+    boolean added = target.putIfAbsent(key, dataset) == null;
     if (added) {
       LOG.info(
           "OpenLineage discovered {} dataset {} {}",
@@ -216,6 +261,25 @@ class OpenLineageContext {
     emit(OpenLineage.RunEvent.EventType.RUNNING, null);
   }
 
+  /** Pulls IO-reported lineage out of the metrics-based lineage store, if the runner has it. */
+  void sweepLineageMetrics(PipelineResult result) {
+    if (disabled) {
+      return;
+    }
+    try {
+      Set<String> sources = Lineage.query(result.metrics(), Lineage.Type.SOURCE);
+      for (String fqn : sources) {
+        registerDataset(LineageDirection.INPUT, DataplexFqns.toDatasetIdentifier(fqn));
+      }
+      Set<String> sinks = Lineage.query(result.metrics(), Lineage.Type.SINK);
+      for (String fqn : sinks) {
+        registerDataset(LineageDirection.OUTPUT, DataplexFqns.toDatasetIdentifier(fqn));
+      }
+    } catch (RuntimeException e) {
+      LOG.debug("Lineage metrics sweep failed", e);
+    }
+  }
+
   /** Emits the terminal event exactly once. */
   void onJobFinished(OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
     if (disabled) {
@@ -224,11 +288,30 @@ class OpenLineageContext {
     if (finished.compareAndSet(false, true)) {
       started.set(true);
       emit(eventType, error);
+      emitter.close();
     }
   }
 
-  private void emit(OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
+  /**
+   * Builds and sends one event. Synchronized so that concurrent worker threads cannot reorder
+   * events on the transport: START is always emitted (exactly once) before any other event, and
+   * nothing is emitted after the terminal event.
+   */
+  private synchronized void emit(
+      OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
+    if (finished.get() && eventType == OpenLineage.RunEvent.EventType.RUNNING) {
+      return;
+    }
     try {
+      if (eventType == OpenLineage.RunEvent.EventType.START) {
+        if (startEmitted) {
+          return;
+        }
+        startEmitted = true;
+      } else if (!startEmitted) {
+        startEmitted = true;
+        emitter.emit(buildEvent(OpenLineage.RunEvent.EventType.START, null));
+      }
       emitter.emit(buildEvent(eventType, error));
     } catch (RuntimeException e) {
       LOG.warn("Failed to build OpenLineage {} event", eventType, e);

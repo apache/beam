@@ -55,12 +55,13 @@ class PubsubLineageVisitor extends PipelineLineageVisitor {
     }
     PubsubUnboundedSource source = (PubsubUnboundedSource) transform;
     List<DatasetIdentifier> result = new ArrayList<>();
-    PubsubClient.TopicPath topic = valueOf(source.getTopicProvider(), source.getTopic());
+    // Each value is guarded independently: a runtime-only ValueProvider (templated pipelines)
+    // throws from get(), and must not prevent extraction of the other value.
+    PubsubClient.TopicPath topic = accessibleValue(source.getTopicProvider());
     if (topic != null) {
       addPath(result, "topic", topic.getPath());
     }
-    PubsubClient.SubscriptionPath subscription =
-        valueOf(source.getSubscriptionProvider(), source.getSubscription());
+    PubsubClient.SubscriptionPath subscription = accessibleValue(source.getSubscriptionProvider());
     if (subscription != null) {
       addPath(result, "subscription", subscription.getPath());
     }
@@ -91,12 +92,13 @@ class PubsubLineageVisitor extends PipelineLineageVisitor {
     return Collections.emptyList();
   }
 
-  private static <T> @Nullable T valueOf(@Nullable ValueProvider<T> provider, @Nullable T direct) {
-    if (direct != null) {
-      return direct;
-    }
-    if (provider != null && provider.isAccessible()) {
-      return provider.get();
+  private static <T> @Nullable T accessibleValue(@Nullable ValueProvider<T> provider) {
+    try {
+      if (provider != null && provider.isAccessible()) {
+        return provider.get();
+      }
+    } catch (RuntimeException e) {
+      LOG.debug("Pubsub value not available at graph time", e);
     }
     return null;
   }

@@ -42,9 +42,13 @@ import org.slf4j.LoggerFactory;
  * <p>At submission it mints a UUIDv7 run id (like the Spark integration's driver-minted application
  * run id) and stores it in the serialized options so worker-side emission shares the run; extracts
  * datasets from the pipeline graph; emits START; delegates to the real runner; and starts a {@link
- * OpenLineageJobTracker} that emits periodic RUNNING events and the terminal COMPLETE/ABORT/FAIL
- * event. Transport configuration is read the standard OpenLineage way (see {@link
- * OpenLineagePipelineOptions}).
+ * OpenLineageJobTracker} that emits periodic RUNNING events. The terminal COMPLETE/ABORT/FAIL event
+ * is emitted deterministically when the caller observes completion through the returned {@link
+ * OpenLineagePipelineResult}. Transport configuration is read the standard OpenLineage way (see
+ * {@link OpenLineagePipelineOptions}).
+ *
+ * <p>Note: the delegate runner defaults to {@code DirectRunner}, matching Beam's own default when
+ * no {@code --runner} is set.
  */
 public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
 
@@ -64,11 +68,18 @@ public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
   @Override
   public PipelineResult run(Pipeline pipeline) {
     OpenLineagePipelineOptions olOptions = options.as(OpenLineagePipelineOptions.class);
+    if (olOptions.isOpenLineageDisabled()
+        || Boolean.parseBoolean(System.getenv("OPENLINEAGE_DISABLED"))) {
+      LOG.info("OpenLineage is disabled; delegating without lineage emission");
+      return resolveDelegate(olOptions).run(pipeline);
+    }
+
     if (olOptions.getOpenLineageRunId() == null) {
       olOptions.setOpenLineageRunId(UUIDUtils.generateNewUUID().toString());
     }
-
-    OpenLineageContext context = OpenLineageContext.getOrCreate(options);
+    // Re-resolve the context AFTER minting the run id: the LineageBase plugin may already have
+    // created a context (without the id) while this runner was being constructed.
+    OpenLineageContext context = OpenLineageContext.refreshForRunner(options);
     try {
       PipelineGraphExtractor.extract(pipeline, context);
     } catch (RuntimeException e) {
@@ -87,14 +98,22 @@ public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
     }
 
     if (olOptions.isOpenLineageDisableTracking()) {
-      LOG.info("OpenLineage tracking disabled; no RUNNING or terminal events will be emitted");
+      LOG.info("OpenLineage tracking disabled; no periodic RUNNING events will be emitted");
     } else {
       Integer configured = context.getConfig().getTrackingIntervalInSeconds();
       int intervalSeconds =
-          configured != null ? configured : BeamOpenLineageConfig.DEFAULT_TRACKING_INTERVAL_SECONDS;
+          configured == null || configured <= 0
+              ? BeamOpenLineageConfig.DEFAULT_TRACKING_INTERVAL_SECONDS
+              : configured;
+      if (configured != null && configured <= 0) {
+        LOG.warn(
+            "Ignoring non-positive trackingIntervalInSeconds {}; using default {}",
+            configured,
+            BeamOpenLineageConfig.DEFAULT_TRACKING_INTERVAL_SECONDS);
+      }
       new OpenLineageJobTracker(context, result, intervalSeconds).startTracking();
     }
-    return result;
+    return new OpenLineagePipelineResult(result, context);
   }
 
   private PipelineRunner<? extends PipelineResult> resolveDelegate(

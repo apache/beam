@@ -73,10 +73,14 @@ class DataplexFqns {
           String account = first(seg);
           String container = seg.size() > 1 ? seg.get(1) : "unknown";
           return new DatasetIdentifier(
-              objectKey(seg, 2), "wasbs://" + container + "@" + account + ".dfs.core.windows.net");
+              objectKey(seg, 2), "wasbs://" + container + "@" + account + ".blob.core.windows.net");
         }
       case "hdfs":
-        return new DatasetIdentifier(objectKey(seg, 1), "hdfs://" + first(seg));
+        // The path keeps its leading slash, matching openlineage-java's FilesystemDatasetUtils
+        // so the same physical dataset gets one identity on every code path.
+        return new DatasetIdentifier(
+            seg.size() > 1 ? String.join("/", seg.subList(1, seg.size())) : "/",
+            "hdfs://" + first(seg));
       case "spanner":
         {
           // Beam segments: project, instanceConfig, instance, database, table.

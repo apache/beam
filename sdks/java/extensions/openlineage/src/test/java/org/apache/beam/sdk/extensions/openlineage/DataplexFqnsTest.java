@@ -76,13 +76,13 @@ public class DataplexFqnsTest {
   public void testAzureBlobStorage() {
     assertMapsTo(
         "abs:myaccount.mycontainer.path/to/blob",
-        "wasbs://mycontainer@myaccount.dfs.core.windows.net",
+        "wasbs://mycontainer@myaccount.blob.core.windows.net",
         "path/to/blob");
   }
 
   @Test
   public void testHdfs() {
-    assertMapsTo("hdfs:`namenode:8020`./user/data", "hdfs://namenode:8020", "user/data");
+    assertMapsTo("hdfs:`namenode:8020`./user/data", "hdfs://namenode:8020", "/user/data");
   }
 
   @Test

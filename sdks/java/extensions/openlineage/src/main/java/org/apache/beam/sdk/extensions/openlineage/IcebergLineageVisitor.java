@@ -101,10 +101,16 @@ class IcebergLineageVisitor extends PipelineLineageVisitor {
       String symlinkNamespace =
           uri != null ? uri : (warehouse != null ? warehouse : "iceberg://" + catalogName);
       String location = loadTableLocation(catalogConfig, tableId);
-      DatasetIdentifier identifier;
+      DatasetIdentifier identifier = null;
       if (location != null) {
-        identifier = FilesystemDatasetUtils.fromLocation(URI.create(location));
-      } else {
+        try {
+          identifier = FilesystemDatasetUtils.fromLocation(URI.create(location));
+        } catch (RuntimeException e) {
+          // Fall through to the catalog-based identity instead of dropping the dataset.
+          LOG.debug("Unparseable Iceberg table location '{}'", location, e);
+        }
+      }
+      if (identifier == null) {
         identifier =
             new DatasetIdentifier(tableId.toString(), "iceberg://" + authority(uri, catalogName));
       }
