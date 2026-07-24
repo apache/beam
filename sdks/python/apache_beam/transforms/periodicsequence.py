@@ -170,7 +170,8 @@ class ImpulseSeqGenDoFn(beam.DoFn):
         # the next fire time, so advance the watermark up to that timestamp.
         # Without this the reported watermark stalls at the last emitted
         # element's timestamp and lags by up to one fire_interval, producing a
-        # saw-tooth watermark age (regression from 2.73.0, see
+        # saw-tooth watermark age (regression introduced in 2.67.0 by the
+        # process() rewrite in #35412, see
         # https://github.com/apache/beam/issues/39026).
         #
         # For pre-timestamped data the provided event times may be out of order
