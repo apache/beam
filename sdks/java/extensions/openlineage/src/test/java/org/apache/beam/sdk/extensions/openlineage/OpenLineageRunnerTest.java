@@ -72,6 +72,13 @@ public class OpenLineageRunnerTest {
     OpenLineageContext.resetForTests();
   }
 
+  private static class ThrowingFn extends DoFn<Integer, Integer> {
+    @ProcessElement
+    public void processElement() {
+      throw new IllegalStateException("boom");
+    }
+  }
+
   /** Mirrors the runtime Lineage calls IO connectors make (e.g. PubsubIO.java). */
   private static class ReportingFn extends DoFn<Integer, Integer> {
     private transient boolean reported;
@@ -138,6 +145,114 @@ public class OpenLineageRunnerTest {
     assertEquals("11111111-2222-3333-4444-555555555555", parent.getRun().getRunId().toString());
     assertEquals("parent_dag.parent_task", parent.getJob().getName());
     assertEquals("airflow_namespace", parent.getJob().getNamespace());
+  }
+
+  @Test
+  public void testManagedIcebergWriteEmitsDatasetWithSymlink() throws Exception {
+    String warehouse = "file://" + temporaryFolder.newFolder("e2e-warehouse").getAbsolutePath();
+    org.apache.iceberg.catalog.TableIdentifier tableId =
+        org.apache.iceberg.catalog.TableIdentifier.parse("demo.orders");
+    try (org.apache.iceberg.hadoop.HadoopCatalog catalog =
+        new org.apache.iceberg.hadoop.HadoopCatalog(
+            new org.apache.hadoop.conf.Configuration(), warehouse)) {
+      catalog.createTable(
+          tableId,
+          new org.apache.iceberg.Schema(
+              org.apache.iceberg.types.Types.NestedField.required(
+                  1, "id", org.apache.iceberg.types.Types.LongType.get()),
+              org.apache.iceberg.types.Types.NestedField.required(
+                  2, "name", org.apache.iceberg.types.Types.StringType.get())));
+    }
+    java.util.Map<String, Object> config = new java.util.HashMap<>();
+    config.put("table", "demo.orders");
+    config.put("catalog_name", "local");
+    java.util.Map<String, String> catalogProps = new java.util.HashMap<>();
+    catalogProps.put("type", "hadoop");
+    catalogProps.put("warehouse", warehouse);
+    config.put("catalog_properties", catalogProps);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(OpenLineageRunner.class);
+    org.apache.beam.sdk.schemas.Schema beamSchema =
+        org.apache.beam.sdk.schemas.Schema.builder()
+            .addInt64Field("id")
+            .addStringField("name")
+            .build();
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            Create.of(
+                    org.apache.beam.sdk.values.Row.withSchema(beamSchema)
+                        .addValues(1L, "laptop")
+                        .build())
+                .withRowSchema(beamSchema))
+        .apply(
+            org.apache.beam.sdk.managed.Managed.write(org.apache.beam.sdk.managed.Managed.ICEBERG)
+                .withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    List<OpenLineage.RunEvent> events = awaitTerminalEvent();
+    // The graph-extracted Iceberg dataset must be on the START event already.
+    OpenLineage.OutputDataset output = events.get(0).getOutputs().get(0);
+    assertEquals("file", output.getNamespace());
+    assertTrue(output.getName().endsWith("/e2e-warehouse/demo/orders"));
+    OpenLineage.SymlinksDatasetFacetIdentifiers symlink =
+        output.getFacets().getSymlinks().getIdentifiers().get(0);
+    assertEquals("demo.orders", symlink.getName());
+    assertEquals("TABLE", symlink.getType());
+  }
+
+  @Test
+  public void testStreamingPipelineEmitsRunningHeartbeatsAndAbortOnCancel() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--blockOnRun=false").create();
+    options.setRunner(OpenLineageRunner.class);
+    options.as(OpenLineagePipelineOptions.class).setOpenLineageTrackingIntervalInSeconds(1);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(org.apache.beam.sdk.io.GenerateSequence.from(0));
+    PipelineResult result = pipeline.run();
+
+    // The tracker must emit periodic RUNNING events while the job runs...
+    awaitEventCount(OpenLineage.RunEvent.EventType.RUNNING, 2);
+    // ...and CANCELLED must map to ABORT, per the Flink integration's terminal mapping.
+    result.cancel();
+    awaitEventCount(OpenLineage.RunEvent.EventType.ABORT, 1);
+  }
+
+  @Test
+  public void testFailingPipelineEmitsFailWithErrorMessageFacet() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(OpenLineageRunner.class);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of(1)).apply(ParDo.of(new ThrowingFn()));
+    try {
+      pipeline.run().waitUntilFinish();
+      throw new AssertionError("pipeline should have failed");
+    } catch (RuntimeException expected) {
+      // expected
+    }
+
+    List<OpenLineage.RunEvent> events = awaitEventCount(OpenLineage.RunEvent.EventType.FAIL, 1);
+    OpenLineage.RunEvent fail = events.get(events.size() - 1);
+    String message = fail.getRun().getFacets().getErrorMessage().getMessage();
+    assertTrue("errorMessage was: " + message, message.contains("boom"));
+    assertEquals("JAVA", fail.getRun().getFacets().getErrorMessage().getProgrammingLanguage());
+  }
+
+  private List<OpenLineage.RunEvent> awaitEventCount(
+      OpenLineage.RunEvent.EventType type, int minCount) throws Exception {
+    long deadline = System.currentTimeMillis() + 30_000;
+    List<OpenLineage.RunEvent> events = readEvents();
+    while (System.currentTimeMillis() < deadline) {
+      events = readEvents();
+      if (events.stream().filter(e -> e.getEventType() == type).count() >= minCount) {
+        return events;
+      }
+      Thread.sleep(250);
+    }
+    throw new AssertionError("Expected " + minCount + " " + type + " events; got " + events);
   }
 
   @Test
