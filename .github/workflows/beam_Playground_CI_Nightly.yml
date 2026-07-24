@@ -67,7 +67,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: default
+          python-version: '3.11'
           go-version: '1.26'
       - name: Install requirements
         run: |
