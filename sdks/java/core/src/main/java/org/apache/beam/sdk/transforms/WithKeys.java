@@ -110,33 +110,27 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
 
   @Override
   public PCollection<KV<K, V>> expand(PCollection<V> in) {
-    SerializableFunction<V, K> localFn = fn;
-    TypeDescriptor<V> inputType = in.getTypeDescriptor();
-    TypeDescriptor<KV<K, V>> outputType = getOutputTypeDescriptor(inputType);
     PCollection<KV<K, V>> result =
         in.apply(
             "AddKeys",
-            outputType == null
-                ? MapElements.via(
-                    new SimpleFunction<V, KV<K, V>>() {
-                      @Override
-                      public KV<K, V> apply(V element) {
-                        return KV.of(localFn.apply(element), element);
-                      }
-                    })
-                : MapElements.into(outputType)
-                    .via(
-                        (SerializableFunction<V, KV<K, V>>)
-                            element -> KV.of(localFn.apply(element), element)));
+            MapElements.via(
+                new SimpleFunction<V, KV<K, V>>() {
+                  @Override
+                  public KV<K, V> apply(V element) {
+                    return KV.of(fn.apply(element), element);
+                  }
+                }));
 
     try {
+      Coder<K> keyCoder;
       CoderRegistry coderRegistry = in.getPipeline().getCoderRegistry();
-      if (outputType == null) {
-        Coder<K> keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
-        result.setCoder(KvCoder.of(keyCoder, in.getCoder()));
+      if (keyType == null) {
+        keyCoder = coderRegistry.getOutputCoder(fn, in.getCoder());
       } else {
-        result.setCoder(coderRegistry.getCoder(outputType, checkNotNull(inputType), in.getCoder()));
+        keyCoder = coderRegistry.getCoder(keyType);
       }
+      // TODO: Remove when we can set the coder inference context.
+      result.setCoder(KvCoder.of(keyCoder, in.getCoder()));
     } catch (CannotProvideCoderException exc) {
       if (keyType != null) {
         try {
@@ -156,13 +150,5 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>, PCollection<KV<K,
     }
 
     return result;
-  }
-
-  private @Nullable TypeDescriptor<KV<K, V>> getOutputTypeDescriptor(
-      @Nullable TypeDescriptor<V> inputType) {
-    if (keyType == null || inputType == null) {
-      return null;
-    }
-    return TypeDescriptors.kvs(keyType, inputType);
   }
 }
