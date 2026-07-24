@@ -28,6 +28,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['learning/tour-of-beam/backend/**']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
