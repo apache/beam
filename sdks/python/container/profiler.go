@@ -427,6 +427,10 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 		args = append(args, corePath, pythonProg)
 
 		logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
+		timeSuffix := info.ModTime().Format("20060102150405")
+		newName := fmt.Sprintf("%s-%s", name, timeSuffix)
+		destTxtPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.txt", newName))
+
 		cmd := exec.CommandContext(ctx, "pystack", args...)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
@@ -440,6 +444,9 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 			}
 		} else {
 			logger.Errorf(ctx, "Pystack coredump analysis for %s:\n%s", name, string(output))
+			if err := os.WriteFile(destTxtPath, output, 0644); err != nil {
+				logger.Warnf(ctx, "Failed to write pystack output to %s: %v", destTxtPath, err)
+			}
 			if err := os.Remove(corePath); err != nil {
 				logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
 			}

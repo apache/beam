@@ -90,4 +90,3 @@ func TestIsProfilerDisengaged(t *testing.T) {
 		t.Error("Expected profiler to be disengaged after sentinel creation")
 	}
 }
-
