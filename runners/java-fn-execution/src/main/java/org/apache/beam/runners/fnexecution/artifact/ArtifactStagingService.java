@@ -510,8 +510,10 @@ public class ArtifactStagingService
         // all path separators.
         List<String> components = Splitter.onPattern("[^A-Za-z-_.]]").splitToList(path);
         String base = components.get(components.size() - 1);
+        String sanitizedEnvironment = environment.replaceAll("[<>:\"/\\\\|?*]", "_");
         return clip(
-            String.format("%s-%s-%s", idGenerator.getId(), clip(environment, 25), base), 100);
+            String.format("%s-%s-%s", idGenerator.getId(), clip(sanitizedEnvironment, 25), base),
+            100);
       }
 
       private String clip(String s, int maxLength) {
