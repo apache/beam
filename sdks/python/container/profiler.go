@@ -146,7 +146,7 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 	}
 
 	if pcfg.Agent == "memray" {
-		go postProcessProfilesLoop(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+		go postProcessProfilesLoop(ctx, logger, pcfg)
 	}
 
 	if pcfg.Agent == "pystack_coredump" {
@@ -257,18 +257,22 @@ func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsD
 }
 
 // postProcessProfilesLoop runs a background loop that periodically triggers profile post-processing if enabled.
-func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
-	if intervalSec <= 0 {
+func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
+	if pcfg.PostprocessIntervalSec <= 0 {
 		return
 	}
 
 	for {
-		runPostProcessingSweep(ctx, logger, profilesDir, intervalSec)
+		runPostProcessingSweep(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+
+		if isProfilerDisengaged(pcfg) {
+			return
+		}
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(intervalSec) * time.Second):
+		case <-time.After(time.Duration(pcfg.PostprocessIntervalSec) * time.Second):
 			// Block until the sleep completes before starting the next sweep
 		}
 	}
