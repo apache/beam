@@ -438,17 +438,28 @@ project.tasks.register("inferencePostCommitIT") {
 // Create cross-language tasks for running tests against Java expansion service(s)
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 
+def testDirectRunnerOpts = [
+    "--runner=TestDirectRunner",
+    "--project=${gcpProject}",
+    "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+]
+
+def prismRunnerOpts = [
+  "--runner=PrismRunner",
+  "--environment_type=LOOPBACK",
+  "--project=${gcpProject}",
+  "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+]
+
+def usePrismRunnerSuites = ["messagingCrossLanguage"]
+
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
       name: taskMetadata.name,
       expansionProjectPaths: taskMetadata.expansionProjectPaths,
       collectMarker: taskMetadata.collectMarker,
       numParallelTests: 1,
-      pythonPipelineOptions: [
-        "--runner=TestDirectRunner",
-        "--project=${gcpProject}",
-        "--temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-      ],
+      pythonPipelineOptions: usePrismRunnerSuites.contains(taskMetadata.name) ? prismRunnerOpts : testDirectRunnerOpts,
       pytestOptions: [
         "--capture=no",  // print stdout instantly
         "--timeout=4500", // timeout of whole command execution

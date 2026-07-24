@@ -208,6 +208,21 @@ public class JmsIO {
     return new AutoValue_JmsIO_Write.Builder<EventT>().build();
   }
 
+  /** @deprecated Use {@link org.apache.beam.sdk.io.jms.ConnectionConfiguration}. */
+  @Deprecated
+  public abstract static class ConnectionConfiguration
+      extends org.apache.beam.sdk.io.jms.ConnectionConfiguration {
+    public static org.apache.beam.sdk.io.jms.ConnectionConfiguration create(
+        String serverUri, @Nullable String connectionFactoryClassName) {
+      return org.apache.beam.sdk.io.jms.ConnectionConfiguration.create(
+          serverUri, connectionFactoryClassName);
+    }
+
+    public static org.apache.beam.sdk.io.jms.ConnectionConfiguration create(String serverUri) {
+      return org.apache.beam.sdk.io.jms.ConnectionConfiguration.create(serverUri);
+    }
+  }
+
   public interface ConnectionFactoryContainer<T extends ConnectionFactoryContainer<T>> {
 
     T withConnectionFactory(ConnectionFactory connectionFactory);
@@ -365,6 +380,22 @@ public class JmsIO {
       checkArgument(
           connectionFactoryProviderFn != null, "connectionFactoryProviderFn cannot be null");
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
+    }
+
+    public Read<T> withConnectionConfiguration(
+        org.apache.beam.sdk.io.jms.ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Read<T> read =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        read = read.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        read = read.withPassword(configuration.getPassword());
+      }
+      return read;
     }
 
     /**
@@ -1104,6 +1135,22 @@ public class JmsIO {
       checkArgument(
           connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
+    }
+
+    public Write<EventT> withConnectionConfiguration(
+        org.apache.beam.sdk.io.jms.ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Write<EventT> write =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        write = write.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        write = write.withPassword(configuration.getPassword());
+      }
+      return write;
     }
 
     /**
