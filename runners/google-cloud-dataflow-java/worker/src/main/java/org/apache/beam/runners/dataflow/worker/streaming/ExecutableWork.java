@@ -82,4 +82,8 @@ public final class ExecutableWork {
   public Work.KeyGroup getKeyGroup() {
     return work().getKeyGroup();
   }
+
+  public boolean isMultiKeyBatchingDisabled() {
+    return work().isMultiKeyBatchingDisabled();
+  }
 }

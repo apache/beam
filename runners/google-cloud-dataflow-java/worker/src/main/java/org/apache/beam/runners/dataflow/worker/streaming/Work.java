@@ -86,7 +86,7 @@ public final class Work implements RefreshableWork {
   // If true, this work item will not be batched with other work items in a multi-key bundle.
   // This is used to isolate work items that failed validation (e.g. commit size limit exceeded)
   // so they can be retried individually and potentially truncated.
-  private boolean disableMultiKeyBatching = false;
+  private volatile boolean disableMultiKeyBatching = false;
   private volatile String processingThreadName = "";
   private final AtomicReference<@Nullable AtomicBoolean> onFailureListener =
       new AtomicReference<>(null);
