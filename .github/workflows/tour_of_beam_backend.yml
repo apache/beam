@@ -65,6 +65,6 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.49.0
+          version: v2.12.2
           working-directory: learning/tour-of-beam/backend
 
