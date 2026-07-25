@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.core.ElementByteSizeObservable;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -63,11 +64,23 @@ public class DataflowOutputCounter implements ElementCounter {
     objectAndByteCounter.update(elem);
     long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
     if (windowsSize == 0) {
-      // GroupingShuffleReader produces ValueInEmptyWindows.
-      // For now, we count the element at least once to keep the current counter
-      // behavior.
-      elementCount.addValue(1L);
+      // ValueInEmptyWindows occurs when processing shuffle/streaming work items
+      // (e.g. GroupingShuffleReader or WindowingWindmillReader). KeyedWorkItems contain elements
+      // and timers across multiple windows, so the wrapper ValueInEmptyWindows has 0 windows.
+      Object value = ((WindowedValue<?>) elem).getValue();
+      if (value instanceof KeyedWorkItem<?, ?>) {
+        KeyedWorkItem<?, ?> keyedWorkItem = (KeyedWorkItem<?, ?>) value;
+        long totalElementCount = 0;
+        // Iterate only through elementsIterable and ignore timers in KeyedWorkItem.
+        for (WindowedValue<?> element : keyedWorkItem.elementsIterable()) {
+          long elementWindowsSize = element.getWindows().size();
+          // Fan out for windows.
+          totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
+        }
+        elementCount.addValue(totalElementCount);
+      }
     } else {
+      // Standard WindowedValue.
       elementCount.addValue(windowsSize);
     }
   }
