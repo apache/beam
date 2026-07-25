@@ -16,8 +16,8 @@
 package fs_content
 
 import (
-	"os"
 	"log"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
