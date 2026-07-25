@@ -18,6 +18,7 @@
 name: Cancel
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows:
       - "Build python source distribution and wheels"

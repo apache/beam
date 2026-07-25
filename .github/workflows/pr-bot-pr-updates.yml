@@ -15,6 +15,7 @@
 
 name: pr-bot-pr-updates
 on:
+  workflow_dispatch:
   pull_request_target:
     types: ["synchronize"] # Synchronize is the action that runs after pushes to the user branch
   issue_comment:
