@@ -47,7 +47,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          go-version: '1.26.0'
+          # Pin to the biggest Go version supported by Cloud Run functions runtime
+          # Verify here - https://docs.cloud.google.com/functions/docs/release-notes 
+          go-version: '1.26'
           cache: false
       - name: Run fmt
         run: |
