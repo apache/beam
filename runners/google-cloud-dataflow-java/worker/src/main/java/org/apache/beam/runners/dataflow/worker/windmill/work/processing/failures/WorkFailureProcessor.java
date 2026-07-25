@@ -110,8 +110,7 @@ public final class WorkFailureProcessor {
       switch (evaluateRetry(computationId, executableWork.work(), t)) {
         case DO_NOT_RETRY:
           // Consider the item invalid. It will eventually be retried by Windmill if it still needs
-          // to
-          // be processed.
+          // to be processed.
           onInvalidWork.accept(executableWork.work());
           break;
         case RETRY_LOCALLY:
