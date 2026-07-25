@@ -65,10 +65,10 @@ public class DataflowOutputCounter implements ElementCounter {
     long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
     if (windowsSize == 0) {
       // ValueInEmptyWindows occurs when processing shuffle/streaming work items
-      // (e.g. GroupingShuffleReader or WindowingWindmillReader). KeyedWorkItems contain elements
-      // and timers across multiple windows, so the wrapper ValueInEmptyWindows has 0 windows.
       Object value = ((WindowedValue<?>) elem).getValue();
       if (value instanceof KeyedWorkItem<?, ?>) {
+        // KeyedWorkItem wrapped in ValueInEmptyWindows 
+        // (e.g. WindowingWindmillReader for Streaming GBK)
         KeyedWorkItem<?, ?> keyedWorkItem = (KeyedWorkItem<?, ?>) value;
         long totalElementCount = 0;
         // Iterate only through elementsIterable and ignore timers in KeyedWorkItem.
@@ -78,6 +78,10 @@ public class DataflowOutputCounter implements ElementCounter {
           totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
         }
         elementCount.addValue(totalElementCount);
+      } else {
+        // Non-KeyedWorkItem wrapped in ValueInEmptyWindows 
+        // (e.g. GroupingShuffleReader KV output for Batch GBK)
+        elementCount.addValue(1L);
       }
     } else {
       // Standard WindowedValue.
