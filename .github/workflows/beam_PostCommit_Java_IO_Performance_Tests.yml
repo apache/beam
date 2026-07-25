@@ -76,12 +76,12 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
     - name: Get Beam latest release
-      if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
+      if: github.event_name == 'schedule' && matrix.test_case != 'IcebergPerformanceTest'
       run: |
         BEAM_VERSION=$(curl -s https://api.github.com/repos/apache/beam/releases/latest | jq -r '.tag_name')
         echo "BEAM_VERSION=${BEAM_VERSION}" >> $GITHUB_ENV
     - name: Checkout release branch
-      if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
+      if: github.event_name == 'schedule' && matrix.test_case != 'IcebergPerformanceTest'
       uses: actions/checkout@v7
       with:
         ref: ${{ env.BEAM_VERSION }}
