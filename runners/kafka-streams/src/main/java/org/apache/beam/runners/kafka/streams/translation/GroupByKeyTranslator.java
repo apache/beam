@@ -22,8 +22,12 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.common.serialization.Serdes;
@@ -35,10 +39,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Translates the {@code beam:transform:group_by_key:v1} URN — the runner's first stateful,
  * shuffle-bearing transform.
  *
- * <p>This is the simplest GroupByKey: GlobalWindow, default trigger, no allowed lateness (per the
- * plan agreed with the mentor). Each key's values are buffered in a Kafka Streams state store and
- * emitted once as {@code KV<K, Iterable<V>>} when the watermark reaches {@link
- * org.apache.beam.sdk.transforms.windowing.BoundedWindow#TIMESTAMP_MAX_VALUE}.
+ * <p>Windowing and triggering are executed by Beam's {@link
+ * org.apache.beam.runners.core.ReduceFnRunner} inside {@link WindowedGroupByKeyProcessor}, the same
+ * way the Flink and Spark portable runners do it — so fixed/sliding windows, the default trigger,
+ * allowed lateness and timestamp combiners all work. The input PCollection's windowing strategy is
+ * hydrated from the pipeline proto and handed to the processor.
  *
  * <p>Topology added (the Beam key becomes the Kafka record key so Kafka Streams shuffles by it):
  *
@@ -49,7 +54,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       via {@link KStreamsPayloadSerde} and a {@link GroupByKeyBroadcastPartitioner} that hashes
  *       data by key and fans watermark reports out to every partition;
  *   <li>a {@link Topology#addSource source} reading the repartition topic back;
- *   <li>the {@link GroupByKeyProcessor} plus a persistent state store, wired to the source.
+ *   <li>the {@link WindowedGroupByKeyProcessor} plus persistent state and timer stores, wired to
+ *       the source.
  * </ul>
  *
  * <p>The repartition topic is expected to exist on the broker before the job starts (same
@@ -62,6 +68,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
   static final String SINK_SUFFIX = "-repartition-sink";
   static final String SOURCE_SUFFIX = "-repartition-source";
   static final String STATE_STORE_SUFFIX = "-state";
+  static final String TIMER_STORE_SUFFIX = "-timers";
   static final String REPARTITION_TOPIC_PREFIX = "__beam_gbk_";
 
   @Override
@@ -82,12 +89,16 @@ class GroupByKeyTranslator implements PTransformTranslator {
     Coder<@Nullable Object> valueCoder =
         (Coder<@Nullable Object>) (Coder<?>) kvCoder.getValueCoder();
 
+    WindowingStrategy<?, BoundedWindow> windowingStrategy =
+        hydrateWindowingStrategy(pipeline, inputPCollectionId);
+
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
 
     String shuffleName = transformId + SHUFFLE_SUFFIX;
     String sinkName = transformId + SINK_SUFFIX;
     String sourceName = transformId + SOURCE_SUFFIX;
     String stateStoreName = transformId + STATE_STORE_SUFFIX;
+    String timerStoreName = transformId + TIMER_STORE_SUFFIX;
     String repartitionTopic = repartitionTopic(transformId);
 
     KStreamsPayloadSerde<KV<Object, Object>> payloadSerde = new KStreamsPayloadSerde<>(inputCoder);
@@ -111,25 +122,52 @@ class GroupByKeyTranslator implements PTransformTranslator {
         payloadSerde.deserializer(),
         repartitionTopic);
 
-    // Buffer values per key and fire KV<K, Iterable<V>> at the terminal watermark. Watermark
-    // reports cross the repartition topic unchanged, so they still carry the id of the transform
-    // that produced this GroupByKey's input — the parent the shuffle is attached to.
+    // Group by key and window through Beam's ReduceFnRunner, backed by the state and timer stores.
+    // Watermark reports cross the repartition topic unchanged, so they still carry the id of the
+    // transform that produced this GroupByKey's input — the parent the shuffle is attached to.
     topology.addProcessor(
         transformId,
         () ->
-            new GroupByKeyProcessor(
+            new WindowedGroupByKeyProcessor<Object, @Nullable Object, BoundedWindow>(
                 stateStoreName,
+                timerStoreName,
                 transformId,
                 ImmutableSet.of(parentProcessor),
                 keyCoder,
-                valueCoder),
+                valueCoder,
+                windowingStrategy,
+                context.getPipelineOptions()),
         sourceName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(
             Stores.persistentKeyValueStore(stateStoreName), Serdes.ByteArray(), Serdes.ByteArray()),
         transformId);
+    topology.addStateStore(
+        Stores.keyValueStoreBuilder(
+            Stores.persistentKeyValueStore(timerStoreName), Serdes.ByteArray(), Serdes.ByteArray()),
+        transformId);
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
+  }
+
+  /** Hydrates the input PCollection's windowing strategy from the pipeline proto. */
+  private static WindowingStrategy<?, BoundedWindow> hydrateWindowingStrategy(
+      RunnerApi.Pipeline pipeline, String inputPCollectionId) {
+    RunnerApi.Components components = pipeline.getComponents();
+    String windowingStrategyId =
+        components.getPcollectionsOrThrow(inputPCollectionId).getWindowingStrategyId();
+    try {
+      @SuppressWarnings("unchecked")
+      WindowingStrategy<?, BoundedWindow> strategy =
+          (WindowingStrategy<?, BoundedWindow>)
+              WindowingStrategyTranslation.fromProto(
+                  components.getWindowingStrategiesOrThrow(windowingStrategyId),
+                  RehydratedComponents.forComponents(components));
+      return strategy;
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          "Failed to hydrate GroupByKey windowing strategy " + windowingStrategyId, e);
+    }
   }
 
   /** The internal repartition topic name for a GroupByKey transform. */
