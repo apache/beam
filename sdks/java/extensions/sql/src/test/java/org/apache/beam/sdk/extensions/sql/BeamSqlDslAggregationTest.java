@@ -467,6 +467,78 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     pipeline.run();
   }
 
+  /** GROUP-BY with the SINGLE_VALUE aggregation function. */
+  @Test
+  public void testSingleValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.builder().addInt32Field("key").addInt32Field("col").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            1, 3,
+                            2, 4)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT key, SINGLE_VALUE(col) as single_value FROM PCOLLECTION GROUP BY key";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Map<Integer, List<Integer>> allowedTuples = new HashMap<>();
+    allowedTuples.put(0, Arrays.asList(1));
+    allowedTuples.put(1, Arrays.asList(3));
+    allowedTuples.put(2, Arrays.asList(4));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<Integer> values = allowedTuples.remove(row.getInt32("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getInt32("single_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  /** GROUP-BY with the SINGLE_VALUE aggregation function fails on multiple values. */
+  @Test
+  public void testSingleValueFunction_throwsOnMultiple() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.builder().addInt32Field("key").addInt32Field("col").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT key, SINGLE_VALUE(col) as single_value FROM PCOLLECTION GROUP BY key";
+
+    inputRows.apply("sql", SqlTransform.query(sql));
+
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Subquery returned more than one row");
+    pipeline.run();
+  }
+
   @Test
   public void testBitOrFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
