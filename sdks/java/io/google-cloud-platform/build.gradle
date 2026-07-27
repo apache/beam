@@ -64,6 +64,7 @@ dependencies {
   implementation library.java.google_api_client
   implementation library.java.google_api_common
   implementation library.java.google_api_services_bigquery
+  implementation library.java.opentelemetry_api
   implementation library.java.google_api_services_healthcare
   implementation library.java.google_api_services_pubsub
   implementation library.java.google_api_services_storage
