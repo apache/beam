@@ -34,7 +34,6 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
@@ -77,7 +76,9 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
   private static final Logger LOG = LoggerFactory.getLogger(WindowedGroupByKeyProcessor.class);
 
   private final String stateStoreName;
+  private final String holdsIndexStoreName;
   private final String timerStoreName;
+  private final String timerIndexStoreName;
   private final String transformId;
   private final Coder<K> keyCoder;
   private final WindowingStrategy<?, W> windowingStrategy;
@@ -92,11 +93,15 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable KeyValueStore<byte[], byte[]> stateStore;
+  private @Nullable KeyValueStore<byte[], byte[]> holdsIndexStore;
   private @Nullable KeyValueStore<byte[], byte[]> timerStore;
+  private @Nullable KeyValueStore<byte[], byte[]> timerIndexStore;
 
   WindowedGroupByKeyProcessor(
       String stateStoreName,
+      String holdsIndexStoreName,
       String timerStoreName,
+      String timerIndexStoreName,
       String transformId,
       Set<String> upstreamTransformIds,
       Coder<K> keyCoder,
@@ -104,7 +109,9 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
       WindowingStrategy<?, W> windowingStrategy,
       PipelineOptions options) {
     this.stateStoreName = stateStoreName;
+    this.holdsIndexStoreName = holdsIndexStoreName;
     this.timerStoreName = timerStoreName;
+    this.timerIndexStoreName = timerIndexStoreName;
     this.transformId = transformId;
     this.keyCoder = keyCoder;
     this.windowingStrategy = windowingStrategy;
@@ -119,7 +126,9 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     this.stateStore = context.getStateStore(stateStoreName);
+    this.holdsIndexStore = context.getStateStore(holdsIndexStoreName);
     this.timerStore = context.getStateStore(timerStoreName);
+    this.timerIndexStore = context.getStateStore(timerIndexStoreName);
   }
 
   @Override
@@ -137,12 +146,32 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
     }
     watermarkAggregator.observe(payload.asWatermark());
     Instant advanced = watermarkAggregator.advance();
-    if (advanced.isAfter(lastForwardedWatermark)) {
+    if (advanced.isAfter(inputWatermark)) {
       inputWatermark = advanced;
       fireDueEventTimeTimers(record, advanced);
-      lastForwardedWatermark = advanced;
-      forwardWatermark(record, advanced.getMillis());
     }
+    // Firing may have emitted panes and released their holds, so the output watermark is computed
+    // after it.
+    Instant output = outputWatermark();
+    if (output.isAfter(lastForwardedWatermark)) {
+      lastForwardedWatermark = output;
+      forwardWatermark(record, output.getMillis());
+    }
+  }
+
+  /**
+   * The watermark to publish downstream: the input watermark, held back by the earliest watermark
+   * hold any pending pane has taken.
+   *
+   * <p>{@link ReduceFnRunner} takes a hold for buffered elements that have not been emitted yet, at
+   * the timestamp their pane will carry. Forwarding the raw input watermark would tell downstream
+   * that nothing earlier is coming while those panes are still buffered, and the elements would
+   * then arrive late against the watermark we had already published.
+   */
+  private Instant outputWatermark() {
+    Instant minHold =
+        KafkaStreamsStateInternals.minWatermarkHold(checkInitialized(holdsIndexStore));
+    return minHold == null || inputWatermark.isBefore(minHold) ? inputWatermark : minHold;
   }
 
   private void processData(Record<byte[], KStreamsPayload<?>> record, KStreamsPayload<?> payload) {
@@ -158,33 +187,45 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
         record, encodedKey, key, Collections.singletonList(valueElement), Collections.emptyList());
   }
 
-  /** Fires every event-time timer whose fire time is at or before the new input watermark. */
+  /**
+   * Fires every event-time timer whose fire time is at or before the new input watermark.
+   *
+   * <p>The timers to fire are found by range-scanning the fire-time-ordered index over exactly the
+   * window {@code (-inf, watermark]}, so the cost is proportional to the number of timers that are
+   * actually due rather than to the number of keys that hold a timer.
+   */
   private void fireDueEventTimeTimers(
       Record<byte[], KStreamsPayload<?>> record, Instant watermark) {
-    KeyValueStore<byte[], byte[]> timers = checkInitialized(timerStore);
-    // Group due timers by the Beam key they belong to; a key's timers fire together in one
-    // ReduceFnRunner turn. Whole-store scan per advance is O(timers) — see the class doc.
+    KeyValueStore<byte[], byte[]> identityStore = checkInitialized(timerStore);
+    KeyValueStore<byte[], byte[]> indexStore = checkInitialized(timerIndexStore);
+    // Group the due timers by the Beam key they belong to; a key's timers fire together in one
+    // ReduceFnRunner turn.
     Map<String, DueTimers> dueByKey = new LinkedHashMap<>();
-    List<byte[]> firedStoreKeys = new ArrayList<>();
-    try (KeyValueIterator<byte[], byte[]> it = timers.all()) {
+    List<byte[]> firedIndexKeys = new ArrayList<>();
+    try (KeyValueIterator<byte[], byte[]> it =
+        indexStore.range(
+            KafkaStreamsTimerInternals.dueEventTimeRangeStart(),
+            KafkaStreamsTimerInternals.dueEventTimeRangeEnd(watermark.getMillis()))) {
       while (it.hasNext()) {
         org.apache.kafka.streams.KeyValue<byte[], byte[]> entry = it.next();
-        TimerData timer = decodeTimer(entry.value);
-        if (timer.getDomain() != TimeDomain.EVENT_TIME || timer.getTimestamp().isAfter(watermark)) {
-          continue;
-        }
-        byte[] encodedKey = KafkaStreamsTimerInternals.encodedKeyOf(entry.key);
+        TimerData timer = KafkaStreamsTimerInternals.decodeTimer(windowCoder, entry.value);
+        byte[] encodedKey =
+            KafkaStreamsTimerInternals.encodedKeyOf(
+                KafkaStreamsTimerInternals.identityKeyOf(entry.key));
         dueByKey
             .computeIfAbsent(
                 BaseEncoding.base16().encode(encodedKey), k -> new DueTimers(encodedKey))
             .timers
             .add(timer);
-        firedStoreKeys.add(entry.key);
+        firedIndexKeys.add(entry.key);
       }
     }
-    // Remove fired timers before replaying them; onTimers may legitimately set new ones.
-    for (byte[] storeKey : firedStoreKeys) {
-      timers.delete(storeKey);
+    // Clear the fired timers from both stores before replaying them, since onTimers may
+    // legitimately
+    // set new ones — including at the same identity.
+    for (byte[] indexKey : firedIndexKeys) {
+      indexStore.delete(indexKey);
+      identityStore.delete(KafkaStreamsTimerInternals.identityKeyOf(indexKey));
     }
     for (DueTimers due : dueByKey.values()) {
       runReduceFn(
@@ -199,10 +240,17 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
       List<WindowedValue<V>> elements,
       List<TimerData> timers) {
     StateInternals stateInternals =
-        new KafkaStreamsStateInternals<>(key, encodedKey, checkInitialized(stateStore));
+        new KafkaStreamsStateInternals<>(
+            key, encodedKey, checkInitialized(stateStore), checkInitialized(holdsIndexStore));
     KafkaStreamsTimerInternals timerInternals =
         new KafkaStreamsTimerInternals(
-            encodedKey, checkInitialized(timerStore), windowCoder, inputWatermark, Instant.now());
+            encodedKey,
+            checkInitialized(timerStore),
+            checkInitialized(timerIndexStore),
+            windowCoder,
+            inputWatermark,
+            lastForwardedWatermark,
+            Instant.now());
     ReduceFnRunner<K, V, Iterable<V>, W> runner =
         new ReduceFnRunner<>(
             key,
@@ -253,15 +301,6 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
       return key;
     } catch (CoderException e) {
       throw new RuntimeException("Failed to decode GroupByKey key", e);
-    }
-  }
-
-  private TimerData decodeTimer(byte[] bytes) {
-    try {
-      return CoderUtils.decodeFromByteArray(
-          org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2.of(windowCoder), bytes);
-    } catch (CoderException e) {
-      throw new RuntimeException("Failed to decode timer", e);
     }
   }
 

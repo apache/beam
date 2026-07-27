@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +46,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -69,15 +69,46 @@ import org.joda.time.Instant;
  */
 class KafkaStreamsStateInternals<K> implements StateInternals {
 
+  /** The holds index is a set; only its keys carry information. */
+  private static final byte[] EMPTY_VALUE = new byte[0];
+
+  /**
+   * Reads the minimum watermark hold held by any key and window, or {@code null} if none is held.
+   * The index is ordered by hold time, so this is the first entry rather than a scan.
+   */
+  static @Nullable Instant minWatermarkHold(KeyValueStore<byte[], byte[]> holdsIndexStore) {
+    try (KeyValueIterator<byte[], byte[]> it = holdsIndexStore.all()) {
+      if (!it.hasNext()) {
+        return null;
+      }
+      return new Instant(StoreKeys.readTimestamp(it.next().key, 0));
+    }
+  }
+
   private final @NonNull K key;
   private final byte[] encodedKey;
   private final KeyValueStore<byte[], byte[]> store;
+  private final KeyValueStore<byte[], byte[]> holdsIndexStore;
+
+  /**
+   * The last namespace a composite key was built for, and the {@code key | namespace} prefix that
+   * was built for it. One turn of the windowing runner touches several tags in the same namespace
+   * back to back (read the buffer, read the hold, write both), so caching the prefix removes most
+   * of the per-access encoding work.
+   */
+  private @Nullable StateNamespace cachedNamespace;
+
+  private byte @Nullable [] cachedPrefix;
 
   KafkaStreamsStateInternals(
-      @NonNull K key, byte[] encodedKey, KeyValueStore<byte[], byte[]> store) {
+      @NonNull K key,
+      byte[] encodedKey,
+      KeyValueStore<byte[], byte[]> store,
+      KeyValueStore<byte[], byte[]> holdsIndexStore) {
     this.key = key;
     this.encodedKey = encodedKey;
     this.store = store;
+    this.holdsIndexStore = holdsIndexStore;
   }
 
   @Override
@@ -91,22 +122,35 @@ class KafkaStreamsStateInternals<K> implements StateInternals {
     return address.getSpec().bind(address.getId(), new KafkaStreamsStateBinder(namespace, c));
   }
 
-  /** The composite store key for one cell: {@code len|key len|namespace len|tagId}. */
+  /**
+   * The composite store key for one cell: {@code len|key len|namespace len|tagId}.
+   *
+   * <p>Built into one exactly-sized array, reusing the cached {@code key | namespace} prefix. This
+   * runs on every state access, so it avoids the repeated growth and final copy a stream would do.
+   */
   private byte[] compositeKey(StateNamespace namespace, String id) {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    writeSegment(out, encodedKey);
-    writeSegment(out, namespace.stringKey().getBytes(StandardCharsets.UTF_8));
-    writeSegment(out, id.getBytes(StandardCharsets.UTF_8));
-    return out.toByteArray();
+    byte[] prefix = prefixFor(namespace);
+    byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
+    byte[] compositeKey = new byte[prefix.length + StoreKeys.segmentLength(idBytes)];
+    System.arraycopy(prefix, 0, compositeKey, 0, prefix.length);
+    StoreKeys.writeSegment(compositeKey, prefix.length, idBytes);
+    return compositeKey;
   }
 
-  private static void writeSegment(ByteArrayOutputStream out, byte[] segment) {
-    int length = segment.length;
-    out.write((length >>> 24) & 0xff);
-    out.write((length >>> 16) & 0xff);
-    out.write((length >>> 8) & 0xff);
-    out.write(length & 0xff);
-    out.write(segment, 0, segment.length);
+  /** The {@code key | namespace} prefix every cell in {@code namespace} starts with. */
+  private byte[] prefixFor(StateNamespace namespace) {
+    byte[] cached = cachedPrefix;
+    if (cached != null && namespace.equals(cachedNamespace)) {
+      return cached;
+    }
+    byte[] namespaceBytes = namespace.stringKey().getBytes(StandardCharsets.UTF_8);
+    byte[] prefix =
+        new byte[StoreKeys.segmentLength(encodedKey) + StoreKeys.segmentLength(namespaceBytes)];
+    int offset = StoreKeys.writeSegment(prefix, 0, encodedKey);
+    StoreKeys.writeSegment(prefix, offset, namespaceBytes);
+    cachedNamespace = namespace;
+    cachedPrefix = prefix;
+    return prefix;
   }
 
   private class KafkaStreamsStateBinder implements StateBinder {
@@ -323,7 +367,33 @@ class KafkaStreamsStateInternals<K> implements StateInternals {
     @Override
     public void add(Instant outputTime) {
       Instant current = readValue();
-      writeValue(current == null ? outputTime : timestampCombiner.combine(current, outputTime));
+      Instant combined =
+          current == null ? outputTime : timestampCombiner.combine(current, outputTime);
+      writeValue(combined);
+      // Mirror the hold into the index so the processor can find the minimum hold across every key
+      // and window with one lookup instead of reading all of them.
+      if (current != null) {
+        holdsIndexStore.delete(holdIndexKey(current));
+      }
+      holdsIndexStore.put(holdIndexKey(combined), EMPTY_VALUE);
+    }
+
+    @Override
+    public void clear() {
+      Instant current = readValue();
+      if (current != null) {
+        holdsIndexStore.delete(holdIndexKey(current));
+      }
+      super.clear();
+    }
+
+    /** {@code holdTimestamp | cell}, so the index is ordered by hold time. */
+    private byte[] holdIndexKey(Instant hold) {
+      byte[] cellKey = compositeKey(namespace, id);
+      byte[] indexKey = new byte[StoreKeys.TIMESTAMP_BYTES + cellKey.length];
+      int offset = StoreKeys.writeTimestamp(indexKey, 0, hold.getMillis());
+      System.arraycopy(cellKey, 0, indexKey, offset, cellKey.length);
+      return indexKey;
     }
 
     @Override

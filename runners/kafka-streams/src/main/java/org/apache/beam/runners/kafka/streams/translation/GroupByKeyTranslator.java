@@ -68,7 +68,9 @@ class GroupByKeyTranslator implements PTransformTranslator {
   static final String SINK_SUFFIX = "-repartition-sink";
   static final String SOURCE_SUFFIX = "-repartition-source";
   static final String STATE_STORE_SUFFIX = "-state";
+  static final String HOLDS_INDEX_STORE_SUFFIX = "-holds-index";
   static final String TIMER_STORE_SUFFIX = "-timers";
+  static final String TIMER_INDEX_STORE_SUFFIX = "-timers-index";
   static final String REPARTITION_TOPIC_PREFIX = "__beam_gbk_";
 
   @Override
@@ -98,7 +100,9 @@ class GroupByKeyTranslator implements PTransformTranslator {
     String sinkName = transformId + SINK_SUFFIX;
     String sourceName = transformId + SOURCE_SUFFIX;
     String stateStoreName = transformId + STATE_STORE_SUFFIX;
+    String holdsIndexStoreName = transformId + HOLDS_INDEX_STORE_SUFFIX;
     String timerStoreName = transformId + TIMER_STORE_SUFFIX;
+    String timerIndexStoreName = transformId + TIMER_INDEX_STORE_SUFFIX;
     String repartitionTopic = repartitionTopic(transformId);
 
     KStreamsPayloadSerde<KV<Object, Object>> payloadSerde = new KStreamsPayloadSerde<>(inputCoder);
@@ -130,7 +134,9 @@ class GroupByKeyTranslator implements PTransformTranslator {
         () ->
             new WindowedGroupByKeyProcessor<Object, @Nullable Object, BoundedWindow>(
                 stateStoreName,
+                holdsIndexStoreName,
                 timerStoreName,
+                timerIndexStoreName,
                 transformId,
                 ImmutableSet.of(parentProcessor),
                 keyCoder,
@@ -145,6 +151,20 @@ class GroupByKeyTranslator implements PTransformTranslator {
     topology.addStateStore(
         Stores.keyValueStoreBuilder(
             Stores.persistentKeyValueStore(timerStoreName), Serdes.ByteArray(), Serdes.ByteArray()),
+        transformId);
+    // Indexes ordered by timestamp, so due timers and the minimum watermark hold are range scans
+    // rather than scans of every timer or every held window.
+    topology.addStateStore(
+        Stores.keyValueStoreBuilder(
+            Stores.persistentKeyValueStore(timerIndexStoreName),
+            Serdes.ByteArray(),
+            Serdes.ByteArray()),
+        transformId);
+    topology.addStateStore(
+        Stores.keyValueStoreBuilder(
+            Stores.persistentKeyValueStore(holdsIndexStoreName),
+            Serdes.ByteArray(),
+            Serdes.ByteArray()),
         transformId);
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
