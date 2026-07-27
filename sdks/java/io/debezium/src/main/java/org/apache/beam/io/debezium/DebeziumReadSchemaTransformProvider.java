@@ -74,6 +74,10 @@ public class DebeziumReadSchemaTransformProvider
     this.testLimitMilliseconds = timeLimitMs;
   }
 
+  private static Schema withoutOptions(Schema schema) {
+    return Schema.builder().addFields(schema.getFields()).build();
+  }
+
   private static Connectors parseConnector(String value) {
     try {
       return Connectors.valueOf(value);
@@ -149,7 +153,7 @@ public class DebeziumReadSchemaTransformProvider
         }
 
         // TODO(pabloem): Database connection issues can be debugged here.
-        Schema recordSchema = readTransform.getRecordSchema();
+        Schema recordSchema = withoutOptions(readTransform.getRecordSchema());
         LOG.info(
             "Computed schema for table {} from {}: {}",
             configuration.getTable(),
