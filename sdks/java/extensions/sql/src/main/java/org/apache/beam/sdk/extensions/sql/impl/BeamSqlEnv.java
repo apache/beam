@@ -49,6 +49,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePre
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -133,16 +134,14 @@ public class BeamSqlEnv {
   }
 
   /**
-   * Registers a pre-built {@link
-   * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator} into the
-   * session-scoped operator table chained at the front of the planner's operator table. Use this
-   * (instead of the schema-function registration path) when the operator must declare a non-fixed
-   * operand checker (e.g. {@code VARIADIC}) — the schema auto-wrapping path always produces a
-   * fixed-parameter checker, which breaks SQL routine overload resolution for {@code ANY}-typed
-   * parameters (the precedence comparison asserts on {@code ANY}).
+   * Registers a custom {@link SqlOperator} into the current session's operator table. This allows
+   * registering functions with non-fixed operand types (e.g. VARIADIC), which the schema-function
+   * auto-wrapping mechanism cannot express.
+   *
+   * <p>Only safe to call before the first SQL query is planned in this environment (otherwise the
+   * parser/validator operator table may have already been built without it).
    */
-  public void registerSqlOperator(
-      org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator operator) {
+  public void registerSqlOperator(SqlOperator operator) {
     connection.getExtraOperatorTable().add(operator);
   }
 
