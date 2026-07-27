@@ -805,7 +805,7 @@ public class IcebergIOWriteTest implements Serializable {
         .apply(
             "Append To Table",
             writeTransform(catalog, tableId)
-                .withPartitionSpec(ImmutableList.of("bucket(id, 2)"))
+                .withPartitionFields(ImmutableList.of("bucket(id, 2)"))
                 .withSortOrder(ImmutableList.of("data asc nulls first")));
 
     testPipeline.run().waitUntilFinish();

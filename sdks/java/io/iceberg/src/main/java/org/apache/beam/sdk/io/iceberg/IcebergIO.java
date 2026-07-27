@@ -497,7 +497,7 @@ public class IcebergIO {
      *
      * <p>See: https://iceberg.apache.org/spec/#partitioning
      */
-    public WriteRows withPartitionSpec(List<String> partitionFields) {
+    public WriteRows withPartitionFields(List<String> partitionFields) {
       return toBuilder().setPartitionFields(partitionFields).build();
     }
 
