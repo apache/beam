@@ -44,7 +44,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
     - name: Login to Docker Hub
-      uses: docker/login-action@06fb636fac595d6fb4b28a5dfcb21a6f5091859c
+      uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7
       with:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
