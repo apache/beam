@@ -196,6 +196,8 @@
         port: 'port'
         table: 'table'
         connection_properties: 'debezium_connection_properties'
+        max_number_of_records: 'max_number_of_records'
+        max_time_to_run: 'max_time_to_run'
     underlying_provider:
       type: beamJar
       transforms:

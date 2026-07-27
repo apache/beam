@@ -31,6 +31,8 @@ pipelines:
             host: "{DEBEZIUM_DB[HOST]}"
             port: "{DEBEZIUM_DB[PORT]}"
             table: "{DEBEZIUM_DB[TABLE]}"
+            max_number_of_records: 2
+            max_time_to_run: 600000
             connection_properties:
               - "database.dbname={DEBEZIUM_DB[DATABASE]}"
               - "plugin.name=pgoutput"

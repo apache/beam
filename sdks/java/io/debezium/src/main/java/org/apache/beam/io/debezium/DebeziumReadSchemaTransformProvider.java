@@ -150,6 +150,18 @@ public class DebeziumReadSchemaTransformProvider
               readTransform
                   .withMaxNumberOfRecords(testLimitRecords)
                   .withMaxTimeToRun(testLimitMilliseconds);
+        } else {
+          if (configuration.getMaxNumberOfRecords() != null) {
+            readTransform =
+              readTransform.withMaxNumberOfRecords(
+                configuration.getMaxNumberOfRecords());
+          }
+
+          if (configuration.getMaxTimeToRun() != null) {
+            readTransform =
+              readTransform.withMaxTimeToRun(
+                configuration.getMaxTimeToRun());
+          }
         }
 
         // TODO(pabloem): Database connection issues can be debugged here.
@@ -187,6 +199,14 @@ public class DebeziumReadSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class DebeziumReadSchemaTransformConfiguration {
+    @Nullable
+    @SchemaFieldDescription("Maximum number of records to read before stopping.")
+    public abstract Integer getMaxNumberOfRecords();
+
+    @Nullable
+    @SchemaFieldDescription("Maximum time in milliseconds to run before stopping.")
+    public abstract Long getMaxTimeToRun();
+
     @SchemaFieldDescription("Username used to connect to the source database.")
     public abstract String getUsername();
 
