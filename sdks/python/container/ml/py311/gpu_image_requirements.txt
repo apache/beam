@@ -125,7 +125,7 @@ h5py==3.16.0
 hf-xet==1.5.1
 hpack==4.2.0
 httpcore==1.0.9
-httplib2==0.31.2
+httplib2==0.32.0
 httptools==0.8.0
 httpx==0.28.1
 huggingface_hub==0.36.2
