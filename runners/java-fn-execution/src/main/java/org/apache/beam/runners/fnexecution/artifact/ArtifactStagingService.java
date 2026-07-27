@@ -293,6 +293,9 @@ public class ArtifactStagingService
         // InvalidPathException, and leaving the error unset would block the producer forever.
         totalPendingBytes.setException(exn);
         LOG.error("Exception staging artifacts", exn);
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (exn instanceof IOException) {
           throw (IOException) exn;
         } else if (exn instanceof RuntimeException) {
@@ -432,6 +435,9 @@ public class ArtifactStagingService
               // The write of a previous chunk failed; surface the failure to the client rather
               // than leaving the stream unterminated, which would make the client block forever.
               LOG.error("Error staging artifacts", exn);
+              if (exn instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               state = State.ERROR;
               stagingExecutor.shutdownNow();
               responseObserver.onError(
