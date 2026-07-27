@@ -153,14 +153,11 @@ public class DebeziumReadSchemaTransformProvider
         } else {
           if (configuration.getMaxNumberOfRecords() != null) {
             readTransform =
-              readTransform.withMaxNumberOfRecords(
-                configuration.getMaxNumberOfRecords());
+                readTransform.withMaxNumberOfRecords(configuration.getMaxNumberOfRecords());
           }
 
           if (configuration.getMaxTimeToRun() != null) {
-            readTransform =
-              readTransform.withMaxTimeToRun(
-                configuration.getMaxTimeToRun());
+            readTransform = readTransform.withMaxTimeToRun(configuration.getMaxTimeToRun());
           }
         }
 
@@ -263,6 +260,10 @@ public class DebeziumReadSchemaTransformProvider
 
     @AutoValue.Builder
     public abstract static class Builder {
+      public abstract Builder setMaxNumberOfRecords(@Nullable Integer maxNumberOfRecords);
+
+      public abstract Builder setMaxTimeToRun(@Nullable Long maxTimeToRun);
+
       public abstract Builder setUsername(String username);
 
       public abstract Builder setPassword(String password);
