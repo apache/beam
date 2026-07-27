@@ -67,4 +67,19 @@ public class BeamSqlEnvTest {
         .setPipelineOptions(PipelineOptionsFactory.create())
         .build();
   }
+  @Test
+  public void testParseLogicalPlan() throws Exception {
+    TestTableProvider root = new TestTableProvider();
+    BeamSqlEnv env = BeamSqlEnv.builder(root).setPipelineOptions(PipelineOptionsFactory.create()).build();
+    Connection connection = env.connection;
+    connection.createStatement().execute("CREATE EXTERNAL TABLE person (id INT) TYPE test");
+
+    org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode logicalPlan =
+        env.parseLogicalPlan("SELECT id FROM person");
+    
+    // the logical plan should be a Project
+    assertEquals(
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalProject",
+        logicalPlan.getClass().getName());
+  }
 }

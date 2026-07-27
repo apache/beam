@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
@@ -138,6 +139,24 @@ public class BeamSqlEnv {
     } catch (Exception e) {
       throw new ParseException("Unable to parse statement", e);
     }
+  }
+
+  /**
+   * Parses and validates {@code query} and returns the logical {@link RelNode} (Calcite convention)
+   * without Beam conversion, so callers can rewrite the plan before {@link
+   * #convertToBeamRel(RelNode, QueryParameters)}.
+   */
+  public RelNode parseLogicalPlan(String query) throws ParseException {
+    return planner.parseToRel(query, QueryParameters.ofNone());
+  }
+
+  /**
+   * Registers a Calcite {@link Function} under {@code name} in the live (current) session schema,
+   * so that subsequent SQL parsing/validation resolves {@code name(...)}. Mirrors how user-defined
+   * functions are added at build time.
+   */
+  public void registerSchemaFunction(String name, Function function) {
+    connection.getCurrentSchemaPlus().add(name, function);
   }
 
   /** BeamSqlEnv's Builder. */
