@@ -1,9 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "ahmedabu98",
-    "build": "damccorm",
-    "website": "damccorm"
+    "java": "kennknowles",
+    "build": "liferoad",
+    "website": "kennknowles"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
