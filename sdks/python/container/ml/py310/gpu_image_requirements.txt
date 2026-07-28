@@ -173,7 +173,7 @@ multidict==6.7.1
 namex==0.1.0
 networkx==3.4.2
 ninja==1.13.0
-nltk==3.9.4
+nltk==3.10.0
 numba==0.61.2
 numpy==2.2.6
 nvidia-cublas==13.1.1.3
