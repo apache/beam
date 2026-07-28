@@ -702,8 +702,8 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertTrue(
         any('--profiler_agent is mutually exclusive' in err for err in errors))
 
-  def test_profiling_agent_pystack_coredump_adds_core_pattern(self):
-    options = PipelineOptions(['--profiler_agent=pystack_coredump'])
+  def test_profiling_agent_coredump_adds_core_pattern(self):
+    options = PipelineOptions(['--profiler_agent=coredump'])
     validator = PipelineOptionsValidator(options, None)
     self.assertEqual(validator.validate(), [])
     debug_options = options.view_as(DebugOptions)

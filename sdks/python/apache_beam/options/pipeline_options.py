@@ -1744,7 +1744,7 @@ class ProfilingOptions(PipelineOptions):
               'Setting --profile_location to %s since profiling is enabled.',
               self.profile_location)
 
-      if self.profiler_agent == 'pystack_coredump':
+      if self.profiler_agent == 'coredump':
         debug_options = self.view_as(DebugOptions)
         debug_options.add_experiment('core_pattern=/tmp/core.%e.%p')
     return errors

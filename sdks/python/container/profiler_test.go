@@ -50,7 +50,7 @@ func TestActivePidsRegistry(t *testing.T) {
 func TestSetupProfilerConfig(t *testing.T) {
 	opts := &PipelineOptionsData{
 		Options: OptionsData{
-			ProfilerAgent: "pystack_coredump",
+			ProfilerAgent: "coredump",
 			JobId:         "test-job",
 		},
 	}
@@ -60,8 +60,8 @@ func TestSetupProfilerConfig(t *testing.T) {
 		t.Fatal("ProfilerConfig was nil")
 	}
 
-	if pcfg.Agent != "pystack_coredump" {
-		t.Errorf("Expected agent pystack_coredump, got %s", pcfg.Agent)
+	if pcfg.Agent != "coredump" {
+		t.Errorf("Expected agent coredump, got %s", pcfg.Agent)
 	}
 }
 
@@ -89,4 +89,37 @@ func TestIsProfilerDisengaged(t *testing.T) {
 	if !isProfilerDisengaged(pcfg) {
 		t.Error("Expected profiler to be disengaged after sentinel creation")
 	}
+}
+
+func TestCreatePystackSummary(t *testing.T) {
+	t.Run("ExtractsGILThreadTrace", func(t *testing.T) {
+		output := "Thread 1 (waiting):\n" +
+			"  File \"worker.py\", line 10, in run\n" +
+			"\n" +
+			"Thread 2 (active, Has the GIL):\n" +
+			"  File \"main.py\", line 42, in execute\n" +
+			"  File \"db.py\", line 5, in query\n" +
+			"\n" +
+			"Thread 3 (idle):\n" +
+			"  File \"server.py\", line 99, in listen\n"
+
+		expected := "Thread 2 (active, Has the GIL):\n" +
+			"  File \"main.py\", line 42, in execute\n" +
+			"  File \"db.py\", line 5, in query\n"
+
+		result := createPystackSummary(output)
+		if result != expected {
+			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
+		}
+	})
+
+	t.Run("FallbackSmallOutput", func(t *testing.T) {
+		output := "Thread 1 (waiting):\n" +
+			"  File \"worker.py\", line 10, in run"
+
+		result := createPystackSummary(output)
+		if result != output {
+			t.Errorf("Expected identical output, got:\n%s", result)
+		}
+	})
 }

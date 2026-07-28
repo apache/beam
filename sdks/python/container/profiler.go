@@ -149,7 +149,7 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 		go postProcessProfilesLoop(ctx, logger, pcfg)
 	}
 
-	if pcfg.Agent == "pystack_coredump" {
+	if pcfg.Agent == "coredump" {
 		go monitorCoredumpsLoop(ctx, logger, pcfg)
 	}
 
@@ -197,8 +197,8 @@ func maybeWithProfiler(
 		}
 		env["HEAPPROFILE"] = tcmallocHeapPath
 		args = currentArgs
-	} else if pcfg.Agent == "pystack_coredump" {
-		// No wrapping is needed for pystack_coredump.
+	} else if pcfg.Agent == "coredump" {
+		// No wrapping of the executable is needed for coredump analysis.
 		args = currentArgs
 	} else {
 		prog = pcfg.Agent
@@ -355,7 +355,6 @@ func needsProcessing(binInfo os.FileInfo, path string) bool {
 	return binInfo.ModTime().After(info.ModTime())
 }
 
-
 func monitorCoredumpsLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
 	// We require the core file pattern to be configured as "/tmp/core.%e.%p" via pipeline
 	// options experiments (which is automatically set by the Python SDK). This ensures
@@ -422,34 +421,117 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 			pythonProg = path
 		}
 
-		args := []string{"core"}
-		args = append(args, pcfg.ExtraArgs...)
-		args = append(args, corePath, pythonProg)
-
-		logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
 		timeSuffix := info.ModTime().Format("20060102150405")
 		newName := fmt.Sprintf("%s-%s", name, timeSuffix)
 		destTxtPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.txt", newName))
 
-		cmd := exec.CommandContext(ctx, "pystack", args...)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			logger.Warnf(ctx, "pystack failed on %s: %v. Output:\n%s", name, err, string(output))
-			// Give up and delete if the file has been around for over 60 seconds
-			if fileAge > 60*time.Second {
-				logger.Printf(ctx, "Giving up on %s after 60s and deleting.", corePath)
-				if err := os.Remove(corePath); err != nil {
-					logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
+		shouldDelete := fileAge > 60*time.Second
+
+		pystackPath, pystackErr := exec.LookPath("pystack")
+		gdbPath, gdbErr := exec.LookPath("gdb")
+
+		if pystackErr != nil && gdbErr != nil {
+			logger.Warnf(ctx, "Core dump analysis enabled but no analysis tools found. Please install pystack (recommended) or/and gdb into the runtime environment.")
+		}
+
+		if pystackErr == nil {
+			args := []string{"core"}
+			if len(pcfg.ExtraArgs) > 0 {
+				args = append(args, pcfg.ExtraArgs...)
+			} else {
+				args = append(args, "--native-last")
+			}
+			args = append(args, corePath, pythonProg)
+
+			logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
+			cmd := exec.CommandContext(ctx, pystackPath, args...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				logger.Warnf(ctx, "pystack failed on %s: %v. Output:\n%s", name, err, string(output))
+			} else {
+				if err := os.WriteFile(destTxtPath, output, 0644); err != nil {
+					logger.Warnf(ctx, "Failed to write pystack output to %s: %v", destTxtPath, err)
 				}
+				pystackSummary := createPystackSummary(string(output))
+				logger.Errorf(ctx, "Full pystack coredump analysis saved to %s.txt\nExcerpt:\n%s", newName, pystackSummary)
+				shouldDelete = true
 			}
-		} else {
-			logger.Errorf(ctx, "Pystack coredump analysis for %s:\n%s", name, string(output))
-			if err := os.WriteFile(destTxtPath, output, 0644); err != nil {
-				logger.Warnf(ctx, "Failed to write pystack output to %s: %v", destTxtPath, err)
+		}
+
+		if gdbErr == nil {
+			gdbArgs := []string{
+				"-batch",
+				"-ex", "set pagination off",
+				"-ex", "info sharedlibrary",
+				"-ex", "info proc mappings",
+				"-ex", "info threads",
+				"-ex", "thread",
+				"-ex", "print $_siginfo",
+				"-ex", "info registers",
+				"-ex", "x/10i $pc",
+				"-ex", "x/16gx $rsp",
+				"-ex", "bt full",
+				"-ex", "thread apply all bt full",
+				pythonProg,
+				corePath,
 			}
+			logger.Printf(ctx, "Running gdb on %s using %s", name, pythonProg)
+			gdbCmd := exec.CommandContext(ctx, gdbPath, gdbArgs...)
+			gdbOutput, err := gdbCmd.CombinedOutput()
+			destGdbPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.gdb.txt", newName))
+			if err != nil {
+				logger.Warnf(ctx, "gdb failed on %s: %v. Output:\n%s", name, err, string(gdbOutput))
+			} else {
+				if err := os.WriteFile(destGdbPath, gdbOutput, 0644); err != nil {
+					logger.Warnf(ctx, "Failed to write gdb output to %s: %v", destGdbPath, err)
+				}
+				logger.Errorf(ctx, "Full GDB coredump analysis saved to %s.gdb.txt", newName)
+				shouldDelete = true
+			}
+		}
+
+		if shouldDelete {
 			if err := os.Remove(corePath); err != nil {
 				logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
 			}
 		}
 	}
+}
+
+func extractGILThread(output string) string {
+	lines := strings.Split(output, "\n")
+	var result []string
+	recording := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(line, "Has the GIL") {
+			recording = true
+		}
+		if recording {
+			result = append(result, line)
+			if trimmed == "" {
+				break
+			}
+		}
+	}
+	if len(result) == 0 {
+		return ""
+	}
+	return strings.Join(result, "\n")
+}
+
+func firstNLines(s string, n int) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) <= n {
+		return s
+	}
+	return strings.Join(lines[:n], "\n")
+}
+
+func createPystackSummary(output string) string {
+	gilThreadTrace := extractGILThread(output)
+	if gilThreadTrace != "" {
+		return gilThreadTrace
+	}
+	return firstNLines(output, 100)
 }
