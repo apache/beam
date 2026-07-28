@@ -59,10 +59,10 @@ import hashlib
 import inspect
 import time
 import typing
+from collections.abc import Iterable
 from typing import Any
 from typing import Callable
 from typing import Generic
-from typing import Iterable
 from typing import Optional
 from typing import TypeVar
 
