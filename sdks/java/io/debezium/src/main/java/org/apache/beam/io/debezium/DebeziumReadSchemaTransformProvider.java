@@ -151,13 +151,13 @@ public class DebeziumReadSchemaTransformProvider
                   .withMaxNumberOfRecords(testLimitRecords)
                   .withMaxTimeToRun(testLimitMilliseconds);
         } else {
-          if (configuration.getMaxNumberOfRecords() != null) {
-            readTransform =
-                readTransform.withMaxNumberOfRecords(configuration.getMaxNumberOfRecords());
+          Integer maxNumberOfRecords = configuration.getMaxNumberOfRecords();
+          if (maxNumberOfRecords != null) {
+            readTransform = readTransform.withMaxNumberOfRecords(maxNumberOfRecords);
           }
-
-          if (configuration.getMaxTimeToRun() != null) {
-            readTransform = readTransform.withMaxTimeToRun(configuration.getMaxTimeToRun());
+          Long maxTimeToRun = configuration.getMaxTimeToRun();
+          if (maxTimeToRun != null) {
+            readTransform = readTransform.withMaxTimeToRun(maxTimeToRun);
           }
         }
 
@@ -196,13 +196,12 @@ public class DebeziumReadSchemaTransformProvider
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class DebeziumReadSchemaTransformConfiguration {
-    @Nullable
-    @SchemaFieldDescription("Maximum number of records to read before stopping.")
-    public abstract Integer getMaxNumberOfRecords();
 
-    @Nullable
+    @SchemaFieldDescription("Maximum number of records to read before stopping.")
+    public abstract @Nullable Integer getMaxNumberOfRecords();
+
     @SchemaFieldDescription("Maximum time in milliseconds to run before stopping.")
-    public abstract Long getMaxTimeToRun();
+    public abstract @Nullable Long getMaxTimeToRun();
 
     @SchemaFieldDescription("Username used to connect to the source database.")
     public abstract String getUsername();
