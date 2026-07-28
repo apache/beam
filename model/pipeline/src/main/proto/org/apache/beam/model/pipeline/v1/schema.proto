@@ -181,6 +181,19 @@ message LogicalTypes {
     //     since the epoch.
     DATE = 8 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:date:v1"];
+
+    // A URN for Timestamp type
+    //   - Representation type: ROW<seconds: INT64, subseconds: INT16> for
+    //     precision < 5, otherwise ROW<seconds: INT64, subseconds: INT32>
+    //   - Argument type: INT32.
+    //     A timestamp without a timezone, represented as seconds since the
+    //     epoch plus a non-negative fraction of a second. The argument is
+    //     the precision: the number of decimal digits of the subseconds
+    //     field (e.g. 3 for milliseconds, 6 for micros, 9 for nanos).
+    //     subseconds stays non-negative even for timestamps before the epoch,
+    //     e.g. -1.5s at precision 6 is {seconds: -2, subseconds: 500000}.
+    TIMESTAMP = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:timestamp:v1"];
   }
 }
 

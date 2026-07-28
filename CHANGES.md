@@ -32,6 +32,11 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `Timestamp` now supports variable subsecond precision up to nanoseconds, and the portable
+  `beam:logical_type:timestamp:v1` logical type produced by the Java SDK is now understood by the
+  Python SDK ([#19922](https://github.com/apache/beam/issues/19922)). Lossy conversions raise unless
+  explicitly allowed, and `Timestamp.from_proto` now returns a nanosecond-precision `Timestamp`
+  instead of raising.
 
 ## Breaking Changes
 
