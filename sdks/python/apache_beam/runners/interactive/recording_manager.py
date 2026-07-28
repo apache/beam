@@ -25,6 +25,7 @@ import warnings
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from typing import Iterable
 from typing import Optional
 from typing import Union
 
@@ -453,6 +454,7 @@ class RecordingManager:
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
     self._lock = threading.Lock()
+    self._applied_labels_snapshot = set()
 
   def _execute_pipeline_fragment(
       self,
@@ -513,24 +515,10 @@ class RecordingManager:
       pipeline_result = self._execute_pipeline_fragment(
           pcolls_to_compute, async_result, runner, options)
 
-      # if pipeline_result.state == PipelineState.DONE:
-      #   self._env.mark_pcollection_computed(pcolls_to_compute)
-      #   _LOGGER.info(
-      #       'Asynchronous computation finished successfully for'
-      #       f' {len(pcolls_to_compute)} PCollections.'
-      #   )
-      # else:
-      #   _LOGGER.error(
-      #       'Asynchronous computation failed for'
-      #       f' {len(pcolls_to_compute)} PCollections. State:'
-      #       f' {pipeline_result.state}'
-      #   )
       return pipeline_result
     except Exception as e:
       _LOGGER.exception('Exception during asynchronous computation: %s', e)
       raise
-    # finally:
-    #   self._env.unmark_pcollection_computing(pcolls_to_compute)
 
   def _watch(self, pcolls: list[beam.pvalue.PCollection]) -> None:
     """Watch any pcollections not being watched.
@@ -589,7 +577,7 @@ class RecordingManager:
     if cache_manager:
       cache_manager.cleanup()
 
-  def cancel(self: None) -> None:
+  def cancel(self) -> None:
     """Cancels the current background recording job."""
 
     bcj.attempt_to_cancel_background_caching_job(self.user_pipeline)
@@ -725,16 +713,23 @@ class RecordingManager:
       return async_result
 
   def _get_pipeline_graph(self):
-    """Initializes and returns the PipelineGraph."""
-    try:
-      # Try to create the graph.
-      return PipelineGraph(self.user_pipeline)
-    except (ImportError, NameError, AttributeError):
-      # If pydot is missing, PipelineGraph() might crash.
-      _LOGGER.warning(
-          "Could not create PipelineGraph (pydot missing?). "
-          "Async features disabled.")
-      return None
+    """Lazily initializes and returns the PipelineGraph, rebuilding it
+    only if the pipeline transforms have changed.
+    """
+    if (self._pipeline_graph is None or
+        self._applied_labels_snapshot != self.user_pipeline.applied_labels):
+      try:
+        # Try to create the graph.
+        self._pipeline_graph = PipelineGraph(self.user_pipeline)
+        self._applied_labels_snapshot = set(self.user_pipeline.applied_labels)
+      except (ImportError, NameError, AttributeError):
+        # If pydot is missing, PipelineGraph() might crash.
+        _LOGGER.warning(
+            "Could not create PipelineGraph (pydot missing?). "
+            "Async features disabled.")
+        self._pipeline_graph = None
+        self._applied_labels_snapshot = set()
+    return self._pipeline_graph
 
   def _get_pcoll_id_map(self):
     """Creates a map from PCollection object to its ID in the proto."""
@@ -860,6 +855,18 @@ class RecordingManager:
       _LOGGER.error('Dependency computation failed: %s', e, exc_info=e)
       return False
 
+  def _get_uncomputed_pcolls(
+      self,
+      pcolls: Iterable[beam.pvalue.PCollection],
+  ) -> set[beam.pvalue.PCollection]:
+    """Helper to filter out already computed PCollections from the environment."""
+    current_env = ie.current_env()
+    computed = {
+        pcoll
+        for pcoll in pcolls if pcoll in current_env.computed_pcollections
+    }
+    return set(pcolls).difference(computed)
+
   def record(
       self,
       pcolls: list[beam.pvalue.PCollection],
@@ -897,47 +904,46 @@ class RecordingManager:
     self._watch(pcolls)
     self.record_pipeline()
 
-    # Get the subset of computed PCollections. These do not to be recomputed.
-    computed_pcolls = set(
-        pcoll for pcoll in pcolls
-        if pcoll in ie.current_env().computed_pcollections)
+    # Early check and return if everything is already computed
+    uncomputed_pcolls = self._get_uncomputed_pcolls(pcolls)
+    if not uncomputed_pcolls:
+      recording = Recording(
+          self.user_pipeline, pcolls, None, max_n, max_duration_secs)
+      self._recordings.add(recording)
+      return recording
 
-    # Start a pipeline fragment to start computing the PCollections.
-    uncomputed_pcolls = set(pcolls).difference(computed_pcolls)
-    if uncomputed_pcolls:
-      if not self._wait_for_dependencies(uncomputed_pcolls):
-        raise RuntimeError(
-            'Cannot record because a dependency failed to compute'
-            ' asynchronously.')
+    # Wait for dependencies if there are uncomputed PCollections
+    if not self._wait_for_dependencies(uncomputed_pcolls):
+      raise RuntimeError(
+          'Cannot record because a dependency failed to compute'
+          ' asynchronously.')
 
-      # Recalculate uncomputed PCollections because some may have finished computing during the wait
-      computed_pcolls = set(
-          pcoll for pcoll in pcolls
-          if pcoll in ie.current_env().computed_pcollections)
-      uncomputed_pcolls = set(pcolls).difference(computed_pcolls)
+    # Re-evaluate uncomputed PCollections
+    uncomputed_pcolls = self._get_uncomputed_pcolls(pcolls)
+    if not uncomputed_pcolls:
+      recording = Recording(
+          self.user_pipeline, pcolls, None, max_n, max_duration_secs)
+      self._recordings.add(recording)
+      return recording
 
-      if uncomputed_pcolls:
-        self._clear()
+    # Flattened execution path (no indentation needed)
+    self._clear()
 
-        merged_options = pipeline_options.PipelineOptions(
-            **{
-                **self.user_pipeline.options.get_all_options(
-                    drop_default=True, retain_unknown_options=True),
-                **options.get_all_options(
-                    drop_default=True, retain_unknown_options=True)
-            }) if options else self.user_pipeline.options
+    merged_options = pipeline_options.PipelineOptions(
+        **{
+            **self.user_pipeline.options.get_all_options(
+                drop_default=True, retain_unknown_options=True),
+            **options.get_all_options(
+                drop_default=True, retain_unknown_options=True)
+        }) if options else self.user_pipeline.options
 
-        cache_path = ie.current_env().options.cache_root
-        is_remote_run = cache_path and ie.current_env(
-        ).options.cache_root.startswith('gs://')
-        pf.PipelineFragment(
-            list(uncomputed_pcolls), merged_options,
-            runner=runner).run(blocking=is_remote_run)
-        result = ie.current_env().pipeline_result(self.user_pipeline)
-      else:
-        result = ie.current_env().pipeline_result(self.user_pipeline)
-    else:
-      result = None
+    cache_path = ie.current_env().options.cache_root
+    is_remote_run = cache_path and ie.current_env(
+    ).options.cache_root.startswith('gs://')
+    pf.PipelineFragment(
+        list(uncomputed_pcolls), merged_options,
+        runner=runner).run(blocking=is_remote_run)
+    result = ie.current_env().pipeline_result(self.user_pipeline)
 
     recording = Recording(
         self.user_pipeline, pcolls, result, max_n, max_duration_secs)

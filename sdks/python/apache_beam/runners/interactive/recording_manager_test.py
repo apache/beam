@@ -1169,6 +1169,64 @@ class RecordingManagerTest(unittest.TestCase):
     with self.assertRaises(TimeoutError):
       async_res.wait_for_completion(timeout=0.01)
 
+  def test_get_uncomputed_pcolls(self):
+    p = beam.Pipeline(InteractiveRunner())
+    p1 = p | 'C1' >> beam.Create([1])
+    p2 = p | 'C2' >> beam.Create([2])
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    rm = RecordingManager(p)
+
+    # Initially both are uncomputed
+    self.assertEqual(rm._get_uncomputed_pcolls([p1, p2]), {p1, p2})
+
+    # Mark p1 as computed
+    ie.current_env().mark_pcollection_computed([p1])
+    self.assertEqual(rm._get_uncomputed_pcolls([p1, p2]), {p2})
+
+    # Cleanup
+    ie.current_env().evict_computed_pcollections()
+
+  def test_get_pipeline_graph_caching(self):
+    p = beam.Pipeline(InteractiveRunner())
+    p1 = p | 'C1' >> beam.Create([1])
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    rm = RecordingManager(p)
+    graph1 = rm._get_pipeline_graph()
+    graph2 = rm._get_pipeline_graph()
+
+    # Graph instance is cached and reused when pipeline transforms have not changed
+    self.assertIs(graph1, graph2)
+
+    # Applying a new transform updates user_pipeline.applied_labels
+    _ = p1 | 'M1' >> beam.Map(lambda x: x)
+    graph3 = rm._get_pipeline_graph()
+
+    # Graph is rebuilt because pipeline applied_labels changed
+    self.assertIsNot(graph1, graph3)
+
+  def test_record_early_return_when_all_computed(self):
+    p = beam.Pipeline(InteractiveRunner())
+    p1 = p | 'C1' >> beam.Create([1])
+    ib.watch(locals())
+    ie.current_env().track_user_pipelines()
+
+    rm = RecordingManager(p)
+    ie.current_env().mark_pcollection_computed([p1])
+
+    with patch.object(rm, '_execute_pipeline_fragment') as mock_exec:
+      recording = rm.record([p1], max_n=10, max_duration=100)
+      # Fragment execution must NOT be called
+      mock_exec.assert_not_called()
+      self.assertIsNone(recording._result)
+      self.assertEqual(
+          recording.wait_until_finish(), beam.runners.runner.PipelineState.DONE)
+
+    ie.current_env().evict_computed_pcollections()
+
 
 if __name__ == '__main__':
   unittest.main()
