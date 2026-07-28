@@ -150,7 +150,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=14.0.1,<26.0.0',
+    # Generally try to cover versions released in the last two years.
+    # Update python/sdks/tox.ini to cover the same pyarrow versions
+    # when updating the bounds here.
+    'pyarrow>=17.0.0,<26.0.0',
   ]
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
