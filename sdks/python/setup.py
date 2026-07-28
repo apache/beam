@@ -529,7 +529,7 @@ if __name__ == '__main__':
               'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
-              'google-cloud-bigquery>=2.0.0,<4',
+              'google-cloud-bigquery>=3.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               'google-cloud-bigtable>=2.19.0,<3',

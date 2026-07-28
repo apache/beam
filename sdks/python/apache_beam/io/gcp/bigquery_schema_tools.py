@@ -32,7 +32,6 @@ import apache_beam.io.gcp.bigquery_tools
 import apache_beam.typehints.schemas
 import apache_beam.utils.proto_utils
 import apache_beam.utils.timestamp
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import DoFn
 
@@ -56,7 +55,7 @@ BIG_QUERY_TO_PYTHON_TYPES = {
 
 def generate_user_type_from_bq_schema(
     the_table_schema,
-    selected_fields: 'bigquery.TableSchema' = None,
+    selected_fields: Optional[Sequence[str]] = None,
     type_overrides=None) -> type:
   """Convert a schema of type TableSchema into a pcollection element.
 

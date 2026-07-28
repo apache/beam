@@ -20,7 +20,10 @@
 import unittest
 from unittest import mock
 
-from apache_beam.io.gcp import bigquery
+try:
+  from apache_beam.io.gcp import bigquery
+except ImportError:
+  raise unittest.SkipTest('GCP dependencies are not installed')
 
 
 @mock.patch('apache_beam.io.gcp.bigquery.BeamJarExpansionService')

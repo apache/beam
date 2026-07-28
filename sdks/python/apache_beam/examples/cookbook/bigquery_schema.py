@@ -44,60 +44,36 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
-    from apache_beam.io.gcp.internal.clients import bigquery  # pylint: disable=wrong-import-order, wrong-import-position
+    # pylint: disable=wrong-import-order, wrong-import-position
 
-    table_schema = bigquery.TableSchema()
-
-    # Fields that use standard types.
-    kind_schema = bigquery.TableFieldSchema()
-    kind_schema.name = 'kind'
-    kind_schema.type = 'string'
-    kind_schema.mode = 'nullable'
-    table_schema.fields.append(kind_schema)
-
-    full_name_schema = bigquery.TableFieldSchema()
-    full_name_schema.name = 'fullName'
-    full_name_schema.type = 'string'
-    full_name_schema.mode = 'required'
-    table_schema.fields.append(full_name_schema)
-
-    age_schema = bigquery.TableFieldSchema()
-    age_schema.name = 'age'
-    age_schema.type = 'integer'
-    age_schema.mode = 'nullable'
-    table_schema.fields.append(age_schema)
-
-    gender_schema = bigquery.TableFieldSchema()
-    gender_schema.name = 'gender'
-    gender_schema.type = 'string'
-    gender_schema.mode = 'nullable'
-    table_schema.fields.append(gender_schema)
-
-    # A nested field
-    phone_number_schema = bigquery.TableFieldSchema()
-    phone_number_schema.name = 'phoneNumber'
-    phone_number_schema.type = 'record'
-    phone_number_schema.mode = 'nullable'
-
-    area_code = bigquery.TableFieldSchema()
-    area_code.name = 'areaCode'
-    area_code.type = 'integer'
-    area_code.mode = 'nullable'
-    phone_number_schema.fields.append(area_code)
-
-    number = bigquery.TableFieldSchema()
-    number.name = 'number'
-    number.type = 'integer'
-    number.mode = 'nullable'
-    phone_number_schema.fields.append(number)
-    table_schema.fields.append(phone_number_schema)
-
-    # A repeated field.
-    children_schema = bigquery.TableFieldSchema()
-    children_schema.name = 'children'
-    children_schema.type = 'string'
-    children_schema.mode = 'repeated'
-    table_schema.fields.append(children_schema)
+    table_schema = {
+        'fields': [{
+            'name': 'kind', 'type': 'STRING', 'mode': 'NULLABLE'
+        }, {
+            'name': 'fullName', 'type': 'STRING', 'mode': 'REQUIRED'
+        }, {
+            'name': 'age', 'type': 'INTEGER', 'mode': 'NULLABLE'
+        }, {
+            'name': 'gender', 'type': 'STRING', 'mode': 'NULLABLE'
+        },
+                   {
+                       'name': 'phoneNumber',
+                       'type': 'RECORD',
+                       'mode': 'NULLABLE',
+                       'fields': [{
+                           'name': 'areaCode',
+                           'type': 'INTEGER',
+                           'mode': 'NULLABLE'
+                       },
+                                  {
+                                      'name': 'number',
+                                      'type': 'INTEGER',
+                                      'mode': 'NULLABLE'
+                                  }]
+                   }, {
+                       'name': 'children', 'type': 'STRING', 'mode': 'REPEATED'
+                   }]
+    }
 
     def create_random_record(record_id):
       return {

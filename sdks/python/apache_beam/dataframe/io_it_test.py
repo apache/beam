@@ -25,7 +25,6 @@ import unittest
 
 import pytest
 
-import apache_beam.io.gcp.bigquery
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -34,8 +33,13 @@ _LOGGER = logging.getLogger(__name__)
 
 try:
   from google.api_core.exceptions import GoogleAPICallError
+
+  import apache_beam.io.gcp.bigquery as bigquery
+  from apache_beam.dataframe.io import read_gbq
 except ImportError:
   GoogleAPICallError = None
+  read_gbq = None
+  bigquery = None
 
 
 @unittest.skipIf(
@@ -45,7 +49,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   def test_ReadGbq(self):
     from apache_beam.dataframe import convert
     with TestPipeline(is_integration_test=True) as p:
-      actual_df = p | apache_beam.dataframe.io.read_gbq(
+      actual_df = p | read_gbq(
           table="apache-beam-testing:beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0",
           use_bqstorage_api=False)
@@ -58,7 +62,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   def test_ReadGbq_export_with_project(self):
     from apache_beam.dataframe import convert
     with TestPipeline(is_integration_test=True) as p:
-      actual_df = p | apache_beam.dataframe.io.read_gbq(
+      actual_df = p | read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
           project_id="apache-beam-testing",
@@ -72,10 +76,8 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   def test_ReadGbq_direct_read(self):
     from apache_beam.dataframe import convert
     with TestPipeline(is_integration_test=True) as p:
-      actual_df = p | apache_beam.dataframe.io.\
-          read_gbq(
-          table=
-          "apache-beam-testing:beam_bigquery_io_test."
+      actual_df = p | read_gbq(
+          table="apache-beam-testing:beam_bigquery_io_test."
           "dfsqltable_3c7d6fd5_16e0460dfd0",
           use_bqstorage_api=True)
       assert_that(
@@ -87,7 +89,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   def test_ReadGbq_direct_read_with_project(self):
     from apache_beam.dataframe import convert
     with TestPipeline(is_integration_test=True) as p:
-      actual_df = p | apache_beam.dataframe.io.read_gbq(
+      actual_df = p | read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
           project_id="apache-beam-testing",
@@ -101,7 +103,7 @@ class ReadUsingReadGbqTests(unittest.TestCase):
   def test_ReadGbq_with_computation(self):
     from apache_beam.dataframe import convert
     with TestPipeline(is_integration_test=True) as p:
-      beam_df = p | apache_beam.dataframe.io.read_gbq(
+      beam_df = p | read_gbq(
           table="dfsqltable_3c7d6fd5_16e0460dfd0",
           dataset="beam_bigquery_io_test",
           project_id="apache-beam-testing")

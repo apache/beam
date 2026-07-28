@@ -228,6 +228,15 @@ class BigQueryTableMatcher(BaseMatcher):
 
     self.actual_table = self._get_table_with_retry(bigquery_wrapper)
 
+    if hasattr(self.actual_table, 'to_api_repr') and callable(
+        self.actual_table.to_api_repr):
+      try:
+        api_repr = self.actual_table.to_api_repr()
+        if isinstance(api_repr, dict):
+          self.actual_table = api_repr
+      except Exception:
+        pass
+
     _LOGGER.info('Table proto is %s', self.actual_table)
 
     return all(
@@ -241,7 +250,7 @@ class BigQueryTableMatcher(BaseMatcher):
     except AttributeError:
       try:
         return obj.get(attr, None)
-      except TypeError:
+      except (TypeError, AttributeError):
         return None
 
   @staticmethod

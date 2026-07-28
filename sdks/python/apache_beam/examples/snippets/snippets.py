@@ -899,12 +899,11 @@ def model_bigqueryio(
   # [END model_bigqueryio_table_spec_without_project]
 
   # [START model_bigqueryio_table_spec_object]
-  from apache_beam.io.gcp.internal.clients import bigquery
+  from google.cloud import bigquery
 
   table_spec = bigquery.TableReference(
-      projectId='clouddataflow-readonly',
-      datasetId='samples',
-      tableId='weather_stations')
+      bigquery.DatasetReference('clouddataflow-readonly', 'samples'),
+      'weather_stations')
   # [END model_bigqueryio_table_spec_object]
 
   # [START model_bigqueryio_data_types]
