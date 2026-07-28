@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
 
 ## New Features / Improvements
 
