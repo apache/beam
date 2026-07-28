@@ -87,11 +87,11 @@ dependencies {
 
 // Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
 def sickbayTests = [
-  // Non-global windowing (FixedWindows, merging windows, timestamp combiners) is not supported
-  // yet; these apply a window and assert on window-derived output, hitting a GlobalWindow cast.
-  'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests',
-  'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerLatest',
-  'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testTimestampCombinerEarliest',
+  // Merging (session) windows are not supported yet: ReduceFnRunner drives them through a merging
+  // window set that moves per-window state as windows merge, which this first windowing pass does
+  // not implement. Non-merging windows (fixed, sliding), the default trigger and timestamp
+  // combiners do work. Lands with the follow-up windowing PR.
+  'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows',
   // A DoFn whose @StartBundle throws never gets to report its error: SdkHarnessClient.newBundle
   // sends the ProcessBundleRequest and then blocks in GrpcDataService.createOutboundAggregator
   // waiting for the SDK harness to open its data stream, which a bundle that failed during setup
@@ -100,6 +100,7 @@ def sickbayTests = [
   // anything specific to this runner; the Flink runner sickbays all of LifecycleTests and the
   // Prism runner sickbays each of its three error tests. The @ProcessElement and @FinishBundle
   // variants do pass here, because by then the data stream is established.
+  // Tracked by https://github.com/apache/beam/issues/39452.
   'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInStartBatch',
 ]
 
