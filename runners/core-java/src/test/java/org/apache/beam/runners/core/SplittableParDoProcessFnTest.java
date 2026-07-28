@@ -989,7 +989,8 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
-  // Tests that if we don't override T
+  // Tests that if we don't override TruncateRestriction, the default TruncateRestriction
+  // implementation is used (which for unbounded restrictions stops processing immediately).
   private static class DefaultTruncateUnboundedFn extends DoFn<Integer, String> {
     @ProcessElement
     public ProcessContinuation process(
