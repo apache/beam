@@ -150,11 +150,7 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=6.0.1,<24.0.0',
-      # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
-      # once Beam increases the pyarrow lower bound to a version that fixes CVE.
-      # (lower bound >= 14.0.1)
-      'pyarrow-hotfix<1'
+      'pyarrow>=14.0.1,<26.0.0',
   ]
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
