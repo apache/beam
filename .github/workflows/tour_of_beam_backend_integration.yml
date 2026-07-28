@@ -77,6 +77,8 @@ jobs:
         working-directory: ./learning/tour-of-beam/backend
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action

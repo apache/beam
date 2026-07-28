@@ -24,6 +24,8 @@ import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.MAIN_TAG;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.PAYLOAD_FIELD;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageToRow.TIMESTAMP_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.ROW;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -97,9 +99,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubSchemaIOProvider implements SchemaIOProvider {
   public static final FieldType ATTRIBUTE_MAP_FIELD_TYPE =
       Schema.FieldType.map(FieldType.STRING.withNullable(false), FieldType.STRING);
@@ -137,11 +136,11 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
    * resides there, and some IO-specific configuration object.
    */
   @Override
-  public PubsubSchemaIO from(String location, Row configuration, Schema dataSchema) {
+  public PubsubSchemaIO from(String location, Row configuration, @Nullable Schema dataSchema) {
     validateConfigurationSchema(configuration);
-    validateDlq(configuration.getValue("deadLetterQueue"));
+    validateDlq(configuration.getString("deadLetterQueue"));
     validateDataSchema(dataSchema);
-    return new PubsubSchemaIO(location, configuration, dataSchema);
+    return new PubsubSchemaIO(location, configuration, checkArgumentNotNull(dataSchema));
   }
 
   @Override
@@ -154,7 +153,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     return PCollection.IsBounded.UNBOUNDED;
   }
 
-  private void validateDataSchema(Schema schema) {
+  private void validateDataSchema(@Nullable Schema schema) {
     if (schema == null) {
       throw new InvalidSchemaException(
           "Unsupported schema specified for Pubsub source in CREATE TABLE."
@@ -168,7 +167,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     }
   }
 
-  private void validateDlq(String deadLetterQueue) {
+  private void validateDlq(@Nullable String deadLetterQueue) {
     if (deadLetterQueue != null && deadLetterQueue.isEmpty()) {
       throw new InvalidConfigurationException("Dead letter queue topic name is not specified");
     }
@@ -252,7 +251,9 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
                     MapElements.into(TypeDescriptor.of(PubsubMessage.class))
                         .via(
                             row ->
-                                new PubsubMessage(serializer.serialize(row), ImmutableMap.of())));
+                                new PubsubMessage(
+                                    checkStateNotNull(serializer).serialize(row),
+                                    ImmutableMap.of())));
           } else {
             transformed =
                 filtered.apply(
@@ -268,33 +269,33 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       PubsubIO.Read<PubsubMessage> read = PubsubIO.readMessagesWithAttributes().fromTopic(location);
 
       return config.useTimestampAttribute()
-          ? read.withTimestampAttribute(config.getTimestampAttributeKey())
+          ? read.withTimestampAttribute(checkStateNotNull(config.getTimestampAttributeKey()))
           : read;
     }
 
     private PubsubIO.Write<PubsubMessage> createPubsubMessageWrite() {
       PubsubIO.Write<PubsubMessage> write = PubsubIO.writeMessages().to(location);
       if (config.useTimestampAttribute()) {
-        write = write.withTimestampAttribute(config.getTimestampAttributeKey());
+        write = write.withTimestampAttribute(checkStateNotNull(config.getTimestampAttributeKey()));
       }
       return write;
     }
 
     private PubsubIO.Write<PubsubMessage> writeMessagesToDlq() {
       PubsubIO.Write<PubsubMessage> write =
-          PubsubIO.writeMessages().to(config.getDeadLetterQueue());
+          PubsubIO.writeMessages().to(checkStateNotNull(config.getDeadLetterQueue()));
 
       return config.useTimestampAttribute()
-          ? write.withTimestampAttribute(config.getTimestampAttributeKey())
+          ? write.withTimestampAttribute(checkStateNotNull(config.getTimestampAttributeKey()))
           : write;
     }
 
-    private boolean hasValidAttributesField(Schema schema) {
+    private static boolean hasValidAttributesField(Schema schema) {
       return fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_MAP_FIELD_TYPE)
           || fieldPresent(schema, ATTRIBUTES_FIELD, ATTRIBUTE_ARRAY_FIELD_TYPE);
     }
 
-    private boolean hasValidPayloadField(Schema schema) {
+    private static boolean hasValidPayloadField(Schema schema) {
       if (!schema.hasField(PAYLOAD_FIELD)) {
         return false;
       }
@@ -304,7 +305,7 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
       return schema.getField(PAYLOAD_FIELD).getType().getTypeName().equals(ROW);
     }
 
-    private boolean shouldUseNestedSchema(Schema schema) {
+    private static boolean shouldUseNestedSchema(Schema schema) {
       return hasValidPayloadField(schema) && hasValidAttributesField(schema);
     }
 
@@ -350,16 +351,20 @@ public class PubsubSchemaIOProvider implements SchemaIOProvider {
     }
 
     PayloadSerializer serializer(Schema schema) {
-      String format = getFormat() == null ? "json" : getFormat();
+      String configFormat = getFormat();
+      String format = configFormat == null ? "json" : configFormat;
       ImmutableMap.Builder<String, Object> params = ImmutableMap.builder();
-      if (getThriftClass() != null) {
-        params.put("thriftClass", getThriftClass());
+      String thriftClass = getThriftClass();
+      if (thriftClass != null) {
+        params.put("thriftClass", thriftClass);
       }
-      if (getThriftProtocolFactoryClass() != null) {
-        params.put("thriftProtocolFactoryClass", getThriftProtocolFactoryClass());
+      String thriftProtocolFactoryClass = getThriftProtocolFactoryClass();
+      if (thriftProtocolFactoryClass != null) {
+        params.put("thriftProtocolFactoryClass", thriftProtocolFactoryClass);
       }
-      if (getProtoClass() != null) {
-        params.put("protoClass", getProtoClass());
+      String protoClass = getProtoClass();
+      if (protoClass != null) {
+        params.put("protoClass", protoClass);
       }
       return PayloadSerializers.getSerializer(format, schema, params.build());
     }

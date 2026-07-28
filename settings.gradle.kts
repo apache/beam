@@ -122,6 +122,7 @@ include(":it:conditions")
 include(":it:datadog")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
+include(":it:iceberg")
 include(":it:jdbc")
 include(":it:kafka")
 include(":it:testcontainers")
@@ -284,6 +285,7 @@ include(":sdks:java:maven-archetypes:gcp-bom-examples")
 include(":sdks:java:maven-archetypes:starter")
 include(":sdks:java:ml:inference:remote")
 include(":sdks:java:ml:inference:openai")
+include(":sdks:java:ml:inference:gemini")
 include(":sdks:java:testing:nexmark")
 include(":sdks:java:testing:expansion-service")
 include(":sdks:java:testing:jpms-tests")
@@ -364,20 +366,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
-include("sdks:java:io:kafka:kafka-390")
-findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
-include("sdks:java:io:kafka:kafka-312")
-findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
-include("sdks:java:io:kafka:kafka-282")
-findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
-include("sdks:java:io:kafka:kafka-251")
-findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
-include("sdks:java:io:kafka:kafka-241")
-findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
-include("sdks:java:io:kafka:kafka-231")
-findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-201")
-findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
+include("sdks:java:io:kafka:kafka-392")
+findProject(":sdks:java:io:kafka:kafka-392")?.name = "kafka-392"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")

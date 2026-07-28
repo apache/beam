@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -133,6 +134,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
        */
       CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
       ValueKind valueKind = ValueKind.INSERT;
+      Context openTelemetryContext = null;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
@@ -141,6 +143,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
         valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+        openTelemetryContext = WindmillOpenTelemetryContextPropagator.read(elementMetadata);
       }
       if (valueCoder instanceof KvCoder) {
         KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) valueCoder;
@@ -159,7 +162,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             null,
             null,
             drainingValueFromUpstream,
-            null,
+            openTelemetryContext,
             valueKind);
       } else {
         notifyElementRead(data.available() + metadata.available());
@@ -172,7 +175,7 @@ class UngroupedWindmillReader<T> extends NativeReader<WindowedValue<T>> {
             null,
             null,
             drainingValueFromUpstream,
-            null,
+            openTelemetryContext,
             valueKind);
       }
     }

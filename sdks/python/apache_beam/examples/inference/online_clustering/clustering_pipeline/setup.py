@@ -29,7 +29,7 @@ from setuptools import find_packages
 REQUIREMENTS = [
     "apache-beam[gcp]==2.40.0",
     "transformers==5.3.0",
-    "torch==2.12.0",
+    "torch==2.13.0",
     "scikit-learn==1.0.2",
 ]
 

@@ -23,6 +23,17 @@ plugins {
 
 applyJavaNature(exportJavadoc: false, publish: false)
 
+// embedded-kafka 2.4.1.1 requires kafka-clients 2.4.1. BeamModulePlugin forces
+// kafka-clients to the Beam-wide kafka_version (3.9.2+ after #39284), which
+// prevents the emulator from binding and blocks every Playground RunCode call.
+// TODO: Migrate embedded-kafka to 3.9.2.
+// https://mvnrepository.com/artifact/io.github.embeddedkafka/embedded-kafka_2.12/3.9.2
+configurations.all {
+   resolutionStrategy {
+      force 'org.apache.kafka:kafka-clients:2.4.1'
+   }
+}
+
 distZip {
    archiveFileName = "${archiveBaseName.get()}.zip"
 }

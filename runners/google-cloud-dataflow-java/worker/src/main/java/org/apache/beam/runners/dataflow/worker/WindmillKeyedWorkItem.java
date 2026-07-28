@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -150,6 +151,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
        */
       CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
       ValueKind valueKind = ValueKind.INSERT;
+      Context openTelemetryContext = null;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
@@ -158,6 +160,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
         valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+        openTelemetryContext = WindmillOpenTelemetryContextPropagator.read(elementMetadata);
       }
       InputStream inputStream = message.getData().newInput();
       ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
@@ -169,7 +172,7 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
           null,
           null,
           drainingValueFromUpstream,
-          null,
+          openTelemetryContext,
           valueKind);
     } catch (RuntimeException | IOException e) {
       if (!skipUndecodableElements) {

@@ -62,6 +62,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -90,7 +92,7 @@ jobs:
           echo "container_id=$CONTAINER_ID" >> $GITHUB_ENV
       - name: Get Container IP
         run: |
-          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${{ env.container_id }})
+          CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${container_id})
           echo "container_ip=$CONTAINER_IP" >> $GITHUB_ENV
       - name: Run CI
         env:

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -53,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
@@ -62,6 +64,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -134,12 +137,10 @@ public class StreamingEngineWorkCommitterTest {
         null);
   }
 
-  private static CompleteCommit asCompleteCommit(Commit commit, Windmill.CommitStatus status) {
-    if (commit.work().isFailed()) {
-      return CompleteCommit.forFailedWork(commit);
-    }
-
-    return CompleteCommit.create(commit, status);
+  private static CompleteCommit asCompleteCommit(
+      String computationId, Work work, Windmill.CommitStatus status) {
+    Windmill.CommitStatus finalStatus = work.isFailed() ? Windmill.CommitStatus.ABORTED : status;
+    return CompleteCommit.create(computationId, work.getShardedKey(), work.id(), finalStatus);
   }
 
   @Before
@@ -186,10 +187,15 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, 5);
 
     for (Commit commit : commits) {
-      WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
+      assertThat(commit.workBatch()).hasSize(1);
+      WorkItemCommitRequest request =
+          committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.request());
-      assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
+      assertThat(completeCommits)
+          .contains(
+              asCompleteCommit(
+                  commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
     }
 
     workCommitter.stop();
@@ -224,14 +230,24 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, 10);
 
     for (Commit commit : commits) {
-      if (commit.work().isFailed()) {
+      assertThat(commit.workBatch()).hasSize(1);
+      if (commit.workBatch().get(0).isFailed()) {
         assertThat(completeCommits)
-            .contains(asCompleteCommit(commit, Windmill.CommitStatus.ABORTED));
-        assertThat(committed).doesNotContainKey(commit.work().getWorkItem().getWorkToken());
-      } else {
-        assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
+            .contains(
+                asCompleteCommit(
+                    commit.computationId(),
+                    commit.workBatch().get(0),
+                    Windmill.CommitStatus.ABORTED));
         assertThat(committed)
-            .containsEntry(commit.work().getWorkItem().getWorkToken(), commit.request());
+            .doesNotContainKey(commit.workBatch().get(0).getWorkItem().getWorkToken());
+      } else {
+        assertThat(completeCommits)
+            .contains(
+                asCompleteCommit(
+                    commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
+        assertThat(committed)
+            .containsEntry(
+                commit.workBatch().get(0).getWorkItem().getWorkToken(), commit.singleKeyRequest());
       }
     }
 
@@ -282,11 +298,17 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
-      WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
+      assertThat(commit.workBatch()).hasSize(1);
+      WorkItemCommitRequest request =
+          committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.request());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
       assertThat(completeCommits)
-          .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
+          .contains(
+              asCompleteCommit(
+                  commit.computationId(),
+                  commit.workBatch().get(0),
+                  expectedCommitStatus.get(commit.workBatch().get(0).id())));
     }
 
     workCommitter.stop();
@@ -309,6 +331,14 @@ public class StreamingEngineWorkCommitterTest {
                   public boolean commitWorkItem(
                       String computation,
                       WorkItemCommitRequest request,
+                      Consumer<Windmill.CommitStatus> onDone) {
+                    return false;
+                  }
+
+                  @Override
+                  public boolean commitMultiKeyWorkItem(
+                      String computation,
+                      Windmill.MultiKeyWorkItemCommitRequest request,
                       Consumer<Windmill.CommitStatus> onDone) {
                     return false;
                   }
@@ -370,7 +400,8 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     for (Commit commit : commits) {
-      assertTrue(commit.work().isFailed());
+      assertThat(commit.workBatch()).hasSize(1);
+      assertTrue(commit.workBatch().get(0).isFailed());
     }
   }
 
@@ -409,10 +440,15 @@ public class StreamingEngineWorkCommitterTest {
     waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
-      WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
+      assertThat(commit.workBatch()).hasSize(1);
+      WorkItemCommitRequest request =
+          committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.request());
-      assertThat(completeCommits).contains(asCompleteCommit(commit, Windmill.CommitStatus.OK));
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
+      assertThat(completeCommits)
+          .contains(
+              asCompleteCommit(
+                  commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
     }
 
     workCommitter.stop();
@@ -473,5 +509,208 @@ public class StreamingEngineWorkCommitterTest {
     }
 
     waitForExpectedSetSize(completeCommits, sentCommits.intValue());
+  }
+
+  @Test
+  public void testCommit_multiKeyCommitSuccess() {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    Work workA = createMockWork(101L);
+    Work workB = createMockWork(102L);
+    Work workC = createMockWork(103L);
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workA.getWorkItem().getKey())
+                    .setShardingKey(workA.getWorkItem().getShardingKey())
+                    .setWorkToken(workA.getWorkItem().getWorkToken())
+                    .setCacheToken(workA.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workB.getWorkItem().getKey())
+                    .setShardingKey(workB.getWorkItem().getShardingKey())
+                    .setWorkToken(workB.getWorkItem().getWorkToken())
+                    .setCacheToken(workB.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workC.getWorkItem().getKey())
+                    .setShardingKey(workC.getWorkItem().getShardingKey())
+                    .setWorkToken(workC.getWorkItem().getWorkToken())
+                    .setCacheToken(workC.getWorkItem().getCacheToken())
+                    .build())
+            .build();
+
+    Commit commit =
+        Commit.createMultiKey(
+            multiKeyRequest,
+            createComputationState("computationId"),
+            ImmutableList.of(workA, workB, workC));
+
+    workCommitter.start();
+    workCommitter.commit(commit);
+
+    // Wait for the server to receive and process the commits
+    fakeWindmillServer.waitForAndGetCommits(3);
+    waitForExpectedSetSize(completeCommits, 3);
+
+    // Verify that FakeWindmillServer received all 3 work requests in multiKeyCommitsReceived
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        fakeWindmillServer.getMultiKeyCommitsReceived();
+    assertThat(multiKeyCommits).hasSize(1);
+    assertThat(multiKeyCommits.get(0)).isEqualTo(multiKeyRequest);
+
+    // Verify all three works are completed successfully
+    assertThat(completeCommits)
+        .containsExactly(
+            CompleteCommit.create(
+                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.OK),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.OK),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.OK));
+
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
+    workCommitter.stop();
+  }
+
+  @Test
+  public void testCommit_multiKeyCommitFailedWork() {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    Work workA = createMockWork(101L);
+    Work workB = createMockWork(102L);
+    Work workC = createMockWork(103L);
+
+    // Mark non-primary key B as failed
+    workB.setFailed();
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workA.getWorkItem().getKey())
+                    .setShardingKey(workA.getWorkItem().getShardingKey())
+                    .setWorkToken(workA.getWorkItem().getWorkToken())
+                    .setCacheToken(workA.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workB.getWorkItem().getKey())
+                    .setShardingKey(workB.getWorkItem().getShardingKey())
+                    .setWorkToken(workB.getWorkItem().getWorkToken())
+                    .setCacheToken(workB.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workC.getWorkItem().getKey())
+                    .setShardingKey(workC.getWorkItem().getShardingKey())
+                    .setWorkToken(workC.getWorkItem().getWorkToken())
+                    .setCacheToken(workC.getWorkItem().getCacheToken())
+                    .build())
+            .build();
+
+    Commit commit =
+        Commit.createMultiKey(
+            multiKeyRequest,
+            createComputationState("computationId"),
+            ImmutableList.of(workA, workB, workC));
+
+    workCommitter.start();
+    workCommitter.commit(commit);
+
+    // The entire batch must be aborted immediately without making network calls
+    waitForExpectedSetSize(completeCommits, 3);
+
+    // Verify all three works are aborted individually
+    assertThat(completeCommits)
+        .containsExactly(
+            CompleteCommit.create(
+                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.ABORTED),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.ABORTED));
+
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
+    workCommitter.stop();
+  }
+
+  @Test
+  public void testCommit_multiKeyCommitStatusNotOK() {
+    Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    workCommitter = createWorkCommitter(completeCommits::add);
+
+    Work workA = createMockWork(101L);
+    Work workB = createMockWork(102L);
+    Work workC = createMockWork(103L);
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workA.getWorkItem().getKey())
+                    .setShardingKey(workA.getWorkItem().getShardingKey())
+                    .setWorkToken(workA.getWorkItem().getWorkToken())
+                    .setCacheToken(workA.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workB.getWorkItem().getKey())
+                    .setShardingKey(workB.getWorkItem().getShardingKey())
+                    .setWorkToken(workB.getWorkItem().getWorkToken())
+                    .setCacheToken(workB.getWorkItem().getCacheToken())
+                    .build())
+            .addRequests(
+                Windmill.WorkItemCommitRequest.newBuilder()
+                    .setKey(workC.getWorkItem().getKey())
+                    .setShardingKey(workC.getWorkItem().getShardingKey())
+                    .setWorkToken(workC.getWorkItem().getWorkToken())
+                    .setCacheToken(workC.getWorkItem().getCacheToken())
+                    .build())
+            .build();
+
+    Commit commit =
+        Commit.createMultiKey(
+            multiKeyRequest,
+            createComputationState("computationId"),
+            ImmutableList.of(workA, workB, workC));
+
+    // Respond to multi key commit with NOT_FOUND status.
+    fakeWindmillServer.setMultiKeyCommitStatus(CommitStatus.NOT_FOUND);
+
+    workCommitter.start();
+    workCommitter.commit(commit);
+
+    // Wait for the server to receive and process the commits
+    fakeWindmillServer.waitForAndGetCommits(3);
+    waitForExpectedSetSize(completeCommits, 3);
+
+    // Verify that FakeWindmillServer received the multi-key commit
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        fakeWindmillServer.getMultiKeyCommitsReceived();
+    assertThat(multiKeyCommits).hasSize(1);
+    assertThat(multiKeyCommits.get(0)).isEqualTo(multiKeyRequest);
+
+    // Verify all three works in the multi-key commit are completed with NOT_FOUND status
+    assertThat(completeCommits)
+        .containsExactly(
+            CompleteCommit.create(
+                "computationId", workA.getShardedKey(), workA.id(), CommitStatus.NOT_FOUND),
+            CompleteCommit.create(
+                "computationId", workB.getShardedKey(), workB.id(), CommitStatus.NOT_FOUND),
+            CompleteCommit.create(
+                "computationId", workC.getShardedKey(), workC.id(), CommitStatus.NOT_FOUND));
+
+    // There should be no more commits in the queue
+    assertEquals(0, workCommitter.currentActiveCommitBytes());
+    workCommitter.stop();
   }
 }

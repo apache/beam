@@ -39,13 +39,13 @@ def nexmarkRunnerDependency = project.findProperty(nexmarkRunnerProperty)
 def nexmarkRunnerVersionProperty = "nexmark.runner.version"
 def nexmarkRunnerVersion = project.findProperty(nexmarkRunnerVersionProperty)
 def isSparkRunner = nexmarkRunnerDependency.startsWith(":runners:spark:")
-def isFlink2 = nexmarkRunnerDependency.startsWith(":runners:flink:") && {
+def gtFlink20 = nexmarkRunnerDependency.startsWith(":runners:flink:") && {
   def version = nexmarkRunnerDependency.substring(":runners:flink:".length())
   try {
     def parts = version.split('\\.')
     def major = parts[0].toInteger()
     def minor = parts.length > 1 ? parts[1].toInteger() : 0
-    return (major > 2) || (major == 2 && minor >= 1)
+    return (major == 2 && minor > 0)
   } catch (Exception e) {
     return false
   }
@@ -103,7 +103,7 @@ dependencies {
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 }
 
-if (isFlink2) {
+if (!gtFlink20) {
   resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
 }
 
@@ -112,6 +112,20 @@ if (isSparkRunner) {
     // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
   }
+  resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}
+
+def sparkJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
 }
 
 def getNexmarkArgs = {
@@ -179,6 +193,7 @@ task run(type: JavaExec) {
     systemProperty "spark.ui.showConsoleProgress", "false"
     // Dataset runner only
     systemProperty "spark.sql.shuffle.partitions", "4"
+    jvmArgs += sparkJvmArgs()
   }
 
   mainClass = "org.apache.beam.sdk.nexmark.Main"

@@ -25,10 +25,13 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.Objects;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -97,8 +100,9 @@ abstract class NaiveSpannerRead
     }
 
     @Setup
-    public void setup() throws Exception {
-      spannerAccessor = SpannerAccessor.getOrCreate(config);
+    public void setup(PipelineOptions options) throws Exception {
+      OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      spannerAccessor = SpannerAccessor.getOrCreate(config, otel);
       projectId = SpannerIO.resolveSpannerProjectId(config);
     }
 
