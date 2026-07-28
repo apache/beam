@@ -135,13 +135,13 @@ class DataflowWorkUnitClient implements WorkUnitClient {
 
     final String stage;
     if (work.getMapTask() != null) {
-      stage = work.getMapTask().getStageName();
+      stage = work.getMapTask().getSystemName();
       logger.info("Starting MapTask stage {}", stage);
     } else if (work.getSeqMapTask() != null) {
-      stage = work.getSeqMapTask().getStageName();
+      stage = work.getSeqMapTask().getSystemName();
       logger.info("Starting SeqMapTask stage {}", stage);
     } else if (work.getSourceOperationTask() != null) {
-      stage = work.getSourceOperationTask().getStageName();
+      stage = work.getSourceOperationTask().getSystemName();
       logger.info("Starting SourceOperationTask stage {}", stage);
     } else {
       stage = null;

@@ -98,40 +98,25 @@ public final class WorkFailureProcessor {
     return false;
   }
 
-  public void logAndProcessFailureBatch(
-      String computationId,
-      List<ExecutableWork> executableWorks,
-      Throwable t,
-      Consumer<Work> onInvalidWork)
+  /**
+   * Processes failures caused by thrown exceptions that occur during execution of {@link Work}. May
+   * attempt to retry execution of the {@link Work} or drop it if it is invalid.
+   */
+  public void logAndProcessFailure(
+      String systemName, ExecutableWork executableWork, Throwable t, Consumer<Work> onInvalidWork)
       throws Throwable {
-    List<ExecutableWork> worksToRetryLocally = new java.util.ArrayList<>();
-
-    for (ExecutableWork executableWork : executableWorks) {
-      switch (evaluateRetry(computationId, executableWork.work(), t)) {
-        case DO_NOT_RETRY:
-          // Consider the item invalid. It will eventually be retried by Windmill if it still needs
-          // to be processed.
-          onInvalidWork.accept(executableWork.work());
-          break;
-        case RETRY_LOCALLY:
-          // Try again after some delay and at the end of the queue to avoid a tight loop.
-          worksToRetryLocally.add(executableWork);
-          break;
-        case RETHROW_THROWABLE:
-          throw t;
-      }
-    }
-
-    executeWithDelay(worksToRetryLocally);
-  }
-
-  private void executeWithDelay(List<ExecutableWork> worksToRetryLocally) {
-    if (!worksToRetryLocally.isEmpty()) {
-      // Sleep ONCE for the entire batch delay to avoid sequential thread blocks
-      Uninterruptibles.sleepUninterruptibly(retryLocallyDelayMs, TimeUnit.MILLISECONDS);
-      for (ExecutableWork ew : worksToRetryLocally) {
-        workUnitExecutor.forceExecute(ew, ew.work().getSerializedWorkItemSize());
-      }
+    switch (evaluateRetry(systemName, executableWork.work(), t)) {
+      case DO_NOT_RETRY:
+        // Consider the item invalid. It will eventually be retried by Windmill if it still needs to
+        // be processed.
+        onInvalidWork.accept(executableWork.work());
+        break;
+      case RETRY_LOCALLY:
+        // Try again after some delay and at the end of the queue to avoid a tight loop.
+        executeWithDelay(retryLocallyDelayMs, executableWork);
+        break;
+      case RETHROW_THROWABLE:
+        throw t;
     }
   }
 
@@ -148,12 +133,22 @@ public final class WorkFailureProcessor {
     RETHROW_THROWABLE,
   }
 
-  private RetryEvaluation evaluateRetry(String computationId, Work work, Throwable t) {
-    if (work.isFailed()) {
+  private RetryEvaluation evaluateRetry(String systemName, Work work, Throwable t) {
+    @Nullable final Throwable cause = t.getCause();
+    Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
+    if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
       LOG.debug(
-          "Execution of work for computation '{}' on sharding key '{}' failed. "
-              + "Work is already marked as failed, not retrying locally.",
-          computationId,
+          "Execution of work for system '{}' on sharding key '{}' failed due to token expiration. "
+              + "Work will not be retried locally.",
+          systemName,
+          work.getWorkItem().getShardingKey());
+      return RetryEvaluation.DO_NOT_RETRY;
+    }
+    if (WorkItemCancelledException.isWorkItemCancelledException(parsedException)) {
+      LOG.debug(
+          "Execution of work for system '{}' on sharding key '{}' failed. "
+              + "Work will not be retried locally.",
+          systemName,
           work.getWorkItem().getShardingKey());
       return RetryEvaluation.DO_NOT_RETRY;
     }
@@ -166,30 +161,30 @@ public final class WorkFailureProcessor {
     if (isOutOfMemoryError(parsedException)) {
       String heapDump = tryToDumpHeap();
       LOG.error(
-          "Execution of work for computation '{}' for sharding key '{}' failed with out-of-memory. "
+          "Execution of work for system '{}' for sharding key '{}' failed with out-of-memory. "
               + "Work will not be retried locally. Heap dump {}.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey(),
           heapDump,
           parsedException);
       return RetryEvaluation.RETHROW_THROWABLE;
     }
 
-    if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
+    if (!failureTracker.trackFailure(systemName, work.getWorkItem(), parsedException)) {
       LOG.error(
-          "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception, "
+          "Execution of work for system '{}' on sharding key '{}' failed with uncaught exception, "
               + "and Windmill indicated not to retry locally.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey(),
           parsedException);
       return RetryEvaluation.DO_NOT_RETRY;
     }
     if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
       LOG.error(
-          "Execution of work for computation '{}' for sharding key '{}' failed with uncaught exception, "
+          "Execution of work for system '{}' for sharding key '{}' failed with uncaught exception, "
               + "and it will not be retried locally because the elapsed time since start {} "
               + "exceeds {}.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey(),
           elapsedTimeSinceStart,
           MAX_LOCAL_PROCESSING_RETRY_DURATION,
@@ -197,9 +192,9 @@ public final class WorkFailureProcessor {
       return RetryEvaluation.DO_NOT_RETRY;
     }
     LOG.error(
-        "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception. "
+        "Execution of work for system '{}' on sharding key '{}' failed with uncaught exception. "
             + "Work will be retried locally.",
-        computationId,
+        systemName,
         work.getWorkItem().getShardingKey(),
         parsedException);
     return RetryEvaluation.RETRY_LOCALLY;

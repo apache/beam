@@ -112,7 +112,12 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
     // Do this check after adding to commitQueue, else commitQueue.put() can race with
     // drainCommitQueue() in stop() and leave commits orphaned in the queue.
     if (!this.isRunning.get()) {
-      LOG.debug("Trying to queue commit on shutdown, failing commit={}", commit);
+      LOG.debug(
+          "Trying to queue commit on shutdown, failing commit=[systemName={}, shardingKey={},"
+              + " workId={} ].",
+          commit.systemName(),
+          commit.work().getShardedKey(),
+          commit.work().id());
       drainCommitQueue();
     }
   }

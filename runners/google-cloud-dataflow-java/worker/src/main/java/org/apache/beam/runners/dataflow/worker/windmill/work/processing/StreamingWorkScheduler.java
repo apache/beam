@@ -171,13 +171,13 @@ public class StreamingWorkScheduler {
   }
 
   /** Sets the stage name and workId of the Thread executing the {@link Work} for logging. */
-  private static void setUpWorkLoggingContext(String workLatencyTrackingId, String computationId) {
+  private static void setUpWorkLoggingContext(String workLatencyTrackingId, String systemName) {
     setLoggingContextWorkId(workLatencyTrackingId);
-    setLoggingContextComputation(computationId);
+    setLoggingContextSystemName(systemName);
   }
 
-  private static void setLoggingContextComputation(@Nullable String computationId) {
-    DataflowWorkerLoggingMDC.setStageName(computationId);
+  private static void setLoggingContextSystemName(@Nullable String systemName) {
+    DataflowWorkerLoggingMDC.setStageName(systemName);
   }
 
   private static void setLoggingContextWorkId(@Nullable String workLatencyTrackingId) {
@@ -227,15 +227,11 @@ public class StreamingWorkScheduler {
   private void processWork(
       ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle handle) {
     Windmill.WorkItem workItem = work.getWorkItem();
-    String computationId = computationState.getComputationId();
-    LOG.debug("Starting processing for {}:\n{}", computationId, work);
-    setLoggingContextComputation(computationId);
-    KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
-    keyTransitionListener.onKeyTransition(null, work);
-
-    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
-    // cleanup should be done before this, since we might exit early here.
-    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
+    String systemName = computationState.getSystemName();
+    work.setProcessingThreadName(Thread.currentThread().getName());
+    work.setState(Work.State.PROCESSING);
+    setUpWorkLoggingContext(work.getLatencyTrackingId(), systemName);
+    LOG.debug("Starting processing for {}:\n{}", systemName, work);
 
     if (workItem.getSourceState().getOnlyFinalize()) {
       handleOnlyFinalize(computationState, work, workItem);
@@ -264,7 +260,21 @@ public class StreamingWorkScheduler {
       recordProcessingStats(workBatch, workItemCommits, executeWorkResult.stateBytesRead());
       LOG.debug("Processing done for work batch size: {}", workBatch.size());
     } catch (Throwable t) {
-      handleProcessWorkFailure(computationState, handle.getWorkBatch(), computationId, work, t);
+      // OutOfMemoryError that are caught will be rethrown and trigger jvm termination.
+      try {
+        workFailureProcessor.logAndProcessFailure(
+            systemName,
+            ExecutableWork.create(work, (retry, h) -> processWork(computationState, retry, h)),
+            t,
+            invalidWork ->
+                computationState.completeWorkAndScheduleNextWorkForKey(
+                    invalidWork.getShardedKey(), invalidWork.id()));
+      } catch (OutOfMemoryError oom) {
+        throw oom;
+      } catch (Throwable t2) {
+        LOG.warn("Failed to process work failure safely for work {}", work.id(), t2);
+        throw ExceptionUtils.safeWrapThrowableAsException(t2);
+      }
     } finally {
       List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
       // Update total processing time counters. Updating in finally clause ensures that
@@ -272,7 +282,7 @@ public class StreamingWorkScheduler {
       recordProcessingTime(stageInfo, processedWorkBatch, processingStartTimeNanos);
 
       setLoggingContextWorkId(null);
-      setLoggingContextComputation(null);
+      setLoggingContextSystemName(null);
       sampler.resetForWorkId(work.getLatencyTrackingId());
       for (Work w : processedWorkBatch) {
         w.setProcessingThreadName("");
