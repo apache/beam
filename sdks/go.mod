@@ -26,8 +26,8 @@ toolchain go1.26.2
 
 require (
 	cloud.google.com/go/bigquery v1.79.0
-	cloud.google.com/go/bigtable v1.50.0
-	cloud.google.com/go/datastore v1.25.0
+	cloud.google.com/go/bigtable v1.51.0
+	cloud.google.com/go/datastore v1.26.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.51.0
 	cloud.google.com/go/spanner v1.93.0
@@ -60,7 +60,7 @@ require (
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.40.0
-	google.golang.org/api v0.289.0
+	google.golang.org/api v0.290.0
 	google.golang.org/genproto v0.0.0-20260523011958-0a33c5d7ca68
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11

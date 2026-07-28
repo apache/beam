@@ -39,6 +39,8 @@ import com.google.spanner.v1.CommitResponse;
 import com.google.spanner.v1.DirectedReadOptions;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -98,13 +100,17 @@ public class SpannerAccessor implements AutoCloseable {
   }
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
+    return getOrCreate(spannerConfig, GlobalOpenTelemetry.get());
+  }
+
+  public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig, OpenTelemetry otel) {
 
     synchronized (spannerAccessors) {
       SpannerAccessor self = spannerAccessors.get(spannerConfig);
       if (self == null) {
         // Connect to spanner for this SpannerConfig.
         LOG.info("Connecting to {}", spannerConfig);
-        self = SpannerAccessor.createAndConnect(spannerConfig);
+        self = SpannerAccessor.createAndConnect(spannerConfig, otel);
         LOG.info("Successfully connected to {}", spannerConfig);
         spannerAccessors.put(spannerConfig, self);
       }
@@ -117,7 +123,27 @@ public class SpannerAccessor implements AutoCloseable {
 
   @VisibleForTesting
   static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
+    return buildSpannerOptions(spannerConfig, GlobalOpenTelemetry.get());
+  }
+
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig, OpenTelemetry otel) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+    if (otel != null) {
+      builder.setOpenTelemetry(otel);
+    }
+    ValueProvider<Boolean> enableOpenTelemetryTracing =
+        spannerConfig.getEnableOpenTelemetryTracing();
+    if (enableOpenTelemetryTracing != null
+        && enableOpenTelemetryTracing.isAccessible()
+        && enableOpenTelemetryTracing.get()) {
+      builder.setEnableExtendedTracing(true);
+      builder.setEnableEndToEndTracing(true);
+      builder.setEnableApiTracing(true);
+      SpannerOptions.disableOpenCensusMetrics();
+      SpannerOptions.enableOpenTelemetryMetrics();
+      SpannerOptions.enableOpenTelemetryTraces();
+    }
 
     // TODO(https://github.com/apache/beam/issues/37451) Disable gRPC gcp extension which was
     // causing the application thread to stall.
@@ -303,8 +329,8 @@ public class SpannerAccessor implements AutoCloseable {
     return builder.build();
   }
 
-  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
-    SpannerOptions options = buildSpannerOptions(spannerConfig);
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig, OpenTelemetry otel) {
+    SpannerOptions options = buildSpannerOptions(spannerConfig, otel);
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();

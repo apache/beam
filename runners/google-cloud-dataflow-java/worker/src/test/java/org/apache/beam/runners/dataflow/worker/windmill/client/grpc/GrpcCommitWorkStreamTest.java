@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.TriggeredScheduledExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
@@ -1132,6 +1134,89 @@ public class GrpcCommitWorkStreamTest {
     assertThat(commitStatusFuture2.get()).isEqualTo(Windmill.CommitStatus.ALREADY_IN_COMMIT);
 
     assertTrue(commitWorkStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testCommit_multiKeyCommit() throws Exception {
+    testMultiKeyCommit(CommitStatus.OK);
+  }
+
+  @Test
+  public void testCommit_multiKeyCommit_Failure() throws Exception {
+    testMultiKeyCommit(CommitStatus.NOT_FOUND);
+  }
+
+  private void testMultiKeyCommit(CommitStatus commitStatus) throws Exception {
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    CompletableFuture<CommitStatus> commitStatusFuture = new CompletableFuture<>();
+
+    // 1. Construct two individual WorkItemCommitRequests
+    long shardingKey1 = 101L;
+    long workToken1 = 201L;
+    long cacheToken1 = 301L;
+    long shardingKey2 = 102L;
+    long workToken2 = 202L;
+    long cacheToken2 = 302L;
+    Windmill.WorkItemCommitRequest request1 =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setShardingKey(shardingKey1)
+            .setWorkToken(workToken1)
+            .setCacheToken(cacheToken1)
+            .build();
+    Windmill.WorkItemCommitRequest request2 =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key2"))
+            .setShardingKey(shardingKey2)
+            .setWorkToken(workToken2)
+            .setCacheToken(cacheToken2)
+            .build();
+
+    // 2. Wrap them into a MultiKeyWorkItemCommitRequest
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(request1)
+            .addRequests(request2)
+            .build();
+
+    // 3. Commit the multi-key work item using the request batcher
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitMultiKeyWorkItem(
+              COMPUTATION_ID, multiKeyRequest, commitStatusFuture::complete));
+    }
+
+    // 4. Receive and assert request properties on FakeWindmillGrpcService
+    Windmill.StreamingCommitWorkRequest request = streamInfo.requests.take();
+    assertThat(request.getCommitChunkCount()).isEqualTo(1);
+
+    Windmill.StreamingCommitRequestChunk chunk = request.getCommitChunk(0);
+
+    // Assert that the commit type is correctly identified as COMMIT_TYPE_MULTI_KEY
+    assertThat(chunk.getCommitType())
+        .isEqualTo(Windmill.StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY);
+
+    // Assert that the routing sharding key is mapped to the first request's sharding key
+    assertThat(chunk.getShardingKey()).isEqualTo(request1.getShardingKey());
+
+    // Assert that the serialized payload matches the input multiKeyRequest
+    Windmill.MultiKeyWorkItemCommitRequest parsedRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.parseFrom(chunk.getSerializedWorkItemCommit());
+    assertThat(parsedRequest).isEqualTo(multiKeyRequest);
+
+    // 5. Respond with the generated requestId to complete the commit
+    long requestId = chunk.getRequestId();
+    StreamingCommitResponse.Builder builder =
+        StreamingCommitResponse.newBuilder().addRequestId(requestId);
+    if (commitStatus != CommitStatus.OK) {
+      builder.addStatus(commitStatus);
+    }
+    streamInfo.responseObserver.onNext(builder.build());
+
+    // 6. Verify callback completed with expected sCommitStatus
+    assertThat(commitStatusFuture.get()).isEqualTo(commitStatus);
   }
 
   @Test
