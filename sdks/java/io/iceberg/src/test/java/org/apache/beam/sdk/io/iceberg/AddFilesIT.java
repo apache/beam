@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -246,10 +247,14 @@ public class AddFilesIT {
     // first create a source iceberg table
     catalog.createTable(srcTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
 
-    String filter = format("%s/%s/data/", namespace, srcTableName);
+    // BigLake may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
+    // {namespace}/{table}/data/... layout, so match the table prefix and a /data/ segment.
+    String tablePrefix = format("%s/%s/", namespace, srcTableName);
 
     // build AddFiles pipeline and let it run in the background
-    PipelineResult addFilesPipeline = startAddFilesListener(filter);
+    PipelineResult addFilesPipeline =
+        startAddFilesListener(
+            name -> name.contains(tablePrefix) && name.contains("/data/"));
 
     // before writing, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
@@ -503,6 +508,11 @@ public class AddFilesIT {
   }
 
   private PipelineResult startAddFilesListener(String filter) throws InterruptedException {
+    return startAddFilesListener(name -> name.contains(filter));
+  }
+
+  private PipelineResult startAddFilesListener(
+      SerializableFunction<String, Boolean> objectNameFilter) throws InterruptedException {
     DirectOptions options = TestPipeline.testingPipelineOptions().as(DirectOptions.class);
     options.setBlockOnRun(false);
     Pipeline p = Pipeline.create(options);
@@ -510,7 +520,7 @@ public class AddFilesIT {
     PCollectionRowTuple tuple =
         p.apply(PubsubIO.readStrings().fromTopic(notificationsTopic))
             .apply(JsonToRow.withSchema(NOTIFICATION_SCHEMA))
-            .apply(Filter.by(row -> row.getString("name").contains(filter)))
+            .apply(Filter.by(row -> objectNameFilter.apply(row.getString("name"))))
             .apply(
                 MapElements.into(strings())
                     .via(
