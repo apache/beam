@@ -253,8 +253,7 @@ public class AddFilesIT {
 
     // build AddFiles pipeline and let it run in the background
     PipelineResult addFilesPipeline =
-        startAddFilesListener(
-            name -> name.contains(tablePrefix) && name.contains("/data/"));
+        startAddFilesListener(name -> name.contains(tablePrefix) && name.contains("/data/"));
 
     // before writing, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
