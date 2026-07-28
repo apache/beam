@@ -73,7 +73,7 @@ require (
 	github.com/fsouza/fake-gcs-server v1.55.1
 	github.com/golang-cz/devslog v0.0.17
 	github.com/moby/moby/api v1.55.0
-	github.com/moby/moby/client v0.5.0
+	github.com/moby/moby/client v0.5.1
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 )
 
