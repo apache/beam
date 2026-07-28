@@ -462,6 +462,7 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 			gdbArgs := []string{
 				"-batch",
 				"-ex", "set pagination off",
+				"-ex", "set trace-commands on",
 				"-ex", "info sharedlibrary",
 				"-ex", "info proc mappings",
 				"-ex", "info threads",
