@@ -21,7 +21,6 @@ import contextlib
 import copy
 import glob
 import itertools
-import json
 import logging
 import os
 import random
@@ -39,11 +38,9 @@ from datetime import timezone
 
 import mock
 import requests
-from testcontainers.core.container import DockerContainer
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
-from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
 
 
 class BigEndianIntegerCoderImpl(CoderImpl):
@@ -399,11 +396,10 @@ def temp_debezium_postgres_database():
   """Provides a temporary PostgreSQL database configured for Debezium CDC."""
 
   container = (
-    DockerContainer('quay.io/debezium/example-postgres:latest')
-    .with_env('POSTGRES_USER', 'debezium')
-    .with_env('POSTGRES_PASSWORD', 'dbz')
-    .with_env('POSTGRES_DB', 'inventory')
-    .with_exposed_ports(5432))
+      DockerContainer('quay.io/debezium/example-postgres:latest').with_env(
+          'POSTGRES_USER',
+          'debezium').with_env('POSTGRES_PASSWORD', 'dbz').with_env(
+              'POSTGRES_DB', 'inventory').with_exposed_ports(5432))
 
   try:
     container.start()
@@ -416,29 +412,30 @@ def temp_debezium_postgres_database():
     for _ in range(30):
       try:
         connection = psycopg2.connect(
-          host=host,
-          port=port,
-          user='debezium',
-          password='dbz',
-          dbname='inventory')
+            host=host,
+            port=port,
+            user='debezium',
+            password='dbz',
+            dbname='inventory')
         break
       except psycopg2.OperationalError:
         time.sleep(1)
 
     if connection is None:
-      raise RuntimeError('Debezium PostgreSQL container failed to become ready.')
+      raise RuntimeError(
+          'Debezium PostgreSQL container failed to become ready.')
 
     try:
       with connection.cursor() as cursor:
         cursor.execute(
-          """
+            """
           CREATE TABLE IF NOT EXISTS customers (
             id INTEGER PRIMARY KEY,
             name VARCHAR(255)
           )
           """)
         cursor.execute(
-          """
+            """
           INSERT INTO customers (id, name)
           VALUES
             (1, 'Alice'),
@@ -450,12 +447,12 @@ def temp_debezium_postgres_database():
       connection.close()
 
     yield {
-      'HOST': host,
-      'PORT': port,
-      'USERNAME': 'debezium',
-      'PASSWORD': 'dbz',
-      'DATABASE': 'inventory',
-      'TABLE': 'public.customers',
+        'HOST': host,
+        'PORT': port,
+        'USERNAME': 'debezium',
+        'PASSWORD': 'dbz',
+        'DATABASE': 'inventory',
+        'TABLE': 'public.customers',
     }
 
   finally:
