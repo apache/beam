@@ -950,7 +950,7 @@ class RecordingManagerTest(unittest.TestCase):
       # True due to the GCS cache_root value.
       rm.record([numbers], max_n=3, max_duration=500)
       mock_pipeline_fragment.assert_called_with(blocking=True)
-    
+
     finally:
       ib.options.cache_root = original_cache_root
 
