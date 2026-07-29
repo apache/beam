@@ -124,6 +124,8 @@ public final class Work implements RefreshableWork {
             + Long.toHexString(workItem.getWorkToken());
     this.currentState = TimedState.initialState(startTime);
     this.isFailed = false;
+    // We defer recordGetWorkStreamLatencies() to be called during bundle processing
+    // as these are constructed on the hot GetWork thread
     this.getWorkStreamLatencies = getWorkStreamLatencies;
   }
 

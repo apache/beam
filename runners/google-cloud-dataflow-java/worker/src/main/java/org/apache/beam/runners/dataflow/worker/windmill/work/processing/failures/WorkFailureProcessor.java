@@ -111,8 +111,7 @@ public final class WorkFailureProcessor {
       switch (evaluateRetry(computationId, executableWork.work(), t)) {
         case DO_NOT_RETRY:
           // Consider the item invalid. It will eventually be retried by Windmill if it still needs
-          // to
-          // be processed.
+          // to be processed.
           onInvalidWork.accept(executableWork.work());
           break;
         case RETRY_LOCALLY:
@@ -170,6 +169,8 @@ public final class WorkFailureProcessor {
           work.getWorkItem().getShardingKey());
       return RetryEvaluation.RETRY_LOCALLY;
     }
+    @Nullable final Throwable cause = t.getCause();
+    Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
 
     LastExceptionDataProvider.reportException(parsedException);
     LOG.debug("Failed work: {}", work);

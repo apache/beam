@@ -48,6 +48,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
+import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
@@ -62,7 +63,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -400,17 +400,21 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> workBatch,
       List<Windmill.WorkItemCommitRequest> workItemCommits) {
-    Preconditions.checkState(!workBatch.isEmpty());
-    Preconditions.checkState(workBatch.size() == workItemCommits.size());
-
+    checkState(!workBatch.isEmpty());
+    checkState(workBatch.size() == workItemCommits.size());
     Windmill.MultiKeyWorkItemCommitRequest.Builder multiKeyBuilder =
         Windmill.MultiKeyWorkItemCommitRequest.newBuilder();
 
     Work primaryWork = workBatch.get(0);
     Work.KeyGroup keyGroup = primaryWork.getKeyGroup();
-    multiKeyBuilder.setKeyGroup(
-        Windmill.Uint128Proto.newBuilder().setHigh(keyGroup.high()).setLow(keyGroup.low()).build());
-
+    if (!keyGroup.equals(KeyGroup.DEFAULT)) {
+      // Don't set if key group is 0. Avoids allocation.
+      multiKeyBuilder.setKeyGroup(
+          Windmill.Uint128Proto.newBuilder()
+              .setHigh(keyGroup.high())
+              .setLow(keyGroup.low())
+              .build());
+    }
     for (int i = 0; i < workBatch.size(); i++) {
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
       Work w = workBatch.get(i);

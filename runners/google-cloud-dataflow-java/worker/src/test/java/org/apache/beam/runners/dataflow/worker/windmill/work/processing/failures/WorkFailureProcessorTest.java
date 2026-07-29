@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -136,12 +135,10 @@ public class WorkFailureProcessorTest {
         OutOfMemoryError.class,
         () ->
             workFailureProcessor.logAndProcessFailureBatch(
-                DEFAULT_COMPUTATION_ID,
-                Arrays.asList(work),
-                new OutOfMemoryError(),
-                invalidWork::add));
+                DEFAULT_COMPUTATION_ID, List.of(work), new OutOfMemoryError(), invalidWork::add));
 
     assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).isEmpty();
   }
 
   @Test
@@ -153,7 +150,7 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingApplianceFailureReporter(true));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, Arrays.asList(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
@@ -168,10 +165,7 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID,
-        Arrays.asList(veryOldWork),
-        new RuntimeException(),
-        invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(veryOldWork), new RuntimeException(), invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).contains(veryOldWork.work());
@@ -186,7 +180,7 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, Arrays.asList(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
@@ -201,7 +195,7 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingApplianceFailureReporter(false));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, Arrays.asList(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
@@ -219,10 +213,7 @@ public class WorkFailureProcessorTest {
     Set<Work> invalidWork = new HashSet<>();
 
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID,
-        Arrays.asList(work1, work2),
-        new RuntimeException(),
-        invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(work1, work2), new RuntimeException(), invalidWork::add);
 
     runWork1.await();
     runWork2.await();
@@ -242,10 +233,7 @@ public class WorkFailureProcessorTest {
     Set<Work> invalidWork = new HashSet<>();
 
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID,
-        Arrays.asList(work1, work2),
-        new RuntimeException(),
-        invalidWork::add);
+        DEFAULT_COMPUTATION_ID, List.of(work1, work2), new RuntimeException(), invalidWork::add);
 
     runWork1.await();
     assertThat(executedWork2).isEmpty();
@@ -263,7 +251,7 @@ public class WorkFailureProcessorTest {
 
     workFailureProcessor.logAndProcessFailureBatch(
         DEFAULT_COMPUTATION_ID,
-        Arrays.asList(work),
+        List.of(work),
         new org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler
             .MultiKeyCommitValidationException("test"),
         invalidWork::add);
