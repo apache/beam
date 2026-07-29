@@ -32,11 +32,6 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Python) `Timestamp` now supports variable subsecond precision up to nanoseconds, and the portable
-  `beam:logical_type:timestamp:v1` logical type produced by the Java SDK is now understood by the
-  Python SDK ([#19922](https://github.com/apache/beam/issues/19922)). Lossy conversions raise unless
-  explicitly allowed, and `Timestamp.from_proto` now returns a nanosecond-precision `Timestamp`
-  instead of raising.
 
 ## Breaking Changes
 
@@ -74,6 +69,8 @@
 ## New Features / Improvements
 
 * (Python) Removed the `envoy-data-plane` (and transitive `betterproto`) dependency; `EnvoyRateLimiter` now uses a small vendored protobuf definition instead, resolving dependency conflicts for downstream projects ([#37854](https://github.com/apache/beam/issues/37854)).
+* (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
+  `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp`.
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
