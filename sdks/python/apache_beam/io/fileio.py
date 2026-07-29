@@ -319,7 +319,7 @@ class _MatchContinuouslyPollFn(PollFn):
     self._start_micros = Timestamp.of(start_timestamp).micros
     self._clock = clock if clock is not None else _PollClock()
 
-  def __call__(self, file_pattern: str) -> PollResult:
+  def __call__(self, file_pattern: str) -> PollResult[filesystem.FileMetadata]:
     now = Timestamp.now()
     self._clock.last_poll_micros = now.micros
     if now.micros < self._start_micros:

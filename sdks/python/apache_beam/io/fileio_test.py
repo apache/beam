@@ -28,8 +28,10 @@ import unittest
 import uuid
 import warnings
 
-import apache_beam as beam
 import pytest
+from hamcrest.library.text import stringmatches
+
+import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystem import BeamIOError
@@ -49,7 +51,6 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
-from hamcrest.library.text import stringmatches
 
 warnings.filterwarnings(
     'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
@@ -442,8 +443,8 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
       poll_fn(FileSystems.join(tempdir, 'no-such-file'))
 
   def test_poll_fn_stamps_outputs_with_poll_time(self):
-    # Matches always carry the poll time as event time, matching the Java
-    # SDK's MatchPollFn; matching updated files must not change that.
+    # Matches always carry the poll time as event time; matching updated
+    # files must not change that.
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     self._create_temp_file(dir=tempdir)
     poll_fn = fileio._MatchContinuouslyPollFn(
@@ -458,15 +459,14 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual(result.watermark, output.timestamp)
 
   def test_match_updated_files_keys_on_path_and_mtime(self):
-    # An updated file dedups as new because its key changes, mirroring the
-    # Java SDK's ExtractFilenameAndLastUpdateFn.
+    # An updated file dedups as new because its key changes.
     metadata = FileMetadata('/tmp/a', 1, 1234.5)
     self.assertEqual(('/tmp/a', 1234.5),
                      fileio._file_path_and_mtime_key(metadata))
 
   def test_match_updated_files_rejects_missing_mtime(self):
-    # Java's ExtractFilenameAndLastUpdateFn rejects a zero last-modified time:
-    # without mtimes, updates could never be detected.
+    # A zero last-modified time is rejected: without mtimes, updates could
+    # never be detected.
     with self.assertRaises(BeamIOError):
       fileio._file_path_and_mtime_key(FileMetadata('/tmp/a', 1))
 
