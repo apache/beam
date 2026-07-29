@@ -18,7 +18,6 @@
 """Tests for the Watch transform."""
 
 import collections
-import typing
 import unittest
 
 import apache_beam as beam
@@ -444,24 +443,6 @@ class WatchEndToEndTest(unittest.TestCase):
           p | beam.Create(['k:'])
           | Watch(_complete_poll, poll_interval=Duration(1)))
       self.assertEqual(typehints.Tuple[str, str], output.element_type)
-
-  def test_infers_coder_from_generic_annotations(self):
-    # tuple[str, float] and typing.Tuple[str, float] resolve to a tuple coder,
-    # not the pickling fallback.
-    def native_poll(element) -> PollResult[tuple[str, float]]:
-      return PollResult.complete([(element, 1.0)])
-
-    def typing_poll(
-        element) -> PollResult[typing.Tuple[str, float]]:  # noqa: UP006
-      return PollResult.complete([(element, 1.0)])
-
-    for poll in (native_poll, typing_poll):
-      with self._in_memory_pipeline() as p:
-        output = (
-            p | beam.Create(['k:']) | Watch(poll, poll_interval=Duration(1)))
-        self.assertEqual(
-            typehints.Tuple[str, typehints.Tuple[str, float]],
-            output.element_type)
 
   def test_uses_poll_fn_default_output_coder(self):
     with self._in_memory_pipeline() as p:

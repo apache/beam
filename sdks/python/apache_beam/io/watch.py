@@ -78,7 +78,6 @@ from apache_beam.runners import sdf_utils
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.typehints import native_type_compatibility
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -644,13 +643,6 @@ def _poll_output_type(poll_fn) -> Any:
   return Any
 
 
-def _coder_for_hint(hint) -> Coder:
-  # typing and native generic hints such as tuple[str, float] must be
-  # converted to Beam typehints, or the registry falls back to pickling.
-  return coders.registry.get_coder(
-      native_type_compatibility.convert_to_beam_type(hint))
-
-
 class Watch(PTransform):
   """Watches a growing set of outputs per input via a periodic poll function.
 
@@ -698,14 +690,14 @@ class Watch(PTransform):
     if output_coder is None and isinstance(self._poll_fn, PollFn):
       output_coder = self._poll_fn.default_output_coder()
     if output_coder is None:
-      output_coder = _coder_for_hint(_poll_output_type(self._poll_fn))
+      output_coder = coders.registry.get_coder(_poll_output_type(self._poll_fn))
     if self._output_key_fn is None:
       # The output is its own dedup key, so the key coder is the output coder.
       key_fn = _identity
       key_coder = self._output_key_coder or output_coder
     else:
       key_fn = self._output_key_fn
-      key_coder = self._output_key_coder or _coder_for_hint(
+      key_coder = self._output_key_coder or coders.registry.get_coder(
           _return_type(self._output_key_fn))
     # Dedup hashes the encoded key, so equal keys must encode equally; use the
     # coder's deterministic form and reject coders that have none.
