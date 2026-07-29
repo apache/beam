@@ -32,8 +32,14 @@ output carries the event time the poll function first reported it. Dedup
 hashes each output's key: the output itself by default, or
 ``output_key_fn(output)`` when one is given. The key coder is inferred when
 not passed explicitly and converted to its deterministic form, so equal keys
-hash equally across workers and restarts. ``timestamp_cursor=True`` replaces
-hash dedup with an O(1) event-time cursor; see :class:`Watch`.
+hash equally across workers and restarts.
+
+By default, the Watch transform internally stores the hash of all items
+seen. If the incremental items returned by the poll function guarantee
+monotonic timestamp growth (new items on the next poll have timestamps
+larger than the largest of the previous poll), consider setting
+``timestamp_cursor=True`` for better performance, as it replaces the hash
+dedup with an O(1) event-time cursor; see :class:`Watch`.
 
 Example::
 
