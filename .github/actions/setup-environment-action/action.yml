@@ -56,6 +56,24 @@ runs:
           sdks/python/setup.py
           sdks/python/tox.ini
 
+    # Multiline python-version (e.g. 3.10\n3.11\n...) must not be embedded raw
+    # in cache keys: actions/cache treats each newline-separated line as a
+    # separate key and fails when there are more than 10 ("Keys are limited to
+    # a maximum of 10"). Collapse whitespace into a single key fragment.
+    - name: Sanitize Python version for tox cache key
+      if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
+      id: py-cache-key
+      shell: bash
+      env:
+        PYTHON_VERSION_INPUT: ${{ inputs.python-version }}
+      run: |
+        if [[ "$PYTHON_VERSION_INPUT" == "default" ]]; then
+          sanitized="310"
+        else
+          sanitized=$(printf '%s' "$PYTHON_VERSION_INPUT" | tr -s '[:space:]' '-' | sed 's/^-//;s/-$//')
+        fi
+        echo "sanitized=$sanitized" >> "$GITHUB_OUTPUT"
+
     - name: Cache tox environments
       if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
       uses: actions/cache@v6
@@ -64,10 +82,10 @@ runs:
           sdks/python/target/.tox
           !sdks/python/target/.tox/**/log
           !sdks/python/target/.tox/.package_cache
-        key: tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
+        key: tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
         restore-keys: |
-          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
-          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-
+          tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-${{ hashFiles('sdks/python/tox.ini') }}-
+          tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-
 
     - name: Install Java
       if: ${{ inputs.java-version != '' }}

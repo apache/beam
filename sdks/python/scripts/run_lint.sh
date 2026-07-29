@@ -16,10 +16,9 @@
 #    limitations under the License.
 #
 
-# This script will run ruff and isort on all module files.
+# This script will run ruff on all module files.
 #
 # Use "ruff check apache_beam" to run ruff all files.
-# Use "isort apache_beam" to run isort all files.
 #
 # The exit-code of the script indicates success or a failure.
 
@@ -81,40 +80,6 @@ echo -e "Linting modules:\n${MODULE}"
 
 echo "Running ruff..."
 ruff check ${MODULE} --extend-exclude="$FILES_TO_IGNORE"
-
-echo "Running isort..."
-# Skip files where isort is behaving weirdly
-ISORT_EXCLUDED=(
-  "apiclient.py"
-  "avroio_test.py"
-  "cloudpickle.py"
-  "datastore_wordcount.py"
-  "datastoreio_test.py"
-  "doctests_test.py"
-  "fast_coders_test.py"
-  "hadoopfilesystem.py"
-  "iobase_test.py"
-  "main_test.py"
-  "model.py"
-  "preprocess.py"
-  "process_tfma.py"
-  "render_test.py"
-  "slow_coders_test.py"
-  "taxi.py"
-  "tfdv_analyze_and_validate.py"
-  "yaml/main.py"
-  "main_test.py"
-  "yaml_testing_test.py"
-)
-SKIP_PARAM=""
-for file in "${ISORT_EXCLUDED[@]}"; do
-  SKIP_PARAM="$SKIP_PARAM --skip $file"
-done
-for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
-  SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
-done
-isort ${MODULE} -p apache_beam --line-width 120 --check-only --order-by-type \
-    --combine-star --force-single-line-imports --diff --magic-placement ${SKIP_PARAM}
 
 echo "Checking unittest.main..."
 TESTS_MISSING_MAIN=$(

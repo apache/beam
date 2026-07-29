@@ -93,6 +93,8 @@ jobs:
       startsWith(github.event.comment.body, 'Run Xlang_Generated_Transforms PreCommit')
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

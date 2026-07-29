@@ -18,6 +18,15 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.util.HashMap;
@@ -49,12 +58,16 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   class GcsReadOptionsFactory implements DefaultValueFactory<GoogleCloudStorageReadOptions> {
     @Override
     public GoogleCloudStorageReadOptions create(PipelineOptions options) {
-      return GoogleCloudStorageReadOptions.DEFAULT;
+      // In gcs-connector v3, GoogleCloudStorageReadOptions.DEFAULT changed fadvise from SEQUENTIAL
+      // to AUTO. Beam workloads default to SEQUENTIAL to preserve expected sequential read
+      // throughput and caching behavior.
+      return GcsReadOptionsSerializer.DEFAULT_OPTIONS;
     }
   }
 
   /** @deprecated This option will be removed in a future release. */
-  @JsonIgnore
+  @JsonSerialize(using = GcsReadOptionsSerializer.class)
+  @JsonDeserialize(using = GcsReadOptionsDeserializer.class)
   @Description(
       "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
   @Default.InstanceFactory(GcsReadOptionsFactory.class)
@@ -284,5 +297,73 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
       return oldValue;
     }
+  }
+}
+
+class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
+  static final GoogleCloudStorageReadOptions DEFAULT_OPTIONS =
+      GoogleCloudStorageReadOptions.DEFAULT
+          .toBuilder()
+          .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
+          .build();
+
+  @Override
+  public void serialize(
+      GoogleCloudStorageReadOptions value, JsonGenerator gen, SerializerProvider serializers)
+      throws java.io.IOException {
+    // Note: We only support a partial set of options to propagate to remote
+    // workers. Setting the unsupported ones will not have any effect and will fall
+    // back to default in remote workers. Support for additional options can be
+    // added on a need basis. The full list of options can be seen in
+    // com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.
+    gen.writeStartObject();
+    if (value.getFadvise() != null && value.getFadvise() != DEFAULT_OPTIONS.getFadvise()) {
+      gen.writeStringField("fadvise", value.getFadvise().name());
+    }
+    if (value.isFastFailOnNotFoundEnabled() != DEFAULT_OPTIONS.isFastFailOnNotFoundEnabled()) {
+      gen.writeBooleanField("fastFailOnNotFoundEnabled", value.isFastFailOnNotFoundEnabled());
+    }
+    if (value.getMinRangeRequestSize() != DEFAULT_OPTIONS.getMinRangeRequestSize()) {
+      gen.writeNumberField("minRangeRequestSize", value.getMinRangeRequestSize());
+    }
+    if (value.getInplaceSeekLimit() != DEFAULT_OPTIONS.getInplaceSeekLimit()) {
+      gen.writeNumberField("inplaceSeekLimit", value.getInplaceSeekLimit());
+    }
+    if (value.isGrpcReadZeroCopyEnabled() != DEFAULT_OPTIONS.isGrpcReadZeroCopyEnabled()) {
+      gen.writeBooleanField("grpcReadZeroCopyEnabled", value.isGrpcReadZeroCopyEnabled());
+    }
+    gen.writeEndObject();
+  }
+}
+
+class GcsReadOptionsDeserializer extends JsonDeserializer<GoogleCloudStorageReadOptions> {
+  @Override
+  public GoogleCloudStorageReadOptions deserialize(JsonParser p, DeserializationContext ctxt)
+      throws java.io.IOException {
+    JsonNode root = p.readValueAsTree();
+    GoogleCloudStorageReadOptions.Builder builder =
+        GcsReadOptionsSerializer.DEFAULT_OPTIONS.toBuilder();
+
+    if (root != null && root.isObject()) {
+      if (root.hasNonNull("fadvise")) {
+        builder.setFadvise(
+            GoogleCloudStorageReadOptions.Fadvise.valueOf(root.get("fadvise").asText()));
+      }
+      if (root.hasNonNull("fastFailOnNotFoundEnabled")) {
+        builder.setFastFailOnNotFoundEnabled(root.get("fastFailOnNotFoundEnabled").asBoolean());
+      } else if (root.hasNonNull("fastFailOnNotFound")) {
+        builder.setFastFailOnNotFoundEnabled(root.get("fastFailOnNotFound").asBoolean());
+      }
+      if (root.hasNonNull("minRangeRequestSize")) {
+        builder.setMinRangeRequestSize(root.get("minRangeRequestSize").asLong());
+      }
+      if (root.hasNonNull("inplaceSeekLimit")) {
+        builder.setInplaceSeekLimit(root.get("inplaceSeekLimit").asLong());
+      }
+      if (root.hasNonNull("grpcReadZeroCopyEnabled")) {
+        builder.setGrpcReadZeroCopyEnabled(root.get("grpcReadZeroCopyEnabled").asBoolean());
+      }
+    }
+    return builder.build();
   }
 }

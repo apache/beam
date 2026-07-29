@@ -63,6 +63,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -1864,6 +1865,18 @@ public class GcsUtilTest {
   @Test
   public void testReadMetricsAreNotCollectedWhenNotEnabledOpenWithOptions() throws Exception {
     testReadMetrics(false, GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  @Test
+  public void testGcsEndpoint() throws IOException {
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcsEndpoint("http://localhost:4443/storage/v1/");
+
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorageImpl gcsImpl =
+        (GoogleCloudStorageImpl) gcsUtil.delegate.getGoogleCloudStorage();
+    assertEquals("http://localhost:4443/", gcsImpl.getOptions().getStorageRootUrl());
+    assertEquals("storage/v1/", gcsImpl.getOptions().getStorageServicePath());
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */

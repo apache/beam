@@ -36,8 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
+import org.apache.beam.runners.dataflow.worker.WorkCancellingException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -153,7 +153,7 @@ public class WindmillStateReader {
         fetchStateFromWindmillFn, key, shardingKey, workToken, () -> null, () -> Boolean.FALSE);
   }
 
-  public static WindmillStateReader forWork(Work work) {
+  public static WindmillStateReader forWork(Work work, Supplier<Boolean> workItemIsFailed) {
     return new WindmillStateReader(
         work::fetchKeyedState,
         work.getWorkItem().getKey(),
@@ -163,7 +163,7 @@ public class WindmillStateReader {
           work.setState(Work.State.READING);
           return () -> work.setState(Work.State.PROCESSING);
         },
-        work::isFailed);
+        workItemIsFailed);
   }
 
   private <FutureT> Future<FutureT> stateFuture(StateTag<?> stateTag, @Nullable Coder<?> coder) {
@@ -588,7 +588,8 @@ public class WindmillStateReader {
   private void consumeResponse(KeyedGetDataResponse response, Set<StateTag<?>> toFetch) {
     bytesRead += response.getSerializedSize();
     if (response.getFailed()) {
-      throw new KeyTokenInvalidException(key.toStringUtf8());
+      // upper layers will fail the work on seeing this exception.
+      throw new WorkCancellingException(shardingKey);
     }
 
     if (!key.equals(response.getKey())) {

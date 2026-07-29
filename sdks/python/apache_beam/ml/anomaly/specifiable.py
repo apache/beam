@@ -417,7 +417,7 @@ def specifiable(
     _register(cls, spec_type)
 
     class_name = cls.__name__
-    original_init = cls.__init__  # type: ignore[misc]
+    original_init: Any = cls.__init__  # type: ignore[misc]
     cls.__init__ = new_init  # type: ignore[misc]
     if just_in_time_init:
       cls.__getattr__ = new_getattr

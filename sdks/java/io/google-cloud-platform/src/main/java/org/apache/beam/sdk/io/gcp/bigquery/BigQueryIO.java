@@ -2105,9 +2105,13 @@ public class BigQueryIO {
       // the same order.
       BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
 
+      T current = null;
+      boolean hasCurrent = false;
       try {
         if (reader.start()) {
-          outputReceiver.get(rowTag).output(reader.getCurrent());
+          current =
+              java.util.Objects.requireNonNull(reader.getCurrent(), "Reader returned null element");
+          hasCurrent = true;
         } else {
           return;
         }
@@ -2120,11 +2124,17 @@ public class BigQueryIO {
             (Exception) e.getCause(),
             "Unable to parse record reading from BigQuery");
       }
+      if (hasCurrent) {
+        outputReceiver.get(rowTag).output(current);
+      }
 
       while (true) {
+        current = null;
+        hasCurrent = false;
         try {
           if (reader.advance()) {
-            outputReceiver.get(rowTag).output(reader.getCurrent());
+            current = reader.getCurrent();
+            hasCurrent = true;
           } else {
             return;
           }
@@ -2136,6 +2146,9 @@ public class BigQueryIO {
               AvroCoder.of(record.getSchema()),
               (Exception) e.getCause(),
               "Unable to parse record reading from BigQuery");
+        }
+        if (hasCurrent) {
+          outputReceiver.get(rowTag).output(current);
         }
       }
     }
