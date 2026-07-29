@@ -62,12 +62,11 @@ import inspect
 import logging
 import time
 import typing
+from collections.abc import Iterable
 from typing import Any
 from typing import Callable
 from typing import Generic
-from typing import Iterable
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 
 from apache_beam import coders
@@ -116,7 +115,7 @@ class PollResult(Generic[OutputT]):
   The ``OutputT`` type parameter can annotate a poll function's return type,
   as in ``-> PollResult[str]``; the transform infers the output coder from it.
   """
-  outputs: Tuple[TimestampedValue, ...]
+  outputs: tuple[TimestampedValue, ...]
   watermark: Optional[Timestamp] = None
 
   @property
@@ -124,7 +123,7 @@ class PollResult(Generic[OutputT]):
     return self.watermark == MAX_TIMESTAMP
 
   @staticmethod
-  def _normalize(outputs, timestamp) -> Tuple[TimestampedValue, ...]:
+  def _normalize(outputs, timestamp) -> tuple[TimestampedValue, ...]:
     # One default timestamp per call, so raw outputs share an event time.
     if timestamp is None:
       default_ts = Timestamp.now()
@@ -489,7 +488,7 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
   def current_restriction(self) -> _GrowthState:
     return self._restriction
 
-  def try_claim(self, position: Tuple[PollResult, Any]) -> bool:
+  def try_claim(self, position: tuple[PollResult, Any]) -> bool:
     """Claims one poll round; at most one claim succeeds per ``process()``.
 
     The claim is rejected after a checkpoint already stopped this invocation,
@@ -881,7 +880,7 @@ class Watch(PTransform):
             key_fn,
             key_coder,
             self._timestamp_cursor,
-            self._now)).with_output_types(Tuple[input_type, value_type])
+            self._now)).with_output_types(tuple[input_type, value_type])
 
 
 def _as_duration(value) -> Duration:
