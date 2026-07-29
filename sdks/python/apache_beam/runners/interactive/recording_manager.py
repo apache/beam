@@ -454,6 +454,7 @@ class RecordingManager:
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
     self._lock = threading.Lock()
+    self._pipeline_graph = None
     self._applied_labels_snapshot = set()
 
   def _execute_pipeline_fragment(
@@ -859,7 +860,7 @@ class RecordingManager:
       self,
       pcolls: Iterable[beam.pvalue.PCollection],
   ) -> set[beam.pvalue.PCollection]:
-    """Helper to filter out already computed PCollections from the environment."""
+    """Filter out already computed PCollections from the environment."""
     current_env = ie.current_env()
     computed = {
         pcoll

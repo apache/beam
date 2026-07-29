@@ -937,20 +937,22 @@ class RecordingManagerTest(unittest.TestCase):
     p = beam.Pipeline(InteractiveRunner())
     numbers = p | 'numbers' >> beam.Create([0, 1, 2])
 
-    # Set the cache directory for Interactive Beam to be in a GCS bucket.
-    ib.options.cache_root = 'gs://test-bucket/'
+    original_cache_root = ib.options.cache_root
+    try:
+      # Set the cache directory for Interactive Beam to be in a GCS bucket.
+      ib.options.cache_root = 'gs://test-bucket/'
 
-    # Create the recording objects. By calling `record` a new PipelineFragment
-    # is started to compute the given PCollections and cache to disk.
-    rm = RecordingManager(p)
+      # Create the recording objects. By calling `record` a new PipelineFragment
+      # is started to compute the given PCollections and cache to disk.
+      rm = RecordingManager(p)
 
-    # Run record() and check if the PipelineFragment.run had blocking set to
-    # True due to the GCS cache_root value.
-    rm.record([numbers], max_n=3, max_duration=500)
-    mock_pipeline_fragment.assert_called_with(blocking=True)
-
-    # Reset cache_root value.
-    ib.options.cache_root = None
+      # Run record() and check if the PipelineFragment.run had blocking set to
+      # True due to the GCS cache_root value.
+      rm.record([numbers], max_n=3, max_duration=500)
+      mock_pipeline_fragment.assert_called_with(blocking=True)
+    
+    finally:
+      ib.options.cache_root = original_cache_root
 
   def test_compute_async_blocking(self):
     p = beam.Pipeline(InteractiveRunner())
