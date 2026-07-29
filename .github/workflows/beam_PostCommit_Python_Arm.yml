@@ -54,7 +54,9 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    timeout-minutes: 480
+    # Python ARM PostCommit uses prebuilt Snapshots SDK images, so it no longer
+    # spends hours on multiarch container builds. Keep headroom for the IT suite.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -92,20 +94,12 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker us.gcr.io
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: Generate TAG unique variable based on timestamp
-        id: set_tag
-        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run PostCommit Python ${{ matrix.python_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -113,12 +107,10 @@ jobs:
           arguments: |
             -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
-            -Pcontainer-architecture-list=arm64,amd64 \
-            -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
-            -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
-            -Ppush-containers \
+            -PusePrebuiltSdkContainer \
         env:
-          MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
+          # Use multiarch images published by Publish Beam SDK Snapshots.
+          SDK_CONTAINER_IMAGE: gcr.io/apache-beam-testing/beam-sdk/beam_python${{ matrix.python_version }}_sdk:latest
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7

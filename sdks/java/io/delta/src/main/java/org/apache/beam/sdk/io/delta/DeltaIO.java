@@ -50,12 +50,40 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A connector that reads from <a href="https://delta.io/">Delta Lake</a> tables.
  *
- * <p>This is work in progress. For more details and to track progress, please see <a
- * href="https://github.com/apache/beam/issues/21100">Issue 21100</a>.
+ * <p>{@link DeltaIO} is offered as a Managed transform. This class is subject to change and should
+ * not be used directly. Instead, use it like so:
+ *
+ * <pre>{@code
+ * Map<String, Object> config = Map.of(
+ *         "table", "gs://my-bucket/delta-table",
+ *         "hadoop_config", Map.of(
+ *                 "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+ *                 "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+ *                 "fs.gs.project.id", "my-project-id"));
+ *
+ * pipeline
+ *     .apply(Managed.read(Managed.DELTA_LAKE).withConfig(config))
+ *     .getSinglePCollection()
+ *     .apply(ParDo.of(...));
+ * }</pre>
+ *
+ * <h2>Configuration Options</h2>
+ *
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> for more details.
+ *
+ * <p>This is work in progress and is subject to change. For more details and to track progress, see
+ * <a href="https://github.com/apache/beam/issues/21100">Issue 21100</a>.
  */
 @Internal
 public class DeltaIO {
 
+  /**
+   * Reads rows from a Delta Lake table.
+   *
+   * <p>Normally, it is recommended to use {@link org.apache.beam.sdk.managed.Managed#read(String)}
+   * with {@code Managed.DELTA_LAKE} instead of directly using this transform.
+   */
   public static ReadRows readRows() {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
   }
@@ -107,6 +135,15 @@ public class DeltaIO {
       String path = getTablePath();
       if (path == null) {
         throw new IllegalArgumentException("Table path must be set.");
+      }
+      if (getTimestamp() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific timestamp is not supported yet");
+      }
+
+      if (getVersion() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific version is not supported yet");
       }
 
       Configuration conf = new Configuration();

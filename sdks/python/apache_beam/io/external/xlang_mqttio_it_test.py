@@ -214,46 +214,40 @@ class CrossLanguageMqttIOTest(unittest.TestCase):
     publisher.start()
     subscriber.start()
 
-    # MqttIO read is unbounded, so this pipeline runs in streaming mode and
-    # never terminates on its own. Amend the harness-provided pipeline options
-    # rather than discarding them: enable streaming, run non-blocking so the
-    # observe-then-cancel logic below can execute, and target the Prism portable
-    # runner. The latter is required because SwitchingDirectRunner disables its
-    # Prism delegation for pipelines containing external (cross-language)
-    # transforms (see runners/direct/direct_runner.py) and falls back to the
-    # BundleBasedDirectRunner, which cannot execute an unbounded read.
-    # The runner is instantiated during TestPipeline construction, so it must be
-    # passed to the constructor; the remaining harness-provided options are
-    # preserved and only amended (streaming + LOOPBACK environment) afterwards.
-    p = TestPipeline(runner='PrismRunner', blocking=False)
+    p = TestPipeline(blocking=False)
     p.get_pipeline_options().view_as(StandardOptions).streaming = True
-    p.get_pipeline_options().view_as(
-        PortableOptions).environment_type = 'LOOPBACK'
     p.not_use_test_runner_api = True
-    _ = (
-        p
-        | 'ReadFromMqtt' >> ReadFromMqtt(
-            connection_configuration=self._connection_configuration(
-                source_topic, 'xlang-mqtt-streaming-read'))
-        | 'Passthrough' >> beam.Map(
-            lambda row: beam.Row(bytes=row.bytes)).with_output_types(BYTES_ROW)
-        | 'WriteToMqtt' >> WriteToMqtt(
-            connection_configuration=self._connection_configuration(
-                sink_topic, 'xlang-mqtt-streaming-write')))
-    result = p.run()
+    # Run pipeline without blocking
+    # TODO: Remove once subprocess cache leak fixed for pipeline running
+    # in LOOPBACK mode outside of with clause
+    p.__enter__()
     try:
-      # The subscriber exits once NUM_RECORDS messages flowed through the
-      # streaming pipeline (or fails the assertions below on its timeout).
-      subscriber.join(timeout=200)
-    finally:
-      stop_publishing.set()
-      publisher.join()
+      _ = (
+          p
+          | 'ReadFromMqtt' >> ReadFromMqtt(
+              connection_configuration=self._connection_configuration(
+                  source_topic, 'xlang-mqtt-streaming-read'))
+          | 'Passthrough' >> beam.Map(lambda row: beam.Row(bytes=row.bytes)).
+          with_output_types(BYTES_ROW)
+          | 'WriteToMqtt' >> WriteToMqtt(
+              connection_configuration=self._connection_configuration(
+                  sink_topic, 'xlang-mqtt-streaming-write')))
+      result = p.run()
       try:
-        result.cancel()
-      except Exception:  # pylint: disable=broad-except
-        # The unbounded pipeline never finishes on its own; cancellation
-        # after the assertion data was collected is best-effort.
-        logging.warning('Ignoring error while cancelling the pipeline.')
+        # The subscriber exits once NUM_RECORDS messages flowed through the
+        # streaming pipeline (or fails the assertions below on its timeout).
+        subscriber.join(timeout=200)
+      finally:
+        stop_publishing.set()
+        publisher.join()
+        try:
+          result.cancel()
+        except Exception:  # pylint: disable=broad-except
+          # The unbounded pipeline never finishes on its own; cancellation
+          # after the assertion data was collected is best-effort.
+          logging.warning('Ignoring error while cancelling the pipeline.')
+    finally:
+      p._extra_context.__exit__(None, None, None)
 
     self.assertEqual(subscriber_result.get('exit_code'), 0)
     payloads = subscriber_result.get('output', b'').split()

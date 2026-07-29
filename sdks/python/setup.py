@@ -461,9 +461,8 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'isort==7.0.0',
-            'pyrefly==0.54.0',
-            'ruff==0.15.7',
+            'pyrefly==1.1.1',
+            'ruff==0.15.22',
             'yapf==0.43.0',
           ],
           'dill': [

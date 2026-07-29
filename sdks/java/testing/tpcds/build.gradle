@@ -34,13 +34,13 @@ def tpcdsRunnerProperty = "tpcds.runner"
 def tpcdsRunnerDependency = project.findProperty(tpcdsRunnerProperty)
         ?: ":runners:direct-java"
 def isSpark = tpcdsRunnerDependency.startsWith(":runners:spark:")
-def isFlink2 = tpcdsRunnerDependency.startsWith(":runners:flink:") && {
+def gtFlink20 = tpcdsRunnerDependency.startsWith(":runners:flink:") && {
   def version = tpcdsRunnerDependency.substring(":runners:flink:".length())
   try {
     def parts = version.split('\\.')
     def major = parts[0].toInteger()
     def minor = parts.length > 1 ? parts[1].toInteger() : 0
-    return (major > 2) || (major == 2 && minor >= 1)
+    return (major == 2 && minor > 0)
   } catch (Exception e) {
     return false
   }
@@ -94,7 +94,7 @@ dependencies {
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 }
 
-if (isFlink2) {
+if (!gtFlink20) {
     resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
 }
 
@@ -102,6 +102,7 @@ if (isSpark) {
     configurations.gradleRun {
       exclude group: "org.slf4j", module: "slf4j-jdk14"
     }
+    resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
 }
 
 def sparkJvmArgs() {

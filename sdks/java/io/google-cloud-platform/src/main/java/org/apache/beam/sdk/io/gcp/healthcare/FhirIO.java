@@ -602,8 +602,9 @@ public class FhirIO {
         @ProcessElement
         public void processElement(ProcessContext context) {
           String resourceId = context.element();
+          String resource = null;
           try {
-            context.output(fetchResource(this.client, resourceId));
+            resource = java.util.Objects.requireNonNull(fetchResource(this.client, resourceId));
           } catch (Exception e) {
             READ_RESOURCE_ERRORS.inc();
             LOG.warn(
@@ -611,6 +612,9 @@ public class FhirIO {
                 resourceId,
                 e);
             context.output(FhirIO.Read.DEAD_LETTER, HealthcareIOError.of(resourceId, e));
+          }
+          if (resource != null) {
+            context.output(resource);
           }
         }
 
