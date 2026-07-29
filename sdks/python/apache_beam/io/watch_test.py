@@ -142,6 +142,7 @@ class GrowthStateCoderTest(unittest.TestCase):
     decoded = coder.decode(coder.encode(state))
     self.assertEqual(Timestamp(42), decoded.cursor)
     self.assertEqual(0, len(decoded.completed))
+    self.assertIsNone(decoded.poll_watermark)  # not part of the payload
 
   def test_cursorless_state_keeps_the_pre_cursor_byte_format(self):
     # A polling state without a cursor must encode exactly as before the
@@ -405,6 +406,34 @@ class TimestampCursorTest(unittest.TestCase):
     self.assertEqual(0, len(residual.completed))
     self.assertEqual(Timestamp(100), residual.cursor)
 
+  def test_hash_round_drops_a_stale_cursor(self):
+    # The reverse switch: a hash round drops the cursor, so a state never
+    # holds hashes and a cursor at the same time.
+    state = _PollingGrowthState(
+        collections.OrderedDict(), None, 0, cursor=Timestamp(10))
+    tracker = _tracker(state)
+    result = _new_results(state, PollResult.incomplete([_ts('a', 20)]))
+    self.assertTrue(tracker.try_claim((result, 0)))
+    _, residual = tracker.try_split(0)
+    self.assertIsNone(residual.cursor)
+    self.assertEqual(1, len(residual.completed))
+
+  def test_cursor_state_encoding_size_is_independent_of_outputs(self):
+    coder = _GrowthStateCoder(StrUtf8Coder(), never())
+
+    def encoded_residual_after_claiming(count):
+      state = _initial_polling()
+      result = PollResult.incomplete(
+          [_ts('output%d' % i, i + 1) for i in range(count)])
+      tracker = _cursor_tracker(state)
+      self.assertTrue(tracker.try_claim((_past_cursor(state, result), 0)))
+      _, residual = tracker.try_split(0)
+      return coder.encode(residual)
+
+    self.assertEqual(
+        len(encoded_residual_after_claiming(1)),
+        len(encoded_residual_after_claiming(100)))
+
 
 class TerminationConditionTest(unittest.TestCase):
   def test_never_does_not_stop(self):
@@ -630,7 +659,7 @@ class WatchDoFnProcessTest(unittest.TestCase):
     self.assertEqual([('k:', 'k:early')], [value.value for value in outputs])
     self.assertEqual([Timestamp(5)], [value.timestamp for value in outputs])
     self.assertTrue(
-        any('behind the current watermark' in line for line in logs.output),
+        any('behind the watermark' in line for line in logs.output),
         'expected a late-emission warning, got: %s' % logs.output)
 
   def test_first_round_early_output_does_not_warn(self):
