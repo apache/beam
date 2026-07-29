@@ -72,7 +72,7 @@ public class DataflowOutputCounter implements ElementCounter {
         KeyedWorkItem<?, ?> keyedWorkItem = (KeyedWorkItem<?, ?>) value;
         long totalElementCount = 0;
         // Iterate only through elementsIterable and ignore timers in KeyedWorkItem.
-        for (WindowedValue<?> element : keyedWorkItem.elementsIterable()) {
+        for (WindowedValue<?> element : keyedWorkItem.elementWindowsIterable()) {
           long elementWindowsSize = element.getWindows().size();
           // Fan out for windows.
           totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
