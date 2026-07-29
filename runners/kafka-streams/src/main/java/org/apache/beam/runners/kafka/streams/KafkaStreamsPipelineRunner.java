@@ -24,10 +24,10 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTranslator;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
-import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +44,14 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    // Surface a clear error if a required option (e.g. applicationId) is missing instead of
-    // letting Properties.put fail with a raw NullPointerException further down.
-    PipelineOptionsValidator.validate(KafkaStreamsPipelineOptions.class, pipelineOptions);
+    // Surface a clear error if an option this runner needs is missing, instead of letting
+    // Properties.put fail with a raw NullPointerException further down. Only the options that are
+    // meaningful here are checked, rather than validating the whole interface: this runs on the job
+    // server, executing a pipeline that has already been submitted, so the client-side options
+    // PortablePipelineOptions marks required — jobEndpoint above all — do not apply. Flink's
+    // equivalent PortablePipelineRunner does not validate here either.
+    checkRequiredOption("applicationId", pipelineOptions.getApplicationId());
+    checkRequiredOption("bootstrapServers", pipelineOptions.getBootstrapServers());
 
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context =
@@ -55,15 +60,28 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     translator.translate(context, prepared);
 
     Topology topology = context.getTopology();
+    // The runner names its own bootstrap and repartition topics, which Kafka Streams treats as
+    // user topics and will not create; it refuses to start if a source topic is missing.
+    KafkaStreamsTopicManager.createMissingTopics(topology, pipelineOptions);
     LOG.info(
         "Translated pipeline {} into Kafka Streams topology:\n{}",
         jobInfo.jobId(),
         topology.describe());
 
     KafkaStreams kafkaStreams = new KafkaStreams(topology, streamsConfig(jobInfo));
+    // Build the result before starting: it registers a state listener, and Kafka Streams only
+    // accepts one while the application is still in the CREATED state.
+    KafkaStreamsPortablePipelineResult result =
+        new KafkaStreamsPortablePipelineResult(kafkaStreams, context.getMetricsContainerStepMap());
     kafkaStreams.start();
-    return new KafkaStreamsPortablePipelineResult(
-        kafkaStreams, context.getMetricsContainerStepMap());
+    return result;
+  }
+
+  private static void checkRequiredOption(String name, @Nullable String value) {
+    if (value == null || value.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing required pipeline option --" + name + " for the Kafka Streams runner");
+    }
   }
 
   private Properties streamsConfig(JobInfo jobInfo) {

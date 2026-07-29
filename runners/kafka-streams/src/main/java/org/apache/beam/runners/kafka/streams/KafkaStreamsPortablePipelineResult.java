@@ -48,6 +48,10 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
   private final CountDownLatch terminated = new CountDownLatch(1);
   private volatile boolean cancelled = false;
 
+  /**
+   * Must be constructed before {@link KafkaStreams#start()} is called: it registers a state
+   * listener, and Kafka Streams rejects one once the application has left the CREATED state.
+   */
   KafkaStreamsPortablePipelineResult(
       KafkaStreams kafkaStreams, MetricsContainerStepMap metricsContainerStepMap) {
     this.kafkaStreams = kafkaStreams;

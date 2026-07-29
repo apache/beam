@@ -55,6 +55,21 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   void setMaxBundleTimeMs(int maxBundleTimeMs);
 
+  @Description(
+      "Number of partitions for the topics the runner creates for a pipeline (the bootstrap topic"
+          + " of each Impulse and Read, and the repartition topic of each GroupByKey). This is the"
+          + " parallelism the shuffled parts of the pipeline can reach.")
+  @Default.Integer(1)
+  int getTopicPartitions();
+
+  void setTopicPartitions(int topicPartitions);
+
+  @Description("Replication factor for the topics the runner creates for a pipeline.")
+  @Default.Short(1)
+  short getTopicReplicationFactor();
+
+  void setTopicReplicationFactor(short topicReplicationFactor);
+
   @Description("Directory where Kafka Streams stores local state.")
   @Default.InstanceFactory(StateDirDefaultFactory.class)
   String getStateDir();
