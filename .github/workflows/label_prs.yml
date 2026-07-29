@@ -17,7 +17,7 @@
 # paths that are modified in the pull request.
 
 name: LabelPrs
-on: [pull_request_target, workflow_dispatch]
+on: [pull_request_target]
 permissions: read-all
 jobs:
   label:

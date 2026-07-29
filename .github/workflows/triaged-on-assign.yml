@@ -15,7 +15,6 @@
 
 name: Mark issue as triaged when assigned
 on:
-  workflow_dispatch:
   issues:
     types: [assigned]
 jobs:

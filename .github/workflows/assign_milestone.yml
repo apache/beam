@@ -20,7 +20,6 @@
 name: Assign Milestone on issue close
 
 on:
-  workflow_dispatch:
   issues:
     types: [closed]
 
