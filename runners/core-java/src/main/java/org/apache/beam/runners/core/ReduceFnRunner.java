@@ -361,13 +361,24 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *       setting holds, and invoking {@link ReduceFn#onTrigger}.
    * </ol>
    */
+  public void processElements(KeyedWorkItem<?, InputT> keyedWorkItem) throws Exception {
+    processElementsInternal(
+        keyedWorkItem.elementWindowsIterable(), keyedWorkItem.elementsIterable());
+  }
+
   public void processElements(Iterable<WindowedValue<InputT>> values) throws Exception {
-    if (!values.iterator().hasNext()) {
+    processElementsInternal(values, values);
+  }
+
+  private void processElementsInternal(
+      Iterable<WindowedValue<InputT>> elementWindows, Iterable<WindowedValue<InputT>> values)
+      throws Exception {
+    if (!elementWindows.iterator().hasNext()) {
       return;
     }
 
     // Determine all the windows for elements.
-    Set<W> windows = collectWindows(values);
+    Set<W> windows = collectWindows(elementWindows);
     // If an incoming element introduces a new window, attempt to merge it into an existing
     // window eagerly.
     Map<W, W> windowToMergeResult = mergeWindows(windows);
