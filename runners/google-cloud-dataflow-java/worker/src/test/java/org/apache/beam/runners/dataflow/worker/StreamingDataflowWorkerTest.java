@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -261,22 +262,33 @@ public class StreamingDataflowWorkerTest {
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
 
   private static GetDataResponse emptyDataResponder(GetDataRequest request) {
-    GetDataResponse.Builder builder = GetDataResponse.newBuilder();
-    for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-      ComputationGetDataResponse.Builder compBuilder =
-          builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-      for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-        KeyedGetDataResponse.Builder keyBuilder =
-            compBuilder
-                .addDataBuilder()
-                .setKey(keyRequest.getKey())
-                .setShardingKey(keyRequest.getShardingKey());
-        keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-        keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-        keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+    return emptyDataResponderWithFailedWorkTokens(Set.of()).apply(request);
+  }
+
+  private static Function<GetDataRequest, GetDataResponse> emptyDataResponderWithFailedWorkTokens(
+      Set<Long> failedWorkTokens) {
+    return (GetDataRequest request) -> {
+      GetDataResponse.Builder builder = GetDataResponse.newBuilder();
+      for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
+        ComputationGetDataResponse.Builder compBuilder =
+            builder.addDataBuilder().setComputationId(compRequest.getComputationId());
+        for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
+          KeyedGetDataResponse.Builder keyBuilder =
+              compBuilder
+                  .addDataBuilder()
+                  .setKey(keyRequest.getKey())
+                  .setShardingKey(keyRequest.getShardingKey());
+          if (failedWorkTokens.contains(keyRequest.getWorkToken())) {
+            keyBuilder.setFailed(true);
+            continue;
+          }
+          keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
+          keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
+          keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+        }
       }
-    }
-    return builder.build();
+      return builder.build();
+    };
   }
 
   private final boolean streamingEngine;
@@ -1257,22 +1269,7 @@ public class StreamingDataflowWorkerTest {
     if (!streamingEngine) {
       return;
     }
-    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-
-    List<ParallelInstruction> instructions =
-        Arrays.asList(
-            makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
-            makeSinkInstruction(kvCoder, 1));
-
-    StreamingDataflowWorker worker =
-        makeWorker(
-            defaultWorkerParams(
-                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=50000",
-                    "--numberOfWorkerHarnessThreads=1")
-                .setLocalRetryTimeoutMs(100)
-                .setInstructions(instructions)
-                .build());
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
     worker.start();
 
     String batchInputText =
@@ -1337,27 +1334,7 @@ public class StreamingDataflowWorkerTest {
                 CollectionCoder.of(IntervalWindow.getCoder()),
                 Collections.singletonList(DEFAULT_WINDOW)));
 
-    server
-        .whenGetDataCalled()
-        .answerByDefault(
-            request -> {
-              Windmill.GetDataResponse.Builder builder = Windmill.GetDataResponse.newBuilder();
-              for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-                ComputationGetDataResponse.Builder compBuilder =
-                    builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-                for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-                  KeyedGetDataResponse.Builder keyBuilder =
-                      compBuilder
-                          .addDataBuilder()
-                          .setKey(keyRequest.getKey())
-                          .setShardingKey(keyRequest.getShardingKey());
-                  keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-                  keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-                  keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
-                }
-              }
-              return builder.build();
-            });
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
 
     server.whenGetWorkCalled().thenReturn(batchInput);
 
@@ -1382,22 +1359,7 @@ public class StreamingDataflowWorkerTest {
     if (!streamingEngine) {
       return;
     }
-    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-
-    List<ParallelInstruction> instructions =
-        Arrays.asList(
-            makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
-            makeSinkInstruction(kvCoder, 1));
-
-    StreamingDataflowWorker worker =
-        makeWorker(
-            defaultWorkerParams(
-                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=5000",
-                    "--numberOfWorkerHarnessThreads=1")
-                .setLocalRetryTimeoutMs(100)
-                .setInstructions(instructions)
-                .build());
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
     worker.start();
 
     String batchInputText =
@@ -1465,28 +1427,7 @@ public class StreamingDataflowWorkerTest {
     server
         .whenGetDataCalled()
         .answerByDefault(
-            request -> {
-              Windmill.GetDataResponse.Builder builder = Windmill.GetDataResponse.newBuilder();
-              for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-                ComputationGetDataResponse.Builder compBuilder =
-                    builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-                for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-                  KeyedGetDataResponse.Builder keyBuilder =
-                      compBuilder
-                          .addDataBuilder()
-                          .setKey(keyRequest.getKey())
-                          .setShardingKey(keyRequest.getShardingKey());
-                  if (keyRequest.getWorkToken() == 2) {
-                    keyBuilder.setFailed(true);
-                  } else {
-                    keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-                    keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-                    keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
-                  }
-                }
-              }
-              return builder.build();
-            });
+            StreamingDataflowWorkerTest.emptyDataResponderWithFailedWorkTokens(Set.of(2L)));
 
     server.whenGetWorkCalled().thenReturn(batchInput);
 
@@ -1512,22 +1453,7 @@ public class StreamingDataflowWorkerTest {
     if (!streamingEngine) {
       return;
     }
-    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
-
-    List<ParallelInstruction> instructions =
-        Arrays.asList(
-            makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
-            makeSinkInstruction(kvCoder, 1));
-
-    StreamingDataflowWorker worker =
-        makeWorker(
-            defaultWorkerParams(
-                    "--experiments=unstable_enable_multi_key_bundle,max_key_group_batch_time_ms=5000",
-                    "--numberOfWorkerHarnessThreads=1")
-                .setLocalRetryTimeoutMs(100)
-                .setInstructions(instructions)
-                .build());
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
     worker.start();
 
     String batchInputText =
@@ -1579,28 +1505,7 @@ public class StreamingDataflowWorkerTest {
     server
         .whenGetDataCalled()
         .answerByDefault(
-            request -> {
-              Windmill.GetDataResponse.Builder builder = Windmill.GetDataResponse.newBuilder();
-              for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-                ComputationGetDataResponse.Builder compBuilder =
-                    builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-                for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-                  KeyedGetDataResponse.Builder keyBuilder =
-                      compBuilder
-                          .addDataBuilder()
-                          .setKey(keyRequest.getKey())
-                          .setShardingKey(keyRequest.getShardingKey());
-                  if (keyRequest.getWorkToken() == 2) {
-                    keyBuilder.setFailed(true);
-                  } else {
-                    keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-                    keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-                    keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
-                  }
-                }
-              }
-              return builder.build();
-            });
+            StreamingDataflowWorkerTest.emptyDataResponderWithFailedWorkTokens(Set.of(2L)));
 
     server.whenGetWorkCalled().thenReturn(batchInput);
 
@@ -1617,6 +1522,26 @@ public class StreamingDataflowWorkerTest {
     assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
 
     worker.stop();
+  }
+
+  private StreamingDataflowWorker makeMultiKeyEnabledWorker() {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=50000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .build());
+    return worker;
   }
 
   private void runKeyCommitTooLargeExceptionTest(

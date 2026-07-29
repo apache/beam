@@ -643,7 +643,8 @@ public class StreamingEngineWorkCommitterTest {
     // The entire batch must be aborted immediately without making network calls
     waitForExpectedSetSize(completeCommits, 3);
 
-    // Verify all three works are aborted individually
+    // Verify all three works are aborted individually and that key A and key C can be retried
+    // locally.
     assertThat(completeCommits)
         .containsExactly(
             CompleteCommit.create(

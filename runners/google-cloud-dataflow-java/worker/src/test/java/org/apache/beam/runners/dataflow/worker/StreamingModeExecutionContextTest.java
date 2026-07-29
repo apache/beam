@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.mock;
 
 import com.google.api.services.dataflow.model.CounterMetadata;
@@ -163,7 +164,7 @@ public class StreamingModeExecutionContextTest {
     options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     options
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
+        .setExperiments(List.of("unstable_enable_multi_key_bundle"));
     globalConfigHandle = new FakeGlobalConfigHandle(StreamingGlobalConfig.builder().build());
     executionContext = createExecutionContext(options, globalConfigHandle);
   }
@@ -545,18 +546,16 @@ public class StreamingModeExecutionContextTest {
             workItem2, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
     ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
 
-    org.mockito.Mockito.when(
-            mockExecutor.pollWork(
-                org.mockito.Mockito.eq(COMPUTATION_ID),
-                org.mockito.Mockito.eq(work1.getKeyGroup()),
-                org.mockito.Mockito.eq(mockHandle)))
-        .thenReturn(executableWork2);
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
+        .thenReturn(executableWork2)
+        .thenReturn(null);
 
     executionContext.start(
         work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
 
     assertTrue(executionContext.advance());
     assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
+    assertFalse(executionContext.advance());
   }
 
   @Test
@@ -576,11 +575,7 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    org.mockito.Mockito.when(
-            mockExecutor.pollWork(
-                org.mockito.Mockito.eq(COMPUTATION_ID),
-                org.mockito.Mockito.eq(work1.getKeyGroup()),
-                org.mockito.Mockito.eq(mockHandle)))
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
         .thenReturn(null);
 
     executionContext.start(
@@ -595,7 +590,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchSize
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("windmill_max_key_group_batch_size=1"));
+        .setExperiments(List.of("windmill_max_key_group_batch_size=1"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchSize, globalConfigHandle);
 
@@ -617,7 +612,7 @@ public class StreamingModeExecutionContextTest {
     context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
 
     assertFalse(context.advance());
-    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+    verifyNoInteractions(mockExecutor);
   }
 
   @Test
@@ -626,7 +621,7 @@ public class StreamingModeExecutionContextTest {
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsWithBatchTime
         .as(ExperimentalOptions.class)
-        .setExperiments(Arrays.asList("windmill_max_key_group_batch_time_ms=0"));
+        .setExperiments(List.of("windmill_max_key_group_batch_time_ms=0"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithBatchTime, globalConfigHandle);
 
@@ -648,7 +643,7 @@ public class StreamingModeExecutionContextTest {
     context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
 
     assertFalse(context.advance());
-    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+    verifyNoInteractions(mockExecutor);
   }
 
   @Test
@@ -674,6 +669,7 @@ public class StreamingModeExecutionContextTest {
     work1.setFailed();
 
     assertThrows(WorkItemCancelledException.class, () -> executionContext.advance());
+    verifyNoMoreInteractions(mockExecutor);
   }
 
   @Test
@@ -694,7 +690,7 @@ public class StreamingModeExecutionContextTest {
         work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
 
     assertFalse(executionContext.advance());
-    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+    verifyNoInteractions(mockExecutor);
   }
 
   @Test
@@ -722,7 +718,7 @@ public class StreamingModeExecutionContextTest {
     context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
 
     assertFalse(context.advance());
-    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+    verifyNoInteractions(mockExecutor);
   }
 
   @Test
@@ -732,7 +728,7 @@ public class StreamingModeExecutionContextTest {
     optionsWithSinkBytes
         .as(ExperimentalOptions.class)
         .setExperiments(
-            Arrays.asList(
+            List.of(
                 "unstable_enable_multi_key_bundle", "windmill_max_key_group_batch_sink_bytes=100"));
     StreamingModeExecutionContext context =
         createExecutionContext(optionsWithSinkBytes, globalConfigHandle);
@@ -756,14 +752,13 @@ public class StreamingModeExecutionContextTest {
 
     context.reportBytesSinked(50);
     assertFalse(context.advance());
-    org.mockito.Mockito.verify(mockExecutor)
-        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+    verify(mockExecutor).pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
 
-    org.mockito.Mockito.reset(mockExecutor);
+    reset(mockExecutor);
 
     context.reportBytesSinked(60);
     assertFalse(context.advance());
-    org.mockito.Mockito.verifyNoInteractions(mockExecutor);
+    verifyNoInteractions(mockExecutor);
   }
 
   @Test
@@ -773,7 +768,7 @@ public class StreamingModeExecutionContextTest {
     optionsInvalid
         .as(ExperimentalOptions.class)
         .setExperiments(
-            Arrays.asList(
+            List.of(
                 "windmill_max_key_group_batch_size=invalid_size",
                 "windmill_max_key_group_batch_time_ms=invalid_time",
                 "windmill_max_key_group_batch_sink_bytes=invalid_bytes"));

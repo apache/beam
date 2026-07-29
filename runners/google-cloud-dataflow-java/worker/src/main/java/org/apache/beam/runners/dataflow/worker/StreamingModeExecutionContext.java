@@ -188,6 +188,7 @@ public class StreamingModeExecutionContext
 
   // Key switch listener to delegate MDC logging context and thread name updates
   public interface KeyTransitionListener {
+    // oldWork is null when newWork is the first work for the bundle.
     void onKeyTransition(@Nullable Work oldWork, Work newWork);
   }
 
@@ -727,6 +728,9 @@ public class StreamingModeExecutionContext
     currentBuilder.mergeFrom(truncationBuilder.build());
 
     // TODO: throw and retry when truncation is not on a single key bundle.
+    checkState(
+        !multiKeyBundleOptions.multiKeyBundleEnabled(),
+        "Commit truncation not implemented for multikey bundles");
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
