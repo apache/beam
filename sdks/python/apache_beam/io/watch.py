@@ -435,12 +435,22 @@ def _never_seen_before(
   return dataclasses.replace(result, outputs=tuple(new_outputs))
 
 
+def _cursor_of(restriction: _PollingGrowthState) -> Optional[Timestamp]:
+  """The dedup cursor: the stored one, or for a restriction switched over
+  from hash dedup, the greatest event time its hash map recorded."""
+  if restriction.cursor is not None:
+    return restriction.cursor
+  if restriction.completed:
+    return max(restriction.completed.values())
+  return None
+
+
 def _past_cursor(
     restriction: _PollingGrowthState, result: PollResult) -> PollResult:
   """Filters a poll result down to outputs strictly past the cursor, sorted
   by timestamp so the earliest infers the watermark and the latest advances
   the cursor."""
-  cursor = restriction.cursor
+  cursor = _cursor_of(restriction)
   new_outputs = [
       output for output in result.outputs
       if cursor is None or output.timestamp > cursor
@@ -493,11 +503,13 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
     if self._timestamp_cursor:
       # Cursor mode validates by timestamps and never hashes.
       if isinstance(self._restriction, _PollingGrowthState):
-        cursor = self._restriction.cursor
+        cursor = _cursor_of(self._restriction)
         if cursor is not None and any(output.timestamp <= cursor
                                       for output in result.outputs):
           return False
       else:
+        # Values may lack stable equality without a deterministic coder, so a
+        # replay is identified by its timestamps.
         expected = sorted(
             output.timestamp for output in self._restriction.pending.outputs)
         if expected != sorted(output.timestamp for output in result.outputs):
@@ -545,7 +557,7 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
         if self._claimed_result.outputs:
           cursor = self._claimed_result.outputs[-1].timestamp
         else:
-          cursor = self._restriction.cursor
+          cursor = _cursor_of(self._restriction)
       elif self._claimed_hashes:
         completed = collections.OrderedDict(self._restriction.completed)
         completed.update(self._claimed_hashes)
@@ -791,8 +803,10 @@ class Watch(PTransform):
       only outputs strictly past the greatest event time already emitted, so
       the per-input state is a single timestamp. Requires every new output to
       carry an event time strictly greater than all previously emitted ones;
-      for re-listing or out-of-order sources keep the default hash dedup.
-      Incompatible with ``output_key_fn`` and ``output_key_coder``.
+      re-listed old outputs at or below the cursor are dropped as already
+      seen. For sources whose new outputs can arrive at or below the cursor,
+      keep the default hash dedup. Incompatible with ``output_key_fn`` and
+      ``output_key_coder``.
     now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(

@@ -406,6 +406,23 @@ class TimestampCursorTest(unittest.TestCase):
     self.assertEqual(0, len(residual.completed))
     self.assertEqual(Timestamp(100), residual.cursor)
 
+  def test_switching_hash_state_to_cursor_seeds_the_cursor(self):
+    # Outputs at or below the hash map's greatest recorded event time are
+    # already seen and must not re-emit after the switch.
+    legacy = _PollingGrowthState(
+        collections.OrderedDict([(b'a' * 16, Timestamp(5)),
+                                 (b'b' * 16, Timestamp(10))]),
+        None,
+        never().for_new_input(Timestamp(0), 'input'))
+    relist = PollResult.incomplete([_ts('a', 5), _ts('b', 10), _ts('c', 20)])
+    new_results = _past_cursor(legacy, relist)
+    self.assertEqual(['c'], [o.value for o in new_results.outputs])
+    tracker = _cursor_tracker(legacy)
+    self.assertTrue(tracker.try_claim((new_results, 0)))
+    _, residual = tracker.try_split(0)
+    self.assertEqual(0, len(residual.completed))
+    self.assertEqual(Timestamp(20), residual.cursor)
+
   def test_hash_round_drops_a_stale_cursor(self):
     # The reverse switch: a hash round drops the cursor, so a state never
     # holds hashes and a cursor at the same time.
@@ -643,7 +660,7 @@ class WatchDoFnProcessTest(unittest.TestCase):
   def test_out_of_order_new_output_emits_late_and_warns(self):
     # Round 1 surfaces late_after@10 and parks the watermark there; round 2
     # surfaces a brand-new early@5. The output is emitted at its true (earlier)
-    # time — so it is late for downstream windowing — and Watch warns about it.
+    # time, so it is late for downstream windowing, and Watch warns about it.
     _POLL_CALLS.clear()
     _, threadsafe, estimator = self._process(
         _out_of_order_poll, 'k:', Timestamp(0))
@@ -676,7 +693,7 @@ class WatchDoFnProcessTest(unittest.TestCase):
   def test_early_output_after_empty_poll_does_not_warn(self):
     # An empty first poll defers with the watermark still at the element seed;
     # the next round's first real output must not be treated as out-of-order
-    # either — the watermark has not advanced past the seed.
+    # either; the watermark has not advanced past the seed.
     polls = []
 
     def poll(unused_element):
