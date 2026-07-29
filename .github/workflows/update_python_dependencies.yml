@@ -69,9 +69,7 @@ jobs:
           java-version: default
           go-version: default
           disable-cache: true
-          # generatePythonRequirementsAll does not use tox; also avoids
-          # actions/cache failing when multiline python-version expands into
-          # more than 10 restore-keys (limit since 3.14 was added).
+          # generatePythonRequirementsAll does not use tox.
           tox-cache: false
       - name: Update Python Dependencies
         uses: ./.github/actions/gradle-command-self-hosted-action
