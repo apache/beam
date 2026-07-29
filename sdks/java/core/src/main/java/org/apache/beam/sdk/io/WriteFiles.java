@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResultCoder;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -1199,6 +1201,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     private transient List<CompletionStage<Void>> closeFutures = new ArrayList<>();
     private transient List<KV<Instant, FileResult<DestinationT>>> deferredOutput =
         new ArrayList<>();
+    private transient ScheduledExecutorService executorService;
 
     // Ensure that transient fields are initialized.
     private void readObject(java.io.ObjectInputStream in)
@@ -1206,6 +1209,11 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       in.defaultReadObject();
       closeFutures = new ArrayList<>();
       deferredOutput = new ArrayList<>();
+    }
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      executorService = options.as(ExecutorOptions.class).getScheduledExecutorService();
     }
 
     @ProcessElement
@@ -1285,7 +1293,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                   writer.cleanup();
                   throw e;
                 }
-              }));
+              },
+              executorService));
     }
 
     @FinishBundle
