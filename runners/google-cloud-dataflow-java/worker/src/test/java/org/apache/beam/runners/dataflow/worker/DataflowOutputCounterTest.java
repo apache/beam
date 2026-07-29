@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Collections;
+import java.util.Arrays;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -74,7 +74,8 @@ public class DataflowOutputCounterTest {
 
     KeyedWorkItem<String, String> kwi = mock(KeyedWorkItem.class);
     WindowedValue<String> element1 = WindowedValues.valueInGlobalWindow("v1");
-    when(kwi.elementWindowsIterable()).thenReturn(Collections.singletonList(element1));
+    WindowedValue<String> element2 = WindowedValues.valueInGlobalWindow("v2");
+    when(kwi.elementWindowsIterable()).thenReturn(Arrays.asList(element1, element2));
 
     ValueInEmptyWindows<KeyedWorkItem<String, String>> streamingValue =
         new ValueInEmptyWindows<>(kwi);
@@ -86,7 +87,7 @@ public class DataflowOutputCounterTest {
                 .getExistingCounter(
                     CounterName.named(DataflowOutputCounter.getElementCounterName(OUTPUT_NAME)))
                 .getAggregate();
-    assertEquals(1L, elementCount);
+    assertEquals(2L, elementCount);
   }
 
   @Test
