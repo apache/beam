@@ -104,7 +104,7 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
   }
 
   @ProcessElement
-  public ProcessContinuation processElement(
+  public void processElement(
       @Element DeltaCDCReadTask task,
       RestrictionTracker<OffsetRange, Long> tracker,
       OutputReceiver<Row> out)
@@ -205,24 +205,26 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
 
         while (logicalBatches.hasNext()) {
           FilteredColumnarBatch batch = logicalBatches.next();
-          ColumnarBatch logicalBatch = batch.getData();
 
           if (!task.isCDC()) {
             // For ADD files, we need to append the constant CDF columns:
             // _change_type = "insert", _commit_version = task.version, _commit_timestamp =
             // task.timestamp
-            logicalBatch =
+            ColumnarBatch logicalBatch =
                 appendConstantCDFColumns(
-                    currentEngine, logicalBatch, task.getVersion(), task.getTimestamp());
+                    currentEngine, batch.getData(), task.getVersion(), task.getTimestamp());
+            // Make sure we use selection vector to considered filtered out or deleted rows.
+            batch = new FilteredColumnarBatch(logicalBatch, batch.getSelectionVector());
           }
 
-          try (CloseableIterator<io.delta.kernel.data.Row> logicalRows = logicalBatch.getRows()) {
+          try (CloseableIterator<io.delta.kernel.data.Row> logicalRows = batch.getRows()) {
             while (logicalRows.hasNext()) {
               io.delta.kernel.data.Row deltaRow = logicalRows.next();
               Row beamRow = DeltaSourceDoFn.toBeamRow(deltaRow, beamSchema);
-              String changeType = beamRow.getString("_change_type");
+              String changeType = beamRow.getString(DeltaIO.CHANGE_TYPE_COLUMN);
               if (changeType == null) {
-                throw new IllegalStateException("Field _change_type must not be null.");
+                throw new IllegalStateException(
+                    "Field " + DeltaIO.CHANGE_TYPE_COLUMN + " must not be null.");
               }
               ValueKind kind = getValueKind(changeType);
               Row publicRow = projectRow(beamRow, publicBeamSchema);
@@ -232,11 +234,13 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
         }
       }
     }
-
-    return ProcessContinuation.stop();
   }
 
   private static Row projectRow(Row row, Schema targetSchema) {
+    if (row.getSchema().equals(targetSchema)) {
+      // We can return the original Row since schemas are the same.
+      return row;
+    }
     Row.Builder builder = Row.withSchema(targetSchema);
     for (Schema.Field field : targetSchema.getFields()) {
       builder.addValue(row.getValue(field.getName()));
@@ -263,9 +267,9 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
 
   private static StructType appendCDFColumns(StructType schema) {
     return schema
-        .add("_change_type", StringType.STRING, false)
-        .add("_commit_version", LongType.LONG, false)
-        .add("_commit_timestamp", TimestampType.TIMESTAMP, false);
+        .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING, false)
+        .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG, false)
+        .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP, false);
   }
 
   private ColumnarBatch appendConstantCDFColumns(
@@ -315,14 +319,16 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
     int numCols = batch.getSchema().length();
     return batch
         .withNewColumn(
-            numCols, new StructField("_change_type", StringType.STRING, false), changeTypeVector)
+            numCols,
+            new StructField(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING, false),
+            changeTypeVector)
         .withNewColumn(
             numCols + 1,
-            new StructField("_commit_version", LongType.LONG, false),
+            new StructField(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG, false),
             commitVersionVector)
         .withNewColumn(
             numCols + 2,
-            new StructField("_commit_timestamp", TimestampType.TIMESTAMP, false),
+            new StructField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP, false),
             commitTimestampVector);
   }
 

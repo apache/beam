@@ -52,23 +52,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A connector that reads from <a href="https://delta.io/">Delta Lake</a> tables.
  *
- * <p>{@link DeltaIO} is offered as a Managed transform. This class is subject to change and should
- * not be used directly. Instead, use it like so:
- *
- * <pre>{@code
- * Map<String, Object> config = Map.of(
- *         "table", "gs://my-bucket/delta-table",
- *         "hadoop_config", Map.of(
- *                 "fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
- *                 "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
- *                 "fs.gs.project.id", "my-project-id"));
- *
- * pipeline
- *     .apply(Managed.read(Managed.DELTA_LAKE).withConfig(config))
- *     .getSinglePCollection()
- *     .apply(ParDo.of(...));
- * }</pre>
- *
  * <h2>Configuration Options</h2>
  *
  * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
@@ -80,6 +63,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 public class DeltaIO {
 
+  public static final String CHANGE_TYPE_COLUMN = "_change_type";
+  public static final String COMMIT_VERSION_COLUMN = "_commit_version";
+  public static final String COMMIT_TIMESTAMP_COLUMN = "_commit_timestamp";
+
   /**
    * Reads rows from a Delta Lake table.
    *
@@ -90,6 +77,7 @@ public class DeltaIO {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
   }
 
+  /** Reads change data feed (CDC) from a Delta Lake table. */
   public static ReadChanges readChanges() {
     return new AutoValue_DeltaIO_ReadChanges.Builder().build();
   }
@@ -282,6 +270,8 @@ public class DeltaIO {
         throw new IllegalArgumentException("Table path must be set.");
       }
       if (getStartVersion() == null && getStartTimestamp() == null) {
+        // TODO: for unbounded reads, support using current HEAD or the latest snapshot
+        // as the default starting point.
         throw new IllegalArgumentException("Either startVersion or startTimestamp must be set.");
       }
       if (getStartVersion() != null && getStartTimestamp() != null) {

@@ -160,7 +160,7 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
                         batch.getColumnVector(cdcIdx),
                         batch.getSchema().at(cdcIdx).getDataType(),
                         i);
-            info.cdcRows.add(cdcRow);
+            info.cdcInfo.add(cdcRow);
           }
           if (addIdx >= 0 && !batch.getColumnVector(addIdx).isNullAt(i)) {
             Row addRow =
@@ -172,7 +172,7 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
             AddFile addFile = new AddFile(addRow);
             // Only consider add files that change data (ignore OPTIMIZE etc.)
             if (addFile.getDataChange()) {
-              info.addRows.add(addRow);
+              info.insertInfo.add(addRow);
             }
           }
         }
@@ -181,6 +181,9 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
       // 5. Emit tasks for each version
       List<DeltaCDCReadTask> currentGroup = new ArrayList<>();
       long currentGroupSize = 0L;
+
+      // TODO: to prevent OOMs in true streaming executions, update DeltaReadTask to include a group
+      // of files.
 
       // Sort versions to process them in order
       List<Long> versions = new ArrayList<>(commitActionsMap.keySet());
@@ -191,17 +194,16 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
         if (info == null) {
           throw new IllegalStateException("CommitActionsInfo was not found for version " + version);
         }
-        boolean hasCDC = !info.cdcRows.isEmpty();
+        boolean hasCDC = !info.cdcInfo.isEmpty();
 
-        List<Row> rowsToProcess = hasCDC ? info.cdcRows : info.addRows;
-        boolean isCDC = hasCDC;
+        List<Row> rowsToProcess = hasCDC ? info.cdcInfo : info.insertInfo;
 
         for (Row fileRow : rowsToProcess) {
           String relPath;
           long size;
           Map<String, String> partitionValues;
 
-          if (isCDC) {
+          if (hasCDC) {
             relPath = fileRow.getString(AddCDCFile.FULL_SCHEMA.indexOf("path"));
             size = fileRow.getLong(AddCDCFile.FULL_SCHEMA.indexOf("size"));
             partitionValues =
@@ -224,7 +226,7 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
                   partitionValues,
                   info.version,
                   info.timestamp,
-                  isCDC,
+                  hasCDC,
                   rowGroupSizes,
                   serializableScanState);
 
@@ -281,9 +283,10 @@ class CreateCDCReadTasksDoFn extends DoFn<String, DeltaCDCReadTask> {
 
   private static class CommitActionsInfo {
     final long version;
+
     final long timestamp;
-    final List<Row> cdcRows = new ArrayList<>();
-    final List<Row> addRows = new ArrayList<>();
+    final List<Row> cdcInfo = new ArrayList<>();
+    final List<Row> insertInfo = new ArrayList<>();
 
     CommitActionsInfo(long version, long timestamp) {
       this.version = version;

@@ -117,24 +117,9 @@ public class DeltaCDCReadTask implements Serializable {
 
   @Override
   public String toString() {
-    return "DeltaCDCReadTask{"
-        + "path='"
-        + path
-        + '\''
-        + ", size="
-        + size
-        + ", partitionValues="
-        + partitionValues
-        + ", version="
-        + version
-        + ", timestamp="
-        + timestamp
-        + ", isCDC="
-        + isCDC
-        + ", rowGroupSizes="
-        + rowGroupSizes
-        + ", scanStateRow="
-        + scanStateRow
-        + '}';
+    return String.format(
+        "DeltaCDCReadTask{path='%s', size=%d, partitionValues=%s, version=%d, timestamp=%d, isCDC=%b, "
+            + "rowGroupSizes=%s, scanStateRow=%s}",
+        path, size, partitionValues, version, timestamp, isCDC, rowGroupSizes, scanStateRow);
   }
 }
