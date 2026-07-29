@@ -337,8 +337,11 @@ class PubSubSubscriptionCleaner(StaleCleaner):
                 subscription_name = subscription.name
                 # Apply prefix filtering if prefixes are defined
                 if not self.prefixes or any(subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes):
-                    # Check if the subscription has a topic associated with it
-                    if subscription.detached:
+                    # Safe orphan detection:
+                    # - Standard rule: detached subscriptions are eligible.
+                    # - Taxi exception: subscriptions containing the NYC taxi prefix are eligible even if attached.
+                    es_taxi = "taxirides-realtime_beam_" in subscription_name
+                    if subscription.detached or es_taxi:
                         d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
 
         return d
@@ -416,8 +419,10 @@ def clean_pubsub_subscriptions():
     project_id = DEFAULT_PROJECT_ID
     bucket_name = DEFAULT_BUCKET_NAME
 
-    # No prefixes are defined for subscriptions so we will delete all stale subscriptions
-    prefixes = []
+    # Restrict subscription cleanup to the NYC taxi prefix only.
+    prefixes = [
+        "taxirides-realtime_beam_",
+    ]
 
     # Create a PubSubSubscriptionCleaner instance
     cleaner = PubSubSubscriptionCleaner(project_id=project_id, bucket_name=bucket_name,

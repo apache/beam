@@ -433,26 +433,38 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
 
     def test_active_resources(self):
         """Test _active_resources method."""
+        # Keep the existing standard prefix coverage and add the taxi-only cleanup prefix.
+        self.cleaner.prefixes = ["test-prefix", "taxirides-realtime_beam_"]
+
         # Mock subscriptions
         sub1 = mock.Mock()
         sub1.name = "projects/test-project/subscriptions/test-prefix-sub1"
         sub1.topic = "projects/test-project/topics/some-topic"
+        sub1.detached = False
 
         sub2 = mock.Mock()
         sub2.name = "projects/test-project/subscriptions/test-prefix-sub2-detached"
         sub2.topic = "_deleted-topic_"
+        sub2.detached = True
 
         sub3 = mock.Mock()
-        sub3.name = "projects/test-project/subscriptions/other-prefix-sub3"
-        sub3.topic = "projects/test-project/topics/another-topic"
+        sub3.name = "projects/test-project/subscriptions/taxirides-realtime_beam_-102875"
+        sub3.topic = "projects/pubsub-public-data/topics/taxirides-realtime"
+        sub3.detached = False
 
-        self.mock_subscriber_client.list_subscriptions.return_value = [sub1, sub2, sub3]
+        sub4 = mock.Mock()
+        sub4.name = "projects/test-project/subscriptions/other-prefix-sub3"
+        sub4.topic = "projects/test-project/topics/another-topic"
+        sub4.detached = False
+
+        self.mock_subscriber_client.list_subscriptions.return_value = [sub1, sub2, sub3, sub4]
 
         with SilencePrint():
             active = self.cleaner._active_resources()
 
-        self.assertIn("projects/test-project/subscriptions/test-prefix-sub1", active)
+        self.assertNotIn("projects/test-project/subscriptions/test-prefix-sub1", active)
         self.assertIn("projects/test-project/subscriptions/test-prefix-sub2-detached", active)
+        self.assertIn("projects/test-project/subscriptions/taxirides-realtime_beam_-102875", active)
         self.assertNotIn("projects/test-project/subscriptions/other-prefix-sub3", active)
         self.assertEqual(len(active), 2)
 
