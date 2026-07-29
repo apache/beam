@@ -101,9 +101,6 @@ from typing import Optional
 from typing import Union
 
 import apache_beam as beam
-from apache_beam.coders.coders import FloatCoder
-from apache_beam.coders.coders import StrUtf8Coder
-from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.io import filesystem
 from apache_beam.io import filesystems
@@ -261,15 +258,8 @@ class _ReadMatchesFn(beam.DoFn):
 
 
 class _PollClock(object):
-  """The poll-time clock reading one ``MatchContinuously`` round shares.
-
-  The start gate (a poll before ``start_timestamp`` emits nothing) and the
-  poll budget (only polls at or after ``start_timestamp`` consume it) must
-  agree on a single reading. With independent clock reads, a round straddling
-  the boundary could consume the budget without having matched anything. The
-  poll function writes the reading and the termination condition consumes it
-  within the same round; instances are not shared across bundle threads.
-  """
+  """Shares one clock reading per poll round, so the start gate and the poll
+  budget judge the ``start_timestamp`` boundary consistently."""
   def __init__(self):
     self.last_poll_micros: Optional[int] = None
 
@@ -278,12 +268,8 @@ class _WatchWindowTermination(TerminationCondition):
   """Stops after the polls that fall in the ``[start, stop)`` window.
 
   ``max_polls`` is the ``PeriodicImpulse`` tick count
-  ``ceil((stop - start) / interval)``, so the number of polls is independent of
-  how fast the runner reschedules deferred work. Only polls at or after
-  ``start`` count toward the budget, judged by the poll's own clock reading in
-  ``clock``; earlier polls are deferred waits that must not consume it,
-  matching ``PeriodicImpulse``, which never advances a tick while waiting for
-  the start time.
+  ``ceil((stop - start) / interval)``; polls before ``start`` are waiting
+  rounds and do not consume the budget.
   """
   def __init__(self, clock: _PollClock, start_micros: int, max_polls: int):
     self._clock = clock
@@ -312,9 +298,8 @@ def _file_path_key(metadata: filesystem.FileMetadata) -> str:
 
 def _file_path_and_mtime_key(
     metadata: filesystem.FileMetadata) -> tuple[str, float]:
-  # Keying on the last-modified time makes a file whose timestamp changed look
-  # new again, mirroring the Java SDK's ExtractFilenameAndLastUpdateFn — which
-  # also rejects a missing (zero) timestamp, since updates could never be seen.
+  # Keying on the last-modified time makes a changed file look new again. A
+  # missing (zero) timestamp is rejected because updates could never be seen.
   if not metadata.last_updated_in_seconds:
     raise BeamIOError(
         'MatchContinuously(match_updated_files=True) requires file '
@@ -323,14 +308,11 @@ def _file_path_and_mtime_key(
 
 
 class _MatchContinuouslyPollFn(PollFn):
-  """Polls a file pattern for ``MatchContinuously``, honoring empty-match rules.
+  """Polls a file pattern, honoring empty-match rules.
 
-  Emits no outputs before ``start_timestamp`` so polling can start ahead of the
-  first intended match. Each match is stamped with the poll time as its event
-  time, and the watermark advances to the poll time so downstream event-time
-  windows keep progressing even when a poll finds no new files. Each round's
-  clock reading is recorded in ``clock`` so ``_WatchWindowTermination`` judges
-  the start boundary by the same reading as the gate below.
+  A poll before ``start_timestamp`` emits nothing. Matches carry the poll time
+  as their event time, and the watermark advances to the poll time so
+  event-time windows progress even when nothing new matches.
   """
   def __init__(self, empty_match_treatment, start_timestamp, clock=None):
     self._empty_match_treatment = empty_match_treatment
@@ -423,9 +405,8 @@ class MatchContinuously(beam.PTransform):
 
   def _match_deduplicated(self,
                           pbegin) -> beam.PCollection[filesystem.FileMetadata]:
-    # The Watch transform polls the pattern and emits each file once per key:
-    # the path, joined by the last-modified time when matching updated files.
-    # stop_timestamp bounds the watch to the polls that fall in [start, stop).
+    # Watch emits each file once per key: the path, joined by the mtime when
+    # matching updated files; stop_timestamp bounds the polls to [start, stop).
     clock = _PollClock()
     if self.stop_ts == MAX_TIMESTAMP:
       termination = never()
@@ -442,26 +423,22 @@ class MatchContinuously(beam.PTransform):
       # upper bound is exclusive.
       max_polls = -(-span_micros // interval_micros)
       if max_polls == 0:
-        # An empty [start, stop) window never ticks in PeriodicImpulse. Fall
-        # back to the impulse path — with zero ticks dedup is moot — so the
-        # output stays empty and unbounded, rather than let Watch run its
-        # unconditional first poll.
+        # An empty [start, stop) window never ticks; the impulse path keeps
+        # the output empty without Watch's unconditional first poll.
         return self._match_all_each_poll(pbegin)
       termination = _WatchWindowTermination(clock, start_ts.micros, max_polls)
     if self.match_upd:
       output_key_fn = _file_path_and_mtime_key
-      output_key_coder = TupleCoder([StrUtf8Coder(), FloatCoder()])
     else:
       output_key_fn = _file_path_key
-      output_key_coder = StrUtf8Coder()
     poll_fn = _MatchContinuouslyPollFn(
         self.empty_match_treatment, self.start_ts, clock)
+    # The key coder is inferred from the key function's return annotation.
     watch = Watch(
         poll_fn,
         poll_interval=self.interval,
         termination=termination,
-        output_key_fn=output_key_fn,
-        output_key_coder=output_key_coder)
+        output_key_fn=output_key_fn)
     # Watch emits (pattern, file) pairs; keep the FileMetadata output type so
     # downstream transforms stay typed instead of falling back to Any.
     return (

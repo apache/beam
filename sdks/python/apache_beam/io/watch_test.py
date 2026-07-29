@@ -444,6 +444,18 @@ class WatchEndToEndTest(unittest.TestCase):
           | Watch(_complete_poll, poll_interval=Duration(1)))
       self.assertEqual(typehints.Tuple[str, str], output.element_type)
 
+  def test_infers_coder_from_native_generic_annotation(self):
+    # tuple[str, float] resolves to a tuple coder, not the pickling fallback.
+    def poll(element) -> PollResult[tuple[str, float]]:
+      return PollResult.complete([(element, 1.0)])
+
+    with self._in_memory_pipeline() as p:
+      output = (
+          p | beam.Create(['k:']) | Watch(poll, poll_interval=Duration(1)))
+      self.assertEqual(
+          typehints.Tuple[str, typehints.Tuple[str, float]],
+          output.element_type)
+
   def test_uses_poll_fn_default_output_coder(self):
     with self._in_memory_pipeline() as p:
       output = (
