@@ -63,6 +63,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -102,8 +103,9 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
       IdGenerator idGenerator) {
 
     // Swap out all the InstructionOutput nodes with OutputReceiver nodes
+    boolean isStreaming = options.as(StreamingOptions.class).isStreaming();
     Networks.replaceDirectedNetworkNodes(
-        network, createOutputReceiversTransform(stageName, counterSet));
+        network, createOutputReceiversTransform(stageName, counterSet, isStreaming));
 
     // Swap out all the ParallelInstruction nodes with Operation nodes. While updating the network,
     // we keep track of
@@ -346,6 +348,11 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
    */
   static Function<Node, Node> createOutputReceiversTransform(
       final String stageName, final CounterFactory counterFactory) {
+    return createOutputReceiversTransform(stageName, counterFactory, false);
+  }
+
+  static Function<Node, Node> createOutputReceiversTransform(
+      final String stageName, final CounterFactory counterFactory, final boolean isStreaming) {
     return new TypeSafeNodeFunction<InstructionOutputNode>(InstructionOutputNode.class) {
       @Override
       public Node typedApply(InstructionOutputNode input) {
@@ -355,7 +362,7 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
             CloudObjects.coderFromCloudObject(CloudObject.fromSpec(cloudOutput.getCodec()));
 
         ElementCounter outputCounter =
-            new DataflowOutputCounter(
+            DataflowOutputCounter.create(
                 cloudOutput.getName(),
                 new ElementByteSizeObservableCoder<>(coder),
                 counterFactory,
@@ -363,7 +370,8 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
                     stageName,
                     cloudOutput.getOriginalName(),
                     cloudOutput.getSystemName(),
-                    cloudOutput.getName()));
+                    cloudOutput.getName()),
+                isStreaming);
         outputReceiver.addOutputCounter(outputCounter);
 
         return OutputReceiverNode.create(outputReceiver, coder, input.getPcollectionId());

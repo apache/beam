@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.core.ElementByteSizeObservable;
-import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
@@ -41,7 +40,28 @@ public class DataflowOutputCounter implements ElementCounter {
   private static final String MEAN_BYTE_COUNTER_NAME = "-MeanByteCount";
 
   private OutputObjectAndByteCounter objectAndByteCounter;
-  private Counter<Long, ?> elementCount;
+  protected Counter<Long, ?> elementCount;
+
+  public static DataflowOutputCounter create(
+      String outputName,
+      ElementByteSizeObservable<?> elementByteSizeObservable,
+      CounterFactory counterFactory,
+      NameContext nameContext,
+      boolean isStreaming) {
+    return isStreaming
+        ? new StreamingDataflowOutputCounter(
+            outputName, elementByteSizeObservable, counterFactory, nameContext)
+        : new BatchDataflowOutputCounter(
+            outputName, elementByteSizeObservable, counterFactory, nameContext);
+  }
+
+  public static DataflowOutputCounter create(
+      String outputName,
+      CounterFactory counterFactory,
+      NameContext nameContext,
+      boolean isStreaming) {
+    return create(outputName, null, counterFactory, nameContext, isStreaming);
+  }
 
   public DataflowOutputCounter(
       String outputName, CounterFactory counterFactory, NameContext nameContext) {
@@ -64,29 +84,15 @@ public class DataflowOutputCounter implements ElementCounter {
     objectAndByteCounter.update(elem);
     long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
     if (windowsSize == 0) {
-      // ValueInEmptyWindows occurs when processing shuffle/streaming work items
-      Object value = ((WindowedValue<?>) elem).getValue();
-      if (value instanceof KeyedWorkItem<?, ?>) {
-        // KeyedWorkItem wrapped in ValueInEmptyWindows
-        // (e.g. WindowingWindmillReader for Streaming GBK)
-        KeyedWorkItem<?, ?> keyedWorkItem = (KeyedWorkItem<?, ?>) value;
-        long totalElementCount = 0;
-        // Iterate only through elementsIterable and ignore timers in KeyedWorkItem.
-        for (WindowedValue<?> element : keyedWorkItem.elementWindowsIterable()) {
-          long elementWindowsSize = element.getWindows().size();
-          // Fan out for windows.
-          totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
-        }
-        elementCount.addValue(totalElementCount);
-      } else {
-        // Non-KeyedWorkItem wrapped in ValueInEmptyWindows
-        // (e.g. GroupingShuffleReader KV output for Batch GBK)
-        elementCount.addValue(1L);
-      }
+      updateEmptyWindows(elem);
     } else {
       // Standard WindowedValue.
       elementCount.addValue(windowsSize);
     }
+  }
+
+  protected void updateEmptyWindows(Object elem) throws Exception {
+    elementCount.addValue(1L);
   }
 
   @Override
