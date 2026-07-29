@@ -126,7 +126,8 @@ public class DataflowOutputCounter implements ElementCounter {
         elementCount.addValue(totalElementCount);
       } else {
         // NOTE: in streaming mode, this should not normally happen.
-      // Counting as 1 element serves as a fallback to maintain counter behavior without failing execution.
+        // Counting as 1 element serves as a fallback to maintain counter behavior without failing
+        // execution.
         elementCount.addValue(1L);
       }
     } else {
