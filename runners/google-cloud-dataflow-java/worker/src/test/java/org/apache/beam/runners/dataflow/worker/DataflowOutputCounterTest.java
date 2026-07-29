@@ -53,7 +53,6 @@ public class DataflowOutputCounterTest {
     DataflowOutputCounter batchCounter =
         DataflowOutputCounter.create(OUTPUT_NAME, counterSet, nameContext, false);
 
-    // Non-KeyedWorkItem value in empty windows (e.g. GroupingShuffleReader output)
     ValueInEmptyWindows<KV<String, String>> shuffleValue =
         new ValueInEmptyWindows<>(KV.of("key", "value"));
     batchCounter.update(shuffleValue);
