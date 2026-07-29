@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -371,9 +372,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private void processElementsInternal(
-      Iterable<WindowedValue<InputT>> elementWindows, Iterable<WindowedValue<InputT>> values)
+      Iterable<? extends WindowedValue<?>> elementWindows, Iterable<WindowedValue<InputT>> values)
       throws Exception {
-    if (!elementWindows.iterator().hasNext()) {
+    if (Iterables.isEmpty(elementWindows)) {
       return;
     }
 
@@ -437,7 +438,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /** Extract the windows associated with the values. */
-  private Set<W> collectWindows(Iterable<WindowedValue<InputT>> values) throws Exception {
+  private Set<W> collectWindows(Iterable<? extends WindowedValue<?>> values) throws Exception {
     Set<W> windows = new HashSet<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow untypedWindow : value.getWindows()) {

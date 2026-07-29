@@ -139,6 +139,16 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
   }
 
   private @Nullable WindowedValue<ElemT> parseElem(Windmill.Message message) {
+    return parseElemInternal(message, true);
+  }
+
+  private @Nullable WindowedValue<?> parseElemWindowOnly(Windmill.Message message) {
+    return parseElemInternal(message, false);
+  }
+
+  @SuppressWarnings("nullness")
+  private @Nullable WindowedValue<ElemT> parseElemInternal(
+      Windmill.Message message, boolean parseValue) {
     try {
       Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
       Collection<? extends BoundedWindow> windows =
@@ -159,8 +169,11 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                 : CausedByDrain.NORMAL;
         valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
       }
-      InputStream inputStream = message.getData().newInput();
-      ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+      ElemT value = null;
+      if (parseValue) {
+        InputStream inputStream = message.getData().newInput();
+        value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+      }
       return WindowedValues.of(
           value,
           timestamp,
@@ -184,50 +197,9 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
     }
   }
 
-  @SuppressWarnings("nullness")
-  private @Nullable WindowedValue<ElemT> parseElemWindowOnly(Windmill.Message message) {
-    try {
-      Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
-      Collection<? extends BoundedWindow> windows =
-          WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-      PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
-      CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
-      ValueKind valueKind = ValueKind.INSERT;
-      if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
-        BeamFnApi.Elements.ElementMetadata elementMetadata =
-            WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
-        drainingValueFromUpstream =
-            elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
-                ? CausedByDrain.CAUSED_BY_DRAIN
-                : CausedByDrain.NORMAL;
-        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
-      }
-      return WindowedValues.of(
-          (ElemT) null,
-          timestamp,
-          windows,
-          paneInfo,
-          null,
-          null,
-          drainingValueFromUpstream,
-          null,
-          valueKind);
-    } catch (RuntimeException | IOException e) {
-      if (!skipUndecodableElements) {
-        throw new RuntimeException(e);
-      }
-      LOG.error(
-          "Skipping input element for work token {} on sharding key {} due to decoding error",
-          workItem.getWorkToken(),
-          workItem.getShardingKey(),
-          e);
-      return null;
-    }
-  }
-
   @Override
   @SuppressWarnings("nullness")
-  public Iterable<WindowedValue<ElemT>> elementWindowsIterable() {
+  public Iterable<WindowedValue<?>> elementWindowsIterable() {
     return FluentIterable.from(workItem.getMessageBundlesList())
         .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
         .transform(this::parseElemWindowOnly)

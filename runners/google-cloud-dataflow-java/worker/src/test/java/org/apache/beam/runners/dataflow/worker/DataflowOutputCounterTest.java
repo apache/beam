@@ -18,8 +18,8 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import org.apache.beam.runners.core.KeyedWorkItem;
@@ -35,7 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BatchDataflowOutputCounter} and {@link StreamingDataflowOutputCounter}. */
+/** Tests for {@link DataflowOutputCounter}. */
 @RunWith(JUnit4.class)
 public class DataflowOutputCounterTest {
   private static final String OUTPUT_NAME = "test_output";
@@ -75,7 +75,7 @@ public class DataflowOutputCounterTest {
     KeyedWorkItem<String, String> kwi = mock(KeyedWorkItem.class);
     WindowedValue<String> element1 = WindowedValues.valueInGlobalWindow("v1");
     WindowedValue<String> element2 = WindowedValues.valueInGlobalWindow("v2");
-    when(kwi.elementWindowsIterable()).thenReturn(Arrays.asList(element1, element2));
+    doReturn(Arrays.asList(element1, element2)).when(kwi).elementWindowsIterable();
 
     ValueInEmptyWindows<KeyedWorkItem<String, String>> streamingValue =
         new ValueInEmptyWindows<>(kwi);

@@ -41,7 +41,7 @@ public interface KeyedWorkItem<K, ElemT> {
    * Useful for lightweight inspection of windowing metadata without payload deserialization
    * overhead.
    */
-  default Iterable<WindowedValue<ElemT>> elementWindowsIterable() {
-    return elementsIterable();
+  default Iterable<WindowedValue<?>> elementWindowsIterable() {
+    return (Iterable) elementsIterable();
   }
 }
