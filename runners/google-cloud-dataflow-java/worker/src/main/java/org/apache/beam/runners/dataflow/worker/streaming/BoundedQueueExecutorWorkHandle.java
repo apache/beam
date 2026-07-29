@@ -17,8 +17,13 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+
 /**
  * A handle to use when requesting pulling more work from @BoundedQueueExecutor
  * via @BoundedQueueExecutor.pollWork
  */
-public interface BoundedQueueExecutorWorkHandle {}
+public interface BoundedQueueExecutorWorkHandle {
+  // Returns all work that are tracked by the handle
+  ImmutableList<Work> getWorkBatch();
+}

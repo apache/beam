@@ -287,26 +287,18 @@ class GcsUtilV1 {
     this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    GoogleCloudStorageOptions.Builder storageOptionsBuilder =
+    GoogleCloudStorageOptions.Builder optionsBuilder =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setReadChannelOptions(gcsReadOptions)
             .setGrpcEnabled(shouldUseGrpc);
-    if (gcsEndpoint != null) {
-      try {
-        java.net.URL url = new java.net.URL(gcsEndpoint);
-        String rootUrl =
-            url.getProtocol()
-                + "://"
-                + url.getHost()
-                + (url.getPort() > 0 ? ":" + url.getPort() : "");
-        storageOptionsBuilder.setStorageRootUrl(rootUrl);
-        storageOptionsBuilder.setStorageServicePath(url.getPath());
-      } catch (java.net.MalformedURLException e) {
-        throw new RuntimeException("Invalid URL: " + gcsEndpoint, e);
-      }
+    if (storageClient.getRootUrl() != null) {
+      optionsBuilder.setStorageRootUrl(storageClient.getRootUrl());
     }
-    googleCloudStorageOptions = storageOptionsBuilder.build();
+    if (storageClient.getServicePath() != null) {
+      optionsBuilder.setStorageServicePath(storageClient.getServicePath());
+    }
+    googleCloudStorageOptions = optionsBuilder.build();
     try {
       googleCloudStorage =
           createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
@@ -533,6 +525,11 @@ class GcsUtilV1 {
     } else {
       return storageObjectOrIOException.storageObject().getSize().longValue();
     }
+  }
+
+  @VisibleForTesting
+  GoogleCloudStorage getGoogleCloudStorage() {
+    return googleCloudStorage;
   }
 
   @VisibleForTesting

@@ -139,6 +139,12 @@ class KafkaIOReadImplementationCompatibility {
     },
     OFFSET_DEDUPLICATION(LEGACY),
     LOG_TOPIC_VERIFICATION,
+    ENABLE_OPEN_TELEMETRY_TRACING {
+      @Override
+      Object getDefaultValue() {
+        return false;
+      }
+    },
     REDISTRIBUTE_BY_RECORD_KEY {
       @Override
       Object getDefaultValue() {

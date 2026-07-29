@@ -17,6 +17,8 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -30,7 +32,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
  * provide a receiver of outbound elements. Callers can register themselves as receivers for inbound
  * elements or can get a handle for a receiver of outbound elements.
  */
-public interface BeamFnDataClient {
+public interface BeamFnDataClient extends Closeable {
   /**
    * Registers a receiver for the provided instruction id.
    *
@@ -91,4 +93,9 @@ public interface BeamFnDataClient {
    * stream. The default (empty) data stream is never closed and calls for it are a no-op.
    */
   default void releaseDataStream(String dataStreamId) {}
+
+  @Override
+  default void close() throws IOException {
+    // Default to no-op
+  }
 }

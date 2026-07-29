@@ -54,7 +54,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.NotSerializableException;
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -90,6 +89,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.jms.JmsIO.UnboundedJmsReader;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -109,6 +109,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwable
 import org.apache.qpid.jms.JmsAcknowledgeCallback;
 import org.apache.qpid.jms.JmsConnectionFactory;
 import org.apache.qpid.jms.message.JmsTextMessage;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
@@ -151,39 +152,42 @@ public class JmsIOTest {
       RetryConfiguration.create(1, Duration.standardSeconds(1), null);
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
-  @Parameterized.Parameters(name = "with client class {3}")
+  @Parameterized.Parameters(name = "with client class {2}")
   public static Collection<Object[]> connectionFactories() {
     return Arrays.asList(
-        new Object[] {
-          "vm://localhost", 5672, "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class
-        },
-        new Object[] {
-          "amqp://localhost", 5672, "jms.forceAsyncAcks=false", JmsConnectionFactory.class
-        });
+        new Object[] {"vm://localhost", "jms.sendAcksAsync=false", ActiveMQConnectionFactory.class},
+        new Object[] {"amqp://localhost", "jms.forceAsyncAcks=false", JmsConnectionFactory.class});
   }
 
-  private final CommonJms commonJms;
-  private final ConnectionFactory connectionFactory;
+  private CommonJms commonJms;
+  private ConnectionFactory connectionFactory;
   private final Class<? extends ConnectionFactory> connectionFactoryClass;
-  private final ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+  private ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
+  private final String brokerUrl;
+  private final Integer brokerPort;
+  private final String forceAsyncAcksParam;
 
   public JmsIOTest(
       String brokerUrl,
-      Integer brokerPort,
       String forceAsyncAcksParam,
-      Class<? extends ConnectionFactory> connectionFactoryClass)
-      throws InvocationTargetException, NoSuchMethodException, InstantiationException,
-          IllegalAccessException {
-    this.commonJms =
-        new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+      Class<? extends ConnectionFactory> connectionFactoryClass) {
+    this.brokerUrl = brokerUrl;
+    this.forceAsyncAcksParam = forceAsyncAcksParam;
     this.connectionFactoryClass = connectionFactoryClass;
-    this.connectionFactory = commonJms.createConnectionFactory();
-    this.connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
+    try {
+      this.brokerPort = NetworkTestHelper.getAvailableLocalPort();
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to find available port", e);
+    }
   }
 
   @Before
   public void beforeEach() throws Exception {
+    this.commonJms =
+        new CommonJms(brokerUrl, brokerPort, forceAsyncAcksParam, connectionFactoryClass);
+    this.connectionFactory = commonJms.createConnectionFactory();
+    this.connectionFactoryWithSyncAcksAndWithoutPrefetch =
+        commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
     this.commonJms.startBroker();
   }
 
@@ -610,6 +614,12 @@ public class JmsIOTest {
 
     // get checkpoint mark after consumed 4 messages
     CheckpointMark mark = reader.getCheckpointMark();
+    JmsCheckpointMark jmsMark = (JmsCheckpointMark) mark;
+    // In CLIENT_ACKNOWLEDGE mode, session/consumer are recreated on checkpoint:
+    assertNotNull(jmsMark.getConsumer());
+    assertNotNull(jmsMark.getSession());
+    assertNotNull(jmsMark.getMessages());
+    assertEquals(1, jmsMark.getMessages().size());
 
     // consume two more messages after checkpoint made
     reader.advance();
@@ -625,7 +635,119 @@ public class JmsIOTest {
     assertEquals(7, count(QUEUE));
   }
 
+  @Test
+  public void testCheckpointMarkAndFinalizeSeparatelyIndividualAcknowledge() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+
+    assertTrue(reader.start());
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+
+    CheckpointMark mark = reader.getCheckpointMark();
+    JmsCheckpointMark jmsMark = (JmsCheckpointMark) mark;
+    assertNull(jmsMark.getConsumer());
+    assertNull(jmsMark.getSession());
+    assertNotNull(jmsMark.getMessages());
+    assertEquals(3, jmsMark.getMessages().size());
+
+    reader.advance();
+    reader.advance();
+
+    assertEquals(10, count(QUEUE));
+    mark.finalizeCheckpoint();
+
+    // Verify only checkpointed messages are acknowledged
+    assertEquals(7, count(QUEUE));
+  }
+
+  @Test
+  public void testCheckpointMarkAndFinalizeSeparatelyClientAcknowledgeUnsafe() throws Exception {
+    UnboundedJmsReader reader = setupReaderForTest(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE);
+
+    assertTrue(reader.start());
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
+
+    CheckpointMark mark = reader.getCheckpointMark();
+    JmsCheckpointMark jmsMark = (JmsCheckpointMark) mark;
+    assertNull(jmsMark.getConsumer());
+    assertNull(jmsMark.getSession());
+    assertNotNull(jmsMark.getMessages());
+    assertEquals(1, jmsMark.getMessages().size());
+
+    reader.advance();
+    reader.advance();
+
+    assertEquals(10, count(QUEUE));
+    mark.finalizeCheckpoint();
+
+    // Verify all messages consumed on the session up to checkpoint are acknowledged
+    assertEquals(5, count(QUEUE));
+  }
+
+  @Test
+  public void testJmsCheckpointMarkIndividualAcknowledgeAllMessages() throws Exception {
+    Message msg1 = Mockito.mock(Message.class);
+    Message msg2 = Mockito.mock(Message.class);
+    Message msg3 = Mockito.mock(Message.class);
+
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE);
+    preparer.add(msg1);
+    preparer.add(msg2);
+    preparer.add(msg3);
+
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(
+            null, null, JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE, activeCheckpoints);
+    assertNotNull(mark.getMessages());
+    assertEquals(3, mark.getMessages().size());
+    assertNull(mark.getConsumer());
+    assertNull(mark.getSession());
+    assertEquals(1, activeCheckpoints.get());
+
+    mark.finalizeCheckpoint();
+
+    Mockito.verify(msg1, Mockito.times(1)).acknowledge();
+    Mockito.verify(msg2, Mockito.times(1)).acknowledge();
+    Mockito.verify(msg3, Mockito.times(1)).acknowledge();
+    assertEquals(0, activeCheckpoints.get());
+  }
+
+  @Test
+  public void testJmsCheckpointMarkClientAcknowledgeUnsafeNoSessionRecreation() throws Exception {
+    Message msg1 = Mockito.mock(Message.class);
+    Message msg2 = Mockito.mock(Message.class);
+
+    JmsCheckpointMark.Preparer preparer =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE);
+    preparer.add(msg1);
+    preparer.add(msg2);
+
+    AtomicInteger activeCheckpoints = new AtomicInteger(0);
+    JmsCheckpointMark mark =
+        preparer.newCheckpoint(
+            null, null, JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE_UNSAFE, activeCheckpoints);
+    assertNotNull(mark.getMessages());
+    assertEquals(1, mark.getMessages().size());
+    assertNull(mark.getConsumer());
+    assertNull(mark.getSession());
+    assertEquals(1, activeCheckpoints.get());
+
+    mark.finalizeCheckpoint();
+
+    Mockito.verify(msg2, Mockito.times(1)).acknowledge();
+    Mockito.verify(msg1, Mockito.never()).acknowledge();
+    assertEquals(0, activeCheckpoints.get());
+  }
+
   private JmsIO.UnboundedJmsReader setupReaderForTest() throws JMSException {
+    return setupReaderForTest(null);
+  }
+
+  private JmsIO.UnboundedJmsReader setupReaderForTest(
+      JmsIO.@Nullable AcknowledgeMode acknowledgeMode) throws JMSException {
     // we are using no prefetch here
     // prefetch is an ActiveMQ feature: to make efficient use of network resources the broker
     // utilizes a 'push' model to dispatch messages to consumers. However, in the case of our
@@ -652,6 +774,9 @@ public class JmsIOTest {
             .withUsername(USERNAME)
             .withPassword(PASSWORD)
             .withQueue(QUEUE);
+    if (acknowledgeMode != null) {
+      spec = spec.withAcknowledgeMode(acknowledgeMode);
+    }
     JmsIO.UnboundedJmsSource source = new JmsIO.UnboundedJmsSource(spec);
     JmsIO.UnboundedJmsReader reader = source.createReader(PipelineOptionsFactory.create(), null);
     return reader;
@@ -768,7 +893,9 @@ public class JmsIOTest {
   /** Test the checkpoint mark default coder, which is actually AvroCoder. */
   @Test
   public void testCheckpointMarkDefaultCoder() throws Exception {
-    JmsCheckpointMark jmsCheckpointMark = JmsCheckpointMark.newPreparer().newCheckpoint(null, null);
+    JmsCheckpointMark jmsCheckpointMark =
+        JmsCheckpointMark.newPreparer(JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE)
+            .newCheckpoint(null, null, JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE, null);
     Coder coder = new JmsIO.UnboundedJmsSource(null).getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
     CoderProperties.coderDecodeEncodeEqual(coder, jmsCheckpointMark);
@@ -819,7 +946,7 @@ public class JmsIOTest {
   }
 
   @Test
-  public void testCloseWithTimeout() throws IOException {
+  public void testCloseWithTimeout() throws IOException, JMSException {
     Duration closeTimeout = Duration.millis(2000L);
     JmsIO.Read spec =
         JmsIO.read()
@@ -843,10 +970,13 @@ public class JmsIOTest {
     JmsIO.UnboundedJmsReader reader = source.createReader(options, null);
     reader.start();
     assertFalse(getDiscardedValue(reader));
+    reader.checkpointMarkPreparer.add(Mockito.mock(Message.class));
+    CheckpointMark mark = reader.getCheckpointMark();
     reader.close();
-    assertFalse(getDiscardedValue(reader));
+    assertTrue(getDiscardedValue(reader));
     verify(mockScheduledExecutorService)
-        .schedule(any(Runnable.class), eq(closeTimeout.getMillis()), eq(TimeUnit.MILLISECONDS));
+        .schedule(any(Runnable.class), eq(1L), eq(TimeUnit.SECONDS));
+    mark.finalizeCheckpoint();
     runnableArgumentCaptor.getValue().run();
     assertTrue(getDiscardedValue(reader));
     verifyNoMoreInteractions(mockScheduledExecutorService);
@@ -982,7 +1112,8 @@ public class JmsIOTest {
     int maxPublicationAttempts = 2;
     List<String> data = Collections.singletonList(messageText);
     RetryConfiguration retryConfiguration =
-        RetryConfiguration.create(maxPublicationAttempts, null, null);
+        RetryConfiguration.create(
+            maxPublicationAttempts, Duration.standardSeconds(5), Duration.millis(10L));
 
     WriteJmsResult<String> output =
         pipeline
@@ -1039,7 +1170,8 @@ public class JmsIOTest {
     List<String> data = Arrays.asList("Message 1", "Message 2", "Message 3", "Message 4");
 
     RetryConfiguration retryConfiguration =
-        RetryConfiguration.create(maxPublicationAttempts, null, null);
+        RetryConfiguration.create(
+            maxPublicationAttempts, Duration.standardSeconds(5), Duration.millis(10L));
 
     WriteJmsResult<String> output =
         pipeline

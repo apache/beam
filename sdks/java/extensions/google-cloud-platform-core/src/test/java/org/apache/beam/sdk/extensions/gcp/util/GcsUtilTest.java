@@ -63,6 +63,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -1867,16 +1868,15 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testGcsEndpointPropagation() {
-    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
-    options.setGcpCredential(new TestCredential());
-    options.setGcsEndpoint("http://localhost:8080/storage/v1/");
+  public void testGcsEndpoint() throws IOException {
+    GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
+    pipelineOptions.setGcsEndpoint("http://localhost:4443/storage/v1/");
 
-    GcsUtilV1 gcsUtilV1 = new GcsUtilV1.GcsUtilFactory().create(options);
-    GoogleCloudStorageOptions googleCloudStorageOptions = gcsUtilV1.getGoogleCloudStorageOptions();
-
-    assertEquals("http://localhost:8080", googleCloudStorageOptions.getStorageRootUrl());
-    assertEquals("/storage/v1/", googleCloudStorageOptions.getStorageServicePath());
+    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GoogleCloudStorageImpl gcsImpl =
+        (GoogleCloudStorageImpl) gcsUtil.delegate.getGoogleCloudStorage();
+    assertEquals("http://localhost:4443/", gcsImpl.getOptions().getStorageRootUrl());
+    assertEquals("storage/v1/", gcsImpl.getOptions().getStorageServicePath());
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
