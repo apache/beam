@@ -17,6 +17,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -33,6 +34,24 @@ func getAllLogEntries(catcher *logCatcher) []*fnpb.LogEntry {
 
 func TestBufferedLogger(t *testing.T) {
 	ctx := context.Background()
+
+	t.Run("printf", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+		bl := NewBufferedLogger(l)
+
+		bl.Printf(ctx, "test message")
+
+		received := catcher.msgs[0].GetLogEntries()[0]
+
+		if got, want := received.Message, "test message"; got != want {
+			t.Errorf("got message %q, want %q", got, want)
+		}
+
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
+			t.Errorf("got severity %v, want %v", got, want)
+		}
+	})
 
 	t.Run("write", func(t *testing.T) {
 		catcher := &logCatcher{}
@@ -183,6 +202,55 @@ func TestBufferedLogger(t *testing.T) {
 			if got, want := message.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
 				t.Errorf("got severity %v, want %v", got, want)
 			}
+		}
+	})
+
+	t.Run("flush with nil error", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+		bl := NewBufferedLogger(l)
+
+		message := []byte("success message\n")
+		_, err := bl.Write(message)
+		if err != nil {
+			t.Fatalf("unexpected write error: %v", err)
+		}
+
+		if gotErr := bl.Flush(ctx, nil); gotErr != nil {
+			t.Errorf("Flush(ctx, nil) returned error %v, want nil", gotErr)
+		}
+
+		received := catcher.msgs[0].GetLogEntries()[0]
+		if got, want := received.Message, "success message"; got != want {
+			t.Errorf("got message %q, want %q", got, want)
+		}
+		if got, want := received.Severity, fnpb.LogEntry_Severity_DEBUG; got != want {
+			t.Errorf("got severity %v, want %v", got, want)
+		}
+	})
+
+	t.Run("flush with non-nil error", func(t *testing.T) {
+		catcher := &logCatcher{}
+		l := &Logger{client: catcher}
+		bl := NewBufferedLogger(l)
+
+		message := []byte("error message\n")
+		_, err := bl.Write(message)
+		if err != nil {
+			t.Fatalf("unexpected write error: %v", err)
+		}
+
+		originalErr := errors.New("command failed")
+		if gotErr := bl.Flush(ctx, originalErr); gotErr != originalErr {
+			t.Errorf("Flush(ctx, err) returned %v, want %v", gotErr, originalErr)
+		}
+
+		received := catcher.msgs[0].GetLogEntries()[0]
+		if got, want := received.Message, "error message"; got != want {
+			t.Errorf("got message %q, want %q", got, want)
+		}
+		if got, want := received.Severity, fnpb.LogEntry_Severity_ERROR; got != want {
+			t.Errorf("got severity %v, want %v", got, want)
 		}
 	})
 

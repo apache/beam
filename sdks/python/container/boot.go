@@ -18,7 +18,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -572,22 +571,13 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Python version in %s:", phase)
-	args := []string{"--version"}
-	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-		bufLogger.FlushAtError(ctx)
-	} else {
-		bufLogger.FlushAtDebug(ctx)
+	if out, err := executeWithOutput(ctx, bufLogger, pythonVersion, "--version"); err == nil {
+		bufLogger.Printf(ctx, "Python version in %s: %s", phase, strings.TrimSpace(string(out)))
 	}
-	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
-	args = []string{"-m", "pip", "freeze", "--all"}
 
-	var stdout bytes.Buffer
-	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, &stdout, bufLogger, pythonVersion, args...); err != nil {
-		bufLogger.FlushAtError(ctx)
-	} else {
-		bufLogger.FlushAtDebug(ctx)
-		bufLogger.Printf(ctx, "%s", stdout.String())
+	args := []string{"-m", "pip", "freeze", "--all"}
+	if out, err := executeWithOutput(ctx, bufLogger, pythonVersion, args...); err == nil {
+		bufLogger.Printf(ctx, "Dependencies in %s:\n%s", phase, string(out))
 	}
 	return nil
 }
@@ -595,7 +585,6 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
@@ -603,6 +592,6 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "%s", string(content))
+	bufLogger.Printf(ctx, "Dependencies in submission environment:\n%s", string(content))
 	return nil
 }
