@@ -1746,7 +1746,7 @@ class ProfilingOptions(PipelineOptions):
 
       if self.profiler_agent == 'coredump':
         debug_options = self.view_as(DebugOptions)
-        debug_options.add_experiment('core_pattern=/tmp/core.%e.%p')
+        debug_options.add_experiment('core_pattern=/tmp/beam_coredump.%e.%p')
     return errors
 
 

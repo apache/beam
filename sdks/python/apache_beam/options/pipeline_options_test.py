@@ -708,7 +708,8 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(validator.validate(), [])
     debug_options = options.view_as(DebugOptions)
     self.assertEqual(
-        debug_options.lookup_experiment('core_pattern'), '/tmp/core.%e.%p')
+        debug_options.lookup_experiment('core_pattern'),
+        '/tmp/beam_coredump.%e.%p')
 
   def test_profile_location_defaulting_and_opt_out(self):
     options = PipelineOptions(

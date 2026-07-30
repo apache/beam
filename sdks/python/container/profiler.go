@@ -388,7 +388,7 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 		return
 	}
 
-	prefix := "core."
+	prefix := "beam_coredump."
 
 	for _, file := range files {
 		if file.IsDir() {
