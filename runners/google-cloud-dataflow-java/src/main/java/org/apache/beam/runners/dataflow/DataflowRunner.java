@@ -1355,19 +1355,20 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // with the SDK harness image (which implements Fn API).
     //
     // The same Environment is used in different and contradictory ways, depending on whether
-    // it is a v1 or v2 job submission.
+    // it is a portable or non-portable job submission.
     RunnerApi.Environment defaultEnvironmentForDataflow =
         Environments.createDockerEnvironment(workerHarnessContainerImageURL);
 
-    // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
+    // The SdkComponents for portable and non-portable job submission must be kept distinct. Both
     // need the default environment.
-    SdkComponents portableComponents = SdkComponents.create();
-    portableComponents.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    SdkComponents portableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
 
     RunnerApi.Pipeline portablePipelineProto =
         PipelineTranslation.toProto(pipeline, portableComponents, false);
@@ -1400,27 +1401,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           "Skipping Dataflow Streaming Java Runner transform replacements since job will run on Dataflow Portable Runner.");
     } else {
       // Now rewrite things to be as needed for Dataflow Streaming Java Runner (mutates the
-      // pipeline)
+      // pipeline).
       // This way the job submitted is valid for Dataflow Streaming Java Runner and Dataflow
-      // Portable Runner, simultaneously
+      // Portable Runner, simultaneously.
       replaceV1Transforms(pipeline);
     }
-    // Capture the SdkComponents for look up during step translations
-    SdkComponents dataflowV1Components = SdkComponents.create();
-    dataflowV1Components.registerEnvironment(
-        defaultEnvironmentForDataflow
-            .toBuilder()
-            .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(Environments.getJavaCapabilities())
-            .build());
+    // Capture the SdkComponents for look up during step translations.
+    SdkComponents dataflowNonPortableComponents =
+        SdkComponents.create(
+            options,
+            defaultEnvironmentForDataflow
+                .toBuilder()
+                .addAllDependencies(getDefaultArtifacts())
+                .addAllCapabilities(Environments.getJavaCapabilities())
+                .build());
     // No need to perform transform upgrading for the Dataflow Streaming Java Runner proto.
-    RunnerApi.Pipeline dataflowV1PipelineProto =
-        PipelineTranslation.toProto(pipeline, dataflowV1Components, true, false);
+    RunnerApi.Pipeline dataflowNonPortablePipelineProto =
+        PipelineTranslation.toProto(pipeline, dataflowNonPortableComponents, true, false);
 
     if (LOG.isDebugEnabled()) {
       LOG.debug(
-          "Dataflow v1 pipeline proto:\n{}",
-          TextFormat.printer().printToString(dataflowV1PipelineProto));
+          "Dataflow non-portable worker pipeline proto:\n{}",
+          TextFormat.printer().printToString(dataflowNonPortablePipelineProto));
     }
 
     // Set a unique client_request_id in the CreateJob request.
@@ -1440,7 +1442,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     JobSpecification jobSpecification =
         translator.translate(
-            pipeline, dataflowV1PipelineProto, dataflowV1Components, this, packages);
+            pipeline,
+            dataflowNonPortablePipelineProto,
+            dataflowNonPortableComponents,
+            this,
+            packages);
 
     if (!isNullOrEmpty(dataflowOptions.getDataflowWorkerJar()) && !useUnifiedWorker(options)) {
       List<String> experiments =
