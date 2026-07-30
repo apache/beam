@@ -331,18 +331,19 @@ class PubSubSubscriptionCleaner(StaleCleaner):
     def _active_resources(self) -> dict:
         d = {}
         self.client = pubsub_v1.SubscriberClient()
+        taxi_prefix = f"{self.project_path}/subscriptions/taxirides-realtime_beam_"
 
         with self.client:
             for subscription in self.client.list_subscriptions(request={"project": self.project_path}):
                 subscription_name = subscription.name
                 # Apply prefix filtering if prefixes are defined
-                if not self.prefixes or any(subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes):
-                    # Safe orphan detection:
-                    # - Standard rule: detached subscriptions are eligible.
-                    # - Taxi exception: subscriptions containing the NYC taxi prefix are eligible even if attached.
-                    es_taxi = "taxirides-realtime_beam_" in subscription_name
-                    if subscription.detached or es_taxi:
+                if subscription.detached:
                         d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
+                #Only attached subscriptions with the NYC taxi prefix are eligible.
+                elif any(
+                    subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes
+                ) and subscription_name.startswith(taxi_prefix):
+                    d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
 
         return d
 
