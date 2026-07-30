@@ -25,6 +25,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -34,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Internal
 public class DataflowOutputCounter implements ElementCounter {
   /** Number of logical element and single window pairs that were processed. */
   private static final String ELEMENT_COUNTER_NAME = "-ElementCount";
@@ -59,31 +61,10 @@ public class DataflowOutputCounter implements ElementCounter {
       CounterFactory counterFactory,
       NameContext nameContext,
       boolean isStreaming) {
-    return create(outputName, null, counterFactory, nameContext, isStreaming);
+    return new DataflowOutputCounter(outputName, null, counterFactory, nameContext, isStreaming);
   }
 
-  public DataflowOutputCounter(
-      String outputName, CounterFactory counterFactory, NameContext nameContext) {
-    this(outputName, null, counterFactory, nameContext, false);
-  }
-
-  public DataflowOutputCounter(
-      String outputName,
-      CounterFactory counterFactory,
-      NameContext nameContext,
-      boolean isStreaming) {
-    this(outputName, null, counterFactory, nameContext, isStreaming);
-  }
-
-  public DataflowOutputCounter(
-      String outputName,
-      ElementByteSizeObservable<?> elementByteSizeObservable,
-      CounterFactory counterFactory,
-      NameContext nameContext) {
-    this(outputName, elementByteSizeObservable, counterFactory, nameContext, false);
-  }
-
-  public DataflowOutputCounter(
+  private DataflowOutputCounter(
       String outputName,
       ElementByteSizeObservable<?> elementByteSizeObservable,
       CounterFactory counterFactory,
@@ -108,7 +89,7 @@ public class DataflowOutputCounter implements ElementCounter {
     }
   }
 
-  protected void updateEmptyWindows(WindowedValue<?> elem) {
+  private void updateEmptyWindows(WindowedValue<?> elem) {
     if (isStreaming) {
       Object value = elem.getValue();
       if (value instanceof KeyedWorkItem<?, ?>) {

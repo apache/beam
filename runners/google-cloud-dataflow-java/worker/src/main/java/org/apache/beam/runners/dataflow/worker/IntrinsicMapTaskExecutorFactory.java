@@ -347,11 +347,6 @@ public class IntrinsicMapTaskExecutorFactory implements DataflowMapTaskExecutorF
    * Returns a function which can convert {@link InstructionOutput}s into {@link OutputReceiver}s.
    */
   static Function<Node, Node> createOutputReceiversTransform(
-      final String stageName, final CounterFactory counterFactory) {
-    return createOutputReceiversTransform(stageName, counterFactory, false);
-  }
-
-  static Function<Node, Node> createOutputReceiversTransform(
       final String stageName, final CounterFactory counterFactory, final boolean isStreaming) {
     return new TypeSafeNodeFunction<InstructionOutputNode>(InstructionOutputNode.class) {
       @Override
