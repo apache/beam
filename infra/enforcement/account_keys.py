@@ -19,6 +19,7 @@ import sys
 import yaml
 import argparse
 import os
+from datetime import datetime, timezone
 from typing import List, Dict, TypedDict, Optional
 from google.cloud import secretmanager
 from google.cloud import iam_admin_v1
@@ -316,18 +317,17 @@ class AccountKeysPolicyComplianceCheck:
                 msg = f"Service account '{service_account}' is not declared in the service account keys file."
                 compliance_issues.append(msg)
                 self.logger.warning(msg)
-            else:
                 iam_keys = self._get_user_managed_keys_from_iam(service_account)
-                if iam_keys:
-                    secret_name = f"{self._denormalize_account_email(service_account)}-key"
-                    legal_keys = []
-                    if secret_name in managed_secrets:
-                        legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
-                    unmanaged_keys = set(iam_keys) - set(legal_keys)
-                    for unmanaged_key in unmanaged_keys:
-                        msg = f"SECURITY ALERT: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
-                        compliance_issues.append(msg)
-                        self.logger.warning(msg)
+            if iam_keys:
+                secret_name = f"{self._denormalize_account_email(service_account)}-key"
+                legal_keys = []
+                if secret_name in managed_secrets:
+                    legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
+                unmanaged_keys = set(iam_keys) - set(legal_keys)
+                for unmanaged_key in unmanaged_keys:
+                    msg = f"SECURITY ALERT: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
+                    compliance_issues.append(msg)
+                    self.logger.warning(msg)
 
         extracted_secrets = [f"{self._denormalize_account_email(account['account_id'])}-key" for account in file_service_accounts]
 
@@ -381,8 +381,9 @@ class AccountKeysPolicyComplianceCheck:
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
-            title = f"Account Keys Compliance Issue Detected"
-            body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
+            title = f"[SECURITY] Action Required: Unauthorized Service Accounts Detected"
+            body = f"Unauthorized Service Accounts Report\n\n"
+            body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
             for issue in general_issues:
                 body += f"- {issue}\n"
 
@@ -406,23 +407,44 @@ class AccountKeysPolicyComplianceCheck:
         """
         if not self.sending_client:
             raise ValueError("SendingClient is required for printing announcements")
-            
+
         diff = self.check_compliance()
 
         if not diff:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        title = f"Account Keys Compliance Issue Detected"
-        body = f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
-        for issue in diff:
-            body += f"- {issue}\n"
+        unmanaged_keys_issues = [issue for issue in diff if "SECURITY ALERT" in issue]
+        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
 
-        announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
-        announcement += f"We found {len(diff)} compliance issue(s) that need your attention.\n"
-        announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+        if general_issues:
+            self.logger.info("Printing general compliance announcement...")
+            title = f"[SECURITY] Action Required: Unauthorized Service Accounts Detected"
+            body = f"Unauthorized Service Accounts Report\n\n"
+            body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
+            for issue in general_issues:
+                body += f"- {issue}\n"
 
-        self.sending_client.print_announcement(title, body, recipient, announcement)
+            announcement = f"Dear team,\n\nThis is an automated notification about compliance issues detected in the Account Keys policy for project {self.project_id}.\n\n"
+            announcement += f"We found {len(general_issues)} compliance issue(s) that need your attention.\n"
+            announcement += f"\nPlease check the GitHub issue for detailed information and take appropriate action to resolve these compliance violations."
+
+            self.sending_client.print_announcement(title, body, recipient, announcement)
+
+        if unmanaged_keys_issues:
+            self.logger.info("Printing security dashboard update for unmanaged keys...")
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+            print("\n" + "="*60)
+            print("SIMULATING GITHUB SECURITY ISSUE CREATION/UPDATE")
+            print("="*60)
+            print("Title: [SECURITY] Action Required: Unmanaged Service Account Keys Detected\n")
+            print(f"Body:\n### Unmanaged Keys Audit Report ({timestamp})")
+            print(f"The following unauthorized or unmanaged keys were detected in `{self.project_id}`:\n")
+            for issue in unmanaged_keys_issues:
+                print(f"- {issue}")
+            print("\n*Please investigate and revoke these keys if they are not part of the official rotation system.*\n")
+            print("### History\n<details>\n<summary>Click to expand</summary>\n\n[... Previous reports would be collapsed here ...]\n</details>")
+            print("="*60 + "\n")
 
     def generate_compliance(self) -> None:
         """
