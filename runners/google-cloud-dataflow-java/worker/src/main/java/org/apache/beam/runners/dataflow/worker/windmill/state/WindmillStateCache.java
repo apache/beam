@@ -170,8 +170,8 @@ public class WindmillStateCache implements StatusDataProvider {
   }
 
   /** Returns a per-computation view of the state cache. */
-  public ForComputation forComputation(String computation) {
-    return new ForComputation(computation);
+  public ForComputation forComputation(String computation, String systemName) {
+    return new ForComputation(computation, systemName);
   }
 
   /** Print summary statistics of the cache to the given {@link PrintWriter}. */
@@ -353,14 +353,21 @@ public class WindmillStateCache implements StatusDataProvider {
   public class ForComputation {
 
     private final String computation;
+    private final String systemName;
 
-    private ForComputation(String computation) {
+    private ForComputation(String computation, String systemName) {
       this.computation = computation;
+      this.systemName = systemName;
     }
 
     /** Returns the computation associated to this class. */
     public String getComputation() {
       return this.computation;
+    }
+
+    /** Returns the system name associated to this class. */
+    public String getSystemName() {
+      return this.systemName;
     }
 
     /** Invalidate all cache entries for this computation and {@code processingKey}. */
