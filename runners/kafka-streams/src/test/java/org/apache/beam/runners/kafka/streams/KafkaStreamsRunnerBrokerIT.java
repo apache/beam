@@ -115,11 +115,16 @@ public class KafkaStreamsRunnerBrokerIT {
   }
 
   private KafkaStreamsPipelineOptions options() {
+    return options(1);
+  }
+
+  private KafkaStreamsPipelineOptions options(int topicPartitions) {
     KafkaStreamsPipelineOptions options =
         PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
     options.setRunner(CrashingRunner.class);
     options.setBootstrapServers(kafka.getBootstrapServers());
     options.setApplicationId("ks-broker-it-" + UUID.randomUUID());
+    options.setTopicPartitions(topicPartitions);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
@@ -158,6 +163,87 @@ public class KafkaStreamsRunnerBrokerIT {
       // Two keys in, so two groups out once the elements have travelled through the repartition
       // topic and the watermark has closed the global window.
       assertThat(awaitCounter(result, 2L), is(2L));
+    } finally {
+      result.cancel();
+    }
+  }
+
+  /**
+   * Collapses every group onto one key, so the next GroupByKey has to shuffle across partitions.
+   */
+  private static class ToSingleKeyFn
+      extends DoFn<KV<String, Iterable<Integer>>, KV<String, Integer>> {
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, Iterable<Integer>> group, OutputReceiver<KV<String, Integer>> out) {
+      int sum = 0;
+      for (int value : group.getValue()) {
+        sum += value;
+      }
+      out.output(KV.of("all", sum));
+    }
+  }
+
+  /** Builds the two-GroupByKey pipeline used by the chained tests. */
+  private static void buildChainedPipeline(Pipeline pipeline) {
+    pipeline
+        .apply(Impulse.create())
+        .apply("emit", ParDo.of(new EmitKvsFn()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+        .apply("groupPerKey", GroupByKey.create())
+        .apply("toSingleKey", ParDo.of(new ToSingleKeyFn()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
+        .apply("groupAll", GroupByKey.create())
+        .apply("countGroups", ParDo.of(new CountGroupsFn()));
+  }
+
+  private static PipelineResult runPipeline(
+      Pipeline pipeline, KafkaStreamsPipelineOptions options) {
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads(pipeline);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline);
+    JobInfo jobInfo =
+        JobInfo.create(
+            options.getApplicationId(),
+            options.getJobName(),
+            "",
+            PipelineOptionsTranslation.toProto(options));
+    return new KafkaStreamsPipelineRunner(options).run(pipelineProto, jobInfo);
+  }
+
+  @Test
+  public void chainedGroupByKeysAreCorrectOnOnePartition() throws Exception {
+    // The control for the partitioned case below: the same shape, one partition throughout.
+    KafkaStreamsPipelineOptions options = options(1);
+    Pipeline pipeline = Pipeline.create(options);
+    buildChainedPipeline(pipeline);
+
+    PipelineResult result = runPipeline(pipeline, options);
+    try {
+      assertThat(awaitCounter(result, 1L), is(1L));
+    } finally {
+      result.cancel();
+    }
+  }
+
+  @Test
+  public void chainedGroupByKeysAreCorrectAcrossPartitions() throws Exception {
+    // Two GroupByKeys with a partitioned shuffle between them, which is what makes each task's
+    // watermark identity matter. The second GroupByKey aggregates the reports of every task of the
+    // first, so those tasks have to report under their own partition: if each claimed to be the
+    // only partition, the second would advance its watermark on the first report it saw and fire
+    // before the remaining partitions had contributed their groups.
+    KafkaStreamsPipelineOptions options = options(4);
+    Pipeline pipeline = Pipeline.create(options);
+    buildChainedPipeline(pipeline);
+
+    PipelineResult result = runPipeline(pipeline, options);
+    try {
+      // Everything collapses onto one key, so the second GroupByKey emits exactly one group — and
+      // only once every partition of the first has contributed to it.
+      assertThat(awaitCounter(result, 1L), is(1L));
+      // A premature firing would show up as a second group, so give one a chance to appear.
+      Thread.sleep(5_000L);
+      assertThat(counterValue(result), is(1L));
     } finally {
       result.cancel();
     }

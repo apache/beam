@@ -53,9 +53,23 @@ class KafkaStreamsTopicManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaStreamsTopicManager.class);
 
-  /** Prefixes of the topics the runner owns and may create. */
-  private static final List<String> RUNNER_TOPIC_PREFIXES =
-      java.util.Arrays.asList("__beam_impulse_", "__beam_read_", "__beam_gbk_");
+  /**
+   * Prefixes of the bootstrap topics, which must have exactly one partition.
+   *
+   * <p>An Impulse or a primitive Read emits its elements once per task, gated by a state store that
+   * is itself per task. Kafka Streams creates one task per partition of the source topic, so a
+   * bootstrap topic with several partitions would make the same Impulse fire once per partition and
+   * the same source be read once per partition.
+   */
+  private static final List<String> SINGLE_PARTITION_TOPIC_PREFIXES =
+      java.util.Arrays.asList("__beam_impulse_", "__beam_read_");
+
+  /**
+   * Prefixes of the topics whose partition count sets the pipeline's parallelism — the repartition
+   * topic a GroupByKey shuffles through.
+   */
+  private static final List<String> PARTITIONED_TOPIC_PREFIXES =
+      java.util.Arrays.asList("__beam_gbk_");
 
   private KafkaStreamsTopicManager() {}
 
@@ -80,7 +94,7 @@ class KafkaStreamsTopicManager {
         if (!existing.contains(topic)) {
           toCreate.add(
               new NewTopic(
-                  topic, options.getTopicPartitions(), options.getTopicReplicationFactor()));
+                  topic, partitionsFor(topic, options), options.getTopicReplicationFactor()));
         }
       }
       if (toCreate.isEmpty()) {
@@ -131,8 +145,21 @@ class KafkaStreamsTopicManager {
     return topics;
   }
 
+  /**
+   * The partition count a runner-owned topic is created with: one for a bootstrap topic, and the
+   * configured parallelism for a shuffle topic.
+   */
+  private static int partitionsFor(String topic, KafkaStreamsPipelineOptions options) {
+    return hasAnyPrefix(topic, SINGLE_PARTITION_TOPIC_PREFIXES) ? 1 : options.getTopicPartitions();
+  }
+
   private static boolean isRunnerOwned(String topic) {
-    for (String prefix : RUNNER_TOPIC_PREFIXES) {
+    return hasAnyPrefix(topic, SINGLE_PARTITION_TOPIC_PREFIXES)
+        || hasAnyPrefix(topic, PARTITIONED_TOPIC_PREFIXES);
+  }
+
+  private static boolean hasAnyPrefix(String topic, List<String> prefixes) {
+    for (String prefix : prefixes) {
       if (topic.startsWith(prefix)) {
         return true;
       }

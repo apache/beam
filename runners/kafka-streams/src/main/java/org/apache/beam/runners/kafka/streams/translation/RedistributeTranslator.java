@@ -50,5 +50,8 @@ class RedistributeTranslator implements PTransformTranslator {
     // Passthrough: downstream lookups for the output PCollection resolve to the producer of the
     // input PCollection. No KS Processor / state store / source is added.
     context.registerPCollectionProducer(outputPCollectionId, parentProcessor);
+    // A pass-through: the output is produced by the same processor, so same partition identity.
+    context.registerPCollectionPartitionCount(
+        outputPCollectionId, context.getPartitionCount(inputPCollectionId));
   }
 }

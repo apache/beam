@@ -74,6 +74,8 @@ class ExecutableStageTranslator implements PTransformTranslator {
     // is unambiguous even before we add side-input support.
     String inputPCollectionId = stagePayload.getInput();
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
+    // A fused stage runs wherever its input runs: same task, so same partition identity.
+    int partitionCount = context.getPartitionCount(inputPCollectionId);
 
     // A multi-output stage (a DoFn with side outputs, or a Read whose SDF wrapper produces several
     // outputs) needs each output routed to the right downstream. Since downstream transforms are
@@ -117,9 +119,11 @@ class ExecutableStageTranslator implements PTransformTranslator {
             topology.addProcessor(
                 relayName, () -> new StageOutputProcessor(relayName), transformId);
             context.registerPCollectionProducer(outputPCollectionId, relayName);
+            context.registerPCollectionPartitionCount(outputPCollectionId, partitionCount);
           });
     } else if (!outputPCollectionIds.isEmpty()) {
       context.registerPCollectionProducer(outputPCollectionIds.get(0), transformId);
+      context.registerPCollectionPartitionCount(outputPCollectionIds.get(0), partitionCount);
     }
   }
 }
