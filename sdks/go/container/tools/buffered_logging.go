@@ -16,6 +16,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"os"
@@ -60,31 +61,39 @@ func (b *BufferedLogger) Write(p []byte) (int, error) {
 	if b.logger == nil {
 		return os.Stderr.Write(p)
 	}
-	n, err := b.builder.Write(p)
+
 	if b.logs == nil {
 		b.logs = make([]string, 0, initialLogSize)
 	}
-	s := b.builder.String()
+
 	start := 0
 	for {
-		nl := strings.IndexByte(s[start:], '\n')
+		// Look for the next newline in the incoming byte slice directly
+		nl := bytes.IndexByte(p[start:], '\n')
 		if nl == -1 {
 			break
 		}
-		line := s[start : start+nl]
-		b.logs = append(b.logs, strings.TrimSuffix(line, "\r"))
+
+		// Write the segment up to the newline into the builder
+		b.builder.Write(p[start : start+nl])
+
+		// The builder now contains any previous partial line + the current complete segment
+		b.logs = append(b.logs, strings.TrimSuffix(b.builder.String(), "\r"))
+		b.builder.Reset()
+
 		start += nl + 1
 	}
-	if start > 0 {
-		b.builder.Reset()
-		if start < len(s) {
-			b.builder.WriteString(s[start:])
-		}
+
+	// Buffer any remaining bytes that didn't end in a newline
+	if start < len(p) {
+		b.builder.Write(p[start:])
 	}
+
 	if b.now().Sub(b.lastFlush) > b.flushInterval {
 		b.FlushAtDebug(b.periodicFlushContext)
 	}
-	return n, err
+
+	return len(p), nil
 }
 
 // Flush flushes the contents of the buffer to the logging service.

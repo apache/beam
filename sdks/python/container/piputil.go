@@ -42,14 +42,14 @@ const pipLogFlushInterval time.Duration = 15 * time.Second
 const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
 
 // executeWithLogger runs the program with os.Stdin, piping stdout and stderr to bufLogger,
-// and flushes bufLogger based on the execution result.
+// and flushes the logger at ERROR severity on failure or DEBUG severity on success.
 func executeWithLogger(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) error {
 	err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, prog, args...)
 	return bufLogger.Flush(ctx, err)
 }
 
 // executeWithOutput runs the program with os.Stdin, capturing stdout in a byte buffer
-// while piping stderr to bufLogger, and flushes bufLogger based on the execution result.
+// while piping stderr to bufLogger, and flushes the logger at ERROR severity on failure or DEBUG severity on success.
 func executeWithOutput(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) ([]byte, error) {
 	var stdout bytes.Buffer
 	err := execx.ExecuteEnvWithIO(nil, os.Stdin, &stdout, bufLogger, prog, args...)
