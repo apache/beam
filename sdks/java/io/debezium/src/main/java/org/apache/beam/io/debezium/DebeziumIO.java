@@ -323,9 +323,9 @@ public class DebeziumIO {
 
       return Schema.builder()
           .addFields(valueSchema.getFields())
-        // TODO(https://github.com/apache/beam/issues/39557):
-        // Restore 'primaryKeyColumns' once Python can decode ARRAY<STRING>
-        // schema options across the Java/Python cross-language boundary.
+          // TODO(https://github.com/apache/beam/issues/39557):
+          // Restore 'primaryKeyColumns' once Python can decode ARRAY<STRING>
+          // schema options across the Java/Python cross-language boundary.
           .build();
     }
 
