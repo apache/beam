@@ -64,6 +64,7 @@
 
 ## I/Os
 
+* Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
 
@@ -85,7 +86,7 @@
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.
-* (Java) IcebergIO now requires Java 17 at runtime. This raises the floor in preparation for the Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
+* (Java) IcebergIO and projects that use it must now be built with Java 17 or later as a result of Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
 
 ## Deprecations
 
