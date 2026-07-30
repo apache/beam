@@ -73,6 +73,9 @@
 * (Java) Supported acknowledge mode for JmsIO ([#39253](https://github.com/apache/beam/issues/39253)).
 * (Python) Staged files directory is now automatically added to `sys.path` on the Python SDK worker at startup. This makes Python files provided via the '--files_to_stage' pipeline option importable in the pipeline code and makes it easier to initialize Python SDK harness at startup via the `--beam_plugins` pipeline option. For more information, see the [Staging Individual Files](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#staging-files) section of the dependency management docs. This behavior can be disabled by passing the '--experiments=no_staged_dir_in_sys_path' pipeline option ([#39431](https://github.com/apache/beam/issues/39431)).
 * (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
+* (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
+  `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
