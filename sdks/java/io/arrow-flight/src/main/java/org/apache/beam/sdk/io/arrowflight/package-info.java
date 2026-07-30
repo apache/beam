@@ -15,24 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
-
-/** Indicates that the key token was invalid when data was attempted to be fetched. */
-public class KeyTokenInvalidException extends RuntimeException {
-  public KeyTokenInvalidException(String key) {
-    super("Unable to fetch data due to token mismatch for key " + key);
-  }
-
-  /** Returns whether an exception was caused by a {@link KeyTokenInvalidException}. */
-  public static boolean isKeyTokenInvalidException(@Nullable Throwable t) {
-    while (t != null) {
-      if (t instanceof KeyTokenInvalidException) {
-        return true;
-      }
-      t = t.getCause();
-    }
-    return false;
-  }
-}
+/**
+ * I/O connector for <a href="https://arrow.apache.org/docs/format/Flight.html">Apache Arrow
+ * Flight</a>.
+ *
+ * <p>Arrow Flight is a high-performance RPC framework for fast data transport using the Apache
+ * Arrow columnar format over gRPC. This connector enables Beam pipelines to read from and write to
+ * Arrow Flight-compatible data systems.
+ *
+ * @see org.apache.beam.sdk.io.arrowflight.ArrowFlightIO
+ */
+package org.apache.beam.sdk.io.arrowflight;

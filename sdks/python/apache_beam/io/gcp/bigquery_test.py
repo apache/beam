@@ -1524,8 +1524,10 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
     # Expecting 1 initial call plus maximum number of retries
     expected_call_count = 1 + bigquery_tools.MAX_RETRIES
 
+    # This relies on runner-specific mocking behavior which can be
+    # inconsistent on Prism.
     with self.assertRaises(Exception) as exc:
-      with beam.Pipeline() as p:
+      with beam.Pipeline('FnApiRunner') as p:
         _ = (
             p
             | beam.Create([{

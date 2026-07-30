@@ -41,6 +41,24 @@ var (
 const pipLogFlushInterval time.Duration = 15 * time.Second
 const unrecoverableURL string = "https://beam.apache.org/documentation/sdks/python-unrecoverable-errors/index.html#pip-dependency-resolution-failures"
 
+// executeWithLogger runs the program with os.Stdin, piping stdout and stderr to bufLogger,
+// and flushes the logger at ERROR severity on failure or DEBUG severity on success.
+func executeWithLogger(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) error {
+	err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, prog, args...)
+	return bufLogger.Flush(ctx, err)
+}
+
+// executeWithOutput runs the program with os.Stdin, capturing stdout in a byte buffer
+// while piping stderr to bufLogger, and flushes the logger at ERROR severity on failure or DEBUG severity on success.
+func executeWithOutput(ctx context.Context, bufLogger *tools.BufferedLogger, prog string, args ...string) ([]byte, error) {
+	var stdout bytes.Buffer
+	err := execx.ExecuteEnvWithIO(nil, os.Stdin, &stdout, bufLogger, prog, args...)
+	if flushErr := bufLogger.Flush(ctx, err); flushErr != nil {
+		return nil, flushErr
+	}
+	return stdout.Bytes(), nil
+}
+
 // pipInstallRequirements installs the given requirement, if present.
 func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []string, dir, name string) error {
 	pythonVersion, err := expansionx.GetPythonVersion()
@@ -62,12 +80,9 @@ func pipInstallRequirements(ctx context.Context, logger *tools.Logger, files []s
 			// also installs dependencies. The key is that if all the packages have
 			// been installed in the first round then this command will be a no-op.
 			args = []string{"-m", "pip", "install", "-r", filepath.Join(dir, name), "--no-cache-dir", "--disable-pip-version-check", "--find-links", dir}
-			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-			if err != nil {
-				bufLogger.FlushAtError(ctx)
+			if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
-			bufLogger.FlushAtDebug(ctx)
 			return nil
 		}
 	}
@@ -121,23 +136,16 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
-				err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-				if err != nil {
-					bufLogger.FlushAtError(ctx)
+				if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
-				} else {
-					bufLogger.FlushAtDebug(ctx)
 				}
 				args = []string{"-m", "pip", "install", "--no-cache-dir", "--disable-pip-version-check", filepath.Join(dir, packageSpec)}
 				if pipNoBuildIsolation {
 					args = append(args, "--no-build-isolation")
 				}
-				err = execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-				if err != nil {
-					bufLogger.FlushAtError(ctx)
+				if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 					return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 				}
-				bufLogger.FlushAtDebug(ctx)
 				return nil
 			}
 
@@ -146,12 +154,9 @@ func pipInstallPackage(ctx context.Context, logger *tools.Logger, files []string
 			if pipNoBuildIsolation {
 				args = append(args, "--no-build-isolation")
 			}
-			err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...)
-			if err != nil {
-				bufLogger.FlushAtError(ctx)
+			if err := executeWithLogger(ctx, bufLogger, pythonVersion, args...); err != nil {
 				return fmt.Errorf("PIP failed to install dependencies, got %s. This error may be unrecoverable, see %s for more information", err, unrecoverableURL)
 			}
-			bufLogger.FlushAtDebug(ctx)
 			return nil
 		}
 	}

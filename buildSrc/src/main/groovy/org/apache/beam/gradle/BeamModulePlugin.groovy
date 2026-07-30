@@ -951,6 +951,7 @@ class BeamModulePlugin implements Plugin<Project> {
         arrow_vector                                : "org.apache.arrow:arrow-vector:$arrow_version",
         arrow_memory_core                           : "org.apache.arrow:arrow-memory-core:$arrow_version",
         arrow_memory_netty                          : "org.apache.arrow:arrow-memory-netty:$arrow_version",
+        arrow_flight_core                           : "org.apache.arrow:flight-core:$arrow_version",
       ],
       groovy: [
         groovy_all: "org.codehaus.groovy:groovy-all:2.4.13",
@@ -1256,20 +1257,26 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
+      // NOTE: Use the character class "[.]" instead of an escaped "\\." to match a literal dot in
+      // these Checker Framework -AskipDefs/-AskipUses regexes. When a module is compiled on an older
+      // host JDK and forked to a newer JDK via javaXXHome (e.g. iceberg's requireJavaVersion 17 on a
+      // Java 11 CI host), Gradle passes the javac arguments through an @argfile. Backslash escapes do
+      // not survive that round-trip intact, so "\\." becomes a literal-backslash regex that matches
+      // nothing and the suppression is silently dropped. "[.]" is backslash-free and survives.
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
       skipDefRegexes << "AutoBuilder_.*"
       skipDefRegexes << "AutoOneOf_.*"
-      skipDefRegexes << ".*\\.jmh_generated\\..*"
+      skipDefRegexes << ".*[.]jmh_generated[.].*"
       skipDefRegexes += configuration.generatedClassPatterns
       skipDefRegexes += configuration.classesTriggerCheckerBugs.keySet()
       String skipDefCombinedRegex = skipDefRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       List<String> skipUsesRegexes = []
       // zstd-jni is not annotated, handles Zstd(De)CompressCtx.loadDict(null) just fine
-      skipUsesRegexes << "^com\\.github\\.luben\\.zstd\\..*"
+      skipUsesRegexes << "^com[.]github[.]luben[.]zstd[.].*"
       // SLF4J logger handles null log message parameters
-      skipUsesRegexes << "^org\\.slf4j\\.Logger.*"
+      skipUsesRegexes << "^org[.]slf4j[.]Logger.*"
       String skipUsesCombinedRegex = skipUsesRegexes.collect({ regex -> "(${regex})"}).join("|")
 
       project.apply plugin: 'org.checkerframework'
