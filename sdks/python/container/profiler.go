@@ -356,15 +356,16 @@ func needsProcessing(binInfo os.FileInfo, path string) bool {
 }
 
 func monitorCoredumpsLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
-	// We require the core file pattern to be configured as "/tmp/core.%e.%p" via pipeline
-	// options experiments (which is automatically set by the Python SDK). This ensures
-	// that core dumps are written in /tmp/ with a prefix matching "core.".
-	coreDir := "/tmp"
-	interval := 5 * time.Second
-	if pcfg.PostprocessIntervalSec > 0 {
-		interval = time.Duration(pcfg.PostprocessIntervalSec) * time.Second
+	if pcfg.PostprocessIntervalSec <= 0 {
+		return
 	}
-	logger.Printf(ctx, "Monitoring directory %s for core dumps matching prefix core. every %v", coreDir, interval)
+
+	// We expect the runner runtime environment to set the core pattern
+	// to /tmp/beam_coredump.%e.%p or similar. To do that, we pass
+	// the --experiment=core_pattern pipeline option, which can be interpreted by a runner.
+	coreDir := "/tmp"
+	interval := time.Duration(pcfg.PostprocessIntervalSec) * time.Second
+	logger.Printf(ctx, "Monitoring directory %s for core dumps matching prefix beam_coredump. every %v", coreDir, interval)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
