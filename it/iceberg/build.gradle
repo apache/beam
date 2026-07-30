@@ -22,8 +22,8 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.it.iceberg',
   exportJavadoc: false,
-  // iceberg ended support for Java 8 in 1.7.0
-  requireJavaVersion: JavaVersion.VERSION_11,
+  // iceberg ended support for Java 11 in 1.11.0
+  requireJavaVersion: JavaVersion.VERSION_17,
 )
 
 description = "Apache Beam :: IT :: Iceberg"
