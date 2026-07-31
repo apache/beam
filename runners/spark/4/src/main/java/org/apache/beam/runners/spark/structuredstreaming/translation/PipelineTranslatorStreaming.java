@@ -20,6 +20,9 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import java.util.Collection;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.GroupByKeyStreamingTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ReadUnboundedTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StatefulParDoStreamingTranslator;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -47,30 +50,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
 
-  // --------------------------------------------------------------------------------------------
-  //  Placeholders for WS-D2
-  // --------------------------------------------------------------------------------------------
-  //
-  // WS-D2 replaces each of the three constants below with a real translator instance (constructed
-  // in place, same as the batch registry does) and removes the corresponding TODO. No other change
-  // to this class should be necessary to plug those in: the interception points that select them in
-  // getTransformTranslator already exist and are marked below.
-
-  // TODO(WS-D2): replace with `new ReadUnboundedTranslator<>()`.
-  private static final TransformTranslator<?, ?, ?> READ_UNBOUNDED_PLACEHOLDER =
-      new UnsupportedStreamingTranslator(
-          "Unbounded read streaming translation not implemented yet (WS-D2)");
-
-  // TODO(WS-D2): replace with `new GroupByKeyStreamingTranslator<>()`.
-  private static final TransformTranslator<?, ?, ?> GROUP_BY_KEY_PLACEHOLDER =
-      new UnsupportedStreamingTranslator(
-          "GroupByKey streaming translation not implemented yet (WS-D2)");
-
-  // TODO(WS-D2): replace with `new StatefulParDoStreamingTranslator<>()`.
-  private static final TransformTranslator<?, ?, ?> STATEFUL_PAR_DO_PLACEHOLDER =
-      new UnsupportedStreamingTranslator(
-          "Stateful ParDo streaming translation not implemented yet (WS-D2)");
-
   /** Returns a {@link TransformTranslator} for the given {@link PTransform} if known. */
   @Override
   @SuppressWarnings({"rawtypes", "unchecked"})
@@ -78,22 +57,18 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
   protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
       TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
 
-    // TODO(WS-D2): swap for `if (transform instanceof SplittableParDo.PrimitiveUnboundedRead)`
-    // returning `new ReadUnboundedTranslator<>()` (or a cached instance thereof).
     if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
-      return (TransformTranslator) READ_UNBOUNDED_PLACEHOLDER;
+      return (TransformTranslator) new ReadUnboundedTranslator<>();
     }
 
-    // TODO(WS-D2): swap for `if (transform instanceof GroupByKey)` returning
-    // `new GroupByKeyStreamingTranslator<>()`.
     if (transform instanceof GroupByKey) {
-      return (TransformTranslator) GROUP_BY_KEY_PLACEHOLDER;
+      return (TransformTranslator) new GroupByKeyStreamingTranslator<>();
     }
 
     // Deliberately never registered: leaving Combine.PerKey unhandled here makes Beam auto-expand
-    // it into GroupByKey + ParDo, so the streaming translations above (and WS-D2's stateful ParDo
-    // translator) take over the expanded primitives instead of the batch
-    // CombinePerKeyTranslatorBatch, which has no streaming support.
+    // it into GroupByKey + ParDo, so the streaming translations above take over the expanded
+    // primitives instead of the batch CombinePerKeyTranslatorBatch, which has no streaming
+    // support.
     if (transform instanceof Combine.PerKey) {
       return null;
     }
@@ -101,9 +76,8 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
     if (transform instanceof ParDo.MultiOutput) {
       DoFnSignature signature =
           DoFnSignatures.signatureForDoFn(((ParDo.MultiOutput<?, ?>) transform).getFn());
-      // TODO(WS-D2): swap this branch's return for `new StatefulParDoStreamingTranslator<>()`.
       if (signature.usesState() || signature.usesTimers()) {
-        return (TransformTranslator) STATEFUL_PAR_DO_PLACEHOLDER;
+        return (TransformTranslator) new StatefulParDoStreamingTranslator<>();
       }
       // Stateless ParDo falls through to super, reusing ParDoTranslatorBatch unchanged.
     }
@@ -119,25 +93,5 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
       SparkSession session,
       SparkCommonPipelineOptions options) {
     return new StreamingEvaluationContext(leaves, session, options);
-  }
-
-  /**
-   * A {@link TransformTranslator} standing in for a streaming translation that WS-D2 has not
-   * implemented yet. Always throws {@link UnsupportedOperationException} as soon as the pipeline
-   * traversal tries to translate the transform it is registered for.
-   */
-  private static final class UnsupportedStreamingTranslator
-      extends TransformTranslator<PInput, POutput, PTransform<PInput, POutput>> {
-    private final String message;
-
-    UnsupportedStreamingTranslator(String message) {
-      super(0);
-      this.message = message;
-    }
-
-    @Override
-    protected void translate(PTransform<PInput, POutput> transform, Context cxt) {
-      throw new UnsupportedOperationException(message);
-    }
   }
 }
