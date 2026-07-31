@@ -445,7 +445,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mqtt/MqttIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.xlang.io.html#apache_beam.transforms.xlang.io.ReadFromMqtt">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
@@ -1269,7 +1272,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/datadog/DatadogIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.xlang.io.html#apache_beam.transforms.xlang.io.DatadogWrite">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td class="present">

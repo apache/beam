@@ -67,6 +67,7 @@
 * Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
+* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
 
 ## New Features / Improvements
 
