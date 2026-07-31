@@ -17,12 +17,16 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -34,7 +38,6 @@ import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -43,7 +46,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -107,11 +109,6 @@ public class StatefulParDoStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
-  @Ignore(
-      "Needs StatefulParDoStreamingTranslator (WS-D2) registered in place of the "
-          + "UnsupportedOperationException placeholder in "
-          + "PipelineTranslatorStreaming#STATEFUL_PAR_DO_PLACEHOLDER; a DoFn signature with state or "
-          + "timers currently has no streaming translation.")
   public void dedupsRepeatedKeysAndFiresTimerSentinel() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("stateful-pardo-dedup");
     StreamingTestUtils.clear(collectorId);
@@ -127,7 +124,7 @@ public class StatefulParDoStreamingTest implements Serializable {
     SparkStructuredStreamingPipelineOptions options =
         StreamingTestUtils.streamingOptions(checkpointDir);
     SESSION.configure(options);
-    TestPipeline pipeline = TestPipeline.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
 
     pipeline
         .apply(
@@ -142,9 +139,16 @@ public class StatefulParDoStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-D2): assert StreamingTestUtils.<String>getCollected(collectorId) contains exactly one
-    // "a", one "b", one "c" (each key's first sighting) plus two SENTINEL values (one per timer
-    // armed for "a" and "b"; "c" arrives too late in the run for its own timer to have expired).
-    // Remember the one micro-batch timer latency floor documented on StreamingTestUtils.
+    // One "a" (the second sighting is suppressed by the dedup state), one "b", one "c", plus two
+    // SENTINELs: the timers armed at 0s+30s for "a" and at 2s+30s for "b" both expire under the
+    // final watermark of 90s, while "c"'s own timer at 90s+30s = 120s never does. The sentinels
+    // arrive one micro-batch after the batch carrying "c", per the timer latency floor documented
+    // on StreamingTestUtils.
+    List<String> collected = new ArrayList<>(StreamingTestUtils.<String>getCollected(collectorId));
+    Collections.sort(collected);
+    assertEquals(
+        "pipeline state=" + result.getState(),
+        "[" + SENTINEL + ", " + SENTINEL + ", a, b, c]",
+        collected.toString());
   }
 }

@@ -17,12 +17,16 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -31,7 +35,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -42,7 +45,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -99,11 +101,6 @@ public class ChainedStatefulStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
-  @Ignore(
-      "Needs both StatefulParDoStreamingTranslator and GroupByKeyStreamingTranslator (WS-D2): this "
-          + "test chains a stateful ParDo into a windowed GroupByKey, so it is blocked on whichever "
-          + "of the two lands last. Also needs the cross-operator watermark propagation itself to "
-          + "actually work, which is the top risk called out in the POC plan (risk #3).")
   public void dedupThenWindowedSumPropagatesWatermarkAcrossOperators() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("chained-stateful");
     StreamingTestUtils.clear(collectorId);
@@ -126,7 +123,7 @@ public class ChainedStatefulStreamingTest implements Serializable {
     SparkStructuredStreamingPipelineOptions options =
         StreamingTestUtils.streamingOptions(checkpointDir);
     SESSION.configure(options);
-    TestPipeline pipeline = TestPipeline.fromOptions(options);
+    Pipeline pipeline = Pipeline.create(options);
 
     pipeline
         .apply(
@@ -145,10 +142,18 @@ public class ChainedStatefulStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-E2, once WS-D2 lands): assert StreamingTestUtils.<KV<String, Long>>getCollected(
-    // collectorId) contains exactly KV.of("a", 8L) (5 + 3, the duplicate "1" excluded) and
-    // KV.of("b", 10L) for the [0s, 10s) window. Getting exactly these values, rather than e.g.
-    // KV.of("a", 13L) from a missed dedup or nothing at all from a stuck watermark, is the
-    // observable proof that watermark and results both survived the operator chain intact.
+    // a=8 is 5 + 3, the redelivered id "1" excluded by the upstream dedup operator; b=10 is the
+    // single "3" element. Both are the [0s, 10s) window firing in the downstream operator, which
+    // only happens if the watermark computed once at the source still reaches the second stateful
+    // operator intact. a=13 would mean the dedup state was lost, and an empty result would mean the
+    // watermark got stuck between the two operators; getting exactly [a=8, b=10] is the observable
+    // proof that neither happened. The sentinel's own [60s, 70s) window never fires, nothing
+    // arrives after it to push the watermark past 70s.
+    List<String> collected = new ArrayList<>();
+    for (KV<String, Long> kv : StreamingTestUtils.<KV<String, Long>>getCollected(collectorId)) {
+      collected.add(kv.getKey() + "=" + kv.getValue());
+    }
+    Collections.sort(collected);
+    assertEquals("pipeline state=" + result.getState(), "[a=8, b=10]", collected.toString());
   }
 }

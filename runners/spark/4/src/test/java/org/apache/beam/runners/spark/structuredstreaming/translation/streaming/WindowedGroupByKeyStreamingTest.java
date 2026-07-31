@@ -17,17 +17,20 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -38,7 +41,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -56,6 +58,9 @@ import org.junit.runners.JUnit4;
  * <p>Every window this suite asserts on is followed, in the input list, by an element timestamped
  * well past that window's end, per the watermark rule documented on {@link StreamingTestUtils}: the
  * watermark only advances on new data and only fires a window once it has passed the window's end.
+ * The mirror image of that rule is that the trailing "sentinel" elements' own windows are never
+ * asserted on, because nothing arrives after them to push the watermark past their ends, so they
+ * simply never fire.
  */
 @RunWith(JUnit4.class)
 @Category(StreamingTest.class)
@@ -83,11 +88,17 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     return options;
   }
 
+  /** Renders the collected panes as a sorted {@code key=count} list, for a readable assertion. */
+  private static String collectedCounts(String collectorId) {
+    List<String> rendered = new ArrayList<>();
+    for (KV<String, Long> kv : StreamingTestUtils.<KV<String, Long>>getCollected(collectorId)) {
+      rendered.add(kv.getKey() + "=" + kv.getValue());
+    }
+    Collections.sort(rendered);
+    return rendered.toString();
+  }
+
   @Test(timeout = 300_000)
-  @Ignore(
-      "Needs GroupByKeyStreamingTranslator (WS-D2), which hosts the expanded GroupByKey via "
-          + "BeamStatefulProcessorConfig.Mode.GROUP_ALSO_BY_WINDOW; GroupByKey currently has no "
-          + "streaming translation and pipeline.run() throws before any window can fire.")
   public void fixedWindowsCountPerKey() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("fixed-windows");
     StreamingTestUtils.clear(collectorId);
@@ -101,7 +112,7 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     elements.add(
         TimestampedValue.of(KV.of("sentinel", "s"), BASE.plus(Duration.standardSeconds(60))));
 
-    TestPipeline pipeline = TestPipeline.fromOptions(options());
+    Pipeline pipeline = Pipeline.create(options());
     pipeline
         .apply(
             "ReadUnbounded",
@@ -115,28 +126,26 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-D2): assert StreamingTestUtils.<KV<String, Long>>getCollected(collectorId) contains
-    // exactly KV.of("a", 2L) and KV.of("b", 1L) for the [0s, 10s) window. Remember the one
-    // micro-batch timer latency floor documented on StreamingTestUtils: the end-of-window timer
-    // fires one micro-batch after the sentinel's batch, not within it.
+    // Only [0s, 10s) ever fires: the sentinel's own window [60s, 70s) has nothing after it to push
+    // the watermark past 70s.
+    assertEquals("pipeline state=" + result.getState(), "[a=2, b=1]", collectedCounts(collectorId));
   }
 
   @Test(timeout = 300_000)
-  @Ignore("Needs GroupByKeyStreamingTranslator (WS-D2), see fixedWindowsCountPerKey for why.")
   public void slidingWindowsCountPerKey() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("sliding-windows");
     StreamingTestUtils.clear(collectorId);
 
     List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
-    // A five second sliding window every five seconds overlapping the ten second fixed window
-    // above: this element falls in two sliding windows, [-5s, 5s) and [0s, 10s).
+    // A ten second sliding window every five seconds: both these elements fall in exactly two
+    // sliding windows, [-5s, 5s) and [0s, 10s).
     elements.add(TimestampedValue.of(KV.of("a", "x"), BASE.plus(Duration.standardSeconds(2))));
     elements.add(TimestampedValue.of(KV.of("a", "y"), BASE.plus(Duration.standardSeconds(3))));
     // Watermark rule: push well past every window under test.
     elements.add(
         TimestampedValue.of(KV.of("sentinel", "s"), BASE.plus(Duration.standardSeconds(60))));
 
-    TestPipeline pipeline = TestPipeline.fromOptions(options());
+    Pipeline pipeline = Pipeline.create(options());
     pipeline
         .apply(
             "ReadUnbounded",
@@ -153,14 +162,15 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-D2): assert StreamingTestUtils.<KV<String, Long>>getCollected(collectorId) contains
-    // one KV.of("a", 2L) pane per overlapping sliding window the two "a" elements both fall into
-    // (out of scope note: this suite only ever asserts on non-merging windows; session windows are
-    // out of POC scope per the roadmap).
+    // One a=2 pane per sliding window the two "a" elements share, so exactly two of them. The
+    // sentinel's own windows [55s, 65s) and [60s, 70s) both end after the final watermark of 60s
+    // and therefore never fire. Out of scope note: this suite only ever asserts on non-merging
+    // windows, session windows are out of POC scope per the roadmap and are rejected outright by
+    // GroupByKeyStreamingTranslator#canTranslate.
+    assertEquals("pipeline state=" + result.getState(), "[a=2, a=2]", collectedCounts(collectorId));
   }
 
   @Test(timeout = 300_000)
-  @Ignore("Needs GroupByKeyStreamingTranslator (WS-D2), see fixedWindowsCountPerKey for why.")
   public void lateDataIsDropped() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("late-data-dropped");
     StreamingTestUtils.clear(collectorId);
@@ -184,7 +194,26 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     elements.add(
         TimestampedValue.of(KV.of("sentinel", "t"), BASE.plus(Duration.standardSeconds(90))));
 
-    TestPipeline pipeline = TestPipeline.fromOptions(options());
+    SparkStructuredStreamingPipelineOptions options = options();
+    // Pin one record per split per micro-batch. Without this the whole four element list lands in
+    // a single micro-batch, whose start watermark is still -infinity, and the "late" element is
+    // then perfectly on time. See the comment below on how the splitting interacts with this.
+    options.setMaxRecordsPerMicroBatch(1);
+
+    // This test, alone in the suite, depends on how ListBackedUnboundedSource round robins its
+    // elements across splits, so make that dependency loud rather than silent. The session is
+    // local[2], so UnboundedSourceDataset asks for two splits and gets
+    //   split 0: [a@1s, a@2s]   split 1: [sentinel@60s, sentinel@90s]
+    // With one record per split per micro-batch that gives batch 1 = {a@1s, sentinel@60s} (start
+    // watermark -infinity, both on time, end watermark 60s) and batch 2 = {a@2s, sentinel@90s}
+    // (start watermark 60s, so a@2s in window [0s, 10s) is late and dropped, while the same
+    // batch's start watermark fires that window with the single on-time element in it).
+    assertEquals(
+        "this test assumes a two split source, see the comment above",
+        2,
+        SESSION.getSession().sparkContext().defaultParallelism());
+
+    Pipeline pipeline = Pipeline.create(options);
     pipeline
         .apply(
             "ReadUnbounded",
@@ -198,8 +227,10 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-D2): assert StreamingTestUtils.<KV<String, Long>>getCollected(collectorId) contains
-    // KV.of("a", 1L) (the on-time element only) for the first window, and never a count of 2:  the
-    // late "a" element must be dropped, not merged into a late pane.
+    // a=1, never a=2: the late "a" was dropped rather than merged into a late pane. sentinel=1 is
+    // the sentinel's [60s, 70s) window, which the trailing sentinel@90s pushes the watermark past;
+    // its [90s, 100s) window has nothing after it and never fires.
+    assertEquals(
+        "pipeline state=" + result.getState(), "[a=1, sentinel=1]", collectedCounts(collectorId));
   }
 }

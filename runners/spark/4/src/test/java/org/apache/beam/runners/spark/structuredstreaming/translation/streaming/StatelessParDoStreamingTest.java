@@ -17,21 +17,26 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.spark.StreamingTest;
+import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Ignore;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -48,6 +53,16 @@ import org.junit.runners.JUnit4;
 @Category(StreamingTest.class)
 public class StatelessParDoStreamingTest implements Serializable {
 
+  /**
+   * This pipeline hosts no {@code transformWithState} operator of its own, but it still shares the
+   * session with the rest of the streaming suite and is configured identically to it, so that the
+   * baseline test differs from the stateful ones in the pipeline under test and nothing else. See
+   * {@code BeamStatefulProcessorTest} for why the relaxation is needed at all.
+   */
+  @ClassRule
+  public static final SparkSessionRule SESSION =
+      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 
   private static final Instant BASE = new Instant(0);
@@ -61,11 +76,6 @@ public class StatelessParDoStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
-  @Ignore(
-      "Needs ReadUnboundedTranslator (WS-D2) registered in place of the UnsupportedOperationException "
-          + "placeholder in PipelineTranslatorStreaming#READ_UNBOUNDED_PLACEHOLDER; until then "
-          + "SplittableParDo.PrimitiveUnboundedRead has no streaming translation and pipeline.run() "
-          + "throws before any element is read.")
   public void everyElementPassesThrough() throws Exception {
     String collectorId = StreamingTestUtils.newCollectorId("stateless-pardo");
     StreamingTestUtils.clear(collectorId);
@@ -77,7 +87,8 @@ public class StatelessParDoStreamingTest implements Serializable {
 
     SparkStructuredStreamingPipelineOptions options =
         StreamingTestUtils.streamingOptions(checkpointDir);
-    TestPipeline pipeline = TestPipeline.fromOptions(options);
+    SESSION.configure(options);
+    Pipeline pipeline = Pipeline.create(options);
 
     pipeline
         .apply(
@@ -90,8 +101,17 @@ public class StatelessParDoStreamingTest implements Serializable {
     PipelineResult result = pipeline.run();
     result.waitUntilFinish();
 
-    // TODO(WS-D2): once the unbounded read translates, assert that
-    // StreamingTestUtils.<Integer>getCollected(collectorId) contains exactly {0, 2, 4, ..., 18},
-    // in any order (Spark micro-batches make no ordering guarantee across elements).
+    // Nothing here is windowed or stateful, so every element is emitted as soon as its micro-batch
+    // is processed and no watermark has to cross anything. Micro-batch boundaries make the order
+    // arbitrary, hence the sort.
+    List<Integer> collected =
+        new ArrayList<>(StreamingTestUtils.<Integer>getCollected(collectorId));
+    Collections.sort(collected);
+
+    List<Integer> expected = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      expected.add(i * 2);
+    }
+    assertEquals("pipeline state=" + result.getState(), expected, collected);
   }
 }

@@ -32,7 +32,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -44,13 +43,12 @@ import org.junit.rules.TemporaryFolder;
 
 /**
  * Shared test scaffolding for the Spark 4 streaming translators: an {@link UnboundedSource} over a
- * fixed, in-memory list of elements, a driver-side static collector {@link DoFn}, and factories for
- * the {@link SparkStructuredStreamingPipelineOptions} / {@link TestPipeline} every streaming test
- * in this package needs.
+ * fixed, in-memory list of elements, a driver-side static collector {@link DoFn}, and a factory for
+ * the {@link SparkStructuredStreamingPipelineOptions} every streaming test in this package needs.
  *
  * <h2>Why streaming tests in this suite look the way they do</h2>
  *
- * <p>Two of the usual Beam testing tools do not work here, on purpose:
+ * <p>Three of the usual Beam testing tools do not work here, on purpose:
  *
  * <ul>
  *   <li><b>{@code PAssert} on an unbounded {@code PCollection}</b> never fires: {@code PAssert}
@@ -60,6 +58,12 @@ import org.junit.rules.TemporaryFolder;
  *       org.apache.beam.runners.spark.structuredstreaming.io.streaming.BeamMicroBatchStream} (WS-B)
  *       reports progress with opaque epoch offsets, not byte/row counts, so Spark can never decide
  *       that "all available" input has been consumed.
+ *   <li><b>{@code TestPipeline}</b> is not used at all: it insists on being declared as a
+ *       {@code @Rule} field and otherwise fails {@code run()} with "Is your TestPipeline
+ *       declaration missing a @Rule annotation?". Its two benefits, {@code PAssert} bookkeeping and
+ *       enforcing that the pipeline was actually run, are worthless here because these tests cannot
+ *       use {@code PAssert} anyway and each needs its own per-test options. Every test in this
+ *       package therefore builds a plain {@code Pipeline.create(options)} instead.
  * </ul>
  *
  * <p>Instead, every test in this package follows the same recipe:
@@ -168,7 +172,7 @@ public final class StreamingTestUtils {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Pipeline options / TestPipeline factories.
+  // Pipeline options factory.
   // ---------------------------------------------------------------------------------------------
 
   /**
@@ -192,11 +196,6 @@ public final class StreamingTestUtils {
     options.setMaxBatchDurationMillis(200);
     options.setCheckpointDir(checkpointDir.newFolder("checkpoint").getAbsolutePath());
     return options;
-  }
-
-  /** Builds a {@link TestPipeline} from {@link #streamingOptions}. */
-  public static TestPipeline streamingPipeline(TemporaryFolder checkpointDir) throws IOException {
-    return TestPipeline.fromOptions(streamingOptions(checkpointDir));
   }
 
   // ---------------------------------------------------------------------------------------------
