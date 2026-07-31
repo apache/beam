@@ -247,12 +247,10 @@ public class BeamMicroBatchSourceTest implements Serializable {
   /**
    * Starts a query that throws its output away.
    *
-   * <p>The {@code noop} sink is used on purpose. Spark test JVMs run with {@code
-   * spark.kryo.registrationRequired=true} (see {@code runners/spark/spark_runner.gradle}) and the
-   * {@code memory} sink returns a {@code MemoryWriterCommitMessage} that no Beam Kryo registrator
-   * knows about, so a memory sink query fails immediately. The {@code noop} sink commits {@code
-   * null} and its {@code DataWritingSparkTaskResult} is already registered, which is also why the
-   * streaming evaluation context writes to {@code noop}.
+   * <p>The {@code noop} sink is used on purpose: these tests observe the source through a {@code
+   * foreachBatch} or through the query's own progress, never through the sink, so there is no
+   * reason to buffer rows anywhere. That matches what the streaming evaluation context does for
+   * real pipelines.
    */
   private StreamingQuery startDiscarding(Dataset<?> dataset, String queryName) throws Exception {
     return dataset

@@ -47,11 +47,13 @@ import org.slf4j.LoggerFactory;
  *
  * <h2>Sink choice</h2>
  *
- * <p>Every query uses the {@code noop} sink, never {@code memory}. Tests in this module run with
- * {@code spark.kryo.registrationRequired=true}, and the {@code memory} sink's commit messages
- * ({@code MemoryWriterCommitMessage}) are not registered with any Beam Kryo registrator, so a query
- * using it dies on batch 0. This was already discovered the hard way during the Phase 0 spike, do
- * not rediscover it.
+ * <p>Every query uses the {@code noop} sink, never {@code memory}. A Beam pipeline emits through
+ * its own sinks inside the leaf {@code DoFn}s, so a leaf dataset's rows have already served their
+ * purpose by the time the Spark sink sees them; the {@code memory} sink would accumulate every one
+ * of them in driver memory for nobody to read. Note that {@code MemoryWriterCommitMessage} is
+ * registered by {@code SparkSessionFactory.SparkKryoRegistrator} anyway, so switching a query to
+ * the {@code memory} sink for debugging no longer trips {@code
+ * spark.kryo.registrationRequired=true}.
  *
  * <h2>Termination</h2>
  *

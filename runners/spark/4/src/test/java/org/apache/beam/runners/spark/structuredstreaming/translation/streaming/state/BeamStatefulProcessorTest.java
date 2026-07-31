@@ -96,18 +96,15 @@ import org.junit.runners.JUnit4;
 public class BeamStatefulProcessorTest implements Serializable {
 
   /**
-   * Spark test JVMs set {@code spark.kryo.registrationRequired=true} (see {@code
-   * runners/spark/spark_runner.gradle}) to keep Beam's own serialisation honest. That cannot hold
-   * for a {@code transformWithState} query: Spark 4 broadcasts its own {@code
-   * org.apache.spark.sql.execution.streaming.state.StateSchemaMetadata} to the executors with the
-   * user Kryo instance, and no Beam registrator knows that class, so the query dies before the
-   * first micro-batch. Beam never turns the flag on outside tests, so this only relaxes the test
-   * harness, but every streaming test that runs a stateful operator will have to do the same until
-   * the Spark 4 Kryo registrator learns about Spark's streaming state classes.
+   * Deliberately runs with the module default of {@code spark.kryo.registrationRequired=true} (see
+   * {@code runners/spark/spark_runner.gradle}). Spark 4 broadcasts its own {@code
+   * org.apache.spark.sql.execution.streaming.state.StateSchemaMetadata} to the executors through
+   * the user Kryo instance for every {@code transformWithState} query, so a stateful query only
+   * survives its first micro-batch because {@code SparkSessionFactory.SparkKryoRegistrator}
+   * registers that class. Keeping the strict flag on here is what stops that registration from
+   * silently rotting.
    */
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder temp = new TemporaryFolder();
 

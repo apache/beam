@@ -32,7 +32,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -54,14 +53,12 @@ import org.junit.runners.JUnit4;
 public class StatelessParDoStreamingTest implements Serializable {
 
   /**
-   * This pipeline hosts no {@code transformWithState} operator of its own, but it still shares the
-   * session with the rest of the streaming suite and is configured identically to it, so that the
-   * baseline test differs from the stateful ones in the pipeline under test and nothing else. See
-   * {@code BeamStatefulProcessorTest} for why the relaxation is needed at all.
+   * This pipeline hosts no {@code transformWithState} operator of its own, but it is configured
+   * identically to the stateful tests, including the module default of {@code
+   * spark.kryo.registrationRequired=true}, so that the baseline test differs from them in the
+   * pipeline under test and nothing else.
    */
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 

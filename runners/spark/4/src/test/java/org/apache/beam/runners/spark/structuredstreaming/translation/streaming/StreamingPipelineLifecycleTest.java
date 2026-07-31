@@ -32,7 +32,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -74,12 +73,11 @@ public class StreamingPipelineLifecycleTest implements Serializable {
    * useActiveSparkSession} so that a cancelled or idle-stopped query does not take the shared
    * session down with it: {@code SparkStructuredStreamingRunner#sparkStopFn} only stops the session
    * on a terminal state when the session was <em>not</em> provided from outside. Configuring the
-   * session the same relaxed way as the rest of the suite keeps a single session shared across the
-   * whole streaming test run.
+   * session the same way as the rest of the suite, including the module default of {@code
+   * spark.kryo.registrationRequired=true}, keeps a single session shared across the whole streaming
+   * test run.
    */
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 

@@ -69,9 +69,7 @@ import org.junit.runners.JUnit4;
 @Category(StreamingTest.class)
 public class ChainedStatefulStreamingTest implements Serializable {
 
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 

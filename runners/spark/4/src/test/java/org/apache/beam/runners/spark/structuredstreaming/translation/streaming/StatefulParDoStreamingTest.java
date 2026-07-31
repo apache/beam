@@ -64,10 +64,11 @@ import org.junit.runners.JUnit4;
 @Category(StreamingTest.class)
 public class StatefulParDoStreamingTest implements Serializable {
 
-  /** See {@code BeamStatefulProcessorTest} for why this relaxation is required. */
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  /**
+   * Runs with the module default of {@code spark.kryo.registrationRequired=true}, see {@code
+   * BeamStatefulProcessorTest}.
+   */
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 

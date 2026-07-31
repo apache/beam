@@ -67,14 +67,12 @@ import org.junit.runners.JUnit4;
 public class WindowedGroupByKeyStreamingTest implements Serializable {
 
   /**
-   * See {@code BeamStatefulProcessorTest}: {@code transformWithState} broadcasts {@code
-   * StateSchemaMetadata} through Kryo, which is not registered anywhere, so the test JVM default of
-   * {@code spark.kryo.registrationRequired=true} (runners/spark/spark_runner.gradle) must be
-   * relaxed for any query that ends up hosting a stateful operator, windowed GroupByKey included.
+   * Runs with the module default of {@code spark.kryo.registrationRequired=true}, see {@code
+   * BeamStatefulProcessorTest} for why a {@code transformWithState} query needs {@code
+   * SparkSessionFactory.SparkKryoRegistrator} to know about {@code StateSchemaMetadata} for that to
+   * hold.
    */
-  @ClassRule
-  public static final SparkSessionRule SESSION =
-      new SparkSessionRule(KV.of("spark.kryo.registrationRequired", "false"));
+  @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 
