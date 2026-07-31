@@ -133,7 +133,7 @@ public class DataflowWorkUnitClientTest {
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.of(workItem), client.getWorkItem());
-    assertEquals(stageName, DataflowWorkerLoggingMDC.getStageName());
+    assertEquals(stageName, DataflowWorkerLoggingMDC.getSystemStageName());
   }
 
   @Test
@@ -153,7 +153,7 @@ public class DataflowWorkUnitClientTest {
     WorkUnitClient client = new DataflowWorkUnitClient(pipelineOptions, LOG);
 
     assertEquals(Optional.of(workItem), client.getWorkItem());
-    assertEquals(stageName, DataflowWorkerLoggingMDC.getStageName());
+    assertEquals(stageName, DataflowWorkerLoggingMDC.getSystemStageName());
   }
 
   @Test
