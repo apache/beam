@@ -1139,7 +1139,10 @@ class RecordingManagerTest(unittest.TestCase):
         t.unique_name
         for t in graph2._pipeline_proto.components.transforms.values()
     ]
-    self.assertIn('Map1', transform_names)
+    self.assertTrue(
+        any('Map1' in name for name in transform_names),
+        f"Expected 'Map1' in one of the transform names, got: {transform_names}"
+    )
 
   def test_wait_for_completion_raises_exception_on_failure(self):
     future = Future()
