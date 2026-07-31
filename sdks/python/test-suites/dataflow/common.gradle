@@ -671,7 +671,7 @@ project.tasks.register("inferencePostCommitITPy312") {
 // Create cross-language tasks for running tests against Java expansion service(s)
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
-// IcebergIO needs Java 17+ now; java11 here blows up the Dataflow harness.
+// Default to the minimum required Java version (currently bounded by IcebergIO which needs Java 17+)
 def javaHarnessVersion = project.findProperty('testJavaVersion') ?: '17'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
