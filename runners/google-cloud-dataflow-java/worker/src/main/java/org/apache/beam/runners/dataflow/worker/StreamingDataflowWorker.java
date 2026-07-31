@@ -924,7 +924,7 @@ public final class StreamingDataflowWorker {
                 mapTask,
                 workExecutor,
                 stateNameMap,
-                stateCache.forComputation(mapTask.getStageName())));
+                stateCache.forComputation(mapTask.getStageName(), mapTask.getSystemName())));
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     FailureTracker failureTracker =
         options.isEnableStreamingEngine()
