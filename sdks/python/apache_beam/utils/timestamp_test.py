@@ -172,11 +172,13 @@ class TimestampTest(unittest.TestCase):
     expected_ts = Timestamp(seconds=1234, micros=56)
     self.assertEqual(actual_ts, expected_ts)
 
-  def test_from_proto_fails_with_truncation(self):
-    # TODO(https://github.com/apache/beam/issues/19922): Better define
-    # timestamps.
-    with self.assertRaises(ValueError):
-      Timestamp.from_proto(timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
+  def test_from_proto_with_sub_micro_nanos(self):
+    # Sub-microsecond protos produce a nanosecond-precision Timestamp
+    # instead of losing precision (or raising, as this method used to).
+    actual_ts = Timestamp.from_proto(
+        timestamp_pb2.Timestamp(seconds=1234, nanos=56789))
+    self.assertEqual(actual_ts.precision(), Timestamp.NANOS_PRECISION)
+    self.assertEqual(actual_ts.nanos, 1234 * 10**9 + 56789)
 
   def test_to_proto(self):
     ts = Timestamp(seconds=1234, micros=56)
@@ -191,6 +193,181 @@ class TimestampTest(unittest.TestCase):
         self.assertTrue(min_val <= max_val, "%s <= %s" % (min_val, max_val))
         self.assertTrue(max_val > min_val, "%s > %s" % (max_val, min_val))
         self.assertTrue(max_val >= min_val, "%s >= %s" % (max_val, min_val))
+
+
+class TimestampPrecisionTest(unittest.TestCase):
+  def test_constructor(self):
+    ts = Timestamp(seconds=1234, subseconds=123456789, precision=9)
+    self.assertEqual(ts.seconds(), 1234)
+    self.assertEqual(ts.subseconds(), 123456789)
+    self.assertEqual(ts.precision(), 9)
+    self.assertEqual(ts.nanos, 1234123456789)
+
+    # Subseconds overflowing a second carry into seconds.
+    ts = Timestamp(seconds=1, subseconds=1500, precision=3)
+    self.assertEqual(ts.seconds(), 2)
+    self.assertEqual(ts.subseconds(), 500)
+
+    # Negative timestamps floor seconds so subseconds stay non-negative.
+    ts = Timestamp(seconds=-2, subseconds=500000, precision=6)
+    self.assertEqual(ts.seconds(), -2)
+    self.assertEqual(ts.subseconds(), 500000)
+    self.assertEqual(ts, Timestamp(-1.5))
+
+  def test_constructor_validation(self):
+    with self.assertRaises(ValueError):
+      Timestamp(0, 0, precision=10)
+    with self.assertRaises(ValueError):
+      Timestamp(0, 0, precision=-1)
+    with self.assertRaises(TypeError):
+      Timestamp(0, 0, precision=6.0)  # type: ignore[arg-type]
+    # micros is an alias for subseconds at the default precision only.
+    with self.assertRaises(ValueError):
+      Timestamp(0, subseconds=1, micros=1)
+    with self.assertRaises(ValueError):
+      Timestamp(0, precision=9, micros=1)
+    self.assertEqual(Timestamp(1, micros=500000), Timestamp(1.5))
+
+  def test_default_precision_is_micros(self):
+    self.assertEqual(Timestamp(1.5).precision(), Timestamp.MICROS_PRECISION)
+    self.assertEqual(Timestamp.now().precision(), Timestamp.MICROS_PRECISION)
+
+  def test_equality_across_precisions(self):
+    self.assertEqual(
+        Timestamp(seconds=1, subseconds=500, precision=3),
+        Timestamp(seconds=1, subseconds=500000000, precision=9))
+    self.assertEqual(
+        hash(Timestamp(seconds=1, subseconds=500, precision=3)),
+        hash(Timestamp(seconds=1, subseconds=500000000, precision=9)))
+    # An equal Duration must hash equal too.
+    self.assertEqual(hash(Timestamp(micros=5)), hash(Duration(micros=5)))
+    self.assertNotEqual(
+        Timestamp(seconds=1, subseconds=500000001, precision=9),
+        Timestamp(seconds=1, subseconds=500000, precision=6))
+
+  def test_comparison(self):
+    self.assertLess(
+        Timestamp(seconds=1, subseconds=500000000, precision=9),
+        Timestamp(seconds=1, subseconds=500001, precision=6))
+    self.assertGreater(
+        Timestamp(seconds=1, subseconds=500000001, precision=9),
+        Timestamp(seconds=1, subseconds=500000, precision=6))
+    self.assertLess(Timestamp(2.1), Timestamp(3))
+    self.assertGreater(Timestamp(3), Timestamp(2.1))
+
+  def test_str(self):
+    self.assertEqual('Timestamp(1.500)', str(Timestamp(1, 500, precision=3)))
+    self.assertEqual(
+        'Timestamp(1.123456789)', str(Timestamp(1, 123456789, precision=9)))
+    self.assertEqual(
+        'Timestamp(-1.500000000)', str(Timestamp(-1.5, precision=9)))
+    self.assertEqual('Timestamp(1)', str(Timestamp(1, precision=9)))
+    self.assertEqual('Timestamp(1)', str(Timestamp(1, precision=0)))
+
+  def test_precision_conversion(self):
+    ts = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    self.assertIs(ts.to_precision(9), ts)
+    # Lossless upward conversion.
+    up = Timestamp(1.5).to_precision(9)
+    self.assertEqual(up.precision(), 9)
+    self.assertEqual(up, Timestamp(1.5))
+    # Lossy downward conversion requires explicit permission and floors.
+    with self.assertRaises(ValueError):
+      ts.to_precision(6)
+    truncated = ts.to_precision(6, allow_lossy_conversion=True)
+    self.assertEqual(truncated.precision(), 6)
+    self.assertEqual(truncated.micros, 1123456)
+    # A lossless downward conversion doesn't require the flag.
+    self.assertEqual(Timestamp(1.5, precision=9).to_precision(3).precision(), 3)
+    # Truncation of negative timestamps floors towards negative infinity.
+    negative = Timestamp(
+        seconds=-1, precision=9).predecessor().to_precision(
+            6, allow_lossy_conversion=True)
+    self.assertEqual(negative, Timestamp(-1) - Duration(micros=1))
+
+  def test_micros_guard_rail(self):
+    ts = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    with self.assertRaises(ValueError):
+      _ = ts.micros
+    self.assertEqual(ts.nanos, 1123456789)
+    self.assertEqual(Timestamp(1, 500, precision=3).micros, 1500000)
+
+  def test_predecessor_successor(self):
+    ts = Timestamp(seconds=10, precision=9)
+    self.assertEqual(ts.predecessor().nanos, 10 * 10**9 - 1)
+    self.assertEqual(ts.successor().nanos, 10 * 10**9 + 1)
+    self.assertEqual(ts.predecessor().precision(), 9)
+    self.assertEqual(ts.successor().seconds(), 10)
+    self.assertEqual(ts.predecessor().seconds(), 9)
+    # Micros-precision timestamps keep their historical 1-micro step.
+    self.assertEqual(Timestamp(10).predecessor().micros, 10 * 10**6 - 1)
+
+  def test_to_utc_datetime_guard_rail(self):
+    ts = Timestamp(seconds=1234, subseconds=123456789, precision=9)
+    with self.assertRaises(ValueError):
+      ts.to_utc_datetime()
+    dt = ts.to_utc_datetime(allow_lossy_conversion=True)
+    self.assertEqual(dt.microsecond, 123456)
+    # Timestamps at or below microsecond precision convert freely.
+    Timestamp(1.5).to_utc_datetime()
+
+  def test_to_rfc3339_is_lossless(self):
+    ts = Timestamp(seconds=1458343379, subseconds=123456789, precision=9)
+    self.assertEqual(ts.to_rfc3339(), '2016-03-18T23:22:59.123456789Z')
+    self.assertEqual(Timestamp.from_rfc3339(ts.to_rfc3339()), ts)
+    # Whole seconds have no fractional digits, as before.
+    self.assertEqual(
+        Timestamp(1458343379, precision=9).to_rfc3339(), '2016-03-18T23:22:59Z')
+
+  def test_from_rfc3339_with_nanos(self):
+    ts = Timestamp.from_rfc3339('2016-03-18T23:22:59.123456789Z')
+    self.assertEqual(ts.precision(), 9)
+    self.assertEqual(ts.subseconds(), 123456789)
+    # Precision matches the number of fractional digits (above 6).
+    ts = Timestamp.from_rfc3339('2016-03-18T23:22:59.1234567Z')
+    self.assertEqual(ts.precision(), 7)
+    self.assertEqual(ts.subseconds(), 1234567)
+    self.assertEqual(Timestamp.from_rfc3339(ts.to_rfc3339()), ts)
+    self.assertEqual(
+        Timestamp.from_rfc3339('2016-03-18T23:22:59.123Z').precision(), 6)
+    with self.assertRaises(ValueError):
+      Timestamp.from_rfc3339('2016-03-18T23:22:59.1234567891Z')
+
+  def test_from_rfc3339_with_comma_separator(self):
+    # ISO 8601 also allows ',' as the decimal separator.
+    ts = Timestamp.from_rfc3339('2016-03-18T23:22:59,123456789Z')
+    self.assertEqual(
+        ts, Timestamp.from_rfc3339('2016-03-18T23:22:59.123456789Z'))
+    self.assertEqual(ts.subseconds(), 123456789)
+
+  def test_proto_round_trip_with_nanos(self):
+    ts = Timestamp(seconds=1234, subseconds=123456789, precision=9)
+    self.assertEqual(Timestamp.from_proto(ts.to_proto()), ts)
+    # Negative timestamps use non-negative proto nanos.
+    ts = Timestamp(-1.5, precision=9).predecessor()
+    proto = ts.to_proto()
+    self.assertEqual(proto.seconds, -2)
+    self.assertEqual(proto.nanos, 499999999)
+    self.assertEqual(Timestamp.from_proto(proto), ts)
+
+  def test_arithmetic_preserves_precision(self):
+    ts = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    self.assertEqual((ts + 1).nanos, ts.nanos + 10**9)
+    self.assertEqual((ts + 1).precision(), 9)
+    self.assertEqual((ts - Duration(micros=1)).nanos, ts.nanos - 1000)
+    # Sub-micros precision arithmetic results are widened to micros.
+    self.assertEqual((Timestamp(1, 500, precision=3) + 0.5).precision(), 6)
+
+  def test_duration_arithmetic_guard_rail(self):
+    ts = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    # Exact differences are representable as a (micros) Duration.
+    self.assertEqual(ts - (ts - Duration(micros=3)), Duration(micros=3))
+    self.assertEqual(ts + Duration(micros=5) - ts, Duration(micros=5))
+    # Sub-microsecond differences are not.
+    with self.assertRaises(ValueError):
+      _ = ts - ts.predecessor()
+    with self.assertRaises(ValueError):
+      _ = ts % Duration(seconds=1)
 
 
 class DurationTest(unittest.TestCase):

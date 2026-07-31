@@ -51,6 +51,8 @@ public class GcpCoreApiSurfaceTest {
     final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
             classesInPackage("com.fasterxml.jackson.annotation"),
+            classesInPackage("com.fasterxml.jackson.core"),
+            classesInPackage("com.fasterxml.jackson.databind"),
             classesInPackage("com.google.api.client.googleapis"),
             classesInPackage("com.google.api.client.http"),
             classesInPackage("com.google.api.client.json"),

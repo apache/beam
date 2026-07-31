@@ -21,8 +21,4 @@
  *
  * <p>See {@link org.apache.beam.sdk.io.range.RangeTracker} to get started.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.io.range;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

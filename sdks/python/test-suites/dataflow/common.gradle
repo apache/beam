@@ -146,7 +146,13 @@ task postCommitIT {
 task postCommitArmIT {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
-  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  // When -PusePrebuiltSdkContainer is set, skip building/pushing a multiarch
+  // SDK image and use SDK_CONTAINER_IMAGE from the environment instead (e.g.
+  // gcr.io/apache-beam-testing/beam-sdk/beam_python3.x_sdk:latest from Snapshots).
+  def usePrebuiltSdkContainer = project.rootProject.hasProperty(['usePrebuiltSdkContainer'])
+  if (!usePrebuiltSdkContainer) {
+    dependsOn ":sdks:python:container:py${pyversion}:docker"
+  }
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
