@@ -42,6 +42,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
@@ -232,6 +233,13 @@ public class IcebergUtilsTest {
       OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
       LocalDateTime localDateTime =
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      // Timestamp.MICROS
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant(),
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
       // SqlTypes.DATETIME
       checkRowValueToRecordValue(
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
@@ -426,6 +434,24 @@ public class IcebergUtilsTest {
       OffsetDateTime offsetDateTime = OffsetDateTime.parse(timestamp);
       LocalDateTime localDateTime =
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+
+      // Timestamp.MICROS
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          offsetDateTime,
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          timestamp,
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+
       // SqlTypes.DATETIME
       checkRecordValueToRowValue(
           Types.TimestampType.withZone(),
@@ -456,6 +482,21 @@ public class IcebergUtilsTest {
           dateTime);
       checkRecordValueToRowValue(
           Types.TimestampType.withZone(), timestamp, Schema.FieldType.DATETIME, dateTime);
+    }
+
+    @Test
+    public void testUpdateCompatibilityVersionGatesTimestamptzMapping() {
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(required(0, "ts", Types.TimestampType.withZone()));
+
+      // A pinned, older update-compatibility version keeps the legacy DATETIME mapping on read.
+      Schema pinnedOld = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema, "2.50.0");
+      assertEquals(Schema.FieldType.DATETIME, pinnedOld.getField("ts").getType());
+
+      // An unset (null) or future update-compatibility version uses the new micros mapping.
+      Schema unpinned = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema, null);
+      assertEquals(
+          Schema.FieldType.logicalType(Timestamp.MICROS), unpinned.getField("ts").getType());
     }
 
     @Test
@@ -868,7 +909,7 @@ public class IcebergUtilsTest {
             .addNullableStringField("str")
             .addNullableBooleanField("bool")
             .addByteArrayField("bytes")
-            .addDateTimeField("datetime_tz")
+            .addLogicalTypeField("datetime_tz", Timestamp.MICROS)
             .addLogicalTypeField("datetime", SqlTypes.DATETIME)
             .addLogicalTypeField("time", SqlTypes.TIME)
             .addLogicalTypeField("date", SqlTypes.DATE)
