@@ -17,21 +17,31 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import javax.annotation.Nullable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Indicates that the key token was invalid when data was attempted to be fetched. */
-public class KeyTokenInvalidException extends RuntimeException {
-  public KeyTokenInvalidException(String key) {
-    super("Unable to fetch data due to token mismatch for key " + key);
+/**
+ * Indicates that the work is no longer valid and should be canceled. It is thrown as a signal for
+ * upper layers to mark the work as failed. This is different from WorkItemCancelledException, which
+ * is thrown after marking the work as failed.
+ */
+public class WorkCancellingException extends RuntimeException {
+
+  public WorkCancellingException(long sharding_key) {
+    super("Work cancelling exception for key " + sharding_key);
   }
 
-  /** Returns whether an exception was caused by a {@link KeyTokenInvalidException}. */
-  public static boolean isKeyTokenInvalidException(@Nullable Throwable t) {
-    while (t != null) {
-      if (t instanceof KeyTokenInvalidException) {
+  public WorkCancellingException(Throwable cause) {
+    super(cause);
+  }
+
+  /** Returns whether an exception was caused by a {@link WorkCancellingException}. */
+  public static boolean isWorkCancellingException(Throwable t) {
+    @Nullable Throwable throwable = t;
+    while (throwable != null) {
+      if (throwable instanceof WorkCancellingException) {
         return true;
       }
-      t = t.getCause();
+      throwable = throwable.getCause();
     }
     return false;
   }

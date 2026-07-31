@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -30,9 +32,9 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
-import org.apache.beam.runners.dataflow.worker.streaming.Work.KeyGroup;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -260,7 +262,7 @@ public class BoundedQueueExecutor {
       implements BoundedQueueExecutorWorkHandle, AutoCloseable {
 
     @GuardedBy("this")
-    private int elements;
+    private final List<Work> workBatch;
 
     @GuardedBy("this")
     private long bytes;
@@ -268,16 +270,17 @@ public class BoundedQueueExecutor {
     @GuardedBy("this")
     private boolean closed = false;
 
-    private BoundedQueueExecutorWorkHandleImpl(int elements, long bytes) {
-      checkArgument(elements >= 0 && bytes >= 0);
-      this.elements = elements;
+    private BoundedQueueExecutorWorkHandleImpl(Work work, long bytes) {
+      checkArgument(bytes >= 0);
+      this.workBatch = new ArrayList<>();
+      this.workBatch.add(checkArgumentNotNull(work));
       this.bytes = bytes;
     }
 
     /**
      * Merges the budget from another handle into this handle.
      *
-     * <p>This transfers the budget (elements and bytes) from the {@code other} handle to this
+     * <p>This transfers the budget (workBatch and bytes) from the {@code other} handle to this
      * handle, and marks the {@code other} handle as closed to prevent it from releasing the budget
      * again if it is closed.
      */
@@ -287,10 +290,10 @@ public class BoundedQueueExecutor {
         Preconditions.checkState(!closed, "Cannot merge into a closed handle");
         synchronized (other) {
           Preconditions.checkState(!other.closed, "Cannot merge a closed handle");
-          this.elements += other.elements;
+          this.workBatch.addAll(other.workBatch);
           this.bytes += other.bytes;
           other.closed = true;
-          other.elements = 0;
+          other.workBatch.clear();
           other.bytes = 0;
         }
       }
@@ -300,9 +303,9 @@ public class BoundedQueueExecutor {
       return closed;
     }
 
-    @VisibleForTesting
-    synchronized int elements() {
-      return elements;
+    @Override
+    public synchronized ImmutableList<Work> getWorkBatch() {
+      return ImmutableList.copyOf(workBatch);
     }
 
     @VisibleForTesting
@@ -314,7 +317,7 @@ public class BoundedQueueExecutor {
     public synchronized void close() {
       if (closed) return;
       closed = true;
-      decrementCounters(this.elements, this.bytes);
+      decrementCounters(this.workBatch.size(), this.bytes);
     }
   }
 
@@ -350,7 +353,7 @@ public class BoundedQueueExecutor {
     bytesOutstanding += workBytes;
     monitor.leave();
     BoundedQueueExecutorWorkHandleImpl handle =
-        new BoundedQueueExecutorWorkHandleImpl(1, workBytes);
+        new BoundedQueueExecutorWorkHandleImpl(work.work(), workBytes);
     try {
       executor.execute(new QueuedWork(work, handle));
     } catch (Throwable t) {
@@ -379,14 +382,15 @@ public class BoundedQueueExecutor {
   }
 
   @VisibleForTesting
-  BoundedQueueExecutorWorkHandleImpl createBudgetHandle(int elements, long bytes) {
-    return new BoundedQueueExecutorWorkHandleImpl(elements, bytes);
+  BoundedQueueExecutorWorkHandleImpl createBudgetHandle(Work work, long bytes) {
+    return new BoundedQueueExecutorWorkHandleImpl(work, bytes);
   }
 
   public @Nullable ExecutableWork pollWork(
       String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+    checkArgument(
+        computationId != null && keyGroup != null && !keyGroup.equals(Work.KeyGroup.DEFAULT));
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
-    checkArgument(computationId != null && keyGroup != null && !keyGroup.equals(KeyGroup.DEFAULT));
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     if (keyGroupWorkQueue == null) {
       return null;

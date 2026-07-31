@@ -72,6 +72,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -261,22 +262,33 @@ public class StreamingDataflowWorkerTest {
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
 
   private static GetDataResponse emptyDataResponder(GetDataRequest request) {
-    GetDataResponse.Builder builder = GetDataResponse.newBuilder();
-    for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
-      ComputationGetDataResponse.Builder compBuilder =
-          builder.addDataBuilder().setComputationId(compRequest.getComputationId());
-      for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
-        KeyedGetDataResponse.Builder keyBuilder =
-            compBuilder
-                .addDataBuilder()
-                .setKey(keyRequest.getKey())
-                .setShardingKey(keyRequest.getShardingKey());
-        keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
-        keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
-        keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+    return emptyDataResponderWithFailedWorkTokens(Set.of()).apply(request);
+  }
+
+  private static Function<GetDataRequest, GetDataResponse> emptyDataResponderWithFailedWorkTokens(
+      Set<Long> failedWorkTokens) {
+    return (GetDataRequest request) -> {
+      GetDataResponse.Builder builder = GetDataResponse.newBuilder();
+      for (ComputationGetDataRequest compRequest : request.getRequestsList()) {
+        ComputationGetDataResponse.Builder compBuilder =
+            builder.addDataBuilder().setComputationId(compRequest.getComputationId());
+        for (KeyedGetDataRequest keyRequest : compRequest.getRequestsList()) {
+          KeyedGetDataResponse.Builder keyBuilder =
+              compBuilder
+                  .addDataBuilder()
+                  .setKey(keyRequest.getKey())
+                  .setShardingKey(keyRequest.getShardingKey());
+          if (failedWorkTokens.contains(keyRequest.getWorkToken())) {
+            keyBuilder.setFailed(true);
+            continue;
+          }
+          keyBuilder.addAllValues(keyRequest.getValuesToFetchList());
+          keyBuilder.addAllBags(keyRequest.getBagsToFetchList());
+          keyBuilder.addAllWatermarkHolds(keyRequest.getWatermarkHoldsToFetchList());
+        }
       }
-    }
-    return builder.build();
+      return builder.build();
+    };
   }
 
   private final boolean streamingEngine;
@@ -372,7 +384,8 @@ public class StreamingDataflowWorkerTest {
             Work.createProcessingContext(
                 computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
-            Instant::now),
+            Instant::now,
+            ImmutableList.of()),
         (work, handle) -> {
           processWorkFn.accept(work);
         });
@@ -901,7 +914,7 @@ public class StreamingDataflowWorkerTest {
   }
 
   private DataflowWorkerHarnessOptions createTestingPipelineOptions(String... args) {
-    List<String> argsList = Lists.newArrayList(args);
+    List<String> argsList = new ArrayList<>(Arrays.asList(args));
     if (streamingEngine) {
       argsList.add("--experiments=enable_streaming_engine");
     }
@@ -1252,42 +1265,283 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testKeyTokenInvalidException() throws Exception {
-    if (streamingEngine) {
-      // TODO: This test needs to be adapted to work with streamingEngine=true.
+  public void testMultiKeyCommit_success() throws Exception {
+    if (!streamingEngine) {
       return;
     }
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key3\""
+            + "    sharding_key: 3"
+            + "    work_token: 3"
+            + "    cache_token: 4"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data3\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(3);
+
+    assertEquals(3, result.size());
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(3, multiKeyCommit.getRequestsCount());
+    assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
+    assertEquals(2, multiKeyCommit.getRequests(1).getWorkToken());
+    assertEquals(3, multiKeyCommit.getRequests(2).getWorkToken());
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKeyCommit_elementFailure() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key3\""
+            + "    sharding_key: 3"
+            + "    work_token: 3"
+            + "    cache_token: 4"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data3\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server
+        .whenGetDataCalled()
+        .answerByDefault(
+            StreamingDataflowWorkerTest.emptyDataResponderWithFailedWorkTokens(Set.of(2L)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(3L));
+    assertFalse(result.containsKey(2L));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(2, multiKeyCommit.getRequestsCount());
+    assertEquals(3, multiKeyCommit.getRequests(0).getWorkToken());
+    assertEquals(1, multiKeyCommit.getRequests(1).getWorkToken());
+
+    worker.stop();
+  }
+
+  @Test
+  public void testCompleteCommit_retryableFailureTriggersReExecution() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker();
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server
+        .whenGetDataCalled()
+        .answerByDefault(
+            StreamingDataflowWorkerTest.emptyDataResponderWithFailedWorkTokens(Set.of(2L)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+
+    assertTrue(result.containsKey(1L));
+    assertFalse(result.containsKey(2L));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(1, multiKeyCommit.getRequestsCount());
+    assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
+
+    worker.stop();
+  }
+
+  private StreamingDataflowWorker makeMultiKeyEnabledWorker() {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new KeyTokenInvalidFn(), 0, kvCoder),
+            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
             makeSinkInstruction(kvCoder, 1));
 
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(0, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
-
     StreamingDataflowWorker worker =
-        makeWorker(defaultWorkerParams().setInstructions(instructions).publishCounters().build());
-    worker.start();
-
-    server.waitForEmptyWorkQueue();
-
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY));
-
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-
-    assertEquals(
-        makeExpectedOutput(1, 0, DEFAULT_KEY_STRING, DEFAULT_SHARDING_KEY, DEFAULT_KEY_STRING)
-            .build(),
-        removeDynamicFields(result.get(1L)));
-    assertEquals(1, result.size());
-
-    worker.stop();
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=50000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .build());
+    return worker;
   }
 
   private void runKeyCommitTooLargeExceptionTest(
@@ -3717,7 +3971,8 @@ public class StreamingDataflowWorkerTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            clock);
+            clock,
+            ImmutableList.of());
 
     clock.sleep(Duration.millis(10));
     work.setState(Work.State.PROCESSING);
@@ -4566,18 +4821,19 @@ public class StreamingDataflowWorkerTest {
     }
   }
 
-  static class KeyTokenInvalidFn extends DoFn<KV<String, String>, KV<String, String>> {
-
-    static boolean thrown = false;
+  static class WorkDoFn extends DoFn<KV<String, String>, KV<String, String>> {
+    @StateId("state")
+    private final StateSpec<ValueState<String>> stateSpec = StateSpecs.value(StringUtf8Coder.of());
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (!thrown) {
-        thrown = true;
-        throw new KeyTokenInvalidException("key");
-      } else {
-        c.output(c.element());
+    public void processElement(ProcessContext c, @StateId("state") ValueState<String> state) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
+      state.read();
+      c.output(c.element());
     }
   }
 

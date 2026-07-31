@@ -145,11 +145,24 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
   }
 
   private void failQueuedCommit(Commit commit) {
+    boolean isRunningCopy = isRunning.get();
+
     for (Work w : commit.workBatch()) {
-      w.setFailed();
+      // Shutting down, fail everything unconditionally to prevent infinite loops
+      if (!isRunningCopy) {
+        w.setFailed();
+      }
+      // fail failed work, and request re-execution for valid ones
+      boolean retryableFailure = !w.isFailed();
+      LOG.debug(
+          "onCommitComplete for work {} from failed commit, retry: {}", w.id(), retryableFailure);
       onCommitComplete.accept(
           CompleteCommit.create(
-              commit.computationId(), w.getShardedKey(), w.id(), CommitStatus.ABORTED));
+              commit.computationId(),
+              w.getShardedKey(),
+              w.id(),
+              CommitStatus.ABORTED,
+              retryableFailure));
     }
   }
 
@@ -227,7 +240,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 for (Work w : commit.workBatch()) {
                   onCommitComplete.accept(
                       CompleteCommit.create(
-                          commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
+                          commit.computationId(),
+                          w.getShardedKey(),
+                          w.id(),
+                          commitStatus,
+                          /* retryableFailure= */ false));
                 }
                 activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
@@ -240,7 +257,11 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 Work w = commit.workBatch().get(0);
                 onCommitComplete.accept(
                     CompleteCommit.create(
-                        commit.computationId(), w.getShardedKey(), w.id(), commitStatus));
+                        commit.computationId(),
+                        w.getShardedKey(),
+                        w.id(),
+                        commitStatus,
+                        /* retryableFailure= */ false));
                 activeCommitBytes.addAndGet(-commit.getSerializedByteSize());
               });
     }
