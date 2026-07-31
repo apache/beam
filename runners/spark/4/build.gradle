@@ -53,11 +53,13 @@ tasks.validatesStructuredStreamingRunnerBatch {
 
 tasks.validatesRunner.dependsOn(validatesStructuredStreamingRunnerBatch)
 
-// Exclude DStream-based streaming tests from the shared-base copy: the Spark 4 module
-// supports only structured streaming (batch) and does not include legacy DStream support.
+// Exclude legacy DStream-based streaming tests (under runners/spark/translation/streaming)
+// from the shared-base copy: the Spark 4 module does not include legacy DStream support.
 // Streaming test utilities also depend on kafka.server.KafkaServerStartable which was
 // removed in Kafka 2.8.0 (the first Kafka version with a _2.13 artifact).
+// Note: structured streaming tests (**/structuredstreaming/translation/streaming/**) are
+// intentionally NOT excluded.
 tasks.named("copyTestSourceOverrides") {
-  exclude "**/translation/streaming/**"
+  exclude "**/runners/spark/translation/streaming/**"
 }
 
