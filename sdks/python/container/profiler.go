@@ -426,15 +426,18 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 		}
 
 		corePath := filepath.Join(coreDir, name)
-		info, err := os.Stat(corePath)
-		if err != nil {
-			continue
+		var info os.FileInfo
+		var err error
+
+		for {
+			info, err = os.Stat(corePath)
+			if err != nil || time.Since(info.ModTime()) >= 2*time.Second {
+				break
+			}
+			// Wait for the core file to finish being written.
+			time.Sleep(500 * time.Millisecond)
 		}
-
-		fileAge := time.Since(info.ModTime())
-
-		// Skip if the file was modified very recently (might still be writing)
-		if fileAge < 2*time.Second {
+		if err != nil {
 			continue
 		}
 
@@ -451,7 +454,8 @@ func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *Profil
 		newName := fmt.Sprintf("%s-%s", name, timeSuffix)
 		destTxtPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.txt", newName))
 
-		shouldDelete := fileAge > 60*time.Second
+		// Delete the core file after up to 2 attempts to process it.
+		shouldDelete := time.Since(info.ModTime()) > time.Duration(pcfg.PostprocessIntervalSec)*time.Second
 
 		pystackPath, pystackErr := exec.LookPath("pystack")
 		gdbPath, gdbErr := exec.LookPath("gdb")
