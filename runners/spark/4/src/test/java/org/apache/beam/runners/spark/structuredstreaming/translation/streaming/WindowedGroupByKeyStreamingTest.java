@@ -52,8 +52,7 @@ import org.junit.runners.JUnit4;
  * Windowed {@code GroupByKey} (via {@link Count#perKey()}, which auto-expands to {@code GroupByKey}
  * + {@code Combine} since {@code Combine.PerKey} is deliberately unregistered for streaming, see
  * {@code PipelineTranslatorStreaming}). This is hosted by the generic {@code transformWithState}
- * super-operator in {@code BeamStatefulProcessorConfig.Mode #GROUP_ALSO_BY_WINDOW}, so every test
- * here needs the same Kryo relaxation as {@code BeamStatefulProcessorTest}.
+ * super-operator in {@code BeamStatefulProcessorConfig.Mode #GROUP_ALSO_BY_WINDOW}.
  *
  * <p>Every window this suite asserts on is followed, in the input list, by an element timestamped
  * well past that window's end, per the watermark rule documented on {@link StreamingTestUtils}: the

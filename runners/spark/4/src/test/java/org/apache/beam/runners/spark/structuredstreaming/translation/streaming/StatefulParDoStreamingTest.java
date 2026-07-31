@@ -57,8 +57,7 @@ import org.junit.runners.JUnit4;
  * A stateful {@code ParDo} in the global window: a {@code @StateId ValueState<Boolean>} dedups
  * repeated keys, and an event time {@code @TimerId} emits a sentinel once it expires. Hosted by the
  * generic {@code transformWithState} super-operator ({@code
- * BeamStatefulProcessorConfig.Mode#STATEFUL_PARDO}), so needs the same Kryo relaxation as {@code
- * BeamStatefulProcessorTest}.
+ * BeamStatefulProcessorConfig.Mode#STATEFUL_PARDO}).
  */
 @RunWith(JUnit4.class)
 @Category(StreamingTest.class)

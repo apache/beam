@@ -63,7 +63,9 @@ import org.junit.runners.JUnit4;
  * still correctly decide when it has seen everything it is going to see. Everything else in this
  * package tests one operator at a time; this one tests that they compose.
  *
- * <p>Needs the same Kryo relaxation as {@code BeamStatefulProcessorTest}, for the same reason.
+ * <p>See {@code ChainedStatefulStreamingEvidenceTest} for the same pipeline asserted against
+ * Spark's own {@code StreamingQueryProgress}, which is what evidences that the two operators really
+ * do share one query and one advancing watermark rather than merely producing the right numbers.
  */
 @RunWith(JUnit4.class)
 @Category(StreamingTest.class)

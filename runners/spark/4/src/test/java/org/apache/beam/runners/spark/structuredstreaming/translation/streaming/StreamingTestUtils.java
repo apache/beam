@@ -180,9 +180,8 @@ public final class StreamingTestUtils {
    * {@link SparkStructuredStreamingRunner}, test mode, streaming mode, a 3-idle-batch stop, a 200ms
    * micro-batch trigger, and a checkpoint directory carved out of {@code checkpointDir}.
    *
-   * <p>Callers that need a specific {@code SparkSession} (for example the relaxed-Kryo {@code
-   * SparkSessionRule} pattern required by any query that hosts a {@code transformWithState}
-   * operator, see {@code BeamStatefulProcessorTest}) should additionally call {@code
+   * <p>Callers that need the test to run against a specific {@code SparkSession}, for example the
+   * one held by a {@code SparkSessionRule}, should additionally call {@code
    * SparkSessionRule#configure} on the returned options, which sets {@code useActiveSparkSession}.
    */
   public static SparkStructuredStreamingPipelineOptions streamingOptions(
