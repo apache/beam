@@ -121,7 +121,7 @@ public class DataflowWorkUnitClientTest {
     // Publish and acquire a map task work item, and verify we're now processing that stage.
     final String stageName = "test_stage_name";
     MapTask mapTask = new MapTask();
-    mapTask.setStageName(stageName);
+    mapTask.setSystemName(stageName);
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
     workItem.setMapTask(mapTask);
 
@@ -141,7 +141,7 @@ public class DataflowWorkUnitClientTest {
     // Publish and acquire a seq map task work item, and verify we're now processing that stage.
     final String stageName = "test_stage_name";
     SeqMapTask seqMapTask = new SeqMapTask();
-    seqMapTask.setStageName(stageName);
+    seqMapTask.setSystemName(stageName);
     WorkItem workItem = createWorkItem(PROJECT_ID, JOB_ID);
     workItem.setSeqMapTask(seqMapTask);
 
