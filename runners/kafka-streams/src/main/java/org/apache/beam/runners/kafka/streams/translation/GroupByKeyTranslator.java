@@ -97,7 +97,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
     String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
     // The shuffle is what changes the parallelism: everything from the repartition topic onwards
     // runs one task per partition of it.
-    int partitionCount = context.getPipelineOptions().getTopicPartitions();
+    int partitionCount = context.getPipelineOptions().getInternalParallelism();
 
     String shuffleName = transformId + SHUFFLE_SUFFIX;
     String sinkName = transformId + SINK_SUFFIX;
@@ -113,7 +113,7 @@ class GroupByKeyTranslator implements PTransformTranslator {
     Topology topology = context.getTopology();
 
     // Re-key data records by the encoded Beam key; pass watermark reports through.
-    // The shuffle runs in the upstream transform's task, so it restamps each report with that
+    // The shuffle runs in the upstream transform's task, so it relabels each report with that
     // transform's instance identity before the sink broadcasts it to every partition.
     int upstreamPartitionCount = context.getPartitionCount(inputPCollectionId);
     topology.addProcessor(

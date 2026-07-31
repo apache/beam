@@ -284,8 +284,8 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> trigger, long watermarkMillis) {
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
-    // Stamped as the only source a consumer will see; see ExecutableStageProcessor for why an
-    // in-process edge reports a single source and a shuffle restamps.
+    // Labelled as the only source a consumer will see; see ExecutableStageProcessor for why an
+    // in-process edge reports a single source and a shuffle relabels.
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
             trigger.key(),

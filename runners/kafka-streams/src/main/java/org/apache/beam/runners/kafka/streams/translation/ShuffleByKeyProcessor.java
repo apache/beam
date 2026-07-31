@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * Kafka record key to the encoded Beam key (taken from the {@code KV}), so the downstream
  * repartition sink co-locates every value of a key.
  *
- * <p>Watermark reports are restamped here with the reporting instance's real partition identity.
+ * <p>Watermark reports are relabelled here with the reporting instance's real partition identity.
  * This is the point at which a report stops being delivered in-process and starts crossing a topic:
  * upstream of it a transform forwards to its fused children, which see exactly one instance of it,
  * so the report names a single source. The {@link GroupByKeyBroadcastPartitioner} on the sink below

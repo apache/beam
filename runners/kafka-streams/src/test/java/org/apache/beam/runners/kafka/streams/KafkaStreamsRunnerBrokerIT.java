@@ -54,7 +54,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -83,7 +83,11 @@ public class KafkaStreamsRunnerBrokerIT {
 
   @BeforeClass
   public static void startBroker() {
-    kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.1"));
+    // The official Apache Kafka image. 4.0.0 rather than the 3.9.0 the runner's client is built
+    // against: Testcontainers' KafkaContainer cannot bring up the 3.9.0 image (it exits during
+    // startup), and a client talking to a newer broker is the compatibility direction Kafka
+    // supports anyway.
+    kafka = new KafkaContainer(DockerImageName.parse("apache/kafka:4.0.0"));
     kafka.start();
   }
 
@@ -124,7 +128,7 @@ public class KafkaStreamsRunnerBrokerIT {
     options.setRunner(CrashingRunner.class);
     options.setBootstrapServers(kafka.getBootstrapServers());
     options.setApplicationId("ks-broker-it-" + UUID.randomUUID());
-    options.setTopicPartitions(topicPartitions);
+    options.setInternalParallelism(topicPartitions);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);

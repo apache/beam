@@ -56,15 +56,17 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
   void setMaxBundleTimeMs(int maxBundleTimeMs);
 
   @Description(
-      "Number of partitions for the topics the runner creates for a pipeline (the bootstrap topic"
-          + " of each Impulse and Read, and the repartition topic of each GroupByKey). This is the"
-          + " parallelism the shuffled parts of the pipeline can reach.")
+      "How many partitions the runner gives the internal topics it creates to shuffle a pipeline"
+          + " through, which is the parallelism the shuffled parts of that pipeline can reach. A"
+          + " GroupByKey runs one task per partition of its repartition topic, so this is the"
+          + " number of instances its state and its downstream stages are spread over. Must be at"
+          + " least 1.")
   @Default.Integer(1)
-  int getTopicPartitions();
+  int getInternalParallelism();
 
-  void setTopicPartitions(int topicPartitions);
+  void setInternalParallelism(int internalParallelism);
 
-  @Description("Replication factor for the topics the runner creates for a pipeline.")
+  @Description("Replication factor for the internal topics the runner creates for a pipeline.")
   @Default.Short(1)
   short getTopicReplicationFactor();
 

@@ -52,6 +52,14 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     // equivalent PortablePipelineRunner does not validate here either.
     checkRequiredOption("applicationId", pipelineOptions.getApplicationId());
     checkRequiredOption("bootstrapServers", pipelineOptions.getBootstrapServers());
+    // A topic cannot have fewer than one partition, and the value is also the number of watermark
+    // reports a shuffle's consumer waits for, so a non-positive value would leave it waiting
+    // forever rather than failing.
+    if (pipelineOptions.getInternalParallelism() < 1) {
+      throw new IllegalArgumentException(
+          "--internalParallelism must be at least 1, but was "
+              + pipelineOptions.getInternalParallelism());
+    }
 
     KafkaStreamsPipelineTranslator translator = new KafkaStreamsPipelineTranslator();
     KafkaStreamsTranslationContext context =

@@ -99,7 +99,7 @@ class FlattenProcessor
     Instant advanced = watermarkAggregator.advance();
     if (advanced.isAfter(lastForwardedWatermark)) {
       lastForwardedWatermark = advanced;
-      // Stamped as the only source a consumer will see; a shuffle downstream restamps.
+      // Labelled as the only source a consumer will see; a shuffle downstream relabels it.
       ctx.forward(
           new Record<byte[], KStreamsPayload<?>>(
               record.key(),

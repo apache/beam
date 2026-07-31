@@ -150,7 +150,9 @@ class KafkaStreamsTopicManager {
    * configured parallelism for a shuffle topic.
    */
   private static int partitionsFor(String topic, KafkaStreamsPipelineOptions options) {
-    return hasAnyPrefix(topic, SINGLE_PARTITION_TOPIC_PREFIXES) ? 1 : options.getTopicPartitions();
+    return hasAnyPrefix(topic, SINGLE_PARTITION_TOPIC_PREFIXES)
+        ? 1
+        : options.getInternalParallelism();
   }
 
   private static boolean isRunnerOwned(String topic) {

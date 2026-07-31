@@ -286,9 +286,10 @@ class ExecutableStageProcessor
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
-    // Stamped as the only source a consumer will see. Forwarding here is in-process, to the stage's
+    // Labelled as the only source a consumer will see. Forwarding here is in-process, to the
+    // stage's
     // fused children, so exactly one instance of this stage reaches each of them. Where the output
-    // instead crosses a shuffle, ShuffleByKeyProcessor restamps the report with the real partition
+    // instead crosses a shuffle, ShuffleByKeyProcessor relabels the report with the real partition
     // identity, because the broadcast then delivers every instance's report to every consumer.
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(

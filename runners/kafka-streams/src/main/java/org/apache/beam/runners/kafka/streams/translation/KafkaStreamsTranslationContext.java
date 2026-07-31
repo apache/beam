@@ -134,6 +134,10 @@ public class KafkaStreamsTranslationContext {
   /**
    * How many partitions the transform producing {@code pCollectionId} runs across; one unless a
    * shuffle upstream raised it.
+   *
+   * <p>Always at least one: an unregistered PCollection is produced by a single instance, and the
+   * only value ever registered is {@code --internalParallelism}, which the runner rejects below one
+   * before translating.
    */
   public int getPartitionCount(String pCollectionId) {
     return pCollectionIdToPartitionCount.getOrDefault(pCollectionId, 1);
