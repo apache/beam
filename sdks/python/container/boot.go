@@ -415,6 +415,7 @@ func launchSDKProcess() error {
 						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
+						cleanUpProfiler(ctx, logger)
 						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
