@@ -311,14 +311,14 @@ public class SparkSessionFactory {
      *       registered {@link DataWritingSparkTaskResult}.
      * </ul>
      *
-     * <p>Both are Scala case classes holding further Scala and Spark types ({@code
-     * immutable.Map}, {@code StructType}, {@code org.apache.avro.Schema}, {@code Row}), none of
-     * which are registered either. Registering them with a {@link JavaSerializer} rather than
-     * Kryo's default field serializer covers that whole object graph in one go, since both classes
-     * are {@link java.io.Serializable}. That keeps this list from having to track Spark's internal
-     * field layout across versions. Neither object is on a hot path, one is broadcast once per
-     * query and the other is one message per task commit, so the cost of Java serialization here
-     * does not matter.
+     * <p>Both are Scala case classes holding further Scala and Spark types ({@code immutable.Map},
+     * {@code StructType}, {@code org.apache.avro.Schema}, {@code Row}), none of which are
+     * registered either. Registering them with a {@link JavaSerializer} rather than Kryo's default
+     * field serializer covers that whole object graph in one go, since both classes are {@link
+     * java.io.Serializable}. That keeps this list from having to track Spark's internal field
+     * layout across versions. Neither object is on a hot path, one is broadcast once per query and
+     * the other is one message per task commit, so the cost of Java serialization here does not
+     * matter.
      */
     private void registerSparkStreamingInternals(Kryo kryo) {
       tryToRegister(

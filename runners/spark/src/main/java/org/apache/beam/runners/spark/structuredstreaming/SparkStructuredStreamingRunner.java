@@ -54,8 +54,8 @@ import org.slf4j.LoggerFactory;
  * Streaming framework</a>).
  *
  * <p><b>This runner is experimental, its coverage of the Beam model is still partial. Streaming
- * mode requires the Spark 4 module (beam-runners-spark-4); the shared Spark 3 module supports
- * batch pipelines only. </b>
+ * mode requires the Spark 4 module (beam-runners-spark-4); the shared Spark 3 module supports batch
+ * pipelines only. </b>
  *
  * <p>The runner translates transforms defined on a Beam pipeline to Spark `Dataset` transformations
  * (leveraging the high level Dataset API) and then submits these to Spark to be executed.
