@@ -331,7 +331,6 @@ class PubSubSubscriptionCleaner(StaleCleaner):
     def _active_resources(self) -> dict:
         d = {}
         self.client = pubsub_v1.SubscriberClient()
-        taxi_prefix = f"{self.project_path}/subscriptions/taxirides-realtime_beam_"
 
         with self.client:
             for subscription in self.client.list_subscriptions(request={"project": self.project_path}):
@@ -342,7 +341,7 @@ class PubSubSubscriptionCleaner(StaleCleaner):
                 #Only attached subscriptions with the NYC taxi prefix are eligible.
                 elif any(
                     subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes
-                ) and subscription_name.startswith(taxi_prefix):
+                ):
                     d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
 
         return d
