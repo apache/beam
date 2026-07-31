@@ -55,6 +55,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, highmem]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -72,4 +74,6 @@ jobs:
             -PmavenLocalPath='${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
       - name: Clean up local maven
         if: steps.setup_local_maven.outcome == 'success'
-        run: rm -rf '${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
+        run: rm -rf '${STEPS_SETUP_LOCAL_MAVEN_OUTPUTS_NEW_TEMP_DIR}'
+        env:
+          STEPS_SETUP_LOCAL_MAVEN_OUTPUTS_NEW_TEMP_DIR: ${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}

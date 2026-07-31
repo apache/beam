@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.testing.PAssert;
@@ -484,7 +486,12 @@ public class IcebergWriteSchemaTransformProviderTest {
         .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
     testPipeline.run().waitUntilFinish();
 
-    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    // This table has timestamptz columns written as joda DateTime. Pin an older update
+    // compatibility version so the read keeps the legacy DATETIME mapping and matches the written
+    // rows
+    PipelineOptions readOptions = TestPipeline.testingPipelineOptions();
+    readOptions.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(readOptions);
     PCollection<Row> readRows =
         p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
     PAssert.that(readRows).containsInAnyOrder(rows);
@@ -554,7 +561,9 @@ public class IcebergWriteSchemaTransformProviderTest {
         .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
     testPipeline.run().waitUntilFinish();
 
-    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PipelineOptions readOptions = TestPipeline.testingPipelineOptions();
+    readOptions.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(readOptions);
     PCollection<Row> readRows =
         p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
     PAssert.that(readRows).containsInAnyOrder(rows);

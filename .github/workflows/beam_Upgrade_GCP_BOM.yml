@@ -38,6 +38,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -49,7 +51,9 @@ jobs:
         run: python3 scripts/tools/bomupgrader.py --check
       - name: Run bomupgrader
         if: steps.check_bom.outputs.should_upgrade == 'true'
-        run: python3 scripts/tools/bomupgrader.py ${{ steps.check_bom.outputs.latest_version }}
+        run: python3 scripts/tools/bomupgrader.py ${STEPS_CHECK_BOM_OUTPUTS_LATEST_VERSION}
+        env:
+          STEPS_CHECK_BOM_OUTPUTS_LATEST_VERSION: ${{ steps.check_bom.outputs.latest_version }}
       - name: Install gh cli
         if: steps.check_bom.outputs.should_upgrade == 'true'
         uses: ./.github/actions/setup-gh-cli-linux

@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.delta;
 
 import com.google.auto.value.AutoValue;
+import io.delta.kernel.Snapshot;
 import io.delta.kernel.Table;
 import io.delta.kernel.defaults.engine.DefaultEngine;
 import io.delta.kernel.engine.Engine;
+import io.delta.kernel.internal.TableImpl;
 import io.delta.kernel.types.ArrayType;
 import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
@@ -50,14 +52,34 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * A connector that reads from <a href="https://delta.io/">Delta Lake</a> tables.
  *
- * <p>This is work in progress. For more details and to track progress, please see <a
- * href="https://github.com/apache/beam/issues/21100">Issue 21100</a>.
+ * <h2>Configuration Options</h2>
+ *
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> for more details.
+ *
+ * <p>This is work in progress and is subject to change. For more details and to track progress, see
+ * <a href="https://github.com/apache/beam/issues/21100">Issue 21100</a>.
  */
 @Internal
 public class DeltaIO {
 
+  public static final String CHANGE_TYPE_COLUMN = "_change_type";
+  public static final String COMMIT_VERSION_COLUMN = "_commit_version";
+  public static final String COMMIT_TIMESTAMP_COLUMN = "_commit_timestamp";
+
+  /**
+   * Reads rows from a Delta Lake table.
+   *
+   * <p>Normally, it is recommended to use {@link org.apache.beam.sdk.managed.Managed#read(String)}
+   * with {@code Managed.DELTA_LAKE} instead of directly using this transform.
+   */
   public static ReadRows readRows() {
     return new AutoValue_DeltaIO_ReadRows.Builder().build();
+  }
+
+  /** Reads change data feed (CDC) from a Delta Lake table. */
+  public static ReadChanges readChanges() {
+    return new AutoValue_DeltaIO_ReadChanges.Builder().build();
   }
 
   @AutoValue
@@ -107,6 +129,15 @@ public class DeltaIO {
       String path = getTablePath();
       if (path == null) {
         throw new IllegalArgumentException("Table path must be set.");
+      }
+      if (getTimestamp() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific timestamp is not supported yet");
+      }
+
+      if (getVersion() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific version is not supported yet");
       }
 
       Configuration conf = new Configuration();
@@ -172,6 +203,128 @@ public class DeltaIO {
       } else {
         throw new UnsupportedOperationException("Unsupported Delta type: " + deltaType.getClass());
       }
+    }
+  }
+
+  @AutoValue
+  public abstract static class ReadChanges extends PTransform<PBegin, PCollection<Row>> {
+    public abstract @Nullable String getTablePath();
+
+    public abstract @Nullable Long getStartVersion();
+
+    public abstract @Nullable String getStartTimestamp();
+
+    public abstract @Nullable Long getEndVersion();
+
+    public abstract @Nullable String getEndTimestamp();
+
+    public abstract @Nullable Map<String, String> getHadoopConfig();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setTablePath(String tablePath);
+
+      abstract Builder setStartVersion(@Nullable Long startVersion);
+
+      abstract Builder setStartTimestamp(@Nullable String startTimestamp);
+
+      abstract Builder setEndVersion(@Nullable Long endVersion);
+
+      abstract Builder setEndTimestamp(@Nullable String endTimestamp);
+
+      abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
+
+      abstract ReadChanges build();
+    }
+
+    public ReadChanges from(String tablePath) {
+      return toBuilder().setTablePath(tablePath).build();
+    }
+
+    public ReadChanges withStartVersion(long startVersion) {
+      return toBuilder().setStartVersion(startVersion).build();
+    }
+
+    public ReadChanges withStartTimestamp(String startTimestamp) {
+      return toBuilder().setStartTimestamp(startTimestamp).build();
+    }
+
+    public ReadChanges withEndVersion(long endVersion) {
+      return toBuilder().setEndVersion(endVersion).build();
+    }
+
+    public ReadChanges withEndTimestamp(String endTimestamp) {
+      return toBuilder().setEndTimestamp(endTimestamp).build();
+    }
+
+    public ReadChanges withConfig(Map<String, String> config) {
+      return toBuilder().setHadoopConfig(config).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      String path = getTablePath();
+      if (path == null) {
+        throw new IllegalArgumentException("Table path must be set.");
+      }
+      if (getStartVersion() == null && getStartTimestamp() == null) {
+        // TODO: for unbounded reads, support using current HEAD or the latest snapshot
+        // as the default starting point.
+        throw new IllegalArgumentException("Either startVersion or startTimestamp must be set.");
+      }
+      if (getStartVersion() != null && getStartTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both startVersion and startTimestamp.");
+      }
+      if (getEndVersion() != null && getEndTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both endVersion and endTimestamp.");
+      }
+
+      Configuration conf = new Configuration();
+      Map<String, String> hadoopConfig = getHadoopConfig();
+      if (hadoopConfig != null) {
+        for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+          conf.set(entry.getKey(), entry.getValue());
+        }
+      }
+      Engine engine = DefaultEngine.create(conf);
+      Table table = Table.forPath(engine, path);
+
+      TableImpl tableImpl = (TableImpl) table;
+
+      long resolvedEndVersion;
+      Long endVersionVal = getEndVersion();
+      String endTimestampVal = getEndTimestamp();
+      if (endVersionVal != null) {
+        resolvedEndVersion = endVersionVal;
+      } else if (endTimestampVal != null) {
+        long endMillis = java.time.Instant.parse(endTimestampVal).toEpochMilli();
+        resolvedEndVersion = tableImpl.getVersionBeforeOrAtTimestamp(engine, endMillis);
+      } else {
+        resolvedEndVersion = table.getLatestSnapshot(engine).getVersion();
+      }
+
+      Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      StructType deltaSchema = endSnapshot.getSchema();
+      if (deltaSchema == null) {
+        throw new IllegalStateException("Table schema is null.");
+      }
+      Schema beamSchema = ReadRows.convertToBeamSchema(deltaSchema);
+
+      return input
+          .apply("Create Path", Create.of(path))
+          .apply(
+              "Plan CDF Files",
+              ParDo.of(
+                  new CreateCDCReadTasksDoFn(
+                      hadoopConfig,
+                      getStartVersion(),
+                      getStartTimestamp(),
+                      getEndVersion(),
+                      getEndTimestamp())))
+          .apply("Read CDF Data", ParDo.of(new DeltaCDCSourceDoFn(hadoopConfig)))
+          .setRowSchema(beamSchema);
     }
   }
 }
