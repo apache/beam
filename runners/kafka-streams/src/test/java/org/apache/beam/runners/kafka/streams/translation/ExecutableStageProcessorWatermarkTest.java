@@ -62,7 +62,9 @@ public class ExecutableStageProcessorWatermarkTest {
         ImmutableSet.of(UPSTREAM_ID),
         new MetricsContainerImpl(STAGE_ID),
         // Single-output: no per-output routing (this test drives the watermark path directly).
-        ImmutableMap.of());
+        ImmutableMap.of(),
+        // The bundle size bound is irrelevant to the watermark path this test drives.
+        1000);
   }
 
   /** A report from the upstream transform's given partition. */

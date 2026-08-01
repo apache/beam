@@ -49,7 +49,12 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   void setMaxBundleSize(int maxBundleSize);
 
-  @Description("Soft cap on bundle wall-clock duration in milliseconds.")
+  @Description(
+      "Intended cap on how long a bundle may stay open, in milliseconds. NOT APPLIED YET: closing a"
+          + " bundle from a wall-clock punctuator made a pipeline with two chained GroupByKeys"
+          + " across several partitions emit its groups repeatedly against a real broker, so only"
+          + " the element-count bound is enforced for now. See"
+          + " https://github.com/apache/beam/issues/18479.")
   @Default.Integer(1000)
   int getMaxBundleTimeMs();
 

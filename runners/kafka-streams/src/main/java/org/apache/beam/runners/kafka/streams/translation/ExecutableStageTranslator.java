@@ -108,7 +108,8 @@ class ExecutableStageTranslator implements PTransformTranslator {
                 transformId,
                 ImmutableSet.of(parentProcessor),
                 context.getMetricsContainerStepMap().getContainer(transformId),
-                outputChildByPCollectionId),
+                outputChildByPCollectionId,
+                context.getPipelineOptions().getMaxBundleSize()),
         parentProcessor);
 
     if (multiOutput) {
