@@ -17,6 +17,7 @@
  */
 
 import groovy.json.JsonOutput
+import java.time.Duration
 
 plugins { id 'org.apache.beam.module' }
 
@@ -74,6 +75,7 @@ dependencies {
   testImplementation library.java.junit
   testImplementation library.java.mockito_core
   testImplementation "org.apache.kafka:kafka-streams-test-utils:$kafka_version"
+  testImplementation library.java.testcontainers_kafka
 
   // Beam's @ValidatesRunner suite: the test classes come from the SDK core test jar; the runner
   // (TestKafkaStreamsRunner) and its TopologyTestDriver harness come from this module's test
@@ -84,6 +86,27 @@ dependencies {
   validatesRunner sourceSets.test.runtimeClasspath
 }
 
+
+// The broker integration test drives the production runner against a real Kafka in Docker, so it
+// is not part of the default build. Run it with :runners:kafka-streams:brokerIntegrationTest.
+test {
+  filter {
+    excludeTestsMatching 'org.apache.beam.runners.kafka.streams.*IT'
+  }
+}
+
+tasks.register("brokerIntegrationTest", Test) {
+  group = "Verification"
+  description = "Runs the Kafka Streams runner against a real broker (requires Docker)."
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+  filter {
+    includeTestsMatching 'org.apache.beam.runners.kafka.streams.*IT'
+  }
+  // A container start plus a streaming run is well past the default per-test expectations.
+  timeout = Duration.ofMinutes(15)
+}
 
 // Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
 def sickbayTests = [

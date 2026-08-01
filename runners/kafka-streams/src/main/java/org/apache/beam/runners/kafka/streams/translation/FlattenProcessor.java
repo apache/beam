@@ -99,8 +99,7 @@ class FlattenProcessor
     Instant advanced = watermarkAggregator.advance();
     if (advanced.isAfter(lastForwardedWatermark)) {
       lastForwardedWatermark = advanced;
-      // Stamped with this Flatten's own transform id; Flatten is a single instance for now, so the
-      // report is for its only partition (0 of 1).
+      // Labelled as the only source a consumer will see; a shuffle downstream relabels it.
       ctx.forward(
           new Record<byte[], KStreamsPayload<?>>(
               record.key(),

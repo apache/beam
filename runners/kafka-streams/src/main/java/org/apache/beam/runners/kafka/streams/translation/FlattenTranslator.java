@@ -57,6 +57,9 @@ class FlattenTranslator implements PTransformTranslator {
     Set<String> seenInputs = new HashSet<>();
     List<String> parentProcessors = new ArrayList<>();
     Set<String> upstreamTransformIds = new HashSet<>();
+    // Kafka Streams puts a processor and the parents it is wired to in one subtopology, so the
+    // inputs are co-partitioned and this Flatten runs at their partition count.
+    int partitionCount = 1;
     for (String inputPCollectionId : transform.getInputsMap().values()) {
       if (!seenInputs.add(inputPCollectionId)) {
         throw new UnsupportedOperationException(
@@ -70,6 +73,7 @@ class FlattenTranslator implements PTransformTranslator {
       String parentProcessor = context.getProcessorNameForPCollection(inputPCollectionId);
       parentProcessors.add(parentProcessor);
       upstreamTransformIds.add(parentProcessor);
+      partitionCount = Math.max(partitionCount, context.getPartitionCount(inputPCollectionId));
     }
 
     topology.addProcessor(
@@ -78,5 +82,6 @@ class FlattenTranslator implements PTransformTranslator {
         parentProcessors.toArray(new String[0]));
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
+    context.registerPCollectionPartitionCount(outputPCollectionId, partitionCount);
   }
 }

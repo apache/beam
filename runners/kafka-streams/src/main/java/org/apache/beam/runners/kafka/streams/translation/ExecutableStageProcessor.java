@@ -286,10 +286,11 @@ class ExecutableStageProcessor
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
-    // Stamped with this stage's own transform id; this stage is a single instance for now, so the
-    // report is for its only partition (0 of 1). Fanning the watermark out to every downstream
-    // partition — and producing it atomically with the offset commit so it is durable — lands with
-    // the topic-based shuffle work (#18479).
+    // Labelled as the only source a consumer will see. Forwarding here is in-process, to the
+    // stage's
+    // fused children, so exactly one instance of this stage reaches each of them. Where the output
+    // instead crosses a shuffle, ShuffleByKeyProcessor relabels the report with the real partition
+    // identity, because the broadcast then delivers every instance's report to every consumer.
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(

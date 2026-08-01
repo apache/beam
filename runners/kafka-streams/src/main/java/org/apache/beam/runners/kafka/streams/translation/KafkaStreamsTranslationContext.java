@@ -46,6 +46,12 @@ public class KafkaStreamsTranslationContext {
   private final KafkaStreamsPipelineOptions pipelineOptions;
   private final Topology topology;
   private final Map<String, String> pCollectionIdToProcessorName;
+
+  /**
+   * How many partitions the transform producing each PCollection runs across. A PCollection that
+   * has not been registered is produced by a single instance; only a shuffle raises the count.
+   */
+  private final Map<String, Integer> pCollectionIdToPartitionCount = new HashMap<>();
   // Accumulates the Beam metrics reported by the SDK harness, one container per executable stage.
   // Processors update it as bundles complete (in-JVM reference sharing); the pipeline result
   // exposes it as MetricResults. Sharing one container across a stage's parallel tasks is safe and
@@ -111,6 +117,30 @@ public class KafkaStreamsTranslationContext {
               + "; cannot reassign to "
               + processorName);
     }
+  }
+
+  /**
+   * Records how many partitions the transform producing {@code pCollectionId} runs across.
+   *
+   * <p>This is the {@code totalSourcePartitions} its watermark reports carry, and what a downstream
+   * {@link WatermarkAggregator} waits to hear from before it lets the watermark advance. It changes
+   * only at a shuffle: everything fused downstream of one runs at the shuffle topic's partition
+   * count, and everything else runs as a single instance.
+   */
+  public void registerPCollectionPartitionCount(String pCollectionId, int partitionCount) {
+    pCollectionIdToPartitionCount.put(pCollectionId, partitionCount);
+  }
+
+  /**
+   * How many partitions the transform producing {@code pCollectionId} runs across; one unless a
+   * shuffle upstream raised it.
+   *
+   * <p>Always at least one: an unregistered PCollection is produced by a single instance, and the
+   * only value ever registered is {@code --internalParallelism}, which the runner rejects below one
+   * before translating.
+   */
+  public int getPartitionCount(String pCollectionId) {
+    return pCollectionIdToPartitionCount.getOrDefault(pCollectionId, 1);
   }
 
   /** Returns the processor node name producing the given PCollection. */
