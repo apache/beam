@@ -409,6 +409,10 @@ class CombineTest(unittest.TestCase):
       result = pcoll | 'sample-any' >> combine.Sample.Any(0)
       assert_that(result, equal_to([]))
 
+  def test_sample_any_negative_n(self):
+    with self.assertRaises(ValueError):
+      combine.Sample.Any(-1)
+
   def test_tuple_combine_fn(self):
     with TestPipeline() as p:
       result = (

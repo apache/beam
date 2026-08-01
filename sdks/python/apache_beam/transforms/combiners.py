@@ -608,6 +608,8 @@ class Sample(object):
     n elements, all of them are returned.
     """
     def __init__(self, n):
+      if n < 0:
+        raise ValueError('Expected non-negative n, received %s.' % n)
       self._n = n
 
     def expand(self, pcoll):
