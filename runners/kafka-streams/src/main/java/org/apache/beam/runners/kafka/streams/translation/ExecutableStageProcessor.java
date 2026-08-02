@@ -125,9 +125,6 @@ class ExecutableStageProcessor
   /** Elements fed to the open bundle, for the size bound above. */
   private int elementsInBundle;
 
-  /** The key of the last record processed, used when a close has no record to take one from. */
-  private byte[] lastKey = new byte[0];
-
   /**
    * @param transformId this stage's own transform id, stamped on the watermarks it emits
    * @param upstreamTransformIds the transform ids feeding this stage (known from the pipeline
@@ -205,10 +202,6 @@ class ExecutableStageProcessor
       }
       return;
     }
-    byte[] key = record.key();
-    if (key != null) {
-      lastKey = key;
-    }
     try {
       ensureBundleOpen();
       mainInputReceiver().accept(payload.getData());
@@ -284,19 +277,19 @@ class ExecutableStageProcessor
     return receiver;
   }
 
-  private void closeBundleAndFlush(Record<byte[], KStreamsPayload<?>> record) {
-    byte[] key = record.key();
-    closeBundleAndFlush(key == null ? lastKey : key, record.timestamp());
-  }
-
   /**
    * Finishes the open bundle, forwards everything it produced, and asks Kafka Streams to commit.
    *
    * <p>The commit request is what ties a bundle to a transaction: the elements the bundle consumed
    * and the records it produced are then committed together, so a restart either replays the whole
    * bundle or none of it.
+   *
+   * <p>The outputs carry the key of the record that closed the bundle. An executable stage is
+   * unkeyed — it runs stateless, with no state or timers — so the Kafka record key means nothing to
+   * it and is only being carried along; where the key does matter, downstream sets it, as {@link
+   * ShuffleByKeyProcessor} does from the Beam key before a GroupByKey.
    */
-  private void closeBundleAndFlush(byte[] key, long timestamp) {
+  private void closeBundleAndFlush(Record<byte[], KStreamsPayload<?>> record) {
     RemoteBundle bundle = currentBundle;
     if (bundle == null) {
       return;
@@ -320,7 +313,7 @@ class ExecutableStageProcessor
     while ((output = pendingOutputs.poll()) != null) {
       Record<byte[], KStreamsPayload<?>> outputRecord =
           new Record<byte[], KStreamsPayload<?>>(
-              key, KStreamsPayload.data(output.value), timestamp);
+              record.key(), KStreamsPayload.data(output.value), record.timestamp());
       String childNode = outputChildByPCollectionId.get(output.pCollectionId);
       if (childNode == null) {
         ctx.forward(outputRecord);
