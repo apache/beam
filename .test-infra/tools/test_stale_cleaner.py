@@ -432,16 +432,16 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
         self.assertIsInstance(self.cleaner.clock, FakeClock)
 
     def test_active_resources_active_subscriptions(self):
-        """Valida que las suscripciones activas con el prefijo de taxirides sean identificadas."""
+        """Verify that active subscriptions with the 'taxirides' prefix are identified."""
         self.cleaner.prefixes = ["taxirides-realtime_beam_"]
 
-        # Suscripción activa con el prefijo correcto de taxis
+        # Active suscription with the correct taxi prefix
         sub_taxi_active = mock.Mock()
         sub_taxi_active.name = f"projects/{self.project_id}/subscriptions/taxirides-realtime_beam_-12345"
         sub_taxi_active.topic = "projects/pubsub-public-data/topics/taxirides-realtime"
         sub_taxi_active.detached = False
 
-        # Suscripción activa con un prefijo distinto
+        # Active subscription with a different prefix
         sub_other_active = mock.Mock()
         sub_other_active.name = f"projects/{self.project_id}/subscriptions/other-prefix-sub"
         sub_other_active.topic = f"projects/{self.project_id}/topics/another-topic"
@@ -452,7 +452,7 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
         with SilencePrint():
             active = self.cleaner._active_resources()
 
-        # Verificamos que solo capture la suscripción de taxi, descartando la otra
+        # Verify that only the taxi subscription is captured, discarding the other one
         self.assertIn(sub_taxi_active.name, active)
         self.assertNotIn(sub_other_active.name, active)
         self.assertEqual(len(active), 1)
@@ -462,13 +462,13 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
             independientemente de los prefijos específicos de taxis."""
             self.cleaner.prefixes = ["test-prefix"]
 
-            # Suscripción desconectada (debería incluirse en la recolección)
+            # Standar suscription with a detached topic (should be included)
             sub_detached = mock.Mock()
             sub_detached.name = f"projects/{self.project_id}/subscriptions/test-prefix-detached"
             sub_detached.topic = "_deleted-topic_"
             sub_detached.detached = True
 
-            # Suscripción conectada normal (debería ignorarse)
+            # Standard connected subscription (should ignore)
             sub_attached = mock.Mock()
             sub_attached.name = f"projects/{self.project_id}/subscriptions/test-prefix-attached"
             sub_attached.topic = f"projects/{self.project_id}/topics/some-topic"
@@ -479,7 +479,7 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
             with SilencePrint():
                 active = self.cleaner._active_resources()
 
-            # Verificamos que solo se registre la suscripción huérfana
+            # Only the detached subscription should be included in the active resources
             self.assertIn(sub_detached.name, active)
             self.assertNotIn(sub_attached.name, active)
             self.assertEqual(len(active), 1)
