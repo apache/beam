@@ -76,6 +76,12 @@
 * (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
 * (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
   `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
+* (Python) Added `UnboundedSource`, an experimental interface for reading an infinite stream of records
+  with checkpointing, watermark reporting, and bundle finalization. Read one with `beam.io.Read`
+  ([#19137](https://github.com/apache/beam/issues/19137)).
+* (Python) Added `Watch`, an experimental transform that polls a growing set of outputs for each input
+  element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
+  ([#21521](https://github.com/apache/beam/issues/21521)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
