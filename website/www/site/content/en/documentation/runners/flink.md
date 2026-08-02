@@ -198,6 +198,8 @@ The optional `flink_version` option may be required as well for older versions o
 Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
 [Flink 1.19](https://hub.docker.com/r/apache/beam_flink1.19_job_server).
 [Flink 1.20](https://hub.docker.com/r/apache/beam_flink1.20_job_server).
+For Flink 2 and later the images share one repository, with the Beam and Flink versions in the tag,
+for example [beam_flink_job_server:2.75.0-flink2.0](https://hub.docker.com/layers/apache/beam_flink_job_server/2.75.0-flink2.0).
 {{< /paragraph >}}
 
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
