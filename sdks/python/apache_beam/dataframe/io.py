@@ -565,6 +565,7 @@ class _TruncatingFileHandle(object):
       self._buffer = self._underlying.read(size)
 
     if not self._buffer:
+      self._tracker.try_claim(self._tracker.current_restriction().stop)
       self._done = True
       return self._empty
 
