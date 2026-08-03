@@ -106,14 +106,16 @@ final class CdcOutputUtils {
   static Row outputRow(
       List<String> metadataColumns,
       Schema outputSchema,
-      long commitSnapshotId,
-      long snapshotSequentNumber,
+      ChangelogDescriptor descriptor,
       ValueKind valueKind,
       Row dataAndRowMetadata) {
     if (metadataColumns.isEmpty()
         || metadataColumns.stream().allMatch(IcebergCdcMetadataColumns::isRowMetadataColumn)) {
       return dataAndRowMetadata;
     }
+
+    long commitSnapshotId = descriptor.getCommitSnapshotId();
+    long snapshotSequentNumber = descriptor.getSnapshotSequenceNumber();
 
     List<@Nullable Object> values = new ArrayList<>(outputSchema.getFieldCount());
     for (Schema.Field field : dataAndRowMetadata.getSchema().getFields()) {
