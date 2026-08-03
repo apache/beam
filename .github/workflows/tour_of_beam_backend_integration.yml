@@ -20,6 +20,7 @@
 name: Tour of Beam Go integration tests
 
 on:
+  workflow_dispatch:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
