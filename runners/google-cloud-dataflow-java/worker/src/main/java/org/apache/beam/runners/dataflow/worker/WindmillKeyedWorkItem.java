@@ -201,12 +201,14 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
   }
 
   @Override
-  @SuppressWarnings("nullness")
+  @SuppressWarnings({"nullness", "unchecked"})
   public Iterable<WindowedValue<?>> elementWindowsIterable() {
-    return FluentIterable.from(workItem.getMessageBundlesList())
-        .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
-        .transform(this::parseElemWindowOnly)
-        .filter(Objects::nonNull);
+    return (Iterable<WindowedValue<?>>)
+        (Iterable<?>)
+            FluentIterable.from(workItem.getMessageBundlesList())
+                .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
+                .transform(this::parseElemWindowOnly)
+                .filter(Objects::nonNull);
   }
 
   @Override
