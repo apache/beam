@@ -458,8 +458,7 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
         self.assertEqual(len(active), 1)
 
     def test_active_resources_detached_subscriptions(self):
-            """Valida que las suscripciones desconectadas se mantengan en la lista de activos a limpiar,
-            independientemente de los prefijos específicos de taxis."""
+            """Verify that detached subscriptions with the 'test-prefix' prefix are identified."""
             self.cleaner.prefixes = ["test-prefix"]
 
             # Standar suscription with a detached topic (should be included)
@@ -470,7 +469,7 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
 
             # Standard connected subscription (should ignore)
             sub_attached = mock.Mock()
-            sub_attached.name = f"projects/{self.project_id}/subscriptions/test-prefix-attached"
+            sub_attached.name = f"projects/{self.project_id}/subscriptions/other-prefix-attached"
             sub_attached.topic = f"projects/{self.project_id}/topics/some-topic"
             sub_attached.detached = False
 
