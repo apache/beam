@@ -76,7 +76,7 @@
 * (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
 * (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
   `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
 
 ## Breaking Changes
 
