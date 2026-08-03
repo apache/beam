@@ -1743,6 +1743,10 @@ class ProfilingOptions(PipelineOptions):
           _LOGGER.info(
               'Setting --profile_location to %s since profiling is enabled.',
               self.profile_location)
+
+      if self.profiler_agent == 'coredump':
+        debug_options = self.view_as(DebugOptions)
+        debug_options.add_experiment('core_pattern=/tmp/beam_coredump.%e.%p')
     return errors
 
 
