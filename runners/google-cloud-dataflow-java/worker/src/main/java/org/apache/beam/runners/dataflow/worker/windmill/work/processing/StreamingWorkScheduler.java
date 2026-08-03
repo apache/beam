@@ -175,8 +175,8 @@ public class StreamingWorkScheduler {
         .setCacheToken(workItem.getCacheToken());
   }
 
-  private static void setLoggingContextComputation(@Nullable String computationId) {
-    DataflowWorkerLoggingMDC.setSystemStageName(computationId);
+  private static void setLoggingContextComputation(@Nullable String systemStageName) {
+    DataflowWorkerLoggingMDC.setSystemStageName(systemStageName);
   }
 
   private static void setLoggingContextWorkId(@Nullable String workLatencyTrackingId) {
