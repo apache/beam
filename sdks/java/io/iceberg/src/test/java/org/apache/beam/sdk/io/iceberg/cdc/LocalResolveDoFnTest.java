@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 
@@ -204,6 +205,40 @@ public class LocalResolveDoFnTest {
     assertThat(
         output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
         contains("UPDATE_BEFORE:1:shown:2", "UPDATE_AFTER:1:shown:2"));
+  }
+
+  @Test
+  public void recordsOnOverlapBoundsAreResolvedAsUpdates() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    IcebergScanConfig scanConfig = scanConfig(table, tableId);
+    DataFile oldFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-old.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "old"), record(2L, "shown", "old")));
+    DataFile newFile =
+        warehouse.writeRecords(
+            testName.getMethodName() + "-new.parquet",
+            table.schema(),
+            ImmutableList.of(record(1L, "shown", "new"), record(2L, "shown", "new")));
+
+    List<ValueInSingleWindow<Row>> output =
+        process(
+            scanConfig,
+            descriptor(tableId, 1L, 2L),
+            ImmutableList.of(
+                task(SerializableChangelogTask.Type.DELETED_FILE, oldFile, table, 303L),
+                task(SerializableChangelogTask.Type.ADDED_ROWS, newFile, table, 303L)),
+            new Instant(0L));
+
+    assertThat(
+        output.stream().map(LocalResolveDoFnTest::kindAndProjectedRow).collect(Collectors.toList()),
+        containsInAnyOrder(
+            "UPDATE_BEFORE:1:shown:2",
+            "UPDATE_AFTER:1:shown:2",
+            "UPDATE_BEFORE:2:shown:2",
+            "UPDATE_AFTER:2:shown:2"));
   }
 
   private List<ValueInSingleWindow<Row>> process(

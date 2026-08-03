@@ -81,6 +81,13 @@ final class OverlapRange {
    * [lower, upper]} (inclusive). Can be paired with a subsequent {@link #recordIdProjection()} call
    * to fetch the PK value.
    *
+   * <p>Both ends are inclusive because the bounds are Iceberg file statistics (actual min/max PK
+   * values), making the overlap an intersection of two closed ranges. Note the error directions are
+   * not symmetric: being over-inclusive only costs extra buffering, since an unmatched record
+   * resolves to the same {@code INSERT} / {@code DELETE} it would have been emitted as, whereas
+   * excluding a boundary PK would split a genuine update into a spurious {@code INSERT} + {@code
+   * DELETE}.
+   *
    * <p>If either bound is null, we conservatively assume it falls within the overlap.
    */
   boolean contains(Record rec, @Nullable StructLike lower, @Nullable StructLike upper) {
