@@ -97,7 +97,7 @@ jobs:
           BEAM_VERSION="${BEAM_VERSION_LINE#sdk_version=}"
 
           # Prevent environment file injection via CR/LF.
-          if printf '%s' "$BEAM_VERSION" | grep -q $'[\r\n]'; then
+          if [[ "$BEAM_VERSION" =~ [$'\r\n'] ]]; then
             echo "Invalid sdk_version: contains newline characters"
             exit 1
           fi
