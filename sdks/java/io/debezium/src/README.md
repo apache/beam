@@ -161,7 +161,7 @@ By default, DebeziumIO initializes it with the former, though user may choose th
 
 -  JDK v17
 -  Debezium Connectors v3.5
--  Apache Beam 2.66
+-  Apache Beam 2.76
 
 ## Running Unit Tests
 
