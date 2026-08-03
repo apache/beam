@@ -439,6 +439,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
               LocalDate.ofEpochDay(((Number) value).longValue() / MILLIS_PER_DAY),
               LocalTime.ofNanoOfDay(
                   (((Number) value).longValue() % MILLIS_PER_DAY) * NANOS_PER_MILLISECOND));
+        } else if (org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+            identifier)) {
+          if (value instanceof Timestamp) {
+            value = SqlFunctions.toLong((Timestamp) value);
+          }
+          return java.time.Instant.ofEpochMilli(((Number) value).longValue());
         } else {
           if (logicalType instanceof PassThroughLogicalType) {
             return toBeamObject(value, logicalType.getBaseType(), verifyValues);
@@ -591,6 +597,15 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     fieldName,
                     Expressions.constant(LocalDateTime.class)),
                 LocalDateTime.class);
+          } else if (org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+              identifier)) {
+            return Expressions.convert_(
+                Expressions.call(
+                    expression,
+                    "getLogicalTypeValue",
+                    fieldName,
+                    Expressions.constant(java.time.Instant.class)),
+                java.time.Instant.class);
           } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             return Expressions.call(expression, "getDecimal", fieldName);
           } else if (logicalType instanceof PassThroughLogicalType) {
@@ -684,6 +699,12 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
                     Expressions.multiply(dateValue, Expressions.constant(MILLIS_PER_DAY)),
                     Expressions.divide(timeValue, Expressions.constant(NANOS_PER_MILLISECOND)));
             return nullOr(value, returnValue);
+          } else if (org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
+              identifier)) {
+            return nullOr(
+                value,
+                Expressions.call(
+                    Expressions.convert_(value, java.time.Instant.class), "toEpochMilli"));
           } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             return Expressions.convert_(value, BigDecimal.class);
           } else if (logicalType instanceof PassThroughLogicalType) {

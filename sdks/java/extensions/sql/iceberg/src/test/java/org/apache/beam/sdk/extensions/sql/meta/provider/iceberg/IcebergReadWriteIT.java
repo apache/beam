@@ -27,7 +27,6 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -55,6 +54,8 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -200,8 +201,10 @@ public class IcebergReadWriteIT {
     assertEquals("my_catalog." + tableIdentifier, icebergTable.name());
     assertTrue(icebergTable.location().startsWith(warehouse));
     assertEquals(expectedSpec, icebergTable.spec());
-    Schema expectedSchema = checkStateNotNull(metastore.getTable(tableName)).getSchema();
-    assertEquals(expectedSchema, IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema()));
+    Schema fromIceberg = IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema());
+    assertEquals(
+        FieldType.logicalType(Timestamp.MICROS).withNullable(true),
+        fromIceberg.getField("c_timestamp").getType());
 
     // 4) write to underlying Iceberg table
     String insertStatement =

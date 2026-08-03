@@ -40,7 +40,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -229,7 +228,11 @@ public class BeamSqlCliIcebergTest {
     PAssert.that(output)
         .containsInAnyOrder(
             Row.withSchema(expectedSchema)
-                .addValues(2147483647, true, DateTime.parse("2025-07-31T20:17:40.123Z"), "varchar")
+                .addValues(
+                    2147483647,
+                    true,
+                    java.time.Instant.parse("2025-07-31T20:17:40.123Z"),
+                    "varchar")
                 .build());
     p3.run().waitUntilFinish();
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
