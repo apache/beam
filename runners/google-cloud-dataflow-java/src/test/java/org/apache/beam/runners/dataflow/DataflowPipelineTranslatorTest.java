@@ -89,6 +89,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -1902,21 +1903,22 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 }))
         .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     {
-      SdkComponents sdkComponents = createSdkComponents(options);
-      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
-      Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();
-      assertTrue(coders.containsKey("SchemaCoder"));
-      assertEquals("beam:coder:schema:v1", coders.get("SchemaCoder").getSpec().getUrn());
-    }
-
-    // Prior to version 2.74, SchemaCoders are translated as custom java coders.
-    {
-      options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.73");
+      // Without the experiment, SchemaCoder is treated as unknown.
       SdkComponents sdkComponents = createSdkComponents(options);
       RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
       Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();
       assertTrue(coders.containsKey("SchemaCoder"));
       assertEquals("beam:coders:javasdk:0.1", coders.get("SchemaCoder").getSpec().getUrn());
+    }
+
+    {
+      // Add the experiment to get the known coder urn instead.
+      ExperimentalOptions.addExperiment(options, "use_known_schema_coder");
+      SdkComponents sdkComponents = createSdkComponents(options);
+      RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+      Map<String, RunnerApi.Coder> coders = pipelineProto.getComponents().getCodersMap();
+      assertTrue(coders.containsKey("SchemaCoder"));
+      assertEquals("beam:coder:schema:v1", coders.get("SchemaCoder").getSpec().getUrn());
     }
   }
 }
