@@ -65,6 +65,18 @@ import org.slf4j.LoggerFactory;
  * across the upstream transform's partitions actually advances. Until every partition has reported,
  * the watermark is held and nothing is forwarded — but data is still processed in the meantime.
  *
+ * <p>A bundle is also bounded in size, by {@code --maxBundleSize}, and closed once that many
+ * elements have been fed to it. Without the bound a bundle stays open until the next watermark,
+ * which on a stream that produces steadily lets it grow without limit. The bound is checked as
+ * elements arrive. A time bound ({@code --maxBundleTimeMs}) is not applied yet — see the option's
+ * own documentation.
+ *
+ * <p>Closing a bundle asks Kafka Streams to commit, so the elements a bundle consumed and the
+ * records it produced are committed together and a restart replays either all of the bundle or none
+ * of it. Note that this aligns commits <em>to</em> bundle boundaries but does not stop Kafka
+ * Streams from committing on its own interval part-way through a bundle; closing the bundle first
+ * from a pre-commit hook would be needed to rule that out entirely.
+ *
  * <p>This is the Kafka Streams analogue of Flink's {@code ExecutableStageDoFnOperator} and Spark's
  * {@code SparkExecutableStageFunction}. State, timers, and side inputs are out of scope for this
  * first version: the stage is executed with {@link StateRequestHandler#unsupported()} and no timer
@@ -107,6 +119,12 @@ class ExecutableStageProcessor
   private @Nullable StageBundleFactory stageBundleFactory;
   private @Nullable RemoteBundle currentBundle;
 
+  /** Bound on how many elements may be fed to one bundle. */
+  private final int maxBundleSize;
+
+  /** Elements fed to the open bundle, for the size bound above. */
+  private int elementsInBundle;
+
   /**
    * @param transformId this stage's own transform id, stamped on the watermarks it emits
    * @param upstreamTransformIds the transform ids feeding this stage (known from the pipeline
@@ -120,13 +138,15 @@ class ExecutableStageProcessor
       String transformId,
       Set<String> upstreamTransformIds,
       MetricsContainerImpl metricsContainer,
-      Map<String, String> outputChildByPCollectionId) {
+      Map<String, String> outputChildByPCollectionId,
+      int maxBundleSize) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.transformId = transformId;
     this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
     this.metricsContainer = metricsContainer;
     this.outputChildByPCollectionId = ImmutableMap.copyOf(outputChildByPCollectionId);
+    this.maxBundleSize = maxBundleSize;
   }
 
   /** A harness output element together with the id of the output PCollection it belongs to. */
@@ -185,8 +205,12 @@ class ExecutableStageProcessor
     try {
       ensureBundleOpen();
       mainInputReceiver().accept(payload.getData());
+      elementsInBundle++;
     } catch (Exception e) {
       throw new RuntimeException("Failed to process element through SDK harness", e);
+    }
+    if (elementsInBundle >= maxBundleSize) {
+      closeBundleAndFlush(record);
     }
   }
 
@@ -241,6 +265,7 @@ class ExecutableStageProcessor
     currentBundle =
         factory.getBundle(
             outputReceiverFactory, StateRequestHandler.unsupported(), progressHandler);
+    elementsInBundle = 0;
   }
 
   private FnDataReceiver<WindowedValue<?>> mainInputReceiver() {
@@ -252,6 +277,18 @@ class ExecutableStageProcessor
     return receiver;
   }
 
+  /**
+   * Finishes the open bundle, forwards everything it produced, and asks Kafka Streams to commit.
+   *
+   * <p>The commit request is what ties a bundle to a transaction: the elements the bundle consumed
+   * and the records it produced are then committed together, so a restart either replays the whole
+   * bundle or none of it.
+   *
+   * <p>The outputs carry the key of the record that closed the bundle. An executable stage is
+   * unkeyed — it runs stateless, with no state or timers — so the Kafka record key means nothing to
+   * it and is only being carried along; where the key does matter, downstream sets it, as {@link
+   * ShuffleByKeyProcessor} does from the Beam key before a GroupByKey.
+   */
   private void closeBundleAndFlush(Record<byte[], KStreamsPayload<?>> record) {
     RemoteBundle bundle = currentBundle;
     if (bundle == null) {
@@ -265,6 +302,7 @@ class ExecutableStageProcessor
       throw new RuntimeException("Failed to close SDK harness bundle", e);
     } finally {
       currentBundle = null;
+      elementsInBundle = 0;
     }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     // The harness has finished the bundle (close() returned) so no further enqueues happen.
@@ -283,6 +321,7 @@ class ExecutableStageProcessor
         ctx.forward(outputRecord, childNode);
       }
     }
+    ctx.commit();
   }
 
   private void forwardWatermark(Record<byte[], KStreamsPayload<?>> record, long watermarkMillis) {
