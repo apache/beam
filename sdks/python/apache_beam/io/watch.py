@@ -34,6 +34,13 @@ hashes each output's key: the output itself by default, or
 not passed explicitly and converted to its deterministic form, so equal keys
 hash equally across workers and restarts.
 
+By default, the Watch transform internally stores the hash of all items
+seen. If the incremental items returned by the poll function guarantee
+monotonic timestamp growth (new items on the next poll have timestamps
+larger than the largest of the previous poll), consider setting
+``timestamp_cursor=True`` for better performance, as it replaces the hash
+dedup with an O(1) event-time cursor; see :class:`Watch`.
+
 Example::
 
     from apache_beam.io.watch import Watch, PollResult, after_total_of
@@ -55,8 +62,10 @@ This API is experimental and may change in backwards-incompatible ways.
 
 import collections
 import dataclasses
+import enum
 import hashlib
 import inspect
+import logging
 import time
 import typing
 from collections.abc import Iterable
@@ -91,6 +100,8 @@ __all__ = [
     'after_total_of',
 ]
 
+_LOGGER = logging.getLogger(__name__)
+
 _HASH_DIGEST_SIZE = 16  # 128-bit digest width.
 
 OutputT = TypeVar('OutputT')
@@ -120,6 +131,7 @@ class PollResult(Generic[OutputT]):
 
   @staticmethod
   def _normalize(outputs, timestamp) -> tuple[TimestampedValue, ...]:
+    # One default timestamp per call, so raw outputs share an event time.
     if timestamp is None:
       default_ts = Timestamp.now()
     else:
@@ -137,7 +149,9 @@ class PollResult(Generic[OutputT]):
     """Reports outputs and expects more; the transform infers the watermark.
 
     A raw (non-:class:`TimestampedValue`) output is stamped with ``timestamp``
-    when given, else with the current processing time.
+    when given, else with the current processing time. The inferred watermark
+    is safe only for non-decreasing event-time enumerations; out-of-order
+    sources should call :meth:`with_watermark`.
     """
     return PollResult(PollResult._normalize(outputs, timestamp), watermark=None)
 
@@ -146,12 +160,15 @@ class PollResult(Generic[OutputT]):
     """Reports the final outputs for an input, after which polling stops.
 
     A raw (non-:class:`TimestampedValue`) output is stamped with ``timestamp``
-    when given, else with the current processing time.
+    when given, else with the current processing time. The watermark is
+    released to ``MAX_TIMESTAMP`` so downstream event-time windows close.
     """
     return PollResult(
         PollResult._normalize(outputs, timestamp), watermark=MAX_TIMESTAMP)
 
   def with_watermark(self, watermark) -> 'PollResult':
+    """Sets an explicit watermark, a promise that no future output for this
+    input will have an event time below ``watermark``."""
     return dataclasses.replace(self, watermark=Timestamp.of(watermark))
 
 
@@ -254,15 +271,17 @@ class _GrowthState:
 
 @dataclasses.dataclass(frozen=True)
 class _PollingGrowthState(_GrowthState):
-  """Keep-polling state: emitted-output hashes, watermark, termination state.
+  """Keep-polling state: dedup state, watermark, termination state.
 
   ``completed`` maps a 16-byte output-key hash to the event time it was first
-  seen. It is insertion-ordered and treated as immutable; a new mapping is
-  built for each residual.
+  seen; it is insertion-ordered and treated as immutable. In timestamp-cursor
+  mode ``completed`` is empty and ``cursor`` is the greatest emitted event
+  time.
   """
   completed: 'collections.OrderedDict[bytes, Timestamp]'
   poll_watermark: Optional[Timestamp]
   termination_state: Any
+  cursor: Optional[Timestamp] = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -305,13 +324,23 @@ class _TimestampedValueCoder(Coder):
     return self._tuple_coder.is_deterministic()
 
 
+class _StateTag(enum.IntEnum):
+  """Envelope tag selecting the encoded restriction variant."""
+  POLLING = 0
+  NON_POLLING = 1
+  CURSOR_POLLING = 2
+
+
 class _GrowthStateCoder(Coder):
   """Encodes a :class:`_PollingGrowthState` or :class:`_NonPollingGrowthState`.
 
   A ``(tag, payload)`` envelope selects the variant; the payload is a
   variant-specific :class:`TupleCoder`. ``completed`` is encoded as an ordered
-  list of ``(hash, timestamp)`` pairs so insertion order survives a round trip.
-  This format is internal to the Python SDK.
+  list of ``(hash, timestamp)`` pairs so insertion order survives a round
+  trip. A cursor state encodes only its termination state and cursor; the
+  watermark is restored from the estimator state the runner persists. Hash
+  states keep the pre-cursor byte format. This format is internal to the
+  Python SDK.
   """
   def __init__(self, output_coder: Coder, termination: TerminationCondition):
     nullable_ts = NullableCoder(TimestampCoder())
@@ -322,6 +351,10 @@ class _GrowthStateCoder(Coder):
         nullable_ts,
         coders.ListCoder(TupleCoder([coders.BytesCoder(), TimestampCoder()])),
     ])
+    self._cursor_polling_coder = TupleCoder([
+        termination.state_coder(),
+        TimestampCoder(),
+    ])
     self._non_polling_coder = TupleCoder([
         nullable_ts,
         coders.ListCoder(_TimestampedValueCoder(output_coder)),
@@ -329,25 +362,33 @@ class _GrowthStateCoder(Coder):
 
   def encode(self, state: _GrowthState) -> bytes:
     if isinstance(state, _PollingGrowthState):
-      payload = self._polling_coder.encode((
-          state.termination_state,
-          state.poll_watermark,
-          list(state.completed.items())))
-      return self._envelope_coder.encode((0, payload))
+      if state.cursor is None:
+        payload = self._polling_coder.encode((
+            state.termination_state,
+            state.poll_watermark,
+            list(state.completed.items())))
+        return self._envelope_coder.encode((_StateTag.POLLING, payload))
+      payload = self._cursor_polling_coder.encode(
+          (state.termination_state, state.cursor))
+      return self._envelope_coder.encode((_StateTag.CURSOR_POLLING, payload))
     payload = self._non_polling_coder.encode(
         (state.pending.watermark, list(state.pending.outputs)))
-    return self._envelope_coder.encode((1, payload))
+    return self._envelope_coder.encode((_StateTag.NON_POLLING, payload))
 
   def decode(self, encoded: bytes) -> _GrowthState:
     tag, payload = self._envelope_coder.decode(encoded)
-    if tag == 0:
+    if tag == _StateTag.POLLING:
       termination_state, poll_watermark, items = self._polling_coder.decode(
           payload)
       return _PollingGrowthState(
           collections.OrderedDict(items), poll_watermark, termination_state)
-    if tag == 1:
+    if tag == _StateTag.NON_POLLING:
       watermark, outputs = self._non_polling_coder.decode(payload)
       return _NonPollingGrowthState(PollResult(tuple(outputs), watermark))
+    if tag == _StateTag.CURSOR_POLLING:
+      termination_state, cursor = self._cursor_polling_coder.decode(payload)
+      return _PollingGrowthState(
+          collections.OrderedDict(), None, termination_state, cursor)
     raise ValueError('unknown Watch growth state tag: %r' % (tag, ))
 
   def is_deterministic(self) -> bool:
@@ -400,6 +441,30 @@ def _never_seen_before(
   return dataclasses.replace(result, outputs=tuple(new_outputs))
 
 
+def _cursor_of(restriction: _PollingGrowthState) -> Optional[Timestamp]:
+  """The dedup cursor: the stored one, or for a restriction switched over
+  from hash dedup, the greatest event time its hash map recorded."""
+  if restriction.cursor is not None:
+    return restriction.cursor
+  if restriction.completed:
+    return max(restriction.completed.values())
+  return None
+
+
+def _past_cursor(
+    restriction: _PollingGrowthState, result: PollResult) -> PollResult:
+  """Filters a poll result down to outputs strictly past the cursor, sorted
+  by timestamp so the earliest infers the watermark and the latest advances
+  the cursor."""
+  cursor = _cursor_of(restriction)
+  new_outputs = [
+      output for output in result.outputs
+      if cursor is None or output.timestamp > cursor
+  ]
+  new_outputs.sort(key=lambda output: output.timestamp)
+  return dataclasses.replace(result, outputs=tuple(new_outputs))
+
+
 class _GrowthRestrictionTracker(iobase.RestrictionTracker):
   """Tracks one input's polling restriction over claimed poll rounds.
 
@@ -413,10 +478,12 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
       self,
       restriction: _GrowthState,
       key_fn: Callable[[Any], Any],
-      key_coder: Coder):
+      key_coder: Coder,
+      timestamp_cursor: bool = False):
     self._restriction = restriction
     self._key_fn = key_fn
     self._key_coder = key_coder
+    self._timestamp_cursor = timestamp_cursor
     self._claimed_result = None  # type: Optional[PollResult]
     self._claimed_termination_state = None  # type: Any
     self._claimed_hashes = None  # type: Optional[collections.OrderedDict]
@@ -438,19 +505,35 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
     if self._should_stop:
       return False
     result, termination_state = position
-    claimed_hashes = collections.OrderedDict()
-    for output in result.outputs:
-      claimed_hashes[self._hash(output.value)] = output.timestamp
-    if isinstance(self._restriction, _PollingGrowthState):
-      if any(key_hash in self._restriction.completed
-             for key_hash in claimed_hashes):
-        return False
+    claimed_hashes = None
+    if self._timestamp_cursor:
+      # Cursor mode validates by timestamps and never hashes.
+      if isinstance(self._restriction, _PollingGrowthState):
+        cursor = _cursor_of(self._restriction)
+        if cursor is not None and any(output.timestamp <= cursor
+                                      for output in result.outputs):
+          return False
+      else:
+        # Values may lack stable equality without a deterministic coder, so a
+        # replay is identified by its timestamps.
+        expected = sorted(
+            output.timestamp for output in self._restriction.pending.outputs)
+        if expected != sorted(output.timestamp for output in result.outputs):
+          return False
     else:
-      expected = set(
-          self._hash(output.value)
-          for output in self._restriction.pending.outputs)
-      if expected != set(claimed_hashes):
-        return False
+      claimed_hashes = collections.OrderedDict()
+      for output in result.outputs:
+        claimed_hashes[self._hash(output.value)] = output.timestamp
+      if isinstance(self._restriction, _PollingGrowthState):
+        if any(key_hash in self._restriction.completed
+               for key_hash in claimed_hashes):
+          return False
+      else:
+        expected = set(
+            self._hash(output.value)
+            for output in self._restriction.pending.outputs)
+        if expected != set(claimed_hashes):
+          return False
     self._should_stop = True
     self._claimed_result = result
     self._claimed_termination_state = termination_state
@@ -470,14 +553,31 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
       residual = _EMPTY_STATE
     else:
       # The primary becomes a replay of the claimed round; the residual
-      # resumes polling with the claimed keys marked completed.
-      merged = collections.OrderedDict(self._restriction.completed)
-      merged.update(self._claimed_hashes)
+      # resumes polling with the claimed round folded into the dedup state.
+      # A state holds hashes or a cursor, never both, so each mode drops the
+      # other mode's leftovers after a switch.
+      if self._timestamp_cursor:
+        completed = self._restriction.completed
+        if completed:
+          completed = collections.OrderedDict()
+        if self._claimed_result.outputs:
+          cursor = self._claimed_result.outputs[-1].timestamp
+        else:
+          cursor = _cursor_of(self._restriction)
+      elif self._claimed_hashes:
+        completed = collections.OrderedDict(self._restriction.completed)
+        completed.update(self._claimed_hashes)
+        cursor = None
+      else:
+        # An idle round reuses the parent map so empty polls stay O(1).
+        completed = self._restriction.completed
+        cursor = None
       residual = _PollingGrowthState(
-          merged,
+          completed,
           _max_watermark(
               self._restriction.poll_watermark, self._claimed_result.watermark),
-          self._claimed_termination_state)
+          self._claimed_termination_state,
+          cursor)
       self._restriction = _NonPollingGrowthState(self._claimed_result)
     self._should_stop = True
     return self._restriction, residual
@@ -522,6 +622,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       output_coder: Coder,
       key_fn: Callable[[Any], Any],
       key_coder: Coder,
+      timestamp_cursor: bool = False,
       now_fn: Optional[Callable[[], float]] = None):
     self._poll_fn = poll_fn
     self._termination = termination
@@ -529,8 +630,11 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     self._output_coder = output_coder
     self._key_fn = key_fn
     self._key_coder = key_coder
+    self._timestamp_cursor = timestamp_cursor
     self._now = now_fn or time.time
     self._restriction_coder = _GrowthStateCoder(output_coder, termination)
+    # Count of late emissions seen on this worker, for throttled warnings.
+    self._late_count = 0
 
   def initial_restriction(self, element) -> _PollingGrowthState:
     now = Timestamp.of(self._now())
@@ -540,7 +644,8 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
         self._termination.for_new_input(now, element))
 
   def create_tracker(self, restriction) -> _GrowthRestrictionTracker:
-    return _GrowthRestrictionTracker(restriction, self._key_fn, self._key_coder)
+    return _GrowthRestrictionTracker(
+        restriction, self._key_fn, self._key_coder, self._timestamp_cursor)
 
   def restriction_coder(self) -> Coder:
     return self._restriction_coder
@@ -570,13 +675,21 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       for output in restriction.pending.outputs:
         yield TimestampedValue((element, output.value), output.timestamp)
       return
+    if (self._timestamp_cursor and restriction.cursor is not None and
+        restriction.cursor >= MAX_TIMESTAMP):
+      # Nothing can be past a cursor at MAX; claim an empty round and stop.
+      tracker.try_claim((PollResult(()), restriction.termination_state))
+      return
     # Poll before claiming so a slow poll never holds the tracker lock, which
     # would block runner progress checks and checkpoints.
     result = self._poll_fn(element)
     # Read the clock after the poll so a slow poll counts against termination.
     now = Timestamp.of(self._now())
-    new_results = _never_seen_before(
-        restriction, result, self._key_fn, self._key_coder)
+    if self._timestamp_cursor:
+      new_results = _past_cursor(restriction, result)
+    else:
+      new_results = _never_seen_before(
+          restriction, result, self._key_fn, self._key_coder)
     termination_state = restriction.termination_state
     if new_results.outputs:
       termination_state = self._termination.on_seen_new_output(
@@ -585,7 +698,15 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     if not tracker.try_claim((new_results, termination_state)):
       # A checkpoint already stopped this invocation; emit nothing.
       return
+    # Emit before advancing the watermark so a round's own watermark cannot
+    # make its outputs late. Late outputs are warned about only once the
+    # watermark has advanced past the element-timestamp seed.
+    current_watermark = watermark_estimator.current_watermark()
+    warn_on_late = (
+        current_watermark is not None and current_watermark > timestamp)
     for output in new_results.outputs:
+      if warn_on_late and output.timestamp < current_watermark:
+        self._warn_late(element, output.timestamp, current_watermark)
       yield TimestampedValue((element, output.value), output.timestamp)
     if new_results.watermark is not None:
       watermark = new_results.watermark
@@ -594,6 +715,13 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       watermark = new_results.outputs[0].timestamp
     else:
       watermark = None
+    if self._timestamp_cursor:
+      new_cursor = (
+          new_results.outputs[-1].timestamp
+          if new_results.outputs else restriction.cursor)
+      if new_cursor is not None and new_cursor >= MAX_TIMESTAMP:
+        # A cursor at MAX is terminal; polling on would only drop outputs.
+        return
     if self._termination.can_stop_polling(now, termination_state):
       return
     if watermark is not None and watermark >= MAX_TIMESTAMP:
@@ -602,6 +730,20 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     if watermark is not None:
       _set_watermark_if_greater(watermark_estimator, watermark)
     tracker.defer_remainder(self._poll_interval)
+
+  def _warn_late(self, element, output_timestamp, watermark) -> None:
+    # Log at powers of two to keep an ongoing problem visible without spam.
+    self._late_count += 1
+    if self._late_count & (self._late_count - 1) == 0:
+      _LOGGER.warning(
+          'Watch emitted output for input %r at %s, behind the watermark %s; '
+          'downstream event-time windowing may drop it as late. Use '
+          'PollResult.with_watermark for out-of-order sources. '
+          '(%d late emissions on this worker)',
+          element,
+          output_timestamp,
+          watermark,
+          self._late_count)
 
 
 def _set_watermark_if_greater(watermark_estimator, new_watermark) -> None:
@@ -670,6 +812,14 @@ class Watch(PTransform):
       inferred like ``output_coder`` when omitted. It is converted with
       ``as_deterministic_coder`` so equal keys always hash equally; a coder
       with no deterministic form is rejected.
+    timestamp_cursor: dedup by event time instead of by key. Each round emits
+      only outputs strictly past the greatest event time already emitted, so
+      the per-input state is a single timestamp. Requires every new output to
+      carry an event time strictly greater than all previously emitted ones;
+      re-listed old outputs at or below the cursor are dropped as already
+      seen. For sources whose new outputs can arrive at or below the cursor,
+      keep the default hash dedup. Incompatible with ``output_key_fn`` and
+      ``output_key_coder``.
     now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(
@@ -680,16 +830,23 @@ class Watch(PTransform):
       output_coder: Optional[Coder] = None,
       output_key_fn: Optional[Callable[[Any], Any]] = None,
       output_key_coder: Optional[Coder] = None,
+      timestamp_cursor: bool = False,
       now_fn: Optional[Callable[[], float]] = None):
     super().__init__()
     if poll_interval is None:
       raise ValueError('Watch requires a poll_interval')
+    if timestamp_cursor and (output_key_fn is not None or
+                             output_key_coder is not None):
+      raise ValueError(
+          'timestamp_cursor dedups by event time, not by key; do not pass '
+          'output_key_fn or output_key_coder with timestamp_cursor=True.')
     self._poll_fn = poll_fn
     self._poll_interval = _as_duration(poll_interval)
     self._termination = termination or never()
     self._output_coder = output_coder
     self._output_key_fn = output_key_fn
     self._output_key_coder = output_key_coder
+    self._timestamp_cursor = timestamp_cursor
     self._now = now_fn
 
   def expand(self, pcoll):
@@ -698,22 +855,28 @@ class Watch(PTransform):
       output_coder = self._poll_fn.default_output_coder()
     if output_coder is None:
       output_coder = _coder_for_hint(_poll_output_type(self._poll_fn))
-    if self._output_key_fn is None:
-      # The output is its own dedup key, so the key coder is the output coder.
+    if self._timestamp_cursor:
+      # Cursor dedup never hashes, so no deterministic key coder is needed.
       key_fn = _identity
-      key_coder = self._output_key_coder or output_coder
+      key_coder = output_coder
     else:
-      key_fn = self._output_key_fn
-      key_coder = self._output_key_coder or _coder_for_hint(
-          _return_type(self._output_key_fn))
-    # Dedup hashes the encoded key, so equal keys must encode equally; use the
-    # coder's deterministic form and reject coders that have none.
-    key_coder = key_coder.as_deterministic_coder(
-        self.label,
-        'Watch dedups by hashing the encoded output key, so the key coder '
-        'must be deterministic. %s has no deterministic form; pass a '
-        'deterministic output_key_coder (or output_coder).' %
-        type(key_coder).__name__)
+      if self._output_key_fn is None:
+        # The output is its own dedup key, so the key coder is the output
+        # coder.
+        key_fn = _identity
+        key_coder = self._output_key_coder or output_coder
+      else:
+        key_fn = self._output_key_fn
+        key_coder = self._output_key_coder or _coder_for_hint(
+            _return_type(self._output_key_fn))
+      # Dedup hashes the encoded key, so equal keys must encode equally; use
+      # the coder's deterministic form and reject coders that have none.
+      key_coder = key_coder.as_deterministic_coder(
+          self.label,
+          'Watch dedups by hashing the encoded output key, so the key coder '
+          'must be deterministic. %s has no deterministic form; pass a '
+          'deterministic output_key_coder (or output_coder).' %
+          type(key_coder).__name__)
     # Type the (input, output) pairs from the input type and the resolved
     # coder's type, so downstream transforms are typed and coder inference does
     # not fall back to pickling.
@@ -730,6 +893,7 @@ class Watch(PTransform):
             output_coder,
             key_fn,
             key_coder,
+            self._timestamp_cursor,
             self._now)).with_output_types(tuple[input_type, value_type])
 
 
