@@ -46,7 +46,7 @@ require (
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
-	github.com/nats-io/nats-server/v2 v2.14.3
+	github.com/nats-io/nats-server/v2 v2.14.4
 	github.com/nats-io/nats.go v1.52.0
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.10.2
@@ -89,7 +89,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.32.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.57.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.57.0 // indirect
-	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
+	github.com/antithesishq/antithesis-sdk-go v0.7.2-default-no-op // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.5.2 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -178,7 +178,7 @@ require (
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
