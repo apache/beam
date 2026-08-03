@@ -103,6 +103,26 @@ public class ChangelogScannerTest {
   }
 
   @Test
+  public void analyzeFilesTreatsFilesTouchingAtOneKeyAsOverlapping() {
+    // The insert file's max PK equals the delete file's min PK, so they intersect at exactly one
+    // value. Bounds are inclusive file statistics, so this must not be pruned to unidirectional.
+    FakeAddedRowsTask insert = new FakeAddedRowsTask(dataFile("insert", 10L, 20L), 11L);
+    FakeDeletedDataFileTask delete = new FakeDeletedDataFileTask(dataFile("delete", 20L, 30L), 13L);
+
+    ChangelogScanner.AnalysisResult result =
+        ChangelogScanner.analyzeFiles(
+            true,
+            ImmutableList.of(insert, delete),
+            SINGLE_RECORD_ID_SCHEMA,
+            comparator(SINGLE_RECORD_ID_SCHEMA));
+
+    assertThat(result.unidirectional, empty());
+    assertThat(result.bidirectional, containsInAnyOrder(insert, delete));
+    assertEquals(20L, record(result.overlapLower).getField("id"));
+    assertEquals(20L, record(result.overlapUpper).getField("id"));
+  }
+
+  @Test
   public void analyzeFilesFindsOverlapDespiteInputOrder() {
     FakeDeletedDataFileTask laterDelete =
         new FakeDeletedDataFileTask(dataFile("delete-later", 30L, 40L), 13L);
