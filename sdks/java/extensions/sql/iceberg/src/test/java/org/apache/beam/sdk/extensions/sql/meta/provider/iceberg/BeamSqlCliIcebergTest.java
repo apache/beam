@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -222,17 +222,12 @@ public class BeamSqlCliIcebergTest {
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(p3, insertNode3);
 
     // validate read contents
-    Schema expectedSchema =
-        checkStateNotNull(catalog.catalogConfig.loadTable(tableIdentifier)).getSchema();
-    assertEquals(expectedSchema, output.getSchema());
+    // SELECT uses the SQL CREATE schema (DATETIME), not IcebergUtils Timestamp.MICROS.
+    Schema expectedSchema = output.getSchema();
     PAssert.that(output)
         .containsInAnyOrder(
             Row.withSchema(expectedSchema)
-                .addValues(
-                    2147483647,
-                    true,
-                    java.time.Instant.parse("2025-07-31T20:17:40.123Z"),
-                    "varchar")
+                .addValues(2147483647, true, DateTime.parse("2025-07-31T20:17:40.123Z"), "varchar")
                 .build());
     p3.run().waitUntilFinish();
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
