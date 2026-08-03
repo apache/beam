@@ -486,27 +486,40 @@ class SchemaTranslation(object):
       self,
       type_proto: schema_pb2.FieldType,
       value_proto: schema_pb2.FieldValue):
-    if type_proto.WhichOneof("type_info") != "atomic_type":
-      # TODO: Allow other value types
+    type_info = type_proto.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      return self.atomic_value_from_runner_api(
+          type_proto.atomic_type, value_proto.atomic_value)
+    elif type_info == "array_type":
+      element_type = type_proto.array_type.element_type
+      return [
+          self.value_from_runner_api(element_type, element)
+          for element in value_proto.array_value.element
+      ]
+    else:
       raise ValueError(
-          "Encounterd option with unsupported type. Only "
-          f"atomic_type options are supported: {type_proto}")
-
-    value = self.atomic_value_from_runner_api(
-        type_proto.atomic_type, value_proto.atomic_value)
-    return value
+          "Encountered option with unsupported type. Only atomic_type and "
+          f"array_type options are supported: {type_proto}")
 
   def value_to_runner_api(self, typing_proto: schema_pb2.FieldType, value):
-    if typing_proto.WhichOneof("type_info") != "atomic_type":
-      # TODO: Allow other value types
+    type_info = typing_proto.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      return schema_pb2.FieldValue(
+          atomic_value=self.atomic_value_to_runner_api(
+              typing_proto.atomic_type, value))
+    elif type_info == "array_type":
+      element_type = typing_proto.array_type.element_type
+      return schema_pb2.FieldValue(
+          array_value=schema_pb2.ArrayTypeValue(
+              element=[
+                  self.value_to_runner_api(element_type, element)
+                  for element in value
+              ]))
+    else:
       raise ValueError(
-          "Only atomic_type option values are currently supported in Python. "
-          f"Got {value!r}, which maps to fieldtype {typing_proto!r}.")
-
-    atomic_value = self.atomic_value_to_runner_api(
-        typing_proto.atomic_type, value)
-    value_proto = schema_pb2.FieldValue(atomic_value=atomic_value)
-    return value_proto
+          "Only atomic_type and array_type option values are currently "
+          f"supported in Python. Got {value!r}, which maps to fieldtype "
+          f"{typing_proto!r}.")
 
   def option_from_runner_api(
       self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
@@ -524,7 +537,10 @@ class SchemaTranslation(object):
       # Don't set type, value
       return schema_pb2.Option(name=name)
 
-    type_proto = self.typing_to_runner_api(type(value))
+    from apache_beam.typehints import trivial_inference
+
+    type_proto = self.typing_to_runner_api(
+        trivial_inference.instance_to_type(value))
     value_proto = self.value_to_runner_api(type_proto, value)
     return schema_pb2.Option(name=name, type=type_proto, value=value_proto)
 
