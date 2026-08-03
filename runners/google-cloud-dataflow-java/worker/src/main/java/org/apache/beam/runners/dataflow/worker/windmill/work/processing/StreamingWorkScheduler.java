@@ -228,7 +228,7 @@ public class StreamingWorkScheduler {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
-    setLoggingContextComputation(computationId);
+    setLoggingContextComputation(computationState.getSystemName());
     KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
     keyTransitionListener.onKeyTransition(null, work);
 
