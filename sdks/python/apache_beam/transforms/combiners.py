@@ -617,7 +617,8 @@ class Sample(object):
           pcoll
           | core.CombineGlobally(_SampleAnyCombineFn(
               self._n)).without_defaults()
-          | core.FlatMap(lambda elements: elements))
+          | core.FlatMap(lambda elements: elements).with_input_types(
+              list[T]).with_output_types(T))
 
     def display_data(self):
       return {'n': self._n}
