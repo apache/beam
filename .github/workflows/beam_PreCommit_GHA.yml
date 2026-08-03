@@ -80,6 +80,22 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    - name: Check for gsutil references
+      run: |
+        echo "Checking codebase for gsutil..."
+        # Search for 'gsutil', excluding this workflow file itself to avoid false positives.
+        if git grep -n "gsutil" -- ':!.github/workflows/beam_PreCommit_GHA.yml'; then
+          echo "ERROR: Found references to gsutil in the codebase. Please use 'gcloud storage' instead."
+          exit 1
+        elif [ "$(date +%Y%m)" -ge 202704 ]; then
+          echo "ERROR: Current date is April 2027 or later."
+          echo "Please verify gsutil deprecation date is still March 2027 (Reference: https://docs.cloud.google.com/storage/docs/gsutil)."
+          echo "If so, then delete this workflow step."
+          exit 1
+        else
+          echo "SUCCESS: No references to gsutil found."
+        fi
+      shell: bash
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
