@@ -60,6 +60,9 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+
+	workerMu     sync.Mutex
+	shuttingDown bool
 )
 
 const (
@@ -307,19 +310,12 @@ func launchSDKProcess() error {
 
 	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
 
-	// Keep track of child PIDs for clean shutdown without zombies
-	childPids := struct {
-		v        []int
-		canceled bool
-		mu       sync.Mutex
-	}{v: make([]int, 0, len(workerIds))}
-
 	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
 	go func() {
 		logger.Printf(ctx, "Received signal: %v", <-signalChannel)
-		childPids.mu.Lock()
-		childPids.canceled = true
-		for _, pid := range childPids.v {
+		workerMu.Lock()
+		shuttingDown = true
+		for _, pid := range activePids {
 			go func(pid int) {
 				// This goroutine will be canceled if the main process exits before the 5 seconds
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
@@ -330,7 +326,7 @@ func launchSDKProcess() error {
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
 		}
-		childPids.mu.Unlock()
+		workerMu.Unlock()
 	}()
 
 	var wg sync.WaitGroup
@@ -342,9 +338,9 @@ func launchSDKProcess() error {
 			bufLogger := tools.NewBufferedLogger(logger)
 			errorCount := 0
 			for {
-				childPids.mu.Lock()
-				if childPids.canceled {
-					childPids.mu.Unlock()
+				workerMu.Lock()
+				if shuttingDown {
+					workerMu.Unlock()
 					return
 				}
 
@@ -369,8 +365,9 @@ func launchSDKProcess() error {
 
 				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
 				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
-				childPids.v = append(childPids.v, cmd.Process.Pid)
-				childPids.mu.Unlock()
+				logger.Printf(ctx, "Started worker %s with PID %d", workerId, cmd.Process.Pid)
+				activePids = append(activePids, cmd.Process.Pid)
+				workerMu.Unlock()
 
 				var timer *time.Timer
 				var profilingTimedOut atomic.Bool
@@ -379,8 +376,8 @@ func launchSDKProcess() error {
 				if profilingActive && pcfg.StopAfterSec > 0 {
 					duration := time.Duration(pcfg.StopAfterSec) * time.Second
 					timer = time.AfterFunc(duration, func() {
-						childPids.mu.Lock()
-						defer childPids.mu.Unlock()
+						workerMu.Lock()
+						defer workerMu.Unlock()
 						if cmd.Process != nil {
 							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
 								pcfg.StopAfterSec, workerId)
@@ -391,6 +388,7 @@ func launchSDKProcess() error {
 				}
 
 				err := cmd.Wait()
+				unregisterPid(cmd.Process.Pid)
 				if timer != nil {
 					timer.Stop()
 				}
@@ -417,6 +415,7 @@ func launchSDKProcess() error {
 						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
+						cleanUpProfiler(ctx, logger)
 						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
@@ -594,4 +593,24 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	}
 	bufLogger.Printf(ctx, "Dependencies in submission environment:\n%s", string(content))
 	return nil
+}
+
+var (
+	activePids []int
+)
+
+func unregisterPid(pid int) {
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	activePids = slices.DeleteFunc(activePids, func(p int) bool {
+		return p == pid
+	})
+}
+
+func getActivePids() []int {
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	pids := make([]int, len(activePids))
+	copy(pids, activePids)
+	return pids
 }
