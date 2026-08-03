@@ -132,32 +132,6 @@ func main() {
 //			 ],
 //		 }
 //	}
-type PipelineOptionsData struct {
-	Options OptionsData `json:"options"`
-}
-
-type OptionsData struct {
-	Experiments                   []string `json:"experiments"`
-	ProfilerAgent                 string   `json:"profiler_agent"`
-	ProfilerExtraArgs             []string `json:"profiler_extra_args"`
-	ProfilerExtraEnvVars          []string `json:"profiler_extra_env_vars"`
-	ProfileLocation               string   `json:"profile_location"`
-	ProfileTempLocation           string   `json:"profile_temp_location"`
-	ProfileUploadIntervalSec      int      `json:"profile_upload_interval_sec"`
-	ProfilerStopAfterSec          int      `json:"profiler_stop_after_sec"`
-	ProfilerStopAfterCrash        bool     `json:"profiler_stop_after_crash"`
-	ProfilePostprocessIntervalSec int      `json:"profile_postprocess_interval_sec"`
-	JobId                         string   `json:"jobId,omitempty"`
-}
-
-func getExperiments(options string) []string {
-	var opts PipelineOptionsData
-	err := json.Unmarshal([]byte(options), &opts)
-	if err != nil {
-		return nil
-	}
-	return opts.Options.Experiments
-}
 
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
@@ -193,31 +167,25 @@ func launchSDKProcess() error {
 
 	// (1) Obtain the pipeline options
 
-	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
+
+
+	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions())
 	if err != nil {
-		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
+		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)
 	}
+	logger.Printf(ctx, "Parsed options in boot entrypoint: %v", po)
 
 	// Inject artifact validation enabled state into context
-	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))
 
-	experiments := getExperiments(options)
-	logger.Printf(ctx, "Experiments=%v", experiments)
-
-	pipNoBuildIsolation = true
-	if slices.Contains(experiments, "pip_use_build_isolation") {
-		pipNoBuildIsolation = false
-		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
-	} else {
+	pipNoBuildIsolation = !po.HasExperiment("pip_use_build_isolation")
+	if pipNoBuildIsolation {
 		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
+	} else {
+		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	}
 
-	var opts PipelineOptionsData
-	if err := json.Unmarshal([]byte(options), &opts); err != nil {
-		logger.Warnf(ctx, "Failed to unmarshal pipeline options for profiling config: %v", err)
-	}
-
-	ctx = setupProfilerConfig(ctx, logger, &opts)
+	ctx = setupProfilerConfig(ctx, logger, po)
 	startProfilerBackgroundTasks(ctx, logger)
 
 	// (2) Retrieve and install the staged packages.
@@ -286,6 +254,10 @@ func launchSDKProcess() error {
 	// (3) Invoke python
 
 	// Write the JSON string of pipeline options into a file to prevent "argument list too long" error.
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
+	if err != nil {
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
+	}
 	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
