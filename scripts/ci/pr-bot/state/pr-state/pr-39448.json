@@ -1,0 +1,14 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "claudevdm",
+    "java": "chamikaramj",
+    "go": "jrmccluskey",
+    "build": "damccorm",
+    "website": "Abacn"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
