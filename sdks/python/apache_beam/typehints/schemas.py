@@ -977,6 +977,92 @@ MicrosInstantRepresentation = NamedTuple(
     'MicrosInstantRepresentation', [('seconds', np.int64),
                                     ('micros', np.int64)])
 
+ParameterizedTimestampRepresentation = NamedTuple(
+    'ParameterizedTimestampRepresentation', [('seconds', np.int64),
+                                             ('subseconds', np.int32)])
+
+# The subseconds field is INT16 for precision < 5
+_TIMESTAMP_SHORT_PRECISION_LIMIT = 5
+ParameterizedTimestampShortRepresentation = NamedTuple(
+    'ParameterizedTimestampShortRepresentation', [('seconds', np.int64),
+                                                  ('subseconds', np.int16)])
+
+
+@LogicalType._register_internal
+class ParameterizedTimestamp(LogicalType[Timestamp,
+                                         ParameterizedTimestampRepresentation,
+                                         np.int32]):
+  """Timestamp logical type parameterized by subsecond precision.
+
+  The argument is the precision: the number of decimal digits used to
+  represent the fraction of a second, e.g. 3 for milliseconds, 6 for
+  microseconds, 9 for nanoseconds.
+
+  Values are represented as a row of ``seconds`` (INT64, floored seconds
+  since the epoch) and ``subseconds`` (units of 10**-precision seconds,
+  always in ``[0, 10**precision)``.
+  ``subseconds`` is an INT16 field for precision < 5 and an INT32
+  field otherwise.
+
+  Note: Timestamp originating from Python to xlang still defaults to
+  MicrosInstant for backwards compatibility. To override the mapping of
+  Timestamp to this logical type, re-register using
+  :func:`~LogicalType.register_logical_type(ParameterizedTimestamp)`.
+  """
+  def __init__(self, precision: int = Timestamp.MICROS_PRECISION) -> None:
+    # The argument arrives as np.int32 when decoded from a schema proto.
+    precision = int(precision)
+    if not 0 <= precision <= Timestamp.NANOS_PRECISION:
+      raise ValueError(
+          'Timestamp precision must be between 0 and %d (inclusive), '
+          'but was %d.' % (Timestamp.NANOS_PRECISION, precision))
+    self._precision = precision
+
+  @classmethod
+  def urn(cls):
+    return common_urns.timestamp.urn
+
+  def representation_type(self) -> type:  # type: ignore[override]
+    # Unlike other logical types, the representation depends on the
+    # argument, so this is an instance method rather than a classmethod.
+    if self._precision < _TIMESTAMP_SHORT_PRECISION_LIMIT:
+      return ParameterizedTimestampShortRepresentation
+    return ParameterizedTimestampRepresentation
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_representation_type(self, value: Timestamp):
+    # Verify that the value can be represented exactly at this type's precision
+    if value.precision() != self._precision:
+      value = value.to_precision(self._precision)
+    return self.representation_type()(value.seconds(), value.subseconds())
+
+  def to_language_type(self, value) -> Timestamp:
+    subseconds = int(value.subseconds)
+    # Match Java's toInputType: out-of-range subseconds indicate data
+    # corruption or a precision mismatch.
+    if not 0 <= subseconds < 10**self._precision:
+      raise ValueError(
+          'Invalid subseconds %d for Timestamp with precision %d.' %
+          (subseconds, self._precision))
+    return Timestamp(
+        seconds=int(value.seconds),
+        subseconds=subseconds,
+        precision=self._precision)
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self._precision
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
 
 @LogicalType._register_internal
 class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
@@ -1019,9 +1105,11 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
     return Timestamp(micros=millis * 1000)
 
 
-# Make sure MicrosInstant is registered after MillisInstant so that it
-# overwrites the mapping of Timestamp language type representation choice and
-# thus does not lose microsecond precision inside python sdk.
+# Make sure MicrosInstant is registered after MillisInstant and
+# ParameterizedTimestamp so that it overwrites the mapping of Timestamp
+# language type representation choice: plain Timestamp typehints keep their
+# historical micros_instant encoding and do not lose microsecond precision
+# inside the python sdk.
 @LogicalType._register_internal
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):

@@ -1220,6 +1220,194 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
+  public void testCommit_multiKeyCommit_multichunk() throws Exception {
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    CompletableFuture<Windmill.CommitStatus> commitStatusFuture = new CompletableFuture<>();
+
+    long shardingKey1 = 101L;
+    long workToken1 = 201L;
+    long cacheToken1 = 301L;
+    long shardingKey2 = 102L;
+    long workToken2 = 202L;
+    long cacheToken2 = 302L;
+
+    Windmill.WorkItemCommitRequest request1 =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setShardingKey(shardingKey1)
+            .setWorkToken(workToken1)
+            .setCacheToken(cacheToken1)
+            .addBagUpdates(Windmill.TagBag.newBuilder().setTag(LARGE_BYTE_STRING).build())
+            .build();
+
+    Windmill.WorkItemCommitRequest request2 =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key2"))
+            .setShardingKey(shardingKey2)
+            .setWorkToken(workToken2)
+            .setCacheToken(cacheToken2)
+            .build();
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder()
+            .addRequests(request1)
+            .addRequests(request2)
+            .build();
+
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitMultiKeyWorkItem(
+              COMPUTATION_ID, multiKeyRequest, commitStatusFuture::complete));
+    }
+
+    Windmill.StreamingCommitWorkRequest requestChunk1 = streamInfo.requests.take();
+    assertThat(requestChunk1.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk chunk1 = requestChunk1.getCommitChunk(0);
+
+    assertThat(chunk1.getCommitType())
+        .isEqualTo(Windmill.StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY);
+    assertThat(chunk1.getShardingKey()).isEqualTo(request1.getShardingKey());
+    assertThat(chunk1.getRemainingBytesForWorkItem()).isGreaterThan(0);
+
+    Windmill.StreamingCommitWorkRequest requestChunk2 = streamInfo.requests.take();
+    assertThat(requestChunk2.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk chunk2 = requestChunk2.getCommitChunk(0);
+
+    assertThat(chunk2.getCommitType())
+        .isEqualTo(Windmill.StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY);
+    assertThat(chunk2.getShardingKey()).isEqualTo(request1.getShardingKey());
+    assertThat(chunk2.getRemainingBytesForWorkItem()).isEqualTo(0);
+
+    ByteString reconstructedBytes =
+        chunk1.getSerializedWorkItemCommit().concat(chunk2.getSerializedWorkItemCommit());
+    Windmill.MultiKeyWorkItemCommitRequest parsedRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.parseFrom(reconstructedBytes);
+    assertThat(parsedRequest).isEqualTo(multiKeyRequest);
+
+    long requestId = chunk1.getRequestId();
+    assertThat(chunk2.getRequestId()).isEqualTo(requestId);
+
+    streamInfo.responseObserver.onNext(
+        Windmill.StreamingCommitResponse.newBuilder().addRequestId(requestId).build());
+
+    assertThat(commitStatusFuture.get()).isEqualTo(Windmill.CommitStatus.OK);
+  }
+
+  @Test
+  public void testCommitMultiKeyWorkItem_retryOnNewStream() throws Exception {
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    CompletableFuture<Windmill.CommitStatus> commitStatusFuture = new CompletableFuture<>();
+
+    long shardingKey1 = 101L;
+    long workToken1 = 201L;
+    long cacheToken1 = 301L;
+    Windmill.WorkItemCommitRequest request1 =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setShardingKey(shardingKey1)
+            .setWorkToken(workToken1)
+            .setCacheToken(cacheToken1)
+            .build();
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.newBuilder().addRequests(request1).build();
+
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitMultiKeyWorkItem(
+              COMPUTATION_ID, multiKeyRequest, commitStatusFuture::complete));
+    }
+
+    Windmill.StreamingCommitWorkRequest request = streamInfo.requests.take();
+    assertThat(request.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk chunk = request.getCommitChunk(0);
+    assertThat(chunk.getCommitType())
+        .isEqualTo(Windmill.StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY);
+    long requestId = chunk.getRequestId();
+
+    streamInfo.responseObserver.onError(new IOException("test error"));
+
+    FakeWindmillGrpcService.CommitStreamInfo reconnectStreamInfo =
+        waitForConnectionAndConsumeHeader();
+    Windmill.StreamingCommitWorkRequest reconnectRequest = reconnectStreamInfo.requests.take();
+    assertThat(reconnectRequest.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk reconnectChunk = reconnectRequest.getCommitChunk(0);
+    assertThat(reconnectChunk.getCommitType())
+        .isEqualTo(Windmill.StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY);
+    assertThat(reconnectChunk.getRequestId()).isEqualTo(requestId);
+
+    Windmill.MultiKeyWorkItemCommitRequest parsedRequest =
+        Windmill.MultiKeyWorkItemCommitRequest.parseFrom(
+            reconnectChunk.getSerializedWorkItemCommit());
+    assertThat(parsedRequest).isEqualTo(multiKeyRequest);
+
+    reconnectStreamInfo.responseObserver.onNext(
+        Windmill.StreamingCommitResponse.newBuilder().addRequestId(requestId).build());
+    assertThat(commitStatusFuture.get()).isEqualTo(Windmill.CommitStatus.OK);
+  }
+
+  @Test
+  public void testCommitWorkItem_retryOnNewStream_multichunk() throws Exception {
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    CompletableFuture<Windmill.CommitStatus> commitStatusFuture = new CompletableFuture<>();
+
+    Windmill.WorkItemCommitRequest largeRequest =
+        workItemCommitRequest(1)
+            .toBuilder()
+            .addBagUpdates(Windmill.TagBag.newBuilder().setTag(LARGE_BYTE_STRING).build())
+            .build();
+
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(COMPUTATION_ID, largeRequest, commitStatusFuture::complete));
+    }
+
+    Windmill.StreamingCommitWorkRequest requestChunk1 = streamInfo.requests.take();
+    assertThat(requestChunk1.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk chunk1 = requestChunk1.getCommitChunk(0);
+    long requestId = chunk1.getRequestId();
+    assertThat(chunk1.getRemainingBytesForWorkItem()).isGreaterThan(0);
+
+    Windmill.StreamingCommitWorkRequest requestChunk2 = streamInfo.requests.take();
+    assertThat(requestChunk2.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk chunk2 = requestChunk2.getCommitChunk(0);
+    assertThat(chunk2.getRequestId()).isEqualTo(requestId);
+    assertThat(chunk2.getRemainingBytesForWorkItem()).isEqualTo(0);
+
+    streamInfo.responseObserver.onError(new IOException("test error"));
+
+    FakeWindmillGrpcService.CommitStreamInfo reconnectStreamInfo =
+        waitForConnectionAndConsumeHeader();
+
+    Windmill.StreamingCommitWorkRequest reconnectChunk1 = reconnectStreamInfo.requests.take();
+    assertThat(reconnectChunk1.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk reconChunk1 = reconnectChunk1.getCommitChunk(0);
+    assertThat(reconChunk1.getRequestId()).isEqualTo(requestId);
+    assertThat(reconChunk1.getRemainingBytesForWorkItem()).isGreaterThan(0);
+
+    Windmill.StreamingCommitWorkRequest reconnectChunk2 = reconnectStreamInfo.requests.take();
+    assertThat(reconnectChunk2.getCommitChunkCount()).isEqualTo(1);
+    Windmill.StreamingCommitRequestChunk reconChunk2 = reconnectChunk2.getCommitChunk(0);
+    assertThat(reconChunk2.getRequestId()).isEqualTo(requestId);
+    assertThat(reconChunk2.getRemainingBytesForWorkItem()).isEqualTo(0);
+
+    ByteString reconstructedBytes =
+        reconChunk1.getSerializedWorkItemCommit().concat(reconChunk2.getSerializedWorkItemCommit());
+    Windmill.WorkItemCommitRequest parsedRequest =
+        Windmill.WorkItemCommitRequest.parseFrom(reconstructedBytes);
+    assertThat(parsedRequest).isEqualTo(largeRequest);
+
+    reconnectStreamInfo.responseObserver.onNext(
+        Windmill.StreamingCommitResponse.newBuilder().addRequestId(requestId).build());
+    assertThat(commitStatusFuture.get()).isEqualTo(Windmill.CommitStatus.OK);
+  }
+
+  @Test
   public void testCommitWorkItem_stopsRetriesAfterDuration() throws Exception {
     int numCommits = 1;
     CountDownLatch commitProcessed = new CountDownLatch(numCommits);

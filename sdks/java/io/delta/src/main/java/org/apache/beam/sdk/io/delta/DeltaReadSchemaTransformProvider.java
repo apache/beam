@@ -130,11 +130,11 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
     abstract static class Builder {
       abstract Builder setTable(String table);
 
-      abstract Builder setVersion(@Nullable Long version);
+      abstract Builder setVersion(Long version);
 
-      abstract Builder setTimestamp(@Nullable String timestamp);
+      abstract Builder setTimestamp(String timestamp);
 
-      abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
+      abstract Builder setHadoopConfig(Map<String, String> hadoopConfig);
 
       abstract Configuration build();
     }

@@ -23,7 +23,6 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -319,23 +318,14 @@ public class DebeziumIO {
       SourceRecord sampledRecord =
           fn.getOneRecord(getConnectorConfiguration().getConfigurationMap());
       fn.reset();
-      Schema keySchema =
-          sampledRecord.keySchema() != null
-              ? KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.keySchema())
-              : Schema.builder().build();
       Schema valueSchema =
           KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.valueSchema());
 
       return Schema.builder()
           .addFields(valueSchema.getFields())
-          .setOptions(
-              Schema.Options.builder()
-                  .setOption(
-                      "primaryKeyColumns",
-                      Schema.FieldType.array(Schema.FieldType.STRING),
-                      keySchema.getFields().stream()
-                          .map(Schema.Field::getName)
-                          .collect(Collectors.toList())))
+          // TODO(https://github.com/apache/beam/issues/39557):
+          // Restore 'primaryKeyColumns' once Python can decode ARRAY<STRING>
+          // schema options across the Java/Python cross-language boundary.
           .build();
     }
 
