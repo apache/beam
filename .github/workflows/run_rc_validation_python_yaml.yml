@@ -265,9 +265,9 @@ jobs:
           sleep 60
           # Check if any files matching the pattern exist within the unique output folder.
           echo "Checking for files matching pattern: ${OUTPUT_PATTERN}"
-          if gsutil ls "${OUTPUT_PATTERN}" > /dev/null 2>&1; then
+          if gcloud storage ls "${OUTPUT_PATTERN}" > /dev/null 2>&1; then
             echo "SUCCESS: Found output files matching pattern in GCS."
-            gsutil ls "${OUTPUT_PATTERN}" # List found files
+            gcloud storage ls "${OUTPUT_PATTERN}" # List found files
           else
             echo "ERROR: No output files found matching pattern '${OUTPUT_PATTERN}' in GCS bucket."
             exit 1
@@ -280,7 +280,7 @@ jobs:
         run: |
           echo "Deleting unique run folder in GCS: ${GCS_UNIQUE_FOLDER_PREFIX}"
           # Delete the entire unique folder for this run, including temp, staging, and output
-          gsutil -m rm -r "${GCS_UNIQUE_FOLDER_PREFIX}" || echo "Failed to delete unique run folder ${GCS_UNIQUE_FOLDER_PREFIX} in GCS. Manual cleanup might be required."
+          gcloud storage rm -r "${GCS_UNIQUE_FOLDER_PREFIX}" || echo "Failed to delete unique run folder ${GCS_UNIQUE_FOLDER_PREFIX} in GCS. Manual cleanup might be required."
 
           echo "Removing local log, yaml, and jobid files..."
           rm -f yaml_dataflow_submit.log ${{ env.YAML_PIPELINE_FILE }} yaml_dataflow_jobid.txt
