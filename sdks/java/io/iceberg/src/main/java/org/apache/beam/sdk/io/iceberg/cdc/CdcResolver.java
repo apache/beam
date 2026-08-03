@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg.cdc;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Helper class to reconcile CDC rows. Used by {@link ResolveChanges} (with Beam {@link Row}s) and
  * {@link LocalResolveDoFn} (with Iceberg {@link Record}s).
  *
- * <p>We determine the output ValueKind as follows:
+ * <p>For rows that share a given Primary Key, we determine the output ValueKind as follows:
  *
  * <ul>
  *   <li>(delete, insert) pairs become {@code UPDATE_BEFORE} + {@code UPDATE_AFTER}
@@ -51,6 +52,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *       ValueKind#UPDATE_BEFORE} / {@link ValueKind#UPDATE_AFTER}.
  *   <li>Emit any unmatched extras as {@link ValueKind#DELETE} / {@link ValueKind#INSERT}.
  * </ol>
+ *
+ * <h3>Duplicate identifier values</h3>
+ *
+ * <p>Iceberg does not enforce PK uniqueness, so a single PK group may contain more than one delete
+ * and/or insert (although it would be unusual). In the normal case, identifier values are unique
+ * and a snapshot contributes at most one delete and one insert per PK.
+ *
+ * <p>If duplicates are encountered, we do not fail. Instead, we pair off the deletes and inserts,
+ * and any leftovers are emitted as plain {@code DELETE} / {@code INSERT}. The pairing is
+ * necessarily arbitrary as Iceberg only keeps track of commit-level sequencing. We do not have
+ * further insight within a commit to determine record ordering. To produce deterministic outputs in
+ * the duplicate case, both sides are ordered by {@link #nonPkHash} before pairing.
  */
 abstract class CdcResolver<T> {
   /** Hashes the non-PK fields of an element. Used as the index for O(n+m) CoW deduplication. */
@@ -67,9 +80,26 @@ abstract class CdcResolver<T> {
    * Resolves a Primary Key group of deletes and inserts. Caller provides {@code emit} which decides
    * how to materialize each output.
    *
-   * <p>Both input lists are inspected in their given order.
+   * <p>In the rare case of duplicate PKs within a snapshot, one side may hold more than one record.
+   * When this happens, we re-order the lists by {@link #nonPkHash} so the result is deterministic.
    */
   final void resolve(List<T> deletes, List<T> inserts, BiConsumer<ValueKind, T> emit) {
+    // Fast path: with unique identifier values each side holds at most one record, so there is
+    // only one possible pairing and nothing to order.
+    if (deletes.size() > 1 || inserts.size() > 1) {
+      resolveOrdered(sortedByNonPkHash(deletes), sortedByNonPkHash(inserts), emit);
+    } else {
+      resolveOrdered(deletes, inserts, emit);
+    }
+  }
+
+  private List<T> sortedByNonPkHash(List<T> records) {
+    List<T> sorted = new ArrayList<>(records);
+    sorted.sort(Comparator.comparingInt(this::nonPkHash));
+    return sorted;
+  }
+
+  private void resolveOrdered(List<T> deletes, List<T> inserts, BiConsumer<ValueKind, T> emit) {
     boolean hasDeletes = !deletes.isEmpty();
     boolean hasInserts = !inserts.isEmpty();
 

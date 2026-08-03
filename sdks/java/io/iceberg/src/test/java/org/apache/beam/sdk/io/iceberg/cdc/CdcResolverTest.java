@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.cdc;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,6 +82,43 @@ public class CdcResolverTest {
             Collections.singletonList(item("after", 42)));
 
     assertThat(emitted, contains("UPDATE_BEFORE:before", "UPDATE_AFTER:after"));
+  }
+
+  /**
+   * A PK group can hold several records on a side only when identifier values are duplicated. The
+   * pairing is arbitrary in that case, but it must not depend on the order the caller supplies.
+   */
+  @Test
+  public void pairingDoesNotDependOnInputOrder() {
+    List<String> inOrder =
+        resolve(
+            Arrays.asList(item("d1", 10), item("d2", 20)),
+            Arrays.asList(item("i1", 30), item("i2", 40)));
+    List<String> insertsReversed =
+        resolve(
+            Arrays.asList(item("d1", 10), item("d2", 20)),
+            Arrays.asList(item("i2", 40), item("i1", 30)));
+
+    assertThat(
+        inOrder,
+        contains("UPDATE_BEFORE:d1", "UPDATE_AFTER:i1", "UPDATE_BEFORE:d2", "UPDATE_AFTER:i2"));
+    assertEquals(inOrder, insertsReversed);
+  }
+
+  /** When the two sides differ in size, input order must not decide which record is a DELETE. */
+  @Test
+  public void unmatchedExtraDoesNotDependOnInputOrder() {
+    List<String> inOrder =
+        resolve(
+            Arrays.asList(item("d1", 10), item("d2", 20)),
+            Collections.singletonList(item("i1", 30)));
+    List<String> deletesReversed =
+        resolve(
+            Arrays.asList(item("d2", 20), item("d1", 10)),
+            Collections.singletonList(item("i1", 30)));
+
+    assertThat(inOrder, contains("UPDATE_BEFORE:d1", "UPDATE_AFTER:i1", "DELETE:d2"));
+    assertEquals(inOrder, deletesReversed);
   }
 
   private static Item item(String nonPkValue, int hash) {
