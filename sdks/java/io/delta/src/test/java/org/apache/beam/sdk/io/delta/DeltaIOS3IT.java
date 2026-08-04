@@ -76,7 +76,8 @@ public class DeltaIOS3IT {
   @ClassRule
   public static LocalStackContainer localstack =
       new LocalStackContainer(DockerImageName.parse("localstack/localstack:0.13.1"))
-          .withServices(LocalStackContainer.Service.S3);
+          .withServices(LocalStackContainer.Service.S3)
+          .withLogConsumer(frame -> System.out.print("[LocalStack S3] " + frame.getUtf8String()));
 
   @Rule public final TestPipeline readPipeline = TestPipeline.create();
   @Rule public final TestName testName = new TestName();
@@ -123,6 +124,10 @@ public class DeltaIOS3IT {
     configuration.set("fs.s3a.access.key", localstack.getAccessKey());
     configuration.set("fs.s3a.secret.key", localstack.getSecretKey());
     configuration.set("fs.s3a.path.style.access", "true");
+    configuration.set("fs.s3a.connection.ssl.enabled", "false");
+    configuration.set("fs.s3a.endpoint.region", localstack.getRegion());
+    configuration.set("fs.s3a.cross.region.access.enabled", "false");
+    configuration.set("fs.s3a.audit.enabled", "false");
     configuration.set(
         "fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
 
@@ -261,6 +266,10 @@ public class DeltaIOS3IT {
     hadoopConfig.put("fs.s3a.access.key", localstack.getAccessKey());
     hadoopConfig.put("fs.s3a.secret.key", localstack.getSecretKey());
     hadoopConfig.put("fs.s3a.path.style.access", "true");
+    hadoopConfig.put("fs.s3a.connection.ssl.enabled", "false");
+    hadoopConfig.put("fs.s3a.endpoint.region", localstack.getRegion());
+    hadoopConfig.put("fs.s3a.cross.region.access.enabled", "false");
+    hadoopConfig.put("fs.s3a.audit.enabled", "false");
     hadoopConfig.put(
         "fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
 
