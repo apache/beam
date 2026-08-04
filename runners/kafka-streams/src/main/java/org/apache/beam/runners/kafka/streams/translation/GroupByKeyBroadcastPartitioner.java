@@ -56,6 +56,14 @@ class GroupByKeyBroadcastPartitioner<T> implements StreamPartitioner<byte[], KSt
       }
       return Optional.of(all);
     }
+    if (key == null) {
+      // A keyless record has no partition it must go to, so leave the choice to Kafka rather than
+      // hashing a null or pinning one partition: an empty Optional tells Kafka Streams no explicit
+      // partition was chosen, and the producer's default partitioner spreads keyless records over
+      // the topic instead of piling them onto one. This is the method Kafka Streams calls, so the
+      // null has to be handled here and not only in partition() above.
+      return Optional.empty();
+    }
     int partition = Utils.toPositive(Utils.murmur2(key)) % numPartitions;
     return Optional.of(Collections.singleton(partition));
   }
