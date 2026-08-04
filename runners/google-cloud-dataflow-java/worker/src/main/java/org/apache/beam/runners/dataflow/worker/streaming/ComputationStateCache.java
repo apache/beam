@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.apiary.FixMultiOutputInfosOnParDoInstructions;
@@ -77,7 +78,8 @@ public final class ComputationStateCache implements StatusDataProvider {
   public static ComputationStateCache create(
       ComputationConfig.Fetcher computationConfigFetcher,
       BoundedQueueExecutor workUnitExecutor,
-      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
+      BiFunction<String, String, WindmillStateCache.ForComputation>
+          perComputationStateCacheViewFactory,
       IdGenerator idGenerator) {
     Function<MapTask, MapTask> fixMultiOutputInfosOnParDoInstructions =
         new FixMultiOutputInfosOnParDoInstructions(idGenerator);
@@ -105,7 +107,8 @@ public final class ComputationStateCache implements StatusDataProvider {
                         fixMultiOutputInfosOnParDoInstructions.apply(computationConfig.mapTask()),
                         workUnitExecutor,
                         transformUserNameToStateFamilyForComputation,
-                        perComputationStateCacheViewFactory.apply(computationId));
+                        perComputationStateCacheViewFactory.apply(
+                            computationId, computationConfig.mapTask().getSystemName()));
                   }
                 }),
         fixMultiOutputInfosOnParDoInstructions,
@@ -116,7 +119,8 @@ public final class ComputationStateCache implements StatusDataProvider {
   public static ComputationStateCache forTesting(
       ComputationConfig.Fetcher computationConfigFetcher,
       BoundedQueueExecutor workUnitExecutor,
-      Function<String, WindmillStateCache.ForComputation> perComputationStateCacheViewFactory,
+      BiFunction<String, String, WindmillStateCache.ForComputation>
+          perComputationStateCacheViewFactory,
       IdGenerator idGenerator,
       ConcurrentMap<String, String> pipelineUserNameToStateFamilyNameMap) {
     ComputationStateCache cache =
@@ -205,7 +209,7 @@ public final class ComputationStateCache implements StatusDataProvider {
   public void appendSummaryHtml(PrintWriter writer) {
     writer.println("<h1>Specs</h1>");
     for (ComputationState computationState : getAllPresentComputations()) {
-      writer.println("<h3>" + computationState.getComputationId() + "</h3>");
+      writer.println("<h3>" + computationState.getSystemName() + "</h3>");
       writer.print("<script>document.write(JSON.stringify(");
       writer.print(computationState.getMapTask().toString());
       writer.println(", null, \"&nbsp&nbsp\").replace(/\\n/g, \"<br>\"))</script>");

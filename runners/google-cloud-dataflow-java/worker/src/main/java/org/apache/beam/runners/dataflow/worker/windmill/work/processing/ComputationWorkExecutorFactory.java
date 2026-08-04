@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 
 import com.google.api.services.dataflow.model.MapTask;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
@@ -82,12 +83,11 @@ final class ComputationWorkExecutorFactory {
   private final DataflowWorkerHarnessOptions options;
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
   private final ReaderCache readerCache;
-  private final Function<String, WindmillStateCache.ForComputation> stateCacheFactory;
+  private final BiFunction<String, String, WindmillStateCache.ForComputation> stateCacheFactory;
   private final ReaderRegistry readerRegistry;
   private final SinkRegistry sinkRegistry;
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
   private final StreamingCounters streamingCounters;
   private final FailureTracker failureTracker;
 
@@ -112,7 +112,7 @@ final class ComputationWorkExecutorFactory {
       DataflowWorkerHarnessOptions options,
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       ReaderCache readerCache,
-      Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
+      BiFunction<String, String, WindmillStateCache.ForComputation> stateCacheFactory,
       DataflowExecutionStateSampler sampler,
       StreamingCounters streamingCounters,
       FailureTracker failureTracker,
@@ -287,7 +287,7 @@ final class ComputationWorkExecutorFactory {
         computationId,
         readerCache,
         computationState.getTransformUserNameToStateFamily(),
-        stateCacheFactory.apply(computationId),
+        stateCacheFactory.apply(computationId, stageInfo.systemName()),
         stageInfo.metricsContainerRegistry(),
         executionStateTracker,
         stageInfo.executionStateRegistry(),

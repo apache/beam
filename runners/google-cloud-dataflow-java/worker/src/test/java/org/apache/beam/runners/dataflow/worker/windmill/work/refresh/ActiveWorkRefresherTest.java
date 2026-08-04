@@ -257,7 +257,7 @@ public class ActiveWorkRefresherTest {
     ByteString key = ByteString.EMPTY;
     for (int i = 0; i < 5; i++) {
       WindmillStateCache.ForComputation perComputationStateCache =
-          spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i));
+          spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i, "systemName" + i));
       ComputationState computationState = spy(createComputationState(i, perComputationStateCache));
       ExecutableWork fakeWork = createOldWork(ShardedKey.create(key, i), i, ignored -> {});
       fakeWork.work().setState(Work.State.COMMITTING);

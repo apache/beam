@@ -225,7 +225,7 @@ public class WindmillStateInternalsTest {
             mockReader,
             false,
             cache
-                .forComputation("comp")
+                .forComputation("comp", "systemName")
                 .forKey(
                     WindmillComputationKey.create(
                         "comp", ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123),
@@ -241,7 +241,7 @@ public class WindmillStateInternalsTest {
             mockReader,
             true,
             cache
-                .forComputation("comp")
+                .forComputation("comp", "systemName")
                 .forKey(
                     WindmillComputationKey.create(
                         "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
@@ -257,7 +257,7 @@ public class WindmillStateInternalsTest {
             mockReader,
             false,
             cacheViaMultimap
-                .forComputation("comp")
+                .forComputation("comp", "systemName")
                 .forKey(
                     WindmillComputationKey.create(
                         "comp", ByteString.copyFrom("dummyNewKey", StandardCharsets.UTF_8), 123),
@@ -2049,7 +2049,7 @@ public class WindmillStateInternalsTest {
 
     // clear cache and recreate multimapState
     cache
-        .forComputation("comp")
+        .forComputation("comp", "systemName")
         .invalidate(ByteString.copyFrom("dummyKey", StandardCharsets.UTF_8), 123);
     resetUnderTest();
     multimapState = underTest.state(NAMESPACE, addr);

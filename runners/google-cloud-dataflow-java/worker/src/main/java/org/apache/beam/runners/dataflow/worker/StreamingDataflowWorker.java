@@ -924,7 +924,7 @@ public final class StreamingDataflowWorker {
                 mapTask,
                 workExecutor,
                 stateNameMap,
-                stateCache.forComputation(mapTask.getStageName())));
+                stateCache.forComputation(mapTask.getStageName(), mapTask.getSystemName())));
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     FailureTracker failureTracker =
         options.isEnableStreamingEngine()
@@ -1197,26 +1197,23 @@ public final class StreamingDataflowWorker {
   }
 
   private void onCompleteCommit(CompleteCommit completeCommit) {
+    Optional<ComputationState> computationState =
+        computationStateCache.getIfPresent(completeCommit.computationId());
     if (completeCommit.status() != Windmill.CommitStatus.OK) {
       readerCache.invalidateReader(
           WindmillComputationKey.create(
               completeCommit.computationId(), completeCommit.shardedKey()));
-      stateCache
-          .forComputation(completeCommit.computationId())
-          .invalidate(completeCommit.shardedKey());
+      computationState.ifPresent(
+          state ->
+              stateCache
+                  .forComputation(completeCommit.computationId(), state.getSystemName())
+                  .invalidate(completeCommit.shardedKey()));
     }
 
-    computationStateCache
-        .getIfPresent(completeCommit.computationId())
-        .ifPresent(
-            state -> {
-              if (completeCommit.retryableFailure()) {
-                state.reexecuteActiveWork(completeCommit.shardedKey(), completeCommit.workId());
-              } else {
-                state.completeWorkAndScheduleNextWorkForKey(
-                    completeCommit.shardedKey(), completeCommit.workId());
-              }
-            });
+    computationState.ifPresent(
+        state ->
+            state.completeWorkAndScheduleNextWorkForKey(
+                completeCommit.shardedKey(), completeCommit.workId()));
   }
 
   @AutoValue

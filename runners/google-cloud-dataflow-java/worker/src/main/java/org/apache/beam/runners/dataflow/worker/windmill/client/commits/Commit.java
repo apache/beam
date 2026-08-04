@@ -66,9 +66,11 @@ public class Commit {
     return computationState().getComputationId();
   }
 
-  public @Nullable WorkItemCommitRequest singleKeyRequest() {
-    return singleKeyRequest;
-  };
+  public final String systemName() {
+    return computationState().getSystemName();
+  }
+
+  public abstract WorkItemCommitRequest request();
 
   public ComputationState computationState() {
     return computationState;

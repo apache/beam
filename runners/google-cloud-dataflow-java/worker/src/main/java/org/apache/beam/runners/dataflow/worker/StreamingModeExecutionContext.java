@@ -52,7 +52,6 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -266,6 +265,10 @@ public class StreamingModeExecutionContext
   @VisibleForTesting
   public final long getBacklogBytes() {
     return backlogBytes;
+  }
+
+  public String getSystemName() {
+    return systemName;
   }
 
   public long getMaxOutputKeyBytes() {
@@ -585,7 +588,7 @@ public class StreamingModeExecutionContext
       } catch (IOException e) {
         Windmill.WorkItem workItem = getWorkItem();
         long shardingKey = workItem != null ? workItem.getShardingKey() : -1L;
-        LOG.warn("Failed to close reader for {}-{}", computationId, shardingKey, e);
+        LOG.warn("Failed to close reader for {}-{}", systemName, shardingKey, e);
       }
     }
     activeReader = null;
@@ -726,11 +729,6 @@ public class StreamingModeExecutionContext
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
     currentBuilder.clear();
     currentBuilder.mergeFrom(truncationBuilder.build());
-
-    // TODO: throw and retry when truncation is not on a single key bundle.
-    checkState(
-        !multiKeyBundleOptions.multiKeyBundleEnabled(),
-        "Commit truncation not implemented for multikey bundles");
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
