@@ -226,8 +226,22 @@ public class DeltaIOIT {
     }
 
     if (!addActionsList.isEmpty()) {
-      io.delta.kernel.data.Row addAction = addActionsList.get(0);
-      version0FilePath = addAction.getString(addAction.getSchema().indexOf("path"));
+      io.delta.kernel.data.Row action = addActionsList.get(0);
+      int addOrdinal = action.getSchema().indexOf("add");
+      if (addOrdinal < 0) {
+        throw new IllegalStateException(
+            "Expected append action to contain 'add' field, but it didn't: " + action.getSchema());
+      }
+      io.delta.kernel.data.Row addAction = action.getStruct(addOrdinal);
+      if (addAction == null) {
+        throw new IllegalStateException("Action 'add' struct is null");
+      }
+      int pathOrdinal = addAction.getSchema().indexOf("path");
+      if (pathOrdinal < 0) {
+        throw new IllegalStateException(
+            "'add' action schema does not contain 'path': " + addAction.getSchema());
+      }
+      version0FilePath = addAction.getString(pathOrdinal);
     }
 
     CloseableIterable<io.delta.kernel.data.Row> dataActionsIterable =
