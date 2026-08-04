@@ -132,7 +132,7 @@ public class DeltaCdcReadSchemaTransformProvider
     @Nullable
     abstract Long getStartVersion();
 
-    @SchemaFieldDescription("Start timestamp of the Delta Lake table to read changes from.")
+    @SchemaFieldDescription("Start timestamp of the Delta Lake table to read changes from. Should be specified in the ISO 8601 standard.")
     @Nullable
     abstract String getStartTimestamp();
 
@@ -140,7 +140,7 @@ public class DeltaCdcReadSchemaTransformProvider
     @Nullable
     abstract Long getEndVersion();
 
-    @SchemaFieldDescription("End timestamp of the Delta Lake table to read changes up to.")
+    @SchemaFieldDescription("End timestamp of the Delta Lake table to read changes up to. Should be specified in the ISO 8601 standard.")
     @Nullable
     abstract String getEndTimestamp();
 
@@ -148,7 +148,7 @@ public class DeltaCdcReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getHadoopConfig();
 
-    @SchemaFieldDescription("Metadata columns to include in the output rows.")
+    @SchemaFieldDescription("Metadata columns to include in the output rows. Supported columns are: _change_type, _commit_version, and _commit_timestamp.")
     @Nullable
     abstract List<String> getIncludeMetadataColumns();
 

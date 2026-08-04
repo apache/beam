@@ -290,7 +290,9 @@ public class DeltaIO {
         if (!col.equals(CHANGE_TYPE_COLUMN)
             && !col.equals(COMMIT_VERSION_COLUMN)
             && !col.equals(COMMIT_TIMESTAMP_COLUMN)) {
-          throw new IllegalArgumentException("Unsupported metadata column: " + col);
+          throw new IllegalArgumentException(String.format(
+              "Unsupported metadata column %s. Supported columns are: %s, %s, and %s.",
+              col, CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN, COMMIT_TIMESTAMP_COLUMN));
         }
       }
       return toBuilder().setMetadataColumns(Arrays.asList(metadataColumns)).build();
