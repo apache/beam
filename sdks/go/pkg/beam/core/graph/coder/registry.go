@@ -78,19 +78,6 @@ func RegisterCoder(t reflect.Type, enc, dec any) {
 	}
 }
 
-// RegisterDeterministicCoder is the deterministic-affirming counterpart to
-// RegisterCoder: it registers the (enc, dec) pair for t AND records that the
-// resulting CustomCoder produces a deterministic encoding. The caller asserts
-// by calling this function that enc produces byte-identical output for any
-// two equal input values of type t.
-//
-// Deterministic coders are required for any type used as a state key in a
-// stateful DoFn, as the key of a KV consumed by GroupByKey / GroupIntoBatches,
-// or as a grouping key for CoGroupByKey.
-//
-// Prefer this over RegisterCoder whenever the encoded type may be used as a
-// key. For types that cannot guarantee determinism (e.g. encodings backed by
-// map[K]V iteration order), use the plain RegisterCoder.
 // RegisterDeterministicCoderWithFuncs is like RegisterDeterministicCoder
 // but accepts pre-wrapped reflectx.Func values (typically built via
 // reflectx.MakeFuncWithName) so the caller controls the function name
@@ -105,6 +92,19 @@ func RegisterDeterministicCoderWithFuncs(t reflect.Type, encFn, decFn *funcx.Fn)
 	deterministicRegistry[t] = true
 }
 
+// RegisterDeterministicCoder is the deterministic-affirming counterpart to
+// RegisterCoder: it registers the (enc, dec) pair for t AND records that the
+// resulting CustomCoder produces a deterministic encoding. The caller asserts
+// by calling this function that enc produces byte-identical output for any
+// two equal input values of type t.
+//
+// Deterministic coders are required for any type used as a state key in a
+// stateful DoFn, as the key of a KV consumed by GroupByKey / GroupIntoBatches,
+// or as a grouping key for CoGroupByKey.
+//
+// Prefer this over RegisterCoder whenever the encoded type may be used as a
+// key. For types that cannot guarantee determinism (e.g. encodings backed by
+// map[K]V iteration order), use the plain RegisterCoder.
 func RegisterDeterministicCoder(t reflect.Type, enc, dec any) {
 	RegisterCoder(t, enc, dec)
 	deterministicRegistry[t] = true
