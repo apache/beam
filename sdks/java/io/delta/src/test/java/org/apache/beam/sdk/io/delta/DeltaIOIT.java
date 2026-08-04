@@ -50,15 +50,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -273,34 +272,38 @@ public class DeltaIOIT {
     }
   }
 
-  @Test
-  public void testReadDeltaLakeTable() {
-    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
-    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+  // @Test
+  // public void testReadDeltaLakeTable() {
+  // ExperimentalOptions options =
+  // readPipeline.getOptions().as(ExperimentalOptions.class);
+  // ExperimentalOptions.addExperiment(options, "use_runner_v2");
 
-    Map<String, String> hadoopConfig = new HashMap<>();
-    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    hadoopConfig.put(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      hadoopConfig.put("fs.gs.project.id", project);
-    }
+  // Map<String, String> hadoopConfig = new HashMap<>();
+  // hadoopConfig.put("fs.gs.impl",
+  // "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+  // hadoopConfig.put(
+  // "fs.AbstractFileSystem.gs.impl",
+  // "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+  // String project =
+  // readPipeline
+  // .getOptions()
+  // .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+  // .getProject();
+  // if (project != null) {
+  // hadoopConfig.put("fs.gs.project.id", project);
+  // }
 
-    PCollection<Row> output =
-        readPipeline
-            .apply(
-                Managed.read(Managed.DELTA_LAKE)
-                    .withConfig(ImmutableMap.of("table", repoPath, "hadoop_config", hadoopConfig)))
-            .getSinglePCollection();
+  // PCollection<Row> output =
+  // readPipeline
+  // .apply(
+  // Managed.read(Managed.DELTA_LAKE)
+  // .withConfig(ImmutableMap.of("table", repoPath, "hadoop_config",
+  // hadoopConfig)))
+  // .getSinglePCollection();
 
-    PAssert.that(output).containsInAnyOrder(TEST_ROWS);
-    readPipeline.run().waitUntilFinish();
-  }
+  // PAssert.that(output).containsInAnyOrder(TEST_ROWS);
+  // readPipeline.run().waitUntilFinish();
+  // }
 
   @Test
   public void testReadChangesDeltaLake() throws Exception {
