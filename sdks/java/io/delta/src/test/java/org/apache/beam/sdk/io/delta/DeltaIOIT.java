@@ -50,6 +50,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -226,8 +227,22 @@ public class DeltaIOIT {
     }
 
     if (!addActionsList.isEmpty()) {
-      io.delta.kernel.data.Row addAction = addActionsList.get(0);
-      version0FilePath = addAction.getString(addAction.getSchema().indexOf("path"));
+      io.delta.kernel.data.Row action = addActionsList.get(0);
+      int addOrdinal = action.getSchema().indexOf("add");
+      if (addOrdinal < 0) {
+        throw new IllegalStateException(
+            "Expected append action to contain 'add' field, but it didn't: " + action.getSchema());
+      }
+      io.delta.kernel.data.Row addAction = action.getStruct(addOrdinal);
+      if (addAction == null) {
+        throw new IllegalStateException("Action 'add' struct is null");
+      }
+      int pathOrdinal = addAction.getSchema().indexOf("path");
+      if (pathOrdinal < 0) {
+        throw new IllegalStateException(
+            "'add' action schema does not contain 'path': " + addAction.getSchema());
+      }
+      version0FilePath = addAction.getString(pathOrdinal);
     }
 
     CloseableIterable<io.delta.kernel.data.Row> dataActionsIterable =
@@ -260,6 +275,9 @@ public class DeltaIOIT {
 
   @Test
   public void testReadDeltaLakeTable() {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+
     Map<String, String> hadoopConfig = new HashMap<>();
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(
@@ -286,6 +304,16 @@ public class DeltaIOIT {
 
   @Test
   public void testReadChangesDeltaLake() throws Exception {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    List<String> experiments = options.getExperiments();
+    if (experiments != null) {
+      List<String> modifiableExperiments = new java.util.ArrayList<>(experiments);
+      // TODO: remove this when Runner v2 supports elements that includes CDC metadata
+      // (ValueKind).
+      modifiableExperiments.remove("use_runner_v2");
+      options.setExperiments(modifiableExperiments);
+    }
+
     Map<String, String> hadoopConfig = new HashMap<>();
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(

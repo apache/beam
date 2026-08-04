@@ -225,9 +225,13 @@ final class DeltaWriteTestUtils {
     TransactionCommitResult result =
         txn.commit(engine, CloseableIterable.inMemoryIterable(dataActions));
     org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
-    File commitFile =
-        new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
-    commitFile.setLastModified(timestamp);
+    if (!tablePath.startsWith("gs://")
+        && !tablePath.startsWith("s3://")
+        && !tablePath.startsWith("hdfs://")) {
+      File commitFile =
+          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
+      commitFile.setLastModified(timestamp);
+    }
     return writtenFiles;
   }
 
@@ -335,7 +339,7 @@ final class DeltaWriteTestUtils {
           io.delta.kernel.internal.util.Utils.toCloseableIterator(
               Collections.singletonList(filteredBatch).iterator());
 
-      String cdcDir = new File(tablePath, "_change_data").getAbsolutePath();
+      String cdcDir = new org.apache.hadoop.fs.Path(tablePath, "_change_data").toString();
 
       CloseableIterator<DataFileStatus> cdcFiles =
           engine.getParquetHandler().writeParquetFiles(cdcDir, data, Collections.emptyList());
@@ -356,8 +360,12 @@ final class DeltaWriteTestUtils {
             CloseableIterable.inMemoryIterable(
                 io.delta.kernel.internal.util.Utils.toCloseableIterator(commitActions.iterator())));
     org.junit.Assert.assertEquals(expectedVersion, result.getVersion());
-    File commitFile =
-        new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
-    commitFile.setLastModified(timestamp);
+    if (!tablePath.startsWith("gs://")
+        && !tablePath.startsWith("s3://")
+        && !tablePath.startsWith("hdfs://")) {
+      File commitFile =
+          new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
+      commitFile.setLastModified(timestamp);
+    }
   }
 }
