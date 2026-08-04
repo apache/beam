@@ -59,6 +59,8 @@ dependencies {
     permitUnusedDeclared "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
     permitUnusedDeclared "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
 
+    runtimeOnly library.java.hadoop_aws
+
     // For Avro conversions
     testImplementation project(":sdks:java:extensions:avro")
 

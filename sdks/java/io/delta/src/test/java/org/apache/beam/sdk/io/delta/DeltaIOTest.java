@@ -1098,6 +1098,24 @@ public class DeltaIOTest {
     readPipeline.run().waitUntilFinish();
   }
 
+  @Test
+  public void testS3SchemeRegistrationWithAnonymousCredentials() {
+    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+    conf.set("fs.AbstractFileSystem.s3a.impl", "org.apache.hadoop.fs.s3a.S3A");
+    conf.set(
+        "fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
+
+    Engine engine = DefaultEngine.create(conf);
+    Table table = Table.forPath(engine, "s3://fake-bucket/table");
+    Exception e = Assert.assertThrows(Exception.class, () -> table.getLatestSnapshot(engine));
+    String msg = e.toString();
+    Assert.assertFalse(
+        "Should not throw UnsupportedFileSystemException. Error was: " + msg,
+        msg.contains("UnsupportedFileSystemException") || msg.contains("No FileSystem for scheme"));
+  }
+
   private static final class FormatValueKindAndRow extends DoFn<Row, String> {
     @ProcessElement
     public void process(
