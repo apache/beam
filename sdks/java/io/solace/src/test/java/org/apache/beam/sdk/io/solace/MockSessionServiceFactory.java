@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.solace;
 
 import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import org.apache.beam.sdk.io.solace.MockProducer.MockDelayedProducer;
+import org.apache.beam.sdk.io.solace.MockProducer.MockExceptionProducer;
 import org.apache.beam.sdk.io.solace.MockProducer.MockFailedProducer;
 import org.apache.beam.sdk.io.solace.MockProducer.MockSuccessProducer;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -80,6 +82,20 @@ public abstract class MockSessionServiceFactory extends SessionServiceFactory {
             .mode(mode())
             .mockProducerFn(MockFailedProducer::new)
             .build();
+      case WITH_DELAYED_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockDelayedProducer::new)
+            .build();
+      case WITH_EXCEPTION_PRODUCER:
+        return MockSessionService.builder()
+            .recordFn(recordFn())
+            .minMessagesReceived(minMessagesReceived())
+            .mode(mode())
+            .mockProducerFn(MockExceptionProducer::new)
+            .build();
       default:
         throw new RuntimeException(
             String.format("Unknown sessionServiceType: %s", sessionServiceType().name()));
@@ -89,6 +105,8 @@ public abstract class MockSessionServiceFactory extends SessionServiceFactory {
   public enum SessionServiceType {
     EMPTY,
     WITH_SUCCEEDING_PRODUCER,
-    WITH_FAILING_PRODUCER
+    WITH_FAILING_PRODUCER,
+    WITH_DELAYED_PRODUCER,
+    WITH_EXCEPTION_PRODUCER
   }
 }

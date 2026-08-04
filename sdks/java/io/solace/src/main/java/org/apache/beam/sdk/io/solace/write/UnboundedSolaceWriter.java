@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,6 +69,7 @@ public abstract class UnboundedSolaceWriter
 
   // This is the batch limit supported by the send multiple JCSMP API method.
   static final int SOLACE_BATCH_LIMIT = 50;
+  static final int ACKS_FLUSHING_INTERVAL_SECS = 10;
   private final Distribution latencyPublish =
       Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
 
@@ -132,7 +134,7 @@ public abstract class UnboundedSolaceWriter
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
-  public void publishResults(BeamContextWrapper context) {
+  public void publishResults(BeamContextWrapper context, @Nullable Set<String> messageIdsToAck) {
     long sumPublish = 0;
     long countPublish = 0;
     long minPublish = Long.MAX_VALUE;
@@ -154,6 +156,9 @@ public abstract class UnboundedSolaceWriter
     }
 
     while (result != null) {
+      if (messageIdsToAck != null) {
+        messageIdsToAck.remove(result.getMessageId());
+      }
       Long latency = result.getLatencyNanos();
 
       if (latency == null && shouldPublishLatencyMetrics()) {
@@ -215,6 +220,27 @@ public abstract class UnboundedSolaceWriter
                 TimeUnit.NANOSECONDS.toMillis(minFailed),
                 TimeUnit.NANOSECONDS.toMillis(maxFailed));
       }
+    }
+  }
+
+  public void waitForAcks(BeamContextWrapper context, Set<String> messageIdsToAck) {
+    long timeoutMs = System.currentTimeMillis() + ACKS_FLUSHING_INTERVAL_SECS * 1000;
+    while (!messageIdsToAck.isEmpty() && System.currentTimeMillis() < timeoutMs) {
+      publishResults(context, messageIdsToAck);
+      if (!messageIdsToAck.isEmpty()) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+    if (!messageIdsToAck.isEmpty()) {
+      LOG.warn(
+          "SolaceIO.Write: Timed out waiting for ACKs of {} messages. Outstanding message IDs: {}",
+          messageIdsToAck.size(),
+          messageIdsToAck);
     }
   }
 
