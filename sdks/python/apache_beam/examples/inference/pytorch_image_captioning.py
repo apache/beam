@@ -144,6 +144,14 @@ class PostProcessDoFn(beam.DoFn):
 # ============ Model Handlers ============
 
 
+class LoadedModel:
+  """Weak-referenceable container for a model and its processor."""
+
+  def __init__(self, model, processor):
+    self.model = model
+    self.processor = processor
+
+
 class BlipCaptionModelHandler(ModelHandler):
   def __init__(
       self,
@@ -166,7 +174,8 @@ class BlipCaptionModelHandler(ModelHandler):
     model = BlipForConditionalGeneration.from_pretrained(self.model_name)
     model.to(self.device)
     model.eval()
-    return (model, processor)
+
+    return LoadedModel(model=model, processor=processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
@@ -174,7 +183,8 @@ class BlipCaptionModelHandler(ModelHandler):
   def run_inference(
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    model, processor = model_bundle
+    blip_model = model_bundle.model
+    processor = model_bundle.processor
     start = now_millis()
 
     images = [x["image"] for x in batch]
@@ -187,7 +197,7 @@ class BlipCaptionModelHandler(ModelHandler):
     # We use num_return_sequences to generate multiple candidates per image.
     # Note: this will produce (B * num_captions) sequences.
     with torch.no_grad():
-      generated_ids = model.generate(
+      generated_ids = blip_model.generate(
           pixel_values=pixel_values,
           max_new_tokens=self.max_new_tokens,
           num_beams=max(self.num_beams, self.num_captions),
@@ -238,7 +248,8 @@ class ClipRankModelHandler(ModelHandler):
     model = CLIPModel.from_pretrained(self.model_name)
     model.to(self.device)
     model.eval()
-    return (model, processor)
+
+    return LoadedModel(model=model, processor=processor)
 
   def batch_elements_kwargs(self):
     return {"max_batch_size": self.batch_size}
@@ -246,7 +257,8 @@ class ClipRankModelHandler(ModelHandler):
   def run_inference(
       self, batch: List[Dict[str, Any]], model_bundle, inference_args=None):
 
-    model, processor = model_bundle
+    model = model_bundle.model
+    processor = model_bundle.processor
     start_batch = now_millis()
 
     # Flat lists for a single batched CLIP forward pass
