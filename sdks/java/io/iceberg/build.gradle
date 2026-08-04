@@ -173,6 +173,13 @@ task integrationTest(type: Test) {
     // against a non-default project's catalog.
     systemProperty "beam.iceberg.biglake.warehouse",
         project.findProperty('biglakeWarehouse') ?: 'gs://managed-iceberg-biglake-its'
+    // Connection + storage root for BigQueryManagedTableCrossEngineIT.
+    if (project.findProperty('bqImtConnection') != null) {
+        systemProperty "beam.bq.imt.connection", project.findProperty('bqImtConnection')
+    }
+    if (project.findProperty('bqImtStorageUri') != null) {
+        systemProperty "beam.bq.imt.storageUri", project.findProperty('bqImtStorageUri')
+    }
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
     outputs.upToDateWhen { false }
