@@ -133,6 +133,23 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   private static final TupleTag<Row> rows = new TupleTag<Row>() {};
   private static final TupleTag<Row> errors = new TupleTag<Row>() {};
 
+  /**
+   * Converts a {@link java.time.Instant} from a Timestamp logical type to Calcite TIMESTAMP millis.
+   * Calcite's TIMESTAMP is millisecond-based, so sub-millisecond values are rejected rather than
+   * silently truncated.
+   */
+  public static long timestampToCalciteMillis(java.time.Instant instant) {
+    long millis = instant.toEpochMilli();
+    // toEpochMilli truncates; reject rather than silently drop sub-millisecond precision.
+    if (!instant.equals(java.time.Instant.ofEpochMilli(millis))) {
+      throw new UnsupportedOperationException(
+          "Beam SQL cannot convert Timestamp values with sub-millisecond precision through"
+              + " Calcite (millis-based TIMESTAMP). Got: "
+              + instant);
+    }
+    return millis;
+  }
+
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
     super(cluster, traits, input, program);
   }
@@ -704,7 +721,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             return nullOr(
                 value,
                 Expressions.call(
-                    Expressions.convert_(value, java.time.Instant.class), "toEpochMilli"));
+                    BeamCalcRel.class,
+                    "timestampToCalciteMillis",
+                    Expressions.convert_(value, java.time.Instant.class)));
           } else if (FixedPrecisionNumeric.IDENTIFIER.equals(identifier)) {
             return Expressions.convert_(value, BigDecimal.class);
           } else if (logicalType instanceof PassThroughLogicalType) {

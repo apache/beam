@@ -116,6 +116,8 @@ public class CalciteUtils {
       FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
+  // TODO: Default SQL TIMESTAMP to Timestamp.MICROS (or equivalent) instead of FieldType.DATETIME
+  // once Beam SQL / Calcite can preserve microsecond precision end-to-end.
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
