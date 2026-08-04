@@ -222,7 +222,6 @@ public class BeamStatefulProcessor extends StatefulProcessor<byte[], byte[], byt
 
     Object key = decode(config.keyCoder(), encodedKey, "key");
     Coder<? extends BoundedWindow> windowCoder = config.windowCoder();
-    WindowingStrategy<?, ?> windowingStrategy = config.windowingStrategy();
 
     TwsStateInternals<Object> stateInternals = TwsStateInternals.forKey(key, BytesKV.of(beamState));
     TwsTimerInternals timerInternals =

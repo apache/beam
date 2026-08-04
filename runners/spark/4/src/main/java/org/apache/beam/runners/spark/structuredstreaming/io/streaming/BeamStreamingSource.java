@@ -127,8 +127,14 @@ public class BeamStreamingSource implements TableProvider, DataSourceRegister {
     return Base64.getEncoder().encodeToString(SerializableUtils.serializeToByteArray(value));
   }
 
-  /** Inverse of {@link #encode}, {@code description} is only used in error messages. */
-  @SuppressWarnings("unchecked")
+  /**
+   * Inverse of {@link #encode}, {@code description} is only used in error messages.
+   *
+   * <p>The return type is inferred from the call site. Deserialization cannot check it, and the
+   * decoded types include generic ones such as {@code Coder<WindowedValue<T>>} that no {@code
+   * Class} token can express, so a checked variant is not available here.
+   */
+  @SuppressWarnings({"unchecked", "TypeParameterUnusedInFormals"})
   static <T extends @NonNull Object> T decode(String encoded, String description) {
     return (T)
         SerializableUtils.deserializeFromByteArray(
